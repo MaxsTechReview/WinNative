@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp"
+    android:background="@drawable/content_dialog_background">
+
+    <!-- Left side: Verb input + Log output -->
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="start">
+
+        <EditText
+            android:id="@+id/editWinetricksVerb"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Enter Winetricks verb"
+            android:inputType="text" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="300dp"
+            android:fillViewport="true">
+
+            <TextView
+                android:id="@+id/textWinetricksOutput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="vertical"
+                android:background="#EEEEEE"
+                android:padding="8dp"
+                android:textColor="#000000"
+                android:gravity="start|top"
+                android:textIsSelectable="true" />
+        </ScrollView>
+    </LinearLayout>
+
+    <!-- Right side: Buttons -->
+    <LinearLayout
+        android:id="@+id/rightLayout"
+        android:orientation="vertical"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginLeft="16dp"
+        android:gravity="center_vertical">
+
+        <!-- Dragging handle -->
+        <Button
+            android:id="@+id/btnMove"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Move Window" />
+
+        <Button
+            android:id="@+id/btnExecuteWinetricks"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Execute Winetricks" />
+
+        <!--
+        <Button
+            android:id="@+id/btnExecuteWinetricksLatest"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Execute Winetricks Latest" />
+            -->
+
+        <Button
+            android:id="@+id/btnOpenWinetricksFolder"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Open Winetricks Folder" />
+
+        <Button
+            android:id="@+id/btnTransparentToggle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Toggle Transparency" />
+
+        <!-- **NEW** Hide/Minimize button -->
+        <Button
+            android:id="@+id/btnHideWinetricks"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Hide Winetricks" />
+
+        <Button
+            android:id="@+id/btnRestartWineserver"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Restart Wineserver" />
+
+
+    </LinearLayout>
+</LinearLayout>

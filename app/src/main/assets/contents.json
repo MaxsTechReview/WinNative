@@ -1,0 +1,4 @@
+[
+  { "type": "DXVK", "verName": "0.96", "verCode": 1, "remoteUrl": "https://github.com/longjunyu2/winlator/releases/download/v7.1.2/dxvk-0.96.wcp" },
+  { "type": "DXVK", "verName": "1.10.3", "verCode": 1, "remoteUrl": "https://github.com/longjunyu2/winlator/releases/download/v7.1.2/dxvk-1.10.3.wcp" }
+]

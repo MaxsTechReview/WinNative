@@ -1,0 +1,118 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    dependencies {
+        // Adjust Gradle plugin versions if needed
+        classpath 'com.android.tools.build:gradle:8.8.0'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0'
+    }
+
+}
+
+plugins {
+    id 'com.android.application'
+}
+
+
+
+tasks.register("prepareKotlinBuildScriptModel"){}
+
+android {
+    namespace 'com.winlator.cmod'
+    // Keep compileSdk from your current config. If you want to match Termux-X11, you could set to 34.
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.winlator.cmod"
+        minSdkVersion 26
+        // We’re preserving Winlator’s request to keep targetSdkVersion at 28
+        targetSdkVersion 28
+
+        versionCode 20
+        versionName "7.1.4x-cmod"
+
+        // External native build from Winlator
+        externalNativeBuild {
+            cmake {
+                cppFlags ''
+            }
+        }
+
+        // You originally only did arm64-v8a. If you want multi-ABI splits, see below.
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+
+    // Java versions: Winlator uses Java 17, Termux-X11 used 1.9
+    // Using 17 is typically fine (covers 1.9 features).
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // Keep Winlator’s buildTypes
+    buildTypes {
+        debug {
+            minifyEnabled false
+        }
+        // If you have a release build type, add it here
+    }
+
+    signingConfigs {
+        debug {
+            storeFile file('testkey_untrusted.jks')
+            keyAlias 'alias'
+            storePassword 'xrj45yWGLbsO7W0v'
+            keyPassword 'xrj45yWGLbsO7W0v'
+        }
+    }
+
+    ndkVersion '27.0.12077973'  // from your original config
+
+    externalNativeBuild {
+        cmake {
+            path 'src/main/cpp/CMakeLists.txt'
+        }
+    }
+
+    // If you want to be sure modern JNI packaging is used:
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+}
+
+dependencies {
+    // Winlator’s dependencies
+    implementation 'androidx.appcompat:appcompat:1.4.0'
+    implementation 'androidx.preference:preference:1.2.1'
+    implementation 'com.google.android.material:material:1.4.0'
+    implementation 'com.github.luben:zstd-jni:1.5.2-3@aar'
+    implementation 'org.tukaani:xz:1.7'
+    implementation 'org.apache.commons:commons-compress:1.20'
+    implementation 'androidx.activity:activity-ktx:1.4.0'
+    implementation 'androidx.fragment:fragment-ktx:1.4.0'
+    implementation files('libs/MidiSynth/MidiSynth.jar')
+    implementation 'androidx.recyclerview:recyclerview:1.2.0'
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.9.3'
+    implementation 'com.google.code.gson:gson:2.8.8'
+    implementation 'org.conscrypt:conscrypt-android:2.5.2'
+    implementation 'org.bouncycastle:bcprov-jdk15on:1.68'
+    implementation 'org.openjsse:openjsse:1.1.7'
+    implementation 'androidx.core:core:1.0.1'
+    implementation 'com.github.bumptech.glide:glide:4.11.0'
+    implementation 'com.kohlschutter.junixsocket:junixsocket-common:2.6.0'
+    implementation 'com.kohlschutter.junixsocket:junixsocket-native-common:2.6.0'
+    annotationProcessor 'com.github.bumptech.glide:compiler:4.11.0'
+}
+
+
+
