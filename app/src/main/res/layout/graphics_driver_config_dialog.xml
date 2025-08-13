@@ -29,11 +29,11 @@
             android:textAppearance="?android:attr/textAppearanceMedium"
             android:paddingBottom="8dp"/>
 
-        <Spinner
+        <com.winlator.cmod.widget.MultiSelectionComboBox
             style="@style/ComboBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:id="@+id/SGraphicsDriverAvailableExtensions"
+            android:id="@+id/MSCAvailableExtensions"
             android:spinnerMode="dialog"/>
 
         <TextView

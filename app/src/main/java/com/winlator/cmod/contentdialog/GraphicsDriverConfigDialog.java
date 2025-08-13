@@ -1,10 +1,8 @@
 package com.winlator.cmod.contentdialog;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.util.Log;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
@@ -12,18 +10,16 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
-import androidx.preference.PreferenceManager;
 
 import com.winlator.cmod.R;
 import com.winlator.cmod.contents.AdrenotoolsManager;
-import com.winlator.cmod.contents.ContentProfile;
 import com.winlator.cmod.contents.ContentsManager;
 import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.DefaultVersion;
 import com.winlator.cmod.core.GPUInformation;
 import com.winlator.cmod.core.StringUtils;
+import com.winlator.cmod.widget.MultiSelectionComboBox;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -33,9 +29,8 @@ import java.util.Map;
 public class GraphicsDriverConfigDialog extends ContentDialog {
 
     private static final String TAG = "GraphicsDriverConfigDialog"; // Tag for logging
-    HashMap<String, Boolean> extensionsState = new HashMap<>();
     private Spinner sVersion;
-    private Spinner sAvailableExtensions;
+    private MultiSelectionComboBox mscAvailableExtensions;
     private Spinner sMaxDeviceMemory;
     private Spinner sFrameSynchronization;
     private CheckBox cbAdrenotoolsTurnip;
@@ -44,51 +39,6 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
     private static String selectedDeviceMemory;
     private static String isAdrenotoolsTurnip = "1";
     private static String frameSynchronization;
-
-    protected class ExtensionAdapter extends ArrayAdapter<String> {
-        ArrayList<String> extensions;
-
-        public ExtensionAdapter(Context context, List<String> list) {
-            super(context, 0, list);
-            this.extensions = new ArrayList<>(list);
-        }
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            return initSpinnerElement(position, convertView, parent);
-        }
-
-        @Override
-        public View getDropDownView(int position, View convertView, ViewGroup parent) {
-            return initDropDownView(position, convertView, parent);
-        }
-
-        private View initSpinnerElement(int position, View convertView, ViewGroup parent) {
-            if (convertView == null) {
-                convertView = (View)new TextView(getContext());
-            }
-            Log.d(TAG, "Extensions size is: " + extensions.size());
-            ((TextView)convertView).setText(extensions.size() + " Extensions");
-            return convertView;
-        }
-
-        private View initDropDownView(int position, View convertView, ViewGroup parent) {
-            SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(getContext());
-            boolean isDarkMode = sp.getBoolean("dark_mode", false);
-            if (convertView == null) {
-                convertView = getLayoutInflater().inflate(R.layout.checkbox_spinner, parent, false);
-            }
-            CheckBox cb = convertView.findViewById(R.id.checkbox);
-            cb.setTextAppearance(isDarkMode ? R.style.CheckBox_Dark : R.style.CheckBox);
-            cb.setText(extensions.get(position));
-            cb.setOnCheckedChangeListener(null);
-            cb.setChecked(extensionsState.getOrDefault(extensions.get(position), true));
-            cb.setOnCheckedChangeListener((buttonView, isChecked) ->  {
-                extensionsState.put(extensions.get(position), isChecked);
-            });
-            return convertView;
-        }
-    }
 
     public static HashMap<String, String> parseGraphicsDriverConfig(String graphicsDriverConfig) {
         HashMap<String, String> mappedConfig = new HashMap<>();
@@ -131,8 +81,8 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         return graphicsDriverConfig;
     }
 
-    private ArrayList<String> queryAvailableExtensions(String driver, Context context) {
-        ArrayList<String> availableExtensions = new ArrayList<>(Arrays.asList(GPUInformation.enumerateExtensions(driver, context)));
+    private String[] queryAvailableExtensions(String driver, Context context) {
+        String[] availableExtensions = GPUInformation.enumerateExtensions(driver, context);
         return availableExtensions;
     }
   
@@ -148,7 +98,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         String graphicsDriverConfig = anchor.getTag().toString();
 
         sVersion = findViewById(R.id.SGraphicsDriverVersion);
-        sAvailableExtensions = findViewById(R.id.SGraphicsDriverAvailableExtensions);
+        mscAvailableExtensions = findViewById(R.id.MSCAvailableExtensions);
         sFrameSynchronization = findViewById(R.id.SGraphicsDriverFrameSync);
         sMaxDeviceMemory = findViewById(R.id.SGraphicsDriverMaxDeviceMemory);
         cbAdrenotoolsTurnip = findViewById(R.id.CBAdrenotoolsTurnip);
@@ -166,10 +116,11 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 selectedVersion = sVersion.getSelectedItem().toString();
-                ArrayList<String> availableExtensions = queryAvailableExtensions(selectedVersion, anchor.getContext());
+                String[] availableExtensions = queryAvailableExtensions(selectedVersion, anchor.getContext());
                 String blacklistedExtensions = "";
 
-                extensionsState.clear();
+                mscAvailableExtensions.setItems(availableExtensions, "Extensions");
+                mscAvailableExtensions.setSelectedItems(availableExtensions);
 
                 if(selectedVersion.equals(initialVersion))
                     blacklistedExtensions = blExtensions;
@@ -177,14 +128,8 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
                 String[] bl = blacklistedExtensions.split("\\,");
 
                 for (String extension : bl) {
-                    if (!extension.isEmpty() && availableExtensions.contains(extension)) {
-                        extensionsState.put(extension, false);
-                    }
+                    mscAvailableExtensions.unsetSelectedItem(extension);
                 }
-
-                ExtensionAdapter adapter = new ExtensionAdapter(anchor.getContext(), availableExtensions);
-                sAvailableExtensions.setAdapter(null);
-                sAvailableExtensions.setAdapter(adapter);
             }
 
             @Override
@@ -232,14 +177,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         populateGraphicsDriverVersions(anchor.getContext(), contentsManager, initialVersion, blExtensions, maxDeviceMemory, frameSync, graphicsDriver);
 
         setOnConfirmCallback(() -> {
-            for (HashMap.Entry<String, Boolean> entry : extensionsState.entrySet()) {
-                if(!entry.getKey().isEmpty() && !entry.getValue()) {
-                    blacklistedExtensions += entry.getKey() + ",";
-                }
-            }
-
-            if (!blacklistedExtensions.isEmpty())
-                blacklistedExtensions = blacklistedExtensions.substring(0, blacklistedExtensions.length() - 1);
+            blacklistedExtensions = mscAvailableExtensions.getUnSelectedItemsAsString();
 
             if (graphicsDriverVersionView != null)
                 graphicsDriverVersionView.setText(selectedVersion);
@@ -250,7 +188,6 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
 
     private void populateGraphicsDriverVersions(Context context, ContentsManager contentsManager, @Nullable String initialVersion, @Nullable String blExtensions, String maxDeviceMemory, String frameSync, String graphicsDriver) {
         List<String> wrapperVersions = new ArrayList<>();
-        ArrayList<String> availableExtensions;
 
         String[] wrapperDefaultVersions = context.getResources().getStringArray(R.array.wrapper_graphics_driver_version_entries);
 
