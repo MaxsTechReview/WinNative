@@ -19,6 +19,7 @@ public abstract class GPUInformation {
     }
 
     public native static String getVersion(String driverName, Context context);
+    public native static String getVulkanVersion(String driverName, Context context);
     public native static String getRenderer(String driverName, Context context);
     public native static long getMemorySize(String driverName, Context context);
     public native static String[] enumerateExtensions(String driverName, Context context);

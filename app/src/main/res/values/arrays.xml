@@ -84,6 +84,11 @@
         <item>immediate</item>
         <item>relaxed</item>
     </string-array>
+    <string-array name="vulkan_version_entries">
+        <item>1.1</item>
+        <item>1.2</item>
+        <item>1.3</item>
+    </string-array>
     <string-array name="video_memory_size_entries">
         <item>32 MB</item>
         <item>64 MB</item>

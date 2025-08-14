@@ -12,6 +12,21 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:text="@string/graphics_driver_vulkan_version"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:paddingBottom="8dp"/>
+
+        <Spinner
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:entries="@array/vulkan_version_entries"
+            android:id="@+id/SGraphicsDriverVulkanVersion"
+            android:spinnerMode="dialog"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:text="@string/graphics_driver_version"
             android:textAppearance="?android:attr/textAppearanceMedium"
             android:paddingBottom="8dp"/>

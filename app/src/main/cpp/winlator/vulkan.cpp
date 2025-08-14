@@ -162,6 +162,38 @@ Java_com_winlator_cmod_core_GPUInformation_getVersion(JNIEnv *env, jclass obj, j
 }
 
 extern "C" JNIEXPORT jstring JNICALL
+Java_com_winlator_cmod_core_GPUInformation_getVulkanVersion(JNIEnv *env, jclass obj, jstring driverName, jobject context) {
+    VkPhysicalDeviceProperties props = {};
+    char *vulkanVersion;
+    char *driver_name;
+    VkInstance instance;
+
+    if (driverName != NULL)
+        driver_name = (char *)env->GetStringUTFChars(driverName, nullptr);
+    else
+        driver_name = NULL;
+
+    instance = create_instance(driver_name, env, context);
+    PFN_vkGetPhysicalDeviceProperties getPhysicalDeviceProperties = (PFN_vkGetPhysicalDeviceProperties)gip(instance, "vkGetPhysicalDeviceProperties");
+    PFN_vkDestroyInstance destroyInstance = (PFN_vkDestroyInstance)gip(instance, "vkDestroyInstance");
+
+    for (const auto &pdevice: get_physical_devices(instance)) {
+        getPhysicalDeviceProperties(pdevice, &props);
+        uint32_t vk_driver_major = VK_VERSION_MAJOR(props.apiVersion);
+        uint32_t vk_driver_minor = VK_VERSION_MINOR(props.apiVersion);
+        uint32_t vk_driver_patch = VK_VERSION_PATCH(props.apiVersion);
+        asprintf(&vulkanVersion, "%d.%d.%d", vk_driver_major, vk_driver_minor,
+                 vk_driver_patch);
+    }
+
+    destroyInstance(instance, NULL);
+    if (driverName != NULL)
+        env->ReleaseStringUTFChars(driverName, driver_name);
+
+    return (env->NewStringUTF(vulkanVersion));
+}
+
+extern "C" JNIEXPORT jstring JNICALL
 Java_com_winlator_cmod_core_GPUInformation_getRenderer(JNIEnv *env, jclass obj, jstring driverName, jobject context) {
     VkPhysicalDeviceProperties props = {};
     char *renderer;

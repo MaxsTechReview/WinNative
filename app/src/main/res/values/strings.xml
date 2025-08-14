@@ -617,6 +617,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="graphics_driver_max_device_memory">Max Device Memory</string>
     <string name="graphics_driver_adrenotools_turnip">Use Adrenotools Turnip</string>
     <string name="graphics_driver_present_modes">Present Modes</string>
+    <string name="graphics_driver_vulkan_version">Vulkan Version</string>
     <string name="vkbasalt">vkBasalt</string>
     <string name="vkbasalt_sharpness_effects">Sharpness Effect</string>
     <string name="vkbasalt_sharpness_level">Sharpness Level</string>
