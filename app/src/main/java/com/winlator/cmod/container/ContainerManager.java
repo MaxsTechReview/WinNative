@@ -287,47 +287,6 @@ public class ContainerManager {
         return null;  // Return null if no matching container is found
     }
 
-    public void exportContainer(Container container, Runnable callback) {
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                // Create the export directory path
-                File exportDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Winlator/Backups/Containers");
-
-                if (!exportDir.exists() && !exportDir.mkdirs()) {
-                    Log.e("ContainerManager", "Failed to create export directory: " + exportDir.getPath());
-                    runOnUiThread(() -> callback.run()); // Close the preloader dialog
-                    return;
-                }
-
-                File containerDir = container.getRootDir();
-                File destinationDir = new File(exportDir, containerDir.getName());
-
-                if (destinationDir.exists()) {
-                    Log.e("ContainerManager", "Export directory already exists: " + destinationDir.getPath());
-                    runOnUiThread(() -> callback.run()); // Close the preloader dialog
-                    return;
-                }
-
-                if (!destinationDir.mkdirs()) {
-                    Log.e("ContainerManager", "Failed to create directory: " + destinationDir.getPath());
-                    runOnUiThread(() -> callback.run()); // Close the preloader dialog
-                    return;
-                }
-
-                if (!FileUtils.copy(containerDir, destinationDir, file -> FileUtils.chmod(file, 0771))) {
-                    Log.e("ContainerManager", "Failed to export some container files to: " + destinationDir.getPath());
-                    FileUtils.delete(destinationDir); // Optional: Delete partially copied directory
-                }
-
-                Log.d("ContainerManager", "Container exported successfully to: " + destinationDir.getPath());
-            } catch (Exception e) {
-                Log.e("ContainerManager", "Failed to export container: " + container.getName(), e);
-            } finally {
-                runOnUiThread(callback); // Ensure the callback runs and preloader dialog closes
-            }
-        });
-    }
-
     // Utility method to run on UI thread
     private void runOnUiThread(Runnable action) {
         new Handler(Looper.getMainLooper()).post(action);

@@ -237,31 +237,10 @@ public class ContainersFragment extends Fragment {
                     case R.id.container_info:
                         (new StorageInfoDialog(getActivity(), container)).show();
                         break;
-                    case R.id.container_export:
-                        exportContainer(container);
-                        break;
                 }
                 return true;
             });
             listItemMenu.show();
-        }
-
-        private void exportContainer(Container container) {
-            File backupDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Winlator/Backups/Containers");
-            preloaderDialog.show(R.string.exporting_container);
-
-            manager.exportContainer(container, () -> {
-                preloaderDialog.close(); // Ensure the dialog is closed after operation
-                showToast("Container exported successfully to " + backupDir.getPath());
-            });
-        }
-
-        private void showToast(String message) {
-            if (getActivity() != null) {
-                getActivity().runOnUiThread(() -> {
-                    Toast.makeText(getActivity(), message, Toast.LENGTH_SHORT).show();
-                });
-            }
         }
     }
 
