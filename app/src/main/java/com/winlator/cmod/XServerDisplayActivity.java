@@ -914,20 +914,12 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             case R.id.main_menu_touchpad_help:
                 showTouchpadHelpDialog();
                 break;
-            case R.id.main_menu_terminal:  // New case for TerminalActivity
-                openTerminal();
-                return true;
             case R.id.main_menu_exit:
                 drawerLayout.closeDrawers();
                 exit();
                 break;
         }
         return true;
-    }
-
-    private void openTerminal() {
-        Intent intent = new Intent(this, TerminalActivity.class);
-        startActivity(intent);
     }
 
     @Override

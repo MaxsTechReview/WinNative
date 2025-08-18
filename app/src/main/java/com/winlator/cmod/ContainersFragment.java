@@ -127,20 +127,10 @@ public class ContainersFragment extends Fragment {
                 toggleBigPictureMode();
                 return true;
 
-            case R.id.action_terminal:  // New case for TerminalActivity
-                openTerminal();
-                return true;
-
             default:
                 return super.onOptionsItemSelected(menuItem);
         }
     }
-
-    private void openTerminal() {
-        Intent intent = new Intent(getContext(), TerminalActivity.class);
-        startActivity(intent);
-    }
-
 
     // Show dialog to inform user about the import process
     private void showImportInfoDialog() {

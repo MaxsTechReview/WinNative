@@ -3,16 +3,6 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-
-
-    <item
-        android:id="@+id/action_terminal"
-        android:title="Open Terminal"
-        android:icon="@drawable/icon_env_var"
-        app:showAsAction="ifRoom" />
-
-
-
     <item
         android:id="@+id/action_big_picture_mode"
         android:title="Big Picture Mode"
