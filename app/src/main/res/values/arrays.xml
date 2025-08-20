@@ -23,8 +23,7 @@
     </string-array>
     <string-array name="wrapper_graphics_driver_version_entries">
         <item>System</item>
-        <item>v762</item>
-        <item>v805</item>
+        <item>v819</item>
         <item>turnip25.1.0</item>
     </string-array>
     <string-array name="audio_driver_entries">
