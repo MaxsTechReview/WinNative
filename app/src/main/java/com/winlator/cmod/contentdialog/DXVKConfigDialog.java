@@ -26,7 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class DXVKConfigDialog extends ContentDialog {
-    public static final String DEFAULT_CONFIG = "version="+DefaultVersion.DXVK+",framerate=0,async=0,asyncCache=0" + ",vkd3dVersion=" + DefaultVersion.VKD3D + ",vkd3dLevel=12_1" + ",ddrawrapper=" + Container.DEFAULT_DDRAWRAPPER;
+    public static final String DEFAULT_CONFIG = Container.DEFAULT_DXWRAPPERCONFIG;
     public static final int DXVK_TYPE_NONE = 0;
     public static final int DXVK_TYPE_ASYNC = 1;
     public static final int DXVK_TYPE_GPLASYNC = 2;

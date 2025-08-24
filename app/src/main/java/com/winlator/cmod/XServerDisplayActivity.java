@@ -49,6 +49,7 @@ import com.winlator.cmod.contentdialog.DXVKConfigDialog;
 import com.winlator.cmod.contentdialog.DebugDialog;
 import com.winlator.cmod.contentdialog.GraphicsDriverConfigDialog;
 import com.winlator.cmod.contentdialog.ScreenEffectDialog;
+import com.winlator.cmod.contentdialog.WineD3DConfigDialog;
 import com.winlator.cmod.contents.ContentProfile;
 import com.winlator.cmod.contents.ContentsManager;
 import com.winlator.cmod.contents.AdrenotoolsManager;
@@ -474,9 +475,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         this.graphicsDriverConfig = GraphicsDriverConfigDialog.parseGraphicsDriverConfig(graphicsDriverConfig);
 
-        if (dxwrapper.contains("dxvk")) {
-            this.dxwrapperConfig = DXVKConfigDialog.parseConfig(dxwrapperConfig);
-        }
+        this.dxwrapperConfig = DXVKConfigDialog.parseConfig(dxwrapperConfig);
 
         if (!wineInfo.isWin64()) {
             onExtractFileListener = (file, size) -> {
@@ -1463,6 +1462,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         if (dxwrapper.contains("dxvk"))
             DXVKConfigDialog.setEnvVars(this, dxwrapperConfig, envVars);
+        else
+            WineD3DConfigDialog.setEnvVars(this, dxwrapperConfig, envVars);
 
         boolean useDRI3 = preferences.getBoolean("use_dri3", true);
         if (!useDRI3) {
