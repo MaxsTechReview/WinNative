@@ -32,7 +32,7 @@ tasks.register("downloadImageFS") {
             println("ImageFS was not present, downloading...\n")
             FileOutputStream outputStream = new FileOutputStream(imageFS)
             for (int i = 0; i < parts; i++) {
-                File partFile = new File(String.format(assetDir + "/imagefs.txz.%02d", i))
+                File partFile = new File(assetDir, String.format("imagefs.txz.%02d", i))
                 String partURL = String.format("https://gitlab.com/winlator3/winlator-extra/-/raw/main/imagefs/imagefs.txz.%02d", i)
                 new URL(partURL).withInputStream { p ->
                     partFile.withOutputStream { it << p }
@@ -52,7 +52,7 @@ tasks.register("downloadImageFS") {
             println("The version of ImageFS present locally is older than remote or hasn't been downloaded properly, redownloading...\n")
             FileOutputStream outputStream = new FileOutputStream(imageFS)
             for (int i = 0; i < parts; i++) {
-                File partFile = new File(String.format(assetDir + "/imagefs.txz.%02d", i))
+                File partFile = new File(assetDir, String.format("imagefs.txz.%02d", i))
                 String partURL = String.format("https://gitlab.com/winlator3/winlator-extra/-/raw/main/imagefs/imagefs.txz.%02d", i)
                 new URL(partURL).withInputStream { p ->
                     partFile.withOutputStream { it << p }
