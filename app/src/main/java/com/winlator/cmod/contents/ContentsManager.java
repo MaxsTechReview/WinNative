@@ -24,7 +24,7 @@ import java.util.Map;
 
 public class ContentsManager {
     public static final String PROFILE_NAME = "profile.json";
-    public static final String REMOTE_PROFILES = "https://gitlab.com/winlator3/winlator-extra/-/raw/main/contents.json";
+    public static final String REMOTE_PROFILES = "https://raw.githubusercontent.com/StevenMXZ/Winlator-Contents/main/contents.json";
     public static final String[] DXVK_TRUST_FILES = {"${system32}/d3d8.dll", "${system32}/d3d9.dll", "${system32}/d3d10.dll", "${system32}/d3d10_1.dll",
             "${system32}/d3d10core.dll", "${system32}/d3d11.dll", "${system32}/dxgi.dll", "${syswow64}/d3d8.dll", "${syswow64}/d3d9.dll", "${syswow64}/d3d10.dll",
             "${syswow64}/d3d10_1.dll", "${syswow64}/d3d10core.dll", "${syswow64}/d3d11.dll", "${syswow64}/dxgi.dll"};
@@ -415,3 +415,4 @@ public class ContentsManager {
         return true;
     }
 }
+
