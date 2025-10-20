@@ -1,8 +1,8 @@
 
 
-\<p align="center"\>
-\<img src="logo.png" alt="Winlator Bionic" width="600"\>
-\</p\>
+<p align="center">
+  <img src="logo.png" alt="Winlator Bionic" width="600">
+</p>
 
 # Winlator Bionic
 
@@ -50,3 +50,4 @@ Many thanks to [ptitseb](https://github.com/ptitSeb) (Box86/Box64), [Danylo](htt
 
 Thank you to
 all the people who believe in this project.
+
