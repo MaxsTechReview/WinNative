@@ -36,7 +36,9 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
     private Spinner sMaxDeviceMemory;
     private Spinner sPresentMode;
     private Spinner sResourceType;
-
+    private Spinner sBCnEmulation;
+    private Spinner sBCnEmulationType;
+    private Spinner sBCnEmulationCache;
     private CheckBox cbSyncFrame;
     private CheckBox cbDisablePresentWait;
 
@@ -49,6 +51,9 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
     private static String isDisablePresentWait;
     private static String selectedPresentMode;
     private static String selectedResourceType;
+    private static String selectedBCnEmulation;
+    private static String selectedBCnEmulationType;
+    private static String isBCnCacheEnabled;
 
 
     public static HashMap<String, String> parseGraphicsDriverConfig(String graphicsDriverConfig) {
@@ -94,7 +99,10 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
                 "presentMode=" + selectedPresentMode + ";" +
                 "syncFrame=" + isSyncFrame + ";" +
                 "disablePresentWait=" + isDisablePresentWait + ";" +
-                "resourceType=" + selectedResourceType;
+                "resourceType=" + selectedResourceType + ";" +
+                "bcnEmulation=" + selectedBCnEmulation + ";" +
+                "bcnEmulationType=" + selectedBCnEmulationType + ";" +
+                "bcnEmulationCache=" + isBCnCacheEnabled;
         Log.i(TAG, "Written config " + graphicsDriverConfig);
         return graphicsDriverConfig;
     }
@@ -126,6 +134,9 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         sPresentMode = findViewById(R.id.SGraphicsDriverPresentMode);
         sMaxDeviceMemory = findViewById(R.id.SGraphicsDriverMaxDeviceMemory);
         sResourceType = findViewById(R.id.SGraphicsDriverResourceType);
+        sBCnEmulation = findViewById(R.id.SGraphicsDriverBCnEmulation);
+        sBCnEmulationType = findViewById(R.id.SGraphicsDriverBCnEmulationType);
+        sBCnEmulationCache = findViewById(R.id.SGraphicsDriverBCnEmulationCache);
         cbSyncFrame = findViewById(R.id.CBSyncFrame);
         cbDisablePresentWait = findViewById(R.id.CBDisablePresentWait);
 
@@ -139,6 +150,9 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         String disablePresentWait = config.get("disablePresentWait");
         String presentMode = config.get("presentMode");
         String resourceType = config.get("resourceType");
+        String bcnEmulation = config.get("bcnEmulation");
+        String bcnEmulationType = config.get("bcnEmulationType");
+        String bcnEmulationCache = config.get("bcnEmulationCache");
 
         // Update the selectedVersion whenever the user selects a different version
         sVersion.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -216,6 +230,42 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
             }
         });
 
+        sBCnEmulation.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                selectedBCnEmulation = sBCnEmulation.getSelectedItem().toString();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+
+            }
+        });
+
+        sBCnEmulationType.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                selectedBCnEmulationType = sBCnEmulationType.getSelectedItem().toString();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+
+            }
+        });
+
+        sBCnEmulationCache.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                isBCnCacheEnabled = sBCnEmulationCache.getSelectedItem().toString();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+
+            }
+        });
+
         isSyncFrame = syncFrame;
         cbSyncFrame.setChecked(isSyncFrame.equals("1") ? true : false);
         cbSyncFrame.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -233,7 +283,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         contentsManager.syncContents();
         
         // Populate the spinner with available versions from ContentsManager and pre-select the initial version
-        populateGraphicsDriverVersions(anchor.getContext(), contentsManager, vulkanVersion, initialVersion, blExtensions, maxDeviceMemory, presentMode, resourceType, graphicsDriver);
+        populateGraphicsDriverVersions(anchor.getContext(), contentsManager, vulkanVersion, initialVersion, blExtensions, maxDeviceMemory, presentMode, resourceType, bcnEmulation, bcnEmulationType, bcnEmulationCache, graphicsDriver);
 
         setOnConfirmCallback(() -> {
             blacklistedExtensions = mscAvailableExtensions.getUnSelectedItemsAsString();
@@ -245,7 +295,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         });
     }
 
-    private void populateGraphicsDriverVersions(Context context, ContentsManager contentsManager, String vulkanVersion, @Nullable String initialVersion, @Nullable String blExtensions, String maxDeviceMemory, String presentMode, String selectedResourceType, String graphicsDriver) {
+    private void populateGraphicsDriverVersions(Context context, ContentsManager contentsManager, String vulkanVersion, @Nullable String initialVersion, @Nullable String blExtensions, String maxDeviceMemory, String presentMode, String selectedResourceType, String bcnEmulation, String bcnEmulationType, String bcnEmulationCache, String graphicsDriver) {
         List<String> wrapperVersions = new ArrayList<>();
         String[] wrapperDefaultVersions = context.getResources().getStringArray(R.array.wrapper_graphics_driver_version_entries);
 
@@ -273,6 +323,9 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         AppUtils.setSpinnerSelectionFromNumber(sMaxDeviceMemory, maxDeviceMemory);
         AppUtils.setSpinnerSelectionFromValue(sPresentMode, presentMode);
         AppUtils.setSpinnerSelectionFromValue(sResourceType, selectedResourceType);
+        AppUtils.setSpinnerSelectionFromValue(sBCnEmulation, bcnEmulation);
+        AppUtils.setSpinnerSelectionFromValue(sBCnEmulationType, bcnEmulationType);
+        AppUtils.setSpinnerSelectionFromValue(sBCnEmulationCache, bcnEmulationCache);
 
         // We can log the spinner values now
         Log.d(TAG, "Spinner selected position: " + sVersion.getSelectedItemPosition());

@@ -105,6 +105,50 @@
                 android:entries="@array/resource_type_entries"
                 android:spinnerMode="dialog"/>
 
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/graphics_driver_bcn_emulation"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:paddingBottom="8dp"/>
+
+            <Spinner
+                style="@style/ComboBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/SGraphicsDriverBCnEmulation"
+                android:entries="@array/bcn_emulation_entries"
+                android:spinnerMode="dialog"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/graphics_driver_bcn_emulation_type"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:paddingBottom="8dp"/>
+
+            <Spinner
+                style="@style/ComboBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/SGraphicsDriverBCnEmulationType"
+                android:entries="@array/bcn_emulation_type_entries"
+                android:spinnerMode="dialog"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/graphics_driver_bcn_emulation_cache"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:paddingBottom="8dp"/>
+
+            <Spinner
+                style="@style/ComboBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/SGraphicsDriverBCnEmulationCache"
+                android:entries="@array/bcn_emulation_cache_entries"
+                android:spinnerMode="dialog"/>
         </LinearLayout>
     </ScrollView>
 
