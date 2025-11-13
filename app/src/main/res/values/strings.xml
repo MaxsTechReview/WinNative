@@ -622,10 +622,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="ddraw_wrapper">DDraw Wrapper</string>
     <string name="fexcore_version">FEXCore Version</string>
     <string name="graphics_driver_max_device_memory">Max Device Memory</string>
-    <string name="graphics_driver_adrenotools_turnip">Use Adrenotools Turnip</string>
     <string name="graphics_driver_sync_frame">Sync Every Frame</string>
     <string name="graphics_driver_disable_present_wait">Disable KHR_present_wait</string>
-    <string name="graphics_driver_enable_blit">Enable blitting</string>
     <string name="graphics_driver_present_modes">Present Modes</string>
     <string name="graphics_driver_resource_type">Memory Resource Type</string>
     <string name="graphics_driver_vulkan_version">Vulkan Version</string>
