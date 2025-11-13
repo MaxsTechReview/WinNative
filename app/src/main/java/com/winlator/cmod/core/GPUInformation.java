@@ -10,8 +10,8 @@ public abstract class GPUInformation {
         return getRenderer(null, context).toLowerCase().contains("adreno");
     }
 
-    public static boolean isTurnipSupported(String driverName, Context context) {
-        if (!isAdrenoGPU(context))
+    public static boolean isDriverSupported(String driverName, Context context) {
+        if (!isAdrenoGPU(context) && !driverName.equals("System"))
             return false;
 
         String renderer = getRenderer(driverName, context);

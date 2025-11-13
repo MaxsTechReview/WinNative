@@ -269,10 +269,10 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         List<String> wrapperVersions = new ArrayList<>();
         String[] wrapperDefaultVersions = context.getResources().getStringArray(R.array.wrapper_graphics_driver_version_entries);
 
-        if (GPUInformation.isAdrenoGPU(context))
-            wrapperVersions.addAll(Arrays.asList(wrapperDefaultVersions));
-        else
-            wrapperVersions.add(wrapperDefaultVersions[0]);
+        for (String version : wrapperDefaultVersions) {
+            if (GPUInformation.isDriverSupported(version, context))
+                wrapperVersions.add(version);
+        }
         
         // Add installed versions from AdrenotoolsManager
         AdrenotoolsManager adrenotoolsManager = new AdrenotoolsManager(context);
@@ -309,7 +309,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
             }
         }
 
-        AppUtils.setSpinnerSelectionFromValue(spinner, GPUInformation.isTurnipSupported(DefaultVersion.WRAPPER_ADRENO, getContext()) ? DefaultVersion.WRAPPER_ADRENO : DefaultVersion.WRAPPER);
+        AppUtils.setSpinnerSelectionFromValue(spinner, GPUInformation.isDriverSupported(DefaultVersion.WRAPPER_ADRENO, getContext()) ? DefaultVersion.WRAPPER_ADRENO : DefaultVersion.WRAPPER);
     }
 
 }
