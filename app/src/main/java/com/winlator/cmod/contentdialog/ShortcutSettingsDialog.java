@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.drawable.Icon;
 import android.util.Log;
+import android.view.Menu;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -51,6 +52,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 public class ShortcutSettingsDialog extends ContentDialog {
     private final ShortcutsFragment fragment;
@@ -137,6 +139,22 @@ public class ShortcutSettingsDialog extends ContentDialog {
         final Spinner sMIDISoundFont = findViewById(R.id.SMIDISoundFont);
         MidiManager.loadSFSpinner(sMIDISoundFont);
         AppUtils.setSpinnerSelectionFromValue(sMIDISoundFont, shortcut.getExtra("midiSoundFont", shortcut.container.getMIDISoundFont()));
+
+        final EditText etLC_ALL = findViewById(R.id.ETlcall);
+        etLC_ALL.setText(shortcut.getExtra("lc_all", shortcut.container.getLC_ALL()));
+
+        final View btShowLCALL = findViewById(R.id.BTShowLCALL);
+        btShowLCALL.setOnClickListener(v -> {
+            PopupMenu popupMenu = new PopupMenu(context, v);
+            String[] lcs = context.getResources().getStringArray(R.array.some_lc_all);
+            for (int i = 0; i < lcs.length; i++)
+                popupMenu.getMenu().add(Menu.NONE, i, Menu.NONE, lcs[i]);
+            popupMenu.setOnMenuItemClickListener(item -> {
+                etLC_ALL.setText(item.toString() + ".UTF-8");
+                return true;
+            });
+            popupMenu.show();
+        });
 
         FrameLayout fexcoreFL = findViewById(R.id.fexcoreFrame);
         String wineVersion = shortcut.container.getWineVersion();
@@ -336,6 +354,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
                 String dxwrapperConfig = vDXWrapperConfig.getTag().toString();
                 String audioDriver = StringUtils.parseIdentifier(sAudioDriver.getSelectedItem());
                 String emulator = StringUtils.parseIdentifier(sEmulator.getSelectedItem());
+                String lc_all = etLC_ALL.getText().toString();
                 String midiSoundFont = sMIDISoundFont.getSelectedItemPosition() == 0 ? "" : sMIDISoundFont.getSelectedItem().toString();
                 String screenSize = containerDetailFragment.getScreenSize(getContentView());
 
@@ -363,7 +382,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
                 shortcut.putExtra("audioDriver", audioDriver);
                 shortcut.putExtra("emulator", emulator);
                 shortcut.putExtra("midiSoundFont", midiSoundFont);
-
+                shortcut.putExtra("lc_all", lc_all);
 
                 shortcut.putExtra("fullscreenStretched", cbFullscreenStretched.isChecked() ? "1" : null);
 

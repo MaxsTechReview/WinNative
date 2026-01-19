@@ -65,9 +65,6 @@ public class ShortcutsFragment extends Fragment {
     private RecyclerView recyclerView;
     private TextView emptyTextView;
     private ContainerManager manager;
-
-    public static final int IMPORT_SHORTCUT = 1005;
-
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -215,9 +212,6 @@ public class ShortcutsFragment extends Fragment {
                 else if (itemId == R.id.shortcut_export) {
                     exportShortcut(shortcut);
                 }
-                else if (itemId == R.id.shortcut_import) {
-                    importShortcut(shortcut);
-                }
                 else if (itemId == R.id.shortcut_properties) {
                     showShortcutProperties(shortcut);
                 }
@@ -343,57 +337,6 @@ public class ShortcutsFragment extends Fragment {
             } catch (IOException e) {
                 Log.e("ShortcutsFragment", "Failed to export shortcut", e);
                 Toast.makeText(getContext(), "Failed to export shortcut", Toast.LENGTH_LONG).show();
-            }
-        }
-
-        private void importShortcut(Shortcut shortcut) {
-            SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getContext());
-            String uriString = sharedPreferences.getString("shortcuts_export_path_uri", null);
-            File shortcutsDir;
-            Container container = shortcut.container;
-            File desktopFile = shortcut.file;
-
-            if (uriString != null) {
-                // If custom URI is set, use it
-                Uri folderUri = Uri.parse(uriString);
-                DocumentFile pickedDir = DocumentFile.fromTreeUri(getContext(), folderUri);
-
-                if (pickedDir == null || !pickedDir.canWrite()) {
-                    Toast.makeText(getContext(), "Cannot write to the selected folder", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                shortcutsDir = new File(FileUtils.getFilePathFromUri(getContext(), folderUri));
-            } else {
-                shortcutsDir = new File(SettingsFragment.DEFAULT_SHORTCUT_EXPORT_PATH);
-            }
-
-            if (!shortcutsDir.exists()) {
-                Toast.makeText(getContext(), "There are no saved shortcuts, a shortcut to be imported need to be placed in the shortcut exports directory", Toast.LENGTH_LONG).show();
-                shortcutsDir.mkdirs();
-                return;
-            }
-
-            boolean found = false;
-
-            for (File f : shortcutsDir.listFiles()) {
-                if (f.getName().endsWith(".desktop")) {
-                    Shortcut tempShorcut = new Shortcut(container, f);
-                    if (tempShorcut.getExecutable().equals(shortcut.getExecutable())) {
-                        found = true;
-                        try {
-                            Files.copy(f.toPath(), desktopFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                            Toast.makeText(getContext(), "Shortcut imported successfully", Toast.LENGTH_SHORT).show();
-                            loadShortcutsList();
-                        } catch (IOException e) {
-                            Toast.makeText(getContext(), "Failed to import shortcut", Toast.LENGTH_SHORT).show();
-                        }
-                    }
-                }
-            }
-
-            if (!found) {
-                Toast.makeText(getContext(), "No shortcut matching the one to import has been found", Toast.LENGTH_SHORT).show();
             }
         }
 
