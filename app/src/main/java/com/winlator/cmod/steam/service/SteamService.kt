@@ -2902,6 +2902,7 @@ class SteamService : Service(), IChallengeUrlChanged {
                         val steamCloud = steamInstance?._steamCloud
 
                         if (steamInstance != null && appInfo != null && steamCloud != null) {
+                            progressWrapper("Checking Cloud Saves...", 0f)
                             val postSyncInfo = SteamAutoCloud.syncUserFiles(
                                 appInfo = appInfo,
                                 clientId = clientId,
@@ -3053,6 +3054,7 @@ class SteamService : Service(), IChallengeUrlChanged {
                             val steamCloud = steamInstance?._steamCloud
 
                             if (steamInstance != null && appInfo != null && steamCloud != null) {
+                                progressWrapper("Checking Local Saves...", 0f)
                                 val postSyncInfo = SteamAutoCloud.syncUserFiles(
                                     appInfo = appInfo,
                                     clientId = clientId,
