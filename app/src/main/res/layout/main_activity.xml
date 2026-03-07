@@ -2,34 +2,105 @@
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="horizontal"
-    android:background="@color/window_background_color_dark">
+    android:background="#0D0D0D">
 
-    <com.google.android.material.navigation.NavigationView
-        android:layout_width="240dp"
-        android:layout_height="match_parent"
-        android:id="@+id/NavigationView"
-        android:background="#1B2838"
-        app:itemTextColor="@color/white"
-        app:itemIconTint="#1A9FFF"
-        app:itemBackground="@drawable/nav_item_highlight"
-        app:menu="@menu/main_menu"/>
-
+    <!-- Sidebar: static header + scrollable nav -->
     <LinearLayout
+        android:layout_width="220dp"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@drawable/nav_sidebar_bg">
+
+        <!-- Static header (not affected by scroll/bounce) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="12dp">
+
+            <ImageView
+                android:id="@+id/nav_header_back"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:src="@drawable/ic_back_arrow"
+                android:background="@drawable/back_btn_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:elevation="6dp"
+                android:padding="10dp"
+                android:scaleType="centerInside"
+                android:contentDescription="Back"
+                tools:ignore="UseAppTint" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="14dp"
+                android:text="Settings"
+                android:fontFamily="@font/inter"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.03" />
+        </LinearLayout>
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="14dp"
+            android:background="@drawable/nav_header_divider" />
+
+        <!-- Scrollable nav menu -->
+        <com.google.android.material.navigation.NavigationView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:id="@+id/NavigationView"
+            android:theme="@style/NavNoRippleTheme"
+            android:background="@android:color/transparent"
+            android:scrollbarThumbVertical="@drawable/nav_scrollbar_thumb"
+            android:scrollbarSize="2dp"
+            android:scrollbarStyle="insideInset"
+            android:scrollbars="vertical"
+            android:fadeScrollbars="true"
+            android:scrollbarFadeDuration="320"
+            android:scrollbarDefaultDelayBeforeFade="220"
+            android:overScrollMode="ifContentScrolls"
+            android:clipToPadding="false"
+            android:paddingTop="6dp"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            app:itemTextColor="@color/nav_item_color"
+            app:itemIconTint="@color/nav_icon_color"
+            app:itemIconSize="24dp"
+            app:itemRippleColor="@null"
+            app:itemHorizontalPadding="14dp"
+            app:itemIconPadding="14dp"
+            app:itemTextAppearance="@style/NavMenuTextAppearance"
+            app:menu="@menu/main_menu"/>
+    </LinearLayout>
+
+    <!-- Edge divider between nav and content -->
+    <View
+        android:layout_width="1dp"
+        android:layout_height="match_parent"
+        android:background="@drawable/nav_edge_divider" />
+
+    <FrameLayout
+        android:id="@+id/FLFragmentContainer"
         android:layout_width="0dp"
         android:layout_weight="1"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:background="#171A21">
-
-
-
-        <FrameLayout
-            android:id="@+id/FLFragmentContainer"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent" />
-    </LinearLayout>
+        android:background="#111111" />
 
 </LinearLayout>

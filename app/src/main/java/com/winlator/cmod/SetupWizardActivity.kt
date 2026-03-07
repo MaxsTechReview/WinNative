@@ -175,35 +175,35 @@ class SetupWizardActivity : ComponentActivity() {
                 modifier = Modifier
                     .widthIn(max = 480.dp)
                     .fillMaxHeight()
-                    .padding(horizontal = 32.dp, vertical = 48.dp),
+                    .padding(horizontal = 32.dp, vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Spacer(Modifier.weight(0.35f)) // Extra room on top
+                Spacer(Modifier.weight(0.15f)) 
                 
                 Text(
                     "Welcome to WinNative",
-                    fontSize = 28.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = InterFont,
                     color = Color(0xFFE6EDF3),
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(2.dp))
 
                 Text(
                     "A few quick things before we get started.",
-                    fontSize = 15.sp,
+                    fontSize = 13.sp,
                     fontFamily = InterFont,
                     color = Color(0xFF8B949E),
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(Modifier.weight(0.75f)) 
+                Spacer(Modifier.weight(0.1f)) 
 
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     PermissionRow(
                         label = "File Access",
@@ -220,24 +220,22 @@ class SetupWizardActivity : ComponentActivity() {
                     )
                 }
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(16.dp))
 
                 if (error != null) {
                     Text(
                         text = error!!, 
                         color = Color(0xFFFF6B6B), 
-                        fontSize = 14.sp, 
+                        fontSize = 13.sp, 
                         fontFamily = InterFont,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(top = 16.dp)
+                        modifier = Modifier.padding(top = 8.dp)
                     )
                 }
 
-                Spacer(Modifier.weight(0.8f))
-
                 // Install progress or Finish button
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                    modifier = Modifier.fillMaxWidth().height(60.dp),
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     if (isInstalling || done) {
@@ -261,29 +259,28 @@ class SetupWizardActivity : ComponentActivity() {
                             verticalArrangement = Arrangement.Bottom // Push to bottom of box
                         ) {
                             val dots = ".".repeat(dotCount)
-                            // Use a fixed width box or pad string to prevent layout shifting
-                            val paddedDots = dots.padEnd(3, '\u00A0') // using non-breaking space for actual width in rendering
+                            val paddedDots = dots.padEnd(3, '\u00A0') 
                             Text(
-                                text = "Installing system files$paddedDots", 
+                                text = "Unpacking system files$paddedDots", 
                                 color = Color(0xFF8B949E), 
-                                fontSize = 14.sp, 
+                                fontSize = 13.sp, 
                                 fontFamily = InterFont
                             )
-                            Spacer(Modifier.height(12.dp))
+                            Spacer(Modifier.height(4.dp))
                             LinearProgressIndicator(
                                 progress = { animatedProgress },
                                 modifier = Modifier
                                     .fillMaxWidth(0.8f)
-                                    .height(8.dp),
+                                    .height(4.dp),
                                 color = Color(0xFF57CBDE),
                                 trackColor = Color(0xFF21262D),
                                 strokeCap = StrokeCap.Round
                             )
-                            Spacer(Modifier.height(8.dp))
+                            Spacer(Modifier.height(2.dp))
                             Text(
                                 text = "$progress%", 
                                 color = Color(0xFF57CBDE), 
-                                fontSize = 13.sp, 
+                                fontSize = 12.sp, 
                                 fontWeight = FontWeight.SemiBold, 
                                 fontFamily = SyncopateFont
                             )
@@ -296,14 +293,14 @@ class SetupWizardActivity : ComponentActivity() {
                                 }
                             },
                             enabled = storage && !isInstalling,
-                            modifier = Modifier.width(300.dp).height(48.dp),
+                            modifier = Modifier.fillMaxWidth(0.85f).height(38.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFF238636),
                                 contentColor = Color.White,
                                 disabledContainerColor = Color(0xFF30363D),
                                 disabledContentColor = Color(0xFF8B949E)
                             ),
-                            shape = RoundedCornerShape(24.dp),
+                            shape = RoundedCornerShape(19.dp),
                             elevation = ButtonDefaults.buttonElevation(
                                 defaultElevation = 6.dp,
                                 pressedElevation = 2.dp,
@@ -312,7 +309,7 @@ class SetupWizardActivity : ComponentActivity() {
                         ) {
                             Text(
                                 text = if (done) "Launch App" else "Finish Setup",
-                                fontSize = 16.sp,
+                                fontSize = 14.sp,
                                 fontFamily = InterFont,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 0.5.sp
@@ -320,6 +317,8 @@ class SetupWizardActivity : ComponentActivity() {
                         }
                     }
                 }
+
+                Spacer(Modifier.weight(0.85f))
             }
         }
     }
@@ -337,8 +336,8 @@ class SetupWizardActivity : ComponentActivity() {
             modifier = modifier
                 .fillMaxWidth()
                 .background(Color(0xFF161B22), RoundedCornerShape(12.dp))
-                .padding(horizontal = 20.dp, vertical = 12.dp)
-                .defaultMinSize(minHeight = 64.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .defaultMinSize(minHeight = 40.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -346,14 +345,14 @@ class SetupWizardActivity : ComponentActivity() {
                     text = label,
                     fontFamily = InterFont,
                     color = Color(0xFFE6EDF3),
-                    fontSize = 16.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = if (required) "Required" else "Optional",
                     fontFamily = InterFont,
                     color = Color(0xFF8B949E),
-                    fontSize = 13.sp
+                    fontSize = 11.sp
                 )
             }
             if (granted) {

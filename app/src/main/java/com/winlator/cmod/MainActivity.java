@@ -34,6 +34,7 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.preference.PreferenceManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.navigation.NavigationView;
 import com.winlator.cmod.R;
@@ -45,6 +46,13 @@ import com.winlator.cmod.container.ContainerManager;
 import com.winlator.cmod.container.Shortcut;
 import com.winlator.cmod.core.WineThemeManager;
 import com.winlator.cmod.xenvironment.ImageFsInstaller;
+
+import android.graphics.drawable.StateListDrawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.InsetDrawable;
+import android.graphics.drawable.RippleDrawable;
+import com.winlator.cmod.widget.ChasingBorderDrawable;
 
 import java.io.File;
 import java.util.List;
@@ -61,6 +69,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     public final PreloaderDialog preloaderDialog = new PreloaderDialog(this);
     private boolean editInputControls = false;
     private int selectedProfileId;
+    private int currentNavigationItemId = 0;
+    private RecyclerView navigationRecyclerView;
+    private final Runnable hideNavigationScrollbar = () -> {
+        if (navigationRecyclerView != null) {
+            navigationRecyclerView.setVerticalScrollBarEnabled(false);
+        }
+    };
     private SharedPreferences sharedPreferences;
     private ContainerManager containerManager;
     private boolean isDarkMode;
@@ -90,8 +105,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         setContentView(R.layout.main_activity);
 
+        findViewById(R.id.nav_header_back).setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
+
         navigationView = findViewById(R.id.NavigationView);
         navigationView.setNavigationItemSelectedListener(this);
+        navigationView.setItemBackground(createNavHighlightDrawable());
+        navigationView.post(this::stripNavigationItemRipple);
 
         // Background is dark (#1B2838), so text color from XML app:itemTextColor="@color/white" is correct.
         // We do not override it here.
@@ -237,35 +256,44 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         if (item == null) return false;
-        
+
+        if (item.getItemId() == currentNavigationItemId) {
+            return true;
+        }
+
         FragmentManager fragmentManager = getSupportFragmentManager();
         if (fragmentManager.getBackStackEntryCount() > 0) {
             fragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
         }
 
+        Fragment fragment = null;
         switch (item.getItemId()) {
-
             case R.id.main_menu_containers:
-                show(new ContainersFragment(), false);  // Forward animation
+                fragment = new ContainersFragment();
                 break;
             case R.id.main_menu_input_controls:
-                show(new InputControlsFragment(selectedProfileId), false);  // Forward animation
+                fragment = new InputControlsFragment(selectedProfileId);
                 break;
             case R.id.main_menu_contents:
-                show(new ContentsFragment(), false);  // Forward animation
+                fragment = new ContentsFragment();
                 break;
             case R.id.main_menu_adrenotools_gpu_drivers:
-                show(new AdrenotoolsFragment(), false);
+                fragment = new AdrenotoolsFragment();
                 break;
             case R.id.main_menu_stores:
-                show(new StoresFragment(), false);
+                fragment = new StoresFragment();
                 break;
             case R.id.main_menu_settings:
-                show(new SettingsFragment(), false);  // Forward animation
+                fragment = new SettingsFragment();
                 break;
             case R.id.main_menu_about:
                 showAboutDialog();
                 break;
+        }
+
+        if (fragment != null) {
+            show(fragment, false);
+            currentNavigationItemId = item.getItemId();
         }
         return true;
     }
@@ -356,5 +384,99 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             File userWallpaperFile = WineThemeManager.getUserWallpaperFile(this);
             ImageUtils.save(bitmap, userWallpaperFile, Bitmap.CompressFormat.PNG, 100);
         }
+    }
+
+    private StateListDrawable createNavHighlightDrawable() {
+        StateListDrawable states = new StateListDrawable();
+        float density = getResources().getDisplayMetrics().density;
+        int rightInset = (int) (10 * density);
+
+        // Only the selected item gets the animated outline.
+        ChasingBorderDrawable checkedDrawable = new ChasingBorderDrawable(8f, 1.5f, density);
+        states.addState(new int[]{android.R.attr.state_checked}, new InsetDrawable(checkedDrawable, 0, 0, rightInset, 0));
+
+        // Controller/keyboard focus on an unselected item should be static, not animated.
+        GradientDrawable focused = new GradientDrawable();
+        focused.setColor(0x00000000);
+        focused.setStroke((int) (1.5f * density), 0x5000D7F5);
+        focused.setCornerRadius(8 * density);
+        states.addState(new int[]{android.R.attr.state_focused, -android.R.attr.state_checked}, new InsetDrawable(focused, 0, 0, rightInset, 0));
+
+        // Hover uses the same static outline treatment.
+        GradientDrawable hovered = new GradientDrawable();
+        hovered.setColor(0x00000000);
+        hovered.setStroke((int) (1.5f * density), 0x5000D7F5);
+        hovered.setCornerRadius(8 * density);
+        states.addState(new int[]{android.R.attr.state_hovered, -android.R.attr.state_checked}, new InsetDrawable(hovered, 0, 0, rightInset, 0));
+
+        // Default state
+        GradientDrawable defaultState = new GradientDrawable();
+        defaultState.setColor(0x00000000);
+        defaultState.setCornerRadius(8 * density);
+        states.addState(new int[]{}, new InsetDrawable(defaultState, 0, 0, rightInset, 0));
+
+        return states;
+    }
+
+    private void stripNavigationItemRipple() {
+        for (int i = 0; i < navigationView.getChildCount(); i++) {
+            View child = navigationView.getChildAt(i);
+            if (!(child instanceof RecyclerView)) continue;
+
+            RecyclerView recyclerView = (RecyclerView) child;
+            configureNavigationRecyclerView(recyclerView);
+
+            for (int index = 0; index < recyclerView.getChildCount(); index++) {
+                applyNavigationItemBackground(recyclerView.getChildAt(index));
+            }
+        }
+    }
+
+    private void configureNavigationRecyclerView(RecyclerView recyclerView) {
+        if (navigationRecyclerView == recyclerView) {
+            return;
+        }
+
+        navigationRecyclerView = recyclerView;
+        navigationView.setVerticalScrollBarEnabled(false);
+        recyclerView.setItemAnimator(null);
+        recyclerView.setScrollbarFadingEnabled(true);
+        recyclerView.setScrollBarDefaultDelayBeforeFade(220);
+        recyclerView.setScrollBarFadeDuration(320);
+        recyclerView.setVerticalScrollBarEnabled(false);
+        recyclerView.addOnChildAttachStateChangeListener(new RecyclerView.OnChildAttachStateChangeListener() {
+            @Override
+            public void onChildViewAttachedToWindow(@NonNull View view) {
+                view.post(() -> applyNavigationItemBackground(view));
+            }
+
+            @Override
+            public void onChildViewDetachedFromWindow(@NonNull View view) {
+            }
+        });
+        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(@NonNull RecyclerView rv, int newState) {
+                rv.removeCallbacks(hideNavigationScrollbar);
+
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    rv.postDelayed(hideNavigationScrollbar, 540L);
+                } else {
+                    rv.setVerticalScrollBarEnabled(true);
+                }
+            }
+        });
+    }
+
+    private void applyNavigationItemBackground(@NonNull View itemView) {
+        Drawable background = itemView.getBackground();
+        if (background instanceof RippleDrawable || background == null) {
+            StateListDrawable navHighlightDrawable = createNavHighlightDrawable();
+            Drawable.ConstantState constantState = navHighlightDrawable.getConstantState();
+            itemView.setBackground(constantState != null
+                    ? constantState.newDrawable().mutate()
+                    : navHighlightDrawable.mutate());
+        }
+        itemView.setForeground(null);
     }
 }

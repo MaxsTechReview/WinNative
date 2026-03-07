@@ -91,6 +91,14 @@ android {
         viewBinding true
         buildConfig true
     }
+
+    sourceSets {
+        main {
+            res.srcDirs = [
+                    'src/main/res'
+            ]
+        }
+    }
 }
 
 dependencies {

@@ -681,6 +681,17 @@
         <item name="tint">@color/colorPrimary</item>
     </style>
 
+    <!-- Navigation menu item text style -->
+    <style name="NavMenuTextAppearance" parent="TextAppearance.AppCompat.Body1">
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:letterSpacing">0.02</item>
+    </style>
+
+    <style name="NavNoRippleTheme" parent="ThemeOverlay.AppCompat">
+        <item name="colorControlHighlight">@android:color/transparent</item>
+        <item name="android:colorControlHighlight">@android:color/transparent</item>
+    </style>
 
 </resources>
     <!--

@@ -1,13 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<menu
-  xmlns:android="http://schemas.android.com/apk/res/android">
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
     <group android:checkableBehavior="single">
-        <item android:icon="@drawable/icon_open" android:id="@+id/main_menu_stores" android:title="@string/stores" />
-        <item android:icon="@drawable/icon_open" android:id="@+id/main_menu_containers" android:title="Containers" />
-        <item android:icon="@drawable/icon_settings" android:id="@+id/main_menu_settings" android:title="@string/presets" />
-        <item android:icon="@drawable/icon_open" android:id="@+id/main_menu_contents" android:title="@string/components" />
-        <item android:icon="@drawable/icon_open" android:id="@+id/main_menu_adrenotools_gpu_drivers" android:title="@string/drivers" />
-        <item android:icon="@drawable/icon_input_controls" android:id="@+id/main_menu_input_controls" android:title="@string/input_controls" />
+        <item android:icon="@drawable/ic_stores" android:id="@+id/main_menu_stores" android:title="@string/stores" />
+        <item android:icon="@drawable/ic_containers" android:id="@+id/main_menu_containers" android:title="Containers" />
+        <item android:icon="@drawable/ic_presets" android:id="@+id/main_menu_settings" android:title="@string/presets" />
+        <item android:icon="@drawable/ic_components" android:id="@+id/main_menu_contents" android:title="@string/components" />
+        <item android:icon="@drawable/ic_drivers" android:id="@+id/main_menu_adrenotools_gpu_drivers" android:title="@string/drivers" />
+        <item android:icon="@drawable/ic_input_controls" android:id="@+id/main_menu_input_controls" android:title="@string/input_controls" />
     </group>
     <!-- Hidden items used as internal navigation targets -->
     <group android:checkableBehavior="single" android:visible="false">
