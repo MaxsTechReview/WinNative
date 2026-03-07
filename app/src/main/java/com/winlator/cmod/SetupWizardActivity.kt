@@ -7,15 +7,20 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.Environment
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +33,7 @@ import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.winlator.cmod.core.FileUtils
@@ -64,6 +70,10 @@ class SetupWizardActivity : ComponentActivity() {
 
         val InterFont = FontFamily(
             Font(googleFont = GoogleFont("Inter"), fontProvider = provider)
+        )
+        
+        val SyncopateFont = FontFamily(
+            Font(googleFont = GoogleFont("Syncopate"), fontProvider = provider)
         )
     }
 
@@ -168,7 +178,7 @@ class SetupWizardActivity : ComponentActivity() {
                     .padding(horizontal = 32.dp, vertical = 48.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Spacer(Modifier.weight(0.3f))
+                Spacer(Modifier.weight(0.35f)) // Extra room on top
                 
                 Text(
                     "Welcome to WinNative",
@@ -179,7 +189,7 @@ class SetupWizardActivity : ComponentActivity() {
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
 
                 Text(
                     "A few quick things before we get started.",
@@ -189,7 +199,7 @@ class SetupWizardActivity : ComponentActivity() {
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(Modifier.weight(0.5f))
+                Spacer(Modifier.weight(0.75f)) 
 
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -212,21 +222,6 @@ class SetupWizardActivity : ComponentActivity() {
 
                 Spacer(Modifier.height(24.dp))
 
-                // Install progress
-                if (isInstalling) {
-                    Text("Installing system files...", color = Color(0xFF8B949E), fontSize = 14.sp, fontFamily = InterFont)
-                    Spacer(Modifier.height(8.dp))
-                    LinearProgressIndicator(
-                        progress = { progress / 100f },
-                        modifier = Modifier.fillMaxWidth().height(8.dp),
-                        color = Color(0xFF57CBDE),
-                        trackColor = Color(0xFF21262D),
-                        strokeCap = StrokeCap.Round
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text("$progress%", color = Color(0xFF57CBDE), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, fontFamily = InterFont)
-                }
-
                 if (error != null) {
                     Text(
                         text = error!!, 
@@ -238,37 +233,92 @@ class SetupWizardActivity : ComponentActivity() {
                     )
                 }
 
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.weight(0.8f))
 
-                // Finish button
-                Button(
-                    onClick = {
-                        if (!isInstalling) {
-                            finishSetup()
-                        }
-                    },
-                    enabled = storage && !isInstalling,
-                    modifier = Modifier.width(300.dp).height(48.dp), // Fixed width to make it less imposing, still centered by Column
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF238636), // Solid dark mode green 
-                        contentColor = Color.White,
-                        disabledContainerColor = Color(0xFF30363D),
-                        disabledContentColor = Color(0xFF8B949E)
-                    ),
-                    shape = RoundedCornerShape(24.dp), // Fully rounded pill shape for 48dp height
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 6.dp,
-                        pressedElevation = 2.dp,
-                        disabledElevation = 0.dp
-                    )
+                // Install progress or Finish button
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                    contentAlignment = Alignment.BottomCenter
                 ) {
-                    Text(
-                        text = if (done) "Launch App" else if (isInstalling) "Installing..." else "Finish Setup",
-                        fontSize = 16.sp,
-                        fontFamily = InterFont,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
-                    )
+                    if (isInstalling || done) {
+                        val animatedProgress by animateFloatAsState(
+                            targetValue = progress / 100f,
+                            animationSpec = tween(durationMillis = 500),
+                            label = "installProgressAnim"
+                        )
+                        
+                        var dotCount by remember { mutableIntStateOf(0) }
+                        LaunchedEffect(Unit) {
+                            while (true) {
+                                delay(500)
+                                dotCount = (dotCount + 1) % 4
+                            }
+                        }
+
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Bottom // Push to bottom of box
+                        ) {
+                            val dots = ".".repeat(dotCount)
+                            // Use a fixed width box or pad string to prevent layout shifting
+                            val paddedDots = dots.padEnd(3, '\u00A0') // using non-breaking space for actual width in rendering
+                            Text(
+                                text = "Installing system files$paddedDots", 
+                                color = Color(0xFF8B949E), 
+                                fontSize = 14.sp, 
+                                fontFamily = InterFont
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            LinearProgressIndicator(
+                                progress = { animatedProgress },
+                                modifier = Modifier
+                                    .fillMaxWidth(0.8f)
+                                    .height(8.dp),
+                                color = Color(0xFF57CBDE),
+                                trackColor = Color(0xFF21262D),
+                                strokeCap = StrokeCap.Round
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = "$progress%", 
+                                color = Color(0xFF57CBDE), 
+                                fontSize = 13.sp, 
+                                fontWeight = FontWeight.SemiBold, 
+                                fontFamily = SyncopateFont
+                            )
+                        }
+                    } else {
+                        Button(
+                            onClick = {
+                                if (!isInstalling) {
+                                    finishSetup()
+                                }
+                            },
+                            enabled = storage && !isInstalling,
+                            modifier = Modifier.width(300.dp).height(48.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF238636),
+                                contentColor = Color.White,
+                                disabledContainerColor = Color(0xFF30363D),
+                                disabledContentColor = Color(0xFF8B949E)
+                            ),
+                            shape = RoundedCornerShape(24.dp),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 6.dp,
+                                pressedElevation = 2.dp,
+                                disabledElevation = 0.dp
+                            )
+                        ) {
+                            Text(
+                                text = if (done) "Launch App" else "Finish Setup",
+                                fontSize = 16.sp,
+                                fontFamily = InterFont,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -434,13 +484,28 @@ class SetupWizardActivity : ComponentActivity() {
                 clearRootDir(rootDir)
 
                 val compressionRatio = 22
+                
+                // Calculate total content length including imagefs and wine versions
+                var contentLength = 0L
                 val assetSize = FileUtils.getSize(this, "imagefs.txz")
-                // available() can return 0 for large assets; use fallback estimate
-                val contentLength = if (assetSize > 0) {
+                contentLength += if (assetSize > 0) {
                     (assetSize * (100.0f / compressionRatio)).toLong()
                 } else {
                     800_000_000L // ~800MB estimated uncompressed
                 }
+                
+                try {
+                    val versions = resources.getStringArray(R.array.wine_entries)
+                    for (version in versions) {
+                        val vAssetSize = FileUtils.getSize(this, "$version.txz")
+                        contentLength += if (vAssetSize > 0) {
+                            (vAssetSize * (100.0f / compressionRatio)).toLong()
+                        } else {
+                            100_000_000L // fallback estimate
+                        }
+                    }
+                } catch (_: Exception) {}
+
                 val totalSize = AtomicLong()
 
                 val listener = OnExtractFileListener { file, size ->
@@ -452,7 +517,7 @@ class SetupWizardActivity : ComponentActivity() {
                     file
                 }
 
-                val success = TarCompressorUtils.extract(
+                var success = TarCompressorUtils.extract(
                     Type.XZ,
                     this, "imagefs.txz", rootDir, listener
                 )
@@ -466,7 +531,7 @@ class SetupWizardActivity : ComponentActivity() {
                             outFile.mkdirs()
                             TarCompressorUtils.extract(
                                 Type.XZ,
-                                this, "$version.txz", outFile
+                                this, "$version.txz", outFile, listener
                             )
                         }
                     } catch (_: Exception) {}
@@ -478,10 +543,14 @@ class SetupWizardActivity : ComponentActivity() {
 
                     imageFs.createImgVersionFile(ImageFsInstaller.LATEST_VERSION.toInt())
                     runOnUiThread {
+                        installProgress.intValue = 100
                         installDone.value = true
                         installing.value = false
                         markSetupComplete(this)
-                        launchApp()
+                        // Add a slight delay so the user registers the 100% state before fading out
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            launchApp()
+                        }, 500)
                     }
                 } else {
                     runOnUiThread {
@@ -513,6 +582,8 @@ class SetupWizardActivity : ComponentActivity() {
 
     private fun launchApp() {
         startActivity(Intent(this, UnifiedActivity::class.java))
+        @Suppress("DEPRECATION")
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
         finish()
     }
 }
