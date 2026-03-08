@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Primary confirm button background used in Components dialogs. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#1591EB" />
+            <corners android:radius="14dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/settings_accent" />
+            <stroke
+                android:width="1dp"
+                android:color="@color/settings_chip_selected_stroke" />
+            <corners android:radius="14dp" />
+        </shape>
+    </item>
+</selector>

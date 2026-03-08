@@ -1,3 +1,4 @@
+/* Components/Drivers screen: manages Adreno driver download progress and install actions. */
 package com.winlator.cmod;
 
 import android.app.Activity;
@@ -67,7 +68,8 @@ public class AdrenotoolsFragment extends Fragment {
 
             new Thread(() -> {
                 File output = new File(getContext().getCacheDir(), "driver_temp_" + System.currentTimeMillis() + ".zip");
-                boolean success = Downloader.downloadFile(url, output, percent -> {
+                boolean success = Downloader.downloadFile(url, output, (downloadedBytes, totalBytes) -> {
+                    int percent = totalBytes > 0 ? (int)((downloadedBytes * 100) / totalBytes) : 0;
                     getActivity().runOnUiThread(() -> downloadDialog.setProgress(percent));
                 });
 

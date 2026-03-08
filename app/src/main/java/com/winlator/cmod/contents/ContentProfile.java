@@ -1,3 +1,4 @@
+/* Content metadata model backing the Components screen and install state tracking. */
 package com.winlator.cmod.contents;
 
 import androidx.annotation.NonNull;
@@ -60,4 +61,5 @@ public class ContentProfile {
     public String wineBinPath;
     public String winePrefixPack;
     public String remoteUrl;
+    public boolean isInstalled;
 }

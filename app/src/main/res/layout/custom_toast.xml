@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Shared toast layout used for app-wide status and feedback messages. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="horizontal"
     android:layout_width="match_parent"
@@ -8,11 +9,10 @@
     android:background="@drawable/custom_toast_background">
 
     <ImageView
-        android:src="@drawable/icon_info"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
-        android:tint="@color/colorAccent"
-        android:layout_marginRight="10dp" />
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_marginRight="10dp"
+        android:src="@mipmap/ic_launcher" />
 
     <TextView
         android:id="@+id/TextView"

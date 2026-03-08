@@ -1,3 +1,4 @@
+/* Components data layer: loads, merges, installs, and removes local and remote content packages. */
 package com.winlator.cmod.contents;
 
 import android.content.Context;
@@ -18,6 +19,7 @@ import java.io.File;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -123,23 +125,34 @@ public class ContentsManager {
         }
 
         for (ContentProfile.ContentType type : ContentProfile.ContentType.values()) {
-            List<ContentProfile> profiles = profilesMap.get(type);
-
+            Map<String, ContentProfile> mergedProfiles = new LinkedHashMap<>();
 
             // Load local profiles
             File typeFile = getContentTypeDir(context, type);
             File[] fileList = typeFile.listFiles();
             if (fileList != null) {
                 for (File file : fileList) {
+                    if (!file.isDirectory()) {
+                        continue;
+                    }
+
+                    ContentProfile profile = null;
                     File proFile = new File(file, PROFILE_NAME);
                     if (proFile.exists() && proFile.isFile()) {
-                        ContentProfile profile = readProfile(proFile);
-                        if (profile != null) {
-                            profiles.add(profile);
-                            Log.d("ContentsManager", "Local profile loaded: " + profile.verName);
-                        } else {
+                        profile = readProfile(proFile);
+                        if (profile == null) {
                             Log.w("ContentsManager", "Invalid local profile at: " + proFile.getAbsolutePath());
                         }
+                    }
+
+                    if (profile == null) {
+                        profile = createInstalledFallbackProfile(type, file);
+                    }
+
+                    if (profile != null) {
+                        profile.isInstalled = true;
+                        mergedProfiles.put(getProfileKey(profile), profile);
+                        Log.d("ContentsManager", "Local profile loaded: " + profile.verName);
                     }
                 }
             }
@@ -148,20 +161,30 @@ public class ContentsManager {
             if (remoteProfiles != null) {
                 for (ContentProfile remote : remoteProfiles) {
                     if (remote.type == type) {
-                        boolean exists = false;
-                        for (ContentProfile profile : profiles) {
-                            if (profile.verName.equals(remote.verName) && profile.verCode == remote.verCode) {
-                                exists = true;
-                                break;
+                        remote.isInstalled = isInstalled(context, remote);
+
+                        String aliasProfileKey = getRemoteProfileAlias(remote.remoteUrl);
+                        if (aliasProfileKey != null) {
+                            ContentProfile aliasedProfile = mergedProfiles.get(aliasProfileKey);
+                            if (aliasedProfile != null && aliasedProfile.isInstalled) {
+                                mergeRemoteMetadata(aliasedProfile, remote);
+                                continue;
                             }
                         }
-                        if (!exists) {
-                            profiles.add(remote);
+
+                        String profileKey = getProfileKey(remote);
+                        ContentProfile existingProfile = mergedProfiles.get(profileKey);
+                        if (existingProfile == null) {
+                            mergedProfiles.put(profileKey, remote);
                             Log.d("ContentsManager", "Remote profile added: " + remote.verName);
+                        } else {
+                            mergeRemoteMetadata(existingProfile, remote);
                         }
                     }
                 }
             }
+
+            profilesMap.put(type, new LinkedList<>(mergedProfiles.values()));
         }
     }
 
@@ -270,6 +293,7 @@ public class ContentsManager {
             profile.verCode = verCode;
             profile.desc = desc;
             profile.fileList = fileList;
+            profile.isInstalled = isInstalled(context, profile);
             return profile;
         } catch (Exception e) {
             return null;
@@ -284,6 +308,10 @@ public class ContentsManager {
 
     public static File getInstallDir(Context context, ContentProfile profile) {
         return new File(getContentTypeDir(context, profile.type), profile.verName + "-" + profile.verCode);
+    }
+
+    public static boolean isInstalled(Context context, ContentProfile profile) {
+        return profile != null && profile.type != null && profile.verName != null && getInstallDir(context, profile).exists();
     }
 
     public static File getContentDir(Context context) {
@@ -376,6 +404,62 @@ public class ContentsManager {
 
     public static String getEntryName(ContentProfile profile) {
         return profile.type.toString() + '-' + profile.verName + '-' + profile.verCode;
+    }
+
+    public void registerRemoteProfileAlias(String remoteUrl, ContentProfile profile) {
+        if (remoteUrl == null || remoteUrl.isEmpty() || profile == null) {
+            return;
+        }
+        preferences.edit()
+                .putString(getRemoteAliasPreferenceKey(remoteUrl), getProfileKey(profile))
+                .apply();
+    }
+
+    private static String getProfileKey(ContentProfile profile) {
+        return getProfileKey(profile.type, profile.verName, profile.verCode);
+    }
+
+    private static String getProfileKey(ContentProfile.ContentType type, String verName, int verCode) {
+        return type + "|" + verName + "|" + verCode;
+    }
+
+    private void mergeRemoteMetadata(ContentProfile localProfile, ContentProfile remoteProfile) {
+        if (localProfile.remoteUrl == null) {
+            localProfile.remoteUrl = remoteProfile.remoteUrl;
+        }
+        localProfile.isInstalled = true;
+    }
+
+    private String getRemoteProfileAlias(String remoteUrl) {
+        if (remoteUrl == null || remoteUrl.isEmpty()) {
+            return null;
+        }
+        return preferences.getString(getRemoteAliasPreferenceKey(remoteUrl), null);
+    }
+
+    private String getRemoteAliasPreferenceKey(String remoteUrl) {
+        return "remote_profile_alias_" + remoteUrl;
+    }
+
+    private ContentProfile createInstalledFallbackProfile(ContentProfile.ContentType type, File installDir) {
+        String directoryName = installDir.getName();
+        int splitIndex = directoryName.lastIndexOf('-');
+        if (splitIndex <= 0 || splitIndex >= directoryName.length() - 1) {
+            Log.w("ContentsManager", "Skipping unreadable installed content directory: " + installDir.getAbsolutePath());
+            return null;
+        }
+
+        try {
+            ContentProfile profile = new ContentProfile();
+            profile.type = type;
+            profile.verName = directoryName.substring(0, splitIndex);
+            profile.verCode = Integer.parseInt(directoryName.substring(splitIndex + 1));
+            profile.isInstalled = true;
+            return profile;
+        } catch (NumberFormatException e) {
+            Log.w("ContentsManager", "Skipping unreadable installed content directory: " + installDir.getAbsolutePath(), e);
+            return null;
+        }
     }
 
     public ContentProfile getProfileByEntryName(String entryName) {

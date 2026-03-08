@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Modal overlay shown while Components downloads and installs are in progress. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#A6000000"
+    android:clickable="true"
+    android:focusable="true"
+    android:foregroundGravity="center"
+    android:gravity="center">
+
+    <LinearLayout
+        android:id="@+id/TransferCard"
+        android:layout_width="360dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/content_transfer_surface"
+        android:elevation="10dp"
+        android:orientation="vertical"
+        android:paddingHorizontal="22dp"
+        android:paddingTop="20dp"
+        android:paddingBottom="18dp">
+
+        <TextView
+            android:id="@+id/TVTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/inter"
+            android:letterSpacing="0.08"
+            android:text="@string/contents_downloading_title"
+            android:textAllCaps="true"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/TVMessage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:fontFamily="@font/inter"
+            android:lineSpacingExtra="2dp"
+            android:maxLines="3"
+            android:textColor="@color/settings_text_primary"
+            android:textSize="16sp"
+            android:textStyle="normal" />
+
+        <ProgressBar
+            android:id="@+id/ProgressBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="10dp"
+            android:layout_marginTop="18dp"
+            android:indeterminate="false"
+            android:indeterminateTint="@color/settings_accent"
+            android:max="100"
+            android:progress="0"
+            android:progressBackgroundTint="#243346"
+            android:progressTint="@color/settings_accent"
+            android:thumbTint="@android:color/transparent" />
+
+        <TextView
+            android:id="@+id/TVProgress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:fontFamily="@font/inter"
+            android:gravity="end"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+</FrameLayout>

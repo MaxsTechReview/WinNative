@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notice icon shown in the Components install trust warning dialog. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M12,4.75A7.25,7.25 0 1,1 12,19.25A7.25,7.25 0 1,1 12,4.75"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="1.9" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M12,8.6 L12,12.8"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeWidth="1.9" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M12,15.8m-1.05,0a1.05,1.05 0 1,1 2.1,0a1.05,1.05 0 1,1 -2.1,0" />
+</vector>

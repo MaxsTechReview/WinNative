@@ -1,69 +1,103 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Main Components screen layout with content type tabs, list sections, and install action. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@color/window_background_color_dark"
-    android:padding="16.dp">
-
-
+    android:background="@color/window_background_color_dark">
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:background="@drawable/tab_layout_background_dark"
-        android:padding="8dp"
-        android:layout_marginBottom="16dp">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/content_header_surface"
+            android:orientation="vertical"
+            android:paddingHorizontal="14dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/inter"
+                android:gravity="center"
+                android:letterSpacing="0.08"
+                android:text="@string/content_type"
+                android:textAllCaps="true"
+                android:textColor="@color/settings_text_secondary"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <HorizontalScrollView
+                android:id="@+id/HSVContentTypeNav"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:clipToPadding="false"
+                android:fadeScrollbars="false"
+                android:fillViewport="true"
+                android:overScrollMode="ifContentScrolls"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/LLContentTypeTabs"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+        </LinearLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/RecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingBottom="76dp"
+            android:scrollbarThumbVertical="@drawable/nav_scrollbar_thumb"
+            android:scrollbarSize="2dp"
+            android:scrollbarStyle="insideInset"
+            android:scrollbars="vertical"
+            android:fadeScrollbars="true"
+            android:scrollbarFadeDuration="320"
+            android:scrollbarDefaultDelayBeforeFade="220"
+            android:overScrollMode="ifContentScrolls"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/content_type"
-            android:textColor="@color/white"
-            android:layout_marginEnd="12dp"
-            android:textStyle="bold" />
-
-        <Spinner
-            android:id="@+id/SContentType"
-            style="@style/ComboBox"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:id="@+id/TVEmptyText"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
             android:layout_weight="1"
-            android:backgroundTint="@color/white" />
-
+            android:fontFamily="@font/inter"
+            android:gravity="center"
+            android:paddingHorizontal="24dp"
+            android:paddingBottom="76dp"
+            android:text="@string/no_items_to_display"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="15sp"
+            android:visibility="gone" />
     </LinearLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/RecyclerView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:scrollbars="vertical"
-        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
-
-    <TextView
-        android:id="@+id/TVEmptyText"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:gravity="center"
-        android:text="@string/no_items_to_display"
-        android:textColor="@color/white"
-        android:textSize="18sp"
-        android:visibility="gone" />
-
-    <Button
+    <ImageButton
         android:id="@+id/BTInstallContent"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:text="@string/install_content"
-        android:textColor="@color/white"
-        android:backgroundTint="#1A9FFF"
-        android:layout_marginTop="16dp"
-        android:textAllCaps="true"
-        android:textStyle="bold" />
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="20dp"
+        android:background="@drawable/content_fab_background"
+        android:contentDescription="@string/install_content"
+        android:elevation="6dp"
+        android:padding="12dp"
+        android:src="@drawable/ic_content_add"
+        app:tint="@color/white" />
 
-</LinearLayout>
+</FrameLayout>

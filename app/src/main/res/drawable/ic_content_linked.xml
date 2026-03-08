@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Link icon reserved for Components items associated with existing installed content. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M10.59,13.41a1,1 0,0 1,0 -1.41l2.83,-2.83a3,3 0,1 1,4.24 4.24l-1.77,1.77a3,3 0,0 1,-4.24 0,1 1,0 1,1 1.41,-1.41 1,1 0,0 0,1.42 0l1.77,-1.77a1,1 0,1 0,-1.42 -1.41l-2.83,2.82a1,1 0,0 1,-1.41 0ZM13.41,10.59a1,1 0,0 1,0 1.41l-2.82,2.83a3,3 0,0 1,-4.24 -4.24l1.77,-1.77a3,3 0,0 1,4.24 0,1 1,0 1,1 -1.41,1.41 1,1 0,0 0,-1.42 0L7.76,12a1,1 0,1 0,1.42 1.41L12,10.59a1,1 0,0 1,1.41 0Z" />
+</vector>

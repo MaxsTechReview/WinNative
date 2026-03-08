@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+    <!-- Shared widget styling, including Components dialogs, menus, and action buttons. -->
 <resources>
     <!-- Light Theme -->
     <style name="AppTheme" parent="@style/Theme.AppCompat.Light.NoActionBar">
@@ -120,16 +121,51 @@
         <item name="android:popupBackground">@drawable/content_dialog_background_dark</item>
     </style>
 
+    <style name="Widget.ContentPopupMenu" parent="Widget.AppCompat.PopupMenu">
+        <item name="android:popupBackground">@drawable/content_popup_menu_background</item>
+        <item name="android:popupAnimationStyle">@style/ContentPopupMenuAnimation</item>
+        <item name="android:dropDownHorizontalOffset">-10dp</item>
+        <item name="android:dropDownVerticalOffset">6dp</item>
+        <item name="android:popupElevation">18dp</item>
+    </style>
+
+    <style name="ContentPopupMenuAnimation">
+        <item name="android:windowEnterAnimation">@anim/content_popup_menu_enter</item>
+        <item name="android:windowExitAnimation">@anim/content_popup_menu_exit</item>
+    </style>
+
+    <style name="TextAppearance.ContentPopupMenu.Item" parent="TextAppearance.AppCompat.Body1">
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="android:textColor">@color/settings_text_primary</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+
+    <style name="ThemeOverlay.ContentPopupMenu" parent="ThemeOverlay.AppCompat.Dark">
+        <item name="android:textColorPrimary">@color/settings_text_primary</item>
+        <item name="textAppearanceLargePopupMenu">@style/TextAppearance.ContentPopupMenu.Item</item>
+        <item name="textAppearanceSmallPopupMenu">@style/TextAppearance.ContentPopupMenu.Item</item>
+        <item name="android:textAppearanceLargePopupMenu">@style/TextAppearance.ContentPopupMenu.Item</item>
+        <item name="android:textAppearanceSmallPopupMenu">@style/TextAppearance.ContentPopupMenu.Item</item>
+        <item name="popupMenuStyle">@style/Widget.ContentPopupMenu</item>
+        <item name="android:popupMenuStyle">@style/Widget.ContentPopupMenu</item>
+    </style>
+
     <style name="ContentDialog" parent="@android:style/Theme.Dialog">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
-        <item name="android:windowBackground">@drawable/content_dialog_background</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@style/ContentDialogAnimation</item>
+    </style>
+
+    <style name="ContentDialogAnimation">
+        <item name="android:windowEnterAnimation">@anim/content_dialog_enter</item>
+        <item name="android:windowExitAnimation">@anim/content_dialog_exit</item>
     </style>
 
 
 
     <style name="ContentDialog.Dark" parent="ContentDialog">
-        <item name="android:windowBackground">@drawable/content_dialog_background_dark</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
     </style>
 
     <!-- EditText Styles -->
@@ -210,6 +246,27 @@
 
     <style name="ButtonPositive.Dark" parent="BaseButton.Dark">
         <item name="android:background">@drawable/button_positive</item>
+    </style>
+
+    <style name="ContentDialogButtonBase" parent="BaseButton">
+        <item name="android:layout_height">42dp</item>
+        <item name="android:minWidth">96dp</item>
+        <item name="android:paddingLeft">18dp</item>
+        <item name="android:paddingRight">18dp</item>
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.01</item>
+    </style>
+
+    <style name="ContentDialogButtonNeutral" parent="ContentDialogButtonBase">
+        <item name="android:background">@drawable/content_dialog_button_neutral</item>
+        <item name="android:textColor">@color/settings_text_primary</item>
+    </style>
+
+    <style name="ContentDialogButtonPositive" parent="ContentDialogButtonBase">
+        <item name="android:background">@drawable/content_dialog_button_positive</item>
+        <item name="android:textColor">@color/white</item>
     </style>
 
     <!-- Base ImageButton Styles -->
@@ -764,7 +821,7 @@
         <style name="ContentDialog" parent="@android:style/Theme.Dialog">
             <item name="android:windowNoTitle">true</item>
             <item name="android:windowFullscreen">true</item>
-            <item name="android:windowBackground">@drawable/content_dialog_background</item>
+            <item name="android:windowBackground">@android:color/transparent</item>
         </style>
         <style name="EditText">
             <item name="android:layout_width">match_parent</item>

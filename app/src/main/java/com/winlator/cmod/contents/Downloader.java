@@ -1,3 +1,4 @@
+/* Shared download helper used by content and driver flows to stream files with progress updates. */
 package com.winlator.cmod.contents;
 
 import java.io.BufferedReader;
@@ -12,7 +13,7 @@ import java.net.URLConnection;
 public class Downloader {
 
     public interface DownloadListener {
-        void onProgress(int percent);
+        void onProgress(long downloadedBytes, long totalBytes);
     }
 
     public static boolean downloadFile(String address, File file, DownloadListener listener) {
@@ -31,12 +32,12 @@ public class Downloader {
 
             int count;
             long total = 0;
-            int lengthOfFile = connection.getContentLength();
+            long lengthOfFile = connection.getContentLengthLong();
             while ((count = input.read(data)) != -1) {
                 total += count;
                 output.write(data, 0, count);
                 if (listener != null && lengthOfFile > 0) {
-                    listener.onProgress((int) ((total * 100) / lengthOfFile));
+                    listener.onProgress(total, lengthOfFile);
                 }
             }
 

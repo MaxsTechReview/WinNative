@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Exit animation for Components dialogs and notices. -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:interpolator="@android:interpolator/fast_out_linear_in">
+
+    <scale
+        android:duration="70"
+        android:fromXScale="1.0"
+        android:fromYScale="1.0"
+        android:pivotX="50%"
+        android:pivotY="50%"
+        android:toXScale="0.985"
+        android:toYScale="0.985" />
+
+    <alpha
+        android:duration="70"
+        android:fromAlpha="1.0"
+        android:toAlpha="0.0" />
+</set>

@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Overflow actions for installed component entries on the Components screen. -->
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:id="@+id/content_info" android:title="@string/content_info" android:icon="@drawable/icon_info" android:iconTint="@color/colorAccent" />
-    <item android:id="@+id/remove_content" android:title="@string/remove" android:icon="@drawable/icon_remove" android:iconTint="@color/colorAccent" />
+    <item
+        android:id="@+id/content_info"
+        android:icon="@drawable/ic_content_menu_info"
+        android:iconTint="@color/settings_icon_tint"
+        android:title="@string/content_info" />
+
+    <item
+        android:id="@+id/remove_content"
+        android:icon="@drawable/ic_content_menu_remove"
+        android:iconTint="@color/settings_danger"
+        android:title="@string/remove" />
 </menu>

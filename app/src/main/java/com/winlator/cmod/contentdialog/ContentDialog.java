@@ -1,3 +1,4 @@
+/* Shared components dialog shell used across content install, warning, and info flows. */
 package com.winlator.cmod.contentdialog;
 
 import android.app.Dialog;
@@ -132,10 +133,10 @@ public class ContentDialog extends Dialog {
         setMessage(getContext().getString(msgResId));
     }
 
-    public void setMessage(String message) {
+    public void setMessage(CharSequence message) {
         TextView tvMessage = findViewById(R.id.TVMessage);
 
-        if (message != null && !message.isEmpty()) {
+        if (message != null && message.length() > 0) {
             tvMessage.setText(message);
             tvMessage.setVisibility(View.VISIBLE);
         }
@@ -143,6 +144,10 @@ public class ContentDialog extends Dialog {
             tvMessage.setText("");
             tvMessage.setVisibility(View.GONE);
         }
+    }
+
+    public void setMessage(String message) {
+        setMessage((CharSequence)message);
     }
 
     public static void alert(Context context, int msgResId, Runnable callback) {

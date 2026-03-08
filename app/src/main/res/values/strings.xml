@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+    <!-- User-facing text for the Components screen, downloads, installs, and conflict handling. -->
 <resources>
     <string name="app_name">WinNative</string>
     <string name="run">Run</string>
@@ -313,6 +314,9 @@
     <string name="do_you_want_to_install_content">Do you want to install additional content?</string>
     <string name="pls_make_sure_content_trustworthy">Contents contain executable files. Unsafe executable files may compromise your data or device security. Before installing, PLEASE make sure that the additional content you are installing is trustworthy.</string>
     <string name="content_suffix_is_wcp_packed_xz_zst">The content files have the .wcp extension and are compressed using either xz or zst formats.</string>
+    <string name="contents_install_confirm_message">Only install trusted packages. These files can include executable content and may affect your device or data.
+
+Supported packages use the .wcp extension and are compressed as xz or zst.</string>
     <string name="installing_content">Installing Content…</string>
     <string name="unable_to_install_content">Unable to install content.</string>
     <string name="install_failed">Install Failed</string>
@@ -324,8 +328,18 @@
     <string name="version_code">Version Code</string>
     <string name="description">Description</string>
     <string name="file_list">File List</string>
+    <string name="install_directory">Install Directory</string>
     <string name="_continue">Continue</string>
     <string name="content_installed_success">Content installed successfully!</string>
+    <string name="contents_downloading_title">Downloading Content</string>
+    <string name="contents_installing_title">Installing Content</string>
+    <string name="contents_preparing_package">Preparing package…</string>
+    <string name="contents_download_complete">Download complete</string>
+    <string name="conflicting_content_title">Conflicting Content Installed</string>
+    <string name="conflicting_content_message">Please uninstall the conflicting content before downloading this package.
+
+Installed path:
+%1$s</string>
     <string name="content_cannot_be_trusted">Content cannot be trusted.</string>
     <string name="content_is_incomplete">Content is incomplete.</string>
     <string name="warning_content_has_untrusted_files">Warning: The additional content contains untrusted files. Generally, the following files should not be modified. Please decide whether to proceed with the installation.</string>
@@ -1410,6 +1424,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="selected">Selected</string>
     <string name="selected_content">Selected content</string>
     <string name="installed_contents">Installed contents</string>
+    <string name="available">Available</string>
     <string name="select_type">Select type</string>
     <string name="untrusted_files_detected">Untrusted Files Detected</string>
     <string name="install_anyway">Install Anyway</string>

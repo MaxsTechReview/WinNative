@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Section header row for Installed and Available groups on the Components screen. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/TVSectionTitle"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="6dp"
+    android:layout_marginBottom="8dp"
+    android:fontFamily="@font/inter"
+    android:letterSpacing="0.08"
+    android:paddingHorizontal="4dp"
+    android:textAllCaps="true"
+    android:textColor="@color/settings_text_secondary"
+    android:textSize="11sp"
+    android:textStyle="bold" />

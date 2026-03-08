@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+    <!-- Shared color tokens, including the Components screen palette, surfaces, and accents. -->
 <resources>
     
     <color name="window_background_color">#fafafa</color>
@@ -20,6 +21,21 @@
     <color name="content_dialog_background_dark">#424242</color>
     <color name="button_neutral_dark">#37474f</color>
     <color name="button_positive_dark">#1e88e5</color>
+    <color name="settings_section_surface">#151E2A</color>
+    <color name="settings_card_surface">#1A2432</color>
+    <color name="settings_outline">#25364A</color>
+    <color name="settings_chip_surface">#1B2A3D</color>
+    <color name="settings_chip_selected">#1A9FFF</color>
+    <color name="settings_chip_selected_stroke">#74D0FF</color>
+    <color name="settings_text_primary">#F5F9FF</color>
+    <color name="settings_text_secondary">#9CB0C7</color>
+    <color name="settings_icon_tint">#D7E6F7</color>
+    <color name="settings_action_surface">#132030</color>
+    <color name="settings_action_surface_pressed">#1A2A3D</color>
+    <color name="settings_accent">#1A9FFF</color>
+    <color name="settings_danger">#FF7A88</color>
+    <color name="settings_popup_surface">#162130</color>
+    <color name="settings_popup_surface_edge">#2D425A</color>
 
     <color name="abc_decor_view_status_guard">#ff000000</color>
     <color name="abc_decor_view_status_guard_light">#ffffffff</color>

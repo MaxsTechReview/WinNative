@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Circular icon container used by Components list rows. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@color/settings_action_surface" />
+    <stroke
+        android:width="1dp"
+        android:color="@color/settings_outline" />
+</shape>
