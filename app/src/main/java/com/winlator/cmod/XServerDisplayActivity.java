@@ -81,6 +81,7 @@ import com.winlator.cmod.core.WineStartMenuCreator;
 import com.winlator.cmod.core.WineThemeManager;
 import com.winlator.cmod.core.WineUtils;
 import com.winlator.cmod.inputcontrols.ControlsProfile;
+import com.winlator.cmod.inputcontrols.ControllerManager;
 import com.winlator.cmod.inputcontrols.ExternalController;
 import com.winlator.cmod.inputcontrols.InputControlsManager;
 import com.winlator.cmod.math.Mathf;
@@ -274,6 +275,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         getWindow().setAttributes(params);
         
         setContentView(R.layout.xserver_display_activity);
+
+        // Initialize ControllerManager for multi-controller support
+        ControllerManager.getInstance().init(this);
 
         preloaderDialog = new PreloaderDialog(this);
         preferences = PreferenceManager.getDefaultSharedPreferences(this);
@@ -1808,6 +1812,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        Log.d("XServerDA", "dispatchGenericMotionEvent source=0x" + Integer.toHexString(event.getSource()) + " deviceId=" + event.getDeviceId() + " action=" + event.getAction());
         boolean handledByWinHandler = false;
         boolean handledByTouchpadView = false;
 
@@ -1842,6 +1847,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        Log.d("XServerDA", "dispatchKeyEvent keyCode=" + event.getKeyCode() + " deviceId=" + event.getDeviceId() + " source=0x" + Integer.toHexString(event.getSource()) + " action=" + event.getAction());
 
         // Handle the PlayStation or Xbox Home button to open the drawer
         if (event.getAction() == KeyEvent.ACTION_DOWN) {

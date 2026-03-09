@@ -37,3 +37,10 @@ target_link_libraries(winlator
         GLESv3
         adrenotools
 )
+
+# Evshim - controller support shim (loaded via LD_PRELOAD, uses dlopen for SDL2)
+add_library(evshim SHARED
+        winlator/evshim.c
+)
+target_compile_options(evshim PRIVATE -Wall -Wextra -fvisibility=hidden)
+target_link_libraries(evshim log dl)

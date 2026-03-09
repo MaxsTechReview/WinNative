@@ -25,10 +25,23 @@ import com.winlator.cmod.core.Callback;
 
 import java.util.ArrayList;
 
+import android.app.Dialog;
+import android.view.InputDevice;
+import android.view.KeyEvent;
+
 public class ContentDialog extends Dialog {
     public Runnable onConfirmCallback;
     private Runnable onCancelCallback;
     private final View contentView;
+
+    public interface OnControllerInputListener {
+        void onControllerInput(InputDevice device);
+    }
+    private OnControllerInputListener onControllerInputListener;
+
+    public void setOnControllerInputListener(OnControllerInputListener listener) {
+        this.onControllerInputListener = listener;
+    }
 
     private boolean isDarkMode;
 
@@ -252,5 +265,17 @@ public class ContentDialog extends Dialog {
 
         dialog.setTitle(titleResId);
         dialog.show();
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(@NonNull android.view.KeyEvent event) {
+        if (onControllerInputListener != null && event.getAction() == android.view.KeyEvent.ACTION_DOWN) {
+            android.view.InputDevice device = event.getDevice();
+            if (device != null && !device.isVirtual() && com.winlator.cmod.inputcontrols.ControllerManager.isGameController(device)) {
+                onControllerInputListener.onControllerInput(device);
+                return true;
+            }
+        }
+        return super.dispatchKeyEvent(event);
     }
 }

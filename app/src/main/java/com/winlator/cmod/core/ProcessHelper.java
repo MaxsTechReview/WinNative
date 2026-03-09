@@ -89,12 +89,9 @@ public abstract class ProcessHelper {
             ProcessBuilder pb = new ProcessBuilder(splitCommand);
             pb.directory(workingDir);
             pb.environment().putAll(EnvironmentManager.getEnvVars());
-            if (debugCallbacks.isEmpty()) {
-                File null_file = new File("/dev/null");
-                pb.redirectError(null_file);
-                pb.redirectOutput(null_file);
-            }
             java.lang.Process process = pb.start();
+            createDebugThread(process.getInputStream());
+            createDebugThread(process.getErrorStream());
 
             // Accessing hidden field
             Log.d("ProcessHelper", "Accessing hidden field to get PID");
@@ -104,10 +101,7 @@ public abstract class ProcessHelper {
             pidField.setAccessible(false);
             Log.d("ProcessHelper", "Process started with pid: " + pid);
 
-            if (!debugCallbacks.isEmpty()) {
-                createDebugThread(process.getInputStream());
-                createDebugThread(process.getErrorStream());
-            }
+
 
             if (terminationCallback != null) createWaitForThread(process, terminationCallback);
 

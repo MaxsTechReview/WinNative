@@ -173,8 +173,8 @@ public class WineInfo implements Parcelable {
             String version = wineProfile.verName;
             String arch = "x86_64"; // Default for custom protons
             
-            // Check if the profile's wineLibPath contains arm64ec hints
-            if (wineProfile.wineLibPath != null && wineProfile.wineLibPath.contains("arm64ec")) {
+            if ((wineProfile.wineLibPath != null && wineProfile.wineLibPath.toLowerCase().contains("arm64ec")) || 
+                (wineProfile.verName != null && wineProfile.verName.toLowerCase().contains("arm64ec"))) {
                 arch = "arm64ec";
             }
             
