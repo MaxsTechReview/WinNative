@@ -2,5 +2,8 @@
 <resources>
     <dimen name="activity_vertical_margin">16dp</dimen>
     <dimen name="activity_horizontal_margin">4dip</dimen>
-<dimen name="macros_dialog_width">400dp</dimen>
+    <dimen name="macros_dialog_width">400dp</dimen>
+    <dimen name="github_asset_button_horizontal_padding">18dp</dimen>
+    <dimen name="github_asset_button_vertical_padding">10dp</dimen>
+    <dimen name="github_asset_button_spacing">8dp</dimen>
 </resources>

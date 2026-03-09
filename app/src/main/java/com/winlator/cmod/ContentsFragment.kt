@@ -508,6 +508,14 @@ class ContentsFragment : Fragment() {
             val output = File(requireContext().cacheDir, "temp_${System.currentTimeMillis()}")
             val success = withContext(Dispatchers.IO) {
                 Downloader.downloadFile(remoteUrl, output) { downloadedBytes, totalBytes ->
+                    if (totalBytes <= 0L) {
+                        transferDialog.update(
+                            getString(R.string.contents_downloading_title),
+                            profile.verName,
+                            indeterminate = true
+                        )
+                        return@downloadFile
+                    }
                     val progressUnits = ((downloadedBytes * ContentTransferDialog.PROGRESS_SCALE) / totalBytes)
                         .toInt()
                         .coerceIn(0, ContentTransferDialog.PROGRESS_SCALE)

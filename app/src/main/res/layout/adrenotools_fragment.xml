@@ -1,72 +1,72 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@color/window_background_color_dark"
-    android:padding="16dp">
-
-
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/RecyclerView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:scrollbars="vertical"
-        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+    android:background="@color/window_background_color_dark">
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:orientation="vertical"
-        android:padding="8dp"
-        android:background="@drawable/tab_layout_background_dark"
-        android:layout_marginTop="16dp">
+        android:padding="16dp">
 
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="@color/white"
-            android:text="Custom Download URL"
-            android:layout_marginBottom="4dp"/>
-
-        <LinearLayout
+            android:id="@+id/TVHeaderLabel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:layout_marginBottom="10dp"
+            android:fontFamily="@font/inter"
+            android:letterSpacing="0.02"
+            android:text="@string/github_repos"
+            android:textColor="@color/settings_text_primary"
+            android:textSize="18sp"
+            android:textStyle="bold" />
 
-            <EditText
-                android:id="@+id/ETDriverDownloadURL"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textColor="@color/white"
-                android:background="@drawable/edit_text_dark"
-                android:hint="Enter URL..."
-                android:textColorHint="@color/gray" />
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/RecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingBottom="76dp"
+            android:scrollbarThumbVertical="@drawable/nav_scrollbar_thumb"
+            android:scrollbarSize="2dp"
+            android:scrollbarStyle="insideInset"
+            android:scrollbars="vertical"
+            android:fadeScrollbars="true"
+            android:scrollbarFadeDuration="320"
+            android:scrollbarDefaultDelayBeforeFade="220"
+            android:overScrollMode="ifContentScrolls"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
-            <Button
-                android:id="@+id/BTDownloadDriver"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Download"
-                android:backgroundTint="#37474F"
-                android:textColor="@color/white"
-                android:layout_marginStart="8dp"/>
-        </LinearLayout>
+        <TextView
+            android:id="@+id/TVEmptyText"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:fontFamily="@font/inter"
+            android:gravity="center"
+            android:paddingHorizontal="24dp"
+            android:paddingBottom="76dp"
+            android:text="@string/no_items_to_display"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="15sp"
+            android:visibility="gone" />
     </LinearLayout>
 
-    <Button
+    <ImageButton
         android:id="@+id/BTInstallDriver"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:text="@string/install_drivers"
-        android:textColor="@color/white"
-        android:backgroundTint="#1A9FFF"
-        android:layout_marginTop="16dp"
-        android:textAllCaps="true"
-        android:textStyle="bold" />
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="20dp"
+        android:background="@drawable/content_fab_background"
+        android:contentDescription="@string/install_drivers"
+        android:elevation="6dp"
+        android:padding="12dp"
+        android:src="@drawable/ic_content_add"
+        app:tint="@color/white" />
 
-</LinearLayout>
+</FrameLayout>

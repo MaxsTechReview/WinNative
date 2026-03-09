@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/remove_driver"
+        android:icon="@drawable/ic_content_menu_remove"
+        android:iconTint="@color/settings_danger"
+        android:title="@string/remove" />
+</menu>

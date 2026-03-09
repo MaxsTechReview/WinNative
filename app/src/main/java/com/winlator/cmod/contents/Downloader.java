@@ -20,6 +20,7 @@ public class Downloader {
         try {
             URL url = new URL(address);
             URLConnection connection = url.openConnection();
+            connection.setRequestProperty("Accept-Encoding", "identity");
             connection.connect();
 
             // download the file
@@ -33,11 +34,17 @@ public class Downloader {
             int count;
             long total = 0;
             long lengthOfFile = connection.getContentLengthLong();
+            long lastUpdateTime = 0;
+            
             while ((count = input.read(data)) != -1) {
                 total += count;
                 output.write(data, 0, count);
-                if (listener != null && lengthOfFile > 0) {
-                    listener.onProgress(total, lengthOfFile);
+                if (listener != null) {
+                    long currentTime = System.currentTimeMillis();
+                    if (currentTime - lastUpdateTime > 80 || total == lengthOfFile) {
+                        listener.onProgress(total, lengthOfFile);
+                        lastUpdateTime = currentTime;
+                    }
                 }
             }
 
