@@ -1,0 +1,5 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_WALKTHROUGH",
+  "summary":  "Comprehensive summary of the custom proton container creation fix and Pipetto integration status. Documents the root cause analysis, all files changed, and verification that Pipetto controller fixes were already integrated.",
+  "updatedAt":  "2026-03-08T23:01:13.217716085Z"
+}

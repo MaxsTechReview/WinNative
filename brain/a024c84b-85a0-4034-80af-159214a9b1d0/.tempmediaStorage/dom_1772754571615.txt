@@ -1,0 +1,83 @@
+<current_dom_explanation>
+This is a temporary snapshot of the current page's DOM structure. The DOM will change if you navigate to or interact with another page. Use a tool like browser_get_dom to capture and preserve the DOM in your trajectory if needed for later reference.
+</current_dom_explanation>
+<current_dom>
+Skip to content
+Navigation Menu
+[0] (28,27)<a aria-label='Homepage' class='tmp-mr-lg-3 color-fg-inherit flex-order-2 js-prevent-focus-on-mobile-nav' href='/' />
+[1] (78,27)<button class='NavDropdown-module__button__PEHWX js-details-target'>Platform />
+[2] (139,27)<button class='NavDropdown-module__button__PEHWX js-details-target'>Solutions />
+[3] (204,27)<button class='NavDropdown-module__button__PEHWX js-details-target'>Resources />
+[4] (277,27)<button class='NavDropdown-module__button__PEHWX js-details-target'>Open Source />
+[5] (350,27)<button class='NavDropdown-module__button__PEHWX js-details-target'>Enterprise />
+[6] (404,27)<a class='NavLink-module__link__EG3d4 MarketingNavigation-module__navLink__hUomM' href='https://github.com/pricing' />
+	[7] (404,27)<span >Pricing />
+[8] (760,27)<button aria-label='Search or jump to…' class='header-search-button placeholder input-button form-control d-flex flex-1 flex-self-stretch flex-items-center no-wrap width-full py-0 pl-2 pr-0 text-left border-0 box-shadow-none' placeholder='Search or jump to...' />
+	[9] (675,27)<div  />
+	[10] (760,27)<span >Search or jump to... />
+	[11] (847,27)<div  />
+[12] (883,27)<a class='HeaderMenu-link HeaderMenu-link--sign-in HeaderMenu-button flex-shrink-0 no-underline d-none d-lg-inline-flex border border-lg-0 rounded px-2 py-1' href='/login?return_to=https%3A%2F%2Fgithub.com%2Fmaxjivi05%2FComponents%2Freleases%2Ftag%2FComponents'>Sign in />
+[13] (933,27)<a class='HeaderMenu-link HeaderMenu-link--sign-up HeaderMenu-button flex-shrink-0 d-flex d-lg-inline-flex no-underline border color-border-default rounded px-2 py-1' href='/signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E%2Freleases%2Fshow&source=header-repo&source_repo=maxjivi05%2FComponents'>Sign up />
+[14] (60,78)<a class='url fn' href='/maxjivi05'>maxjivi05 />
+/
+[15] (133,78)<a href='/maxjivi05/Components'>Components />
+Public
+[16] (815,78)<a aria-label='You must be signed in to change notification settings' class='btn-sm btn' href='/login?return_to=%2Fmaxjivi05%2FComponents' id='repository-details-watch-button'>Notifications />
+[17] (886,78)<a class='btn-sm btn' href='/login?return_to=%2Fmaxjivi05%2FComponents' id='fork-button'>Fork />
+	[18] (902,78)<span >0 />
+[19] (951,78)<a aria-label='You must be signed in to star a repository' class='tooltipped tooltipped-sw btn-sm btn' href='/login?return_to=%2Fmaxjivi05%2FComponents' />
+	[20] (951,77)<span >Star />
+	[21] (967,78)<span >5 />
+[22] (41,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item selected' href='/maxjivi05/Components/tree/Components' id='code-tab' />
+	[23] (48,121)<span >Code />
+[24] (93,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/maxjivi05/Components/issues' id='issues-tab' />
+	[25] (100,121)<span >Issues />
+[26] (161,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/maxjivi05/Components/pulls' id='pull-requests-tab' />
+	[27] (169,121)<span >Pull requests />
+[28] (232,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/maxjivi05/Components/actions' id='actions-tab' />
+	[29] (239,121)<span >Actions />
+[30] (293,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/maxjivi05/Components/projects' id='projects-tab' />
+	[31] (300,121)<span >Projects />
+[32] (355,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/maxjivi05/Components/security' id='security-tab' />
+	[33] (362,121)<span >Security />
+[34] (417,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/maxjivi05/Components/pulse' id='insights-tab' />
+	[35] (424,121)<span >Insights />
+[36] (156,165)<a class='Link' href='/maxjivi05/Components/releases'>Releases />
+[37] (206,165)<a class='Link' href='/maxjivi05/Components/releases/tag/Components'>Components />
+Components
+[38] (297,232)<a class='Link v-align-text-bottom d-none d-md-inline-block' href='/maxjivi05/Components/releases/latest' />
+	[39] (297,232)<span >Latest />
+[40] (824,221)<button class='Button--secondary Button--small Button' id='select-panel-932bff9f-3619-4999-b353-ab82f8f072ed-button' />
+	[41] (824,221)<span  />
+		[42] (818,221)<span >Compare />
+[43] (183,268)<a class='text-bold color-fg-muted' href='/maxjivi05'>maxjivi05 />
+released this
+[44] (364,269)<a class='Link Link--muted' href='/maxjivi05/Components/tree/Components' />
+	[45] (364,269)<span  />
+		[46] (371,269)<span >Components />
+[47] (435,268)<a class='Link Link--muted' href='/maxjivi05/Components/commit/836cd7eea0dc0bb8d18ca3c84c594a5612991bfb' />
+	[48] (442,269)<code >836cd7e />
+[49] (468,268)<details class='dropdown dropdown-signed-commit details-reset details-overlay js-dropdown-details d-inline-block ml-1' />
+	[50] (468,268)<summary class='color-fg-success' />
+Dependencies / Components
+[51] (500,396)<details  />
+	[52] (500,382)<summary role='button' />
+		[53] (188,382)<span  />
+			[54] (182,382)<span >Assets />
+			[55] (212,382)<span >6 />
+	Loading
+Footer
+[56] (245,496)<a aria-label='GitHub Homepage' class='footer-octicon mr-2' href='https://github.com' />
+© 2026 GitHub, Inc.
+Footer navigation
+[57] (342,495)<a class='Link--secondary Link' href='https://docs.github.com/site-policy/github-terms/github-terms-of-service'>Terms />
+[58] (373,495)<a class='Link--secondary Link' href='https://docs.github.com/site-policy/privacy-policies/github-privacy-statement'>Privacy />
+[59] (408,495)<a class='Link--secondary Link' href='https://github.com/security'>Security />
+[60] (441,495)<a class='Link--secondary Link' href='https://www.githubstatus.com/'>Status />
+[61] (481,495)<a class='Link--secondary Link' href='https://github.community/'>Community />
+[62] (518,495)<a class='Link--secondary Link' href='https://docs.github.com/'>Docs />
+[63] (548,495)<a class='Link--secondary Link' href='https://support.github.com?tags=dotcom-footer'>Contact />
+[64] (598,496)<button class='Link--secondary underline-on-hover border-0 p-0 color-bg-transparent'>Manage cookies />
+[65] (699,496)<button class='Link--secondary underline-on-hover border-0 p-0 color-bg-transparent text-left'>Do not share my personal information />
+
+</current_dom>

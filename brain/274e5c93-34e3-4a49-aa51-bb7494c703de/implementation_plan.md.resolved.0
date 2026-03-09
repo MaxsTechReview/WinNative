@@ -1,0 +1,27 @@
+# Frontend Layout Pagination Fix
+
+The user reported that selecting the "Frontend" layout results in an infinite spinner and "never loads the new UI/design." After reviewing the codebase, the root cause is that [LibraryFrontendPane](file:///home/max/Build/GNP/Game/app/src/main/java/app/gamenative/ui/screen/library/components/LibraryFrontendPane.kt#55-168) is completely missing the pagination logic ([onPageChange](file:///home/max/Build/GNP/Game/app/src/main/java/app/gamenative/ui/model/LibraryViewModel.kt#287-293)) that exists in the other views (like [LibraryListPane](file:///home/max/Build/GNP/Game/app/src/main/java/app/gamenative/ui/screen/library/components/LibraryListPane.kt#111-357)).
+
+When the user has more games in their library than the initial page size, the frontend layout correctly detects this (`state.appInfoList.size < state.totalAppsInFilter`) and appends a `CircularProgressIndicator` at the end of the list. However, because [onPageChange(1)](file:///home/max/Build/GNP/Game/app/src/main/java/app/gamenative/ui/model/LibraryViewModel.kt#287-293) is never called to actually fetch the next page, this spinner remains on screen forever. Due to focus selection or an initially small number of rendered games, this spinner becomes highly visible or immediately forces the screen to it, creating the illusion of an infinite loading state that "never loads".
+
+## Proposed Changes
+
+### [app/src/main/java/app/gamenative/ui/screen/library/components/LibraryFrontendPane.kt](file:///home/max/Build/GNP/Game/app/src/main/java/app/gamenative/ui/screen/library/components/LibraryFrontendPane.kt)
+- **[MODIFY]** Update the [LibraryFrontendPane](file:///home/max/Build/GNP/Game/app/src/main/java/app/gamenative/ui/screen/library/components/LibraryFrontendPane.kt#55-168) signature to accept `onPageChange: (Int) -> Unit`.
+- **[MODIFY]** In [LibraryView](file:///home/max/Build/GNP/Game/app/src/main/java/app/gamenative/ui/screen/library/components/LibraryFrontendPane.kt#220-400), add a `LaunchedEffect` that observes the `rowState` (which is a `LazyListState`). When `rowState.layoutInfo.visibleItemsInfo.lastOrNull()` reaches the end of the loaded items, trigger [onPageChange(1)](file:///home/max/Build/GNP/Game/app/src/main/java/app/gamenative/ui/model/LibraryViewModel.kt#287-293).
+- **[MODIFY]** In [StoreGridView](file:///home/max/Build/GNP/Game/app/src/main/java/app/gamenative/ui/screen/library/components/LibraryFrontendPane.kt#401-460), add a similar `LaunchedEffect` observing its `gridState` (a `LazyGridState`) to trigger pagination for the other store tabs, passing down the [onPageChange](file:///home/max/Build/GNP/Game/app/src/main/java/app/gamenative/ui/model/LibraryViewModel.kt#287-293) parameter.
+
+### [app/src/main/java/app/gamenative/ui/screen/library/LibraryScreen.kt](file:///home/max/Build/GNP/Game/app/src/main/java/app/gamenative/ui/screen/library/LibraryScreen.kt)
+- **[MODIFY]** Update the [LibraryFrontendPane](file:///home/max/Build/GNP/Game/app/src/main/java/app/gamenative/ui/screen/library/components/LibraryFrontendPane.kt#55-168) call site within [LibraryScreenContent](file:///home/max/Build/GNP/Game/app/src/main/java/app/gamenative/ui/screen/library/LibraryScreen.kt#140-1085) to pass the `onPageChange = onPageChange` argument.
+
+## Verification Plan
+
+### Automated Tests
+- The change involves UI recomposition limits and visual scrolling. There are no UI automation tests for this specific frontend layout behavior.
+- We will verify that the project compiles with `./gradlew assembleDebug` after applying the changes.
+
+### Manual Verification
+1. Launch the app and select the "Frontend" layout from the options menu.
+2. Verify that the UI successfully loads and displays the Library tab without getting stuck on a spinner.
+3. Scroll (or use a controller D-pad) to the far right of the game list.
+4. Verify that the pagination spinner correctly fetches the next batch of games from [LibraryViewModel](file:///home/max/Build/GNP/Game/app/src/main/java/app/gamenative/ui/model/LibraryViewModel.kt#56-782) and disappears once the new items are loaded.

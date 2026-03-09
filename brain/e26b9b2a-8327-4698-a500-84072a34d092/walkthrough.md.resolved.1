@@ -1,0 +1,52 @@
+# Walkthrough: Container & Steam Integration
+
+## Changes Made
+
+### 1. Game Settings UI — Container Selector
+**File:** [ContainerDetailFragment.java](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/ContainerDetailFragment.java)
+
+- [loadWineVersionSpinner](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/ContainerDetailFragment.java#1081-1151): When in shortcut mode ([isShortcutMode()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/ContainerDetailFragment.java#303-306) or `createShortcutForAppId > 0`), the "Wine Version" dropdown now **only lists existing containers** (prefixed with `"Container: "`), instead of raw Wine/Proton packages.
+- When editing an existing shortcut, the spinner auto-selects the container currently bound to that shortcut (via stored `container_id` extra).
+- **Save logic**: When saving, the selected container name is parsed, the matching [Container](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/container/Container.java#24-640) object is found, and `shortcut.putExtra("container_id", ...)` is updated. This allows switching games between containers at any time.
+
+### 2. x86_64 Boot Hang Fix
+**File:** [GuestProgramLauncherComponent.java](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/xenvironment/components/GuestProgramLauncherComponent.java)
+
+**Root cause:** The `HODLL` environment variable (`wowbox64.dll` / `libwow64fex.dll`) was being set for **all** container types, including standard [x86_64](file:///home/max/Build/Emulator/Reference/GameNative-Performance/app/src/main/java/com/winlator/xenvironment/components/GuestProgramLauncherComponent.java#347-373). This variable tells Wine to use WoW64 translation DLLs, which only exist in Arm64EC Wine packages. Setting it for x86_64 caused Wine to hang during initialization.
+
+**Fix:** `HODLL` is now only set when `wineInfo.isArm64EC()` is true. x86_64 containers use Box64 binary translation directly without WoW64 DLLs.
+
+```diff
+ else {
+-    if (emulator.toLowerCase().equals("fexcore"))
+-        envVars.put("HODLL", "libwow64fex.dll");
+-    else
+-        envVars.put("HODLL", "wowbox64.dll");
+-
+     if (wineInfo.isArm64EC()) {
++        if (emulator.toLowerCase().equals("fexcore"))
++            envVars.put("HODLL", "libwow64fex.dll");
++        else
++            envVars.put("HODLL", "wowbox64.dll");
+         command = winePath + "/" + guestExecutable;
+     }
+     else {
++        // x86_64 uses Box64 directly, no HODLL
+         command = imageFs.getBinDir() + "/box64 " + guestExecutable;
+     }
+ }
+```
+
+### 3. Steam Client & Steamless DRM Manager
+**File:** [SteamClientManager.java](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/steam/SteamClientManager.java) `[NEW]`
+
+Self-contained utility ported from GameNative with three capabilities:
+
+| Method | Purpose |
+|--------|---------|
+| [downloadSteam()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/steam/SteamClientManager.java#60-113) | Downloads `steam.tzst` with fallback URLs (GitHub → GameNative CDN) |
+| [extractSteam()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/steam/SteamClientManager.java#154-187) | Extracts into Wine prefix at `C:\Program Files (x86)\Steam\` |
+| [runSteamless()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/steam/SteamClientManager.java#188-254) | Creates bat wrapper, runs `Steamless.CLI.exe`, swaps DRM-stripped exe |
+
+## Build Verification
+All changes compile successfully with `./gradlew assembleDebug --info`. **BUILD SUCCESSFUL.**

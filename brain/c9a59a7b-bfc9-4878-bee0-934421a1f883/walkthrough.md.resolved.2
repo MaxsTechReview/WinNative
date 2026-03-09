@@ -1,0 +1,37 @@
+# Walkthrough — WinNative UI Overhaul
+
+## All Changes
+
+### 1. Menu Navigation
+[MainActivity.java](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/MainActivity.java):
+- **Stores** → [ContainersFragment](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/ContainersFragment.java#57-251) inline (not UnifiedActivity)
+- Hidden `containers`/`about` items in [main_menu.xml](file:///home/max/Build/Emulator/WinNative/app/src/main/res/menu/main_menu.xml) for internal nav
+
+### 2. Fragment NPE Fixes
+Added `getSupportActionBar()` null-safety in 5 files:
+[ContentsFragment](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/ContentsFragment.java), [SettingsFragment](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/SettingsFragment.java), [AdrenotoolsFragment](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/AdrenotoolsFragment.java), [InputControlsFragment](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/InputControlsFragment.java), [ShortcutsFragment](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/ShortcutsFragment.java)
+
+### 3. UnifiedActivity Redesign
+[UnifiedActivity.kt](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/UnifiedActivity.kt):
+
+| Feature | Details |
+|---|---|
+| **PS5 carousel** | Center item scales 1.12x with accent glow |
+| **Centered tabs** | Shadow pill adapts to visible tab count |
+| **Tab scroll** | `widthIn(max=340.dp)` — ~4 tabs visible, scroll for rest |
+| **Steam status** | Avatar + Online/Away/Invisible dropdown |
+| **Filter panel** | Bottom-left: AIO toggle, store filters, content type filters |
+| **Game launch** | [launchSteamGame()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/UnifiedActivity.kt#893-937) with A: drive mounting, shortcut-first fallback |
+| **Artwork** | [getHeroUrl](file:///home/max/Build/Emulator/Reference/GameNative-Performance/app/src/main/java/app/gamenative/data/SteamApp.kt#182-193) → [getHeaderImageUrl](file:///home/max/Build/Emulator/Reference/GameNative-Performance/app/src/main/java/app/gamenative/data/SteamApp.kt#164-169) → [getCapsuleUrl](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/steam/data/SteamApp.kt#170-181) → CDN `library_hero.jpg` |
+
+### 4. New Utilities
+- [StringUtils.kt](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/steam/utils/StringUtils.kt) — `String.getAvatarURL()`
+- [PrefManager.kt](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/steam/utils/PrefManager.kt) — `aioStoreMode`
+
+### 5. App Icon
+[ic_launcher_foreground.xml](file:///home/max/Build/Emulator/WinNative/app/src/main/res/drawable/ic_launcher_foreground.xml) — Gradient blue box + stylized "W"
+
+## Build
+```
+BUILD SUCCESSFUL in 4s — 45 actionable tasks
+```

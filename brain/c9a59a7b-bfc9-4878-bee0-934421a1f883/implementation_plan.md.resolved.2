@@ -1,0 +1,77 @@
+# UnifiedActivity Redesign + Store Integration + Icon
+
+## Summary
+
+Comprehensive overhaul of [UnifiedActivity.kt](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/UnifiedActivity.kt) to deliver a PS5-like game carousel, adaptive multi-store tabs, Steam profile status selector, elegant shadow styling, and a new app icon.
+
+## Proposed Changes
+
+### 1. Header Bar Redesign
+
+#### [MODIFY] [UnifiedActivity.kt](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/UnifiedActivity.kt)
+
+**Top bar changes:**
+- **Transparent background** — remove `Color(0xFF171A21)` from `Surface` → use `Color.Transparent`.
+- **Tabs**: Reorder to `Library, Downloads, Steam` (AIO mode) or `Library, Downloads, Steam, Epic, GOG, Amazon` (non-AIO).
+- **Adaptive shadow pill** behind the visible tabs — a `RoundedCornerShape(24.dp)` box with `shadow(8.dp, shape, spotColor=…)`.
+- **Scrollable tabs** when > 4, using `LazyRow` with `snap` — show max 4, scroll for the rest.
+- **Circle shadow behind Settings (left) and Controller (right) buttons** — wrap each `IconButton` in a [Box](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/SettingsFragment.java#470-535) with `shadow(6.dp, CircleShape)`.
+
+**Steam profile button:**
+- Add a 3rd button to the right of the Controller icon: a circular `AsyncImage` showing the Steam avatar (from `localPersona.avatarHash`).
+- On click, show a `DropdownMenu` with Online / Away / Invisible status options (matching [SystemMenu.kt](file:///home/max/Build/Emulator/Reference/GameNative/app/src/main/java/app/gamenative/ui/screen/library/components/SystemMenu.kt) pattern).
+- Calls `SteamService.setPersonaState(state)`.
+
+**AIO mode toggle:**
+- Add a `PrefManager` boolean `aioStoreMode` (default `true`).
+- When `true`: 3 tabs (Library, Downloads, Store). When `false`: 6 tabs (Library, Downloads, Steam, Epic, GOG, Amazon).
+
+---
+
+### 2. PS5-Style Game Carousel (Library Tab)
+
+Replace `LazyVerticalGrid` with a horizontal `LazyRow` carousel:
+- **~4 games visible** at a time.
+- **Center item "pops up"** — use `graphicsLayer { scaleX/Y }` animated with `animateFloatAsState`. Center item scales to `1.15f`, others `0.9f`.
+- **Drop shadow on highlighted item** via `Modifier.shadow(16.dp, RoundedCornerShape(12.dp))`.
+- **Snap-to-center** using `SnapFlingBehavior` with `rememberSnapLayoutInfoProvider`.
+- **Item size**: ~200dp wide × 280dp tall (capsule art ratio).
+
+**Artwork fix:**
+- Prioritize [getHeaderImageUrl()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/steam/data/SteamApp.kt#164-169) first (most reliable), then fallback chain: [getCapsuleUrl()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/steam/data/SteamApp.kt#170-181) → `iconUrl` → Steam CDN community URL.
+- Add `crossfade(true)` and `placeholder` to Coil `AsyncImage`.
+
+---
+
+### 3. Store Tabs Content
+
+- **Steam tab**: existing [SteamStoreTab](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/UnifiedActivity.kt#662-666) (already works).
+- **Epic / GOG / Amazon tabs**: Placeholder content with a "Sign In" button that launches a WebView-based OAuth flow (ported from GameNative services). Full store browsing is deferred to a follow-up — this phase adds sign-in/out only, matching the "Stores" menu requirement.
+
+---
+
+### 4. Avatar URL Utility
+
+#### [NEW] [StringUtils.kt](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/steam/utils/StringUtils.kt)
+- Port `String.getAvatarURL()` extension from GameNative.
+
+---
+
+### 5. Application Icon
+
+#### [NEW] [ic_win_launcher.xml](file:///home/max/Build/Emulator/WinNative/app/src/main/res/drawable/ic_win_launcher.xml)
+- Already created: gradient rounded box with stylized "W" stroke.
+- Need to wire into [AndroidManifest.xml](file:///home/max/Build/Emulator/WinNative/app/src/main/AndroidManifest.xml) as the launcher icon.
+
+---
+
+## Verification Plan
+
+### Automated
+- `./gradlew assembleDebug --info`
+
+### Manual
+- Verify carousel scrolling, center pop-up effect, and shadow.
+- Verify tab reorder, AIO toggle, scrolling tabs.
+- Verify Steam avatar + status picker.
+- Verify icon on launcher.

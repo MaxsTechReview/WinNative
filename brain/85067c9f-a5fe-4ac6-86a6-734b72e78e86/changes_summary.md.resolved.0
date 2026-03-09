@@ -1,0 +1,42 @@
+# Custom Proton Fix & Pipetto Integration Summary
+
+## Critical Bug Fixed: "Unable to install system files" for Custom Protons
+
+### Root Cause
+When creating a container with a custom-installed Proton (e.g., one downloaded from the Components section), the system failed because:
+
+1. **`WineInfo.fromIdentifier()` couldn't parse custom proton identifiers** — Custom protons use entry names like `Proton-9.0-1` (uppercase "P", version code suffix instead of architecture). The regex `^(wine|proton)\-([0-9\.]+)\-?([0-9\.]+)?\-(x86|x86_64|arm64ec)$` requires lowercase and an architecture suffix, so custom protons never matched.
+
+2. **Fallback used wrong path** — When the regex failed, [WineInfo](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/core/WineInfo.java#19-195) fell back to `MAIN_WINE_VERSION` with the default path (`/opt/proton-9.0-x86_64`), which is wrong for custom protons that are installed in a different directory.
+
+3. **`ContainerManager.extractContainerPatternFile()` used wrong source for prefix pack** — The old code used `wineInfo.path` (which was wrong due to issue #1) to find the `prefixPack.txz` file, so the extraction always failed.
+
+### Files Changed
+
+#### 1. [ContainerManager.java](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/container/ContainerManager.java) — Container pattern extraction fix
+- **Primary fix**: When asset extraction fails, now uses `ContentsManager.getInstallDir()` directly to find the prefix pack instead of relying on `wineInfo.path`
+- **Secondary fallback**: Also tries `wineInfo.path` as a secondary fallback for bundled non-asset protons
+- **Last resort**: Falls back to [container_pattern_common.tzst](file:///home/max/Build/Emulator/WinNative/app/src/main/assets/container_pattern_common.tzst) if all other sources fail
+- **Resilience**: [extractCommonDlls](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/container/ContainerManager.java#263-285) failure no longer aborts the entire container creation
+
+#### 2. [WineInfo.java](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/core/WineInfo.java) — Identifier parsing fix
+- Now attempts case-insensitive regex matching first
+- For custom protons with version codes (e.g., `Proton-9.0-1`), constructs a normalized identifier (`proton-9.0-x86_64`) for regex matching
+- **New fallback path**: When regex fails but a valid [ContentProfile](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/contents/ContentProfile.java#8-66) exists, constructs [WineInfo](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/core/WineInfo.java#19-195) directly from profile metadata instead of falling back to `MAIN_WINE_VERSION`
+- Detects arm64ec from profile's `wineLibPath` when available
+
+## Pipetto Controller/Input Fixes Status
+
+All Pipetto controller fixes were **already integrated** in prior sessions:
+
+| Fix | Status |
+|-----|--------|
+| Per-controller `remappedState` in [ExternalController](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/inputcontrols/ExternalController.java#22-800) | ✅ Already present |
+| [handleInputEvent(controller, ...)](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/widget/InputControlsView.java#741-744) signatures in [InputControlsView](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/widget/InputControlsView.java#49-836) | ✅ Already present |
+| [processTriggerInput()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/widget/InputControlsView.java#481-492) method | ✅ Already present |
+| [handleStickInput()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/widget/InputControlsView.java#713-736) method | ✅ Already present |
+| [sendGamepadState(controller)](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/winhandler/WinHandler.java#597-625) per-device in [WinHandler](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/winhandler/WinHandler.java#34-773) | ✅ Already present |
+| State copying fix (no longer merging virtual/physical state) | ✅ Already present |
+| Null safety in [InputControlsManager](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/inputcontrols/InputControlsManager.java#30-258) | ✅ Already present |
+| Action bar null check in [InputControlsFragment](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/InputControlsFragment.java#67-816) | ✅ Already present |
+| Virtual gamepad detection in [ControlsProfile](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/inputcontrols/ControlsProfile.java#20-263) | ✅ Already present |

@@ -1,0 +1,6 @@
+# Fix GameNative-Performance Container Launch Issues
+
+- [ ] Investigate Container pathing logic (Master Containers ON vs OFF)
+- [ ] Investigate ProcessHelper / Exec error -1 exit
+- [ ] Fix path resolution in launch utilities for dynamic Container directories
+- [ ] Validate changes with both Master Containers on and off

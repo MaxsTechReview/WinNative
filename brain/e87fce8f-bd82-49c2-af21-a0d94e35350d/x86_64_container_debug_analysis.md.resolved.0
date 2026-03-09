@@ -1,0 +1,207 @@
+# x86-64 Container Loading — Root Cause Analysis
+
+> [!CAUTION]
+> **Multiple critical issues identified** that would prevent x86-64 containers from opening. At least 2-3 of these are likely causing the problem.
+
+## Summary of Findings
+
+After a thorough comparison of the Ludashi (original) and GameNative code paths, I identified **5 issues** affecting x86-64 container launches. The most critical is a **missing Wine binary asset** for x86-64.
+
+---
+
+## 🔴 Issue #1: Missing x86-64 Proton/Wine Binary (CRITICAL)
+
+**File:** [assets/](file:///home/max/Build/Emulator/WinNative/app/src/main/assets)
+
+The assets directory contains:
+- ✅ [proton-9.0-arm64ec.txz](file:///home/max/Build/Emulator/WinNative/app/src/main/assets/proton-9.0-arm64ec.txz) (64 MB) — arm64ec Wine binary
+- ✅ [proton-9.0-arm64ec_container_pattern.tzst](file:///home/max/Build/Emulator/WinNative/app/src/main/assets/proton-9.0-arm64ec_container_pattern.tzst) — arm64ec container pattern
+- ✅ [proton-9.0-x86_64_container_pattern.tzst](file:///home/max/Build/Emulator/WinNative/app/src/main/assets/proton-9.0-x86_64_container_pattern.tzst) — x86_64 container pattern
+- ❌ **`proton-9.0-x86_64.txz` — MISSING!** No x86_64 Wine binary
+
+### What happens:
+
+In [ImageFsInstaller.java:46-54](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/xenvironment/ImageFsInstaller.java#L46-L54), during setup:
+
+```java
+public static void installWineFromAssets(final MainActivity activity) {
+    String[] versions = activity.getResources().getStringArray(R.array.wine_entries);
+    // wine_entries = ["proton-9.0-x86_64", "proton-9.0-arm64ec"]
+    for (String version : versions) {
+        File outFile = new File(rootDir, "/opt/" + version);
+        outFile.mkdirs();
+        TarCompressorUtils.extract(Type.XZ, activity, version + ".txz", outFile);
+        // ^^^ Tries to extract "proton-9.0-x86_64.txz" — DOES NOT EXIST!
+    }
+}
+```
+
+The directory `/opt/proton-9.0-x86_64/` gets **created but remains EMPTY**. When a container later tries to launch with this Wine path, Box64 can't find the Wine binary — instant failure.
+
+### In the original Ludashi:
+The original Ludashi includes the x86_64 Wine/Proton binary in its assets. GameNative removed it (likely for APK size) but kept it in `wine_entries`, so the code still tries to use it.
+
+---
+
+## 🔴 Issue #2: Box64 Launch Command Uses Wrong Path (CRITICAL)
+
+**File:** [GuestProgramLauncherComponent.java:411-424](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/xenvironment/components/GuestProgramLauncherComponent.java#L411-L424)
+
+For x86-64 containers, the launch command is built as:
+
+```java
+// x86_64 containers use Box64 binary translation directly, no HODLL
+command = imageFs.getBinDir() + "/box64 " + guestExecutable;
+```
+
+Where `guestExecutable` is:
+```java
+guestExecutable = "wine explorer /desktop=shell," + xServer.screenInfo + " " + wineStartCmd;
+```
+
+So the final command becomes something like:
+```
+/data/.../imagefs/usr/bin/box64 wine explorer /desktop=shell,1280x720 winhandler.exe ...
+```
+
+**The problem:** Box64 is being asked to run `wine` as a bare command name. For this to work, `wine` must be on the `PATH`. The `PATH` is set correctly in the env vars:
+
+```java
+envVars.put("PATH", winePath + ":" + rootDir.getPath() + "/usr/bin");
+```
+
+Where `winePath` = `/data/.../imagefs/opt/proton-9.0-x86_64/bin`.
+
+**But if Issue #1 means the Wine binary was never extracted**, this path is empty and `wine` binary doesn't exist there.
+
+### Compared to Arm64EC (which works):
+For arm64ec, the command is:
+```java
+command = winePath + "/" + guestExecutable;
+// = /data/.../imagefs/opt/proton-9.0-arm64ec/bin/wine explorer ...
+```
+
+This uses the **full absolute path** to the wine binary, which is more resilient.
+
+---
+
+## 🟡 Issue #3: Emulator Selection Is Force-Overridden (MEDIUM)
+
+**File:** [GuestProgramLauncherComponent.java:365-376](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/xenvironment/components/GuestProgramLauncherComponent.java#L365-L376)
+
+```java
+// Force correct emulator based on architecture
+if (wineInfo.isArm64EC()) {
+    emulator = "FEXCore";
+    emulator64 = "FEXCore";
+} else {
+    // x86_64 MUST use Box64
+    emulator = "Box64";
+    emulator64 = "Box64";
+}
+```
+
+This **ignores the user's container/shortcut emulator selection** for x86-64. While it's technically correct that x86-64 containers *should* use Box64, the force-override:
+
+1. **Discards any user-selected emulator preference** from container settings or per-game shortcut settings
+2. In the original Ludashi, the emulator selection from the container config is respected (the user picks Box64 or FEXCore in the UI)
+3. This could cause confusion if a user was trying to debug by switching emulators
+
+This isn't causing the container to fail to *open*, but it means user settings are being silently ignored.
+
+---
+
+## 🟡 Issue #4: [extractBox64Files](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/xenvironment/components/GuestProgramLauncherComponent.java#72-103) vs [extractEmulatorsDlls](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/xenvironment/components/GuestProgramLauncherComponent.java#104-146) Path Split (MEDIUM)
+
+**File:** [GuestProgramLauncherComponent.java:154-162](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/xenvironment/components/GuestProgramLauncherComponent.java#L154-L162)
+
+```java
+@Override
+public void start() {
+    synchronized (lock) {
+        if (wineInfo.isArm64EC())
+            extractEmulatorsDlls();  // Extracts wowbox64 + fexcore DLLs to system32
+        else
+            extractBox64Files();     // Extracts box64 binary to /usr/bin
+        checkDependencies();
+        pid = execGuestProgram();
+    }
+}
+```
+
+For x86-64, only [extractBox64Files()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/xenvironment/components/GuestProgramLauncherComponent.java#72-103) is called — this extracts the Box64 binary to `/usr/bin/box64`. However, [extractEmulatorsDlls()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/xenvironment/components/GuestProgramLauncherComponent.java#104-146) is **only** called for arm64ec. This means:
+
+- For x86-64, the `wowbox64.dll` and `libwow64fex.dll` are **never extracted** — but that's fine because x86-64 doesn't use HODLL (WoW64 host DLLs)
+- The [box64](file:///home/max/Build/Emulator/WinNative/app/src/main/assets/box64) binary is extracted from [box64/box64-0.3.7.tzst](file:///home/max/Build/Emulator/WinNative/app/src/main/assets/box64/box64-0.3.7.tzst) — this **should work** if the asset exists (it does: 1 file in [box64/](file:///home/max/Build/Emulator/WinNative/app/src/main/assets/box64) directory)
+
+**But there's a subtle issue:** [extractBox64Files](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/xenvironment/components/GuestProgramLauncherComponent.java#72-103) checks `container.getExtra("box64Version")` to decide if re-extraction is needed. If the container was previously created with a different status, it might skip extraction silently.
+
+---
+
+## 🟡 Issue #5: Container Pattern Extraction May Fail Silently (MEDIUM)
+
+**File:** [ContainerManager.java:286-328](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/container/ContainerManager.java#L286-L328)
+
+```java
+public boolean extractContainerPatternFile(Container container, String wineVersion, ...) {
+    String containerPattern = wineVersion + "_container_pattern.tzst";
+    boolean result = TarCompressorUtils.extract(..., containerPattern, containerDir, ...);
+
+    if (!result) {
+        // Falls back to profile or prefixPack.txz
+        containerPatternFile = new File(wineInfo.path, "prefixPack.txz");
+        // wineInfo.path = /opt/proton-9.0-x86_64 — which is EMPTY per Issue #1!
+        result = TarCompressorUtils.extract(..., containerPatternFile, containerDir);
+    }
+    
+    if (result) {
+        // Extracts common DLLs from Wine's lib folder
+        extractCommonDlls(wineInfo, "x86_64-windows", "system32", ...);
+        extractCommonDlls(wineInfo, "i386-windows", "syswow64", ...);
+    }
+}
+```
+
+The container pattern asset [proton-9.0-x86_64_container_pattern.tzst](file:///home/max/Build/Emulator/WinNative/app/src/main/assets/proton-9.0-x86_64_container_pattern.tzst) **does exist** (8.7 MB), so the initial extraction should succeed. However, [extractCommonDlls](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/container/ContainerManager.java#263-285) tries to copy DLLs from:
+
+```
+/opt/proton-9.0-x86_64/lib/wine/x86_64-windows/
+```
+
+If the Wine binary was never extracted (Issue #1), this directory **does not exist**, so [extractCommonDlls](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/container/ContainerManager.java#263-285) gets `null` from `listFiles()` and silently skips all DLLs. The container is created **without any Windows system DLLs in system32/**.
+
+---
+
+## 🟢 What Works (ARM64EC) — For Reference
+
+The arm64ec path works because:
+1. [proton-9.0-arm64ec.txz](file:///home/max/Build/Emulator/WinNative/app/src/main/assets/proton-9.0-arm64ec.txz) exists and gets properly extracted to `/opt/proton-9.0-arm64ec/`
+2. Wine binary has its full path hardcoded in the command
+3. [extractEmulatorsDlls()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/xenvironment/components/GuestProgramLauncherComponent.java#104-146) properly extracts WoW64 translation DLLs
+4. [extractCommonDlls()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/container/ContainerManager.java#263-285) finds the DLLs in the correct location
+
+---
+
+## Recommended Fixes (Priority Order)
+
+### Fix 1: Add the missing x86-64 Proton binary
+The `proton-9.0-x86_64.txz` asset needs to be added back to the assets directory. This is the root cause — without the Wine binary, nothing works.
+
+**Where to get it:** The original Ludashi APK or the Winlator upstream repository contains this file.
+
+### Fix 2: Make the Wine binary path explicit for x86-64 (like arm64ec)
+In [GuestProgramLauncherComponent.java:421-424](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/xenvironment/components/GuestProgramLauncherComponent.java#L421-L424):
+
+```diff
+ else {
+     // x86_64 containers use Box64 binary translation directly, no HODLL
+-    command = imageFs.getBinDir() + "/box64 " + guestExecutable;
++    command = imageFs.getBinDir() + "/box64 " + winePath + "/" + guestExecutable;
+ }
+```
+
+### Fix 3: Add error handling for missing Wine binary
+Before launching, verify the Wine binary exists and show a meaningful error instead of silently failing.
+
+### Fix 4: Add null checks in extractCommonDlls
+In [ContainerManager.java:263-284](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/container/ContainerManager.java#L263-L284), add logging when the source directory doesn't exist.

@@ -1,0 +1,87 @@
+<current_dom_explanation>
+This is a temporary snapshot of the current page's DOM structure. The DOM will change if you navigate to or interact with another page. Use a tool like browser_get_dom to capture and preserve the DOM in your trajectory if needed for later reference.
+</current_dom_explanation>
+<current_dom>
+Skip to content
+Navigation Menu
+[0] (28,27)<a aria-label='Homepage' class='tmp-mr-lg-3 color-fg-inherit flex-order-2 js-prevent-focus-on-mobile-nav' href='/' />
+[1] (78,27)<button class='NavDropdown-module__button__PEHWX js-details-target'>Platform />
+[2] (139,27)<button class='NavDropdown-module__button__PEHWX js-details-target'>Solutions />
+[3] (204,27)<button class='NavDropdown-module__button__PEHWX js-details-target'>Resources />
+[4] (277,27)<button class='NavDropdown-module__button__PEHWX js-details-target'>Open Source />
+[5] (350,27)<button class='NavDropdown-module__button__PEHWX js-details-target'>Enterprise />
+[6] (404,27)<a class='NavLink-module__link__EG3d4 MarketingNavigation-module__navLink__hUomM' href='https://github.com/pricing' />
+	[7] (404,27)<span >Pricing />
+[8] (760,27)<button aria-label='Search or jump to…' class='header-search-button placeholder input-button form-control d-flex flex-1 flex-self-stretch flex-items-center no-wrap width-full py-0 pl-2 pr-0 text-left border-0 box-shadow-none' placeholder='Search or jump to...' />
+	[9] (675,27)<div  />
+	[10] (760,27)<span >Search or jump to... />
+	[11] (847,27)<div  />
+[12] (883,27)<a class='HeaderMenu-link HeaderMenu-link--sign-in HeaderMenu-button flex-shrink-0 no-underline d-none d-lg-inline-flex border border-lg-0 rounded px-2 py-1' href='/login?return_to=https%3A%2F%2Fgithub.com%2Futkarshdalal%2FGameNative%2Ffind%2Fmaster'>Sign in />
+[13] (933,27)<a class='HeaderMenu-link HeaderMenu-link--sign-up HeaderMenu-button flex-shrink-0 d-flex d-lg-inline-flex no-underline border color-border-default rounded px-2 py-1' href='/signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E%2Ftree%2Ffind&source=header-repo&source_repo=utkarshdalal%2FGameNative'>Sign up />
+[14] (972,27)<button class='Button Button--iconOnly Button--invisible Button--medium AppHeader-button HeaderMenu-link border' id='icon-button-709ecf62-bac0-4d7e-9a9a-656df158234e' />
+[15] (68,78)<a class='url fn' href='/utkarshdalal'>utkarshdalal />
+/
+[16] (149,78)<a href='/utkarshdalal/GameNative'>GameNative />
+Public
+[17] (731,78)<button aria-label='Sponsor utkarshdalal/GameNative' class='Button--secondary Button--small Button' id='dialog-show-funding-links-modal-utkarshdalal-GameNative' />
+	[18] (731,78)<span  />
+		[19] (731,78)<span  />
+			[20] (737,78)<span >Sponsor />
+[21] (797,78)<a aria-label='You must be signed in to change notification settings' class='btn-sm btn' href='/login?return_to=%2Futkarshdalal%2FGameNative' id='repository-details-watch-button'>Notifications />
+[22] (872,78)<a class='btn-sm btn' href='/login?return_to=%2Futkarshdalal%2FGameNative' id='fork-button'>Fork />
+	[23] (888,78)<span >135 />
+[24] (946,78)<a aria-label='You must be signed in to star a repository' class='tooltipped tooltipped-sw btn-sm btn' href='/login?return_to=%2Futkarshdalal%2FGameNative' />
+	[25] (941,77)<span >Star />
+	[26] (962,78)<span >3.3k />
+[27] (41,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item selected' href='/utkarshdalal/GameNative' id='code-tab' />
+	[28] (48,121)<span >Code />
+[29] (104,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/utkarshdalal/GameNative/issues' id='issues-tab' />
+	[30] (100,121)<span >Issues />
+	[31] (126,121)<span >46 />
+[32] (193,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/utkarshdalal/GameNative/pulls' id='pull-requests-tab' />
+	[33] (190,121)<span >Pull requests />
+	[34] (230,121)<span >34 />
+[35] (283,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/utkarshdalal/GameNative/discussions' id='discussions-tab' />
+	[36] (290,121)<span >Discussions />
+[37] (351,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/utkarshdalal/GameNative/actions' id='actions-tab' />
+	[38] (358,121)<span >Actions />
+[39] (412,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/utkarshdalal/GameNative/projects' id='projects-tab' />
+	[40] (419,121)<span >Projects />
+[41] (474,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/utkarshdalal/GameNative/security' id='security-tab' />
+	[42] (481,121)<span >Security />
+[43] (536,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/utkarshdalal/GameNative/pulse' id='insights-tab' />
+	[44] (543,121)<span >Insights />
+[45] (167,169)<a href='/utkarshdalal/GameNative'>GameNative />
+/
+[46] (532,169)<input aria-label='The name of the file to navigate to.' class='form-control tree-finder-input js-tree-finder-field ml-1 flex-1' id='tree-finder-field' role='combobox' />
+[47] (500,203)<a class='tree-browser-result no-underline p-1 py-2 border-bottom d-block' href='/utkarshdalal/GameNative/blob/master/app/src/main/java/app/gamenative/utils/PreLaunchSteps.kt' role='option' />
+	[48] (294,203)<marked-text >app/src/main/java/app/gamenative/utils/Pre />
+		[49] (351,203)<mark >L />
+		[50] (356,203)<mark >a />
+		[51] (361,203)<mark >u />
+		[52] (366,203)<mark >n />
+		[53] (371,203)<mark >c />
+		[54] (376,203)<mark >h />
+		[55] (381,203)<mark >S />
+		[56] (385,203)<mark >t />
+		[57] (389,203)<mark >e />
+		[58] (395,203)<mark >p />
+		[59] (399,203)<mark >s />
+		[60] (403,203)<mark >. />
+		[61] (406,203)<mark >k />
+		[62] (411,203)<mark >t />
+[63] (500,232)<a class='tree-browser-result no-underline p-1 py-2 border-bottom d-block' href='/utkarshdalal/GameNative/blob/master/app/src/main/java/app/gamenative/utils/launchdependencies/GogScriptInterpreterPreLaunchStep.kt' role='option' />
+	[64] (374,232)<marked-text >app/src/main/java/app/gamenative/utils/launchdependencies/GogScriptInterpreterPre
+.kt />
+		[65] (516,232)<mark >L />
+		[66] (521,232)<mark >a />
+		[67] (526,232)<mark >u />
+		[68] (532,232)<mark >n />
+		[69] (537,232)<mark >c />
+		[70] (541,232)<mark >h />
+		[71] (547,232)<mark >S />
+		[72] (551,232)<mark >t />
+		[73] (555,232)<mark >e />
+		[74] (560,232)<mark >p />
+
+</current_dom>

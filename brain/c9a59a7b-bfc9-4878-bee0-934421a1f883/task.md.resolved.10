@@ -1,0 +1,17 @@
+# Tasks
+
+## Completed ✅
+- [x] Menu cleanup, branding, FAB
+- [x] UnifiedActivity redesign (carousel, tabs, status, filter)
+- [x] Fragment NPE crashes fixed (5 files)
+- [x] Stores routing, tab centering, icon
+
+## Phase 5 — Tab Scroll Limit
+- [/] Limit visible tabs to 4 via `widthIn(max)` on the Row
+
+## Phase 6 — Game Launch
+- [/] Proper launch: find/create container, map A: drive, launch XServerDisplayActivity
+- [ ] Remove shortcut dependency — launch directly with container + exe path
+
+## Phase 7 — Steam Artwork Fix
+- [/] Add [getHeroUrl()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/steam/data/SteamApp.kt#182-193) and CDN `library_hero.jpg` fallback to artwork chain

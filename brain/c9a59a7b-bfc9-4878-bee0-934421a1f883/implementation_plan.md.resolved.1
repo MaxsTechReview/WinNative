@@ -1,0 +1,55 @@
+# UI Update, Menu Reorganization, and Store Integration
+
+This plan covers removing Winlator branding, cleaning up headers, reorganizing the main menu, implementing multi-store integration (Steam, Epic, GOG, Amazon), and designing a professional application icon.
+
+## Proposed Changes
+
+### [Component Name] Layouts and UI
+
+#### [MODIFY] [main_activity.xml](file:///home/max/Build/Emulator/WinNative/app/src/main/res/layout/main_activity.xml)
+- Remove `app:headerLayout="@layout/main_menu_header"` from `NavigationView` to eliminate Winlator logo.
+- Remove the `Toolbar` view for a cleaner header.
+
+#### [MODIFY] [containers_fragment.xml](file:///home/max/Build/Emulator/WinNative/app/src/main/res/layout/containers_fragment.xml)
+- Remove the legacy `BTAddContainer` text button.
+- Add a modern `FloatingActionButton` (FAB) for container creation.
+
+#### [NEW] [stores_fragment.xml](file:///home/max/Build/Emulator/WinNative/app/src/main/res/layout/stores_fragment.xml)
+- UI for the "Stores" view, featuring cards for Steam, Epic, GOG, and Amazon with Sign In/Out buttons.
+
+#### [NEW] [ic_win_launcher.xml](file:///home/max/Build/Emulator/WinNative/app/src/main/res/drawable/ic_win_launcher.xml)
+- Professional application icon design reflecting the "WinNative" identity.
+
+### [Component Name] Navigation and Logic
+
+#### [MODIFY] [main_menu.xml](file:///home/max/Build/Emulator/WinNative/app/src/main/res/menu/main_menu.xml)
+- Reorder and rename items:
+    1. Stores (New)
+    2. Presets (Renamed from Settings)
+    3. Components (Renamed from Contents)
+    4. Drivers (Renamed from Adrenotools GPU)
+    5. Input Controls
+
+#### [MODIFY] [MainActivity.java](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/MainActivity.java)
+- Update menu navigation logic to handle `StoresFragment`.
+
+#### [NEW] [StoresFragment.kt](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/StoresFragment.kt)
+- Logic for handling multi-store authentication and state management.
+
+#### [NEW] [Service Porting]
+- Port [EpicService.kt](file:///home/max/Build/Emulator/Reference/GameNative/app/src/main/java/app/gamenative/service/epic/EpicService.kt), [GOGService.kt](file:///home/max/Build/Emulator/Reference/GameNative/app/src/main/java/app/gamenative/service/gog/GOGService.kt), and [AmazonService.kt](file:///home/max/Build/Emulator/Reference/GameNative/app/src/main/java/app/gamenative/service/amazon/AmazonService.kt) from `Reference/GameNative` to `WinNative`.
+
+### [Component Name] Strings
+
+#### [MODIFY] [strings.xml](file:///home/max/Build/Emulator/WinNative/app/src/main/res/values/strings.xml)
+- Update labels and add necessary resources for new store features.
+
+## Verification Plan
+
+### Automated Tests
+- Build with `./gradlew assembleDebug --info`.
+
+### Manual Verification
+- Verify navigation and UI layout.
+- Test Sign In/Out functionality for all four stores.
+- Confirm the new icon is visible on the device launcher.

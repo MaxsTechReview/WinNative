@@ -1,0 +1,48 @@
+# UI Update and Menu Reorganization
+
+This plan covers removing Winlator branding, cleaning up headers, and reorganizing the main menu according to specific labeling and ordering requirements.
+
+## Proposed Changes
+
+### [Component Name] Layouts and UI
+
+#### [MODIFY] [main_activity.xml](file:///home/max/Build/Emulator/WinNative/app/src/main/res/layout/main_activity.xml)
+- Remove `app:headerLayout="@layout/main_menu_header"` from `NavigationView`.
+- Remove the `Toolbar` view.
+
+#### [MODIFY] [containers_fragment.xml](file:///home/max/Build/Emulator/WinNative/app/src/main/res/layout/containers_fragment.xml)
+- Remove the `BTAddContainer` button.
+- Add a `FloatingActionButton` at the bottom right for adding containers.
+
+### [Component Name] Navigation and Logic
+
+#### [MODIFY] [main_menu.xml](file:///home/max/Build/Emulator/WinNative/app/src/main/res/menu/main_menu.xml)
+- Reorder and rename items:
+    1. Stores (New item)
+    2. Presets (Renamed from Settings)
+    3. Components (Renamed from Contents, replacing Shortcuts)
+    4. Drivers (Renamed from Adrenotools GPU)
+    5. Input Controls
+- Note: Containers and About are not mentioned in the new list, so I will move them to the bottom or hide them if implied, but I'll keep them for now unless specified otherwise. Actually, I'll follow the exact list: Stores, Presets, Components, Drivers, Input Controls.
+
+#### [MODIFY] [MainActivity.java](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/MainActivity.java)
+- Remove `setSupportActionBar` and `getSupportActionBar` calls.
+- Update [onNavigationItemSelected](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/MainActivity.java#246-280) to handle the new menu structure.
+
+#### [MODIFY] [ContainersFragment.java](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/ContainersFragment.java)
+- Update [onCreateView](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/ContainersFragment.java#78-98) to find the new FAB and set its click listener.
+- Remove [onCreateOptionsMenu](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/ContainersFragment.java#105-117) and [onOptionsItemSelected](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/ContainersFragment.java#118-139) logic that inflates the top right menu with the `+` button.
+
+#### [MODIFY] [strings.xml](file:///home/max/Build/Emulator/WinNative/app/src/main/res/values/strings.xml)
+- Update/Add strings for "Stores", "Presets", "Components", "Drivers".
+
+## Verification Plan
+
+### Automated Tests
+- Run `assembleDebug --info` to ensure the project builds correctly.
+
+### Manual Verification
+- Launch the app and verify the split view menu does not have a logo.
+- Verify the right view does not have a top header bar.
+- Verify the `+` button is now a FAB at the bottom right of the containers list.
+- Verify the menu labels and order are correct.

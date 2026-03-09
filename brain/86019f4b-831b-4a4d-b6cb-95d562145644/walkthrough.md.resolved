@@ -1,0 +1,16 @@
+# Performance and Stability Fixes Review
+
+## Summary of Changes
+Completed a review of the application to identify potential stability and performance issues, focusing particularly on thread synchronization bugs and necessary configuration updates based on project requirements.
+
+### Threading and Stability: [GPUInformation.java](file:///home/max/Build/GameNative-Performance/app/src/main/java/com/winlator/core/GPUInformation.java)
+- **Issue**: The [loadGPUInformation](file:///home/max/Build/GameNative-Performance/app/src/main/java/com/winlator/core/GPUInformation.java#77-137) method previously launched a background thread to retrieve EGL information and then the main thread called `thread.wait()`, while the background thread called `thread.notify()` in a `finally` block. This approach introduced a severe race condition: if the background thread finished execution *before* the main thread had a chance to call `wait()`, the main thread would block indefinitely, hanging the JVM and the UI thread.
+- **Fix**: Replaced the fragile `wait()/notify()` logic with a `java.util.concurrent.CountDownLatch`. The latch is initialized with a count of `1`. The main thread calls `latch.await()`, and the background thread calls `latch.countDown()` in its `finally` block when done. This guarantees that the main thread will never hang, regardless of whether the background thread completes before or after the main thread reaches the synchronization point.
+
+### Application Configuration: [build.gradle.kts](file:///home/max/Build/GameNative-Performance/build.gradle.kts)
+- **Issue**: The application package name needed to conform to specific benchmark requirements (Ludashi).
+- **Fix**: Updated the `applicationId` in [app/build.gradle.kts](file:///home/max/Build/GameNative-Performance/app/build.gradle.kts) from `"app.gamenative"` to `"com.ludashi.benchmark"`, while preserving the internal `namespace = "app.gamenative"`. This fulfills the requirement without breaking existing internal R class references and package structures.
+
+## Verification
+- **Build**: User confirmed that `./gradlew assembleDebug` completes successfully.
+- **Stability**: The usage of `CountDownLatch` mathematically prevents the specific race condition that would cause an indefinite hang in [GPUInformation.java](file:///home/max/Build/GameNative-Performance/app/src/main/java/com/winlator/core/GPUInformation.java).

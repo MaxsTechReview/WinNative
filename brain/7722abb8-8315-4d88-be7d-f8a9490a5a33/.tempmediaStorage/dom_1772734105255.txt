@@ -1,0 +1,183 @@
+<current_dom_explanation>
+This is a temporary snapshot of the current page's DOM structure. The DOM will change if you navigate to or interact with another page. Use a tool like browser_get_dom to capture and preserve the DOM in your trajectory if needed for later reference.
+</current_dom_explanation>
+<current_dom>
+Skip to content
+Navigation Menu
+Platform
+Solutions
+Resources
+Open Source
+Enterprise
+Pricing
+Search or jump to...
+Search code, repositories, users, issues, pull requests...
+Search
+[0] (496,27)<div  />
+	[1] (65,27)<span  />
+	[2] (493,27)<div  />
+		repo:
+		utkarshdalal/GameNative
+		mono
+		[3] (493,27)<div  />
+			[4] (493,27)<input class='FormControl-input QueryBuilder-Input FormControl-medium focus-visible' id='query-builder-test' role='combobox' />
+	[5] (924,27)<span >Clear />
+		Clear
+		[6] (923,27)<button class='Button Button--iconOnly Button--invisible Button--medium mr-1 px-2 py-0 d-flex flex-items-center rounded-1 color-fg-muted' id='query-builder-test-clear-button' role='button' />
+[7] (496,61)<li aria-label='repo:utkarshdalal/GameNative , Search in this repository' class='ActionListItem' id='query-builder-test-result-0' role='option' />
+	repo:
+	utkarshdalal/GameNative
+	Search in this repository
+[8] (496,88)<li aria-label='user:utkarshdalal , Search in this owner' class='ActionListItem' id='query-builder-test-result-1' role='option' />
+	user:
+	utkarshdalal
+	Search in this owner
+2 suggestions.
+[9] (92,124)<a class='Link color-fg-accent text-normal ml-2' href='https://docs.github.com/search-github/github-code-search/understanding-github-code-search-syntax'>Search syntax tips />
+Sign in
+Sign up
+utkarshdalal
+/
+GameNative
+Public
+Sponsor
+Notifications
+Fork
+135
+Star
+3.3k
+Code
+Issues
+46
+Pull requests
+34
+Discussions
+Actions
+Projects
+Security
+Insights
+utkarshdalal/GameNative
+master
+113
+Branches
+70
+Tags
+Code
+Folders and files
+Latest commit
+utkarshdalal
+and
+Utkarsh Dalal
+Fix steam login UI (
+#720
+)
+d68b2fd
+·
+History
+1,175 Commits
+.github
+refactor: remove Supabase integration and update game feedback submis…
+.run
+Add lint run tasks, apply 140 max line length.
+PrivacyPolicy
+Bumped version, made privacy policy more transparent
+app
+Fix steam login UI (
+#720
+)
+gradle
+Added play integrity to API requests (
+#680
+)
+keyvalues
+Added mouse and keyboard support. Fixed an issue with wine start comm…
+media
+Increased contrast between controllers in the background and the back…
+tools
+Move assets out of LFS
+ubuntufs
+removed st00pid ubuntufs file
+.editorconfig
+Add lint run tasks, apply 140 max line length.
+.gitattributes
+Remove LFS tracking rules
+.gitignore
+Feat/UI ux overhaul final (
+#667
+)
+.gitmodules
+New wrapper working with vkbasalt and other configs
+LICENSE
+Create LICENSE
+README.md
+fix(): added new tips and updated readme to remove the assets check a…
+THIRD_PARTY_NOTICES
+Feat/UI ux overhaul final (
+#667
+)
+build.gradle.kts
+Get Supabase params from .gitignored file
+gradle.properties
+Fixed audio issues hopefully, enable dx11 for vortek drivers by defau…
+gradlew
+Update gradle
+gradlew.bat
+Update gradle
+keystore
+some cleanup after adding assets from cmod
+manifest.json
+Update manifest.json
+prod-debug.lineage
+added lineage file
+settings.gradle.kts
+Updates to allow steam login, updated javasteam version
+About
+Lightweight unofficial Steam client for Android
+Resources
+Readme
+License
+GPL-3.0 license
+Activity
+Stars
+3.3k
+stars
+Watchers
+33
+watching
+Forks
+135
+forks
+Report repository
+Releases
+52
+v0.7.2
+Latest
++ 51 releases
+Sponsor this project
+utkarshdalal
+Utkarsh Dalal
+ko-fi.com/
+gamenative
+Learn more about GitHub Sponsors
+Packages
+No packages published
+Contributors
+38
++ 24 contributors
+Languages
+Kotlin
+48.4%
+C
+34.8%
+Java
+14.6%
+C++
+1.5%
+GLSL
+0.4%
+Python
+0.2%
+CMake
+0.1%
+
+</current_dom>

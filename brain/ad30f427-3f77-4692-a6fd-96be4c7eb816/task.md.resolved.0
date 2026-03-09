@@ -1,0 +1,24 @@
+# Blackbird Android Application Tasks
+
+- [ ] Planning
+  - [ ] Agree on technology stack (Web technologies wrapped in Capacitor vs Kotlin Native)
+  - [ ] Approve implementation plan
+- [ ] Project Initialization
+  - [ ] Setup base project (Vite/React or Kotlin)
+  - [ ] Setup Android native wrapper (Capacitor or Android Studio config)
+- [ ] P2P Networking & Game Logic Engine
+  - [ ] Implement Host/Join logic using WebRTC (PeerJS or custom signaling)
+  - [ ] Deep Link integration (Clicking a link opens the app and joins the room)
+  - [ ] Implement authoritative Game State logic (Deck, Shuffle, Deal, Bidding, Trick taking, Scoring)
+- [ ] User Interface Development
+  - [ ] Responsive Layout (Portrait and Landscape adaptibility)
+  - [ ] Table View (Positions for Host and 3 other players)
+  - [ ] Card Components (Realistic UI, draggable/clickable)
+  - [ ] Scoreboard Component
+- [ ] Animations & Polish
+  - [ ] Play Card Animations (Moving from player hand to center desk with offset/rotation)
+  - [ ] Trick Resolution Animations (Clearing the board)
+  - [ ] Modern UI styling and appropriate theme polishing
+- [ ] Verification
+  - [ ] Build Android APK
+  - [ ] Test networking locally (e.g. multiple browser windows or emulators)

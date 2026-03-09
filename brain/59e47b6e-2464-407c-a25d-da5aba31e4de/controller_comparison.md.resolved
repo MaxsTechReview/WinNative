@@ -1,0 +1,124 @@
+# WinNative vs GameNative-Performance: Input Handling Comparison
+
+## Executive Summary
+
+GameNative-Performance handles input in a fundamentally different way. The key differences that explain why "some games work, some don't" are:
+
+## Critical Differences
+
+### 1. Profile Always Loaded (GNP) vs Profile Only Loaded on Request (WinNative)
+
+**GameNative-Performance** ([XServerScreen.kt:1088-1122](file:///home/max/Build/Emulator/Reference/GameNative-Performance/app/src/main/java/app/gamenative/ui/screen/xserver/XServerScreen.kt#L1088-L1122)):
+- **ALWAYS loads a profile** at startup. If a custom profile exists, it uses it. Otherwise it falls back to `Profile 0`, then `profiles[2]`, then `profiles.first()`.
+- The profile is loaded even if on-screen controls are hidden (GONE). The profile is set on the [InputControlsView](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/widget/InputControlsView.java#49-848) **regardless of visibility**.
+- Touch handling in the pointerInteropFilter (line 790-802) explicitly checks `areControlsVisible.value` and only sends touches to [InputControlsView](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/widget/InputControlsView.java#49-848) when controls ARE visible. When not visible, touches go directly to `touchpadView`.
+
+**WinNative** ([XServerDisplayActivity.java:1425-1434](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/XServerDisplayActivity.java#L1425-L1434)):
+- Only loads a profile if the shortcut has a `controlsProfile` extra set, OR if the user manually opens the input controls dialog.
+- [simulateConfirmInputControlsDialog()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/XServerDisplayActivity.java#1574-1630) uses a `selected_profile_index` preference that defaults to -1.
+- Result: **Most games start with `profile == null`**
+
+> [!CAUTION]
+> This is the #1 issue. Without a profile, [onTouchEvent](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/widget/InputControlsView.java#566-669) falls through to the touchpad fallback we just added, BUT the [onGenericMotionEvent](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/widget/InputControlsView.java#521-564) (physical gamepad) still returns `false` because `profile` is `null`.
+
+### 2. Touch Event Routing Architecture
+
+**GameNative-Performance** ([XServerScreen.kt:780-802](file:///home/max/Build/Emulator/Reference/GameNative-Performance/app/src/main/java/app/gamenative/ui/screen/xserver/XServerScreen.kt#L780-L802)):
+```kotlin
+.pointerInteropFilter { event ->
+    // Controls visible? Let them handle first
+    val controlsHandled = if (areControlsVisible.value) {
+        PluviaApp.inputControlsView?.onTouchEvent(event) ?: false
+    } else {
+        false
+    }
+    // If controls didn't handle it, send to touchpad
+    if (!controlsHandled) {
+        PluviaApp.touchpadView?.onTouchEvent(event)
+    }
+    true
+}
+```
+**This is done at the Compose layer**, NOT via View hierarchy Z-ordering. It explicitly decides WHO gets the event based on a state variable.
+
+**WinNative** ([XServerDisplayActivity.java:1383-1388](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/XServerDisplayActivity.java#L1383-L1388)):
+- Relies on Android View Z-ordering. `inputControlsView` is added on top of `touchpadView`.
+- When `inputControlsView` is VISIBLE, it intercepts ALL touch events via [onTouchEvent](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/widget/InputControlsView.java#566-669) returning `true`.
+- The [startTouchscreenTimeout()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/XServerDisplayActivity.java#1631-1669) method can make the view VISIBLE even without a profile.
+- Result: **The view eats all touches and does nothing** when visible without a profile.
+
+### 3. Gamepad Motion Event Flow
+
+**GameNative-Performance** ([XServerScreen.kt:730-743](file:///home/max/Build/Emulator/Reference/GameNative-Performance/app/src/main/java/app/gamenative/ui/screen/xserver/XServerScreen.kt#L730-L743)):
+```kotlin
+val onMotionEvent: (AndroidEvent.MotionEvent) -> Boolean = {
+    val isGamepad = ExternalController.isGameController(it.event?.device)
+    var handled = false
+    if (isGamepad && it.event != null) {
+        handled = physicalControllerHandler?.onGenericMotionEvent(it.event!!) == true
+        if (!handled) handled = PluviaApp.inputControlsView?.onGenericMotionEvent(it.event) == true
+        if (!handled) handled = xServerView!!.getxServer().winHandler.onGenericMotionEvent(it.event)
+    }
+    if (!handled) {
+        handled = PluviaApp.touchpadView?.onExternalMouseEvent(it.event) == true
+    }
+    handled
+}
+```
+
+Key differences:
+1. Uses `PhysicalControllerHandler` first (a separate handler for physical controller profiles)
+2. Falls through to `InputControlsView.onGenericMotionEvent()` 
+3. Falls through to `WinHandler.onGenericMotionEvent()` (XInput passthrough)
+4. Falls through to `TouchpadView.onExternalMouseEvent()` (mouse)
+
+**WinNative** (after our fix):
+- Goes to [InputControlsView](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/widget/InputControlsView.java#49-848) first (only if visible + profile exists)
+- Then [WinHandler](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/XServerDisplayActivity.java#2651-2654)
+- Then [TouchpadView](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/widget/InputControlsView.java#366-369)
+- **Missing: No `PhysicalControllerHandler` concept** — but that's less critical
+
+### 4. Auto-show/Auto-hide Based on Physical Controller
+
+**GameNative-Performance** ([XServerScreen.kt:1205-1242](file:///home/max/Build/Emulator/Reference/GameNative-Performance/app/src/main/java/app/gamenative/ui/screen/xserver/XServerScreen.kt#L1205-L1242)):
+- Has `updateControlsVisibility()` that scans for physical controllers
+- If a physical controller is connected → hides on-screen controls
+- If no physical controller → shows on-screen controls
+- Listens for `InputDeviceListener` events to auto-toggle
+- Even when on-screen controls are hidden, the **profile stays loaded** so physical controller events still get processed through `InputControlsView.onGenericMotionEvent()`
+
+### 5. [showInputControls](file:///home/max/Build/Emulator/Reference/GameNative-Performance/app/src/main/java/app/gamenative/ui/screen/xserver/XServerScreen.kt#1705-1767) Ensures Elements Are Loaded
+
+**GameNative-Performance** ([XServerScreen.kt:1705-1765](file:///home/max/Build/Emulator/Reference/GameNative-Performance/app/src/main/java/app/gamenative/ui/screen/xserver/XServerScreen.kt#L1705-L1765)):
+- [showInputControls()](file:///home/max/Build/Emulator/Reference/GameNative-Performance/app/src/main/java/app/gamenative/ui/screen/xserver/XServerScreen.kt#1705-1767) explicitly calls `profile.loadElements(icView)` before making the view visible
+- Handles the case where the view has no dimensions yet (deferred via `icView.post {}`)
+- Sets `profile.setVirtualGamepad(true)` which may affect WinHandler gamepad slot allocation
+- Enables Player 1 slot in ControllerManager for virtual gamepad
+
+**WinNative** ([XServerDisplayActivity.java:1669-1677](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/XServerDisplayActivity.java#L1669-L1677)):
+- Sets profile and visibility, but doesn't explicitly call `loadElements()`
+- Relies on [onDraw()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/widget/InputControlsView.java#152-194) to lazily call `profile.loadElements()` — but only if `showTouchscreenControls` is true
+
+## Root Cause Summary
+
+The "some games work, some don't" is because:
+
+| Scenario | WinNative | GameNative-Performance |
+|----------|-----------|----------------------|
+| Game has `controlsProfile` shortcut extra | ✅ Profile loaded, controls work | ✅ Always works |
+| Game launched without shortcut extra | ❌ No profile loaded, touches eaten by VISIBLE view with null profile | ✅ Always loads a fallback profile |
+| `selected_profile_index` pref is -1 (default) | ❌ [hideInputControls()](file:///home/max/Build/Emulator/Reference/GameNative-Performance/app/src/main/java/app/gamenative/ui/screen/xserver/XServerScreen.kt#1768-1784) is called, but [startTouchscreenTimeout()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/XServerDisplayActivity.java#1631-1669) makes view VISIBLE again without a profile | ✅ N/A — always has profile |
+| Physical controller connected | ❌ Motion events reach `InputControlsView.onGenericMotionEvent()` but `profile` is null → returns false → falls to WinHandler which may or may not handle it correctly | ✅ Profile always set, motion events processed through bindings |
+
+## Required Fixes
+
+### Fix 1: Always Load a Default Profile
+Adapt GNP's approach: in [setupUI()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/XServerDisplayActivity.java#1362-1439), after creating `inputControlsView`, always load a profile (container's custom profile OR fallback to first available profile).
+
+### Fix 2: Don't Make [InputControlsView](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/widget/InputControlsView.java#49-848) VISIBLE Without a Profile
+The [startTouchscreenTimeout()](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/XServerDisplayActivity.java#1631-1669) method makes the view VISIBLE unconditionally. When `profile == null`, this view eats all touches and does nothing. Either:
+- Only make it VISIBLE when a profile is set, OR
+- When no profile, don't add the view to the touch interception chain
+
+### Fix 3: [showInputControls](file:///home/max/Build/Emulator/Reference/GameNative-Performance/app/src/main/java/app/gamenative/ui/screen/xserver/XServerScreen.kt#1705-1767) Should Explicitly Load Elements
+Call `profile.loadElements(inputControlsView)` in [showInputControls()](file:///home/max/Build/Emulator/Reference/GameNative-Performance/app/src/main/java/app/gamenative/ui/screen/xserver/XServerScreen.kt#1705-1767) to ensure elements are actually loaded before display, especially handling the zero-dimension case with `view.post()`.

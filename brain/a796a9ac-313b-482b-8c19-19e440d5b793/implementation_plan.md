@@ -1,0 +1,50 @@
+# PS5 / Steam Deck Style Frontend UI Redesign
+
+## Goal Description
+Redesign the `Frontend` layout view to resemble the PS5 or Steam Deck UI. The new UI will be locked to landscape mode, feature a top tab bar, and have custom layouts for "Library", "Store", and "Downloads". An "AIO Store Mode" toggle will be added to the Layout/Filters panel, which changes the available tabs.
+
+## User Review Required
+> [!IMPORTANT]
+> The "Store" and "Downloads" tabs will essentially display the currently fetched games in a different layout (4-column grid for Store) and a generic placeholder for Downloads, as there is no true native "Store" backend yet. 
+
+## Proposed Changes
+
+### Strings and Preferences
+#### [MODIFY] [strings.xml](file:///home/max/Build/GNP/Game/app/src/main/res/values/strings.xml)
+- Add `tab_store`, `tab_downloads` strings.
+- Add `library_aio_store_mode` string.
+
+#### [MODIFY] [PrefManager.kt](file:///home/max/Build/GNP/Game/app/src/main/java/app/gamenative/PrefManager.kt)
+- Add `aioStoreMode` boolean preference, defaulting to `true`.
+
+### Options Panel
+#### [MODIFY] [LibraryOptionsPanel.kt](file:///home/max/Build/GNP/Game/app/src/main/java/app/gamenative/ui/screen/library/components/LibraryOptionsPanel.kt)
+- Add a new `OptionListItem` or equivalent toggle for "AIO Store Mode" below the layout options section. This will toggle `PrefManager.aioStoreMode`.
+
+### Main Screen Input Routing
+#### [MODIFY] [LibraryScreen.kt](file:///home/max/Build/GNP/Game/app/src/main/java/app/gamenative/ui/screen/library/LibraryScreen.kt)
+- Update L1/R1 key event handling so that if `currentPaneType == PaneType.FRONTEND`, the global tab switching is bypassed, allowing the Frontend pane to handle its own internal tabs.
+
+### Frontend UI Rewrite
+#### [MODIFY] [LibraryFrontendPane.kt](file:///home/max/Build/GNP/Game/app/src/main/java/app/gamenative/ui/screen/library/components/LibraryFrontendPane.kt)
+- Rewrite the pane to contain a custom `FrontendTab` system.
+- If `aioStoreMode` is true, tabs: `Library`, `Store`, `Downloads`.
+- If `aioStoreMode` is false, tabs: `Library`, `Steam`, `Epic`, `GOG`, `Amazon`, `Downloads`.
+- Implement PS5/Steam Deck styled top tab bar.
+- **Library Tab**: Use a `LazyRow` with `fillParentMaxWidth(1f/4.5f)` to show 4.5 games wide. Add a background hero image that updates based on the focused game.
+- **Store Tab**: Use `LazyVerticalGrid` with 4 fixed columns to scroll down through the game list.
+- **Downloads Tab**: Simple placeholder UI.
+- Handle D-Pad and L1/R1 inputs specifically within this pane for fluid internal navigation.
+
+## Verification Plan
+### Automated Tests
+- Run `./gradlew assembleDebug` to verify the build compiles without errors.
+
+### Manual Verification
+1. Launch the app and go to the Library.
+2. Open Layout Options and select "Frontend". Verify the app locks to Landscape orientation.
+3. Verify the PS5/Steam Deck style UI appears with the "AIO Store" tabs.
+4. Use a controller L1/R1 to switch between Library, Store, and Downloads.
+5. In the Library tab, use the D-pad to scroll left/right. Verify 4.5 games are visible at once and the hero image updates.
+6. In the Store tab, verify games are in a 4-column vertical grid.
+7. Open Options, toggle "AIO Store Mode" off, and verify the tabs change to Library, Steam, Epic, GOG, Amazon, Downloads.

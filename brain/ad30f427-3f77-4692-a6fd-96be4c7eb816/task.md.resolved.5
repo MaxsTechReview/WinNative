@@ -1,0 +1,30 @@
+# Blackbird Android Application Tasks
+
+- [x] Planning
+  - [x] Pivot technology stack to Kotlin + Jetpack Compose based on user feedback
+  - [x] Approve implementation plan
+- [x] Project Initialization
+  - [x] Scaffold Android Gradle Project (Kotlin DSL, basic structure)
+  - [x] Configure AndroidManifest for App Links (Deep Linking)
+- [/] P2P Networking & Game Logic Engine
+  - [/] Implement Host/Join logic using embedded Ktor (Server/Client) socket
+  - [ ] Intent handling for Base64 deep links (Clicking a link connects to the Host IP list)
+  - [ ] Implement authoritative Game State logic (Deck, Shuffle, Deal, Bidding, Trick taking, Scoring)
+  - [ ] Push-to-Talk Voice Chat (AudioRecord -> Ktor Binary WebSocket -> AudioTrack)
+- [ ] AI Engine (Monte Carlo & TFLite)
+  - [ ] Implement Monte Carlo Tree Search (MCTS) algorithm for game state rollouts
+  - [ ] Integrate TensorFlow Lite Android libraries (NNAPI, GPU delegates)
+  - [ ] Create AI Player seat management (AI takes over empty seats, yields to humans)
+- [ ] User Interface Development
+  - [ ] Responsive Layout (Portrait and Landscape adaptibility)
+  - [ ] Table View (Positions for Host and 3 other players)
+  - [ ] Card Components (Realistic UI, draggable/clickable)
+  - [ ] Scoreboard Component
+  - [ ] Push-to-Talk Microphone Button UI (Ergonomic placement)
+- [ ] Animations & Polish
+  - [ ] Compose Animation for playing cards (Moving from player hand to center desk with offset/rotationZ)
+  - [ ] Trick Resolution Animations (Sliding the board to the winner)
+  - [ ] Modern dark Material 3 table theme styling
+- [ ] Verification
+  - [ ] Build Android APK
+  - [ ] Test networking locally (e.g. multiple browser windows or emulators)

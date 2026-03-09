@@ -1,0 +1,36 @@
+# Walkthrough — WinNative UI Overhaul
+
+## Latest Changes
+
+### Menu Restructured
+[main_menu.xml](file:///home/max/Build/Emulator/WinNative/app/src/main/res/menu/main_menu.xml) — Reordered:
+1. **Stores** → new [StoresFragment](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/StoresFragment.java#24-150) (sign-in/out)
+2. **Containers** → [ContainersFragment](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/ContainersFragment.java#57-251) (now visible with + button)
+3. **Presets** → [SettingsFragment](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/SettingsFragment.java#78-789)
+4. **Components** → [ContentsFragment](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/ContentsFragment.java#49-367)
+5. **Drivers** → [AdrenotoolsFragment](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/AdrenotoolsFragment.java#23-124)
+6. **Input Controls** → [InputControlsFragment](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/InputControlsFragment.java#67-816)
+
+### New StoresFragment
+[StoresFragment.java](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/StoresFragment.java):
+- Steam: fully functional sign-in/sign-out via `SteamLoginActivity` / `SteamService.logOut()`
+- Epic, GOG, Amazon: placeholder rows with "Coming Soon" toasts
+
+### Carousel Polish
+[UnifiedActivity.kt](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/UnifiedActivity.kt):
+- Removed "INSTALLED GAMES" header
+- Capsule width: 200→180dp, image height: 260→234dp (~10% smaller)
+- Game title above each capsule, centered, animated alpha (1.0 center, 0.5 sides)
+- Title scales with capsule via shared `graphicsLayer`
+
+### Previous Changes
+- Tab scroll limit (340dp, ~4 tabs visible)
+- Game launch with A: drive mounting
+- Artwork: [getHeroUrl](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/steam/data/SteamApp.kt#182-193) → [getHeaderImageUrl](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/steam/data/SteamApp.kt#164-169) → [getCapsuleUrl](file:///home/max/Build/Emulator/Reference/GameNative-Performance/app/src/main/java/app/gamenative/data/SteamApp.kt#170-181) → CDN fallback
+- Fragment NPE fixes (5 files)
+- Filter panel, Steam status picker, app icon
+
+## Build
+```
+BUILD SUCCESSFUL in 3s — 45 actionable tasks
+```

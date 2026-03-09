@@ -1,0 +1,34 @@
+# UI & Epic Games Fixes
+
+## Part 1: UI Changes
+- [x] Remove `+` button from GraphicsTab.kt (Game Settings > Settings > Graphics)
+- [x] Make the `+` button in ComponentsManagerDialog context-aware (install correct component type)
+- [x] Add "Installed" filter chip to DriverContent in ComponentsManagerDialog
+- [x] Rename the ComponentsManagerDialog `+` to install "Drivers" when in Drivers, DXVK when in DXVK, etc.
+
+## Part 2: Epic Games Launch Fix
+- [x] Analyze wine_debug.log for Epic game crash root cause
+- [x] Fix EpicManager.getInstalledExe exe detection (filter better)
+- [x] Fix Epic game working directory setup
+- [x] Verify Amazon/GOG don't have same issue
+
+## Part 3: Game Launch Targeting Fixes
+- [x] Analyze `getWineStartCommand` for all game sources
+- [x] Analyze `SteamUtils.writeSteamclientLoaderIni`
+- [x] Analyze `GOGManager.getGogWineStartCommand`
+- [x] Implement robust `A:\` targeting for Steam ColdClientLoader in `SteamUtils.kt`
+- [x] Fix Steam container persistence bug in `XServerScreen.kt`
+- [x] Add enhanced logging to all launch paths in `XServerScreen.kt` and `GOGManager.kt`
+
+## Part 5: Core Platform Fixes
+- [x] Fix `ProcessHelper.splitCommand` quoting bug
+- [x] Fix `GuestProgramLauncherComponent.java` proot CWD logic
+
+## Part 6: Game Launch Refinements
+- [x] Fix Steam ColdClientLoader workingDir in `XServerScreen.kt`
+- [x] Clean up `getWineStartCommand` individual returns
+- [x] Verify `A:\` path formatting in `SteamUtils.kt`
+
+## Part 7: Build & Verify (Iteration 2)
+- [x] Build debug APK
+- [x] Manual verification of "exe not found" resolution

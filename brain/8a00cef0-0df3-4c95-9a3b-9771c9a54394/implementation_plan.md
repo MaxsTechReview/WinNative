@@ -1,0 +1,53 @@
+# Epic GOG Game Fixes & Custom Drivers
+
+Resolve critical issues with game executable path detection, prevent settings cross-contamination between different game platforms sharing master containers, and implement the "Custom Driver" installation feature.
+
+## Proposed Changes
+
+### [Component] Container Management Utility
+#### [MODIFY] [ContainerUtils.kt](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/app/gamenative/utils/ContainerUtils.kt)
+- Fix corrupted `drives` string construction in `getOrCreateContainer` by adding missing commas as separators.
+- Ensure that dynamic drive mounting for Master Containers doesn't persist to the shared `config.json` accidentally during transient checks.
+- Refine `getAssignedContainerId` to ensure strict separation of master containers if needed, though current logic seems okay as long as `appSpecificConfigs` is used.
+
+### [Component] Game Services
+#### [MODIFY] [EpicService.kt](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/app/gamenative/service/epic/EpicService.kt)
+- Verify that `downloadGame` and `cancelDownload` correctly cleanup all transient states.
+- Ensure `cleanupDownload` is called consistently.
+
+#### [MODIFY] [AmazonService.kt](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/app/gamenative/service/amazon/AmazonService.kt)
+- Same as EpicService - ensure robust cleanup on cancellation/failure.
+
+### [Component] UI - Game Settings & Drivers
+#### [MODIFY] [ContainerConfigDialog.kt](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/app/gamenative/ui/component/dialog/ContainerConfigDialog.kt)
+- Implement `launchCustomDriverPicker` using the Activity Result API to pick a file (zip/tzst/etc) and then call `AdrenotoolsManager.installDriver`.
+- Trigger `reloadGraphicsDrivers` after successful installation to update the dropdown.
+- Ensure `ExecutablePathDropdown` correctly refreshes when `containerData.drives` changes (already implemented, but pending separator fix).
+
+#### [MODIFY] [GraphicsTab.kt](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/app/gamenative/ui/component/dialog/GraphicsTab.kt)
+- (Double check) Ensure the "+" button correctly calls the newly implemented picker.
+
+## Verification Plan
+
+### Automated Tests
+- None available for this specific UI flow/driver installation.
+
+### Manual Verification
+1. **Executable Dropdown Fix**:
+   - Open settings for an Epic/GOG game.
+   - Verify "Executable Path" dropdown is populated with `.exe` files from the game folder.
+   - Verify icons for GOG/Epic games update correctly in the library list after changing settings.
+2. **Cross-contamination check**:
+   - Open settings for an Epic game, set its exe.
+   - Open settings for a GOG game, set its exe.
+   - Close all dialogs.
+   - Re-open Epic game settings and verify its exe hasn't changed to the GOG one.
+3. **Custom Driver Installation**:
+   - Navigate to "Graphics" tab in container settings.
+   - Click the "+" button next to drivers.
+   - Select a valid Adreno driver zip/tzst via file picker.
+   - Verify the new driver appears in the dropdown list.
+4. **Download Cancellation**:
+   - Start an Epic/GOG download.
+   - Cancel it.
+   - Verify it disappears from the active download list and cleanup occurs.

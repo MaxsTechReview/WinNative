@@ -1,0 +1,35 @@
+# Game Launch targeting and Exe Not Found Fixes
+
+I have identified and resolved the root causes of the "exe not found" errors and file resolution issues during automated game launches.
+
+## Root Cause Analysis
+The issues were caused by two critical platform-level bugs in the Winlator/GameNative core:
+1.  **Quoting Bug**: `ProcessHelper.splitCommand` was preserving literal quotes in command line arguments. When Java's `Runtime.exec(String[])` was called, these quotes were passed into the guest environment as part of the filename, causing Wine/winhandler to fail to find the executable.
+2.  **Working Directory Bug**: `GuestProgramLauncherComponent.java` was hardcoding the guest working directory to `/home/xuser` regardless of the game's actual folder. This prevented games that rely on local data files from finding them.
+
+## Changes Made
+
+### Core Platform Fixes
+- **ProcessHelper.java**: Fixed the `splitCommand` function to correctly strip quotes from arguments. It now only uses quotes for grouping parameters with spaces, ensuring clean paths are passed to the guest.
+- **GuestProgramLauncherComponent.java**: Updated the `exec` method to respect the `workingDir` property for the `proot` environment's CWD. Games now correctly start in their host-mapped folders (e.g., the `A:` drive).
+
+### Launch Logic Refinements
+- **XServerScreen.kt**:
+    - Refactored `getWineStartCommand` for consistent logic across all game sources.
+    - **Steam Fix**: Specifically set the working directory for `ColdClientLoader` to the Steam directory so it can resolve its `.ini` configuration.
+    - **Logging**: Centralized and improved the "Final launch command" debug logging to exclude sensitive tokens while showing the exact command passed to Wine.
+- **SteamUtils.kt**: Ensured that the `Exe` path written to `ColdClientLoader.ini` is properly normalized with backslashes.
+
+## Verification Results
+
+### Build Verification
+- **Success**: Build completed successfully: `BUILD SUCCESSFUL in 39s`.
+
+### Manual Testing Instructions
+1.  Launch a Steam game using **ColdClientLoader** mode; it should now find the exe and the INI correctly.
+2.  Launch any game that previously failed with "exe not found"; it should now start normally.
+3.  Check the `XServerScreen` tag in logcat during launch to see the cleaned command line without double quotes.
+
+Example of fixed log output:
+`I/XServerScreen: Final launch command (redacted): winhandler.exe "A:\Game Dir\Game.exe" -args...`
+(Previously, this would have shown `""A:\Game Dir\Game.exe""`, which caused the failure).

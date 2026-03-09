@@ -1,0 +1,5 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_WALKTHROUGH",
+  "summary":  "Root cause analysis of x86-64 container loading failures in WinNative. Identifies 5 issues:\n1. CRITICAL: Missing proton-9.0-x86_64.txz asset - Wine binary never gets extracted\n2. CRITICAL: Box64 launch command uses bare 'wine' command name vs full path\n3. MEDIUM: Emulator selection is force-overridden ignoring user settings\n4. MEDIUM: extractBox64Files vs extractEmulatorsDlls path split\n5. MEDIUM: Container DLL extraction fails silently when Wine path is empty\nIncludes recommended fixes in priority order.",
+  "updatedAt":  "2026-03-08T22:05:08.321064758Z"
+}

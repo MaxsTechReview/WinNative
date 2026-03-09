@@ -1,0 +1,10 @@
+- [ ] Research PS5 UI design guidelines and collect visual references
+- [ ] Define color palette, typography, and iconography for the new theme
+- [ ] Design layout XML for main activity with top centered header and tab navigation (Library, Store, Downloads)
+- [ ] Implement Store tab to aggregate all game stores into a single list view
+- [ ] Implement Library tab to display installed games with modern card UI
+- [ ] Implement Downloads tab with download manager UI showing active downloads
+- [ ] Apply styles (themes, colors, fonts) to achieve advanced modern look
+- [ ] Ensure responsive layout for landscape orientation and controller navigation
+- [ ] Test UI on device/emulator, verify performance and visual fidelity
+- [ ] Polish animations and micro-interactions for premium feel

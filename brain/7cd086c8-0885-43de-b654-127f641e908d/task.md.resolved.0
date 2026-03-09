@@ -1,0 +1,17 @@
+# UI & Epic Games Fixes
+
+## Part 1: UI Changes
+- [ ] Remove `+` button from GraphicsTab.kt (Game Settings > Settings > Graphics)
+- [ ] Make the `+` button in ComponentsManagerDialog context-aware (install correct component type)
+- [ ] Add "Installed" filter chip to DriverContent in ComponentsManagerDialog
+- [ ] Rename the ComponentsManagerDialog `+` to install "Drivers" when in Drivers, DXVK when in DXVK, etc.
+
+## Part 2: Epic Games Launch Fix
+- [ ] Analyze wine_debug.log for Epic game crash root cause
+- [ ] Fix EpicManager.getInstalledExe exe detection (filter better)
+- [ ] Fix Epic game working directory setup
+- [ ] Verify Amazon/GOG don't have same issue
+
+## Part 3: Build & Verify
+- [ ] Build debug APK
+- [ ] Create walkthrough

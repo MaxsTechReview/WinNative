@@ -1,0 +1,7 @@
+- [x] Research PS5 UI design guidelines and collect visual references
+- [x] Define color palette, typography, and iconography for the new theme
+- [x] Redesign LibraryFrontendPane with PS5-style visuals
+- [ ] Implement Store aggregation logic in ViewModel and expose to FrontendPane
+- [ ] Implement Download Manager UI and hook up to DownloadService
+- [ ] Verify build compiles successfully
+- [ ] Polish and finalize

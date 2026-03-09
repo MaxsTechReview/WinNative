@@ -1,0 +1,28 @@
+# Walkthrough: Drive Mapping & Executable Path Fixes
+
+## Fix 1: A: Drive Not Mapped for Any Game
+
+**Root cause:** [XServerScreen.kt](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/app/gamenative/ui/screen/xserver/XServerScreen.kt) creates a fresh [ContainerManager](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/com/winlator/container/ContainerManager.java#35-449) from disk, losing in-memory A: drive mapping.
+
+**Fix:** [getContainer()](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/app/gamenative/utils/ContainerUtils.kt#L745-L759) now calls [ensureGameDriveMounted()](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/app/gamenative/utils/ContainerUtils.kt#653-669) after loading.
+
+## Fix 2: Drives Format Corruption
+
+**Root cause:** [ensureGameDriveMounted()](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/app/gamenative/utils/ContainerUtils.kt#653-669) used `split(",")` / `joinToString(",")` to manipulate drives, but the format is concatenated `LETTER:path` with **no commas**. This inserted commas that corrupted other drive paths (E: got a trailing comma).
+
+**Fix:** [ensureGameDriveMounted()](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/app/gamenative/utils/ContainerUtils.kt#L704-L720) now uses `Container.drivesIterator()` to properly strip old A: entries and rebuild in the correct format.
+
+## Fix 3: Executable Path Dropdown Blank
+
+**Root cause:** Old comma-corrupted drives strings + forward-slash/backslash display mismatch.
+
+**Fix:** [ExecutablePathDropdown](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/app/gamenative/ui/component/dialog/ContainerConfigDialog.kt#L1073-L1096):
+- Cleans old comma-corrupted drives via regex before scanning
+- Fixed exe filename display to handle forward-slash paths from [scanExecutablesInADrive](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/app/gamenative/utils/ContainerUtils.kt#1399-1457)
+- Added debug logging for drive mapping and exe scanning
+
+## Build Verification
+
+```
+BUILD SUCCESSFUL in 18s
+```

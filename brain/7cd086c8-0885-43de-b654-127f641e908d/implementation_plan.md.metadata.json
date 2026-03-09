@@ -1,0 +1,6 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary":  "Implementation plan to fix \"exe not found\" errors and improve executable targeting across all game sources (Steam, Epic, GOG, Amazon, Custom). Includes fixes for Steam INI paths, persistence bugs in XServerScreen, and enhanced logging.",
+  "updatedAt":  "2026-03-05T04:11:34.588924910Z",
+  "version":  "1"
+}

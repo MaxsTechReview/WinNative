@@ -1,0 +1,1014 @@
+<current_dom_explanation>
+This is a temporary snapshot of the current page's DOM structure. The DOM will change if you navigate to or interact with another page. Use a tool like browser_get_dom to capture and preserve the DOM in your trajectory if needed for later reference.
+</current_dom_explanation>
+<current_dom>
+[0] (19,24)<button class='prc-Button-ButtonBase-9n-Xk position-relative ExpandFileTreeButton-module__expandButton__hDOcv fgColor-muted prc-Button-IconButton-fyge7' />
+Files
+[1] (83,61)<button aria-label='master branch' class='prc-Button-ButtonBase-9n-Xk react-repos-tree-pane-ref-selector width-full ref-selector-class RefSelectorAnchoredOverlay-module__RefSelectorOverlayBtn__a3WK3' id='ref-picker-repos-header-ref-selector' />
+	[2] (83,61)<span  />
+		[3] (76,61)<span  />
+			[4] (76,61)<div  />
+				[5] (22,61)<div  />
+				[6] (44,61)<div  />
+					[7] (44,61)<span >master />
+[8] (171,61)<button class='prc-Button-ButtonBase-9n-Xk SearchButton-module__IconButton__SBlqu prc-Button-IconButton-fyge7' />
+[9] (95,92)<span  />
+	[10] (20,92)<span  />
+	[11] (100,92)<input aria-label='Go to file' class='prc-components-Input-IwWrt' placeholder='Go to file' role='combobox' />
+[12] (95,557)<div class='ReposFileTreePane-module__Box_5__Zy_o6' scrollable='true' />
+	[13] (91,912)<div  />
+		.github
+		.run
+		PrivacyPolicy
+		[14] (91,700)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app-item' role='treeitem' />
+			[15] (91,135)<div  />
+				[16] (14,135)<div  />
+				[17] (95,135)<div  />
+					[18] (28,135)<div  />
+						[19] (28,135)<div  />
+					[20] (102,135)<span  />
+						[21] (45,135)<span >app />
+			[22] (91,159)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/keystores-item' role='treeitem' />
+				[23] (91,159)<div  />
+					[24] (12,159)<div  />
+						[25] (12,159)<div  />
+							[26] (12,159)<div  />
+					[27] (19,159)<div  />
+					[28] (98,159)<div  />
+						[29] (33,159)<div  />
+							[30] (33,159)<div  />
+						[31] (105,159)<span  />
+							[32] (61,159)<span >keystores />
+			[33] (91,184)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/release-signed-item' role='treeitem' />
+				[34] (91,184)<div  />
+					[35] (12,184)<div  />
+						[36] (12,184)<div  />
+							[37] (12,184)<div  />
+					[38] (19,184)<div  />
+					[39] (98,184)<div  />
+						[40] (33,184)<div  />
+							[41] (33,184)<div  />
+						[42] (105,184)<span  />
+							[43] (71,184)<span >release-signed />
+			[44] (91,209)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/schemas-item' role='treeitem' />
+				[45] (91,209)<div  />
+					[46] (12,209)<div  />
+						[47] (12,209)<div  />
+							[48] (12,209)<div  />
+					[49] (19,209)<div  />
+					[50] (98,209)<div  />
+						[51] (33,208)<div  />
+							[52] (33,208)<div  />
+						[53] (105,209)<span  />
+							[54] (60,209)<span >schemas />
+			[55] (91,712)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src-item' role='treeitem' />
+				[56] (91,233)<div  />
+					[57] (12,233)<div  />
+						[58] (12,233)<div  />
+							[59] (12,233)<div  />
+					[60] (19,233)<div  />
+					[61] (98,233)<div  />
+						[62] (33,233)<div  />
+							[63] (33,233)<div  />
+						[64] (105,233)<span  />
+							[65] (48,233)<span >src />
+				[66] (91,258)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/androidTest-item' role='treeitem' />
+					[67] (91,258)<div  />
+						[68] (14,258)<div  />
+							[69] (14,258)<div  />
+								[70] (12,258)<div  />
+								[71] (17,258)<div  />
+						[72] (24,258)<div  />
+						[73] (100,258)<div  />
+							[74] (38,258)<div  />
+								[75] (38,258)<div  />
+							[76] (107,258)<span  />
+								[77] (71,258)<span >androidTest />
+				[78] (91,712)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main-item' role='treeitem' />
+					[79] (91,282)<div  />
+						[80] (14,282)<div  />
+							[81] (14,282)<div  />
+								[82] (12,282)<div  />
+								[83] (17,282)<div  />
+						[84] (24,282)<div  />
+						[85] (100,282)<div  />
+							[86] (38,282)<div  />
+								[87] (38,282)<div  />
+							[88] (107,282)<span  />
+								[89] (57,282)<span >main />
+					[90] (91,307)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets-item' role='treeitem' />
+						[91] (91,307)<div  />
+							[92] (17,307)<div  />
+								[93] (17,307)<div  />
+									[94] (12,307)<div  />
+									[95] (17,307)<div  />
+									[96] (21,307)<div  />
+							[97] (28,307)<div  />
+							[98] (102,307)<div  />
+								[99] (43,307)<div  />
+									[100] (43,307)<div  />
+								[101] (109,307)<span  />
+									[102] (64,307)<span >assets />
+					[103] (91,331)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/cpp-item' role='treeitem' />
+						[104] (91,331)<div  />
+							[105] (17,331)<div  />
+								[106] (17,331)<div  />
+									[107] (12,331)<div  />
+									[108] (17,331)<div  />
+									[109] (21,331)<div  />
+							[110] (28,331)<div  />
+							[111] (102,331)<div  />
+								[112] (43,331)<div  />
+									[113] (43,331)<div  />
+								[114] (109,331)<span  />
+									[115] (59,331)<span >cpp />
+					[116] (91,663)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java-item' role='treeitem' />
+						[117] (91,356)<div  />
+							[118] (17,356)<div  />
+								[119] (17,356)<div  />
+									[120] (12,356)<div  />
+									[121] (17,356)<div  />
+									[122] (21,356)<div  />
+							[123] (28,356)<div  />
+							[124] (102,356)<div  />
+								[125] (43,356)<div  />
+									[126] (43,356)<div  />
+								[127] (109,356)<span  />
+									[128] (60,356)<span >java />
+						[129] (91,381)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/app-item' role='treeitem' />
+							[130] (91,381)<div  />
+								[131] (19,381)<div  />
+									[132] (19,381)<div  />
+										[133] (12,381)<div  />
+										[134] (17,381)<div  />
+										[135] (21,381)<div  />
+										[136] (26,381)<div  />
+								[137] (33,381)<div  />
+								[138] (105,381)<div  />
+									[139] (47,380)<div  />
+										[140] (47,380)<div  />
+									[141] (112,381)<span  />
+										[142] (64,381)<span >app />
+						[143] (91,688)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator-item' role='treeitem' />
+							[144] (91,405)<div  />
+								[145] (19,405)<div  />
+									[146] (19,405)<div  />
+										[147] (12,405)<div  />
+										[148] (17,405)<div  />
+										[149] (21,405)<div  />
+										[150] (26,405)<div  />
+								[151] (33,405)<div  />
+								[152] (105,405)<div  />
+									[153] (47,405)<div  />
+										[154] (47,405)<div  />
+									[155] (112,405)<span  />
+										[156] (83,405)<span >com/
+winlator />
+							[157] (91,430)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/alsaserver-item' role='treeitem' />
+								[158] (91,430)<div  />
+									[159] (21,430)<div  />
+										[160] (21,430)<div  />
+											[161] (12,430)<div  />
+											[162] (17,430)<div  />
+											[163] (21,430)<div  />
+											[164] (26,430)<div  />
+											[165] (31,430)<div  />
+									[166] (38,430)<div  />
+									[167] (107,430)<div  />
+										[168] (52,430)<div  />
+											[169] (52,430)<div  />
+										[170] (114,430)<span  />
+											[171] (82,430)<span >alsaserver />
+							[172] (91,454)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/box86_64-item' role='treeitem' />
+								[173] (91,454)<div  />
+									[174] (21,454)<div  />
+										[175] (21,454)<div  />
+											[176] (12,454)<div  />
+											[177] (17,454)<div  />
+											[178] (21,454)<div  />
+											[179] (26,454)<div  />
+											[180] (31,454)<div  />
+									[181] (38,454)<div  />
+									[182] (107,454)<div  />
+										[183] (52,454)<div  />
+											[184] (52,454)<div  />
+										[185] (114,454)<span  />
+											[186] (80,454)<span >box86_64 />
+							[187] (91,528)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/container-item' role='treeitem' />
+								[188] (91,479)<div  />
+									[189] (21,479)<div  />
+										[190] (21,479)<div  />
+											[191] (12,479)<div  />
+											[192] (17,479)<div  />
+											[193] (21,479)<div  />
+											[194] (26,479)<div  />
+											[195] (31,479)<div  />
+									[196] (38,479)<div  />
+									[197] (107,479)<div  />
+										[198] (52,479)<div  />
+											[199] (52,479)<div  />
+										[200] (114,479)<span  />
+											[201] (80,479)<span >container />
+								[202] (91,503)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/container/Container.java-item' role='treeitem' />
+									[203] (91,503)<div  />
+										[204] (24,503)<div  />
+											[205] (24,503)<div  />
+												[206] (12,503)<div  />
+												[207] (17,503)<div  />
+												[208] (21,503)<div  />
+												[209] (26,503)<div  />
+												[210] (31,503)<div  />
+												[211] (36,503)<div  />
+										[212] (109,503)<div  />
+											[213] (57,503)<div  />
+											[214] (117,503)<span  />
+												[215] (94,503)<span >Container.java />
+								[216] (91,528)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/container/ContainerData.kt-item' role='treeitem' />
+									[217] (91,528)<div  />
+										[218] (24,528)<div  />
+											[219] (24,528)<div  />
+												[220] (12,528)<div  />
+												[221] (17,528)<div  />
+												[222] (21,528)<div  />
+												[223] (26,528)<div  />
+												[224] (31,528)<div  />
+												[225] (36,528)<div  />
+										[226] (109,528)<div  />
+											[227] (57,528)<div  />
+											[228] (117,528)<span  />
+												[229] (100,528)<span >ContainerData.kt />
+								[230] (91,553)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/container/ContainerManager.java-item' role='treeitem' />
+									[231] (91,553)<div  />
+										[232] (24,553)<div  />
+											[233] (24,553)<div  />
+												[234] (12,553)<div  />
+												[235] (17,553)<div  />
+												[236] (21,553)<div  />
+												[237] (26,553)<div  />
+												[238] (31,553)<div  />
+												[239] (36,553)<div  />
+										[240] (109,553)<div  />
+											[241] (57,552)<div  />
+											[242] (117,553)<span  />
+												[243] (112,553)<span >ContainerManager.java />
+								[244] (91,577)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/container/Shortcut.java-item' role='treeitem' />
+									[245] (91,577)<div  />
+										[246] (24,577)<div  />
+											[247] (24,577)<div  />
+												[248] (12,577)<div  />
+												[249] (17,577)<div  />
+												[250] (21,577)<div  />
+												[251] (26,577)<div  />
+												[252] (31,577)<div  />
+												[253] (36,577)<div  />
+										[254] (109,577)<div  />
+											[255] (57,577)<div  />
+											[256] (117,577)<span  />
+												[257] (92,577)<span >Shortcut.java />
+							[258] (91,602)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/contentdialog-item' role='treeitem' />
+								[259] (91,602)<div  />
+									[260] (21,602)<div  />
+										[261] (21,602)<div  />
+											[262] (12,602)<div  />
+											[263] (17,602)<div  />
+											[264] (21,602)<div  />
+											[265] (26,602)<div  />
+											[266] (31,602)<div  />
+									[267] (38,602)<div  />
+									[268] (107,602)<div  />
+										[269] (52,602)<div  />
+											[270] (52,602)<div  />
+										[271] (114,602)<span  />
+											[272] (89,602)<span >contentdialog />
+							[273] (91,626)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/contents-item' role='treeitem' />
+								[274] (91,626)<div  />
+									[275] (21,626)<div  />
+										[276] (21,626)<div  />
+											[277] (12,626)<div  />
+											[278] (17,626)<div  />
+											[279] (21,626)<div  />
+											[280] (26,626)<div  />
+											[281] (31,626)<div  />
+									[282] (38,626)<div  />
+									[283] (107,626)<div  />
+										[284] (52,626)<div  />
+											[285] (52,626)<div  />
+										[286] (114,626)<span  />
+											[287] (79,626)<span >contents />
+							[288] (91,651)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/core-item' role='treeitem' />
+								[289] (91,651)<div  />
+									[290] (21,651)<div  />
+										[291] (21,651)<div  />
+											[292] (12,651)<div  />
+											[293] (17,651)<div  />
+											[294] (21,651)<div  />
+											[295] (26,651)<div  />
+											[296] (31,651)<div  />
+									[297] (38,651)<div  />
+									[298] (107,651)<div  />
+										[299] (52,651)<div  />
+											[300] (52,651)<div  />
+										[301] (114,651)<span  />
+											[302] (70,651)<span >core />
+							[303] (91,675)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/fexcore-item' role='treeitem' />
+								[304] (91,675)<div  />
+									[305] (21,675)<div  />
+										[306] (21,675)<div  />
+											[307] (12,675)<div  />
+											[308] (17,675)<div  />
+											[309] (21,675)<div  />
+											[310] (26,675)<div  />
+											[311] (31,675)<div  />
+									[312] (38,675)<div  />
+									[313] (107,675)<div  />
+										[314] (52,675)<div  />
+											[315] (52,675)<div  />
+										[316] (114,675)<span  />
+											[317] (76,675)<span >fexcore />
+							[318] (91,700)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/inputcontrols-item' role='treeitem' />
+								[319] (91,700)<div  />
+									[320] (21,700)<div  />
+										[321] (21,700)<div  />
+											[322] (12,700)<div  />
+											[323] (17,700)<div  />
+											[324] (21,700)<div  />
+											[325] (26,700)<div  />
+											[326] (31,700)<div  />
+									[327] (38,700)<div  />
+									[328] (107,700)<div  />
+										[329] (52,700)<div  />
+											[330] (52,700)<div  />
+										[331] (114,700)<span  />
+											[332] (88,700)<span >inputcontrols />
+							[333] (91,725)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/math-item' role='treeitem' />
+								[334] (91,725)<div  />
+									[335] (21,725)<div  />
+										[336] (21,725)<div  />
+											[337] (12,725)<div  />
+											[338] (17,725)<div  />
+											[339] (21,725)<div  />
+											[340] (26,725)<div  />
+											[341] (31,725)<div  />
+									[342] (38,725)<div  />
+									[343] (107,725)<div  />
+										[344] (52,724)<div  />
+											[345] (52,724)<div  />
+										[346] (114,725)<span  />
+											[347] (72,725)<span >math />
+							[348] (91,749)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/renderer-item' role='treeitem' />
+								[349] (91,749)<div  />
+									[350] (21,749)<div  />
+										[351] (21,749)<div  />
+											[352] (12,749)<div  />
+											[353] (17,749)<div  />
+											[354] (21,749)<div  />
+											[355] (26,749)<div  />
+											[356] (31,749)<div  />
+									[357] (38,749)<div  />
+									[358] (107,749)<div  />
+										[359] (52,749)<div  />
+											[360] (52,749)<div  />
+										[361] (114,749)<span  />
+											[362] (79,749)<span >renderer />
+							[363] (91,774)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/steampipeserver-item' role='treeitem' />
+								[364] (91,774)<div  />
+									[365] (21,774)<div  />
+										[366] (21,774)<div  />
+											[367] (12,774)<div  />
+											[368] (17,774)<div  />
+											[369] (21,774)<div  />
+											[370] (26,774)<div  />
+											[371] (31,774)<div  />
+									[372] (38,774)<div  />
+									[373] (107,774)<div  />
+										[374] (52,774)<div  />
+											[375] (52,774)<div  />
+										[376] (114,774)<span  />
+											[377] (95,774)<span >steampipeserver />
+							[378] (91,798)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/sysvshm-item' role='treeitem' />
+								[379] (91,798)<div  />
+									[380] (21,798)<div  />
+										[381] (21,798)<div  />
+											[382] (12,798)<div  />
+											[383] (17,798)<div  />
+											[384] (21,798)<div  />
+											[385] (26,798)<div  />
+											[386] (31,798)<div  />
+									[387] (38,798)<div  />
+									[388] (107,798)<div  />
+										[389] (52,798)<div  />
+											[390] (52,798)<div  />
+										[391] (114,798)<span  />
+											[392] (78,798)<span >sysvshm />
+							[393] (91,823)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/widget-item' role='treeitem' />
+								[394] (91,823)<div  />
+									[395] (21,823)<div  />
+										[396] (21,823)<div  />
+											[397] (12,823)<div  />
+											[398] (17,823)<div  />
+											[399] (21,823)<div  />
+											[400] (26,823)<div  />
+											[401] (31,823)<div  />
+									[402] (38,823)<div  />
+									[403] (107,823)<div  />
+										[404] (52,823)<div  />
+											[405] (52,823)<div  />
+										[406] (114,823)<span  />
+											[407] (75,823)<span >widget />
+							[408] (91,847)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/winhandler-item' role='treeitem' />
+								[409] (91,847)<div  />
+									[410] (21,847)<div  />
+										[411] (21,847)<div  />
+											[412] (12,847)<div  />
+											[413] (17,847)<div  />
+											[414] (21,847)<div  />
+											[415] (26,847)<div  />
+											[416] (31,847)<div  />
+									[417] (38,847)<div  />
+									[418] (107,847)<div  />
+										[419] (52,847)<div  />
+											[420] (52,847)<div  />
+										[421] (114,847)<span  />
+											[422] (84,847)<span >winhandler />
+							[423] (91,872)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/xconnector-item' role='treeitem' />
+								[424] (91,872)<div  />
+									[425] (21,872)<div  />
+										[426] (21,872)<div  />
+											[427] (12,872)<div  />
+											[428] (17,872)<div  />
+											[429] (21,872)<div  />
+											[430] (26,872)<div  />
+											[431] (31,872)<div  />
+									[432] (38,872)<div  />
+									[433] (107,872)<div  />
+										[434] (52,872)<div  />
+											[435] (52,872)<div  />
+										[436] (114,872)<span  />
+											[437] (84,872)<span >xconnector />
+							[438] (91,897)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/xenvironment-item' role='treeitem' />
+								[439] (91,897)<div  />
+									[440] (21,897)<div  />
+										[441] (21,897)<div  />
+											[442] (12,897)<div  />
+											[443] (17,897)<div  />
+											[444] (21,897)<div  />
+											[445] (26,897)<div  />
+											[446] (31,897)<div  />
+									[447] (38,897)<div  />
+									[448] (107,897)<div  />
+										[449] (52,896)<div  />
+											[450] (52,896)<div  />
+										[451] (114,897)<span  />
+											[452] (89,897)<span >xenvironment />
+							[453] (91,921)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/xserver-item' role='treeitem' />
+								[454] (91,921)<div  />
+									[455] (21,921)<div  />
+										[456] (21,921)<div  />
+											[457] (12,921)<div  />
+											[458] (17,921)<div  />
+											[459] (21,921)<div  />
+											[460] (26,921)<div  />
+											[461] (31,921)<div  />
+									[462] (38,921)<div  />
+									[463] (107,921)<div  />
+										[464] (52,921)<div  />
+											[465] (52,921)<div  />
+										[466] (114,921)<span  />
+											[467] (76,921)<span >xserver />
+							[468] (91,946)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/PrefManager.kt-item' role='treeitem' />
+								[469] (91,946)<div  />
+									[470] (21,946)<div  />
+										[471] (21,946)<div  />
+											[472] (12,946)<div  />
+											[473] (17,946)<div  />
+											[474] (21,946)<div  />
+											[475] (26,946)<div  />
+											[476] (31,946)<div  />
+									[477] (107,946)<div  />
+										[478] (52,946)<div  />
+										[479] (114,946)<span  />
+											[480] (91,946)<span >PrefManager.kt />
+							[481] (91,970)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/java/com/winlator/XrActivity.java-item' role='treeitem' />
+								[482] (91,970)<div  />
+									[483] (21,970)<div  />
+										[484] (21,970)<div  />
+											[485] (12,970)<div  />
+											[486] (17,970)<div  />
+											[487] (21,970)<div  />
+											[488] (26,970)<div  />
+											[489] (31,970)<div  />
+									[490] (107,970)<div  />
+										[491] (52,970)<div  />
+										[492] (114,970)<span  />
+											[493] (89,970)<span >XrActivity.java />
+					[494] (91,995)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/jniLibs-item' role='treeitem' />
+						[495] (91,995)<div  />
+							[496] (17,995)<div  />
+								[497] (17,995)<div  />
+									[498] (12,995)<div  />
+									[499] (17,995)<div  />
+									[500] (21,995)<div  />
+							[501] (28,995)<div  />
+							[502] (102,995)<div  />
+								[503] (43,995)<div  />
+									[504] (43,995)<div  />
+								[505] (109,995)<span  />
+									[506] (65,995)<span >jniLibs />
+[507] (190,500)<div aria-label='Draggable pane splitter' class='prc-PageLayout-DraggableHandle-9s6B4' role='slider' />
+Breadcrumbs
+[508] (236,17)<a class='Breadcrumb-module__repoLink__O2Nbs prc-Link-Link-9ZwDx' href='/utkarshdalal/GameNative/tree/master'>GameNative />
+/
+[509] (282,17)<a class='Breadcrumb-module__directoryLink__kQy_t prc-Link-Link-9ZwDx' href='/utkarshdalal/GameNative/tree/master/app'>app />
+/
+[510] (307,17)<a class='Breadcrumb-module__directoryLink__kQy_t prc-Link-Link-9ZwDx' href='/utkarshdalal/GameNative/tree/master/app/src'>src />
+/
+[511] (336,17)<a class='Breadcrumb-module__directoryLink__kQy_t prc-Link-Link-9ZwDx' href='/utkarshdalal/GameNative/tree/master/app/src/main'>main />
+/
+[512] (366,17)<a class='Breadcrumb-module__directoryLink__kQy_t prc-Link-Link-9ZwDx' href='/utkarshdalal/GameNative/tree/master/app/src/main/java'>java />
+/
+[513] (395,17)<a class='Breadcrumb-module__directoryLink__kQy_t prc-Link-Link-9ZwDx' href='/utkarshdalal/GameNative/tree/master/app/src/main/java/com'>com />
+/
+[514] (432,17)<a class='Breadcrumb-module__directoryLink__kQy_t prc-Link-Link-9ZwDx' href='/utkarshdalal/GameNative/tree/master/app/src/main/java/com/winlator'>winlator />
+/
+[515] (479,17)<a class='Breadcrumb-module__directoryLink__kQy_t prc-Link-Link-9ZwDx' href='/utkarshdalal/GameNative/tree/master/app/src/main/java/com/winlator/container'>container />
+/
+ContainerManager.java
+[516] (968,17)<button class='prc-Button-ButtonBase-9n-Xk FileNameStickyHeader-module__Button__LSEU_ FileNameStickyHeader-module__GoToTopButton__nxAFn' />
+	[517] (968,17)<span  />
+		[518] (974,17)<span >Top />
+File metadata and controls
+[519] (223,51)<button class='prc-SegmentedControl-Button-E48xz' />
+	[520] (223,51)<span  />
+		[521] (223,51)<div >Code />
+[522] (263,51)<button class='prc-SegmentedControl-Button-E48xz' />
+	[523] (263,51)<span  />
+		[524] (263,51)<div >Blame />
+422 lines (366 loc) · 18.1 KB
+[525] (920,51)<a class='prc-Button-ButtonBase-9n-Xk LinkButton-module__linkButton__nFnov BlobViewHeader-module__LinkButton__X9kx2' href='https://github.com/utkarshdalal/GameNative/raw/refs/heads/master/app/src/main/java/com/winlator/container/ContainerManager.java' />
+	[526] (920,51)<span  />
+		[527] (920,51)<span >Raw />
+[528] (940,51)<button class='prc-Button-ButtonBase-9n-Xk prc-Button-IconButton-fyge7' />
+[529] (956,51)<button class='prc-Button-ButtonBase-9n-Xk BlobViewHeader-module__downloadButton__ef459 prc-Button-IconButton-fyge7' />
+[530] (977,51)<button class='prc-Button-ButtonBase-9n-Xk BlobViewHeader-module__IconButton_2__RyjZg prc-Button-IconButton-fyge7' id='symbols-button' />
+[531] (231,76)<div >35 />
+[532] (617,76)<div  />
+	public
+	class
+	ContainerManager
+	{
+[533] (595,2740)<textarea aria-label='file content' class='react-blob-textarea react-blob-print-hide' id='read-only-cursor-text-area' scrollable='true' />
+[534] (595,2734)<div class='react-code-line-container CodeLines-module__scrollContainerHidden__g7TeZ' scrollable='true' />
+	33
+	34
+	35
+	36
+	37
+	[535] (230,85)<div >38 />
+	[536] (230,101)<div >39 />
+	[537] (230,116)<div >40 />
+		[538] (243,117)<div aria-label='Collapse code section' class='LineNumber-module__codeFoldingChevron__sY2Yt' role='button' />
+	[539] (230,131)<div >41 />
+	[540] (230,147)<div >42 />
+	[541] (230,162)<div >43 />
+	[542] (230,177)<div >44 />
+	[543] (230,192)<div >45 />
+	[544] (230,208)<div >46 />
+	[545] (230,223)<div >47 />
+	[546] (230,238)<div >48 />
+	[547] (230,253)<div >49 />
+	[548] (230,269)<div >50 />
+	[549] (230,284)<div >51 />
+		[550] (243,285)<div aria-label='Collapse code section' class='LineNumber-module__codeFoldingChevron__sY2Yt' role='button' />
+	[551] (230,299)<div >52 />
+	[552] (230,315)<div >53 />
+	[553] (230,330)<div >54 />
+	[554] (230,345)<div >55 />
+	[555] (230,360)<div >56 />
+	[556] (230,376)<div >57 />
+	[557] (230,391)<div >58 />
+	[558] (230,406)<div >59 />
+	[559] (230,421)<div >60 />
+	[560] (230,437)<div >61 />
+	[561] (230,452)<div >62 />
+	[562] (230,467)<div >63 />
+	[563] (230,482)<div >64 />
+	[564] (230,498)<div >65 />
+	[565] (230,513)<div >66 />
+	[566] (230,528)<div >67 />
+	[567] (230,544)<div >68 />
+	[568] (230,559)<div >69 />
+	[569] (230,574)<div >70 />
+	[570] (230,589)<div >71 />
+	[571] (230,605)<div >72 />
+	[572] (230,620)<div >73 />
+	[573] (230,635)<div >74 />
+	[574] (230,650)<div >75 />
+	[575] (230,666)<div >76 />
+	[576] (230,681)<div >77 />
+	[577] (230,696)<div >78 />
+	[578] (230,711)<div >79 />
+	[579] (230,727)<div >80 />
+	[580] (230,742)<div >81 />
+	[581] (230,757)<div >82 />
+	[582] (230,773)<div >83 />
+	[583] (230,788)<div >84 />
+	[584] (230,803)<div >85 />
+		[585] (243,804)<div aria-label='Collapse code section' class='LineNumber-module__codeFoldingChevron__sY2Yt' role='button' />
+	[586] (230,818)<div >86 />
+	[587] (230,834)<div >87 />
+	[588] (230,849)<div >88 />
+	[589] (230,864)<div >89 />
+	[590] (230,879)<div >90 />
+	[591] (230,895)<div >91 />
+	[592] (230,910)<div >92 />
+		[593] (243,911)<div aria-label='Collapse code section' class='LineNumber-module__codeFoldingChevron__sY2Yt' role='button' />
+	[594] (230,925)<div >93 />
+	[595] (230,940)<div >94 />
+	[596] (230,956)<div >95 />
+	[597] (230,971)<div >96 />
+	[598] (230,986)<div >97 />
+	98
+	import
+	java
+	.
+	util
+	.
+	concurrent
+	.
+	Future
+	;
+	public
+	class
+	ContainerManager
+	{
+	private
+	final
+	ArrayList
+	<
+	Container
+	>
+	containers
+	=
+	new
+	ArrayList
+	<>();
+	private
+	final
+	File
+	homeDir
+	;
+	private
+	final
+	Context
+	context
+	;
+	public
+	ContainerManager
+	(
+	Context
+	context
+	) {
+	this
+	.
+	context
+	=
+	context
+	;
+	File
+	rootDir
+	=
+	ImageFs
+	.
+	find
+	(
+	context
+	).
+	getRootDir
+	();
+	homeDir
+	=
+	new
+	File
+	(
+	rootDir
+	,
+	"home"
+	);
+	loadContainers
+	();
+	}
+	public
+	ArrayList
+	<
+	Container
+	>
+	getContainers
+	() {
+	return
+	containers
+	;
+	}
+	private
+	void
+	loadContainers
+	() {
+	containers
+	.
+	clear
+	();
+	File
+	[]
+	files
+	=
+	homeDir
+	.
+	listFiles
+	();
+	if
+	(
+	files
+	!=
+	null
+	) {
+	for
+	(
+	File
+	file
+	:
+	files
+	) {
+	if
+	(
+	file
+	.
+	isDirectory
+	()) {
+	if
+	(
+	file
+	.
+	getName
+	().
+	startsWith
+	(
+	ImageFs
+	.
+	USER
+	+
+	"-"
+	)) {
+	String
+	containerId
+	=
+	file
+	.
+	getName
+	().
+	replace
+	(
+	ImageFs
+	.
+	USER
+	+
+	"-"
+	,
+	""
+	);
+	Container
+	container
+	=
+	new
+	Container
+	(
+	containerId
+	);
+	container
+	.
+	setRootDir
+	(
+	new
+	File
+	(
+	homeDir
+	,
+	ImageFs
+	.
+	USER
+	+
+	"-"
+	+
+	container
+	.
+	id
+	));
+	try
+	{
+	File
+	configFile
+	=
+	container
+	.
+	getConfigFile
+	();
+	String
+	configContent
+	=
+	FileUtils
+	.
+	readString
+	(
+	configFile
+	);
+	if
+	(
+	configContent
+	==
+	null
+	||
+	configContent
+	.
+	trim
+	().
+	isEmpty
+	()) {
+	Log
+	.
+	w
+	(
+	"ContainerManager"
+	,
+	"Container config file is null or empty, skipping: "
+	+
+	containerId
+	);
+	continue
+	;
+	}
+	JSONObject
+	data
+	=
+	new
+	JSONObject
+	(
+	configContent
+	);
+	container
+	.
+	loadData
+	(
+	data
+	);
+	containers
+	.
+	add
+	(
+	container
+	);
+	}
+	catch
+	(
+	Exception
+	e
+	) {
+	// Catch ALL exceptions (NullPointerException, JSONException, etc.)
+	Log
+	.
+	w
+	(
+	"ContainerManager"
+	,
+	"Could not load container "
+	+
+	containerId
+	+
+	": "
+	+
+	e
+	.
+	getMessage
+	());
+	// Continue loading other containers
+	}
+	}
+	}
+	}
+	}
+	}
+	public
+	void
+	activateContainer
+	(
+	Container
+	container
+	) {
+	container
+	.
+	setRootDir
+	(
+	new
+	File
+	(
+	homeDir
+	,
+	ImageFs
+	.
+	USER
+	+
+	"-"
+	+
+	container
+	.
+	id
+	));
+	File
+	file
+	=
+	new
+	File
+	(
+	homeDir
+	,
+	ImageFs
+	.
+	USER
+	);
+	file
+	.
+	delete
+	();
+	FileUtils
+	.
+	symlink
+	(
+	"./"
+	+
+	ImageFs
+	.
+	USER
+	+
+	"-"
+	+
+	container
+	.
+	id
+	,
+	file
+	.
+	getPath
+	());
+	}
+	public
+	void
+	createContainerAsync
+	(
+	String
+	containerId
+	,
+	final
+	JSONObject
+	data
+	,
+	Callback
+	<
+	Container
+	>
+	callback
+	) {
+	final
+	Handler
+	handler
+	=
+	new
+	Handler
+	();
+	Executors
+	.
+	newSingleThreadExecutor
+	().
+	execute
+	(() -> {
+	final
+	Container
+	container
+	=
+	createContainer
+	(
+	containerId
+	,
+	data
+	);
+	handler
+	.
+	post
+	(() ->
+	callback
+	.
+	call
+	(
+	container
+	));
+	});
+	}
+[599] (595,994)<div class='CodeLines-module__scrollBarContainer__fsxaw' scrollable='true' />
+
+</current_dom>

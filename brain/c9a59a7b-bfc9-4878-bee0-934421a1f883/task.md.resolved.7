@@ -1,0 +1,22 @@
+# Tasks
+
+## Phase 1 — Menu Cleanup (DONE)
+- [x] Remove Winlator branding from nav drawer
+- [x] Remove Toolbar; FAB for new container
+- [x] Rename/reorder menu items (Stores, Presets, Components, Drivers, Input Controls)
+
+## Phase 2 — UnifiedActivity Redesign (DONE)
+- [x] Header: transparent bg, adaptive shadow pill behind tabs, circle shadows on buttons
+- [x] Reorder tabs: Library, Downloads, Steam (AIO) / Library, Downloads, Steam, Epic, GOG, Amazon (non-AIO)
+- [x] Scrollable tabs (horizontalScroll with adaptive shadow)
+- [x] Steam avatar button (top-right) with Online/Away/Invisible status picker
+- [x] PS5-style horizontal carousel (center item pops up with shadow, ~4 visible)
+- [x] Fix artwork loading (prioritize [getHeaderImageUrl](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/steam/data/SteamApp.kt#164-169), add fallbacks + crossfade)
+- [x] Port `String.getAvatarURL()` utility to [StringUtils.kt](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/steam/utils/StringUtils.kt)
+
+## Phase 3 — Store Integration
+- [x] Epic/GOG/Amazon placeholder tabs with Sign In buttons
+
+## Phase 4 — Icon & Build
+- [x] Design XML vector icon ([ic_launcher_foreground.xml](file:///home/max/Build/Emulator/WinNative/app/src/main/res/drawable/ic_launcher_foreground.xml))
+- [/] Final `assembleDebug --info` build

@@ -1,0 +1,6 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_WALKTHROUGH",
+  "summary":  "Complete walkthrough of Steam integration in WinNative, covering the full launch flow (DLL replacement, steam_settings creation, encrypted app ticket, Wine environment setup), cloud sync on exit, authentication flow, and all runtime files created. Documents how WinNative now matches GameNative's approach.",
+  "updatedAt":  "2026-03-07T02:31:31.674859376Z",
+  "version":  "3"
+}

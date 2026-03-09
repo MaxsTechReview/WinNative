@@ -1,0 +1,37 @@
+# Fix Game Launch Targeting and Exe Not Found Errors
+
+The goal is to ensure all games (Steam, Epic, GOG, Amazon, Custom) correctly target the selected executable and resolve "exe not found" errors, particularly with ColdClientLoader.
+# Robust Game Launch Targeting Fix
+
+Resolve "exe not found" errors by fixing platform-level quoting and working directory issues, and refining game-specific launch paths.
+
+## Proposed Changes
+
+### Core Platform Fixes
+
+#### [MODIFY] [ProcessHelper.java](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/com/winlator/core/ProcessHelper.java)
+- Fix `splitCommand` to strip quotes from arguments. `Runtime.exec(String[])` does not need literal quotes, and their presence causes path resolution failures in the guest environment.
+
+#### [MODIFY] [GuestProgramLauncherComponent.java](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/com/winlator/xenvironment/components/GuestProgramLauncherComponent.java)
+- Update `exec` method to use the provided `workingDir` as the `--cwd` for `proot`. This ensures games start in their correct directory (e.g., mapped `A:` drive) instead of being forced to `/home/xuser`.
+
+### Game Launch Refinements
+
+#### [MODIFY] [XServerScreen.kt](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/app/gamenative/ui/screen/xserver/XServerScreen.kt)
+- **Steam ColdClientLoader**: Set `workingDir` to the Steam directory (`drive_c/Program Files (x86)/Steam`) so the loader can find its `.ini` file.
+- **Custom Games**: Ensure `workingDir` is set to the host game folder.
+- **Cleanup**: Consolidate `getWineStartCommand` returns to avoid redundant `winhandler.exe` prepending and inconsistent quoting.
+
+#### [MODIFY] [SteamUtils.kt](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/app/gamenative/utils/SteamUtils.kt)
+- Ensure the `Exe` path in `ColdClientLoader.ini` is properly formatted with backslashes.
+
+## Verification Plan
+
+### Automated Tests
+- Run `./gradlew assembleDebug` to verify compilation.
+- Review logcat for the new "Final launch command" tags to ensure no double-quoting.
+
+### Manual Verification
+- Launch a Steam game in ColdClientLoader mode.
+- Launch a Custom game with spaces in its path.
+- Verify that the game finds its local files (verifying the CWD fix).

@@ -1,0 +1,35 @@
+# Arm64 Container Launch Analysis
+
+## Issues Found
+
+### 1. Missing Container Config Files (Logcat Warning)
+Containers 1-5 and 8 have directories (e.g., `xuser-1`, `xuser-2`, etc.) in the home directory but their `.container` config files are missing or unreadable. This prevents [ContainerManager](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/container/ContainerManager.java#29-348) from loading them, which means:
+- Games configured to use these containers will fail to find their container
+- Shortcut lookups may fail silently
+
+### 2. Auto-Created Containers Default to x86_64
+In `UnifiedActivity.kt:1420`, when no existing container/shortcut is found for a Steam game, the code auto-creates a container with `"proton-9.0-x86_64"` hardcoded. This means games launched for the first time will *never* use an arm64ec container.
+
+### 3. Per-Game Settings Emulator Selection Logic
+In both [ContainerDetailFragment.java](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/ContainerDetailFragment.java) and [ShortcutSettingsDialog.java](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/contentdialog/ShortcutSettingsDialog.java):
+- **Arm64EC (arm64 containers)**: The emulator spinners show both FEXCore (index 0) and Box64 (index 1), and default to FEXCore for new shortcuts
+- **x86_64 containers**: The emulators are forced to Box64 (index 1), and the spinners are disabled
+
+**Current behavior is mostly correct** but the enforcement isn't strict enough — users can still select Box64 on arm64ec containers.
+
+### 4. `WineInfo.fromIdentifier` Content Profile Bug
+When a wine version has a matching `ContentProfile`, the method strips the architecture suffix before regex matching. For `proton-9.0-arm64ec` with a profile, it becomes `proton-9.0` which fails the regex and falls back to `MAIN_WINE_VERSION` (x86_64). This is a **critical bug** that causes arm64ec containers to be treated as x86_64 at runtime.
+
+### 5. [GuestProgramLauncherComponent](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/xenvironment/components/GuestProgramLauncherComponent.java#46-448) Emulator Selection
+The launch logic correctly branches on `wineInfo.isArm64EC()`:
+- **Arm64EC**: Uses HODLL with libwow64fex.dll (FEXCore) or wowbox64.dll
+- **x86_64**: Uses direct `box64` binary translation
+
+If `wineInfo.isArm64EC()` returns false due to the bug in #4, arm64 containers would try to use Box64 binary which doesn't exist/work on arm64.
+
+## Fix Plan
+
+1. **Fix `WineInfo.fromIdentifier`** — Save the original identifier before stripping for content profile, and use the original for regex matching
+2. **Fix [launchSteamGame](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/UnifiedActivity.kt#1377-1472)** — Use the container's actual wine version instead of hardcoding x86_64
+3. **Enforce emulator selection strictly** — Force FEXCore for arm64ec, force Box64 for x86_64
+4. **Add defensive logging** in [GuestProgramLauncherComponent](file:///home/max/Build/Emulator/WinNative/app/src/main/java/com/winlator/cmod/xenvironment/components/GuestProgramLauncherComponent.java#46-448) for debugging

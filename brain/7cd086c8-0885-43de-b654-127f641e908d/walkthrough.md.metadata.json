@@ -1,0 +1,6 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_WALKTHROUGH",
+  "summary":  "Walkthrough of the platform-level fixes for the 'exe not found' issue. Fixed literal quotes in command arguments and hardcoded proot CWD. Refactored launch targeting in XServerScreen.kt for Steam, Epic, Amazon, GOG, and Custom games. confirmed build success.",
+  "updatedAt":  "2026-03-05T04:24:47.074496122Z",
+  "version":  "4"
+}

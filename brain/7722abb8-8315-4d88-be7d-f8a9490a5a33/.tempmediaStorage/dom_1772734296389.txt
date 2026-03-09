@@ -1,0 +1,802 @@
+<current_dom_explanation>
+This is a temporary snapshot of the current page's DOM structure. The DOM will change if you navigate to or interact with another page. Use a tool like browser_get_dom to capture and preserve the DOM in your trajectory if needed for later reference.
+</current_dom_explanation>
+<current_dom>
+Skip to content
+Navigation Menu
+[0] (28,27)<a aria-label='Homepage' class='tmp-mr-lg-3 color-fg-inherit flex-order-2 js-prevent-focus-on-mobile-nav' href='/' />
+[1] (78,27)<button class='NavDropdown-module__button__PEHWX js-details-target'>Platform />
+[2] (139,27)<button class='NavDropdown-module__button__PEHWX js-details-target'>Solutions />
+[3] (204,27)<button class='NavDropdown-module__button__PEHWX js-details-target'>Resources />
+[4] (277,27)<button class='NavDropdown-module__button__PEHWX js-details-target'>Open Source />
+[5] (350,27)<button class='NavDropdown-module__button__PEHWX js-details-target'>Enterprise />
+[6] (404,27)<a class='NavLink-module__link__EG3d4 MarketingNavigation-module__navLink__hUomM' href='https://github.com/pricing' />
+	[7] (404,27)<span >Pricing />
+[8] (760,27)<button aria-label='Search or jump to…' class='header-search-button placeholder input-button form-control d-flex flex-1 flex-self-stretch flex-items-center no-wrap width-full py-0 pl-2 pr-0 text-left border-0 box-shadow-none' placeholder='Search or jump to...' />
+	[9] (675,27)<div  />
+	[10] (760,27)<span >Search or jump to... />
+	[11] (847,27)<div  />
+[12] (883,27)<a class='HeaderMenu-link HeaderMenu-link--sign-in HeaderMenu-button flex-shrink-0 no-underline d-none d-lg-inline-flex border border-lg-0 rounded px-2 py-1' href='/login?return_to=https%3A%2F%2Fgithub.com%2Futkarshdalal%2FGameNative%2Ftree%2Fmaster%2Fapp%2Fsrc%2Fmain%2Fassets%2Fwincomponents'>Sign in />
+[13] (933,27)<a class='HeaderMenu-link HeaderMenu-link--sign-up HeaderMenu-button flex-shrink-0 d-flex d-lg-inline-flex no-underline border color-border-default rounded px-2 py-1' href='/signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E%2Ffiles%2Fdisambiguate&source=header-repo&source_repo=utkarshdalal%2FGameNative'>Sign up />
+[14] (972,27)<button class='Button Button--iconOnly Button--invisible Button--medium AppHeader-button HeaderMenu-link border' id='icon-button-065da651-94fa-4490-9246-e89ea39b61db' />
+[15] (68,78)<a class='url fn' href='/utkarshdalal'>utkarshdalal />
+/
+[16] (149,78)<a href='/utkarshdalal/GameNative'>GameNative />
+Public
+[17] (731,78)<button aria-label='Sponsor utkarshdalal/GameNative' class='Button--secondary Button--small Button' id='dialog-show-funding-links-modal-utkarshdalal-GameNative' />
+	[18] (731,78)<span  />
+		[19] (731,78)<span  />
+			[20] (737,78)<span >Sponsor />
+[21] (797,78)<a aria-label='You must be signed in to change notification settings' class='btn-sm btn' href='/login?return_to=%2Futkarshdalal%2FGameNative' id='repository-details-watch-button'>Notifications />
+[22] (872,78)<a class='btn-sm btn' href='/login?return_to=%2Futkarshdalal%2FGameNative' id='fork-button'>Fork />
+	[23] (888,78)<span >135 />
+[24] (946,78)<a aria-label='You must be signed in to star a repository' class='tooltipped tooltipped-sw btn-sm btn' href='/login?return_to=%2Futkarshdalal%2FGameNative' />
+	[25] (941,77)<span >Star />
+	[26] (962,78)<span >3.3k />
+[27] (41,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item selected' href='/utkarshdalal/GameNative' id='code-tab' />
+	[28] (48,121)<span >Code />
+[29] (104,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/utkarshdalal/GameNative/issues' id='issues-tab' />
+	[30] (100,121)<span >Issues />
+	[31] (126,121)<span >46 />
+[32] (193,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/utkarshdalal/GameNative/pulls' id='pull-requests-tab' />
+	[33] (190,121)<span >Pull requests />
+	[34] (230,121)<span >34 />
+[35] (283,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/utkarshdalal/GameNative/discussions' id='discussions-tab' />
+	[36] (290,121)<span >Discussions />
+[37] (351,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/utkarshdalal/GameNative/actions' id='actions-tab' />
+	[38] (358,121)<span >Actions />
+[39] (412,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/utkarshdalal/GameNative/projects' id='projects-tab' />
+	[40] (419,121)<span >Projects />
+[41] (474,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/utkarshdalal/GameNative/security' id='security-tab' />
+	[42] (481,121)<span >Security />
+[43] (536,121)<a class='UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item' href='/utkarshdalal/GameNative/pulse' id='insights-tab' />
+	[44] (543,121)<span >Insights />
+[45] (19,163)<button class='prc-Button-ButtonBase-9n-Xk position-relative ExpandFileTreeButton-module__expandButton__hDOcv fgColor-muted prc-Button-IconButton-fyge7' />
+Files
+[46] (83,200)<button aria-label='master branch' class='prc-Button-ButtonBase-9n-Xk react-repos-tree-pane-ref-selector width-full ref-selector-class RefSelectorAnchoredOverlay-module__RefSelectorOverlayBtn__a3WK3' id='ref-picker-repos-header-ref-selector' />
+	[47] (83,200)<span  />
+		[48] (76,200)<span  />
+			[49] (76,200)<div  />
+				[50] (22,200)<div  />
+				[51] (44,200)<div  />
+					[52] (44,200)<span >master />
+[53] (171,200)<button class='prc-Button-ButtonBase-9n-Xk SearchButton-module__IconButton__SBlqu prc-Button-IconButton-fyge7' />
+[54] (95,231)<span  />
+	[55] (20,231)<span  />
+	[56] (100,231)<input aria-label='Go to file' class='prc-components-Input-IwWrt' placeholder='Go to file' role='combobox' />
+[57] (95,696)<div class='ReposFileTreePane-module__Box_5__Zy_o6' scrollable='true' />
+	.github
+	[58] (91,273)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='.run-item' role='treeitem' />
+		[59] (91,273)<div  />
+			[60] (14,273)<div  />
+			[61] (95,273)<div  />
+				[62] (28,273)<div  />
+					[63] (28,273)<div  />
+				[64] (102,273)<span  />
+					[65] (46,273)<span >.run />
+	[66] (91,298)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='PrivacyPolicy-item' role='treeitem' />
+		[67] (91,298)<div  />
+			[68] (14,298)<div  />
+			[69] (95,298)<div  />
+				[70] (28,298)<div  />
+					[71] (28,298)<div  />
+				[72] (102,298)<span  />
+					[73] (63,298)<span >PrivacyPolicy />
+	[74] (91,323)<div  />
+		[75] (14,323)<div  />
+		[76] (95,323)<div  />
+			[77] (28,323)<div  />
+				[78] (28,323)<div  />
+			[79] (102,323)<span  />
+				[80] (45,323)<span >app />
+	[81] (91,347)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/keystores-item' role='treeitem' />
+		[82] (91,347)<div  />
+			[83] (12,347)<div  />
+				[84] (12,347)<div  />
+					[85] (12,347)<div  />
+			[86] (19,347)<div  />
+			[87] (98,347)<div  />
+				[88] (33,347)<div  />
+					[89] (33,347)<div  />
+				[90] (105,347)<span  />
+					[91] (61,347)<span >keystores />
+	[92] (91,372)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/release-signed-item' role='treeitem' />
+		[93] (91,372)<div  />
+			[94] (12,372)<div  />
+				[95] (12,372)<div  />
+					[96] (12,372)<div  />
+			[97] (19,372)<div  />
+			[98] (98,372)<div  />
+				[99] (33,372)<div  />
+					[100] (33,372)<div  />
+				[101] (105,372)<span  />
+					[102] (71,372)<span >release-signed />
+	[103] (91,396)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/schemas-item' role='treeitem' />
+		[104] (91,396)<div  />
+			[105] (12,396)<div  />
+				[106] (12,396)<div  />
+					[107] (12,396)<div  />
+			[108] (19,396)<div  />
+			[109] (98,396)<div  />
+				[110] (33,396)<div  />
+					[111] (33,396)<div  />
+				[112] (105,396)<span  />
+					[113] (60,396)<span >schemas />
+	[114] (91,421)<div  />
+		[115] (12,421)<div  />
+			[116] (12,421)<div  />
+				[117] (12,421)<div  />
+		[118] (19,421)<div  />
+		[119] (98,421)<div  />
+			[120] (33,421)<div  />
+				[121] (33,421)<div  />
+			[122] (105,421)<span  />
+				[123] (48,421)<span >src />
+	[124] (91,445)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/androidTest-item' role='treeitem' />
+		[125] (91,445)<div  />
+			[126] (14,445)<div  />
+				[127] (14,445)<div  />
+					[128] (12,445)<div  />
+					[129] (17,445)<div  />
+			[130] (24,445)<div  />
+			[131] (100,445)<div  />
+				[132] (38,445)<div  />
+					[133] (38,445)<div  />
+				[134] (107,445)<span  />
+					[135] (71,445)<span >androidTest />
+	[136] (91,470)<div  />
+		[137] (14,470)<div  />
+			[138] (14,470)<div  />
+				[139] (12,470)<div  />
+				[140] (17,470)<div  />
+		[141] (24,470)<div  />
+		[142] (100,470)<div  />
+			[143] (38,470)<div  />
+				[144] (38,470)<div  />
+			[145] (107,470)<span  />
+				[146] (57,470)<span >main />
+	[147] (91,495)<div  />
+		[148] (17,495)<div  />
+			[149] (17,495)<div  />
+				[150] (12,495)<div  />
+				[151] (17,495)<div  />
+				[152] (21,495)<div  />
+		[153] (28,495)<div  />
+		[154] (102,495)<div  />
+			[155] (43,495)<div  />
+				[156] (43,495)<div  />
+			[157] (109,495)<span  />
+				[158] (64,495)<span >assets />
+	[159] (91,519)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/box86_64-item' role='treeitem' />
+		[160] (91,519)<div  />
+			[161] (19,519)<div  />
+				[162] (19,519)<div  />
+					[163] (12,519)<div  />
+					[164] (17,519)<div  />
+					[165] (21,519)<div  />
+					[166] (26,519)<div  />
+			[167] (33,519)<div  />
+			[168] (105,519)<div  />
+				[169] (47,519)<div  />
+					[170] (47,519)<div  />
+				[171] (112,519)<span  />
+					[172] (76,519)<span >box86_64 />
+	[173] (91,544)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/dxwrapper-item' role='treeitem' />
+		[174] (91,544)<div  />
+			[175] (19,544)<div  />
+				[176] (19,544)<div  />
+					[177] (12,544)<div  />
+					[178] (17,544)<div  />
+					[179] (21,544)<div  />
+					[180] (26,544)<div  />
+			[181] (33,544)<div  />
+			[182] (105,544)<div  />
+				[183] (47,544)<div  />
+					[184] (47,544)<div  />
+				[185] (112,544)<span  />
+					[186] (78,544)<span >dxwrapper />
+	[187] (91,568)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/fexcore-item' role='treeitem' />
+		[188] (91,568)<div  />
+			[189] (19,568)<div  />
+				[190] (19,568)<div  />
+					[191] (12,568)<div  />
+					[192] (17,568)<div  />
+					[193] (21,568)<div  />
+					[194] (26,568)<div  />
+			[195] (33,568)<div  />
+			[196] (105,568)<div  />
+				[197] (47,568)<div  />
+					[198] (47,568)<div  />
+				[199] (112,568)<span  />
+					[200] (71,568)<span >fexcore />
+	[201] (91,593)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/graphics_driver-item' role='treeitem' />
+		[202] (91,593)<div  />
+			[203] (19,593)<div  />
+				[204] (19,593)<div  />
+					[205] (12,593)<div  />
+					[206] (17,593)<div  />
+					[207] (21,593)<div  />
+					[208] (26,593)<div  />
+			[209] (33,593)<div  />
+			[210] (105,593)<div  />
+				[211] (47,593)<div  />
+					[212] (47,593)<div  />
+				[213] (112,593)<span  />
+					[214] (87,593)<span >graphics_driver />
+	[215] (91,617)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/inputcontrols-item' role='treeitem' />
+		[216] (91,617)<div  />
+			[217] (19,617)<div  />
+				[218] (19,617)<div  />
+					[219] (12,617)<div  />
+					[220] (17,617)<div  />
+					[221] (21,617)<div  />
+					[222] (26,617)<div  />
+			[223] (33,617)<div  />
+			[224] (105,617)<div  />
+				[225] (47,617)<div  />
+					[226] (47,617)<div  />
+				[227] (112,617)<span  />
+					[228] (83,617)<span >inputcontrols />
+	[229] (91,642)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/steaminput-item' role='treeitem' />
+		[230] (91,642)<div  />
+			[231] (19,642)<div  />
+				[232] (19,642)<div  />
+					[233] (12,642)<div  />
+					[234] (17,642)<div  />
+					[235] (21,642)<div  />
+					[236] (26,642)<div  />
+			[237] (33,642)<div  />
+			[238] (105,642)<div  />
+				[239] (47,642)<div  />
+					[240] (47,642)<div  />
+				[241] (112,642)<span  />
+					[242] (79,642)<span >steaminput />
+	[243] (91,667)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/steampipe-item' role='treeitem' />
+		[244] (91,667)<div  />
+			[245] (19,667)<div  />
+				[246] (19,667)<div  />
+					[247] (12,667)<div  />
+					[248] (17,667)<div  />
+					[249] (21,667)<div  />
+					[250] (26,667)<div  />
+			[251] (33,667)<div  />
+			[252] (105,667)<div  />
+				[253] (47,667)<div  />
+					[254] (47,667)<div  />
+				[255] (112,667)<span  />
+					[256] (78,667)<span >steampipe />
+	[257] (91,826)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/wincomponents-item' role='treeitem' />
+		[258] (91,691)<div  />
+			[259] (19,691)<div  />
+				[260] (19,691)<div  />
+					[261] (12,691)<div  />
+					[262] (17,691)<div  />
+					[263] (21,691)<div  />
+					[264] (26,691)<div  />
+			[265] (33,691)<div  />
+			[266] (105,691)<div  />
+				[267] (47,691)<div  />
+					[268] (47,691)<div  />
+				[269] (112,691)<span  />
+					[270] (88,691)<span >wincomponents />
+		[271] (91,716)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/wincomponents/ddraw.tzst-item' role='treeitem' />
+			[272] (91,716)<div  />
+				[273] (21,716)<div  />
+					[274] (21,716)<div  />
+						[275] (12,716)<div  />
+						[276] (17,716)<div  />
+						[277] (21,716)<div  />
+						[278] (26,716)<div  />
+						[279] (31,716)<div  />
+				[280] (107,716)<div  />
+					[281] (52,716)<div  />
+					[282] (114,716)<span  />
+						[283] (82,716)<span >ddraw.tzst />
+		[284] (91,740)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/wincomponents/direct3d.tzst-item' role='treeitem' />
+			[285] (91,740)<div  />
+				[286] (21,740)<div  />
+					[287] (21,740)<div  />
+						[288] (12,740)<div  />
+						[289] (17,740)<div  />
+						[290] (21,740)<div  />
+						[291] (26,740)<div  />
+						[292] (31,740)<div  />
+				[293] (107,740)<div  />
+					[294] (52,740)<div  />
+					[295] (114,740)<span  />
+						[296] (86,740)<span >direct3d.tzst />
+		[297] (91,765)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/wincomponents/directmusic.tzst-item' role='treeitem' />
+			[298] (91,765)<div  />
+				[299] (21,765)<div  />
+					[300] (21,765)<div  />
+						[301] (12,765)<div  />
+						[302] (17,765)<div  />
+						[303] (21,765)<div  />
+						[304] (26,765)<div  />
+						[305] (31,765)<div  />
+				[306] (107,765)<div  />
+					[307] (52,765)<div  />
+					[308] (114,765)<span  />
+						[309] (92,765)<span >directmusic.tzst />
+		[310] (91,789)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/wincomponents/directplay.tzst-item' role='treeitem' />
+			[311] (91,789)<div  />
+				[312] (21,789)<div  />
+					[313] (21,789)<div  />
+						[314] (12,789)<div  />
+						[315] (17,789)<div  />
+						[316] (21,789)<div  />
+						[317] (26,789)<div  />
+						[318] (31,789)<div  />
+				[319] (107,789)<div  />
+					[320] (52,789)<div  />
+					[321] (114,789)<span  />
+						[322] (89,789)<span >directplay.tzst />
+		[323] (91,814)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/wincomponents/directshow.tzst-item' role='treeitem' />
+			[324] (91,814)<div  />
+				[325] (21,814)<div  />
+					[326] (21,814)<div  />
+						[327] (12,814)<div  />
+						[328] (17,814)<div  />
+						[329] (21,814)<div  />
+						[330] (26,814)<div  />
+						[331] (31,814)<div  />
+				[332] (107,814)<div  />
+					[333] (52,814)<div  />
+					[334] (114,814)<span  />
+						[335] (91,814)<span >directshow.tzst />
+		[336] (91,839)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/wincomponents/directsound.tzst-item' role='treeitem' />
+			[337] (91,839)<div  />
+				[338] (21,839)<div  />
+					[339] (21,839)<div  />
+						[340] (12,839)<div  />
+						[341] (17,839)<div  />
+						[342] (21,839)<div  />
+						[343] (26,839)<div  />
+						[344] (31,839)<div  />
+				[345] (107,839)<div  />
+					[346] (52,839)<div  />
+					[347] (114,839)<span  />
+						[348] (93,839)<span >directsound.tzst />
+		[349] (91,863)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/wincomponents/opengl.tzst-item' role='treeitem' />
+			[350] (91,863)<div  />
+				[351] (21,863)<div  />
+					[352] (21,863)<div  />
+						[353] (12,863)<div  />
+						[354] (17,863)<div  />
+						[355] (21,863)<div  />
+						[356] (26,863)<div  />
+						[357] (31,863)<div  />
+				[358] (107,863)<div  />
+					[359] (52,863)<div  />
+					[360] (114,863)<span  />
+						[361] (83,863)<span >opengl.tzst />
+		[362] (91,888)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/wincomponents/vcrun2010.tzst-item' role='treeitem' />
+			[363] (91,888)<div  />
+				[364] (21,888)<div  />
+					[365] (21,888)<div  />
+						[366] (12,888)<div  />
+						[367] (17,888)<div  />
+						[368] (21,888)<div  />
+						[369] (26,888)<div  />
+						[370] (31,888)<div  />
+				[371] (107,888)<div  />
+					[372] (52,888)<div  />
+					[373] (114,888)<span  />
+						[374] (90,888)<span >vcrun2010.tzst />
+		[375] (91,912)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/wincomponents/wincomponents.json-item' role='treeitem' />
+			[376] (91,912)<div  />
+				[377] (21,912)<div  />
+					[378] (21,912)<div  />
+						[379] (12,912)<div  />
+						[380] (17,912)<div  />
+						[381] (21,912)<div  />
+						[382] (26,912)<div  />
+						[383] (31,912)<div  />
+				[384] (107,912)<div  />
+					[385] (52,912)<div  />
+					[386] (114,912)<span  />
+						[387] (102,912)<span >wincomponents.json />
+		[388] (91,937)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/wincomponents/wmdecoder.tzst-item' role='treeitem' />
+			[389] (91,937)<div  />
+				[390] (21,937)<div  />
+					[391] (21,937)<div  />
+						[392] (12,937)<div  />
+						[393] (17,937)<div  />
+						[394] (21,937)<div  />
+						[395] (26,937)<div  />
+						[396] (31,937)<div  />
+				[397] (107,937)<div  />
+					[398] (52,937)<div  />
+					[399] (114,937)<span  />
+						[400] (92,937)<span >wmdecoder.tzst />
+		[401] (91,961)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/wincomponents/xaudio.tzst-item' role='treeitem' />
+			[402] (91,961)<div  />
+				[403] (21,961)<div  />
+					[404] (21,961)<div  />
+						[405] (12,961)<div  />
+						[406] (17,961)<div  />
+						[407] (21,961)<div  />
+						[408] (26,961)<div  />
+						[409] (31,961)<div  />
+				[410] (107,961)<div  />
+					[411] (52,961)<div  />
+					[412] (114,961)<span  />
+						[413] (83,961)<span >xaudio.tzst />
+	[414] (91,986)<li class='PRIVATE_TreeView-item prc-TreeView-TreeViewItem-Ter5f' id='app/src/main/assets/wowbox64-item' role='treeitem' />
+		[415] (91,986)<div  />
+			[416] (19,986)<div  />
+				[417] (19,986)<div  />
+					[418] (12,986)<div  />
+					[419] (17,986)<div  />
+					[420] (21,986)<div  />
+					[421] (26,986)<div  />
+			[422] (33,986)<div  />
+			[423] (105,986)<div  />
+				[424] (47,986)<div  />
+					[425] (47,986)<div  />
+				[426] (112,986)<span  />
+					[427] (78,986)<span >wowbox64 />
+[428] (190,639)<div aria-label='Draggable pane splitter' class='prc-PageLayout-DraggableHandle-9s6B4' role='slider' />
+Breadcrumbs
+[429] (230,163)<a class='Breadcrumb-module__repoLink__O2Nbs prc-Link-Link-9ZwDx' href='/utkarshdalal/GameNative/tree/master'>GameNative />
+/
+[430] (281,163)<a class='Breadcrumb-module__directoryLink__kQy_t prc-Link-Link-9ZwDx' href='/utkarshdalal/GameNative/tree/master/app'>app />
+/
+[431] (309,163)<a class='Breadcrumb-module__directoryLink__kQy_t prc-Link-Link-9ZwDx' href='/utkarshdalal/GameNative/tree/master/app/src'>src />
+/
+[432] (339,163)<a class='Breadcrumb-module__directoryLink__kQy_t prc-Link-Link-9ZwDx' href='/utkarshdalal/GameNative/tree/master/app/src/main'>main />
+/
+[433] (377,163)<a class='Breadcrumb-module__directoryLink__kQy_t prc-Link-Link-9ZwDx' href='/utkarshdalal/GameNative/tree/master/app/src/main/assets'>assets />
+/
+wincomponents
+/
+[434] (507,163)<button class='prc-Button-ButtonBase-9n-Xk ml-2 prc-Button-IconButton-fyge7' />
+Directory actions
+More options
+[435] (981,163)<button class='prc-Button-ButtonBase-9n-Xk CodeViewHeader-module__IconButton__PYSHU prc-Button-IconButton-fyge7' id='_R_1bcqjal1d_' title='More options' />
+Latest commit
+[436] (256,205)<a aria-label='commits by utkarshdalal' class='Link__StyledLink-sc-1syctfj-0 iIGVMW AuthorLink-module__authorNameLink__ClG6W prc-Link-Link-9ZwDx' href='/utkarshdalal/GameNative/commits?author=utkarshdalal'>utkarshdalal />
+and
+Utkarsh Dalal
+[437] (407,205)<a class='Link--secondary' href='/utkarshdalal/GameNative/commit/20ebeaf06594fa86aa85450693a230a1edc2129b'>Initial bionic changes ( />
+[438] (460,205)<a class='issue-link js-issue-link' href='https://github.com/utkarshdalal/GameNative/pull/191'>#191 />
+[439] (471,205)<a class='Link--secondary' href='/utkarshdalal/GameNative/commit/20ebeaf06594fa86aa85450693a230a1edc2129b'>) />
+[440] (486,205)<button class='prc-Button-ButtonBase-9n-Xk LatestCommit-module__IconButton__mkJr_ prc-Button-IconButton-fyge7' />
+[441] (869,205)<a aria-label='Commit 20ebeaf' class='Link--secondary prc-Link-Link-9ZwDx' href='/utkarshdalal/GameNative/commit/20ebeaf06594fa86aa85450693a230a1edc2129b'>20ebeaf />
+·
+History
+[442] (962,205)<a class='prc-Button-ButtonBase-9n-Xk d-none d-lg-flex LinkButton-module__linkButton__nFnov flex-items-center fgColor-default' href='/utkarshdalal/GameNative/commits/master/app/src/main/assets/wincomponents' />
+	[443] (962,205)<span  />
+		[444] (968,205)<span  />
+			[445] (968,205)<span >History />
+Folders and files
+Name
+Last commit message
+Last commit date
+[446] (595,282)<tr  />
+	parent directory
+	[447] (595,282)<a aria-label='Parent directory' class='DirectoryRow-module__PrimerLink__COEaW prc-Link-Link-9ZwDx' href='/utkarshdalal/GameNative/tree/master/app/src/main/assets' />
+		[448] (595,282)<div >.. />
+[449] (595,313)<tr  />
+	[450] (246,313)<a aria-label='ddraw.tzst, (File)' class='Link--primary' href='/utkarshdalal/GameNative/blob/master/app/src/main/assets/wincomponents/ddraw.tzst' title='ddraw.tzst'>ddraw.tzst />
+	[451] (569,313)<a class='Link--secondary' href='/utkarshdalal/GameNative/commit/20ebeaf06594fa86aa85450693a230a1edc2129b' title='Initial bionic changes (#191)
+
+* Initial bionic changes
+
+* allow setting of container variant and wine version
+
+* Some code clean up, added javasteam 1.7.0, and initial changes to make bionic work, as well as keep glibc working with correct container migrations
+
+* Bionic containers booting, switching between glibc and bionic containers working
+
+* added arm64ec bionic, made fexcore work (?) made x format the same as winlator 11 again though idk if that's right
+
+* GPU for bionic x86_64 working - replaced GPUImage with bionic's implementation. Vortek continues to work.
+
+* Got arm64 proton working with LD_PRELOAD
+
+* fix for dx installing when changing arch
+
+* Fixed cursor display on bionic containers, hide cursor when mouse disabled or in touchscreen mode
+
+* Fixed wowbox64 for arm64ec bionic containers
+
+* Controllers working via SDL for bionic containers
+
+* Added leegao wrapper
+
+* Cleaned up container configs, allowed setting of default variant, etc
+
+* First-time unpack works on bionic containers
+
+* Fixed ALSA *crash* on Bionic - sound doesn't work still on ALSA, made PulseAudio the default for sound
+
+* Make pulse default, fix mono install when variant changed, fix box64 versions for different variants/archs
+---------
+
+Co-authored-by: Utkarsh Dalal <utkarsh.dalal@toptal.com>'>Initial bionic changes ( />
+	[452] (623,313)<a class='issue-link js-issue-link' href='https://github.com/utkarshdalal/GameNative/pull/191'>#191 />
+	[453] (634,313)<a class='Link--secondary' href='/utkarshdalal/GameNative/commit/20ebeaf06594fa86aa85450693a230a1edc2129b' title='Initial bionic changes (#191)
+
+* Initial bionic changes
+
+* allow setting of container variant and wine version
+
+* Some code clean up, added javasteam 1.7.0, and initial changes to make bionic work, as well as keep glibc working with correct container migrations
+
+* Bionic containers booting, switching between glibc and bionic containers working
+
+* added arm64ec bionic, made fexcore work (?) made x format the same as winlator 11 again though idk if that's right
+
+* GPU for bionic x86_64 working - replaced GPUImage with bionic's implementation. Vortek continues to work.
+
+* Got arm64 proton working with LD_PRELOAD
+
+* fix for dx installing when changing arch
+
+* Fixed cursor display on bionic containers, hide cursor when mouse disabled or in touchscreen mode
+
+* Fixed wowbox64 for arm64ec bionic containers
+
+* Controllers working via SDL for bionic containers
+
+* Added leegao wrapper
+
+* Cleaned up container configs, allowed setting of default variant, etc
+
+* First-time unpack works on bionic containers
+
+* Fixed ALSA *crash* on Bionic - sound doesn't work still on ALSA, made PulseAudio the default for sound
+
+* Make pulse default, fix mono install when variant changed, fix box64 versions for different variants/archs
+---------
+
+Co-authored-by: Utkarsh Dalal <utkarsh.dalal@toptal.com>'>) />
+[454] (595,344)<tr  />
+	[455] (250,344)<a aria-label='direct3d.tzst, (File)' class='Link--primary' href='/utkarshdalal/GameNative/blob/master/app/src/main/assets/wincomponents/direct3d.tzst' title='direct3d.tzst'>direct3d.tzst />
+	[456] (665,344)<a class='Link--secondary' href='/utkarshdalal/GameNative/commit/4ab0769f4de46d1210de0b00841d1923986c7505' title='Brought in files from Winlator and modified them slightly to remove UI references. Got XServerView showing up when pressing the play button of an app. Added a way to go into fullscreen mode.'>Brought in files from Winlator and modified them slightly to remove U… />
+[457] (595,375)<tr  />
+	[458] (256,376)<a aria-label='directmusic.tzst, (File)' class='Link--primary' href='/utkarshdalal/GameNative/blob/master/app/src/main/assets/wincomponents/directmusic.tzst' title='directmusic.tzst'>directmusic.tzst />
+	[459] (665,376)<a class='Link--secondary' href='/utkarshdalal/GameNative/commit/4ab0769f4de46d1210de0b00841d1923986c7505' title='Brought in files from Winlator and modified them slightly to remove UI references. Got XServerView showing up when pressing the play button of an app. Added a way to go into fullscreen mode.'>Brought in files from Winlator and modified them slightly to remove U… />
+[460] (595,406)<tr  />
+	[461] (253,407)<a aria-label='directplay.tzst, (File)' class='Link--primary' href='/utkarshdalal/GameNative/blob/master/app/src/main/assets/wincomponents/directplay.tzst' title='directplay.tzst'>directplay.tzst />
+	[462] (665,407)<a class='Link--secondary' href='/utkarshdalal/GameNative/commit/4ab0769f4de46d1210de0b00841d1923986c7505' title='Brought in files from Winlator and modified them slightly to remove UI references. Got XServerView showing up when pressing the play button of an app. Added a way to go into fullscreen mode.'>Brought in files from Winlator and modified them slightly to remove U… />
+[463] (595,438)<tr  />
+	[464] (255,438)<a aria-label='directshow.tzst, (File)' class='Link--primary' href='/utkarshdalal/GameNative/blob/master/app/src/main/assets/wincomponents/directshow.tzst' title='directshow.tzst'>directshow.tzst />
+	[465] (665,438)<a class='Link--secondary' href='/utkarshdalal/GameNative/commit/4ab0769f4de46d1210de0b00841d1923986c7505' title='Brought in files from Winlator and modified them slightly to remove UI references. Got XServerView showing up when pressing the play button of an app. Added a way to go into fullscreen mode.'>Brought in files from Winlator and modified them slightly to remove U… />
+[466] (595,469)<tr  />
+	[467] (257,469)<a aria-label='directsound.tzst, (File)' class='Link--primary' href='/utkarshdalal/GameNative/blob/master/app/src/main/assets/wincomponents/directsound.tzst' title='directsound.tzst'>directsound.tzst />
+	[468] (665,469)<a class='Link--secondary' href='/utkarshdalal/GameNative/commit/4ab0769f4de46d1210de0b00841d1923986c7505' title='Brought in files from Winlator and modified them slightly to remove UI references. Got XServerView showing up when pressing the play button of an app. Added a way to go into fullscreen mode.'>Brought in files from Winlator and modified them slightly to remove U… />
+[469] (595,500)<tr  />
+	[470] (247,501)<a aria-label='opengl.tzst, (File)' class='Link--primary' href='/utkarshdalal/GameNative/blob/master/app/src/main/assets/wincomponents/opengl.tzst' title='opengl.tzst'>opengl.tzst />
+	[471] (569,501)<a class='Link--secondary' href='/utkarshdalal/GameNative/commit/20ebeaf06594fa86aa85450693a230a1edc2129b' title='Initial bionic changes (#191)
+
+* Initial bionic changes
+
+* allow setting of container variant and wine version
+
+* Some code clean up, added javasteam 1.7.0, and initial changes to make bionic work, as well as keep glibc working with correct container migrations
+
+* Bionic containers booting, switching between glibc and bionic containers working
+
+* added arm64ec bionic, made fexcore work (?) made x format the same as winlator 11 again though idk if that's right
+
+* GPU for bionic x86_64 working - replaced GPUImage with bionic's implementation. Vortek continues to work.
+
+* Got arm64 proton working with LD_PRELOAD
+
+* fix for dx installing when changing arch
+
+* Fixed cursor display on bionic containers, hide cursor when mouse disabled or in touchscreen mode
+
+* Fixed wowbox64 for arm64ec bionic containers
+
+* Controllers working via SDL for bionic containers
+
+* Added leegao wrapper
+
+* Cleaned up container configs, allowed setting of default variant, etc
+
+* First-time unpack works on bionic containers
+
+* Fixed ALSA *crash* on Bionic - sound doesn't work still on ALSA, made PulseAudio the default for sound
+
+* Make pulse default, fix mono install when variant changed, fix box64 versions for different variants/archs
+---------
+
+Co-authored-by: Utkarsh Dalal <utkarsh.dalal@toptal.com>'>Initial bionic changes ( />
+	[472] (623,501)<a class='issue-link js-issue-link' href='https://github.com/utkarshdalal/GameNative/pull/191'>#191 />
+	[473] (634,501)<a class='Link--secondary' href='/utkarshdalal/GameNative/commit/20ebeaf06594fa86aa85450693a230a1edc2129b' title='Initial bionic changes (#191)
+
+* Initial bionic changes
+
+* allow setting of container variant and wine version
+
+* Some code clean up, added javasteam 1.7.0, and initial changes to make bionic work, as well as keep glibc working with correct container migrations
+
+* Bionic containers booting, switching between glibc and bionic containers working
+
+* added arm64ec bionic, made fexcore work (?) made x format the same as winlator 11 again though idk if that's right
+
+* GPU for bionic x86_64 working - replaced GPUImage with bionic's implementation. Vortek continues to work.
+
+* Got arm64 proton working with LD_PRELOAD
+
+* fix for dx installing when changing arch
+
+* Fixed cursor display on bionic containers, hide cursor when mouse disabled or in touchscreen mode
+
+* Fixed wowbox64 for arm64ec bionic containers
+
+* Controllers working via SDL for bionic containers
+
+* Added leegao wrapper
+
+* Cleaned up container configs, allowed setting of default variant, etc
+
+* First-time unpack works on bionic containers
+
+* Fixed ALSA *crash* on Bionic - sound doesn't work still on ALSA, made PulseAudio the default for sound
+
+* Make pulse default, fix mono install when variant changed, fix box64 versions for different variants/archs
+---------
+
+Co-authored-by: Utkarsh Dalal <utkarsh.dalal@toptal.com>'>) />
+[474] (595,532)<tr  />
+	[475] (254,532)<a aria-label='vcrun2010.tzst, (File)' class='Link--primary' href='/utkarshdalal/GameNative/blob/master/app/src/main/assets/wincomponents/vcrun2010.tzst' title='vcrun2010.tzst'>vcrun2010.tzst />
+	[476] (665,532)<a class='Link--secondary' href='/utkarshdalal/GameNative/commit/4ab0769f4de46d1210de0b00841d1923986c7505' title='Brought in files from Winlator and modified them slightly to remove UI references. Got XServerView showing up when pressing the play button of an app. Added a way to go into fullscreen mode.'>Brought in files from Winlator and modified them slightly to remove U… />
+[477] (595,563)<tr  />
+	[478] (266,563)<a aria-label='wincomponents.json, (File)' class='Link--primary' href='/utkarshdalal/GameNative/blob/master/app/src/main/assets/wincomponents/wincomponents.json' title='wincomponents.json'>wincomponents.json />
+	[479] (569,563)<a class='Link--secondary' href='/utkarshdalal/GameNative/commit/20ebeaf06594fa86aa85450693a230a1edc2129b' title='Initial bionic changes (#191)
+
+* Initial bionic changes
+
+* allow setting of container variant and wine version
+
+* Some code clean up, added javasteam 1.7.0, and initial changes to make bionic work, as well as keep glibc working with correct container migrations
+
+* Bionic containers booting, switching between glibc and bionic containers working
+
+* added arm64ec bionic, made fexcore work (?) made x format the same as winlator 11 again though idk if that's right
+
+* GPU for bionic x86_64 working - replaced GPUImage with bionic's implementation. Vortek continues to work.
+
+* Got arm64 proton working with LD_PRELOAD
+
+* fix for dx installing when changing arch
+
+* Fixed cursor display on bionic containers, hide cursor when mouse disabled or in touchscreen mode
+
+* Fixed wowbox64 for arm64ec bionic containers
+
+* Controllers working via SDL for bionic containers
+
+* Added leegao wrapper
+
+* Cleaned up container configs, allowed setting of default variant, etc
+
+* First-time unpack works on bionic containers
+
+* Fixed ALSA *crash* on Bionic - sound doesn't work still on ALSA, made PulseAudio the default for sound
+
+* Make pulse default, fix mono install when variant changed, fix box64 versions for different variants/archs
+---------
+
+Co-authored-by: Utkarsh Dalal <utkarsh.dalal@toptal.com>'>Initial bionic changes ( />
+	[480] (623,563)<a class='issue-link js-issue-link' href='https://github.com/utkarshdalal/GameNative/pull/191'>#191 />
+	[481] (634,563)<a class='Link--secondary' href='/utkarshdalal/GameNative/commit/20ebeaf06594fa86aa85450693a230a1edc2129b' title='Initial bionic changes (#191)
+
+* Initial bionic changes
+
+* allow setting of container variant and wine version
+
+* Some code clean up, added javasteam 1.7.0, and initial changes to make bionic work, as well as keep glibc working with correct container migrations
+
+* Bionic containers booting, switching between glibc and bionic containers working
+
+* added arm64ec bionic, made fexcore work (?) made x format the same as winlator 11 again though idk if that's right
+
+* GPU for bionic x86_64 working - replaced GPUImage with bionic's implementation. Vortek continues to work.
+
+* Got arm64 proton working with LD_PRELOAD
+
+* fix for dx installing when changing arch
+
+* Fixed cursor display on bionic containers, hide cursor when mouse disabled or in touchscreen mode
+
+* Fixed wowbox64 for arm64ec bionic containers
+
+* Controllers working via SDL for bionic containers
+
+* Added leegao wrapper
+
+* Cleaned up container configs, allowed setting of default variant, etc
+
+* First-time unpack works on bionic containers
+
+* Fixed ALSA *crash* on Bionic - sound doesn't work still on ALSA, made PulseAudio the default for sound
+
+* Make pulse default, fix mono install when variant changed, fix box64 versions for different variants/archs
+---------
+
+Co-authored-by: Utkarsh Dalal <utkarsh.dalal@toptal.com>'>) />
+[482] (595,594)<tr  />
+	[483] (256,595)<a aria-label='wmdecoder.tzst, (File)' class='Link--primary' href='/utkarshdalal/GameNative/blob/master/app/src/main/assets/wincomponents/wmdecoder.tzst' title='wmdecoder.tzst'>wmdecoder.tzst />
+	[484] (665,595)<a class='Link--secondary' href='/utkarshdalal/GameNative/commit/4ab0769f4de46d1210de0b00841d1923986c7505' title='Brought in files from Winlator and modified them slightly to remove UI references. Got XServerView showing up when pressing the play button of an app. Added a way to go into fullscreen mode.'>Brought in files from Winlator and modified them slightly to remove U… />
+[485] (595,626)<tr  />
+	[486] (247,626)<a aria-label='xaudio.tzst, (File)' class='Link--primary' href='/utkarshdalal/GameNative/blob/master/app/src/main/assets/wincomponents/xaudio.tzst' title='xaudio.tzst'>xaudio.tzst />
+	[487] (569,626)<a class='Link--secondary' href='/utkarshdalal/GameNative/commit/20ebeaf06594fa86aa85450693a230a1edc2129b' title='Initial bionic changes (#191)
+
+* Initial bionic changes
+
+* allow setting of container variant and wine version
+
+* Some code clean up, added javasteam 1.7.0, and initial changes to make bionic work, as well as keep glibc working with correct container migrations
+
+* Bionic containers booting, switching between glibc and bionic containers working
+
+* added arm64ec bionic, made fexcore work (?) made x format the same as winlator 11 again though idk if that's right
+
+* GPU for bionic x86_64 working - replaced GPUImage with bionic's implementation. Vortek continues to work.
+
+* Got arm64 proton working with LD_PRELOAD
+
+* fix for dx installing when changing arch
+
+* Fixed cursor display on bionic containers, hide cursor when mouse disabled or in touchscreen mode
+
+* Fixed wowbox64 for arm64ec bionic containers
+
+* Controllers working via SDL for bionic containers
+
+* Added leegao wrapper
+
+* Cleaned up container configs, allowed setting of default variant, etc
+
+* First-time unpack works on bionic containers
+
+* Fixed ALSA *crash* on Bionic - sound doesn't work still on ALSA, made PulseAudio the default for sound
+
+* Make pulse default, fix mono install when variant changed, fix box64 versions for different variants/archs
+---------
+
+Co-authored-by: Utkarsh Dalal <utkarsh.dalal@toptal.com>'>Initial bionic changes ( />
+	[488] (623,626)<a class='issue-link js-issue-link' href='https://github.com/utkarshdalal/GameNative/pull/191'>#191 />
+	[489] (634,626)<a class='Link--secondary' href='/utkarshdalal/GameNative/commit/20ebeaf06594fa86aa85450693a230a1edc2129b' title='Initial bionic changes (#191)
+
+* Initial bionic changes
+
+* allow setting of container variant and wine version
+
+* Some code clean up, added javasteam 1.7.0, and initial changes to make bionic work, as well as keep glibc working with correct container migrations
+
+* Bionic containers booting, switching between glibc and bionic containers working
+
+* added arm64ec bionic, made fexcore work (?) made x format the same as winlator 11 again though idk if that's right
+
+* GPU for bionic x86_64 working - replaced GPUImage with bionic's implementation. Vortek continues to work.
+
+* Got arm64 proton working with LD_PRELOAD
+
+* fix for dx installing when changing arch
+
+* Fixed cursor display on bionic containers, hide cursor when mouse disabled or in touchscreen mode
+
+* Fixed wowbox64 for arm64ec bionic containers
+
+* Controllers working via SDL for bionic containers
+
+* Added leegao wrapper
+
+* Cleaned up container configs, allowed setting of default variant, etc
+
+* First-time unpack works on bionic containers
+
+* Fixed ALSA *crash* on Bionic - sound doesn't work still on ALSA, made PulseAudio the default for sound
+
+* Make pulse default, fix mono install when variant changed, fix box64 versions for different variants/archs
+---------
+
+Co-authored-by: Utkarsh Dalal <utkarsh.dalal@toptal.com>'>) />
+
+</current_dom>

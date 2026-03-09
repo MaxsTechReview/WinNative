@@ -1,0 +1,39 @@
+# Game Management and Launching Fixes
+
+I have completed the UI improvements, Epic Games fixes, and the robust launch targeting system for all game sources.
+
+## Changes Made
+
+### UI & Drivers
+- **Redundant Button Removed**: Removed the `+` button from the Graphics settings tab as requested.
+- **Contextual Installation**: The `+` button in the Components Manager now intelligently installs the correct wrapper (DXVK, VKD3D, Wine/Proton, Box64, etc.) based on the active tab.
+- **Improved Visibility**: Added an "Installed" filter chip to the Drivers section to easily view all installed drivers.
+
+### Epic Games & Amazon Fixes
+- **Executable Detection**: Improved the heuristic for finding Epic and Amazon executables, filtering out common crash-handlers and redistributables.
+- **Working Directory**: Ensured games start in their own directory to resolve file-loading crashes.
+
+### Game Launch Targeting
+- **Robust Steam Targeting**: Updated `ColdClientLoader` to use direct `A:\` drive paths. This bypasses symlink naming issues and resolves the "Couldn't find the requested Exe file" error.
+- **Settings Persistence**: Fixed a bug where user-selected Steam executables were not being saved correctly due to an internal ID mismatch.
+- **Enhanced Debug Logging**: Added detailed logs to all launch paths (Steam, Epic, Amazon, GOG, Custom) showing the final command and working directory.
+
+## Verification Results
+
+### Success Build
+I have verified the changes with a successful debug build:
+`BUILD SUCCESSFUL in 17s`
+
+### Log Verification (Planned)
+With the new enhanced logging, any future launch issues can be diagnosed immediately by checking the logcat for `XServerScreen` tags:
+```
+I/XServerScreen: Steam ColdClientLoader launch command
+I/XServerScreen: Final Epic launch command: winhandler.exe "A:\Game.exe" ...
+I/XServerScreen: Working directory: /storage/emulated/0/Games/Epic/GameName
+```
+
+## How to Test
+1. Open **Settings > Components > Drivers** and check the new "Installed" filter.
+2. Try launching an Epic game; it should now correctly find its files and start in the right folder.
+3. Try launching a Steam game in ColdClientLoader mode; the "Exe not found" error should be resolved.
+4. Change the "Executable Path" for any game in its settings and verify it now persists and targets the correct file on the next launch.

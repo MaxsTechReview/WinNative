@@ -1,0 +1,24 @@
+# Fix GameNative App Load Freeze and Crash
+
+The App freezes on the splash screen and crashes because of two major bugs introduced recently:
+1. **Concurrency Hang on Launch**: `GPUInformation.loadGPUInformation` is called on the main thread and waits for a background thread to fetch EGL info using `thread.wait()`. If the background thread finishes too quickly, it calls `thread.notify()` *before* the main thread starts waiting, causing the main thread to block forever and the system to kill the app (ANR).
+2. **Infinite Reinstallations**: `ImageFsInstaller.installFromAssetsFuture` does not save the installed variant via `createVariantFile(variant)`. This causes the app to attempt to reinstall system files on every launch because the variants don't match, further exacerbating the load freezes and background issues.
+
+## Proposed Changes
+
+### Core Components
+#### [MODIFY] `GPUInformation.java`(file:///home/max/Build/GameNative-Performance/app/src/main/java/com/winlator/core/GPUInformation.java)
+- Replace `thread.wait()` and `thread.notify()` synchronization with `java.util.concurrent.CountDownLatch(1)`.
+- The background thread will call `latch.countDown()` in the `finally` block.
+- The main thread will call `latch.await()`. This guarantees the main thread won't block if the background thread has already finished executing.
+
+#### [MODIFY] `ImageFsInstaller.java`(file:///home/max/Build/GameNative-Performance/app/src/main/java/com/winlator/xenvironment/ImageFsInstaller.java)
+- Inside `installFromAssetsFuture`, add a call to `imageFs.createVariantFile(containerVariant);` right before setting `overallSuccess = true`.
+- This ensures that the installed imagefs variant is recorded and the app won't try to reinstall it constantly on every startup.
+
+## Verification Plan
+
+### Manual Verification
+1. Build the debug APK using `./gradlew assembleDebug` (from the command-line/tool).
+2. Ask the user to install the debug APK.
+3. Observe the app launch: The splash screen should no longer freeze and the app should open normally. Subsequent launches should also bypass the `installFromAssetsFuture` extraction step securely.

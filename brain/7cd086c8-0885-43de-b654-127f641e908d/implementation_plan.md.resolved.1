@@ -1,0 +1,32 @@
+# Fix Game Launch Targeting and Exe Not Found Errors
+
+The goal is to ensure all games (Steam, Epic, GOG, Amazon, Custom) correctly target the selected executable and resolve "exe not found" errors, particularly with ColdClientLoader.
+
+## Proposed Changes
+
+### [Component] Steam Utilities
+#### [MODIFY] [SteamUtils.kt](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/app/gamenative/utils/SteamUtils.kt)
+- **Robust INI Targeting**: Change `writeSteamclientLoaderIni` to ALWAYS use `A:\$executablePath` if the game is mapped to A: (standard for this app now). This bypasses symlink naming mismatches in `steamapps/common`.
+- **Normalization**: Ensure `executablePath` in the INI is correctly backslash-normalized and relative to the A: drive.
+- **Naming Alignment**: Ensure `gameName` used for legacy symlinks matches the actual folder name on disk to prevent breakage of legacy games.
+- **ColdClientLoader Parity**: Added missing `createAppManifest`, `autoLoginUserChanges`, and `setupLightweightSteamConfig` to `replaceSteamclientDll`.
+
+### [Component] Launch Infrastructure
+#### [MODIFY] [XServerScreen.kt](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/app/gamenative/ui/screen/xserver/XServerScreen.kt)
+- **Fix Persistence Bug**: Correct the [applyToContainer](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/app/gamenative/utils/ContainerUtils.kt#327-343) call for Steam games to use the full `appId` (e.g., `STEAM_12345`) instead of just the numeric ID. This ensures user-selected executables are actually saved and loaded.
+- **Enhanced Logging**: Add detailed Timber logs for ALL game types showing the final constructed Windows command and working directory.
+
+### [Component] GOG Service
+#### [MODIFY] [GOGManager.kt](file:///home/max/Build/GameNative-Performance/GameNative-Performance/app/src/main/java/app/gamenative/service/gog/GOGManager.kt)
+- **Path Verification**: Add logging to verify GOG launch command correctly maps to the A: drive.
+
+## Verification Plan
+
+### Automated Verification
+- Build debug APK: `./gradlew assembleDebug`
+- Inspect logs during launch to verify command strings.
+
+### Manual Verification
+- Launch a Steam game using ColdClientLoader mode.
+- Change the executable in settings and verify the launch targets the new one.
+- Verify Epic/Amazon/GOG/Custom games still launch correctly with the A: drive.
