@@ -1,6 +1,0 @@
-{
-  "artifactType":  "ARTIFACT_TYPE_WALKTHROUGH",
-  "summary":  "Comprehensive report documenting all container crash fixes, including the root cause analysis (super() cannot be wrapped in try-catch, catch(Exception) doesn't catch Error subclasses), all dialog call site fixes, null safety improvements, and logic bug fixes. Includes verification results from 3 check-fix-check cycles.",
-  "updatedAt":  "2026-03-06T20:26:48.736669523Z",
-  "version":  "2"
-}

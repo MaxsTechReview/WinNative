@@ -1,5 +1,0 @@
-{
-  "artifactType":  "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
-  "summary":  "Refactor Proton/Wine container creation logic to be instant rather than lazy, and address \"launching...\" stalls by suppressing interactive prompts and ensuring clean process states.",
-  "updatedAt":  "2026-03-05T18:04:40.867723641Z"
-}

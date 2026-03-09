@@ -1,5 +1,0 @@
-{
-  "artifactType":  "ARTIFACT_TYPE_OTHER",
-  "summary":  "Analysis of controller input issues found from logcat. Three bugs identified: InputControlsView starts as GONE and is never activated without a pre-assigned controls profile, dispatchGenericMotionEvent doesn't forward events to InputControlsView for physical gamepads, and show_touchscreen_controls defaults to false hiding buttons.",
-  "updatedAt":  "2026-03-07T14:39:39.782760109Z"
-}

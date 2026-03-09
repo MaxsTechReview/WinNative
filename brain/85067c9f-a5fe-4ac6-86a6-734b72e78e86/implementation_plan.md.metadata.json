@@ -1,5 +1,0 @@
-{
-  "artifactType":  "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
-  "summary":  "Implementation plan for integrating Pipetto controller/input fixes, fixing custom proton container creation ('unable to install system files' bug), and verifying imagefs/proton asset compatibility.",
-  "updatedAt":  "2026-03-08T22:25:41.201487916Z"
-}

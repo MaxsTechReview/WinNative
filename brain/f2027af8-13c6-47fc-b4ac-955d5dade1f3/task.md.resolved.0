@@ -1,9 +1,0 @@
-# Frontend Design and Tip disable
-- [ ] Disable "Ask for Tip on Startup" by default
-- [ ] Design PS5/Steam Big Picture Style UI
-    - [ ] Create sleek, fluid Layout in Landscape orientation
-    - [ ] Make controller friendly 
-    - [ ] Use Steam UI Color Palette
-    - [ ] Apply elegant fonts and spacing
-- [ ] Test frontend for stability
-- [ ] Build assembleDebug

@@ -1,5 +1,0 @@
-{
-  "artifactType":  "ARTIFACT_TYPE_WALKTHROUGH",
-  "summary":  "Walkthrough of the controller input migration from Vivsi1/winlator bionic to WinNative. Documents all 6 files changed/added, the architecture of the new fake evdev system, and verification status.",
-  "updatedAt":  "2026-03-09T12:52:15.927242814Z"
-}

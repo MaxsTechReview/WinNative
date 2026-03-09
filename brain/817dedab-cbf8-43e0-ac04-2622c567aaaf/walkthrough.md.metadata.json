@@ -1,6 +1,0 @@
-{
-  "artifactType":  "ARTIFACT_TYPE_WALKTHROUGH",
-  "summary":  "Documents the root causes of v2.2.0 crashes on Gen1 Adreno chips, the four fixes applied to freedreno_devices.py, and the successful rebuild of both balanced and performance driver variants.",
-  "updatedAt":  "2026-03-06T05:43:31.721480510Z",
-  "version":  "1"
-}

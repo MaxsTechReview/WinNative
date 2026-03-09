@@ -1,5 +1,0 @@
-{
-  "artifactType":  "ARTIFACT_TYPE_WALKTHROUGH",
-  "summary":  "Comprehensive summary of the refactored container management system and launch stability fixes. Includes details on instant container creation, robust process cleanup, and proper Mono/Gecko installation. Documented thread-safety improvements and addressed potential crash points. Noted a native-only build issue unrelated to the Kotlin changes.",
-  "updatedAt":  "2026-03-05T18:21:24.625760936Z"
-}

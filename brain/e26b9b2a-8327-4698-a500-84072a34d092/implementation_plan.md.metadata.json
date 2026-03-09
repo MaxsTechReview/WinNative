@@ -1,6 +1,0 @@
-{
-  "artifactType":  "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
-  "summary":  "Detailed strategy for modifying Game Settings UI, diagnosing the lingering x86_64 boot hang, and porting GameNative's Steamless / Steam Service implementation into WinNative.",
-  "updatedAt":  "2026-03-06T23:27:41.405727215Z",
-  "version":  "1"
-}

@@ -1,6 +1,0 @@
-{
-  "artifactType":  "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
-  "summary":  "Full rewrite plan for LibraryFrontendPane.kt to create a Steam Deck-style UI with hero spotlight, horizontal carousel, frosted glass tab bar with L1/R1 icons, AIO store toggle support, and controller-first navigation.",
-  "updatedAt":  "2026-03-06T05:07:49.651840205Z",
-  "version":  "1"
-}

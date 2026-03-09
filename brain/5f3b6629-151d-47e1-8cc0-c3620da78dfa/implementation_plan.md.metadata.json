@@ -1,5 +1,0 @@
-{
-  "artifactType":  "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
-  "summary":  "Comprehensive plan to migrate the fake evdev controller input system from Vivsi1/winlator bionic to WinNative. Covers: adding fakeinput.cpp native library (LD_PRELOAD hook), FakeInputWriter.java (evdev event writer), WinHandler.java multi-controller support with FakeInputWriter integration, GuestProgramLauncherComponent.java libfakeinput.so deployment and environment setup, and CMakeLists.txt build target. Preserves WinNative's existing gyro, deadzone, sensitivity features.",
-  "updatedAt":  "2026-03-09T12:32:34.524562890Z"
-}

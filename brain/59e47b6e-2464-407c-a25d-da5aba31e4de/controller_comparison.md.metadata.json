@@ -1,5 +1,0 @@
-{
-  "artifactType":  "ARTIFACT_TYPE_OTHER",
-  "summary":  "Comprehensive comparison of input handling architecture between WinNative and GameNative-Performance. Identifies three root causes why some games have working touch controls and others don't: (1) profile not loaded by default, (2) InputControlsView made VISIBLE without a profile blocking touches, (3) elements not explicitly loaded before display.",
-  "updatedAt":  "2026-03-07T15:18:40.511492422Z"
-}

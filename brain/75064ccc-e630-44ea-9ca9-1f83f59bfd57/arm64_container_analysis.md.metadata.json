@@ -1,6 +1,0 @@
-{
-  "artifactType":  "ARTIFACT_TYPE_WALKTHROUGH",
-  "summary":  "Complete summary of all 4 root causes identified and fixed for the arm64 container launch issue, including the critical WineInfo identifier parsing bug, auto-creation hardcoding, emulator enforcement, and runtime safety net. Build verified successful.",
-  "updatedAt":  "2026-03-08T05:51:35.939793660Z",
-  "version":  "1"
-}
