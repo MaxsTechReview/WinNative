@@ -33,6 +33,7 @@ import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,7 +58,6 @@ import coil.request.ImageRequest
 import com.winlator.cmod.steam.service.SteamService
 import com.winlator.cmod.steam.utils.PrefManager
 import com.winlator.cmod.steam.utils.getAvatarURL
-import com.winlator.cmod.steam.SteamLoginActivity
 import com.winlator.cmod.steam.data.SteamApp
 import com.winlator.cmod.steam.data.DepotInfo
 import com.winlator.cmod.steam.data.DownloadInfo
@@ -68,6 +68,8 @@ import com.winlator.cmod.utils.PeIconExtractor
 import com.winlator.cmod.service.DownloadService
 import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.container.Shortcut
+import com.winlator.cmod.steam.events.EventDispatcher
+import com.winlator.cmod.steam.events.AndroidEvent
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
@@ -75,6 +77,18 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import `in`.dragonbra.javasteam.enums.EPersonaState
 import kotlin.math.abs
+import com.winlator.cmod.epic.data.EpicGame
+import com.winlator.cmod.steam.SteamLoginActivity
+import com.winlator.cmod.epic.service.EpicAuthManager
+import com.winlator.cmod.epic.service.EpicService
+import com.winlator.cmod.epic.ui.auth.EpicOAuthActivity
+import com.winlator.cmod.epic.service.EpicGameLauncher
+import com.winlator.cmod.epic.service.EpicCloudSavesManager
+import com.winlator.cmod.epic.service.EpicConstants
+import com.winlator.cmod.epic.data.EpicCredentials
+import com.winlator.cmod.epic.data.EpicGameToken
+import com.winlator.cmod.epic.service.EpicDownloadManager
+import com.winlator.cmod.epic.service.EpicManager
 
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -103,6 +117,14 @@ class UnifiedActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        db = PluviaDatabase.getInstance(this)
+        EpicAuthManager.updateLoginStatus(this)
+        
+        // Start EpicService if user is logged in
+        if (EpicService.hasStoredCredentials(this)) {
+            EpicService.start(this)
+        }
+
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
                 primary = Accent,
@@ -140,14 +162,56 @@ class UnifiedActivity : ComponentActivity() {
         var libraryRefreshKey by remember { mutableIntStateOf(0) }
         val contentFilters = remember { mutableStateMapOf("games" to true, "dlc" to false, "applications" to false, "tools" to false) }
         val tabs = remember(aioMode, storeVisible.toMap()) { buildTabs(aioMode, storeVisible) }
-        var selectedIdx by remember { mutableIntStateOf(0) }
+        var selectedIdx by rememberSaveable { mutableIntStateOf(0) }
         var showFilter by remember { mutableStateOf(false) }
         val isLoggedIn by SteamService.isLoggedInFlow.collectAsState()
+        val isEpicLoggedIn by EpicAuthManager.isLoggedInFlow.collectAsState()
         val steamApps by db.steamAppDao().getAllOwnedApps().collectAsState(initial = emptyList())
         val context = LocalContext.current
         val persona by SteamService.instance?.localPersona?.collectAsState()
             ?: remember { mutableStateOf(null) }
         val scope = rememberCoroutineScope()
+        
+        // Use libraryRefreshKey as a key for remember so we re-collect from DB when it changes
+        val epicApps by remember(libraryRefreshKey) { 
+            db.epicGameDao().getAll() 
+        }.collectAsState(initial = emptyList())
+
+        // Observe library install status changes to refresh UI
+        LaunchedEffect(Unit) {
+            val listener = object : EventDispatcher.JavaEventListener {
+                override fun onEvent(event: Any) {
+                    if (event is AndroidEvent.LibraryInstallStatusChanged) {
+                        libraryRefreshKey++
+                    }
+                }
+            }
+            PluviaApp.events.onJava(AndroidEvent.LibraryInstallStatusChanged::class, listener)
+        }
+
+        LaunchedEffect(isEpicLoggedIn) {
+            if (isEpicLoggedIn) {
+                EpicService.start(context)
+            }
+        }
+
+        val epicLoginLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode == android.app.Activity.RESULT_OK) {
+                val code = result.data?.getStringExtra(EpicOAuthActivity.EXTRA_AUTH_CODE)
+                if (code != null) {
+                    scope.launch {
+                        val authResult = EpicAuthManager.authenticateWithCode(context, code)
+                        if (authResult.isSuccess) {
+                            android.widget.Toast.makeText(context, "Logged in to Epic Games!", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            android.widget.Toast.makeText(context, "Epic Login failed: ${authResult.exceptionOrNull()?.message}", android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            }
+        }
 
         val filteredSteamApps = remember(steamApps, contentFilters.toMap()) {
             steamApps.filter { app ->
@@ -163,10 +227,10 @@ class UnifiedActivity : ComponentActivity() {
             }
         }
 
-        // Ticker for real-time updates
         LaunchedEffect(Unit) {
             while(true) {
-                kotlinx.coroutines.delay(2000)
+                kotlinx.coroutines.delay(10000)
+                SteamService.syncStates()
                 libraryRefreshKey++
             }
         }
@@ -180,8 +244,8 @@ class UnifiedActivity : ComponentActivity() {
         Scaffold(
             containerColor = BgDark,
             topBar = { TopBar(tabs, selectedIdx, { selectedIdx = it }, persona, context, scope) {
-                // Try Steam apps first, then fall back to custom game pseudo-app
-                globalSettingsApp = steamApps.find { it.id == selectedSteamAppId }
+                // Try Steam apps first, then fall back to custom or epic pseudo-apps
+                globalSettingsApp = (steamApps.find { it.id == selectedSteamAppId }
                     ?: if (selectedSteamAppId < 0) {
                         // Build a pseudo SteamApp for the custom game
                         SteamApp(
@@ -189,16 +253,27 @@ class UnifiedActivity : ComponentActivity() {
                             name = selectedSteamAppName,
                             developer = "Custom"
                         )
-                    } else null
+                    } else if (selectedSteamAppId >= 2000000000) {
+                        val epicId = selectedSteamAppId - 2000000000
+                        val epic = epicApps.find { it.id == epicId }
+                        SteamApp(
+                            id = selectedSteamAppId,
+                            name = selectedSteamAppName,
+                            developer = epic?.developer ?: "Epic Games",
+                            gameDir = epic?.installPath ?: ""
+                        )
+                    } else null)
             } }
         ) { padding ->
             Box(Modifier.padding(padding).fillMaxSize().background(BgDark)) {
                 val key = tabs.getOrNull(selectedIdx)?.key ?: "library"
                 when (key) {
-                    "library" -> LibraryCarousel(isLoggedIn, filteredSteamApps, libraryRefreshKey)
+                    "library" -> LibraryCarousel(isLoggedIn, filteredSteamApps, epicApps, libraryRefreshKey)
                     "downloads" -> DownloadsTab()
                     "steam", "store" -> SteamStoreTab(isLoggedIn, filteredSteamApps)
-                    "epic" -> StorePlaceholderTab("Epic Games")
+                    "epic" -> EpicStoreTab(isEpicLoggedIn) {
+                        epicLoginLauncher.launch(Intent(this@UnifiedActivity, EpicOAuthActivity::class.java))
+                    }
                     "gog" -> StorePlaceholderTab("GOG")
                     "amazon" -> StorePlaceholderTab("Amazon Games")
                 }
@@ -468,39 +543,58 @@ class UnifiedActivity : ComponentActivity() {
 
     // ─── PS5-style Library Carousel ───────────────────────────────────
     @Composable
-    fun LibraryCarousel(isLoggedIn: Boolean, steamApps: List<SteamApp>, libraryRefreshKey: Int = 0) {
+    fun LibraryCarousel(isLoggedIn: Boolean, steamApps: List<SteamApp>, epicApps: List<EpicGame>, libraryRefreshKey: Int = 0) {
         val context = LocalContext.current
 
         // Load custom game shortcuts from containers
-        val customApps = remember(libraryRefreshKey) {
-            try {
-                val cm = ContainerManager(context)
-                cm.loadShortcuts()
-                    .filter { it.getExtra("game_source") == "CUSTOM" }
-                    .map { shortcut ->
-                        val displayName = shortcut.getExtra("custom_name", shortcut.name)
-                        val customId = -(displayName.hashCode().and(0x7FFFFFFF) + 1)
-                        SteamApp(
-                            id = customId,
-                            name = displayName,
-                            developer = "Custom",
-                            gameDir = shortcut.getExtra("custom_game_folder", "")
-                        )
-                    }
-            } catch (_: Exception) { emptyList() }
+        var customApps by remember { mutableStateOf<List<SteamApp>>(emptyList()) }
+        LaunchedEffect(libraryRefreshKey) {
+            withContext(Dispatchers.IO) {
+                try {
+                    val cm = ContainerManager(context)
+                    val apps = cm.loadShortcuts()
+                        .filter { it.getExtra("game_source") == "CUSTOM" }
+                        .map { shortcut ->
+                            val displayName = shortcut.getExtra("custom_name", shortcut.name)
+                            val customId = -(displayName.hashCode().and(0x7FFFFFFF) + 1)
+                            SteamApp(
+                                id = customId,
+                                name = displayName,
+                                developer = "Custom",
+                                gameDir = shortcut.getExtra("custom_game_folder", "")
+                            )
+                        }
+                    withContext(Dispatchers.Main) { customApps = apps }
+                } catch (_: Exception) {}
+            }
         }
 
         val steamInstalled = remember(steamApps, libraryRefreshKey) {
             steamApps.filter { SteamService.isAppInstalled(it.id) }
         }
 
-        val installedApps = remember(steamInstalled, customApps) {
-            steamInstalled + customApps
+        val epicInstalled = remember(epicApps, libraryRefreshKey) {
+            epicApps.filter { it.isInstalled }
+        }
+
+        val installedApps = remember(steamInstalled, customApps, epicInstalled, libraryRefreshKey) {
+            // Map Epic games to pseudo SteamApp objects with large ID offset
+            val mappedEpic = epicInstalled.map { epic ->
+                SteamApp(
+                    id = 2000000000 + epic.id,
+                    name = epic.title,
+                    developer = epic.developer,
+                    gameDir = epic.installPath
+                )
+            }
+            steamInstalled + customApps + mappedEpic
         }
 
         if (installedApps.isEmpty()) {
             if (!isLoggedIn) {
-                LoginRequiredScreen()
+                LoginRequiredScreen("Library") {
+                    startActivity(Intent(this@UnifiedActivity, SteamLoginActivity::class.java))
+                }
             } else {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     EmptyStateMessage("No games installed. Use a Store tab or the + button to add games.")
@@ -676,6 +770,8 @@ class UnifiedActivity : ComponentActivity() {
         var currentTab by remember { mutableStateOf("Menu") }
         val scope = rememberCoroutineScope()
         val isCustom = app.id < 0
+        val isEpic = app.id >= 2000000000
+        val epicId = if (isEpic) app.id - 2000000000 else 0
         
         // Export logic
         val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
@@ -686,12 +782,14 @@ class UnifiedActivity : ComponentActivity() {
                         val zos = java.util.zip.ZipOutputStream(java.io.BufferedOutputStream(os))
 
                         val containerManager = com.winlator.cmod.container.ContainerManager(context)
-                        val shortcut = if (isCustom) {
-                            containerManager.loadShortcuts().find {
+                        val shortcut = when {
+                            isCustom -> containerManager.loadShortcuts().find {
                                 it.getExtra("game_source") == "CUSTOM" && (it.getExtra("custom_name") == app.name || it.name == app.name)
                             }
-                        } else {
-                            containerManager.loadShortcuts().find {
+                            isEpic -> containerManager.loadShortcuts().find {
+                                it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == epicId.toString()
+                            }
+                            else -> containerManager.loadShortcuts().find {
                                 it.getExtra("app_id") == app.id.toString()
                             }
                         }
@@ -770,17 +868,19 @@ class UnifiedActivity : ComponentActivity() {
                         val zis = java.util.zip.ZipInputStream(java.io.BufferedInputStream(`is`))
                         
                         val containerManager = com.winlator.cmod.container.ContainerManager(context)
-                        val shortcut = if (isCustom) {
-                            containerManager.loadShortcuts().find {
+                        val shortcut = when {
+                            isCustom -> containerManager.loadShortcuts().find {
                                 it.getExtra("game_source") == "CUSTOM" && (it.getExtra("custom_name") == app.name || it.name == app.name)
                             }
-                        } else {
-                            containerManager.loadShortcuts().find {
+                            isEpic -> containerManager.loadShortcuts().find {
+                                it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == epicId.toString()
+                            }
+                            else -> containerManager.loadShortcuts().find {
                                 it.getExtra("app_id") == app.id.toString()
                             }
                         }
                         
-                        val goldbergSavesParent = java.io.File(SteamService.getAppDirPath(app.id), "steam_settings")
+                        val goldbergSavesParent = java.io.File(if (isEpic) app.gameDir else SteamService.getAppDirPath(app.id), if (isEpic) "" else "steam_settings")
                         val prefixDir = shortcut?.let { java.io.File(it.container.getRootDir(), ".wine/drive_c/users/xuser") }
 
                         var ze: java.util.zip.ZipEntry?
@@ -842,15 +942,26 @@ class UnifiedActivity : ComponentActivity() {
                         "Menu" -> {
                             Button(
                                 onClick = {
-                                    if (isCustom) {
-                                        // For custom games, find the shortcut and navigate to its container settings
+                                    if (isCustom || isEpic) {
+                                        // For custom or epic games, find the shortcut and navigate to its container settings
                                         val cm = ContainerManager(context)
                                         val sc = cm.loadShortcuts().find {
-                                            it.getExtra("game_source") == "CUSTOM" && (it.getExtra("custom_name") == app.name || it.name == app.name)
+                                            if (isCustom) {
+                                                it.getExtra("game_source") == "CUSTOM" && (it.getExtra("custom_name") == app.name || it.name == app.name)
+                                            } else {
+                                                it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == epicId.toString()
+                                            }
                                         }
                                         if (sc != null) {
                                             val intent = Intent(context, MainActivity::class.java)
                                             intent.putExtra("edit_shortcut_path", sc.file.absolutePath)
+                                            intent.putExtra("return_to_unified", true)
+                                            context.startActivity(intent)
+                                        } else if (isEpic) {
+                                            // No existing shortcut — open in create-new mode for Epic
+                                            val intent = Intent(context, MainActivity::class.java)
+                                            intent.putExtra("create_shortcut_for_epic_id", epicId)
+                                            intent.putExtra("create_shortcut_for_app_name", app.name)
                                             intent.putExtra("return_to_unified", true)
                                             context.startActivity(intent)
                                         }
@@ -932,6 +1043,20 @@ class UnifiedActivity : ComponentActivity() {
                                                         onDismissRequest()
                                                     }
                                                 }
+                                            } else if (isEpic) {
+                                                scope.launch(Dispatchers.IO) {
+                                                    val result = EpicService.deleteGame(context, epicId)
+                                                    withContext(Dispatchers.Main) {
+                                                        if (result.isSuccess) {
+                                                            android.widget.Toast.makeText(context, "${app.name} uninstalled.", android.widget.Toast.LENGTH_SHORT).show()
+                                                            // Trigger a local refresh of the list if needed, although the Flow should handle it
+                                                        } else {
+                                                            val error = result.exceptionOrNull()?.message ?: "Unknown error"
+                                                            android.widget.Toast.makeText(context, "Failed to uninstall: $error", android.widget.Toast.LENGTH_LONG).show()
+                                                        }
+                                                        onDismissRequest()
+                                                    }
+                                                }
                                             } else {
                                                 SteamService.uninstallApp(app.id) { success ->
                                                     if (success) {
@@ -960,6 +1085,11 @@ class UnifiedActivity : ComponentActivity() {
     private fun GameCapsule(app: SteamApp, modifier: Modifier = Modifier) {
         val context = LocalContext.current
         val isCustom = app.id < 0
+        val isEpic = app.id >= 2000000000
+        val epicId = if (isEpic) app.id - 2000000000 else 0
+        val epicGame by produceState<EpicGame?>(initialValue = null, key1 = epicId) {
+            value = if (isEpic) db.epicGameDao().getById(epicId) else null
+        }
 
         Column(
             modifier = modifier
@@ -970,6 +1100,8 @@ class UnifiedActivity : ComponentActivity() {
                         val containerManager = com.winlator.cmod.container.ContainerManager(context)
                         if (isCustom) {
                             launchCustomGame(context, containerManager, app.name)
+                        } else if (isEpic) {
+                            epicGame?.let { launchEpicGame(context, containerManager, it) }
                         } else if (SteamService.isAppInstalled(app.id)) {
                             launchSteamGame(context, containerManager, app)
                         }
@@ -998,6 +1130,17 @@ class UnifiedActivity : ComponentActivity() {
                         Icon(Icons.Default.SportsEsports, contentDescription = app.name, tint = Accent.copy(alpha = 0.6f), modifier = Modifier.size(64.dp))
                     }
                 }
+            } else if (isEpic) {
+                // Epic game artwork
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(epicGame?.primaryImageUrl ?: epicGame?.iconUrl)
+                        .crossfade(300)
+                        .build(),
+                    contentDescription = app.name,
+                    modifier = Modifier.fillMaxWidth().height(175.dp),
+                    contentScale = ContentScale.Crop
+                )
             } else {
                 // Artwork — robust CDN fallback chain
                 val imageUrls = listOf(
@@ -1036,11 +1179,267 @@ class UnifiedActivity : ComponentActivity() {
         }
     }
 
+    // ─── Epic Store Tab ──────────────────────────────────────────────
+    @Composable
+    fun EpicStoreTab(isLoggedIn: Boolean, onLoginClick: () -> Unit) {
+        val context = LocalContext.current
+        
+        if (!isLoggedIn) {
+            LoginRequiredScreen("Epic Games", onLoginClick)
+            return
+        }
+
+        val epicApps by db.epicGameDao().getAll().collectAsState(initial = emptyList())
+        val selectedAppId = remember { mutableStateOf<Int?>(null) }
+        
+        // Ensure library updates from cloud
+        LaunchedEffect(Unit) {
+            if (epicApps.isEmpty()) {
+                EpicService.triggerLibrarySync(context)
+            }
+        }
+
+        Column(Modifier.fillMaxSize().padding(16.dp)) {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 150.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(items = epicApps) { app: EpicGame ->
+                    EpicStoreCapsule(app) {
+                        selectedAppId.value = app.id
+                    }
+                }
+            }
+        }
+
+        val selectedApp = epicApps.find { it.id == selectedAppId.value }
+        if (selectedApp != null) {
+            EpicGameManagerDialog(
+                app = selectedApp,
+                onDismissRequest = { selectedAppId.value = null }
+            )
+        }
+    }
+
+    @Composable
+    fun EpicStoreCapsule(app: com.winlator.cmod.epic.data.EpicGame, onClick: () -> Unit) {
+        val context = LocalContext.current
+        var isFocused by remember { mutableStateOf(false) }
+        val borderColor = if (isFocused) Accent.copy(alpha = 0.8f) else Color.Transparent
+
+        Column(
+            modifier = Modifier
+                .width(160.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(CardDark)
+                .border(4.dp, borderColor, RoundedCornerShape(16.dp))
+                .onFocusChanged { isFocused = it.isFocused }
+                .focusable()
+                .clickable(onClick = onClick)
+        ) {
+            Box {
+                AsyncImage(
+                    model = ImageRequest.Builder(context).data(app.primaryImageUrl).crossfade(300).build(),
+                    contentDescription = app.title,
+                    modifier = Modifier.fillMaxWidth().height(165.dp),
+                    contentScale = ContentScale.Crop
+                )
+
+                if (app.installPath != null && java.io.File(app.installPath!!).exists()) {
+                    Box(
+                        Modifier.align(Alignment.BottomEnd).padding(8.dp).background(SurfaceDark.copy(alpha=0.7f), RoundedCornerShape(8.dp)).padding(4.dp)
+                    ) {
+                        Text("INSTALLED", color = StatusOnline, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            Text(
+                app.title,
+                modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                style = MaterialTheme.typography.titleMedium,
+                color = TextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+
+    @Composable
+    fun EpicGameManagerDialog(app: EpicGame, onDismissRequest: () -> Unit) {
+        val context = LocalContext.current
+        val installed = app.isInstalled && java.io.File(app.installPath).exists()
+        val scope = rememberCoroutineScope()
+        
+        var isLoading by remember { mutableStateOf(!installed) }
+        var manifestSizes by remember { mutableStateOf<EpicManager.ManifestSizes?>(null) }
+        var dlcApps by remember { mutableStateOf<List<EpicGame>>(emptyList()) }
+        val selectedDlcIds = remember { mutableStateListOf<Int>() }
+        var customPath by remember { mutableStateOf<String?>(null) }
+
+        val folderPickerLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.OpenDocumentTree()
+        ) { uri -> uri?.let { customPath = getPathFromTreeUri(it) } }
+
+        LaunchedEffect(app.id, installed) {
+            if (!installed) {
+                withContext(Dispatchers.IO) {
+                    manifestSizes = EpicService.fetchManifestSizes(context, app.id)
+                    dlcApps = EpicService.getDLCForGameSuspend(app.id)
+                    isLoading = false
+                }
+            }
+        }
+
+        Dialog(onDismissRequest = onDismissRequest, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(0.9f).fillMaxHeight(0.85f),
+                shape = RoundedCornerShape(16.dp),
+                color = CardDark
+            ) {
+                if (isLoading && !installed) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Accent)
+                    }
+                } else {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(app.title, style = MaterialTheme.typography.titleLarge, color = TextPrimary, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(16.dp))
+
+                        if (installed) {
+                            Button(
+                                onClick = {
+                                    launchEpicGame(context, ContainerManager(context), app)
+                                    onDismissRequest()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                                shape = RoundedCornerShape(8.dp)
+                            ) { Text("PLAY GAME") }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            OutlinedButton(
+                                onClick = {
+                                    scope.launch(Dispatchers.IO) {
+                                        EpicService.deleteGame(context, app.id)
+                                    }
+                                    onDismissRequest()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp)
+                            ) { Text("Uninstall", color = TextSecondary) }
+                            
+                            if (app.cloudSaveEnabled) {
+                                Spacer(Modifier.height(8.dp))
+                                Button(
+                                    onClick = {
+                                        scope.launch(Dispatchers.IO) {
+                                            EpicCloudSavesManager.syncCloudSaves(context, app.id, "auto")
+                                        }
+                                        onDismissRequest()
+                                        android.widget.Toast.makeText(context, "Cloud sync started.", android.widget.Toast.LENGTH_SHORT).show()
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) { Text("Sync Cloud Saves", color = TextSecondary) }
+                            }
+                        } else {
+                            // Setup Installation
+                            Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                                val totalInstallSize = manifestSizes?.installSize ?: 0L
+                                val totalDownloadSize = manifestSizes?.downloadSize ?: 0L
+                                val effectivePath = if (customPath != null) customPath!! else EpicConstants.getGameInstallPath(context, app.appName)
+                                val availableBytes = try { StorageUtils.getAvailableSpace(effectivePath) } catch (e: Exception) { 0L }
+                                val hasEnoughSpace = availableBytes >= totalInstallSize
+
+                                Text("Installation Details", color = TextPrimary, fontWeight = FontWeight.Bold)
+                                Text(
+                                    "Download: ${StorageUtils.formatBinarySize(totalDownloadSize)} • Install: ${StorageUtils.formatBinarySize(totalInstallSize)}",
+                                    color = if (hasEnoughSpace) TextSecondary else Color(0xFFFF6B6B)
+                                )
+                                Text("Available: ${StorageUtils.formatBinarySize(availableBytes)}", color = if (hasEnoughSpace) TextSecondary else Color(0xFFFF6B6B))
+
+                                if (dlcApps.isNotEmpty()) {
+                                    Spacer(Modifier.height(16.dp))
+                                    Text("Add-ons / DLCs", color = TextPrimary, fontWeight = FontWeight.Bold)
+                                    dlcApps.forEach { dlc ->
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.fillMaxWidth().clickable {
+                                                if (selectedDlcIds.contains(dlc.id)) selectedDlcIds.remove(dlc.id)
+                                                else selectedDlcIds.add(dlc.id)
+                                            }
+                                        ) {
+                                            Checkbox(
+                                                checked = selectedDlcIds.contains(dlc.id),
+                                                onCheckedChange = { if (it) selectedDlcIds.add(dlc.id) else selectedDlcIds.remove(dlc.id) }
+                                            )
+                                            Text(dlc.title, color = TextPrimary)
+                                        }
+                                    }
+                                }
+
+                                Spacer(Modifier.height(16.dp))
+                                Text("Install Location", color = TextPrimary, fontWeight = FontWeight.Bold)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Button(
+                                        onClick = { folderPickerLauncher.launch(null) },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        val displayPath = if (customPath == null) "Choose Custom Path" else "Path: $customPath"
+                                        Text(displayPath, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    }
+                                    if (customPath != null) {
+                                        IconButton(onClick = { customPath = null }) {
+                                            Icon(Icons.Default.Clear, contentDescription = "Clear", tint = TextPrimary)
+                                        }
+                                    }
+                                }
+                            }
+
+                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                 TextButton(onClick = onDismissRequest) { Text("Cancel", color = TextSecondary) }
+                                 Spacer(Modifier.width(8.dp))
+
+                                 val isInstallEnabled = (manifestSizes?.installSize ?: 0L) <= try { StorageUtils.getAvailableSpace(customPath ?: EpicConstants.getGameInstallPath(context, app.appName)) } catch (e: Exception) { 0L }
+
+                                 Button(
+                                     enabled = isInstallEnabled,
+                                     onClick = {
+                                         // Always ensure the game is installed in its own subfolder named after the game
+                                         val installPath = if (customPath != null) {
+                                             val sanitizedTitle = app.title.replace(Regex("[^a-zA-Z0-9 \\-_]"), "").trim()
+                                             java.io.File(customPath!!, sanitizedTitle).absolutePath
+                                         } else {
+                                             EpicConstants.getGameInstallPath(context, app.title)
+                                         }
+                                         
+                                         EpicService.downloadGame(context, app.id, selectedDlcIds.toList(), installPath, "en-US")
+                                         onDismissRequest()
+                                     },
+                                     colors = ButtonDefaults.buttonColors(containerColor = if (isInstallEnabled) Accent else Color.Gray),
+                                     shape = RoundedCornerShape(8.dp)
+                                 ) { Text("Install") }
+                             }
+                         }
+                    }
+                }
+            }
+        }
+    }
+
     // ─── Steam Store Tab ──────────────────────────────────────────────
     @Composable
     fun SteamStoreTab(isLoggedIn: Boolean, steamApps: List<SteamApp>) {
         if (!isLoggedIn) {
-            LoginRequiredScreen()
+            LoginRequiredScreen("Steam") {
+                startActivity(Intent(this@UnifiedActivity, SteamLoginActivity::class.java))
+            }
             return
         }
 
@@ -1159,15 +1558,29 @@ class UnifiedActivity : ComponentActivity() {
         }
         val status by info.getStatusFlow().collectAsState()
         val statusMessage by info.getStatusMessageFlow().collectAsState()
-        val appId = id.removePrefix("STEAM_").toIntOrNull() ?: 0
-        var app by remember(appId) { mutableStateOf<SteamApp?>(null) }
+        val isSteam = id.startsWith("STEAM_")
+        val isEpic = id.startsWith("EPIC_")
+        val appId = if (isSteam) id.removePrefix("STEAM_").toIntOrNull() ?: 0 
+                    else if (isEpic) id.removePrefix("EPIC_").toIntOrNull() ?: 0
+                    else 0
+                    
+        var steamApp by remember(appId) { mutableStateOf<SteamApp?>(null) }
+        var epicGame by remember(appId) { mutableStateOf<EpicGame?>(null) }
         val context = LocalContext.current
         var isFocused by remember { mutableStateOf(false) }
         val borderColor = if (isFocused) Accent.copy(alpha = 0.8f) else Color.Transparent
 
-        LaunchedEffect(appId) {
-            withContext(Dispatchers.IO) { app = db.steamAppDao().findApp(appId) }
+        LaunchedEffect(appId, isSteam, isEpic) {
+            withContext(Dispatchers.IO) { 
+                if (isSteam) steamApp = db.steamAppDao().findApp(appId)
+                else if (isEpic) epicGame = EpicService.getEpicGameOf(appId)
+            }
         }
+
+        val displayName = if (isSteam) steamApp?.name else if (isEpic) epicGame?.title else "Unknown Game"
+        val displayImage = if (isSteam) steamApp?.getHeaderImageUrl() ?: steamApp?.getCapsuleUrl()
+                           else if (isEpic) epicGame?.primaryImageUrl ?: epicGame?.iconUrl
+                           else null
 
         Surface(
             color = CardDark,
@@ -1182,7 +1595,7 @@ class UnifiedActivity : ComponentActivity() {
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 AsyncImage(
                     model = ImageRequest.Builder(context)
-                        .data(app?.getHeaderImageUrl() ?: app?.getCapsuleUrl())
+                        .data(displayImage)
                         .crossfade(300).build(),
                     contentDescription = null,
                     modifier = Modifier.size(120.dp, 68.dp).clip(RoundedCornerShape(4.dp)),
@@ -1192,7 +1605,7 @@ class UnifiedActivity : ComponentActivity() {
                 Spacer(Modifier.width(16.dp))
 
                 Column(Modifier.weight(1f)) {
-                    Text(app?.name ?: "Unknown Game", fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text(displayName ?: "Unknown Game", fontWeight = FontWeight.Bold, color = TextPrimary)
                     Text("Status: ${status.name}", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
 
                     LinearProgressIndicator(
@@ -1464,6 +1877,7 @@ class UnifiedActivity : ComponentActivity() {
                 content.append("game_source=STEAM\n")
                 content.append("app_id=${app.id}\n")
                 content.append("container_id=${container.id}\n")
+                content.append("game_install_path=${gameInstallPath}\n")
 
                 com.winlator.cmod.core.FileUtils.writeString(shortcutFile, content.toString())
 
@@ -1475,6 +1889,88 @@ class UnifiedActivity : ComponentActivity() {
                 intent.putExtra("shortcut_name", app.name)
                 context.startActivity(intent)
             }
+        }
+    }
+
+    private fun launchEpicGame(context: android.content.Context, containerManager: ContainerManager, app: EpicGame) {
+        val gameInstallPath = app.installPath.takeIf { it.isNotEmpty() } ?: EpicConstants.getGameInstallPath(context, app.appName)
+        val gameDir = java.io.File(gameInstallPath)
+        if (!gameDir.exists()) {
+            android.widget.Toast.makeText(context, "Game not installed: ${app.title}", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+            val launchArgsResult = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                EpicGameLauncher.buildLaunchParameters(context, app)
+            }
+            val args = launchArgsResult.getOrNull()?.joinToString(" ") ?: ""
+
+            var exePath = withContext(kotlinx.coroutines.Dispatchers.IO) { EpicService.getInstalledExe(app.id) }
+            val execCmd = if (exePath.isNotEmpty()) {
+                "wine \"A:\\\\${exePath.replace("/", "\\\\")}\""
+            } else {
+                val exeFile = findGameExe(gameDir)
+                if (exeFile != null) {
+                    val dosPath = exeFile.relativeTo(gameDir).path.replace("/", "\\\\")
+                    "wine \"A:\\\\${dosPath}\""
+                } else {
+                    "wine \"A:\\\\\""
+                }
+            }
+
+            var containers = containerManager.getContainers()
+            var container = containerManager.loadShortcuts().find {
+                it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == app.id.toString()
+            }?.container
+
+            if (container == null) container = containers.firstOrNull()
+            
+            if (container == null) {
+                try {
+                    val data = org.json.JSONObject()
+                    data.put("name", "Default")
+                    data.put("wineVersion", com.winlator.cmod.core.WineInfo.MAIN_WINE_VERSION.identifier())
+                    val contentsManager = com.winlator.cmod.contents.ContentsManager(context)
+                    contentsManager.syncContents()
+                    container = containerManager.createContainer(data, contentsManager)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            if (container == null) {
+                android.widget.Toast.makeText(context, "Failed to build container", android.widget.Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+            mountADrive(container, gameInstallPath)
+
+            val desktopDir = container.getDesktopDir()
+            if (!desktopDir.exists()) desktopDir.mkdirs()
+            val shortcutFile = java.io.File(desktopDir, "${app.appName}.desktop")
+            val content = java.lang.StringBuilder()
+            content.append("[Desktop Entry]\n")
+            content.append("Type=Application\n")
+            content.append("Name=${app.title}\n")
+            content.append("Exec=$execCmd\n")
+            content.append("Icon=epic_icon_${app.id}\n")
+            content.append("\n[Extra Data]\n")
+            content.append("game_source=EPIC\n")
+            content.append("app_id=${app.id}\n")
+            content.append("container_id=${container.id}\n")
+            content.append("game_install_path=${gameInstallPath}\n")
+
+            com.winlator.cmod.core.FileUtils.writeString(shortcutFile, content.toString())
+
+            container.saveData()
+
+            val intent = Intent(context, XServerDisplayActivity::class.java)
+            intent.putExtra("container_id", container.id)
+            intent.putExtra("shortcut_path", shortcutFile.path)
+            intent.putExtra("shortcut_name", app.title)
+            intent.putExtra("extra_exec_args", args) // Pass fresh tokens
+            context.startActivity(intent)
         }
     }
 
@@ -1574,18 +2070,20 @@ class UnifiedActivity : ComponentActivity() {
     }
 
     @Composable
-    fun LoginRequiredScreen() {
+    fun LoginRequiredScreen(storeName: String, onLoginClick: () -> Unit) {
+        val message = if (storeName == "Library") "Please sign in to see your Steam Library" else "Please sign in to $storeName"
+        val buttonText = "Sign in to $storeName"
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Default.Person, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(64.dp))
                 Spacer(Modifier.height(16.dp))
-                Text("Please sign in to see your Steam Library", color = TextPrimary, style = MaterialTheme.typography.titleMedium)
+                Text(message, color = TextPrimary, style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(16.dp))
                 Button(
-                    onClick = { startActivity(Intent(this@UnifiedActivity, SteamLoginActivity::class.java)) },
+                    onClick = onLoginClick,
                     colors = ButtonDefaults.buttonColors(containerColor = Accent),
                     shape = RoundedCornerShape(12.dp)
-                ) { Text("Sign in to Steam", fontWeight = FontWeight.Bold) }
+                ) { Text(buttonText, fontWeight = FontWeight.Bold) }
             }
         }
     }

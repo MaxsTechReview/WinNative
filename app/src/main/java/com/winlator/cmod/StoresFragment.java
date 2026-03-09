@@ -20,6 +20,9 @@ import com.winlator.cmod.steam.service.SteamService;
  * Fragment showing store sign-in / sign-out for Steam, Epic, GOG, Amazon.
  */
 public class StoresFragment extends Fragment {
+    
+    private LinearLayout layout;
+
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
@@ -32,38 +35,49 @@ public class StoresFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        LinearLayout layout = new LinearLayout(getContext());
+        this.layout = new LinearLayout(getContext());
         layout.setOrientation(LinearLayout.VERTICAL);
         int pad = dpToPx(20);
         layout.setPadding(pad, pad, pad, pad);
+        return layout;
+    }
+
+    private void updateStores() {
+        if (layout == null) return;
+        layout.removeAllViews();
 
         addStoreRow(layout, "Steam",
                 SteamService.Companion.isLoggedIn(),
                 v -> {
                     if (SteamService.Companion.isLoggedIn()) {
                         SteamService.Companion.logOut();
-                        refreshView();
+                        updateStores();
                     } else {
                         startActivity(new Intent(getContext(), SteamLoginActivity.class));
                     }
                 });
 
-        addStoreRow(layout, "Epic Games", false, v ->
-                android.widget.Toast.makeText(getContext(), "Epic Games integration coming soon", android.widget.Toast.LENGTH_SHORT).show());
+        boolean isEpicLoggedIn = com.winlator.cmod.epic.service.EpicAuthManager.isLoggedIn(getContext());
+        addStoreRow(layout, "Epic Games", isEpicLoggedIn, v -> {
+            if (isEpicLoggedIn) {
+                com.winlator.cmod.epic.service.EpicAuthManager.logoutSync(getContext());
+                updateStores();
+            } else {
+                startActivity(new Intent(getContext(), com.winlator.cmod.epic.ui.auth.EpicOAuthActivity.class));
+            }
+        });
 
         addStoreRow(layout, "GOG", false, v ->
                 android.widget.Toast.makeText(getContext(), "GOG integration coming soon", android.widget.Toast.LENGTH_SHORT).show());
 
         addStoreRow(layout, "Amazon Games", false, v ->
                 android.widget.Toast.makeText(getContext(), "Amazon Games integration coming soon", android.widget.Toast.LENGTH_SHORT).show());
-
-        return layout;
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        // Refresh sign-in state after returning from SteamLoginActivity
+        updateStores();
     }
 
     private void refreshView() {

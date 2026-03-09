@@ -3,6 +3,7 @@ package com.winlator.cmod.di
 import android.content.Context
 import androidx.room.Room
 import com.winlator.cmod.db.PluviaDatabase
+import com.winlator.cmod.db.DATABASE_NAME
 import com.winlator.cmod.steam.db.dao.*
 import dagger.Module
 import dagger.Provides
@@ -18,7 +19,7 @@ class DatabaseModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): PluviaDatabase {
-        return Room.databaseBuilder(context, PluviaDatabase::class.java, "pluvia_database")
+        return Room.databaseBuilder(context, PluviaDatabase::class.java, DATABASE_NAME)
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -54,4 +55,8 @@ class DatabaseModule {
     @Provides
     @Singleton
     fun provideDownloadingAppInfoDao(db: PluviaDatabase): DownloadingAppInfoDao = db.downloadingAppInfoDao()
+
+    @Provides
+    @Singleton
+    fun provideEpicGameDao(db: PluviaDatabase): com.winlator.cmod.epic.db.dao.EpicGameDao = db.epicGameDao()
 }

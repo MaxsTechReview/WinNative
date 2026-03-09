@@ -178,49 +178,123 @@ class EpicService : Service() {
             return getInstance()?.activeDownloads?.get(appId)
         }
 
+        fun getAllDownloads(): Map<Int, DownloadInfo> {
+            return getInstance()?.activeDownloads ?: emptyMap()
+        }
+
         suspend fun deleteGame(context: Context, appId: Int): Result<Unit> {
-            val instance = getInstance()
+            var instance = getInstance()
             if (instance == null) {
-                return Result.failure(Exception("Service not available"))
+                Timber.tag("Epic").i("deleteGame: Service not running, attempting to start...")
+                start(context)
+                
+                // Wait up to 2 seconds for service to start
+                for (i in 0..20) {
+                    kotlinx.coroutines.delay(100)
+                    instance = getInstance()
+                    if (instance != null) break
+                }
+            }
+
+            if (instance == null) {
+                Timber.tag("Epic").e("deleteGame: EpicService failed to start or instance is still null")
+                return Result.failure(Exception("Epic service is not active. Please try again in a moment."))
             }
 
             return try {
+                Timber.tag("Epic").i("Starting uninstallation for appId: $appId")
+
+                // Terminate any running Wine processes to avoid file locks
+                withContext(Dispatchers.Main) {
+                    Timber.tag("Epic").d("Terminating Wine processes...")
+                    com.winlator.cmod.core.ProcessHelper.terminateAllWineProcesses()
+                    // Wait a moment for processes to exit
+                    kotlinx.coroutines.delay(1000)
+                }
+
                 // Get the game to find its install path
                 val game = instance.epicManager.getGameById(appId)
                 if (game == null) {
+                    Timber.tag("Epic").e("deleteGame: Game not found in DB: $appId")
                     return Result.failure(Exception("Game not found: $appId"))
                 }
 
+                // Delete game folder
                 val path = if (game.installPath.isNotEmpty()) game.installPath else EpicConstants.getGameInstallPath(context, game.appName)
-                if (File(path).exists()) {
+                val gameDir = File(path)
+                
+                // Safety check: Ensure we are NOT deleting the base Epic/games directory
+                val baseDir = EpicConstants.defaultEpicGamesPath(context)
+                if (gameDir.absolutePath == File(baseDir).absolutePath) {
+                    Timber.tag("Epic").e("Safety Triggered: Refusing to delete base Epic games directory: $path")
+                } else if (gameDir.exists()) {
                     Timber.tag("Epic").i("Deleting installation folder: $path")
-                    val deleted = File(path).deleteRecursively()
-                    if (deleted) {
-                        Timber.tag("Epic").i("Successfully deleted installation folder")
-                    } else {
-                        Timber.tag("Epic").w("Failed to delete some files in installation folder")
+                    try {
+                        val deleted = gameDir.deleteRecursively()
+                        if (deleted) {
+                            Timber.tag("Epic").i("Successfully deleted installation folder")
+                        } else {
+                            Timber.tag("Epic").w("Failed to delete some files in installation folder")
+                        }
+                    } catch (e: Exception) {
+                        Timber.tag("Epic").e(e, "Exception while deleting installation folder")
                     }
+                    
+                    // Cleanup markers
                     MarkerUtils.removeMarker(path, Marker.DOWNLOAD_COMPLETE_MARKER)
                     MarkerUtils.removeMarker(path, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                } else {
+                    Timber.tag("Epic").w("Installation folder not found: $path")
                 }
 
                 // Uninstall from database (keeps the entry but marks as not installed)
+                Timber.tag("Epic").d("Updating database: marking game $appId as uninstalled")
                 instance.epicManager.uninstall(appId)
 
-                // Delete container
-                withContext(Dispatchers.Main) {
-                    ContainerUtils.deleteContainer(context, "EPIC_${game.appName}")
+                // Delete shortcuts and containers
+                withContext(Dispatchers.IO) {
+                    val containerManager = com.winlator.cmod.container.ContainerManager(context)
+                    val shortcuts = containerManager.loadShortcuts()
+                    val containersToDelete = mutableSetOf<Int>()
+                    
+                    Timber.tag("Epic").d("Scanning ${shortcuts.size} shortcuts for game $appId")
+                    shortcuts.forEach { shortcut ->
+                        val source = shortcut.getExtra("game_source")
+                        val shortcutAppId = shortcut.getExtra("app_id")
+                        
+                        if (source == "EPIC" && shortcutAppId == appId.toString()) {
+                            if (shortcut.container != null) {
+                                containersToDelete.add(shortcut.container.id)
+                            }
+                            Timber.tag("Epic").d("Deleting shortcut file: ${shortcut.file.absolutePath}")
+                            shortcut.file.delete()
+                        }
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        containersToDelete.forEach { id ->
+                            val container = containerManager.getContainerById(id)
+                            if (container != null) {
+                                Timber.tag("Epic").i("Requesting deletion of container ${container.id} for game $appId")
+                                containerManager.removeContainerAsync(container) {}
+                            }
+                        }
+                        
+                        // Also try to delete the legacy named container if it exists
+                        ContainerUtils.deleteContainer(context, "EPIC_${game.id}")
+                    }
                 }
 
                 // Trigger library refresh event
+                Timber.tag("Epic").d("Emitting LibraryInstallStatusChanged event")
                 com.winlator.cmod.PluviaApp.events.emitJava(
                     com.winlator.cmod.steam.events.AndroidEvent.LibraryInstallStatusChanged(appId)
                 )
 
-                Timber.tag("Epic").i("Game uninstalled: $appId")
+                Timber.tag("Epic").i("Successfully completed uninstallation for appId: $appId")
                 Result.success(Unit)
             } catch (e: Exception) {
-                Timber.tag("Epic").e(e, "Failed to uninstall game: $appId")
+                Timber.tag("Epic").e(e, "Critical failure during uninstallation for appId: $appId")
                 Result.failure(e)
             }
         }
@@ -268,9 +342,11 @@ class EpicService : Service() {
         }
 
         fun getDLCForGame(appId: Int): List<EpicGame> {
-            return runBlocking(Dispatchers.IO) {
-                getInstance()?.epicManager?.getDLCForTitle(appId) ?: emptyList()
-            }
+            return runBlocking(Dispatchers.IO) { getDLCForGameSuspend(appId) }
+        }
+
+        suspend fun getDLCForGameSuspend(appId: Int): List<EpicGame> {
+            return getInstance()?.epicManager?.getDLCForTitle(appId) ?: emptyList()
         }
 
         suspend fun updateEpicGame(game: EpicGame) {

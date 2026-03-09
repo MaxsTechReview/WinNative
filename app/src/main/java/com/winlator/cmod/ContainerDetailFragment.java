@@ -97,6 +97,7 @@ public class ContainerDetailFragment extends Fragment {
     private Callback<String> openDirectoryCallback;
     private int createShortcutForAppId = 0;
     private String createShortcutForAppName = "";
+    private String createShortcutForSource = "STEAM";
 
     private boolean isDarkMode;
 
@@ -111,9 +112,14 @@ public class ContainerDetailFragment extends Fragment {
     }
 
     public ContainerDetailFragment(int containerId, int createShortcutForAppId, String createShortcutForAppName) {
+        this(containerId, createShortcutForAppId, createShortcutForAppName, "STEAM");
+    }
+
+    public ContainerDetailFragment(int containerId, int createShortcutForAppId, String createShortcutForAppName, String source) {
         this.containerId = containerId;
         this.createShortcutForAppId = createShortcutForAppId;
         this.createShortcutForAppName = createShortcutForAppName;
+        this.createShortcutForSource = source != null ? source : "STEAM";
     }
 
     public ContainerDetailFragment(Shortcut shortcut) {
@@ -1477,10 +1483,15 @@ public class ContainerDetailFragment extends Fragment {
         content.append("[Desktop Entry]\n");
         content.append("Type=Application\n");
         content.append("Name=").append(createShortcutForAppName).append("\n");
-        content.append("Exec=wine \"C:\\\\Program Files (x86)\\\\Steam\\\\steamclient_loader_x64.exe\"\n");
-        content.append("Icon=steam_icon_").append(createShortcutForAppId).append("\n");
+        if (createShortcutForSource.equals("EPIC")) {
+            content.append("Exec=wine \"A:\\\\\"\n"); // Epic games usually don't have a loader like Steam
+            content.append("Icon=epic_icon_").append(createShortcutForAppId).append("\n");
+        } else {
+            content.append("Exec=wine \"C:\\\\Program Files (x86)\\\\Steam\\\\steamclient_loader_x64.exe\"\n");
+            content.append("Icon=steam_icon_").append(createShortcutForAppId).append("\n");
+        }
         content.append("\n[Extra Data]\n");
-        content.append("game_source=STEAM\n");
+        content.append("game_source=").append(createShortcutForSource).append("\n");
         content.append("app_id=").append(createShortcutForAppId).append("\n");
         content.append("container_id=").append(container.id).append("\n");
 

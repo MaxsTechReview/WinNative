@@ -84,4 +84,12 @@ object ContainerUtils {
         }
         return null
     }
+
+    fun deleteContainer(context: Context, containerId: String) {
+        val containerManager = ContainerManager(context)
+        val container = containerManager.getContainerById(extractGameIdFromContainerId(containerId))
+        if (container != null) {
+            containerManager.removeContainerAsync(container) {}
+        }
+    }
 }

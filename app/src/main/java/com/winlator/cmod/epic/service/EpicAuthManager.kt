@@ -6,11 +6,19 @@ import com.winlator.cmod.epic.data.EpicGameToken
 import org.json.JSONObject
 import timber.log.Timber
 import java.io.File
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Manages Epic Games authentication and account operations.
  */
 object EpicAuthManager {
+    private val _isLoggedInFlow = MutableStateFlow(false)
+    val isLoggedInFlow = _isLoggedInFlow.asStateFlow()
+
+    fun updateLoginStatus(context: Context) {
+        _isLoggedInFlow.value = isLoggedIn(context)
+    }
 
     private fun getCredentialsFilePath(context: Context): String {
         val dir = File(context.filesDir, "epic")
@@ -26,17 +34,23 @@ object EpicAuthManager {
         return credentialsFile.exists()
     }
 
+    @JvmStatic
+    fun isLoggedIn(context: Context): Boolean = hasStoredCredentials(context)
+
+
         /**
          * Clear stored credentials (logout)
          */
         fun clearStoredCredentials(context: Context): Boolean {
             return try {
                 val authFile = File(getCredentialsFilePath(context))
-                if (authFile.exists()) {
+                val result = if (authFile.exists()) {
                     authFile.delete()
                 } else {
                     true
                 }
+                updateLoginStatus(context)
+                result
             } catch (e: Exception) {
                 Timber.e(e, "Failed to clear Epic credentials")
                 false
@@ -229,44 +243,50 @@ object EpicAuthManager {
         }
     }
 
+    @JvmStatic
+    fun logoutSync(context: Context): Boolean = clearStoredCredentials(context)
+
     suspend fun logout(context: Context): Result<Unit> {
         return try {
-            val credentialsFile = File(getCredentialsFilePath(context))
-            if (credentialsFile.exists()) {
-                credentialsFile.delete()
+            val success = clearStoredCredentials(context)
+            if (success) {
                 Timber.i("Epic credentials cleared")
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Failed to clear credentials"))
             }
-            Result.success(Unit)
         } catch (e: Exception) {
             Timber.e(e, "Failed to clear Epic credentials")
             Result.failure(e)
+        } finally {
+            updateLoginStatus(context) // Always update status after logout attempt
         }
     }
 
     private fun saveCredentials(context: Context, credentials: EpicCredentials) {
-        val json = JSONObject().apply {
-            put("access_token", credentials.accessToken)
-            put("refresh_token", credentials.refreshToken)
-            put("account_id", credentials.accountId)
-            put("display_name", credentials.displayName)
-            put("expires_at", credentials.expiresAt)
+        try {
+            val authFile = File(getCredentialsFilePath(context))
+            val json = JSONObject()
+            json.put("access_token", credentials.accessToken)
+            json.put("refresh_token", credentials.refreshToken)
+            json.put("account_id", credentials.accountId)
+            json.put("display_name", credentials.displayName)
+            json.put("expires_at", credentials.expiresAt)
+
+            authFile.writeText(json.toString())
+            updateLoginStatus(context)
+            Timber.d("Credentials saved to ${authFile.absolutePath}")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to save Epic credentials")
         }
-
-        val file = File(getCredentialsFilePath(context))
-        file.writeText(json.toString())
-
-        Timber.d("Credentials saved to ${file.absolutePath}")
     }
 
     private fun loadCredentials(context: Context): EpicCredentials? {
         return try {
             val file = File(getCredentialsFilePath(context))
-            if (!file.exists()) {
-                return null
-            }
+            if (!file.exists()) return null
 
             val json = JSONObject(file.readText())
-
             EpicCredentials(
                 accessToken = json.getString("access_token"),
                 refreshToken = json.getString("refresh_token"),

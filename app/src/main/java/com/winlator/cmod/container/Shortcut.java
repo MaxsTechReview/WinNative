@@ -82,7 +82,9 @@ import java.nio.file.Files;
             this.name = FileUtils.getBasename(file.getPath());
             this.icon = icon;
             this.iconFile = iconFile;
-            this.path = StringUtils.unescape(execArgs.substring(execArgs.lastIndexOf("wine ") + 4));
+            String path = execArgs.substring(execArgs.lastIndexOf("wine ") + 5).trim();
+            if (path.startsWith("\"") && path.endsWith("\"")) path = path.substring(1, path.length() - 1);
+            this.path = StringUtils.unescape(path);
             this.wmClass = wmClass;
 
             this.customCoverArtPath = getExtra("customCoverArtPath");

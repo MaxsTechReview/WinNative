@@ -516,7 +516,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 }
             }
 
-            // Re-mount A: drive for Steam game shortcuts on the active container
+            // Re-mount A: drive for Steam/Epic game shortcuts on the active container
             String gameSource = shortcut.getExtra("game_source");
             if ("STEAM".equals(gameSource)) {
                 String appIdStr = shortcut.getExtra("app_id");
@@ -526,6 +526,12 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                         mountADriveOnContainer(container, gameInstallPath);
                         Log.d("XServerDisplayActivity", "Mounted A: drive to " + gameInstallPath + " on container " + container.id);
                     }
+                }
+            } else if ("EPIC".equals(gameSource)) {
+                String gameInstallPath = shortcut.getExtra("game_install_path");
+                if (!gameInstallPath.isEmpty() && new File(gameInstallPath).exists()) {
+                    mountADriveOnContainer(container, gameInstallPath);
+                    Log.d("XServerDisplayActivity", "Mounted A: drive to " + gameInstallPath + " on container " + container.id);
                 }
             }
 
@@ -2166,6 +2172,15 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                         Log.w("XServerDisplayActivity", "No exe found for Steam app " + appId + ", launching file manager");
                     }
                 }
+            } else if (gameSource.equals("EPIC")) {
+                String extraArgs = getIntent().getStringExtra("extra_exec_args");
+                if (extraArgs != null && !extraArgs.isEmpty()) {
+                    // Prefer dynamic args (fresh tokens) from intent if available
+                    args = "\"" + shortcut.path + "\" " + extraArgs;
+                } else {
+                    args = "\"" + shortcut.path + "\"";
+                }
+                Log.d("XServerDisplayActivity", "Epic game launch: " + args);
             } else {
                 String execArgs = shortcut.getExtra("execArgs");
                 execArgs = !execArgs.isEmpty() ? " " + execArgs : "";
