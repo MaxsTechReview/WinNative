@@ -125,6 +125,7 @@ class UnifiedActivity : ComponentActivity() {
             EpicService.start(this)
         }
 
+        window.navigationBarColor = 0xFF0D1117.toInt()
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
                 primary = Accent,

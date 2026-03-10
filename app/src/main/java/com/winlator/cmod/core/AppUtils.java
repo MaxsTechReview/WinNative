@@ -88,6 +88,8 @@ public abstract class AppUtils {
         Window window = activity.getWindow();
         final View decorView = window.getDecorView();
 
+        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.setDecorFitsSystemWindows(false);
             final WindowInsetsController insetsController = decorView.getWindowInsetsController();
@@ -108,6 +110,33 @@ public abstract class AppUtils {
             decorView.setOnSystemUiVisibilityChangeListener((visibility) -> {
                 if ((visibility & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0) decorView.setSystemUiVisibility(flags);
             });
+        }
+    }
+
+    public static void showSystemUI(final Activity activity) {
+        Window window = activity.getWindow();
+        final View decorView = window.getDecorView();
+
+        window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION);
+        window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.setDecorFitsSystemWindows(false);
+            final WindowInsetsController insetsController = decorView.getWindowInsetsController();
+            if (insetsController != null) {
+                insetsController.show(WindowInsets.Type.navigationBars());
+                insetsController.hide(WindowInsets.Type.statusBars());
+                insetsController.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            }
+        }
+        else {
+            decorView.setOnSystemUiVisibilityChangeListener(null);
+            decorView.setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
         }
     }
 

@@ -605,65 +605,36 @@ class AdrenotoolsFragment : Fragment() {
             private val itemBinding: AdrenotoolsReleaseListItemBinding
         ) : RecyclerView.ViewHolder(itemBinding.root) {
             fun bind(release: GithubRelease, expanded: Boolean) {
-                val tagState = itemBinding.IVExpandState.getTag() as? Pair<*, *>
-                val isSameRelease = tagState != null && tagState.first == release.id
-                val previousExpanded = tagState?.second as? Boolean
-
-                if (isSameRelease && previousExpanded != null && previousExpanded != expanded) {
-                    val transition = androidx.transition.TransitionSet().apply {
-                        ordering = androidx.transition.TransitionSet.ORDERING_TOGETHER
-                        addTransition(androidx.transition.ChangeBounds())
-                        addTransition(androidx.transition.Fade())
-                        duration = 200L
-                        interpolator = AccelerateDecelerateInterpolator()
-                    }
-                    androidx.transition.TransitionManager.beginDelayedTransition(
-                        itemBinding.root as ViewGroup, transition
-                    )
-                }
-
-                updateChevronRotation(expanded, release.id, isSameRelease, previousExpanded)
                 itemBinding.TVTitle.text = release.title
                 itemBinding.TVSubtitle.text = release.subtitle
-                itemBinding.TVNotes.isVisible = expanded && release.notes.isNotBlank()
                 itemBinding.TVNotes.text = release.notes
-                itemBinding.LLAssets.isVisible = expanded
 
-                if (!isSameRelease || itemBinding.LLAssets.childCount != release.assets.size) {
+                val notesVisible = expanded && release.notes.isNotBlank()
+                itemBinding.TVNotes.visibility = if (notesVisible) View.VISIBLE else View.GONE
+
+                ExpandableCardHelper.applyTransition(
+                    itemRoot = itemBinding.root,
+                    chevron = itemBinding.IVExpandState,
+                    contentView = itemBinding.LLAssets,
+                    expanded = expanded,
+                    fadeTarget = itemBinding.LLAssets,
+                    sceneRoot = binding.RecyclerView
+                )
+
+                if (itemBinding.LLAssets.childCount != release.assets.size) {
                     itemBinding.LLAssets.removeAllViews()
                     release.assets.forEach { asset ->
                         itemBinding.LLAssets.addView(createAssetRow(itemBinding.LLAssets, asset))
                     }
                 }
 
-                val clickListener = View.OnClickListener {
+                ExpandableCardHelper.setupClickListeners(
+                    itemBinding.root,
+                    itemBinding.HeaderRow,
+                    itemBinding.IVExpandState
+                ) {
                     onReleaseSelected(release)
                 }
-                itemBinding.root.setOnClickListener(clickListener)
-                itemBinding.HeaderRow.setOnClickListener(clickListener)
-                itemBinding.IVExpandState.setOnClickListener(clickListener)
-            }
-
-            private fun updateChevronRotation(expanded: Boolean, releaseId: Long, isSameRelease: Boolean, previousExpanded: Boolean?) {
-                val targetRotation = if (expanded) 90f else 0f
-
-                if (isSameRelease && previousExpanded == expanded) {
-                    return
-                }
-
-                itemBinding.IVExpandState.animate().cancel()
-
-                if (!isSameRelease || previousExpanded == null) {
-                    itemBinding.IVExpandState.rotation = targetRotation
-                } else {
-                    itemBinding.IVExpandState.animate()
-                        .rotation(targetRotation)
-                        .setDuration(220L)
-                        .setInterpolator(AccelerateDecelerateInterpolator())
-                        .start()
-                }
-
-                itemBinding.IVExpandState.setTag(Pair(releaseId, expanded))
             }
 
             private fun createAssetRow(parent: ViewGroup, asset: GithubAsset): View {

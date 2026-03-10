@@ -117,9 +117,6 @@ public class SettingsFragment extends Fragment {
             ((AppCompatActivity)getActivity()).getSupportActionBar().setTitle(R.string.settings);
         }
     }
-
-
-
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {

@@ -97,6 +97,19 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
         controllers.remove(controller);
     }
 
+    public void putController(ExternalController controller) {
+        if (!controllersLoaded) loadControllers();
+        for (int i = 0; i < controllers.size(); i++) {
+            if (controllers.get(i).getId().equals(controller.getId())) {
+                controllers.set(i, controller);
+                controllersLoaded = true;
+                return;
+            }
+        }
+        controllers.add(controller);
+        controllersLoaded = true;
+    }
+
     public ExternalController getController(String id) {
         if (!controllersLoaded) loadControllers();
         for (ExternalController controller : controllers) if (controller.getId().equals(id)) return controller;
@@ -175,6 +188,22 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
 
     public List<ControlElement> getElements() {
         return immutableElements;
+    }
+
+    public int getElementCountFromFile() {
+        File file = getProfileFile(context, id);
+        if (file.isFile()) {
+            try {
+                String jsonStr = FileUtils.readString(file);
+                JSONObject obj = new JSONObject(jsonStr != null ? jsonStr : "{}");
+                if (obj.has("elements")) {
+                    return obj.getJSONArray("elements").length();
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+        return 0;
     }
 
     public boolean isTemplate() {

@@ -97,8 +97,8 @@
         <!-- Main backend activity -->
         <activity
             android:name="com.winlator.cmod.MainActivity"
-            android:theme="@style/AppTheme.Dark"
-            android:screenOrientation="sensor"
+            android:theme="@style/AppThemeFullscreen.Dark"
+            android:screenOrientation="sensorLandscape"
             android:exported="true"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation">
         </activity>
@@ -138,12 +138,6 @@
             android:name="com.winlator.cmod.ControlsEditorActivity"
             android:theme="@style/AppThemeFullscreen"
             android:screenOrientation="sensorLandscape"
-            android:exported="false" />
-
-        <activity
-            android:name="com.winlator.cmod.ExternalControllerBindingsActivity"
-            android:theme="@style/AppTheme"
-            android:screenOrientation="sensor"
             android:exported="false" />
 
         <activity

@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="10dp"
+    android:background="@drawable/content_list_card_surface"
+    android:orientation="vertical"
+    android:paddingHorizontal="14dp"
+    android:paddingVertical="12dp">
+
+    <!-- Header: Icon + Title -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/IVIcon"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginEnd="14dp"
+            android:background="@drawable/content_icon_surface"
+            android:padding="10dp"
+            app:tint="@color/settings_icon_tint" />
+
+        <TextView
+            android:id="@+id/TVTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="@font/inter"
+            android:text="@string/configure_analog_sticks"
+            android:textColor="@color/settings_text_primary"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Left / Right tab selector -->
+    <LinearLayout
+        android:id="@+id/LLStickTabs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal" />
+
+    <!-- Expandable inner card -->
+    <LinearLayout
+        android:id="@+id/LLSettingsContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/content_asset_row_surface"
+        android:orientation="vertical"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="6dp">
+
+        <FrameLayout
+            android:id="@+id/FLChevronContainer"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:background="@drawable/content_icon_surface">
+
+            <ImageView
+                android:id="@+id/IVExpandChevron"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="7dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_content_chevron"
+                app:tint="@color/settings_icon_tint" />
+        </FrameLayout>
+
+        <!-- Settings content (visible when expanded) -->
+        <LinearLayout
+            android:id="@+id/LLSettingsContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+    <!-- Deadzone slider -->
+    <TextView
+        android:id="@+id/TVDeadzone"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:fontFamily="@font/inter"
+        android:textColor="@color/settings_text_secondary"
+        android:textSize="13sp" />
+
+    <SeekBar
+        android:id="@+id/SBDeadzone"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@null"
+        android:max="100"
+        android:progressBackgroundTint="@color/settings_outline"
+        android:progressTint="@color/settings_accent"
+        android:splitTrack="false"
+        android:thumbTint="@color/settings_accent" />
+
+    <!-- Sensitivity slider -->
+    <TextView
+        android:id="@+id/TVSensitivity"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:fontFamily="@font/inter"
+        android:textColor="@color/settings_text_secondary"
+        android:textSize="13sp" />
+
+    <SeekBar
+        android:id="@+id/SBSensitivity"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@null"
+        android:max="100"
+        android:progressBackgroundTint="@color/settings_outline"
+        android:progressTint="@color/settings_accent"
+        android:splitTrack="false"
+        android:thumbTint="@color/settings_accent" />
+
+    <!-- Toggle options -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="@font/inter"
+                android:text="Invert X"
+                android:textColor="@color/settings_text_secondary"
+                android:textSize="13sp" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/SWInvertX"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                app:thumbTint="@color/settings_accent"
+                app:trackTintMode="src_in" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="@font/inter"
+                android:text="Invert Y"
+                android:textColor="@color/settings_text_secondary"
+                android:textSize="13sp" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/SWInvertY"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                app:thumbTint="@color/settings_accent"
+                app:trackTintMode="src_in" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/LLSquareDeadzone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="@font/inter"
+                android:text="Square Deadzone"
+                android:textColor="@color/settings_text_secondary"
+                android:textSize="13sp" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/SWSquareDeadzone"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                app:thumbTint="@color/settings_accent"
+                app:trackTintMode="src_in" />
+        </LinearLayout>
+    </LinearLayout>
+
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

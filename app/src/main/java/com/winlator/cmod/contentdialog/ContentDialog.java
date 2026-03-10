@@ -203,6 +203,7 @@ public class ContentDialog extends Dialog {
         applyDarkThemeToEditText(editText, isDarkMode);
 
         editText.setHint(R.string.untitled);
+        editText.setImeOptions(editText.getImeOptions() | android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         if (defaultText != null) editText.setText(defaultText);
         editText.setVisibility(View.VISIBLE);
 
@@ -212,6 +213,7 @@ public class ContentDialog extends Dialog {
             if (!text.isEmpty()) callback.call(text);
         });
 
+        dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         dialog.show();
     }
 

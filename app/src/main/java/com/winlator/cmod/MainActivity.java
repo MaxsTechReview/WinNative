@@ -40,6 +40,7 @@ import com.google.android.material.navigation.NavigationView;
 import com.winlator.cmod.R;
 import com.winlator.cmod.contentdialog.ContentDialog;
 import com.winlator.cmod.core.Callback;
+import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.ImageUtils;
 import com.winlator.cmod.core.PreloaderDialog;
 import com.winlator.cmod.container.ContainerManager;
@@ -52,6 +53,8 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.InsetDrawable;
 import android.graphics.drawable.RippleDrawable;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
 import com.winlator.cmod.widget.ChasingBorderDrawable;
 
 import java.io.File;
@@ -102,6 +105,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         isDarkMode = true;
         setTheme(R.style.AppTheme_Dark);
 
+        AppUtils.showSystemUI(this);
+        getWindow().setNavigationBarColor(Color.parseColor("#0D1117"));
+        getWindow().setStatusBarColor(Color.parseColor("#0D1117"));
 
         setContentView(R.layout.main_activity);
 
@@ -487,5 +493,23 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     : navHighlightDrawable.mutate());
         }
         itemView.setForeground(null);
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.FLFragmentContainer);
+        if (fragment instanceof InputControlsFragment) {
+            if (((InputControlsFragment) fragment).dispatchKeyEvent(event)) return true;
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override
+    public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.FLFragmentContainer);
+        if (fragment instanceof InputControlsFragment) {
+            if (((InputControlsFragment) fragment).dispatchGenericMotionEvent(event)) return true;
+        }
+        return super.dispatchGenericMotionEvent(event);
     }
 }

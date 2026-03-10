@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/content_asset_row_surface"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="10dp"
+    android:paddingVertical="6dp"
+    android:layout_marginTop="4dp">
+
+    <!-- Button name label -->
+    <TextView
+        android:id="@+id/TVButtonName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:fontFamily="@font/inter"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/settings_text_primary"
+        android:textSize="13sp" />
+
+    <!-- Binding type spinner -->
+    <Spinner
+        android:id="@+id/SBindingType"
+        android:layout_width="0dp"
+        android:layout_height="32dp"
+        android:layout_weight="0.8"
+        android:layout_marginStart="8dp"
+        android:spinnerMode="dialog"
+        android:backgroundTint="@color/settings_text_secondary"
+        android:popupBackground="@color/settings_popup_surface" />
+
+    <!-- Binding value spinner -->
+    <Spinner
+        android:id="@+id/SBinding"
+        android:layout_width="0dp"
+        android:layout_height="32dp"
+        android:layout_weight="1"
+        android:layout_marginStart="4dp"
+        android:spinnerMode="dialog"
+        android:backgroundTint="@color/settings_text_secondary"
+        android:popupBackground="@color/settings_popup_surface" />
+
+    <!-- Remove button -->
+    <ImageButton
+        android:id="@+id/BTRemoveBinding"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_marginStart="6dp"
+        android:background="@drawable/content_action_button_background"
+        android:padding="6dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_content_menu_remove"
+        app:tint="@color/settings_danger" />
+</LinearLayout>

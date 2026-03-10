@@ -113,6 +113,7 @@ public class InputControlsManager {
     }
 
     public ControlsProfile createProfile(String name) {
+        if (!profilesLoaded) loadProfiles(false);
         ControlsProfile profile = new ControlsProfile(context, ++maxProfileId);
         profile.setName(name);
         profile.save();

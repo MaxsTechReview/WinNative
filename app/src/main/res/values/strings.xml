@@ -97,6 +97,7 @@
     <string name="loading">Loading…</string>
     <string name="press_any_button_on_your_controller">Press any button on your controller</string>
     <string name="bindings">bindings</string>
+    <string name="control_bindings">Control Bindings</string>
     <string name="show_touchscreen_controls">Show Touchscreen Controls</string>
     <string name="dxwrapper">DX Wrapper</string>
     <string name="mouse_warp_override">Mouse Warp Override</string>
@@ -429,11 +430,7 @@ Installed path:
     <string name="startup_essential">Essential (Load only essential services)</string>
     <string name="startup_aggressive">Aggressive (Stop services on startup)</string>
     <string name="lc_all" translatable="false">LC_ALL</string>
-    <string name="help_trigger_mode">
-        This option depends on the &lt;i&gt;&lt;b&gt;Physical Controller&lt;/b&gt;&lt;/i&gt; you are using.&lt;br/&gt;&lt;br/&gt;
-        &lt;i&gt;&lt;b&gt;Is Axis&lt;/b&gt;&lt;/i&gt;: Check this if the trigger on your controller is linear (with a range of motion).&lt;br/&gt;&lt;br/&gt;
-        &lt;i&gt;&lt;b&gt;Is Button&lt;/b&gt;&lt;/i&gt;: Check this If the trigger on your controller is a button (similar to a switch).&lt;br/&gt;&lt;br/&gt;
-        &lt;i&gt;&lt;b&gt;Note&lt;/b&gt;&lt;/i&gt;: For linear triggers, using &lt;i&gt;&lt;b&gt;Is Button&lt;/b&gt;&lt;/i&gt; will result in the loss of linear data when mapping.&lt;br/&gt;
+    <string name="help_trigger_mode">Depends on your &lt;b&gt;Physical Controller&lt;/b&gt;:&lt;br/&gt;&lt;br/&gt;&#x2022; &lt;b&gt;Is Axis&lt;/b&gt; — trigger has a linear range of motion&lt;br/&gt;&#x2022; &lt;b&gt;Is Button&lt;/b&gt; — trigger acts as a simple switch&lt;br/&gt;&lt;br/&gt;&lt;i&gt;Note: using Is Button with a linear trigger loses analog data.&lt;/i&gt;
     </string>
     <string name="toggle_orientation">Toggle Orientation</string>
     <string name="help_file_provider">
@@ -486,6 +483,9 @@ Installed path:
     <string name="enable_ntsc_effect">Enable NTSC Effect</string>
     <string name="enter_profile_name">Enter Profile Name</string>
     <string name="configure_analog_sticks">Configure Analog Sticks</string>
+    <string name="gyroscope">Gyroscope</string>
+    <string name="calibrate_gyroscope">Calibrate Gyroscope</string>
+    <string name="expand_for_more_information">Expand for more information</string>
     <string name="analog_stick_settings">Analog Stick Settings</string>
     <string name="left_analog_stick_settings">Left Analog Stick Settings</string>
     <string name="right_analog_stick_settings">Right Analog Stick Settings</string>
@@ -600,7 +600,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="fexcore_config">FEXCore</string>
     <string name="fexcore_preset">FEXCore Preset</string>
     <string name="drivers">Drivers</string>
-    <string name="github_repos">Driver Manager</string>
+    <string name="driver_manager_header">Driver Manager</string>
+    <string name="github_repos">GitHub Repos</string>
     <string name="install_drivers">Install Drivers</string>
     <string name="install_drivers_message">You will now be prompted to pick a driver. These must be the same ones used in other emulators like Yuzu, Dolphin, Citra, etc.</string>
     <string name="install_drivers_warning">Be warned that because of limitations of current PC emulators, Qualcomm Drivers may not work on chipsets below 8 Gen2 without getting patched.</string>
