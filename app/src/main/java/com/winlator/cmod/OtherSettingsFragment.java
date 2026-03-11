@@ -9,8 +9,9 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.SeekBar;
 import android.widget.Spinner;
@@ -30,20 +31,24 @@ import com.winlator.cmod.core.PreloaderDialog;
 import com.winlator.cmod.midi.MidiManager;
 import com.winlator.cmod.xenvironment.ImageFsInstaller;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
 public class OtherSettingsFragment extends Fragment {
     private Callback<Uri> installSoundFontCallback;
     private SharedPreferences preferences;
 
-    private CheckBox cbCursorLock;
-    private CheckBox cbXinputToggle;
-    private CheckBox cbEnableBigPictureMode;
-    private CheckBox cbEnableCustomApiKey;
+    private CompoundButton cbCursorLock;
+    private CompoundButton cbXinputToggle;
+    private CompoundButton cbEnableBigPictureMode;
+    private CompoundButton cbEnableCustomApiKey;
     private EditText etCustomApiKey;
-    private CheckBox cbUseDRI3;
-    private CheckBox cbUseXR;
-    private CheckBox cbEnableFileProvider;
-    private CheckBox cbOpenInBrowser;
-    private CheckBox cbShareClipboard;
+    private CompoundButton cbUseDRI3;
+    private CompoundButton cbUseXR;
+    private CompoundButton cbEnableFileProvider;
+    private CompoundButton cbOpenInBrowser;
+    private CompoundButton cbShareClipboard;
     private SeekBar sbCursorSpeed;
 
     private static final int REQUEST_CODE_WINLATOR_PATH = 1002;
@@ -62,7 +67,7 @@ public class OtherSettingsFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.other_settings_fragment, container, false);
-        final Context context = getContext();
+        final Context context = requireContext();
         preferences = PreferenceManager.getDefaultSharedPreferences(context);
 
         // Initialize Big Picture Mode Checkbox
@@ -115,23 +120,23 @@ public class OtherSettingsFragment extends Fragment {
         });
 
         final Spinner sMIDISoundFont = view.findViewById(R.id.SMIDISoundFont);
-        sMIDISoundFont.setPopupBackgroundResource(R.drawable.content_dialog_background_dark);
+        sMIDISoundFont.setPopupBackgroundResource(R.drawable.content_popup_menu_background);
 
         final View btInstallSF = view.findViewById(R.id.BTInstallSF);
         final View btRemoveSF = view.findViewById(R.id.BTRemoveSF);
 
-        MidiManager.loadSFSpinnerWithoutDisabled(sMIDISoundFont);
+        loadSoundFontSpinner(sMIDISoundFont);
         btInstallSF.setOnClickListener(v -> {
             installSoundFontCallback = uri -> {
                 PreloaderDialog dialog = new PreloaderDialog(requireActivity());
-                dialog.showOnUiThread(R.string.installing_content);
+                dialog.showOnUiThread(R.string.installing_soundfont);
                 MidiManager.installSF2File(context, uri, new MidiManager.OnSoundFontInstalledCallback() {
                     @Override
                     public void onSuccess() {
                         dialog.closeOnUiThread();
                         requireActivity().runOnUiThread(() -> {
                             ContentDialog.alert(context, R.string.sound_font_installed_success, null);
-                            MidiManager.loadSFSpinnerWithoutDisabled(sMIDISoundFont);
+                            loadSoundFontSpinner(sMIDISoundFont);
                         });
                     }
 
@@ -156,7 +161,7 @@ public class OtherSettingsFragment extends Fragment {
                 ContentDialog.confirm(context, R.string.do_you_want_to_remove_this_sound_font, () -> {
                     if (MidiManager.removeSF2File(context, sMIDISoundFont.getSelectedItem().toString())) {
                         AppUtils.showToast(context, R.string.sound_font_removed_success);
-                        MidiManager.loadSFSpinnerWithoutDisabled(sMIDISoundFont);
+                        loadSoundFontSpinner(sMIDISoundFont);
                     } else
                         AppUtils.showToast(context, R.string.sound_font_removed_failed);
                 });
@@ -167,10 +172,11 @@ public class OtherSettingsFragment extends Fragment {
         cbUseDRI3 = view.findViewById(R.id.CBUseDRI3);
         cbUseDRI3.setChecked(preferences.getBoolean("use_dri3", true));
 
+        final View xrCard = view.findViewById(R.id.CardUseXR);
         cbUseXR = view.findViewById(R.id.CBUseXR);
         cbUseXR.setChecked(preferences.getBoolean("use_xr", true));
         if (!XrActivity.isSupported()) {
-            cbUseXR.setVisibility(View.GONE);
+            xrCard.setVisibility(View.GONE);
         }
 
         final TextView tvCursorSpeed = view.findViewById(R.id.TVCursorSpeed);
@@ -261,6 +267,24 @@ public class OtherSettingsFragment extends Fragment {
         } else {
             editor.remove("custom_api_key");
         }
+    }
+
+    private void loadSoundFontSpinner(Spinner spinner) {
+        List<String> fileNames = new ArrayList<>();
+        fileNames.add(MidiManager.DEFAULT_SF2_FILE);
+
+        File[] soundFontFiles = MidiManager.getSoundFontDir(requireContext()).listFiles();
+        if (soundFontFiles != null) {
+            for (File file : soundFontFiles) {
+                if (file.isFile() && !MidiManager.DEFAULT_SF2_FILE.equals(file.getName())) {
+                    fileNames.add(file.getName());
+                }
+            }
+        }
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), R.layout.spinner_item_themed, fileNames);
+        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item_themed);
+        spinner.setAdapter(adapter);
     }
 
     private void openFile(int requestCode) {

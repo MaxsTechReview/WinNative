@@ -478,6 +478,7 @@ Installed path:
     <string name="enable_touchscreen_timeout">Touchscreen Timeout (Requires Restart)</string>
     <string name="enable_touchscreen_haptics">Enable Touchscreen Haptic Feedback</string>
     <string name="help_steamgrid">SteamGrid API Key</string>
+    <string name="settings_other_api_key_open_link">Open SteamGridDB API page</string>
     <string name="disable_xinput_for_shortcut">Disable Xinput (For Exclusive M/KB Control)</string>
     <string name="fullscreen_stretched">Enable Fullscreen (Stretched)</string>
     <string name="export_container">Export Container</string>
@@ -1483,6 +1484,30 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_emulation_contents_manager_subtitle">Install additional components (.wcp)</string>
     <string name="settings_emulation_wine_proton_manager_title">Wine/Proton Manager</string>
     <string name="settings_emulation_wine_proton_manager_subtitle">Import custom Wine/Proton versions (Bionic only)</string>
+
+    
+    <string name="settings_other_summary">Tune audio, launcher paths, XServer behavior, and integration options with the same card-based interface used elsewhere in settings.</string>
+    <string name="settings_other_sound_summary">Install, remove, and choose the SoundFont used for MIDI playback.</string>
+    <string name="settings_other_paths_title">Path Settings</string>
+    <string name="settings_other_paths_summary">Manage where Winlator stores its working data and where exported shortcuts are written.</string>
+    <string name="settings_other_winlator_path_title">Winlator Path</string>
+    <string name="settings_other_shortcut_export_path_title">Shortcut Export Path</string>
+    <string name="settings_other_choose_path">Choose Path</string>
+    <string name="settings_other_big_picture_title">Big Picture Mode</string>
+    <string name="settings_other_big_picture_launch_title">Enable Big Picture Mode on App Launch</string>
+    <string name="settings_other_big_picture_launch_summary">Open directly into the Big Picture shell when the app starts.</string>
+    <string name="settings_other_api_key_summary">Optional SteamGridDB key used to fetch cover art while Big Picture Mode builds your library.</string>
+    <string name="settings_other_api_key_hint">Enter your API key</string>
+    <string name="settings_other_xserver_cursor_summary">Adjust pointer speed for touch, trackpad, and mouse input inside the XServer session.</string>
+    <string name="settings_other_xr_summary">Use OpenXR integration when the device and runtime support it.</string>
+    <string name="settings_other_cursor_lock_title">True Mouse Control</string>
+    <string name="settings_other_cursor_lock_summary">Keeps direct mouse capture enabled for games that need raw pointer input. Disable it with Volume Down.</string>
+    <string name="settings_other_xinput_toggle_title">Disable XInput</string>
+    <string name="settings_other_xinput_toggle_summary">Turns off XInput handling when you want exclusive mouse and keyboard control.</string>
+    <string name="settings_other_file_provider_summary">Expose Winlator files to Android document pickers and file managers.</string>
+    <string name="settings_other_open_browser_summary">Open supported web links in the Android browser instead of inside Wine.</string>
+    <string name="settings_other_clipboard_summary">Allow copy and paste between Android and Wine sessions.</string>
+    <string name="settings_other_imagefs_summary">Restore bundled system files without removing your existing containers.</string>
 
     
     <string name="settings_debug_title">Debug</string>

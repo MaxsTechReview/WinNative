@@ -7,157 +7,31 @@
 
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:overScrollMode="ifContentScrolls"
+        android:scrollbarThumbVertical="@drawable/nav_scrollbar_thumb"
+        android:scrollbarSize="2dp"
+        android:scrollbarStyle="insideInset"
+        android:scrollbars="vertical">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:paddingLeft="16dp"
+            android:paddingTop="16dp"
+            android:paddingRight="16dp"
+            android:paddingBottom="20dp">
 
-            <!-- Sound -->
             <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/sound"
-                android:textColor="#1A9FFF"
-                android:textStyle="bold"
-                android:layout_marginBottom="8dp" />
+                style="@style/OtherSettingsSectionLabel"
+                android:text="@string/sound" />
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@drawable/tab_layout_background_dark"
-                android:padding="12dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/white"
-                    android:text="@string/midi_sound_font" />
-
-                <Spinner
-                    android:id="@+id/SMIDISoundFont"
-                    style="@style/ComboBox"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:backgroundTint="@color/white"
-                    android:layout_weight="1" />
-
-                <ImageButton
-                    android:id="@+id/BTInstallSF"
-                    style="@style/ListMenuButton"
-                    android:tint="@color/white"
-                    android:src="@drawable/icon_add" />
-
-                <ImageButton
-                    android:id="@+id/BTRemoveSF"
-                    style="@style/ListMenuButton"
-                    android:tint="@color/white"
-                    android:src="@drawable/icon_remove" />
-
-            </LinearLayout>
-
-            <!-- Path Settings -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Path Settings"
-                android:textColor="#1A9FFF"
-                android:textStyle="bold"
-                android:layout_marginBottom="8dp" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@drawable/tab_layout_background_dark"
-                android:padding="12dp"
-                android:orientation="vertical"
-                android:layout_marginBottom="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/white"
-                    android:text="Winlator Path" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="8dp">
-                    <TextView
-                        android:id="@+id/TVWinlatorPath"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:textColor="@color/white"
-                        android:layout_weight="1" />
-                    <Button
-                        android:id="@+id/BTChooseWinlatorPath"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:backgroundTint="#37474F"
-                        android:textColor="@color/white"
-                        android:text="Choose Path" />
-                </LinearLayout>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/white"
-                    android:text="Shortcut Export Path" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-                    <TextView
-                        android:id="@+id/TVShortcutExportPath"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:textColor="@color/white"
-                        android:layout_weight="1" />
-                    <Button
-                        android:id="@+id/BTChooseShortcutExportPath"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:backgroundTint="#37474F"
-                        android:textColor="@color/white"
-                        android:text="Choose Path" />
-                </LinearLayout>
-
-            </LinearLayout>
-
-            <!-- Big Picture Mode -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Big Picture Mode"
-                android:textColor="#1A9FFF"
-                android:textStyle="bold"
-                android:layout_marginBottom="8dp" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@drawable/tab_layout_background_dark"
-                android:padding="12dp"
-                android:orientation="vertical"
-                android:layout_marginBottom="16dp">
-
-                <CheckBox
-                    android:id="@+id/CBEnableBigPictureMode"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/white"
-                    android:text="Enable Big Picture Mode on App Launch" />
-
-                <View style="@style/HorizontalLine" android:layout_marginVertical="8dp"/>
+                style="@style/OtherSettingsCard"
+                android:orientation="vertical">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -165,194 +39,694 @@
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
-                    <CheckBox
-                        android:id="@+id/CBEnableCustomApiKey"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="@color/white"
-                        android:text="Set SteamGrid API Key? (Cover Art)" />
-
                     <ImageView
-                        android:id="@+id/BTHelpApiKey"
-                        style="@style/HelpButton"
-                        android:contentDescription="@string/help_steamgrid"
-                        android:tint="@color/white"
-                        android:src="@drawable/icon_help" />
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:layout_marginEnd="14dp"
+                        android:background="@drawable/content_icon_surface"
+                        android:padding="10dp"
+                        android:src="@drawable/ic_other"
+                        app:tint="@color/settings_icon_tint" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/OtherSettingsCardTitle"
+                            android:text="@string/midi_sound_font" />
+
+                        <TextView
+                            style="@style/OtherSettingsCardSummary"
+                            android:text="@string/settings_other_sound_summary" />
+                    </LinearLayout>
                 </LinearLayout>
-
-                <EditText
-                    android:id="@+id/ETCustomApiKey"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:textColor="@color/white"
-                    android:textColorHint="@color/gray"
-                    android:background="@drawable/edit_text_dark"
-                    android:hint="Enter your API Key here"
-                    android:visibility="gone" />
-
-            </LinearLayout>
-
-            <!-- XServer -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/xserver"
-                android:textColor="#1A9FFF"
-                android:textStyle="bold"
-                android:layout_marginBottom="8dp" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@drawable/tab_layout_background_dark"
-                android:padding="12dp"
-                android:orientation="vertical"
-                android:layout_marginBottom="16dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/content_asset_row_surface"
+                    android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:layout_marginBottom="8dp">
+                    android:paddingLeft="10dp"
+                    android:paddingTop="8dp"
+                    android:paddingRight="8dp"
+                    android:paddingBottom="8dp">
 
-                    <TextView
+                    <Spinner
+                        android:id="@+id/SMIDISoundFont"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="8dp"
+                        android:layout_weight="1" />
+
+                    <ImageButton
+                        android:id="@+id/BTInstallSF"
+                        style="@style/OtherSettingsIconButton"
+                        android:contentDescription="@string/add"
+                        android:src="@drawable/ic_content_add" />
+
+                    <ImageButton
+                        android:id="@+id/BTRemoveSF"
+                        style="@style/OtherSettingsIconButton"
+                        android:layout_marginStart="6dp"
+                        android:contentDescription="@string/remove"
+                        android:src="@drawable/ic_content_menu_remove" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                style="@style/OtherSettingsSectionLabel"
+                android:text="@string/settings_other_paths_title" />
+
+            <LinearLayout
+                style="@style/OtherSettingsCard"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:layout_marginEnd="14dp"
+                        android:background="@drawable/content_icon_surface"
+                        android:padding="10dp"
+                        android:src="@drawable/icon_open"
+                        app:tint="@color/settings_icon_tint" />
+
+                    <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:textColor="@color/white"
-                        android:text="@string/cursor_speed"/>
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/OtherSettingsCardTitle"
+                            android:text="@string/settings_other_paths_title" />
+
+                        <TextView
+                            style="@style/OtherSettingsCardSummary"
+                            android:text="@string/settings_other_paths_summary" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/content_asset_row_surface"
+                    android:gravity="center_vertical"
+                    android:minHeight="54dp"
+                    android:orientation="horizontal"
+                    android:paddingLeft="10dp"
+                    android:paddingTop="8dp"
+                    android:paddingRight="8dp"
+                    android:paddingBottom="8dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/OtherSettingsFieldLabel"
+                            android:text="@string/settings_other_winlator_path_title" />
+
+                        <TextView
+                            android:id="@+id/TVWinlatorPath"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:fontFamily="@font/inter"
+                            android:maxLines="3"
+                            android:textColor="@color/settings_text_primary"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+
+                    <Button
+                        android:id="@+id/BTChooseWinlatorPath"
+                        style="@style/OtherSettingsInlineButton"
+                        android:layout_marginStart="10dp"
+                        android:text="@string/settings_other_choose_path" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/content_asset_row_surface"
+                    android:gravity="center_vertical"
+                    android:minHeight="54dp"
+                    android:orientation="horizontal"
+                    android:paddingLeft="10dp"
+                    android:paddingTop="8dp"
+                    android:paddingRight="8dp"
+                    android:paddingBottom="8dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/OtherSettingsFieldLabel"
+                            android:text="@string/settings_other_shortcut_export_path_title" />
+
+                        <TextView
+                            android:id="@+id/TVShortcutExportPath"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:fontFamily="@font/inter"
+                            android:maxLines="3"
+                            android:textColor="@color/settings_text_primary"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+
+                    <Button
+                        android:id="@+id/BTChooseShortcutExportPath"
+                        style="@style/OtherSettingsInlineButton"
+                        android:layout_marginStart="10dp"
+                        android:text="@string/settings_other_choose_path" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                style="@style/OtherSettingsSectionLabel"
+                android:text="@string/settings_other_big_picture_title" />
+
+            <LinearLayout
+                style="@style/OtherSettingsCard"
+                android:gravity="center_vertical"
+                android:minHeight="72dp"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_marginEnd="14dp"
+                    android:background="@drawable/content_icon_surface"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_big_picture_mode"
+                    app:tint="@color/settings_icon_tint" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/OtherSettingsCardTitle"
+                        android:text="@string/settings_other_big_picture_launch_title" />
+
+                    <TextView
+                        style="@style/OtherSettingsCardSummary"
+                        android:text="@string/settings_other_big_picture_launch_summary" />
+                </LinearLayout>
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/CBEnableBigPictureMode"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@android:color/transparent"
+                    app:thumbTint="@color/settings_accent"
+                    app:trackTintMode="src_in" />
+            </LinearLayout>
+
+            <LinearLayout
+                style="@style/OtherSettingsCard"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:layout_marginEnd="14dp"
+                        android:background="@drawable/content_icon_surface"
+                        android:padding="10dp"
+                        android:src="@drawable/ic_picture_in_picture_alt"
+                        app:tint="@color/settings_icon_tint" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/OtherSettingsCardTitle"
+                            android:text="@string/help_steamgrid" />
+
+                        <TextView
+                            style="@style/OtherSettingsCardSummary"
+                            android:text="@string/settings_other_api_key_summary" />
+                    </LinearLayout>
+
+                    <ImageButton
+                        android:id="@+id/BTHelpApiKey"
+                        style="@style/OtherSettingsIconButton"
+                        android:layout_marginStart="8dp"
+                        android:contentDescription="@string/settings_other_api_key_open_link"
+                        android:src="@drawable/ic_open_in_new" />
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/CBEnableCustomApiKey"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:background="@android:color/transparent"
+                        app:thumbTint="@color/settings_accent"
+                        app:trackTintMode="src_in" />
+                </LinearLayout>
+
+                <EditText
+                    android:id="@+id/ETCustomApiKey"
+                    style="@style/OtherSettingsEditText"
+                    android:layout_marginTop="10dp"
+                    android:hint="@string/settings_other_api_key_hint"
+                    android:inputType="textNoSuggestions"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <TextView
+                style="@style/OtherSettingsSectionLabel"
+                android:text="@string/xserver" />
+
+            <LinearLayout
+                style="@style/OtherSettingsCard"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:layout_marginEnd="14dp"
+                        android:background="@drawable/content_icon_surface"
+                        android:padding="10dp"
+                        android:src="@drawable/icon_monitor"
+                        app:tint="@color/settings_icon_tint" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/OtherSettingsCardTitle"
+                            android:text="@string/cursor_speed" />
+
+                        <TextView
+                            style="@style/OtherSettingsCardSummary"
+                            android:text="@string/settings_other_xserver_cursor_summary" />
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/TVCursorSpeed"
                         android:layout_width="wrap_content"
-                        android:textColor="@color/white"
-                        android:layout_height="wrap_content" />
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:fontFamily="@font/inter"
+                        android:textColor="@color/settings_text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
                 </LinearLayout>
 
                 <SeekBar
                     android:id="@+id/SBCursorSpeed"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@null"
+                    android:max="200"
                     android:min="10"
-                    android:max="200" />
+                    android:progressBackgroundTint="@color/settings_outline"
+                    android:progressTint="@color/settings_accent"
+                    android:splitTrack="false"
+                    android:thumbTint="@color/settings_accent" />
+            </LinearLayout>
 
-                <CheckBox
+            <LinearLayout
+                style="@style/OtherSettingsCard"
+                android:gravity="center_vertical"
+                android:minHeight="72dp"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_marginEnd="14dp"
+                    android:background="@drawable/content_icon_surface"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_x11_icon"
+                    app:tint="@color/settings_icon_tint" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/OtherSettingsCardTitle"
+                        android:text="@string/use_dri3_extension" />
+
+                    <TextView
+                        style="@style/OtherSettingsCardSummary"
+                        android:text="@string/use_dri3_description" />
+                </LinearLayout>
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/CBUseDRI3"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/white"
-                    android:text="@string/use_dri3_extension"
-                    android:layout_marginTop="8dp" />
+                    android:layout_marginStart="8dp"
+                    android:background="@android:color/transparent"
+                    app:thumbTint="@color/settings_accent"
+                    app:trackTintMode="src_in" />
+            </LinearLayout>
 
-                <CheckBox
+            <LinearLayout
+                android:id="@+id/CardUseXR"
+                style="@style/OtherSettingsCard"
+                android:gravity="center_vertical"
+                android:minHeight="72dp"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_marginEnd="14dp"
+                    android:background="@drawable/content_icon_surface"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_x11_icon"
+                    app:tint="@color/settings_icon_tint" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/OtherSettingsCardTitle"
+                        android:text="@string/use_xr" />
+
+                    <TextView
+                        style="@style/OtherSettingsCardSummary"
+                        android:text="@string/settings_other_xr_summary" />
+                </LinearLayout>
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/CBUseXR"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/white"
-                    android:text="@string/use_xr"
-                    android:layout_marginTop="8dp" />
+                    android:layout_marginStart="8dp"
+                    android:background="@android:color/transparent"
+                    app:thumbTint="@color/settings_accent"
+                    app:trackTintMode="src_in" />
+            </LinearLayout>
 
-                <CheckBox
+            <LinearLayout
+                style="@style/OtherSettingsCard"
+                android:gravity="center_vertical"
+                android:minHeight="72dp"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_marginEnd="14dp"
+                    android:background="@drawable/content_icon_surface"
+                    android:padding="10dp"
+                    android:src="@drawable/icon_gamepad"
+                    app:tint="@color/settings_icon_tint" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/OtherSettingsCardTitle"
+                        android:text="@string/settings_other_cursor_lock_title" />
+
+                    <TextView
+                        style="@style/OtherSettingsCardSummary"
+                        android:text="@string/settings_other_cursor_lock_summary" />
+                </LinearLayout>
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/CBCursorLock"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/white"
-                    android:text="True Mouse Control (Deactivate with Volume Down)"
-                    android:layout_marginTop="8dp" />
+                    android:layout_marginStart="8dp"
+                    android:background="@android:color/transparent"
+                    app:thumbTint="@color/settings_accent"
+                    app:trackTintMode="src_in" />
+            </LinearLayout>
 
-                <CheckBox
+            <LinearLayout
+                style="@style/OtherSettingsCard"
+                android:gravity="center_vertical"
+                android:minHeight="72dp"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_marginEnd="14dp"
+                    android:background="@drawable/content_icon_surface"
+                    android:padding="10dp"
+                    android:src="@drawable/icon_keyboard"
+                    app:tint="@color/settings_icon_tint" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/OtherSettingsCardTitle"
+                        android:text="@string/settings_other_xinput_toggle_title" />
+
+                    <TextView
+                        style="@style/OtherSettingsCardSummary"
+                        android:text="@string/settings_other_xinput_toggle_summary" />
+                </LinearLayout>
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/CBXinputToggle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/white"
-                    android:text="Disable Xinput (Used for Exclusive M/KB support)"
-                    android:layout_marginTop="8dp" />
-
+                    android:layout_marginStart="8dp"
+                    android:background="@android:color/transparent"
+                    app:thumbTint="@color/settings_accent"
+                    app:trackTintMode="src_in" />
             </LinearLayout>
 
-            <!-- Components -->
             <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/components"
-                android:textColor="#1A9FFF"
-                android:textStyle="bold"
-                android:layout_marginBottom="8dp" />
+                style="@style/OtherSettingsSectionLabel"
+                android:text="@string/components" />
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@drawable/tab_layout_background_dark"
-                android:padding="12dp"
-                android:orientation="vertical"
-                android:layout_marginBottom="16dp">
+                style="@style/OtherSettingsCard"
+                android:gravity="center_vertical"
+                android:minHeight="72dp"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_marginEnd="14dp"
+                    android:background="@drawable/content_icon_surface"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_components"
+                    app:tint="@color/settings_icon_tint" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/OtherSettingsCardTitle"
+                        android:text="@string/enable_file_provider" />
+
+                    <TextView
+                        style="@style/OtherSettingsCardSummary"
+                        android:text="@string/settings_other_file_provider_summary" />
+                </LinearLayout>
+
+                <ImageButton
+                    android:id="@+id/BTHelpFileProvider"
+                    style="@style/OtherSettingsIconButton"
+                    android:layout_marginStart="8dp"
+                    android:contentDescription="@string/help_file_provider"
+                    android:src="@drawable/icon_help" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/CBEnableFileProvider"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@android:color/transparent"
+                    app:thumbTint="@color/settings_accent"
+                    app:trackTintMode="src_in" />
+            </LinearLayout>
+
+            <LinearLayout
+                style="@style/OtherSettingsCard"
+                android:gravity="center_vertical"
+                android:minHeight="72dp"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_marginEnd="14dp"
+                    android:background="@drawable/content_icon_surface"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_components"
+                    app:tint="@color/settings_icon_tint" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/OtherSettingsCardTitle"
+                        android:text="@string/open_with_android_browser" />
+
+                    <TextView
+                        style="@style/OtherSettingsCardSummary"
+                        android:text="@string/settings_other_open_browser_summary" />
+                </LinearLayout>
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/CBOpenWithAndroidBrowser"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@android:color/transparent"
+                    app:thumbTint="@color/settings_accent"
+                    app:trackTintMode="src_in" />
+            </LinearLayout>
+
+            <LinearLayout
+                style="@style/OtherSettingsCard"
+                android:gravity="center_vertical"
+                android:minHeight="72dp"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_marginEnd="14dp"
+                    android:background="@drawable/content_icon_surface"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_components"
+                    app:tint="@color/settings_icon_tint" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/OtherSettingsCardTitle"
+                        android:text="@string/share_android_clipboard" />
+
+                    <TextView
+                        style="@style/OtherSettingsCardSummary"
+                        android:text="@string/settings_other_clipboard_summary" />
+                </LinearLayout>
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/CBShareAndroidClipboard"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@android:color/transparent"
+                    app:thumbTint="@color/settings_accent"
+                    app:trackTintMode="src_in" />
+            </LinearLayout>
+
+            <TextView
+                style="@style/OtherSettingsSectionLabel"
+                android:text="@string/imagefs" />
+
+            <LinearLayout
+                style="@style/OtherSettingsCard"
+                android:layout_marginBottom="24dp"
+                android:orientation="vertical">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-
-                    <CheckBox
-                        android:id="@+id/CBEnableFileProvider"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="@color/white"
-                        android:text="@string/enable_file_provider" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
                     <ImageView
-                        android:id="@+id/BTHelpFileProvider"
-                        style="@style/HelpButton"
-                        android:tint="@color/white"
-                        android:layout_gravity="center" />
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:layout_marginEnd="14dp"
+                        android:background="@drawable/content_icon_surface"
+                        android:padding="10dp"
+                        android:src="@drawable/ic_reinstall"
+                        app:tint="@color/settings_icon_tint" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/OtherSettingsCardTitle"
+                            android:text="@string/reinstall_imagefs" />
+
+                        <TextView
+                            style="@style/OtherSettingsCardSummary"
+                            android:text="@string/settings_other_imagefs_summary" />
+                    </LinearLayout>
                 </LinearLayout>
-
-                <CheckBox
-                    android:id="@+id/CBOpenWithAndroidBrowser"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/white"
-                    android:text="@string/open_with_android_browser" />
-
-                <CheckBox
-                    android:id="@+id/CBShareAndroidClipboard"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/white"
-                    android:text="@string/share_android_clipboard" />
-
-
-
-            </LinearLayout>
-
-            <!-- Imagefs -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/imagefs"
-                android:textColor="#1A9FFF"
-                android:textStyle="bold"
-                android:layout_marginBottom="8dp" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@drawable/tab_layout_background_dark"
-                android:padding="12dp"
-                android:orientation="vertical"
-                android:layout_marginBottom="32dp">
 
                 <Button
                     android:id="@+id/BTReInstallImagefs"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:backgroundTint="#37474F"
-                    android:textColor="@color/white"
+                    style="@style/OtherSettingsInlineButton"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="10dp"
                     android:text="@string/reinstall_imagefs" />
-
             </LinearLayout>
-
         </LinearLayout>
     </ScrollView>
 
