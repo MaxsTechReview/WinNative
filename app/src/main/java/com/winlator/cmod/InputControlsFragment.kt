@@ -577,12 +577,16 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
                 smoothGyroX[0] = smoothGyroX[0] * smoothingFactor + rawGyroX * (1 - smoothingFactor)
                 smoothGyroY[0] = smoothGyroY[0] * smoothingFactor + rawGyroY * (1 - smoothingFactor)
 
-                val stickCenterX = inputControlsView.stickElement.x
-                val stickCenterY = inputControlsView.stickElement.y
+                val stickElement = inputControlsView.stickElement ?: run {
+                    Log.w(TAG, "Gyro calibration event ignored because stickElement is null")
+                    return
+                }
+                val stickCenterX = stickElement.x
+                val stickCenterY = stickElement.y
                 val stickRadius = 100
 
-                var newX = inputControlsView.stickElement.currentPosition.x + smoothGyroX[0]
-                var newY = inputControlsView.stickElement.currentPosition.y + smoothGyroY[0]
+                var newX = stickElement.currentPosition.x + smoothGyroX[0]
+                var newY = stickElement.currentPosition.y + smoothGyroY[0]
 
                 val deltaX = newX - stickCenterX
                 val deltaY = newY - stickCenterY
@@ -1054,12 +1058,16 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
                     smoothGyroX[0] = smoothGyroX[0] * smoothingFactor + rawGyroX * (1 - smoothingFactor)
                     smoothGyroY[0] = smoothGyroY[0] * smoothingFactor + rawGyroY * (1 - smoothingFactor)
 
-                    val stickCenterX = icv.stickElement.x
-                    val stickCenterY = icv.stickElement.y
+                    val stickElement = icv.stickElement ?: run {
+                        Log.w(TAG, "Gyro preview event ignored because stickElement is null")
+                        return
+                    }
+                    val stickCenterX = stickElement.x
+                    val stickCenterY = stickElement.y
                     val stickRadius = 100
 
-                    var newX = icv.stickElement.currentPosition.x + smoothGyroX[0]
-                    var newY = icv.stickElement.currentPosition.y + smoothGyroY[0]
+                    var newX = stickElement.currentPosition.x + smoothGyroX[0]
+                    var newY = stickElement.currentPosition.y + smoothGyroY[0]
 
                     val deltaX = newX - stickCenterX
                     val deltaY = newY - stickCenterY
@@ -1477,6 +1485,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
     // Types
 
     companion object {
+        private const val TAG = "ICFrag"
         private const val INPUT_CONTROLS_URL =
             "https://raw.githubusercontent.com/brunodev85/winlator/main/input_controls/%s"
 
