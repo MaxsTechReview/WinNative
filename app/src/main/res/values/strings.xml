@@ -1491,6 +1491,13 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_debug_wine_logs_subtitle">Write Wine debug output to file</string>
     <string name="settings_debug_box_logs_title">Enable Box86/64 Logs</string>
     <string name="settings_debug_box_logs_subtitle">Write Box86 &amp; Box64 debug output to file</string>
+    <string name="settings_debug_fex_logs_title">Enable FEXCore Logs</string>
+    <string name="settings_debug_fex_logs_subtitle">Write FEXCore debug output to file</string>
+    <string name="advanced_logging_subtitle">Low-level logging controls for Wine and emulation backends.</string>
+    <string name="advanced_debugging_logs_title">Logging &amp; Diagnostics</string>
+    <string name="advanced_debugging_logs_summary">Enable only the logs you need when tracking down rendering, translation, or startup issues.</string>
+    <string name="advanced_wine_channels_title">Wine Debug Channels</string>
+    <string name="advanced_wine_channels_summary">Choose which Wine channels are included when Wine debug logging is enabled.</string>
     <string name="settings_debug_view_crash_title">View latest crash</string>
     <string name="settings_debug_view_log_title">View game debug log</string>
     <string name="settings_debug_clear_prefs_title">Clear Preferences</string>

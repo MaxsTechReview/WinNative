@@ -299,7 +299,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 fragment = new StoresFragment();
                 break;
             case R.id.main_menu_advanced:
-                fragment = new AdvancedFragment();
+                fragment = new DebugFragment();
                 break;
             case R.id.main_menu_settings:
                 fragment = new PresetsFragment();
