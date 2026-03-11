@@ -122,7 +122,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         // We do not override it here.
 
         // Create Winlator folder if not present
-        File winlatorDir = new File(SettingsFragment.DEFAULT_WINLATOR_PATH);
+        File winlatorDir = new File(SettingsConfig.DEFAULT_WINLATOR_PATH);
         if (!winlatorDir.exists())
             winlatorDir.mkdirs();
 
@@ -302,7 +302,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 fragment = new AdvancedFragment();
                 break;
             case R.id.main_menu_settings:
-                fragment = new SettingsFragment();
+                fragment = new PresetsFragment();
+                break;
+            case R.id.main_menu_other:
+                fragment = new OtherSettingsFragment();
                 break;
             case R.id.main_menu_about:
                 showAboutDialog();
@@ -504,7 +507,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (fragment instanceof InputControlsFragment) {
             if (((InputControlsFragment) fragment).dispatchKeyEvent(event)) return true;
         }
-        return super.dispatchKeyEvent(event);
+        try {
+            return super.dispatchKeyEvent(event);
+        } catch (IllegalStateException e) {
+            Log.w("MainActivity", "dispatchKeyEvent focus error", e);
+            return false;
+        }
     }
 
     @Override

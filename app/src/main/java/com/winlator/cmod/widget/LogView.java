@@ -16,7 +16,7 @@ import androidx.annotation.Nullable;
 import androidx.preference.PreferenceManager;
 
 import com.winlator.cmod.R;
-import com.winlator.cmod.SettingsFragment;
+import com.winlator.cmod.SettingsConfig;
 import com.winlator.cmod.contentdialog.DebugDialog;
 import com.winlator.cmod.core.FileUtils;
 import com.winlator.cmod.core.UnitUtils;
@@ -199,7 +199,7 @@ public class LogView extends View {
             logsDir = new File(FileUtils.getFilePathFromUri(context, winlatorUri), "logs");
         }
         else {
-            logsDir = new File(SettingsFragment.DEFAULT_WINLATOR_PATH, "logs");
+            logsDir = new File(SettingsConfig.DEFAULT_WINLATOR_PATH, "logs");
         }
 
         if (!logsDir.exists())

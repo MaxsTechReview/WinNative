@@ -90,6 +90,7 @@
     <string name="touchpad_help_main_menu_description">Four fingers tap</string>
     <string name="duplicate">Duplicate</string>
     <string name="about">About</string>
+    <string name="help">Help</string>
     <string name="credits_and_third_party_apps">Credits and Third-party apps</string>
     <string name="external_controllers">External Controllers</string>
     <string name="graphics_driver">Graphics Driver</string>
@@ -111,6 +112,7 @@
     <string name="vcrun2010">Visual C++ 2010</string>
     <string name="opengl">OpenGL</string>
     <string name="presets">Presets</string>
+    <string name="settings_presets_subtitle">View, modify, and create Box64 and FEXCore presets</string>
     <string name="exec_arguments">Exec Arguments</string>
     <string name="win_components">Win Components</string>
     <string name="drives">Drives</string>
@@ -172,6 +174,17 @@
     <string name="intermediate">Intermediate</string>
     <string name="performance">Performance</string>
     <string name="preset">Preset</string>
+    <string name="selected_preset">Selected Preset</string>
+    <string name="new_preset">New Preset</string>
+    <string name="rename_preset">Rename Preset</string>
+    <string name="import_preset">Import Preset</string>
+    <string name="custom_preset">Custom</string>
+    <string name="built_in_preset">Built-In</string>
+    <string name="preset_changes_auto_saved">Changes save automatically while editing this custom preset.</string>
+    <string name="preset_builtin_readonly_hint">Built-in presets are read-only. Create or duplicate a preset to customize these variables.</string>
+    <string name="cannot_rename_this_preset">Built-in presets cannot be renamed</string>
+    <string name="unable_to_import_preset">Unable to import preset</string>
+    <string name="no_description_available">No description available</string>
     <string name="you_cannot_remove_this_preset">You cannot remove this preset</string>
     <string name="dxwrapper_help_content">
         &lt;i&gt;&lt;b&gt;WineD3D&lt;/b&gt;&lt;/i&gt; is a translation layer for DirectX 1-11 to OpenGL.&lt;br /&gt;&lt;br /&gt;

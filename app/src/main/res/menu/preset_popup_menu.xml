@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/action_rename_preset"
+        android:icon="@drawable/ic_controls_edit"
+        android:iconTint="@color/settings_icon_tint"
+        android:title="@string/rename_preset" />
+    <item
+        android:id="@+id/action_duplicate_preset"
+        android:icon="@drawable/ic_controls_duplicate"
+        android:iconTint="@color/settings_icon_tint"
+        android:title="@string/duplicate" />
+    <item
+        android:id="@+id/action_export_preset"
+        android:icon="@drawable/ic_controls_export"
+        android:iconTint="@color/settings_icon_tint"
+        android:title="@string/export" />
+    <item
+        android:id="@+id/action_import_preset"
+        android:icon="@drawable/ic_controls_import"
+        android:iconTint="@color/settings_icon_tint"
+        android:title="@string/import_preset" />
+    <item
+        android:id="@+id/action_remove_preset"
+        android:icon="@drawable/ic_content_menu_remove"
+        android:iconTint="@color/settings_danger"
+        android:title="@string/remove" />
+</menu>

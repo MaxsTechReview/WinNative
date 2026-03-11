@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="5dp"
+    android:background="@drawable/content_list_card_surface"
+    android:minHeight="140dp"
+    android:orientation="vertical"
+    android:paddingHorizontal="12dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/TVVarName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/inter"
+            android:lineSpacingExtra="1dp"
+            android:maxLines="3"
+            android:textColor="@color/settings_text_primary"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="end|center_vertical"
+        android:orientation="horizontal">
+
+        <FrameLayout
+            android:layout_width="118dp"
+            android:layout_height="wrap_content"
+            android:foregroundGravity="right|center_vertical">
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/SWToggleControl"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end|center_vertical"
+                android:splitTrack="false"
+                android:visibility="gone" />
+
+            <androidx.appcompat.widget.AppCompatSpinner
+                android:id="@+id/SValueControl"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:background="@drawable/preset_combo_box_background"
+                android:gravity="center_vertical|end"
+                android:paddingStart="10dp"
+                android:paddingEnd="24dp"
+                android:popupBackground="@drawable/content_popup_menu_background"
+                android:spinnerMode="dropdown"
+                android:visibility="gone" />
+
+            <EditText
+                android:id="@+id/ETValueControl"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:background="@drawable/edit_text_dark"
+                android:gravity="center"
+                android:imeOptions="actionDone|flagNoExtractUi"
+                android:inputType="text"
+                android:maxLines="1"
+                android:textColor="@color/settings_text_primary"
+                android:textColorHint="@color/settings_text_secondary"
+                android:textSize="13sp"
+                android:visibility="gone" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/TVVarDescription"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:fontFamily="@font/inter"
+        android:lineSpacingExtra="2dp"
+        android:maxLines="7"
+        android:textColor="@color/settings_text_secondary"
+        android:textSize="12sp" />
+</LinearLayout>
