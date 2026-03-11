@@ -296,7 +296,7 @@ public class ShortcutsFragment extends Fragment {
 
                 shortcutsDir = new File(FileUtils.getFilePathFromUri(getContext(), folderUri));
             } else {
-                shortcutsDir = new File(SettingsFragment.DEFAULT_SHORTCUT_EXPORT_PATH);
+                shortcutsDir = new File(SettingsConfig.DEFAULT_SHORTCUT_EXPORT_PATH);
             }
 
             if (!shortcutsDir.exists() && !shortcutsDir.mkdirs()) {

@@ -6,7 +6,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.winlator.cmod.MainActivity;
 import com.winlator.cmod.R;
-import com.winlator.cmod.SettingsFragment;
+import com.winlator.cmod.SettingsConfig;
 import com.winlator.cmod.container.Container;
 import com.winlator.cmod.container.ContainerManager;
 import com.winlator.cmod.contents.AdrenotoolsManager;
@@ -66,7 +66,7 @@ public abstract class ImageFsInstaller {
         ImageFs imageFs = ImageFs.find(activity);
         File rootDir = imageFs.getRootDir();
 
-        SettingsFragment.resetEmulatorsVersion(activity);
+        SettingsConfig.resetEmulatorsVersion(activity);
 
         final DownloadProgressDialog dialog = new DownloadProgressDialog(activity);
         dialog.show(R.string.installing_system_files);

@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 public class AdvancedFragment extends Fragment {
-    public static final String DEFAULT_WINE_DEBUG_CHANNELS = "warn+heap,warn+seh,warn+tid,warn+pid";
     private SharedPreferences preferences;
     private CheckBox cbEnableWineDebug;
     private CheckBox cbEnableBox64Logs;
@@ -46,7 +45,7 @@ public class AdvancedFragment extends Fragment {
             preferences.edit().putBoolean("enable_wine_debug", isChecked).apply();
         });
 
-        wineDebugChannels = new ArrayList<>(Arrays.asList(preferences.getString("wine_debug_channels", DEFAULT_WINE_DEBUG_CHANNELS).split(",")));
+        wineDebugChannels = new ArrayList<>(Arrays.asList(preferences.getString("wine_debug_channels", SettingsConfig.DEFAULT_WINE_DEBUG_CHANNELS).split(",")));
         loadWineDebugChannels(view, wineDebugChannels);
 
         cbEnableBox64Logs = view.findViewById(R.id.CBEnableBox64Logs);
@@ -95,7 +94,7 @@ public class AdvancedFragment extends Fragment {
         resetButton.setVisibility(View.VISIBLE);
         resetButton.setOnClickListener((v) -> {
             debugChannels.clear();
-            debugChannels.addAll(Arrays.asList(DEFAULT_WINE_DEBUG_CHANNELS.split(",")));
+            debugChannels.addAll(Arrays.asList(SettingsConfig.DEFAULT_WINE_DEBUG_CHANNELS.split(",")));
             preferences.edit().putString("wine_debug_channels", String.join(",", debugChannels)).apply();
             loadWineDebugChannels(view, debugChannels);
         });

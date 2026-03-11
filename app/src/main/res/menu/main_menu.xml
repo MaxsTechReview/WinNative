@@ -7,7 +7,8 @@
         <item android:icon="@drawable/ic_components" android:id="@+id/main_menu_contents" android:title="@string/components" />
         <item android:icon="@drawable/ic_drivers" android:id="@+id/main_menu_adrenotools_gpu_drivers" android:title="@string/drivers" />
         <item android:icon="@drawable/ic_input_controls" android:id="@+id/main_menu_input_controls" android:title="@string/input_controls" />
-        <item android:icon="@drawable/ic_settings" android:id="@+id/main_menu_advanced" android:title="Advanced" />
+        <item android:icon="@drawable/ic_advanced" android:id="@+id/main_menu_advanced" android:title="Advanced" />
+        <item android:icon="@drawable/ic_other" android:id="@+id/main_menu_other" android:title="@string/other" />
     </group>
     <!-- Hidden items used as internal navigation targets -->
     <group android:checkableBehavior="single" android:visible="false">

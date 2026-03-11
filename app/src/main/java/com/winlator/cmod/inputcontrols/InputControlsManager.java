@@ -10,7 +10,7 @@ import android.util.JsonReader;
 
 import androidx.preference.PreferenceManager;
 
-import com.winlator.cmod.SettingsFragment;
+import com.winlator.cmod.SettingsConfig;
 import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.FileUtils;
 
@@ -201,7 +201,7 @@ public class InputControlsManager {
             destination = new File(FileUtils.getFilePathFromUri(context, winlatorUri), "profiles/" + profile.getName() + ".icp");
         }
         else {
-            destination = new File(SettingsFragment.DEFAULT_WINLATOR_PATH, "profiles/" + profile.getName() + ".icp");
+            destination = new File(SettingsConfig.DEFAULT_WINLATOR_PATH, "profiles/" + profile.getName() + ".icp");
         }
         FileUtils.copy(ControlsProfile.getProfileFile(context, profile.id), destination);
         MediaScannerConnection.scanFile(context, new String[]{destination.getAbsolutePath()}, null, null);

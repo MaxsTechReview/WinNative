@@ -36,6 +36,7 @@
     <color name="settings_danger">#FF7A88</color>
     <color name="settings_popup_surface">#162130</color>
     <color name="settings_popup_surface_edge">#2D425A</color>
+    <color name="settings_input_outline_soft">#52F5F9FF</color>
 
     <color name="abc_decor_view_status_guard">#ff000000</color>
     <color name="abc_decor_view_status_guard_light">#ffffffff</color>
