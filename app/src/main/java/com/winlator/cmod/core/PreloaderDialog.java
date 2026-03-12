@@ -2,15 +2,19 @@ package com.winlator.cmod.core;
 
 import android.app.Activity;
 import android.app.Dialog;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.TextView;
 
-import com.winlator.cmod.R;
+import androidx.compose.ui.platform.ComposeView;
 
 public class PreloaderDialog {
     private final Activity activity;
     private Dialog dialog;
+    private final Handler uiHandler = new Handler(Looper.getMainLooper());
+    private final PreloaderDialogState composeState = new PreloaderDialogState();
 
     public PreloaderDialog(Activity activity) {
         this.activity = activity;
@@ -22,7 +26,6 @@ public class PreloaderDialog {
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         dialog.setCancelable(false);
         dialog.setCanceledOnTouchOutside(false);
-        dialog.setContentView(R.layout.preloader_dialog);
 
         Window window = dialog.getWindow();
         if (window != null) {
@@ -30,46 +33,43 @@ public class PreloaderDialog {
             window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
         }
 
-        android.widget.LinearLayout container = dialog.findViewById(R.id.LLContent);
-        if (container != null) {
-            float density = activity.getResources().getDisplayMetrics().density;
-            com.winlator.cmod.widget.ChasingBorderDrawable animatedBorder = new com.winlator.cmod.widget.ChasingBorderDrawable(16f, 1.5f, density);
-            
-            android.graphics.drawable.GradientDrawable solidBg = new android.graphics.drawable.GradientDrawable();
-            solidBg.setColor(android.graphics.Color.parseColor("#171A1C"));
-            solidBg.setCornerRadius(16f * density);
-            
-            android.graphics.drawable.Drawable[] layers = {solidBg, animatedBorder};
-            android.graphics.drawable.LayerDrawable layerDrawable = new android.graphics.drawable.LayerDrawable(layers);
-            container.setBackground(layerDrawable);
-        }
+        ComposeView composeView = new ComposeView(activity);
+        composeView.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+
+        PreloaderDialogContentKt.setupPreloaderComposeView(composeView, composeState, activity);
+        dialog.setContentView(composeView);
     }
 
     public synchronized void show(int textResId) {
-        if (dialog == null) create();
-        ((TextView)dialog.findViewById(R.id.TextView)).setText(textResId);
-        
-        android.widget.ProgressBar pb = dialog.findViewById(R.id.ProgressBar);
-        if (pb != null) {
-            pb.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#00BDD8")));
-        }
+        show(textResId, true);
+    }
 
+    public synchronized void show(int textResId, boolean indeterminate) {
+        if (dialog == null) create();
+        composeState.setText(activity.getString(textResId));
+        composeState.setIndeterminate(indeterminate);
+        if (!indeterminate) {
+            composeState.setProgress(0);
+        }
         if (!isShowing()) dialog.show();
     }
 
     public synchronized void show(String text) {
         if (dialog == null) create();
-        ((TextView)dialog.findViewById(R.id.TextView)).setText(text);
-        
-        android.widget.ProgressBar pb = dialog.findViewById(R.id.ProgressBar);
-        if (pb != null) {
-            boolean isComplete = text.contains("(100%)");
-            pb.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(
-                android.graphics.Color.parseColor(isComplete ? "#2E7D32" : "#00BDD8")
-            ));
-        }
-
+        composeState.setText(text);
+        composeState.setIndeterminate(true);
         if (!isShowing()) dialog.show();
+    }
+
+    public synchronized void setProgress(int percent) {
+        if (dialog == null) return;
+        composeState.setProgress(percent);
+    }
+
+    public void setProgressOnUiThread(final int percent) {
+        activity.runOnUiThread(() -> setProgress(percent));
     }
 
     public void showOnUiThread(final int textResId) {
@@ -87,6 +87,10 @@ public class PreloaderDialog {
             }
         }
         catch (Exception e) {}
+    }
+
+    public synchronized void closeWithDelay(long delayMs) {
+        uiHandler.postDelayed(this::close, delayMs);
     }
 
     public void closeOnUiThread() {

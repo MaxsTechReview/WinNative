@@ -7,4 +7,5 @@
     android:paddingVertical="10dp"
     android:textColor="@color/settings_text_primary"
     android:textSize="14sp"
-    android:background="@color/settings_popup_surface" />
+    android:fontFamily="@font/inter"
+    android:background="@drawable/popup_list_item_selector" />

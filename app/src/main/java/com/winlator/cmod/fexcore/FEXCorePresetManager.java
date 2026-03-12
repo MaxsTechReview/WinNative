@@ -3,7 +3,6 @@ package com.winlator.cmod.fexcore;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
-import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.SpinnerAdapter;
 
@@ -266,7 +265,7 @@ public class FEXCorePresetManager {
             }
         }
 
-        spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, presets));
+        AppUtils.setupThemedSpinner(spinner, context, presets);
         spinner.setSelection(selectedPosition);
     }
 

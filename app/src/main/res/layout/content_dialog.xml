@@ -6,9 +6,9 @@
     android:layout_height="wrap_content"
     android:background="@drawable/content_dialog_surface"
     android:orientation="vertical"
-    android:paddingHorizontal="20dp"
-    android:paddingTop="18dp"
-    android:paddingBottom="16dp">
+    android:paddingHorizontal="16dp"
+    android:paddingTop="14dp"
+    android:paddingBottom="12dp">
 
     <LinearLayout
         android:id="@+id/LLTitleBar"
@@ -26,8 +26,8 @@
 
             <ImageView
                 android:id="@+id/IVIcon"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
                 android:layout_marginEnd="8dp"
                 app:tint="@color/settings_icon_tint"
                 android:visibility="gone" />
@@ -39,7 +39,7 @@
                 android:fontFamily="@font/inter"
                 android:letterSpacing="0.01"
                 android:textColor="@color/settings_text_primary"
-                android:textSize="21sp"
+                android:textSize="16sp"
                 android:textStyle="bold"
                 android:maxLines="1" />
         </LinearLayout>
@@ -47,27 +47,27 @@
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="14dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="10dp"
             android:background="@color/settings_outline" />
     </LinearLayout>
 
     <TextView
         android:id="@+id/TVMessage"
-        android:layout_width="320dp"
+        android:layout_width="300dp"
         android:layout_height="wrap_content"
         android:fontFamily="@font/inter"
-        android:layout_marginBottom="8dp"
-        android:lineSpacingExtra="4dp"
-        android:textColor="@color/settings_text_primary"
-        android:textSize="17sp"
+        android:layout_marginBottom="6dp"
+        android:lineSpacingExtra="3dp"
+        android:textColor="@color/settings_text_secondary"
+        android:textSize="13sp"
         android:visibility="gone" />
 
     <EditText
-        style="@style/EditText"
+        style="@style/OtherSettingsEditText"
         android:id="@+id/EditText"
-        android:layout_width="280dp"
-        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="2dp"
         android:visibility="gone" />
 
     <ListView
@@ -94,8 +94,8 @@
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_marginTop="6dp"
-            android:layout_marginBottom="14dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="10dp"
             android:background="@color/settings_outline" />
 
         <LinearLayout

@@ -1,5 +1,6 @@
 package com.winlator.cmod;
 
+import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
@@ -17,9 +18,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.Spinner;
@@ -31,8 +33,6 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.preference.PreferenceManager;
-
-import com.google.android.material.tabs.TabLayout;
 import com.winlator.cmod.box64.Box64Preset;
 import com.winlator.cmod.box64.Box64PresetManager;
 import com.winlator.cmod.container.Container;
@@ -138,6 +138,31 @@ public class ContainerDetailFragment extends Fragment {
             "SDL_ALLOW_TOPMOST=0",
             "SDL_MOUSE_FOCUS_CLICKTHROUGH=1"
     };
+
+    public static <T> ArrayAdapter<T> createThemedAdapter(Context context, java.util.List<T> items) {
+        ArrayAdapter<T> adapter = new ArrayAdapter<>(context, R.layout.spinner_item_themed, items);
+        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item_themed);
+        return adapter;
+    }
+
+    public static ArrayAdapter<String> createThemedAdapter(Context context, String[] items) {
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(context, R.layout.spinner_item_themed, items);
+        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item_themed);
+        return adapter;
+    }
+
+    public static void applyThemedAdapter(Spinner spinner, int arrayResId) {
+        Context context = spinner.getContext();
+        String[] items = context.getResources().getStringArray(arrayResId);
+        int selectedPos = spinner.getSelectedItemPosition();
+        spinner.setAdapter(createThemedAdapter(context, items));
+        if (selectedPos >= 0 && selectedPos < items.length) spinner.setSelection(selectedPos);
+        applyPopupBackground(spinner);
+    }
+
+    public static void applyPopupBackground(Spinner spinner) {
+        spinner.setPopupBackgroundResource(R.drawable.content_popup_menu_background);
+    }
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -273,33 +298,6 @@ public class ContainerDetailFragment extends Fragment {
             }
         }
 
-        // Find TextViews by ID and apply dynamic styles
-        TextView desktopLabel = view.findViewById(R.id.TVDesktop);
-        applyFieldSetLabelStyle(desktopLabel, isDarkMode);  // Apply the dark or light mode styles
-
-        TextView registryKeysLabel = view.findViewById(R.id.TVDirectInput);
-        applyFieldSetLabelStyle(registryKeysLabel, isDarkMode);  // Apply the dark or light mode styles
-
-        // Win Components TextViews
-        TextView directXLabel = view.findViewById(R.id.TVDirectX);
-        applyFieldSetLabelStyle(directXLabel, isDarkMode);  // Apply the dark or light mode styles
-
-        TextView generalLabel = view.findViewById(R.id.TVGeneral);
-        applyFieldSetLabelStyle(generalLabel, isDarkMode);  // Apply the dark or light mode styles
-
-        // Advanced Tab TextViews
-        TextView box64Label = view.findViewById(R.id.TVBox64);
-        applyFieldSetLabelStyle(box64Label, isDarkMode);  // Apply the dark or light mode styles
-        
-        TextView fexCoreLabel = view.findViewById(R.id.TVFEXCore);
-        applyFieldSetLabelStyle(fexCoreLabel, isDarkMode);
-
-        TextView systemLabel = view.findViewById(R.id.TVSystem);
-        applyFieldSetLabelStyle(systemLabel, isDarkMode);  // Apply the dark or light mode styles
-
-        TextView gameControllerLabel = view.findViewById(R.id.TVGameController);
-        applyFieldSetLabelStyle(gameControllerLabel, isDarkMode);  // Apply the dark or light mode styles
-
     }
 
     public boolean isEditMode() {
@@ -403,12 +401,15 @@ public class ContainerDetailFragment extends Fragment {
         view.findViewById(R.id.BTHelpDXWrapper).setOnClickListener((v) -> AppUtils.showHelpBox(context, v, R.string.dxwrapper_help_content));
 
         Spinner sAudioDriver = view.findViewById(R.id.SAudioDriver);
+        applyThemedAdapter(sAudioDriver, R.array.audio_driver_entries);
         AppUtils.setSpinnerSelectionFromIdentifier(sAudioDriver, isShortcutMode() ? shortcut.getExtra("audioDriver", container != null ? container.getAudioDriver() : Container.DEFAULT_AUDIO_DRIVER) : (isEditMode() && container != null ? container.getAudioDriver() : Container.DEFAULT_AUDIO_DRIVER));
 
         final Spinner sEmulator = view.findViewById(R.id.SEmulator);
+        applyThemedAdapter(sEmulator, R.array.emulator_entries);
         AppUtils.setSpinnerSelectionFromIdentifier(sEmulator, isShortcutMode() ? shortcut.getExtra("emulator", container != null ? container.getEmulator() : Container.DEFAULT_EMULATOR) : (isEditMode() && container != null ? container.getEmulator() : Container.DEFAULT_EMULATOR));
 
         final Spinner sEmulator64 = view.findViewById(R.id.SEmulator64);
+        applyThemedAdapter(sEmulator64, R.array.emulator_entries);
         AppUtils.setSpinnerSelectionFromIdentifier(sEmulator64, isShortcutMode() ? shortcut.getExtra("emulator64", container != null ? container.getEmulator64() : Container.DEFAULT_EMULATOR64) : (isEditMode() && container != null ? container.getEmulator64() : Container.DEFAULT_EMULATOR64));
 
         final View box64Frame = view.findViewById(R.id.box64Frame);
@@ -430,20 +431,21 @@ public class ContainerDetailFragment extends Fragment {
         MidiManager.loadSFSpinner(sMIDISoundFont);
         AppUtils.setSpinnerSelectionFromValue(sMIDISoundFont, isShortcutMode() ? shortcut.getExtra("midiSoundFont", container != null ? container.getMIDISoundFont() : "") : (isEditMode() && container != null ? container.getMIDISoundFont() : ""));
 
-        final CheckBox cbShowFPS = view.findViewById(R.id.CBShowFPS);
+        final CompoundButton cbShowFPS = view.findViewById(R.id.CBShowFPS);
         cbShowFPS.setChecked(isShortcutMode() ? shortcut.getExtra("showFPS", container != null && container.isShowFPS() ? "1" : "0").equals("1") : (isEditMode() && container != null && container.isShowFPS()));
 
-        final CheckBox cbFullscreenStretched = view.findViewById(R.id.CBFullscreenStretched);
+        final CompoundButton cbFullscreenStretched = view.findViewById(R.id.CBFullscreenStretched);
         cbFullscreenStretched.setChecked(isShortcutMode() ? shortcut.getExtra("fullscreenStretched", container != null && container.isFullscreenStretched() ? "1" : "0").equals("1") : (isEditMode() && container != null && container.isFullscreenStretched()));
 
         // Existing declarations of UI components and variables
         final Runnable showInputWarning = () -> ContentDialog.alert(context, R.string.enable_xinput_and_dinput_same_time, null);
-        final CheckBox cbEnableXInput = view.findViewById(R.id.CBEnableXInput);
-        final CheckBox cbEnableDInput = view.findViewById(R.id.CBEnableDInput);
+        final CompoundButton cbEnableXInput = view.findViewById(R.id.CBEnableXInput);
+        final CompoundButton cbEnableDInput = view.findViewById(R.id.CBEnableDInput);
         final View llDInputType = view.findViewById(R.id.LLDinputMapperType);
         final View btHelpXInput = view.findViewById(R.id.BTXInputHelp);
         final View btHelpDInput = view.findViewById(R.id.BTDInputHelp);
         final Spinner SDInputType = view.findViewById(R.id.SDInputType);
+        applyThemedAdapter(SDInputType, R.array.dinput_mapper_type_entries);
 
         // Check if we are in edit mode to set input type accordingly
         int inputType = isShortcutMode() ? Integer.parseInt(shortcut.getExtra("inputType", String.valueOf(container != null ? container.getInputType() : WinHandler.DEFAULT_INPUT_TYPE))) : (isEditMode() && container != null ? container.getInputType() : WinHandler.DEFAULT_INPUT_TYPE);
@@ -469,7 +471,7 @@ public class ContainerDetailFragment extends Fragment {
         btHelpXInput.setOnClickListener(v -> AppUtils.showHelpBox(context, v, R.string.help_xinput));
         btHelpDInput.setOnClickListener(v -> AppUtils.showHelpBox(context, v, R.string.help_dinput));
 
-        final CheckBox cbSdl2Toggle = view.findViewById(R.id.CBSdl2Toggle);
+        final CompoundButton cbSdl2Toggle = view.findViewById(R.id.CBSdl2Toggle);
         String envVarsValue = isShortcutMode() ? shortcut.getExtra("envVars", container != null ? container.getEnvVars() : Container.DEFAULT_ENV_VARS) : (isEditMode() && container != null ? container.getEnvVars() : Container.DEFAULT_ENV_VARS);
         cbSdl2Toggle.setChecked(envVarsValue.contains("SDL_XINPUT_ENABLED=1"));
 
@@ -479,7 +481,8 @@ public class ContainerDetailFragment extends Fragment {
 
         final View btShowLCALL = view.findViewById(R.id.BTShowLCALL);
         btShowLCALL.setOnClickListener(v -> {
-            PopupMenu popupMenu = new PopupMenu(context, v);
+            Context themedContext = new android.view.ContextThemeWrapper(context, R.style.ThemeOverlay_ContentPopupMenu);
+            PopupMenu popupMenu = new PopupMenu(themedContext, v);
             String[] lcs = getResources().getStringArray(R.array.some_lc_all);
             for (int i = 0; i < lcs.length; i++)
                 popupMenu.getMenu().add(Menu.NONE, i, Menu.NONE, lcs[i]);
@@ -491,6 +494,7 @@ public class ContainerDetailFragment extends Fragment {
         });
 
         final Spinner sStartupSelection = view.findViewById(R.id.SStartupSelection);
+        applyThemedAdapter(sStartupSelection, R.array.startup_selection_entries);
         byte previousStartupSelection = isShortcutMode() ? (byte)Integer.parseInt(shortcut.getExtra("startupSelection", String.valueOf(container != null ? container.getStartupSelection() : -1))) : (isEditMode() && container != null ? container.getStartupSelection() : -1);
         sStartupSelection.setSelection(previousStartupSelection != -1 ? previousStartupSelection : Container.STARTUP_SELECTION_ESSENTIAL);
 
@@ -510,6 +514,7 @@ public class ContainerDetailFragment extends Fragment {
         cpuListViewWoW64.setCheckedCPUList(isShortcutMode() ? shortcut.getExtra("cpuListWoW64", container != null ? container.getCPUListWoW64(true) : Container.getFallbackCPUListWoW64()) : (isEditMode() && container != null ? container.getCPUListWoW64(true) : Container.getFallbackCPUListWoW64()));
 
         final Spinner sPrimaryController = view.findViewById(R.id.SPrimaryController);
+        applyThemedAdapter(sPrimaryController, R.array.xr_controllers);
         sPrimaryController.setSelection(isShortcutMode() ? Integer.parseInt(shortcut.getExtra("primaryController", String.valueOf(container != null ? container.getPrimaryController() : 1))) : (isEditMode() && container != null ? container.getPrimaryController() : 1));
         setControllerMapping(view.findViewById(R.id.SButtonA), Container.XrControllerMapping.BUTTON_A, XKeycode.KEY_A.ordinal());
         setControllerMapping(view.findViewById(R.id.SButtonB), Container.XrControllerMapping.BUTTON_B, XKeycode.KEY_B.ordinal());
@@ -527,18 +532,23 @@ public class ContainerDetailFragment extends Fragment {
         createWinComponentsTab(view, isShortcutMode() ? shortcut.getExtra("wincomponents", container != null ? container.getWinComponents() : Container.DEFAULT_WINCOMPONENTS) : (isEditMode() && container != null ? container.getWinComponents() : Container.DEFAULT_WINCOMPONENTS));
         createDrivesTab(view);
 
-        AppUtils.setupTabLayout(view, R.id.TabLayout, R.id.LLTabWineConfiguration, R.id.LLTabWinComponents, R.id.LLTabEnvVars, R.id.LLTabDrives, R.id.LLTabAdvanced, R.id.LLTabXR);
+        setupExpandableSections(view);
 
-        TabLayout tabLayout = view.findViewById(R.id.TabLayout);
-
-        if (isDarkMode) {
-            tabLayout.setBackgroundResource(R.drawable.tab_layout_background_dark);
-        } else {
-            tabLayout.setBackgroundResource(R.drawable.tab_layout_background);
-        }
-
-        // Set up confirm button
-        view.findViewById(R.id.BTConfirm).setOnClickListener((v) -> {
+        // Set up confirm button with press animation
+        View btnConfirm = view.findViewById(R.id.BTConfirm);
+        btnConfirm.setOnTouchListener((v, event) -> {
+            switch (event.getAction()) {
+                case android.view.MotionEvent.ACTION_DOWN:
+                    v.animate().scaleX(0.96f).scaleY(0.96f).setDuration(100).start();
+                    break;
+                case android.view.MotionEvent.ACTION_UP:
+                case android.view.MotionEvent.ACTION_CANCEL:
+                    v.animate().scaleX(1f).scaleY(1f).setDuration(150).start();
+                    break;
+            }
+            return false;
+        });
+        btnConfirm.setOnClickListener((v) -> {
             try {
                 // Capture and set container properties based on UI inputs
                 String name = etName.getText().toString();
@@ -887,17 +897,90 @@ public class ContainerDetailFragment extends Fragment {
         }
     }
 
+    private void setupExpandableSections(View view) {
+        final int[][] sections = {
+            { R.id.LLHeaderWineConfiguration, R.id.LLTabWineConfiguration, R.id.IVChevronWineConfiguration },
+            { R.id.LLHeaderWinComponents, R.id.LLTabWinComponents, R.id.IVChevronWinComponents },
+            { R.id.LLHeaderEnvVars, R.id.LLTabEnvVars, R.id.IVChevronEnvVars },
+            { R.id.LLHeaderDrives, R.id.LLTabDrives, R.id.IVChevronDrives },
+            { R.id.LLHeaderAdvanced, R.id.LLTabAdvanced, R.id.IVChevronAdvanced },
+            { R.id.LLHeaderXR, R.id.LLTabXR, R.id.IVChevronXR },
+        };
+
+        for (int[] section : sections) {
+            View header = view.findViewById(section[0]);
+            View content = view.findViewById(section[1]);
+            ImageView chevron = view.findViewById(section[2]);
+
+            // Hide XR section if not supported
+            if (section[0] == R.id.LLHeaderXR && !XrActivity.isSupported()) {
+                View card = header.getParent() instanceof View ? (View) header.getParent() : header;
+                card.setVisibility(View.GONE);
+                continue;
+            }
+
+            header.setOnClickListener(v -> {
+                boolean isExpanded = content.getVisibility() == View.VISIBLE;
+                chevron.animate().rotation(isExpanded ? 0f : 90f).setDuration(200).start();
+                if (isExpanded) {
+                    animateCollapse(content);
+                } else {
+                    animateExpand(content);
+                }
+            });
+        }
+    }
+
+    private static void animateExpand(View view) {
+        view.measure(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        int targetHeight = view.getMeasuredHeight();
+        view.getLayoutParams().height = 0;
+        view.setVisibility(View.VISIBLE);
+        ValueAnimator animator = ValueAnimator.ofInt(0, targetHeight);
+        animator.setDuration(250);
+        animator.addUpdateListener(a -> {
+            view.getLayoutParams().height = (int) a.getAnimatedValue();
+            view.requestLayout();
+        });
+        animator.addListener(new android.animation.AnimatorListenerAdapter() {
+            @Override public void onAnimationEnd(android.animation.Animator animation) {
+                view.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                view.requestLayout();
+            }
+        });
+        animator.start();
+    }
+
+    private static void animateCollapse(View view) {
+        int initialHeight = view.getMeasuredHeight();
+        ValueAnimator animator = ValueAnimator.ofInt(initialHeight, 0);
+        animator.setDuration(200);
+        animator.addUpdateListener(a -> {
+            view.getLayoutParams().height = (int) a.getAnimatedValue();
+            view.requestLayout();
+        });
+        animator.addListener(new android.animation.AnimatorListenerAdapter() {
+            @Override public void onAnimationEnd(android.animation.Animator animation) {
+                view.setVisibility(View.GONE);
+                view.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            }
+        });
+        animator.start();
+    }
+
     private void createWineConfigurationTab(View view) {
         Context context = getContext();
 
         WineThemeManager.ThemeInfo desktopTheme = new WineThemeManager.ThemeInfo(isEditMode() && container != null ? container.getDesktopTheme() : WineThemeManager.DEFAULT_DESKTOP_THEME);
         Spinner sDesktopTheme = view.findViewById(R.id.SDesktopTheme);
+        applyThemedAdapter(sDesktopTheme, R.array.desktop_theme_entries);
         sDesktopTheme.setSelection(desktopTheme.theme.ordinal());
         final ImagePickerView ipvDesktopBackgroundImage = view.findViewById(R.id.IPVDesktopBackgroundImage);
         final ColorPickerView cpvDesktopBackgroundColor = view.findViewById(R.id.CPVDesktopBackgroundColor);
         cpvDesktopBackgroundColor.setColor(desktopTheme.backgroundColor);
 
         Spinner sDesktopBackgroundType = view.findViewById(R.id.SDesktopBackgroundType);
+        applyThemedAdapter(sDesktopBackgroundType, R.array.desktop_background_type_entries);
         sDesktopBackgroundType.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -920,7 +1003,8 @@ public class ContainerDetailFragment extends Fragment {
 
         List<String> mouseWarpOverrideList = Arrays.asList(context.getString(R.string.disable), context.getString(R.string.enable), context.getString(R.string.force));
         Spinner sMouseWarpOverride = view.findViewById(R.id.SMouseWarpOverride);
-        sMouseWarpOverride.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, mouseWarpOverrideList));
+        sMouseWarpOverride.setAdapter(createThemedAdapter(context, mouseWarpOverrideList));
+        applyPopupBackground(sMouseWarpOverride);
 
         File containerDir = isEditMode() && container != null ? container.getRootDir() : null;
         if (containerDir != null) {
@@ -946,8 +1030,9 @@ public class ContainerDetailFragment extends Fragment {
         }
         catch (JSONException e) {}
 
-        spinner.setAdapter(new ArrayAdapter<>(getContext(), android.R.layout.simple_spinner_dropdown_item, values));
+        spinner.setAdapter(createThemedAdapter(getContext(), values));
         spinner.setSelection(selectedPosition);
+        applyPopupBackground(spinner);
     }
 
     public static String getScreenSize(View view) {
@@ -988,6 +1073,7 @@ public class ContainerDetailFragment extends Fragment {
 
     public static void loadScreenSizeSpinner(View view, String selectedValue) {
         final Spinner sScreenSize = view.findViewById(R.id.SScreenSize);
+        applyThemedAdapter(sScreenSize, R.array.screen_size_entries);
 
         final LinearLayout llCustomScreenSize = view.findViewById(R.id.LLCustomScreenSize);
         sScreenSize.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -1026,7 +1112,8 @@ public class ContainerDetailFragment extends Fragment {
             for (String value : context.getResources().getStringArray(R.array.dxwrapper_entries)) {
                 items.add(value);
             }
-            sDXWrapper.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, items.toArray()));
+            sDXWrapper.setAdapter(createThemedAdapter(context, items));
+            applyPopupBackground(sDXWrapper);
             AppUtils.setSpinnerSelectionFromIdentifier(sDXWrapper, selectedDXWrapper);
 
             vGraphicsDriverConfig.setOnClickListener((v) -> {
@@ -1117,11 +1204,9 @@ public class ContainerDetailFragment extends Fragment {
             View itemView = inflater.inflate(R.layout.wincomponent_list_item, parent, false);
             ((TextView)itemView.findViewById(R.id.TextView)).setText(StringUtils.getString(context, wincomponent[0]));
             Spinner spinner = itemView.findViewById(R.id.Spinner);
+            applyThemedAdapter(spinner, R.array.wincomponent_entries);
             spinner.setSelection(Integer.parseInt(wincomponent[1]), false);
             spinner.setTag(wincomponent[0]);
-
-            // Set the background color of the spinners dynamically based on the current theme
-            spinner.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark: R.drawable.content_dialog_background);
 
             parent.addView(itemView);
 
@@ -1140,11 +1225,9 @@ public class ContainerDetailFragment extends Fragment {
             View itemView = inflater.inflate(R.layout.wincomponent_list_item, parent, false);
             ((TextView) itemView.findViewById(R.id.TextView)).setText(StringUtils.getString(context, wincomponent[0]));
             Spinner spinner = itemView.findViewById(R.id.Spinner);
+            applyThemedAdapter(spinner, R.array.wincomponent_entries);
             spinner.setSelection(Integer.parseInt(wincomponent[1]), false);
             spinner.setTag(wincomponent[0]);
-
-            // Set the background color of the spinners dynamically based on the current theme
-            spinner.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
 
             parent.addView(itemView);
         }
@@ -1156,9 +1239,6 @@ public class ContainerDetailFragment extends Fragment {
     private EnvVarsView createEnvVarsTab(final View view) {
         final Context context = view.getContext();
         final EnvVarsView envVarsView = view.findViewById(R.id.EnvVarsView);
-
-        // Apply dark mode setting to the existing instance
-        envVarsView.setDarkMode(isDarkMode); // New setter method
 
         envVarsView.setEnvVars(new EnvVars(isEditMode() && container != null ? container.getEnvVars() : Container.DEFAULT_ENV_VARS));
         view.findViewById(R.id.BTAddEnvVar).setOnClickListener((v) -> (new AddEnvVarDialog(context, envVarsView)).show());
@@ -1192,21 +1272,13 @@ public class ContainerDetailFragment extends Fragment {
         Callback<String[]> addItem = (drive) -> {
             final View itemView = inflater.inflate(R.layout.drive_list_item, parent, false);
             Spinner spinner = itemView.findViewById(R.id.Spinner);
-            spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, driveLetters));
+            spinner.setAdapter(createThemedAdapter(context, driveLetters));
+            applyPopupBackground(spinner);
             AppUtils.setSpinnerSelectionFromValue(spinner, drive[0]+":");
-
-            // Apply dark theme to the spinner popup background
             spinner.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
 
             final EditText editText = itemView.findViewById(R.id.EditText);
             editText.setText(drive[1]);
-
-            // Apply dark theme to EditText if necessary
-            applyDarkThemeToEditText(editText);
-
-            // Apply dark theme to the search button if necessary
-            View btSearch = itemView.findViewById(R.id.BTSearch);
-            applyDarkThemeToButton(btSearch);
 
             itemView.findViewById(R.id.BTSearch).setOnClickListener((v) -> {
                 openDirectoryCallback = (path) -> {
@@ -1241,13 +1313,12 @@ public class ContainerDetailFragment extends Fragment {
     // Helper method to apply dark theme to EditText
     private void applyDarkThemeToEditText(EditText editText) {
         if (isDarkMode) {
-            editText.setTextColor(Color.WHITE); // Set text color to white for dark theme
-            editText.setHintTextColor(Color.GRAY); // Set hint color to gray
-            editText.setBackgroundResource(R.drawable.edit_text_dark); // Custom dark background drawable
+            editText.setTextColor(Color.WHITE);
+            editText.setHintTextColor(Color.GRAY);
         } else {
-            editText.setTextColor(Color.BLACK); // Default text color
-            editText.setHintTextColor(Color.GRAY); // Default hint color
-            editText.setBackgroundResource(R.drawable.edit_text); // Custom light background drawable
+            editText.setTextColor(Color.BLACK);
+            editText.setHintTextColor(Color.GRAY);
+            editText.setBackgroundResource(R.drawable.edit_text);
         }
     }
 
@@ -1265,7 +1336,7 @@ public class ContainerDetailFragment extends Fragment {
         sWineVersion.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View v, int position, long id) {
-                FrameLayout fexcoreFL = view.findViewById(R.id.fexcoreFrame);
+                View fexcoreFL = view.findViewById(R.id.fexcoreFrame);
                 Spinner sEmulator = view.findViewById(R.id.SEmulator);
                 Spinner sEmulator64 = view.findViewById(R.id.SEmulator64);
                 Spinner sDXWrapper = view.findViewById(R.id.SDXWrapper);
@@ -1341,8 +1412,21 @@ public class ContainerDetailFragment extends Fragment {
                 wineVersions.add(ContentsManager.getEntryName(profile));
         }
 
-        sWineVersion.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, wineVersions.toArray(new String[0])));
-        
+        if (wineVersions.isEmpty()) {
+            sWineVersion.setVisibility(View.GONE);
+            TextView tvNoWine = new TextView(context);
+            tvNoWine.setText(R.string.download_in_components);
+            tvNoWine.setTextColor(getResources().getColor(R.color.settings_text_secondary));
+            tvNoWine.setTypeface(androidx.core.content.res.ResourcesCompat.getFont(context, R.font.inter));
+            tvNoWine.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
+            int pad = (int)(8 * context.getResources().getDisplayMetrics().density);
+            tvNoWine.setPadding(0, pad, 0, 0);
+            ((android.view.ViewGroup) sWineVersion.getParent()).addView(tvNoWine);
+            return;
+        }
+        sWineVersion.setAdapter(createThemedAdapter(context, wineVersions));
+        applyPopupBackground(sWineVersion);
+
         if (isShortcutMode()) {
             String containerIdStr = shortcut.getExtra("container_id");
             if (!containerIdStr.isEmpty()) {
@@ -1381,9 +1465,8 @@ public class ContainerDetailFragment extends Fragment {
         for (XKeycode value : values) {
             array.add(value.name());
         }
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(spinner.getContext(), android.R.layout.simple_spinner_dropdown_item, array);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(adapter);
+        spinner.setAdapter(createThemedAdapter(spinner.getContext(), array));
+        applyPopupBackground(spinner);
 
         byte keycode = isEditMode() && container != null ? container.getControllerMapping(mapping) : (byte) defaultValue;
         int index = 0;
@@ -1399,10 +1482,14 @@ public class ContainerDetailFragment extends Fragment {
     private void applyDarkMode(View view) {
         // This is a simplified version of applyDarkMode.
         // It should recursively visit all views and apply dark mode colors/backgrounds.
+        int sectionLabelColor = getResources().getColor(R.color.settings_text_secondary);
         ArrayList<View> views = new ArrayList<>();
         AppUtils.findViewsWithClass((ViewGroup) view, TextView.class, views);
         for (View v : views) {
-            ((TextView)v).setTextColor(Color.WHITE);
+            TextView tv = (TextView) v;
+            // Preserve section label color (OtherSettingsSectionLabel style)
+            if (tv.getCurrentTextColor() == sectionLabelColor) continue;
+            tv.setTextColor(Color.WHITE);
         }
 
         views.clear();
@@ -1412,9 +1499,9 @@ public class ContainerDetailFragment extends Fragment {
         }
 
         views.clear();
-        AppUtils.findViewsWithClass((ViewGroup) view, CheckBox.class, views);
+        AppUtils.findViewsWithClass((ViewGroup) view, CompoundButton.class, views);
         for (View v : views) {
-            ((CheckBox)v).setTextColor(Color.WHITE);
+            ((CompoundButton)v).setTextColor(Color.WHITE);
         }
     }
 
@@ -1427,7 +1514,8 @@ public class ContainerDetailFragment extends Fragment {
         List<String> itemList = new ArrayList<>(Arrays.asList(originalItems));
         
         // Set the adapter with the combined list
-        spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, itemList));
+        spinner.setAdapter(createThemedAdapter(context, itemList));
+        applyPopupBackground(spinner);
     }
 
     public static void loadBox64VersionSpinner(Context context, Container container, ContentsManager manager, Spinner spinner, boolean isArm64EC) {
@@ -1453,7 +1541,8 @@ public class ContainerDetailFragment extends Fragment {
                 itemList.add(entryName.substring(firstDashIndex + 1));
             }
         }
-        spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, itemList));
+        spinner.setAdapter(createThemedAdapter(context, itemList));
+        applyPopupBackground(spinner);
         if (container != null)
             AppUtils.setSpinnerSelectionFromValue(spinner, container.getBox64Version());
         else

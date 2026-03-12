@@ -2,10 +2,10 @@ package com.winlator.cmod.midi;
 
 import android.content.Context;
 import android.net.Uri;
-import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 
 import com.winlator.cmod.R;
+import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.FileUtils;
 
 import java.io.File;
@@ -117,7 +117,7 @@ public class MidiManager {
         for (File file : sfFiles)
             filesName.add(file.getName());
 
-        spinner.setAdapter(new ArrayAdapter<>(spinner.getContext(), android.R.layout.simple_spinner_dropdown_item, filesName));
+        AppUtils.setupThemedSpinner(spinner, spinner.getContext(), filesName);
     }
 
     public static void loadSFSpinnerWithoutDisabled(Spinner spinner) {
@@ -129,7 +129,7 @@ public class MidiManager {
         for (File file : sfFiles)
             filesName.add(file.getName());
 
-        spinner.setAdapter(new ArrayAdapter<>(spinner.getContext(), android.R.layout.simple_spinner_dropdown_item, filesName));
+        AppUtils.setupThemedSpinner(spinner, spinner.getContext(), filesName);
     }
 
 }

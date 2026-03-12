@@ -1,40 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:gravity="center">
+    android:gravity="center"
+    android:background="@drawable/content_popup_menu_background"
+    android:padding="10dp">
 
     <FrameLayout
         android:layout_width="140dp"
         android:layout_height="140dp"
-        android:background="@drawable/bordered_panel">
+        android:background="@drawable/image_picker_frame_background">
 
         <ImageView
             android:id="@+id/ImageView"
-            android:layout_width="130dp"
-            android:layout_height="130dp"
-            android:scaleType="centerCrop"
-            android:layout_gravity="center" />
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop" />
 
         <ImageView
             android:id="@+id/BTRemove"
-            android:layout_width="34dp"
-            android:layout_height="34dp"
-            android:src="@drawable/remove_button"
-            android:layout_margin="5dp"
-            android:layout_gravity="right"
-            android:visibility="gone" />
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="top|end"
+            android:layout_margin="6dp"
+            android:background="@drawable/content_action_button_background"
+            android:padding="6dp"
+            android:src="@drawable/ic_content_menu_remove"
+            android:visibility="gone"
+            app:tint="@color/settings_icon_tint" />
     </FrameLayout>
 
-    <View style="@style/HorizontalLine" />
-
     <Button
-        style="@style/ButtonNeutral"
         android:id="@+id/BTBrowse"
-        android:layout_width="130dp"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
+        style="@style/OtherSettingsInlineButton"
+        android:layout_marginTop="8dp"
         android:text="@string/browse" />
+
 </LinearLayout>

@@ -6,12 +6,16 @@
 
     <TextView
         android:id="@+id/TextView"
+        style="@style/OtherSettingsFieldLabel"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" />
 
-    <Spinner
+    <androidx.appcompat.widget.AppCompatSpinner
         android:id="@+id/Spinner"
-        style="@style/ComboBox"
+        style="@style/OtherSettingsSpinner"
         android:layout_width="match_parent"
-        android:entries="@array/wincomponent_entries" />
+        android:layout_marginTop="4dp"
+        android:entries="@array/wincomponent_entries"
+        android:spinnerMode="dropdown" />
 </LinearLayout>

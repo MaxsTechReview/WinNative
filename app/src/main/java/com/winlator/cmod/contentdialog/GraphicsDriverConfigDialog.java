@@ -5,8 +5,7 @@ import android.os.Build;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.Spinner;
 import android.widget.TextView;
 
@@ -45,8 +44,8 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
     private Spinner sBCnEmulation;
     private Spinner sBCnEmulationType;
     private Spinner sBCnEmulationCache;
-    private CheckBox cbSyncFrame;
-    private CheckBox cbDisablePresentWait;
+    private CompoundButton cbSyncFrame;
+    private CompoundButton cbDisablePresentWait;
 
     private static String selectedVulkanVersion = "1.3";
     private static String selectedVersion = "";
@@ -110,8 +109,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         } catch (Throwable e) {
             Log.w(TAG, "Error parsing gpu_cards.json", e);
         }
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, entries);
-        spinner.setAdapter(adapter);
+        AppUtils.setupThemedSpinner(spinner, context, entries);
     }
 
     public static HashMap<String, String> parseGraphicsDriverConfig(String graphicsDriverConfig) {
@@ -185,7 +183,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
     }
 
     private void initializeDialog(View anchor, String graphicsDriver, TextView graphicsDriverVersionView) {
-        setIcon(R.drawable.icon_settings);
+        setIcon(R.drawable.ic_drivers);
         setTitle(anchor.getContext().getString(R.string.graphics_driver_configuration));
 
         String graphicsDriverConfig = anchor.getTag() != null ? anchor.getTag().toString() : "";
@@ -200,8 +198,8 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         sBCnEmulation = findViewById(R.id.SGraphicsDriverBCnEmulation);
         sBCnEmulationType = findViewById(R.id.SGraphicsDriverBCnEmulationType);
         sBCnEmulationCache = findViewById(R.id.SGraphicsDriverBCnEmulationCache);
-        cbSyncFrame = findViewById(R.id.CBSyncFrame);
-        cbDisablePresentWait = findViewById(R.id.CBDisablePresentWait);
+        cbSyncFrame = (CompoundButton) findViewById(R.id.CBSyncFrame);
+        cbDisablePresentWait = (CompoundButton) findViewById(R.id.CBDisablePresentWait);
 
         // Verify all views found
         if (sVersion == null || sVulkanVersion == null || mscAvailableExtensions == null ||
@@ -428,8 +426,16 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
             wrapperVersions.add("System");
         }
 
-        ArrayAdapter<String> wrapperAdapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, wrapperVersions);
-        sVersion.setAdapter(wrapperAdapter);
+        AppUtils.setupThemedSpinner(sVersion, context, wrapperVersions);
+
+        // Apply themed adapters to all XML-entries spinners
+        applyThemedAdapter(context, sVulkanVersion, R.array.vulkan_version_entries);
+        applyThemedAdapter(context, sMaxDeviceMemory, R.array.device_memory_entries);
+        applyThemedAdapter(context, sPresentMode, R.array.present_mode_entries);
+        applyThemedAdapter(context, sResourceType, R.array.resource_type_entries);
+        applyThemedAdapter(context, sBCnEmulation, R.array.bcn_emulation_entries);
+        applyThemedAdapter(context, sBCnEmulationType, R.array.bcn_emulation_type_entries);
+        applyThemedAdapter(context, sBCnEmulationCache, R.array.bcn_emulation_cache_entries);
 
         Log.d(TAG, "Graphics driver: " + graphicsDriver);
         Log.d(TAG, "Initial version: " + initialVersion);
@@ -448,6 +454,11 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
 
         Log.d(TAG, "Spinner selected position: " + sVersion.getSelectedItemPosition());
         Log.d(TAG, "Spinner selected value: " + sVersion.getSelectedItem());
+    }
+
+    private static void applyThemedAdapter(Context context, Spinner spinner, int arrayResId) {
+        String[] items = context.getResources().getStringArray(arrayResId);
+        AppUtils.setupThemedSpinner(spinner, context, Arrays.asList(items));
     }
 
     private void setSpinnerSelectionWithFallback(Spinner spinner, String version, String graphicsDriver) {

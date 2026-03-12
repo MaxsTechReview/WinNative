@@ -4,27 +4,23 @@
     android:layout_width="0dp"
     android:layout_height="wrap_content"
     android:layout_weight="1"
-    android:padding="1dp"
-    android:background="@drawable/bordered_panel"
-    android:layout_margin="1dp">
+    android:layout_margin="3dp"
+    android:background="@drawable/env_vars_row_background"
+    android:gravity="center"
+    android:paddingTop="8dp"
+    android:paddingBottom="6dp">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:paddingTop="2dp"
-        android:paddingBottom="2dp">
+    <CheckBox
+        android:id="@+id/CheckBox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:buttonTint="@color/settings_accent" />
 
-        <CheckBox
-            android:id="@+id/CheckBox"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-
-        <TextView
-            android:id="@+id/TextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="12dp" />
-    </LinearLayout>
+    <TextView
+        android:id="@+id/TextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/inter"
+        android:textColor="@color/settings_text_primary"
+        android:textSize="11sp" />
 </LinearLayout>

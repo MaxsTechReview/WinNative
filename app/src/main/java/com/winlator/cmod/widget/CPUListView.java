@@ -40,12 +40,11 @@ public class CPUListView extends LinearLayout {
 
         for (int i = 0; i < numProcessors; i++) {
             View itemView = inflater.inflate(R.layout.cpu_list_item, this, false);
-            String tag = "CPU"+i;
+            String tag = "CPU" + i;
             CheckBox checkBox = itemView.findViewById(R.id.CheckBox);
             checkBox.setTag(tag);
             checkBox.setChecked(checkedCPUList == null || checkedCPUList.contains(String.valueOf(i)));
-
-            ((TextView)itemView.findViewById(R.id.TextView)).setText(tag);
+            ((TextView) itemView.findViewById(R.id.TextView)).setText(tag);
             addView(itemView);
         }
     }
@@ -63,7 +62,6 @@ public class CPUListView extends LinearLayout {
 
     public String getCheckedCPUListAsString() {
         String cpuList = "";
-
         for (int i = 0; i < numProcessors; i++) {
             CheckBox checkBox = findViewWithTag("CPU"+i);
             if (checkBox.isChecked()) cpuList += (!cpuList.isEmpty() ? "," : "")+i;

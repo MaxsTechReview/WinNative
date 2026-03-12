@@ -1,851 +1,1309 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    android:background="@color/window_background_color_dark"
+    android:orientation="vertical">
 
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:overScrollMode="ifContentScrolls"
+        android:scrollbarThumbVertical="@drawable/nav_scrollbar_thumb"
+        android:scrollbarSize="2dp"
+        android:scrollbarStyle="insideInset"
+        android:scrollbars="vertical">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:paddingLeft="16dp"
+            android:paddingTop="16dp"
+            android:paddingRight="16dp"
+            android:paddingBottom="16dp">
 
+            <!-- GENERAL -->
             <TextView
-                style="@style/TextView"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/name" />
-
-            <EditText
-                style="@style/EditText"
-                android:id="@+id/ETName"
-                android:inputType="textCapSentences"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                style="@style/OtherSettingsSectionLabel"
+                android:text="@string/general" />
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                style="@style/OtherSettingsCard"
+                android:orientation="vertical">
 
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <ImageView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:layout_marginEnd="14dp"
+                        android:background="@drawable/content_icon_surface"
+                        android:padding="10dp"
+                        android:src="@drawable/ic_containers"
+                        app:tint="@color/settings_icon_tint" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:text="@string/screen_size" />
+                        android:layout_weight="1"
+                        android:orientation="vertical">
 
-                    <Spinner
-                        style="@style/ComboBox"
-                        android:layout_width="match_parent"
+                        <TextView
+                            style="@style/OtherSettingsCardTitle"
+                            android:text="@string/name" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <EditText
+                    android:id="@+id/ETName"
+                    style="@style/OtherSettingsEditText"
+                    android:layout_marginTop="10dp"
+                    android:inputType="textCapSentences" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="@color/settings_outline" />
+
+                <TextView
+                    style="@style/OtherSettingsFieldLabel"
+                    android:text="@string/screen_size" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:orientation="horizontal">
+
+                    <androidx.appcompat.widget.AppCompatSpinner
                         android:id="@+id/SScreenSize"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
                         android:entries="@array/screen_size_entries"
                         android:focusable="true"
                         android:focusableInTouchMode="true"
                         android:clickable="true"
-                        android:spinnerMode="dialog" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/LLCustomScreenSize"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:visibility="gone">
+                        android:spinnerMode="dropdown" />
 
                     <LinearLayout
+                        android:id="@+id/LLCustomScreenSize"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/width" />
+                        android:layout_marginStart="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
 
                         <EditText
-                            style="@style/AppTheme"
-                            android:layout_width="78dp"
-                            android:layout_height="wrap_content"
                             android:id="@+id/ETScreenWidth"
+                            style="@style/OtherSettingsEditText"
+                            android:layout_width="68dp"
                             android:inputType="number" />
-                    </LinearLayout>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textStyle="bold"
-                        android:textSize="18dp"
-                        android:layout_gravity="bottom"
-                        android:layout_marginLeft="2dp"
-                        android:layout_marginRight="2dp"
-                        android:layout_marginBottom="4dp"
-                        android:text="x" />
-
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/height" />
+                            android:layout_marginLeft="4dp"
+                            android:layout_marginRight="4dp"
+                            android:fontFamily="@font/inter"
+                            android:text="x"
+                            android:textColor="@color/settings_text_secondary"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
 
                         <EditText
-                            style="@style/AppTheme"
-                            android:layout_width="78dp"
-                            android:layout_height="wrap_content"
                             android:id="@+id/ETScreenHeight"
+                            style="@style/OtherSettingsEditText"
+                            android:layout_width="68dp"
                             android:inputType="number" />
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
 
-
-            <LinearLayout
-                android:id="@+id/LLWineVersion"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/wine_version" />
-
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="match_parent"
-                    android:id="@+id/SWineVersion" />
-            </LinearLayout>
-
+            <!-- GRAPHICS -->
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                style="@style/OtherSettingsSectionLabel"
                 android:text="@string/graphics_driver" />
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
+                style="@style/OtherSettingsCard"
+                android:orientation="vertical">
 
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:id="@+id/SGraphicsDriver"
-                    android:entries="@array/graphics_driver_entries" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/content_asset_row_surface"
+                    android:orientation="vertical"
+                    android:paddingLeft="12dp"
+                    android:paddingTop="10dp"
+                    android:paddingRight="12dp"
+                    android:paddingBottom="10dp">
 
-                <ImageButton
-                    style="@style/ListMenuButton"
-                    android:id="@+id/BTGraphicsDriverConfig"
-                    android:src="@drawable/icon_settings"
-                    android:visibility="gone" />
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:text="@string/graphics_driver" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <androidx.appcompat.widget.AppCompatSpinner
+                            android:id="@+id/SGraphicsDriver"
+                            style="@style/OtherSettingsSpinner"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:entries="@array/graphics_driver_entries" />
+
+                        <ImageButton
+                            android:id="@+id/BTGraphicsDriverConfig"
+                            style="@style/OtherSettingsIconButton"
+                            android:layout_marginStart="10dp"
+                            android:src="@drawable/icon_settings"
+                            android:visibility="gone" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/content_asset_row_surface"
+                    android:orientation="vertical"
+                    android:paddingLeft="12dp"
+                    android:paddingTop="10dp"
+                    android:paddingRight="12dp"
+                    android:paddingBottom="10dp">
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:text="@string/dxwrapper" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <androidx.appcompat.widget.AppCompatSpinner
+                            android:id="@+id/SDXWrapper"
+                            style="@style/OtherSettingsSpinner"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:entries="@array/dxwrapper_entries" />
+
+                        <ImageButton
+                            android:id="@+id/BTDXWrapperConfig"
+                            style="@style/OtherSettingsIconButton"
+                            android:layout_marginStart="10dp"
+                            android:src="@drawable/icon_settings"
+                            android:visibility="gone" />
+
+                        <ImageView
+                            android:id="@+id/BTHelpDXWrapper"
+                            style="@style/HelpButton"
+                            android:layout_marginStart="10dp" />
+                    </LinearLayout>
+                </LinearLayout>
             </LinearLayout>
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
+            <!-- AUDIO & SOUND -->
+            <TextView
+                style="@style/OtherSettingsSectionLabel"
+                android:text="@string/sound" />
 
-                <TextView
-                    android:layout_width="wrap_content"
+            <LinearLayout
+                style="@style/OtherSettingsCard"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/dxwrapper" />
+                    android:background="@drawable/content_asset_row_surface"
+                    android:orientation="vertical"
+                    android:paddingLeft="12dp"
+                    android:paddingTop="10dp"
+                    android:paddingRight="12dp"
+                    android:paddingBottom="10dp">
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:text="@string/audio_driver" />
+
+                    <androidx.appcompat.widget.AppCompatSpinner
+                        android:id="@+id/SAudioDriver"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:entries="@array/audio_driver_entries" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/content_asset_row_surface"
+                    android:orientation="vertical"
+                    android:paddingLeft="12dp"
+                    android:paddingTop="10dp"
+                    android:paddingRight="12dp"
+                    android:paddingBottom="10dp">
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:text="@string/midi_sound_font" />
+
+                    <androidx.appcompat.widget.AppCompatSpinner
+                        android:id="@+id/SMIDISoundFont"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- EMULATION -->
+            <TextView
+                style="@style/OtherSettingsSectionLabel"
+                android:text="@string/advanced" />
+
+            <LinearLayout
+                style="@style/OtherSettingsCard"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:id="@+id/LLWineVersion"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/content_asset_row_surface"
+                    android:orientation="vertical"
+                    android:paddingLeft="10dp"
+                    android:paddingTop="8dp"
+                    android:paddingRight="10dp"
+                    android:paddingBottom="8dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:text="@string/wine_version" />
+
+                    <androidx.appcompat.widget.AppCompatSpinner
+                        android:id="@+id/SWineVersion"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/LLEmulator"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/content_asset_row_surface"
+                    android:orientation="vertical"
+                    android:paddingLeft="10dp"
+                    android:paddingTop="8dp"
+                    android:paddingRight="10dp"
+                    android:paddingBottom="8dp">
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:text="64bit Emulator" />
+
+                    <androidx.appcompat.widget.AppCompatSpinner
+                        android:id="@+id/SEmulator64"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:entries="@array/emulator_entries" />
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/dll_emulator" />
+
+                    <androidx.appcompat.widget.AppCompatSpinner
+                        android:id="@+id/SEmulator"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:entries="@array/emulator_entries" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:fontFamily="@font/inter"
+                        android:gravity="center"
+                        android:paddingHorizontal="8dp"
+                        android:text="@string/emulator_wine_hint"
+                        android:textColor="@color/settings_text_secondary"
+                        android:textSize="11sp"
+                        android:lineSpacingMultiplier="1.3" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/content_asset_row_surface"
+                    android:orientation="vertical"
+                    android:paddingLeft="12dp"
+                    android:paddingTop="10dp"
+                    android:paddingRight="12dp"
+                    android:paddingBottom="10dp">
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:text="@string/lc_all" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <EditText
+                            android:id="@+id/ETlcall"
+                            style="@style/OtherSettingsEditText"
+                            android:layout_width="0dp"
+                            android:layout_weight="1" />
+
+                        <ImageButton
+                            android:id="@+id/BTShowLCALL"
+                            style="@style/OtherSettingsIconButton"
+                            android:layout_marginStart="10dp"
+                            android:src="@drawable/icon_more_vert" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- DISPLAY OPTIONS -->
+            <TextView
+                style="@style/OtherSettingsSectionLabel"
+                android:text="@string/xserver" />
+
+            <LinearLayout
+                style="@style/OtherSettingsCard"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
                 <ImageView
-                    android:id="@+id/BTHelpDXWrapper"
-                    style="@style/HelpButton" />
-            </LinearLayout>
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_marginEnd="12dp"
+                    android:background="@drawable/content_icon_surface"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_x11_icon"
+                    app:tint="@color/settings_icon_tint" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <Spinner
-                    android:id="@+id/SDXWrapper"
-                    style="@style/ComboBox"
+                <TextView
+                    style="@style/OtherSettingsCardTitle"
                     android:layout_width="0dp"
                     android:layout_weight="1"
-                    android:entries="@array/dxwrapper_entries" />
+                    android:text="@string/show_fps" />
 
-                <ImageButton
-                    style="@style/ListMenuButton"
-                    android:id="@+id/BTDXWrapperConfig"
-                    android:src="@drawable/icon_settings"
-                    android:visibility="gone" />
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/audio_driver" />
-
-            <Spinner
-                style="@style/ComboBox"
-                android:layout_width="match_parent"
-                android:id="@+id/SAudioDriver"
-                android:entries="@array/audio_driver_entries" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:id="@+id/LLEmulator">
-                <TextView
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/CBShowFPS"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="64bit Emulator" />
-
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="match_parent"
-                    android:id="@+id/SEmulator64"
-                    android:entries="@array/emulator_entries"/>
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/dll_emulator" />
-
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="match_parent"
-                    android:id="@+id/SEmulator"
-                    android:entries="@array/emulator_entries"/>
+                    android:layout_marginStart="8dp"
+                    android:background="@android:color/transparent"
+                    app:thumbTint="@color/settings_accent"
+                    app:trackTintMode="src_in" />
             </LinearLayout>
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/midi_sound_font" />
-
-            <Spinner
-                style="@style/ComboBox"
-                android:layout_width="match_parent"
-                android:id="@+id/SMIDISoundFont" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/lc_all" />
-
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                style="@style/OtherSettingsCard"
+                android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <EditText
-                    style="@style/AppTheme"
-                    android:layout_gravity="center"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:id="@+id/ETlcall" />
+                <ImageView
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_marginEnd="12dp"
+                    android:background="@drawable/content_icon_surface"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_x11_icon"
+                    app:tint="@color/settings_icon_tint" />
 
-                <ImageButton
-                    style="@style/ListMenuButton"
-                    android:id="@+id/BTShowLCALL"
-                    android:layout_gravity="center"
-                    android:src="@drawable/icon_menu" />
+                <TextView
+                    style="@style/OtherSettingsCardTitle"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:text="@string/fullscreen_stretched" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/CBFullscreenStretched"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@android:color/transparent"
+                    app:thumbTint="@color/settings_accent"
+                    app:trackTintMode="src_in" />
             </LinearLayout>
 
-            <CheckBox
-                android:id="@+id/CBShowFPS"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/show_fps"
-                android:layout_marginTop="8dp" />
+            <!-- ======================= -->
+            <!-- EXPANDABLE SECTIONS     -->
+            <!-- ======================= -->
 
-            <CheckBox
-                android:id="@+id/CBFullscreenStretched"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/fullscreen_stretched"
-                android:layout_marginTop="8dp" />
+            <TextView
+                style="@style/OtherSettingsSectionLabel"
+                android:text="@string/container_config_label" />
 
-            <com.google.android.material.tabs.TabLayout
-                android:id="@+id/TabLayout"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="4dp"
-                style="@style/TabLayoutBackground"
-                app:tabGravity="center"
-                app:tabMode="auto">
-
-                <com.google.android.material.tabs.TabItem
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/wine_configuration" />
-
-                <com.google.android.material.tabs.TabItem
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/win_components" />
-
-                <com.google.android.material.tabs.TabItem
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/environment_variables" />
-
-                <com.google.android.material.tabs.TabItem
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/drives" />
-
-                <com.google.android.material.tabs.TabItem
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/advanced" />
-
-                <com.google.android.material.tabs.TabItem
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/xr" />
-            </com.google.android.material.tabs.TabLayout>
-
+            <!-- Wine Configuration Section -->
             <LinearLayout
-                android:id="@+id/LLTabWineConfiguration"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone">
+                style="@style/ExpandableSectionCard">
 
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp">
+                <LinearLayout
+                    android:id="@+id/LLHeaderWineConfiguration"
+                    style="@style/ExpandableSectionHeader">
 
-                    <LinearLayout style="@style/FieldSet">
+                    <ImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_marginEnd="12dp"
+                        android:background="@drawable/content_icon_surface"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_containers"
+                        app:tint="@color/settings_icon_tint" />
+
+                    <TextView
+                        style="@style/OtherSettingsCardTitle"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:text="@string/wine_configuration" />
+
+                    <FrameLayout
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:background="@drawable/content_icon_surface">
+
+                        <ImageView
+                            android:id="@+id/IVChevronWineConfiguration"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:padding="7dp"
+                            android:scaleType="centerInside"
+                            android:src="@drawable/ic_content_chevron"
+                            app:tint="@color/settings_icon_tint" />
+                    </FrameLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/LLTabWineConfiguration"
+                    style="@style/ExpandableSectionContent">
+
+                    <!-- Desktop -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/content_asset_row_surface"
+                        android:orientation="vertical"
+                        android:paddingLeft="10dp"
+                        android:paddingTop="8dp"
+                        android:paddingRight="10dp"
+                        android:paddingBottom="8dp">
+
                         <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                            style="@style/OtherSettingsFieldLabel"
                             android:text="@string/theme" />
 
-                        <Spinner
-                            style="@style/ComboBox"
+                        <androidx.appcompat.widget.AppCompatSpinner
                             android:id="@+id/SDesktopTheme"
+                            style="@style/OtherSettingsSpinner"
                             android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
                             android:entries="@array/desktop_theme_entries" />
 
                         <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                            style="@style/OtherSettingsFieldLabel"
+                            android:layout_marginTop="8dp"
                             android:text="@string/background" />
 
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <Spinner
+                            <androidx.appcompat.widget.AppCompatSpinner
                                 android:id="@+id/SDesktopBackgroundType"
-                                style="@style/ComboBox"
+                                style="@style/OtherSettingsSpinner"
                                 android:layout_width="0dp"
+                                android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:entries="@array/desktop_background_type_entries" />
 
                             <com.winlator.cmod.widget.ColorPickerView
                                 android:id="@+id/CPVDesktopBackgroundColor"
-                                android:layout_width="84dp"
-                                android:layout_height="wrap_content"
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:layout_marginStart="8dp"
                                 android:visibility="gone" />
 
                             <com.winlator.cmod.widget.ImagePickerView
                                 android:id="@+id/IPVDesktopBackgroundImage"
-                                android:layout_width="84dp"
-                                android:layout_height="wrap_content"
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:layout_marginStart="8dp"
                                 android:visibility="gone" />
                         </LinearLayout>
                     </LinearLayout>
 
-                    <TextView
-                        style="@style/FieldSetLabel"
-                        android:id="@+id/TVDesktop"
-                        android:text="@string/desktop" />
-                </FrameLayout>
-
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
-
-                    <LinearLayout style="@style/FieldSet">
+                    <!-- Mouse Warp -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/content_asset_row_surface"
+                        android:orientation="vertical"
+                        android:paddingLeft="10dp"
+                        android:paddingTop="8dp"
+                        android:paddingRight="10dp"
+                        android:paddingBottom="8dp">
 
                         <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                            style="@style/OtherSettingsFieldLabel"
                             android:text="@string/mouse_warp_override" />
 
-                        <Spinner
-                            style="@style/ComboBox"
+                        <androidx.appcompat.widget.AppCompatSpinner
                             android:id="@+id/SMouseWarpOverride"
-                            android:layout_width="match_parent" />
+                            style="@style/OtherSettingsSpinner"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp" />
                     </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/TVDirectInput"
-                        style="@style/FieldSetLabel"
-                        android:text="DirectInput" />
-                </FrameLayout>
+                </LinearLayout>
             </LinearLayout>
 
+            <!-- Win Components Section -->
             <LinearLayout
-                android:id="@+id/LLTabWinComponents"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone">
-
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp">
-
-                    <LinearLayout
-                        style="@style/FieldSet"
-                        android:id="@+id/LLWinComponentsDirectX" />
-
-                    <TextView
-                        android:id="@+id/TVDirectX"
-                        style="@style/FieldSetLabel"
-                        android:text="@string/directx" />
-                </FrameLayout>
-
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp">
-
-                    <LinearLayout
-                        style="@style/FieldSet"
-                        android:id="@+id/LLWinComponentsGeneral" />
-
-                    <TextView
-                        android:id="@+id/TVGeneral"
-                        style="@style/FieldSetLabel"
-                        android:text="@string/general" />
-                </FrameLayout>
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/LLTabEnvVars"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone">
-
-                <com.winlator.cmod.widget.EnvVarsView
-                    android:id="@+id/EnvVarsView"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:paddingLeft="16dp"
-                    android:paddingRight="16dp"/>
-
-                <View style="@style/HorizontalLine" />
-
-                <Button
-                    style="@style/ButtonNeutral"
-                    android:id="@+id/BTAddEnvVar"
-                    android:layout_width="160dp"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_horizontal"
-                    android:text="@string/add" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/LLTabDrives"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone">
+                style="@style/ExpandableSectionCard">
 
                 <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingLeft="20dp"
-                    android:paddingRight="20dp"
-                    android:layout_marginBottom="4dp">
+                    android:id="@+id/LLHeaderWinComponents"
+                    style="@style/ExpandableSectionHeader">
+
+                    <ImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_marginEnd="12dp"
+                        android:background="@drawable/content_icon_surface"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_components"
+                        app:tint="@color/settings_icon_tint" />
 
                     <TextView
-                        android:layout_width="100dp"
-                        android:layout_height="wrap_content"
-                        android:text="@string/letter" />
+                        style="@style/OtherSettingsCardTitle"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:text="@string/win_components" />
 
-                    <TextView
-                        android:layout_width="100dp"
-                        android:layout_height="wrap_content"
-                        android:text="@string/target_path" />
+                    <FrameLayout
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:background="@drawable/content_icon_surface">
+
+                        <ImageView
+                            android:id="@+id/IVChevronWinComponents"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:padding="7dp"
+                            android:scaleType="centerInside"
+                            android:src="@drawable/ic_content_chevron"
+                            app:tint="@color/settings_icon_tint" />
+                    </FrameLayout>
                 </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/LLTabWinComponents"
+                    style="@style/ExpandableSectionContent">
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:text="@string/directx" />
+
+                    <LinearLayout
+                        android:id="@+id/LLWinComponentsDirectX"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:background="@drawable/content_asset_row_surface"
+                        android:orientation="vertical"
+                        android:paddingLeft="10dp"
+                        android:paddingTop="8dp"
+                        android:paddingRight="10dp"
+                        android:paddingBottom="8dp" />
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:layout_marginTop="12dp"
+                        android:text="@string/general" />
+
+                    <LinearLayout
+                        android:id="@+id/LLWinComponentsGeneral"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:background="@drawable/content_asset_row_surface"
+                        android:orientation="vertical"
+                        android:paddingLeft="10dp"
+                        android:paddingTop="8dp"
+                        android:paddingRight="10dp"
+                        android:paddingBottom="8dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Environment Variables Section -->
+            <LinearLayout
+                style="@style/ExpandableSectionCard">
+
+                <LinearLayout
+                    android:id="@+id/LLHeaderEnvVars"
+                    style="@style/ExpandableSectionHeader">
+
+                    <ImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_marginEnd="12dp"
+                        android:background="@drawable/content_icon_surface"
+                        android:padding="8dp"
+                        android:src="@drawable/icon_settings"
+                        app:tint="@color/settings_icon_tint" />
+
+                    <TextView
+                        style="@style/OtherSettingsCardTitle"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:text="@string/environment_variables" />
+
+                    <FrameLayout
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:background="@drawable/content_icon_surface">
+
+                        <ImageView
+                            android:id="@+id/IVChevronEnvVars"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:padding="7dp"
+                            android:scaleType="centerInside"
+                            android:src="@drawable/ic_content_chevron"
+                            app:tint="@color/settings_icon_tint" />
+                    </FrameLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/LLTabEnvVars"
+                    style="@style/ExpandableSectionContent">
+
+                    <com.winlator.cmod.widget.EnvVarsView
+                        android:id="@+id/EnvVarsView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+
+                    <Button
+                        android:id="@+id/BTAddEnvVar"
+                        style="@style/OtherSettingsInlineButton"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="10dp"
+                        android:text="@string/add" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Drives Section -->
+            <LinearLayout
+                style="@style/ExpandableSectionCard">
+
+                <LinearLayout
+                    android:id="@+id/LLHeaderDrives"
+                    style="@style/ExpandableSectionHeader">
+
+                    <ImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_marginEnd="12dp"
+                        android:background="@drawable/content_icon_surface"
+                        android:padding="8dp"
+                        android:src="@drawable/icon_settings"
+                        app:tint="@color/settings_icon_tint" />
+
+                    <TextView
+                        style="@style/OtherSettingsCardTitle"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:text="@string/drives" />
+
+                    <FrameLayout
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:background="@drawable/content_icon_surface">
+
+                        <ImageView
+                            android:id="@+id/IVChevronDrives"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:padding="7dp"
+                            android:scaleType="centerInside"
+                            android:src="@drawable/ic_content_chevron"
+                            app:tint="@color/settings_icon_tint" />
+                    </FrameLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/LLTabDrives"
+                    style="@style/ExpandableSectionContent">
 
                 <LinearLayout
                     android:id="@+id/LLDrives"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:paddingLeft="16dp"
-                    android:paddingRight="16dp"/>
+                    android:orientation="vertical" />
 
                 <TextView
                     android:id="@+id/TVDrivesEmptyText"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/inter"
                     android:gravity="center"
-                    android:text="@string/no_items_to_display"
                     android:padding="16dp"
+                    android:text="@string/no_items_to_display"
+                    android:textColor="@color/settings_text_secondary"
+                    android:textSize="13sp"
                     android:visibility="gone" />
 
-                <View style="@style/HorizontalLine" />
-
                 <Button
-                    style="@style/ButtonNeutral"
                     android:id="@+id/BTAddDrive"
-                    android:layout_width="160dp"
-                    android:layout_height="wrap_content"
+                    style="@style/OtherSettingsInlineButton"
                     android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="10dp"
                     android:text="@string/add" />
+                </LinearLayout>
             </LinearLayout>
 
+            <!-- Advanced Section -->
             <LinearLayout
-                android:id="@+id/LLTabAdvanced"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone">
+                style="@style/ExpandableSectionCard">
 
-                <FrameLayout
+                <LinearLayout
+                    android:id="@+id/LLHeaderAdvanced"
+                    style="@style/ExpandableSectionHeader">
+
+                    <ImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_marginEnd="12dp"
+                        android:background="@drawable/content_icon_surface"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_components"
+                        app:tint="@color/settings_icon_tint" />
+
+                    <TextView
+                        style="@style/OtherSettingsCardTitle"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:text="@string/advanced" />
+
+                    <FrameLayout
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:background="@drawable/content_icon_surface">
+
+                        <ImageView
+                            android:id="@+id/IVChevronAdvanced"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:padding="7dp"
+                            android:scaleType="centerInside"
+                            android:src="@drawable/ic_content_chevron"
+                            app:tint="@color/settings_icon_tint" />
+                    </FrameLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/LLTabAdvanced"
+                    style="@style/ExpandableSectionContent">
+
+                <!-- Box64 -->
+                <LinearLayout
+                    android:id="@+id/box64Frame"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:id="@+id/box64Frame">
+                    android:orientation="vertical">
 
-                    <LinearLayout style="@style/FieldSet">
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:text="@string/box64" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:background="@drawable/content_asset_row_surface"
+                        android:orientation="vertical"
+                        android:paddingLeft="10dp"
+                        android:paddingTop="8dp"
+                        android:paddingRight="10dp"
+                        android:paddingBottom="8dp">
+
                         <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                            style="@style/OtherSettingsFieldLabel"
                             android:text="@string/box64_version" />
 
-                        <Spinner
-                            style="@style/ComboBox"
+                        <androidx.appcompat.widget.AppCompatSpinner
                             android:id="@+id/SBox64Version"
+                            style="@style/OtherSettingsSpinner"
                             android:layout_width="match_parent"
-                            android:spinnerMode="dialog" />
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:spinnerMode="dropdown" />
 
                         <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                            style="@style/OtherSettingsFieldLabel"
+                            android:layout_marginTop="8dp"
                             android:text="@string/box64_preset" />
 
-                        <Spinner
-                            style="@style/ComboBox"
+                        <androidx.appcompat.widget.AppCompatSpinner
                             android:id="@+id/SBox64Preset"
+                            style="@style/OtherSettingsSpinner"
                             android:layout_width="match_parent"
-                            android:spinnerMode="dialog" />
-
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:spinnerMode="dropdown" />
                     </LinearLayout>
+                </LinearLayout>
 
-                    <TextView
-                        android:id="@+id/TVBox64"
-                        style="@style/FieldSetLabel"
-                        android:text="@string/box64" />
-                </FrameLayout>
-                
-                <FrameLayout
+                <!-- FEX-Core -->
+                <LinearLayout
+                    android:id="@+id/fexcoreFrame"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:id="@+id/fexcoreFrame"
-                    android:layout_marginTop="8dp">
-                
-                    <LinearLayout style="@style/FieldSet">
+                    android:layout_marginTop="12dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:text="@string/fexcore_config" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:background="@drawable/content_asset_row_surface"
+                        android:orientation="vertical"
+                        android:paddingLeft="10dp"
+                        android:paddingTop="8dp"
+                        android:paddingRight="10dp"
+                        android:paddingBottom="8dp">
+
                         <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                            style="@style/OtherSettingsFieldLabel"
                             android:text="@string/fexcore_version" />
 
-                        <Spinner
-                            style="@style/ComboBox"
+                        <androidx.appcompat.widget.AppCompatSpinner
                             android:id="@+id/SFEXCoreVersion"
-                            android:layout_width="match_parent" />
+                            style="@style/OtherSettingsSpinner"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp" />
 
                         <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                            style="@style/OtherSettingsFieldLabel"
+                            android:layout_marginTop="8dp"
                             android:text="@string/fexcore_preset" />
 
-                        <Spinner
-                            style="@style/ComboBox"
+                        <androidx.appcompat.widget.AppCompatSpinner
                             android:id="@+id/SFEXCorePreset"
+                            style="@style/OtherSettingsSpinner"
                             android:layout_width="match_parent"
-                            android:spinnerMode="dialog" />
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:spinnerMode="dropdown" />
                     </LinearLayout>
-                    
-                    <TextView
-                        android:id="@+id/TVFEXCore"
-                        style="@style/FieldSetLabel"
-                        android:text="@string/fexcore_config" />
-                    
-                </FrameLayout>
-                
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp">
+                </LinearLayout>
 
-                    <LinearLayout style="@style/FieldSet">
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/startup_selection" />
-
-                        <Spinner
-                            style="@style/ComboBox"
-                            android:layout_width="match_parent"
-                            android:id="@+id/SStartupSelection"
-                            android:entries="@array/startup_selection_entries" />
-
-                    </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/TVSystem"
-                        style="@style/FieldSetLabel"
-                        android:text="@string/system" />
-                </FrameLayout>
-
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp">
-
-                    <LinearLayout style="@style/FieldSet">
-
-                        <LinearLayout
-                            android:id="@+id/LLDinputMapperType"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/directinput_mapper_type" />
-
-                            <Spinner
-                                style="@style/ComboBox"
-                                android:id="@+id/SDInputType"
-                                android:layout_width="match_parent"
-                                android:entries="@array/dinput_mapper_type_entries" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:layout_marginTop="8dp">
-
-                            <CheckBox
-                                android:id="@+id/CBEnableXInput"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="center"
-                                android:text="@string/enable_xinput_for_wine_game" />
-
-                            <ImageView
-                                android:id="@+id/BTXInputHelp"
-                                style="@style/HelpButton"
-                                android:layout_gravity="center" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:layout_marginTop="8dp">
-
-                            <CheckBox
-                                android:id="@+id/CBEnableDInput"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/enable_dinput_for_wine_game" />
-
-
-
-                            <ImageView
-                                android:id="@+id/BTDInputHelp"
-                                style="@style/HelpButton"
-                                android:layout_gravity="center" />
-                        </LinearLayout>
-
-                        <CheckBox
-                            android:id="@+id/CBSdl2Toggle"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Enable SDL2 Compatibility" />
-
-
-                    </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/TVGameController"
-                        style="@style/FieldSetLabel"
-                        android:text="@string/game_controller" />
-                </FrameLayout>
-
+                <!-- System -->
                 <TextView
-                    android:layout_width="wrap_content"
+                    style="@style/OtherSettingsFieldLabel"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/system" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/processor_affinity"
-                    android:layout_marginTop="8dp" />
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/content_asset_row_surface"
+                    android:orientation="vertical"
+                    android:paddingLeft="10dp"
+                    android:paddingTop="8dp"
+                    android:paddingRight="10dp"
+                    android:paddingBottom="8dp">
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:text="@string/startup_selection" />
+
+                    <androidx.appcompat.widget.AppCompatSpinner
+                        android:id="@+id/SStartupSelection"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:entries="@array/startup_selection_entries" />
+                </LinearLayout>
+
+                <!-- Game Controller -->
+                <TextView
+                    style="@style/OtherSettingsFieldLabel"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/game_controller" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/content_asset_row_surface"
+                    android:orientation="vertical"
+                    android:paddingLeft="10dp"
+                    android:paddingTop="8dp"
+                    android:paddingRight="10dp"
+                    android:paddingBottom="8dp">
+
+                    <LinearLayout
+                        android:id="@+id/LLDinputMapperType"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/OtherSettingsFieldLabel"
+                            android:text="@string/directinput_mapper_type" />
+
+                        <androidx.appcompat.widget.AppCompatSpinner
+                            android:id="@+id/SDInputType"
+                            style="@style/OtherSettingsSpinner"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:entries="@array/dinput_mapper_type_entries" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/CBEnableXInput"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:background="@android:color/transparent"
+                            android:fontFamily="@font/inter"
+                            android:text="@string/enable_xinput_for_wine_game"
+                            android:textColor="@color/settings_text_primary"
+                            android:textSize="13sp"
+                            app:thumbTint="@color/settings_accent"
+                            app:trackTintMode="src_in" />
+
+                        <ImageView
+                            android:id="@+id/BTXInputHelp"
+                            style="@style/HelpButton"
+                            android:layout_gravity="center" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/CBEnableDInput"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:background="@android:color/transparent"
+                            android:fontFamily="@font/inter"
+                            android:text="@string/enable_dinput_for_wine_game"
+                            android:textColor="@color/settings_text_primary"
+                            android:textSize="13sp"
+                            app:thumbTint="@color/settings_accent"
+                            app:trackTintMode="src_in" />
+
+                        <ImageView
+                            android:id="@+id/BTDInputHelp"
+                            style="@style/HelpButton"
+                            android:layout_gravity="center" />
+                    </LinearLayout>
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/CBSdl2Toggle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:background="@android:color/transparent"
+                        android:fontFamily="@font/inter"
+                        android:text="Enable SDL2 Compatibility"
+                        android:textColor="@color/settings_text_primary"
+                        android:textSize="13sp"
+                        app:thumbTint="@color/settings_accent"
+                        app:trackTintMode="src_in" />
+                </LinearLayout>
+
+                <!-- Processor Affinity -->
+                <TextView
+                    style="@style/OtherSettingsFieldLabel"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/processor_affinity" />
 
                 <com.winlator.cmod.widget.CPUListView
                     android:id="@+id/CPUListView"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center_horizontal"
-                    android:layout_marginTop="4dp" />
+                    android:layout_marginTop="6dp"
+                    android:gravity="center_horizontal" />
 
                 <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/processor_affinity_32_bit_apps"
-                    android:layout_marginTop="8dp" />
+                    style="@style/OtherSettingsFieldLabel"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/processor_affinity_32_bit_apps" />
 
                 <com.winlator.cmod.widget.CPUListView
                     android:id="@+id/CPUListViewWoW64"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center_horizontal"
-                    android:layout_marginTop="4dp" />
+                    android:layout_marginTop="6dp"
+                    android:gravity="center_horizontal" />
+                </LinearLayout>
             </LinearLayout>
 
+            <!-- XR Section -->
             <LinearLayout
-                android:id="@+id/LLTabXR"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone">
+                style="@style/ExpandableSectionCard">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/primary_controller" />
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="match_parent"
-                    android:id="@+id/SPrimaryController"
-                    android:entries="@array/xr_controllers" />
+                <LinearLayout
+                    android:id="@+id/LLHeaderXR"
+                    style="@style/ExpandableSectionHeader">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/button_a" />
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="match_parent"
-                    android:id="@+id/SButtonA" />
+                    <ImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_marginEnd="12dp"
+                        android:background="@drawable/content_icon_surface"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_x11_icon"
+                        app:tint="@color/settings_icon_tint" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/button_b" />
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="match_parent"
-                    android:id="@+id/SButtonB" />
+                    <TextView
+                        style="@style/OtherSettingsCardTitle"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:text="@string/xr" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/button_x" />
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="match_parent"
-                    android:id="@+id/SButtonX" />
+                    <FrameLayout
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:background="@drawable/content_icon_surface">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/button_y" />
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="match_parent"
-                    android:id="@+id/SButtonY" />
+                        <ImageView
+                            android:id="@+id/IVChevronXR"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:padding="7dp"
+                            android:scaleType="centerInside"
+                            android:src="@drawable/ic_content_chevron"
+                            app:tint="@color/settings_icon_tint" />
+                    </FrameLayout>
+                </LinearLayout>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/button_grip" />
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="match_parent"
-                    android:id="@+id/SButtonGrip" />
+                <LinearLayout
+                    android:id="@+id/LLTabXR"
+                    style="@style/ExpandableSectionContent">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/button_trigger" />
-                <Spinner
-                    style="@style/ComboBox"
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:id="@+id/SButtonTrigger" />
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/content_asset_row_surface"
+                    android:orientation="vertical"
+                    android:paddingLeft="10dp"
+                    android:paddingTop="8dp"
+                    android:paddingRight="10dp"
+                    android:paddingBottom="8dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/thumbstick_left" />
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="match_parent"
-                    android:id="@+id/SThumbstickLeft" />
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:text="@string/primary_controller" />
+                    <androidx.appcompat.widget.AppCompatSpinner
+                        android:id="@+id/SPrimaryController"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:entries="@array/xr_controllers" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/thumbstick_right" />
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="match_parent"
-                    android:id="@+id/SThumbstickRight" />
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/button_a" />
+                    <androidx.appcompat.widget.AppCompatSpinner
+                        android:id="@+id/SButtonA"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/thumbstick_up" />
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="match_parent"
-                    android:id="@+id/SThumbstickUp" />
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/button_b" />
+                    <androidx.appcompat.widget.AppCompatSpinner
+                        android:id="@+id/SButtonB"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/thumbstick_down" />
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="match_parent"
-                    android:id="@+id/SThumbstickDown" />
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/button_x" />
+                    <androidx.appcompat.widget.AppCompatSpinner
+                        android:id="@+id/SButtonX"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp" />
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/button_y" />
+                    <androidx.appcompat.widget.AppCompatSpinner
+                        android:id="@+id/SButtonY"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp" />
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/button_grip" />
+                    <androidx.appcompat.widget.AppCompatSpinner
+                        android:id="@+id/SButtonGrip"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp" />
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/button_trigger" />
+                    <androidx.appcompat.widget.AppCompatSpinner
+                        android:id="@+id/SButtonTrigger"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp" />
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/thumbstick_left" />
+                    <androidx.appcompat.widget.AppCompatSpinner
+                        android:id="@+id/SThumbstickLeft"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp" />
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/thumbstick_right" />
+                    <androidx.appcompat.widget.AppCompatSpinner
+                        android:id="@+id/SThumbstickRight"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp" />
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/thumbstick_up" />
+                    <androidx.appcompat.widget.AppCompatSpinner
+                        android:id="@+id/SThumbstickUp"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp" />
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/thumbstick_down" />
+                    <androidx.appcompat.widget.AppCompatSpinner
+                        android:id="@+id/SThumbstickDown"
+                        style="@style/OtherSettingsSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+                </LinearLayout>
             </LinearLayout>
+
+            <!-- Save Button -->
+            <Button
+                android:id="@+id/BTConfirm"
+                android:layout_width="200dp"
+                android:layout_height="46dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="14dp"
+                android:layout_marginBottom="32dp"
+                android:background="@drawable/confirm_button_background"
+                android:elevation="4dp"
+                android:fontFamily="@font/inter"
+                android:letterSpacing="0.04"
+                android:stateListAnimator="@null"
+                android:text="@string/confirm"
+                android:textAllCaps="true"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
         </LinearLayout>
     </ScrollView>
 
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/BTConfirm"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="right|bottom"
-        android:tint="#ffffff"
-        android:src="@drawable/icon_confirm"
-        android:layout_margin="16dp" />
-</FrameLayout>
+</LinearLayout>

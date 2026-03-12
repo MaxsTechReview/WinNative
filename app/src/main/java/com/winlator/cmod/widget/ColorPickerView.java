@@ -42,7 +42,7 @@ public class ColorPickerView extends View implements View.OnClickListener {
 
         colorFrame = BitmapFactory.decodeResource(context.getResources(), R.drawable.color_frame);
 
-        setBackgroundResource(R.drawable.combo_box);
+        setBackgroundResource(R.drawable.content_action_button_background);
         setClickable(true);
         setFocusable(true);
         setOnClickListener(this);
@@ -70,7 +70,7 @@ public class ColorPickerView extends View implements View.OnClickListener {
         if (width == 0 || height == 0) return;
 
         float rectSize = height - UnitUtils.dpToPx(12);
-        float startX = (width - rectSize) * 0.5f - UnitUtils.dpToPx(16);
+        float startX = (width - rectSize) * 0.5f;
         float startY = (height - rectSize) * 0.5f;
 
         Paint paint = new Paint();
