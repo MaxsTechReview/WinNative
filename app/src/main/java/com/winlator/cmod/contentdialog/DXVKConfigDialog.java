@@ -4,9 +4,8 @@ import android.content.Context;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
+import android.widget.CompoundButton;
 import android.widget.Spinner;
-import android.widget.ToggleButton;
 
 import com.winlator.cmod.R;
 import com.winlator.cmod.container.Container;
@@ -32,9 +31,9 @@ public class DXVKConfigDialog extends ContentDialog {
     public static final int DXVK_TYPE_NONE = 0;
     public static final int DXVK_TYPE_ASYNC = 1;
     public static final int DXVK_TYPE_GPLASYNC = 2;
-    private final ToggleButton swAsync;
+    private final CompoundButton swAsync;
     private boolean isARM64EC = false;
-    private final ToggleButton swAsyncCache;
+    private final CompoundButton swAsyncCache;
     private final View llAsync;
     private final View llAsyncCache;
     private final Context context;
@@ -84,8 +83,8 @@ public class DXVKConfigDialog extends ContentDialog {
         final Spinner sFramerate = findViewById(R.id.SFramerate);
         final Spinner sVKD3DFeatureLevel = findViewById(R.id.SVKD3DFeatureLevel);
         final Spinner sDDRAWrapper = findViewById(R.id.SDDRAWrapper);
-        swAsync = findViewById(R.id.SWAsync);
-        swAsyncCache = findViewById(R.id.SWAsyncCache);
+        swAsync = (CompoundButton) findViewById(R.id.SWAsync);
+        swAsyncCache = (CompoundButton) findViewById(R.id.SWAsyncCache);
         llAsync = findViewById(R.id.LLAsync);
         llAsyncCache = findViewById(R.id.LLAsyncCache);
 
@@ -96,9 +95,9 @@ public class DXVKConfigDialog extends ContentDialog {
         loadDxvkVersionSpinner(contentsManager, sDXVKVersion, isARM64EC);
         loadVkd3dVersionSpinner(contentsManager, sVKD3DVersion);
 
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_item, VKD3D_FEATURE_LEVEL);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        sVKD3DFeatureLevel.setAdapter(adapter);
+        AppUtils.setupThemedSpinner(sVKD3DFeatureLevel, context, Arrays.asList(VKD3D_FEATURE_LEVEL));
+        AppUtils.setupThemedSpinner(sDDRAWrapper, context, Arrays.asList(context.getResources().getStringArray(R.array.ddrawrapper_entries)));
+        AppUtils.setupThemedSpinner(sFramerate, context, Arrays.asList(context.getResources().getStringArray(R.array.dxvk_framerate_entries)));
 
         setDXVKSpinner(sDXVKVersion, config, contentsManager, isARM64EC);
         AppUtils.setSpinnerSelectionFromIdentifier(sFramerate, config.get("framerate"));
@@ -140,8 +139,7 @@ public class DXVKConfigDialog extends ContentDialog {
                         }
                     }
 
-                    ArrayAdapter<String> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, filteredVersions);
-                    sDXVKVersion.setAdapter(adapter);
+                    AppUtils.setupThemedSpinner(sDXVKVersion, context, filteredVersions);
 
                     Integer curMajor = tryGetMajor(currentDXVKVersion);
                     AppUtils.setSpinnerSelectionFromIdentifier(
@@ -215,8 +213,7 @@ public class DXVKConfigDialog extends ContentDialog {
                 }
             }
 
-            ArrayAdapter<String> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, filteredVersions);
-            sDXVKVersion.setAdapter(adapter);
+            AppUtils.setupThemedSpinner(sDXVKVersion, context, filteredVersions);
 
             Integer curMajor = tryGetMajor(currentDXVKVersion);
             AppUtils.setSpinnerSelectionFromIdentifier(
@@ -276,7 +273,7 @@ public class DXVKConfigDialog extends ContentDialog {
                 itemList.remove(i);
         }
 
-        spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, itemList));
+        AppUtils.setupThemedSpinner(spinner, context, itemList);
         dxvkVersions = new ArrayList<>(itemList);
     }
 
@@ -296,7 +293,6 @@ public class DXVKConfigDialog extends ContentDialog {
             itemList.add(new VKD3DVersionItem(displayName, versionCode));
         }
 
-        ArrayAdapter<VKD3DVersionItem> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, itemList);
-        spinner.setAdapter(adapter);
+        AppUtils.setupThemedSpinner(spinner, context, itemList);
     }
 }

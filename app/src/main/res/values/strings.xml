@@ -617,8 +617,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="driver_manager_header">Driver Manager</string>
     <string name="github_repos">GitHub Repos</string>
     <string name="install_drivers">Install Drivers</string>
-    <string name="install_drivers_message">You will now be prompted to pick a driver. These must be the same ones used in other emulators like Yuzu, Dolphin, Citra, etc.</string>
-    <string name="install_drivers_warning">Be warned that because of limitations of current PC emulators, Qualcomm Drivers may not work on chipsets below 8 Gen2 without getting patched.</string>
     <string name="driver_installed_success">Driver installed successfully.</string>
     <string name="driver_install_failed">Failed to install driver.</string>
     <string name="do_you_want_to_remove_this_driver">Do you want to remove this driver?</string>
@@ -633,6 +631,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="github_repo_unknown_size">Unknown size</string>
     <string name="enable_vulkan_api_dump">Enable dumping of Vulkan api calls to file.</string>
     <string name="dll_emulator">32bit Emulator</string>
+    <string name="emulator_wine_hint">Emulator is determined by wine version. ARM64EC uses FEXCore, x86_64 uses Box64.</string>
+    <string name="container_config_label">Configuration</string>
     <string name="open_with_android_browser">Open Android Browser in Wine</string>
     <string name="share_android_clipboard">Share Android Clipboard with Wine</string>
     <string name="ddraw_wrapper">DDraw Wrapper</string>
@@ -2014,5 +2014,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="touch_controller">Touch Controller</string>
     <string name="tools">Tools</string>
     <string name="controller">Controller</string>
+    <string name="download_in_components">None downloaded. Please download one in Components.</string>
 
     </resources>

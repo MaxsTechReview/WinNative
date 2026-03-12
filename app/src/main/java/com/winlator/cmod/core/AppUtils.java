@@ -7,7 +7,9 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.graphics.Color;
 import android.graphics.Rect;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.os.Looper;
 import android.text.Html;
@@ -16,16 +18,20 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+
 import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.ArrayAdapter;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.core.content.ContextCompat;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -35,6 +41,7 @@ import com.winlator.cmod.XrActivity;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -195,6 +202,7 @@ public abstract class AppUtils {
     public static PopupWindow showPopupWindow(View anchor, View contentView, int width, int height) {
         Context context = anchor.getContext();
         PopupWindow popupWindow = new PopupWindow(context);
+        popupWindow.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         popupWindow.setElevation(5.0f);
 
         if (width == 0 && height == 0) {
@@ -233,12 +241,16 @@ public abstract class AppUtils {
     }
 
     public static void showHelpBox(Context context, View anchor, String text) {
-        int padding = (int)UnitUtils.dpToPx(8);
+        int padding = (int)UnitUtils.dpToPx(14);
         TextView textView = new TextView(context);
         textView.setLayoutParams(new ViewGroup.LayoutParams((int)UnitUtils.dpToPx(284), ViewGroup.LayoutParams.WRAP_CONTENT));
         textView.setPadding(padding, padding, padding, padding);
-        textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+        textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
         textView.setText(Html.fromHtml(text, Html.FROM_HTML_MODE_LEGACY));
+        textView.setTextColor(ContextCompat.getColor(context, R.color.settings_text_primary));
+        textView.setTypeface(androidx.core.content.res.ResourcesCompat.getFont(context, R.font.inter));
+        textView.setLineSpacing(UnitUtils.dpToPx(4), 1.0f);
+        textView.setBackgroundResource(R.drawable.help_popup_background);
         int widthMeasureSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
         int heightMeasureSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
         textView.measure(widthMeasureSpec, heightMeasureSpec);
@@ -276,6 +288,13 @@ public abstract class AppUtils {
                 }
             }
         });
+    }
+
+    public static <T> void setupThemedSpinner(Spinner spinner, Context context, List<T> items) {
+        ArrayAdapter<T> adapter = new ArrayAdapter<>(context, R.layout.spinner_item_themed, items);
+        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item_themed);
+        spinner.setAdapter(adapter);
+        spinner.setPopupBackgroundResource(R.drawable.content_popup_menu_background);
     }
 
     public static boolean setSpinnerSelectionFromValue(Spinner spinner, String value) {

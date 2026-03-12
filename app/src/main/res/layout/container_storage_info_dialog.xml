@@ -20,49 +20,74 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/settings_text_secondary"
+                android:textSize="11sp"
+                android:letterSpacing="0.06"
+                android:textAllCaps="true"
+                android:textStyle="bold"
                 android:text="@string/drive_c" />
 
             <TextView
                 android:id="@+id/TVDriveCSize"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/colorAccent"
-                android:textSize="18dp"
-                android:textStyle="bold" />
+                android:fontFamily="@font/inter"
+                android:textColor="@color/settings_accent"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:layout_marginTop="2dp" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/settings_text_secondary"
+                android:textSize="11sp"
+                android:letterSpacing="0.06"
+                android:textAllCaps="true"
+                android:textStyle="bold"
                 android:text="@string/cache"
-                android:layout_marginTop="8dp" />
+                android:layout_marginTop="10dp" />
 
             <TextView
                 android:id="@+id/TVCacheSize"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/colorAccent"
-                android:textSize="18dp"
-                android:textStyle="bold" />
+                android:fontFamily="@font/inter"
+                android:textColor="@color/settings_accent"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:layout_marginTop="2dp" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/settings_text_secondary"
+                android:textSize="11sp"
+                android:letterSpacing="0.06"
+                android:textAllCaps="true"
+                android:textStyle="bold"
                 android:text="@string/total"
-                android:layout_marginTop="8dp" />
+                android:layout_marginTop="10dp" />
 
             <TextView
                 android:id="@+id/TVTotalSize"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/colorAccent"
-                android:textSize="18dp"
-                android:textStyle="bold" />
+                android:fontFamily="@font/inter"
+                android:textColor="@color/settings_accent"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:layout_marginTop="2dp" />
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:gravity="center_horizontal"
             android:orientation="vertical">
 
             <FrameLayout
@@ -73,10 +98,10 @@
                     android:id="@+id/CircularProgressIndicator"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    app:trackThickness="16dp"
-                    app:trackColor="#bdbdbd"
-                    app:indicatorColor="@color/colorAccent"
-                    app:indicatorSize="120dp"
+                    app:trackThickness="12dp"
+                    app:trackColor="@color/settings_outline"
+                    app:indicatorColor="@color/settings_accent"
+                    app:indicatorSize="100dp"
                     android:layout_gravity="center" />
 
                 <TextView
@@ -84,15 +109,19 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
-                    android:textSize="18dp" />
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/settings_text_primary"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
             </FrameLayout>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="12dp"
-                android:layout_marginTop="8dp"
-                android:textColor="#bdbdbd"
+                android:fontFamily="@font/inter"
+                android:textSize="11sp"
+                android:layout_marginTop="6dp"
+                android:textColor="@color/settings_text_secondary"
                 android:text="@string/estimated_used_space" />
         </LinearLayout>
     </LinearLayout>

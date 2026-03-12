@@ -639,15 +639,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
         final View view = getContentView();
         final Context context = view.getContext();
 
-        // Retrieve the existing EnvVarsView
         final EnvVarsView envVarsView = view.findViewById(R.id.EnvVarsView);
-
-        // Update the dark mode setting of the existing instance
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        boolean isDarkMode = prefs.getBoolean("dark_mode", false);
-        envVarsView.setDarkMode(isDarkMode);
-
-        // Set the environment variables in the existing EnvVarsView
         envVarsView.setEnvVars(new EnvVars(shortcut.getExtra("envVars")));
 
         // Set the click listener for adding new environment variables

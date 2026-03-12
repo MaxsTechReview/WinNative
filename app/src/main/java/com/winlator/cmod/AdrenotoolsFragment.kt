@@ -97,12 +97,7 @@ class AdrenotoolsFragment : Fragment() {
         }
 
         binding.BTInstallDriver.setOnClickListener {
-            ContentDialog.confirm(
-                requireContext(),
-                getString(R.string.install_drivers_message) + " " + getString(R.string.install_drivers_warning)
-            ) {
-                driverPicker.launch(arrayOf("*/*"))
-            }
+            driverPicker.launch(arrayOf("*/*"))
         }
 
         refreshInstalledDrivers()

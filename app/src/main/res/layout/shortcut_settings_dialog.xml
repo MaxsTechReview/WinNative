@@ -261,7 +261,7 @@
                 style="@style/ListMenuButton"
                 android:id="@+id/BTShowLCALL"
                 android:layout_gravity="center"
-                android:src="@drawable/icon_menu" />
+                android:src="@drawable/icon_more_vert" />
         </LinearLayout>
 
         <com.google.android.material.tabs.TabLayout
@@ -590,7 +590,7 @@
                         <ImageButton
                             style="@style/ListMenuButton"
                             android:id="@+id/BTExtraArgsMenu"
-                            android:src="@drawable/icon_menu" />
+                            android:src="@drawable/icon_more_vert" />
                     </LinearLayout>
 
                     <CheckBox

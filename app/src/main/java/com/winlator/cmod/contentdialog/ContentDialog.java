@@ -5,18 +5,24 @@ import android.app.Dialog;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.util.DisplayMetrics;
 import android.util.SparseBooleanArray;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.InputDevice;
+import android.view.KeyEvent;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.widget.NestedScrollView;
 import androidx.preference.PreferenceManager;
 
 import com.winlator.cmod.R;
@@ -24,10 +30,6 @@ import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.Callback;
 
 import java.util.ArrayList;
-
-import android.app.Dialog;
-import android.view.InputDevice;
-import android.view.KeyEvent;
 
 public class ContentDialog extends Dialog {
     public Runnable onConfirmCallback;
@@ -71,6 +73,22 @@ public class ContentDialog extends Dialog {
             frameLayout.setVisibility(View.VISIBLE);
             View view = LayoutInflater.from(getContext()).inflate(layoutResId, frameLayout, false);
             frameLayout.addView(view);
+
+            // Cap any fixed-height ScrollView/NestedScrollView to fit available screen space
+            View scrollView = findScrollView(view);
+            if (scrollView != null) {
+                ViewGroup.LayoutParams lp = scrollView.getLayoutParams();
+                if (lp.height > 0) { // Only adjust explicit fixed heights
+                    DisplayMetrics dm = context.getResources().getDisplayMetrics();
+                    // Reserve ~150dp for dialog chrome (title bar, buttons, padding)
+                    int chromeReserve = (int)(150 * dm.density);
+                    int maxScrollHeight = dm.heightPixels - chromeReserve;
+                    if (maxScrollHeight > 0 && lp.height > maxScrollHeight) {
+                        lp.height = maxScrollHeight;
+                        scrollView.setLayoutParams(lp);
+                    }
+                }
+            }
         }
 
         View confirmButton = contentView.findViewById(R.id.BTConfirm);
@@ -197,11 +215,6 @@ public class ContentDialog extends Dialog {
         ContentDialog dialog = new ContentDialog(context);
 
         final EditText editText = dialog.findViewById(R.id.EditText);
-
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
-        boolean isDarkMode = sharedPreferences.getBoolean("dark_mode", false);
-        applyDarkThemeToEditText(editText, isDarkMode);
-
         editText.setHint(R.string.untitled);
         editText.setImeOptions(editText.getImeOptions() | android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         if (defaultText != null) editText.setText(defaultText);
@@ -215,18 +228,6 @@ public class ContentDialog extends Dialog {
 
         dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         dialog.show();
-    }
-
-    private static void applyDarkThemeToEditText(EditText editText, boolean isDarkMode) {
-        if (isDarkMode) {
-            editText.setTextColor(Color.WHITE); // Set text color to white for dark theme
-            editText.setHintTextColor(Color.GRAY); // Set hint color to gray
-            editText.setBackgroundResource(R.drawable.edit_text_dark); // Custom dark background drawable
-        } else {
-            editText.setTextColor(Color.BLACK); // Default text color
-            editText.setHintTextColor(Color.GRAY); // Default hint color
-            editText.setBackgroundResource(R.drawable.edit_text); // Custom light background drawable
-        }
     }
 
     public static void showMultipleChoiceList(Context context, int titleResId, final String[] items, Callback<ArrayList<Integer>> callback) {
@@ -279,5 +280,17 @@ public class ContentDialog extends Dialog {
             }
         }
         return super.dispatchKeyEvent(event);
+    }
+
+    private static View findScrollView(View root) {
+        if (root instanceof NestedScrollView || root instanceof ScrollView) return root;
+        if (root instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) root;
+            for (int i = 0; i < vg.getChildCount(); i++) {
+                View found = findScrollView(vg.getChildAt(i));
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 }

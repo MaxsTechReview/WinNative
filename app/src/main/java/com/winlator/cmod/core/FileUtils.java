@@ -152,6 +152,20 @@ public abstract class FileUtils {
         else return targetFile.length() == 0;
     }
 
+    public static int countFiles(File dir) {
+        if (dir == null || !dir.exists()) return 0;
+        if (isSymlink(dir)) return 0;
+        if (!dir.isDirectory()) return 1;
+        int count = 0;
+        String[] names = dir.list();
+        if (names != null) {
+            for (String name : names) {
+                count += countFiles(new File(dir, name));
+            }
+        }
+        return count;
+    }
+
     public static boolean copy(File srcFile, File dstFile) {
         return copy(srcFile, dstFile, null);
     }

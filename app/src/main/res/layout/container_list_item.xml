@@ -3,49 +3,82 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:gravity="center_vertical"
-    android:orientation="horizontal"
-    android:background="@drawable/tab_layout_background_dark"
-    android:layout_marginBottom="8dp"
+    android:background="@drawable/content_list_card_surface"
+    android:orientation="vertical"
     android:padding="12dp">
 
-    <ImageView
-        android:id="@+id/ImageView"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_marginEnd="16dp"
-        android:padding="8dp"
-        android:background="@drawable/circle_background"
-        android:src="@drawable/icon_container"
-        app:tint="@color/white" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/ImageView"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:background="@drawable/content_icon_surface"
+            android:padding="8dp"
+            android:src="@drawable/ic_containers"
+            app:tint="@color/settings_icon_tint" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <ImageButton
+            android:id="@+id/BTMenu"
+            style="@style/OtherSettingsIconButton"
+            android:contentDescription="@string/edit"
+            android:src="@drawable/icon_list_item_menu" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/TVTitle"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:textColor="@color/white"
-        android:textSize="16sp"
-        android:textStyle="bold"
+        android:layout_marginTop="8dp"
         android:ellipsize="end"
-        android:maxLines="1" />
+        android:fontFamily="@font/inter"
+        android:gravity="center"
+        android:maxLines="2"
+        android:textColor="@color/settings_text_primary"
+        android:textSize="13sp"
+        android:textStyle="bold" />
 
-    <ImageButton
-        android:id="@+id/BTRun"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_marginStart="8dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@drawable/icon_run"
-        app:tint="@color/white" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:gravity="center_horizontal"
+        android:orientation="horizontal">
 
-    <ImageButton
-        android:id="@+id/BTMenu"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_marginStart="8dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@drawable/icon_list_item_menu"
-        app:tint="@color/white" />
+        <ImageButton
+            android:id="@+id/BTRun"
+            android:layout_width="0dp"
+            android:layout_height="34dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:background="@drawable/content_action_button_background"
+            android:contentDescription="@string/run"
+            android:padding="7dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/icon_play"
+            app:tint="@color/settings_accent" />
+
+        <ImageButton
+            android:id="@+id/BTEdit"
+            android:layout_width="0dp"
+            android:layout_height="34dp"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/content_action_button_background"
+            android:contentDescription="@string/edit"
+            android:padding="7dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_controls_edit"
+            app:tint="@color/settings_icon_tint" />
+    </LinearLayout>
 
 </LinearLayout>

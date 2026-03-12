@@ -1,120 +1,141 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
-    android:layout_height="200dp">
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="288dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="2dp"
+    android:paddingBottom="4dp">
 
-    <LinearLayout
-        android:layout_width="300dp"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/vkd3d_version" />
-
-        <Spinner
-            style="@style/ComboBox"
-            android:layout_width="match_parent"
-            android:id="@+id/SVKD3DVersion"
-            android:entries="@array/vkd3d_version_entries"
-            android:spinnerMode="dialog" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/vkd3d_feature_level" />
-
-        <Spinner
-            style="@style/ComboBox"
-            android:layout_width="match_parent"
-            android:id="@+id/SVKD3DFeatureLevel"
-            android:spinnerMode="dialog" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/dxvk_version" />
-
-        <Spinner
-            style="@style/ComboBox"
-            android:layout_width="match_parent"
-            android:id="@+id/SDXVKVersion"
-            android:entries="@array/dxvk_version_entries"
-            android:spinnerMode="dialog"/>
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="320dp"
+        android:clipToPadding="false">
 
         <LinearLayout
-            android:id="@+id/LLAsync"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_marginTop="8dp"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_weight="1"
-                android:text="@string/enabled_async" />
-
-            <ToggleButton
-                android:id="@+id/SWAsync"
-                android:layout_width="64dp"
-                android:layout_height="32dp"
-                android:background="@drawable/toggle_button_selector"
-                android:textOn=""
-                android:textOff="" />
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/LLAsyncCache"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_weight="1"
-                android:text="@string/enabled_async_cache" />
-
-            <ToggleButton
-                android:id="@+id/SWAsyncCache"
-                android:layout_width="64dp"
-                android:layout_height="32dp"
-                android:background="@drawable/toggle_button_selector"
-                android:textOn=""
-                android:textOff="" />
-
-        </LinearLayout>
-
-        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/ddraw_wrapper" />
+            android:orientation="vertical"
+            android:paddingEnd="8dp"
+            android:paddingBottom="4dp">
 
-        <Spinner
-            style="@style/ComboBox"
-            android:layout_width="match_parent"
-            android:id="@+id/SDDRAWrapper"
-            android:entries="@array/ddrawrapper_entries"
-            android:spinnerMode="dialog" />
+            <TextView
+                style="@style/OtherSettingsFieldLabel"
+                android:text="@string/vkd3d_version" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/frame_rate" />
+            <androidx.appcompat.widget.AppCompatSpinner
+                android:id="@+id/SVKD3DVersion"
+                style="@style/OtherSettingsSpinner"
+                android:layout_width="match_parent"
+                android:layout_marginTop="4dp"
+                android:spinnerMode="dropdown" />
 
-        <Spinner
-            style="@style/ComboBox"
-            android:layout_width="match_parent"
-            android:id="@+id/SFramerate"
-            android:entries="@array/dxvk_framerate_entries"
-            android:spinnerMode="dialog"/>
+            <TextView
+                style="@style/OtherSettingsFieldLabel"
+                android:layout_marginTop="10dp"
+                android:text="@string/vkd3d_feature_level" />
 
-    </LinearLayout>
-</ScrollView>
+            <androidx.appcompat.widget.AppCompatSpinner
+                android:id="@+id/SVKD3DFeatureLevel"
+                style="@style/OtherSettingsSpinner"
+                android:layout_width="match_parent"
+                android:layout_marginTop="4dp"
+                android:spinnerMode="dropdown" />
+
+            <TextView
+                style="@style/OtherSettingsFieldLabel"
+                android:layout_marginTop="10dp"
+                android:text="@string/dxvk_version" />
+
+            <androidx.appcompat.widget.AppCompatSpinner
+                android:id="@+id/SDXVKVersion"
+                style="@style/OtherSettingsSpinner"
+                android:layout_width="match_parent"
+                android:layout_marginTop="4dp"
+                android:spinnerMode="dropdown" />
+
+            <LinearLayout
+                android:id="@+id/LLAsync"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/env_vars_row_background"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/inter"
+                    android:text="@string/enabled_async"
+                    android:textColor="@color/settings_text_primary"
+                    android:textSize="13sp" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/SWAsync"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    app:thumbTint="@color/settings_accent"
+                    app:trackTintMode="src_in" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/LLAsyncCache"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/env_vars_row_background"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/inter"
+                    android:text="@string/enabled_async_cache"
+                    android:textColor="@color/settings_text_primary"
+                    android:textSize="13sp" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/SWAsyncCache"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    app:thumbTint="@color/settings_accent"
+                    app:trackTintMode="src_in" />
+            </LinearLayout>
+
+            <TextView
+                style="@style/OtherSettingsFieldLabel"
+                android:layout_marginTop="10dp"
+                android:text="@string/ddraw_wrapper" />
+
+            <androidx.appcompat.widget.AppCompatSpinner
+                android:id="@+id/SDDRAWrapper"
+                style="@style/OtherSettingsSpinner"
+                android:layout_width="match_parent"
+                android:layout_marginTop="4dp"
+                android:spinnerMode="dropdown" />
+
+            <TextView
+                style="@style/OtherSettingsFieldLabel"
+                android:layout_marginTop="10dp"
+                android:text="@string/frame_rate" />
+
+            <androidx.appcompat.widget.AppCompatSpinner
+                android:id="@+id/SFramerate"
+                style="@style/OtherSettingsSpinner"
+                android:layout_width="match_parent"
+                android:layout_marginTop="4dp"
+                android:spinnerMode="dropdown" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

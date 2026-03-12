@@ -12,7 +12,9 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatTextView;
 import androidx.appcompat.widget.ListPopupWindow;
+import androidx.core.content.ContextCompat;
 
+import com.winlator.cmod.R;
 import com.winlator.cmod.core.UnitUtils;
 
 import java.util.Collections;
@@ -93,7 +95,7 @@ public class MultiSelectionComboBox extends AppCompatTextView {
     @Override
     public boolean performClick() {
         if (items == null || items.length == 0) return true;
-        final ArrayAdapter<String> adapter = new ArrayAdapter<String>(getContext(), android.R.layout.simple_list_item_multiple_choice, items) {
+        final ArrayAdapter<String> adapter = new ArrayAdapter<String>(getContext(), R.layout.multi_select_list_item, items) {
             @NonNull
             @Override
             public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
@@ -110,7 +112,9 @@ public class MultiSelectionComboBox extends AppCompatTextView {
         ListPopupWindow popupWindow = new ListPopupWindow(getContext());
         popupWindow.setAdapter(adapter);
         popupWindow.setAnchorView(this);
-        popupWindow.setWidth((int)UnitUtils.dpToPx(260));
+        popupWindow.setWidth((int)UnitUtils.dpToPx(248));
+        popupWindow.setBackgroundDrawable(ContextCompat.getDrawable(getContext(), R.drawable.content_popup_menu_background));
+        popupWindow.setListSelector(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
 
         popupWindow.setOnItemClickListener((parent, view, position, id) -> {
             String item = items[position];

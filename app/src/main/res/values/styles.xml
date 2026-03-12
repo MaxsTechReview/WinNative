@@ -16,6 +16,7 @@
         <item name="popupWindowStyle">@style/PopupWindow</item>
         <item name="android:popupMenuStyle">@style/PopupMenu</item>
         <item name="popupMenuStyle">@style/PopupMenu</item>
+        <item name="android:dropDownListViewStyle">@style/SpinnerDropDownListView</item>
     </style>
 
     <!-- Dark Theme -->
@@ -35,6 +36,7 @@
         <item name="popupMenuStyle">@style/PopupMenu.Dark</item>
         <item name="android:spinnerDropDownItemStyle">@style/SpinnerDropDownItem.Dark</item>
         <item name="spinnerDropDownItemStyle">@style/SpinnerDropDownItem.Dark</item>
+        <item name="android:dropDownListViewStyle">@style/SpinnerDropDownListView</item>
     </style>
 
     <!-- Light Theme Fullscreen -->
@@ -150,11 +152,20 @@
         <item name="android:popupMenuStyle">@style/Widget.ContentPopupMenu</item>
     </style>
 
+    <style name="SpinnerDropDownListView" parent="Widget.AppCompat.ListView.DropDown">
+        <item name="android:divider">@null</item>
+        <item name="android:dividerHeight">0dp</item>
+        <item name="android:listSelector">@android:color/transparent</item>
+    </style>
+
     <style name="ContentDialog" parent="@android:style/Theme.Dialog">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowAnimationStyle">@style/ContentDialogAnimation</item>
+        <item name="android:dropDownListViewStyle">@style/SpinnerDropDownListView</item>
+        <item name="android:colorAccent">@color/settings_accent</item>
+        <item name="colorAccent">@color/settings_accent</item>
     </style>
 
     <style name="ContentDialogAnimation">
@@ -249,12 +260,12 @@
     </style>
 
     <style name="ContentDialogButtonBase" parent="BaseButton">
-        <item name="android:layout_height">42dp</item>
-        <item name="android:minWidth">96dp</item>
-        <item name="android:paddingLeft">18dp</item>
-        <item name="android:paddingRight">18dp</item>
+        <item name="android:layout_height">36dp</item>
+        <item name="android:minWidth">80dp</item>
+        <item name="android:paddingLeft">14dp</item>
+        <item name="android:paddingRight">14dp</item>
         <item name="android:fontFamily">@font/inter</item>
-        <item name="android:textSize">14sp</item>
+        <item name="android:textSize">13sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:letterSpacing">0.01</item>
     </style>
@@ -394,12 +405,12 @@
         <item name="android:layout_width">22dp</item>
         <item name="android:layout_height">22dp</item>
         <item name="android:layout_marginLeft">4dp</item>
-        <item name="android:src">@drawable/icon_help</item>
-        <item name="tint">#e0e0e0</item>
+        <item name="android:src">@drawable/ic_content_menu_info</item>
+        <item name="android:tint">@color/settings_icon_tint</item>
     </style>
 
     <style name="HelpButton.Dark" parent="HelpButton">
-        <item name="tint">#f0f0f0</item>
+        <item name="android:tint">@color/settings_icon_tint</item>
     </style>
 
     <style name="TabLayoutBackground" >
@@ -784,6 +795,36 @@
         <item name="android:textStyle">bold</item>
     </style>
 
+    <style name="ExpandableSectionCard">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginBottom">8dp</item>
+        <item name="android:background">@drawable/content_list_card_surface</item>
+        <item name="android:orientation">vertical</item>
+    </style>
+
+    <style name="ExpandableSectionHeader">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:paddingLeft">12dp</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingRight">12dp</item>
+        <item name="android:paddingBottom">8dp</item>
+    </style>
+
+    <style name="ExpandableSectionContent">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:paddingLeft">14dp</item>
+        <item name="android:paddingTop">0dp</item>
+        <item name="android:paddingRight">14dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="android:visibility">gone</item>
+    </style>
+
     <style name="OtherSettingsCardSummary">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
@@ -797,9 +838,9 @@
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:fontFamily">@font/inter</item>
-        <item name="android:letterSpacing">0.04</item>
+        <item name="android:letterSpacing">0.06</item>
         <item name="android:textAllCaps">true</item>
-        <item name="android:textColor">@color/settings_text_secondary</item>
+        <item name="android:textColor">@color/settings_text_primary</item>
         <item name="android:textSize">11sp</item>
         <item name="android:textStyle">bold</item>
     </style>
@@ -824,24 +865,44 @@
         <item name="android:tint">@color/settings_icon_tint</item>
     </style>
 
-    <style name="OtherSettingsSpinner" parent="ComboBox.Dark">
-        <item name="android:layout_height">36dp</item>
+    <style name="OtherSettingsSpinner" parent="Widget.AppCompat.Spinner">
+        <item name="android:layout_height">40dp</item>
         <item name="android:background">@drawable/preset_combo_box_background</item>
         <item name="android:fontFamily">@font/inter</item>
         <item name="android:popupBackground">@drawable/content_popup_menu_background</item>
         <item name="android:textColor">@color/settings_text_primary</item>
-        <item name="android:textSize">13sp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">32dp</item>
+        <item name="android:spinnerMode">dropdown</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
     </style>
 
     <style name="OtherSettingsEditText" parent="EditText.Dark">
         <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">44dp</item>
+        <item name="android:layout_height">36dp</item>
         <item name="android:background">@drawable/other_settings_text_input_background</item>
         <item name="android:fontFamily">@font/inter</item>
         <item name="android:paddingLeft">12dp</item>
         <item name="android:paddingRight">12dp</item>
         <item name="android:textColor">@color/settings_text_primary</item>
         <item name="android:textColorHint">@color/settings_text_secondary</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <style name="OtherSettingsMultiSelectComboBox">
+        <item name="android:layout_height">40dp</item>
+        <item name="android:background">@drawable/preset_combo_box_background</item>
+        <item name="android:clickable">true</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:focusable">true</item>
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:paddingLeft">12dp</item>
+        <item name="android:paddingRight">32dp</item>
+        <item name="android:textColor">@color/settings_text_primary</item>
         <item name="android:textSize">13sp</item>
     </style>
 
@@ -917,6 +978,7 @@
             <item name="android:windowNoTitle">true</item>
             <item name="android:windowFullscreen">true</item>
             <item name="android:windowBackground">@android:color/transparent</item>
+            <item name="android:dropDownListViewStyle">@style/SpinnerDropDownListView</item>
         </style>
         <style name="EditText">
             <item name="android:layout_width">match_parent</item>

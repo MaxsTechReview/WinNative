@@ -2,12 +2,7 @@ package com.winlator.cmod.widget;
 
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.Rect;
-import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -15,19 +10,19 @@ import android.widget.ImageView;
 import android.widget.PopupWindow;
 
 import androidx.annotation.Nullable;
+import androidx.appcompat.widget.AppCompatImageButton;
+import androidx.core.content.ContextCompat;
 
 import com.winlator.cmod.MainActivity;
 import com.winlator.cmod.R;
 import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.FileUtils;
-import com.winlator.cmod.core.ImageUtils;
 import com.winlator.cmod.core.UnitUtils;
 import com.winlator.cmod.core.WineThemeManager;
 
 import java.io.File;
 
-public class ImagePickerView extends View implements View.OnClickListener {
-    private final Bitmap icon;
+public class ImagePickerView extends AppCompatImageButton implements View.OnClickListener {
 
     public ImagePickerView(Context context) {
         this(context, null);
@@ -39,31 +34,13 @@ public class ImagePickerView extends View implements View.OnClickListener {
 
     public ImagePickerView(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-
-        icon = BitmapFactory.decodeResource(context.getResources(), R.drawable.icon_image_picker);
-
-        setBackgroundResource(R.drawable.combo_box);
-        setClickable(true);
-        setFocusable(true);
+        setImageResource(R.drawable.ic_image);
+        setBackgroundResource(R.drawable.content_action_button_background);
+        setScaleType(ScaleType.CENTER_INSIDE);
+        int padding = (int) UnitUtils.dpToPx(9);
+        setPadding(padding, padding, padding, padding);
+        setColorFilter(ContextCompat.getColor(context, R.color.settings_icon_tint));
         setOnClickListener(this);
-    }
-
-    @Override
-    protected void onDraw(Canvas canvas) {
-        super.onDraw(canvas);
-
-        int width = getWidth();
-        int height = getHeight();
-        if (width == 0 || height == 0) return;
-
-        float rectSize = height - UnitUtils.dpToPx(12);
-        float startX = (width - rectSize) * 0.5f - UnitUtils.dpToPx(16);
-        float startY = (height - rectSize) * 0.5f;
-
-        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        Rect srcRect = new Rect(0, 0, icon.getWidth(), icon.getHeight());
-        RectF dstRect = new RectF(startX, startY, startX + rectSize, startY + rectSize);
-        canvas.drawBitmap(icon, srcRect, dstRect, paint);
     }
 
     @Override
@@ -76,13 +53,14 @@ public class ImagePickerView extends View implements View.OnClickListener {
 
         if (userWallpaperFile.isFile()) {
             imageView.setImageBitmap(BitmapFactory.decodeFile(userWallpaperFile.getPath()));
+        } else {
+            imageView.setImageResource(R.drawable.wallpaper);
         }
-        else imageView.setImageResource(R.drawable.wallpaper);
 
         final PopupWindow[] popupWindow = {null};
         View browseButton = view.findViewById(R.id.BTBrowse);
         browseButton.setOnClickListener((v) -> {
-            MainActivity activity = (MainActivity)context;
+            MainActivity activity = (MainActivity) context;
             Intent intent = new Intent(Intent.ACTION_PICK);
             intent.setType("image/*");
             popupWindow[0].dismiss();
@@ -98,6 +76,6 @@ public class ImagePickerView extends View implements View.OnClickListener {
             });
         }
 
-        popupWindow[0] = AppUtils.showPopupWindow(anchor, view, 200, 240);
+        popupWindow[0] = AppUtils.showPopupWindow(anchor, view, 200, 230);
     }
 }

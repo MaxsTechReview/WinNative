@@ -3,7 +3,6 @@ package com.winlator.cmod.fexcore;
 import com.winlator.cmod.R;
 
 import android.content.Context;
-import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 
 import com.winlator.cmod.contents.ContentProfile;
@@ -25,7 +24,7 @@ public abstract class FEXCoreManager {
             int firstDashIndex = entryName.indexOf('-');
             itemList.add(entryName.substring(firstDashIndex + 1));
         }
-        spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, itemList));
+        AppUtils.setupThemedSpinner(spinner, context, itemList);
         AppUtils.setSpinnerSelectionFromValue(spinner, fexcoreVersion);
     }
 }

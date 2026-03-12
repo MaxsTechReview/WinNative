@@ -107,9 +107,16 @@ public class ContainerManager {
     }
 
     public void duplicateContainerAsync(Container container, Runnable callback) {
+        duplicateContainerAsync(container, null, callback);
+    }
+
+    public void duplicateContainerAsync(Container container, Callback<Integer> progressCallback, Runnable callback) {
         final Handler handler = new Handler();
         Executors.newSingleThreadExecutor().execute(() -> {
-            duplicateContainer(container);
+            Callback<Integer> uiProgress = progressCallback != null
+                    ? progress -> handler.post(() -> progressCallback.call(progress))
+                    : null;
+            duplicateContainer(container, uiProgress);
             handler.post(callback);
         });
     }
@@ -184,13 +191,26 @@ public class ContainerManager {
 
 
     private void duplicateContainer(Container srcContainer) {
+        duplicateContainer(srcContainer, null);
+    }
+
+    private void duplicateContainer(Container srcContainer, Callback<Integer> progressCallback) {
         int id = maxContainerId + 1;
 
         File dstDir = new File(homeDir, ImageFs.USER + "-" + id);
         if (!dstDir.mkdirs()) return;
 
-        // Use the refactored copy method that doesn't require a Context for File operations
-        if (!FileUtils.copy(srcContainer.getRootDir(), dstDir, file -> FileUtils.chmod(file, 0771))) {
+        final int totalFiles = FileUtils.countFiles(srcContainer.getRootDir());
+        final int[] copiedFiles = {0};
+
+        if (!FileUtils.copy(srcContainer.getRootDir(), dstDir, file -> {
+            FileUtils.chmod(file, 0771);
+            if (progressCallback != null && totalFiles > 0) {
+                copiedFiles[0]++;
+                int pct = Math.min(100, (copiedFiles[0] * 100) / totalFiles);
+                progressCallback.call(pct);
+            }
+        })) {
             FileUtils.delete(dstDir);
             return;
         }

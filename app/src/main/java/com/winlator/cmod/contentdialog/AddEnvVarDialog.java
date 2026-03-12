@@ -1,13 +1,11 @@
 package com.winlator.cmod.contentdialog;
 
 import android.content.Context;
-import android.content.SharedPreferences;
-import android.graphics.Color;
 import android.view.Menu;
 import android.widget.EditText;
-import android.widget.PopupMenu;
 
-import androidx.preference.PreferenceManager;
+import androidx.appcompat.view.ContextThemeWrapper;
+import androidx.appcompat.widget.PopupMenu;
 
 import com.winlator.cmod.R;
 import com.winlator.cmod.widget.EnvVarsView;
@@ -18,16 +16,11 @@ public class AddEnvVarDialog extends ContentDialog {
         final EditText etName = findViewById(R.id.ETName);
         final EditText etValue = findViewById(R.id.ETValue);
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        boolean isDarkMode = prefs.getBoolean("dark_mode", false);
-        applyDarkThemeToEditText(etName, isDarkMode);
-        applyDarkThemeToEditText(etValue, isDarkMode);
-
         setTitle(context.getString(R.string.new_environment_variable));
-        setIcon(R.drawable.icon_env_var);
+        setIcon(R.drawable.ic_content_env_var);
 
         findViewById(R.id.BTMenu).setOnClickListener((v) -> {
-            PopupMenu popupMenu = new PopupMenu(context, v);
+            PopupMenu popupMenu = new PopupMenu(new ContextThemeWrapper(context, R.style.ThemeOverlay_ContentPopupMenu), v);
             Menu menu = popupMenu.getMenu();
             for (String[] knownEnvVar : EnvVarsView.knownEnvVars) menu.add(knownEnvVar[0]);
 
@@ -46,17 +39,5 @@ public class AddEnvVarDialog extends ContentDialog {
                 envVarsView.add(name, value);
             }
         });
-    }
-
-    private void applyDarkThemeToEditText(EditText editText, boolean isDarkMode) {
-        if (isDarkMode) {
-            editText.setTextColor(Color.WHITE);
-            editText.setHintTextColor(Color.GRAY);
-            editText.setBackgroundResource(R.drawable.edit_text_dark);
-        } else {
-            editText.setTextColor(Color.BLACK);
-            editText.setHintTextColor(Color.GRAY);
-            editText.setBackgroundResource(R.drawable.edit_text);
-        }
     }
 }
