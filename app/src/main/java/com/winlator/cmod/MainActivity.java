@@ -111,7 +111,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         setContentView(R.layout.main_activity);
 
-        findViewById(R.id.nav_header_back).setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
+        findViewById(R.id.nav_header_back).setOnClickListener(v -> onBackPressed());
 
         navigationView = findViewById(R.id.NavigationView);
         navigationView.setNavigationItemSelectedListener(this);
@@ -160,7 +160,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             File shortcutFile = new File(editShortcutPath);
             for (Shortcut shortcut : containerManager.loadShortcuts()) {
                 if (shortcut.file.getPath().equals(shortcutFile.getPath())) {
-                    show(new ContainerDetailFragment(shortcut), false);
+                    show(new ContainerDetailFragment(shortcut));
                     return;
                 }
             }
@@ -192,13 +192,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             
             if (existingShortcut != null) {
                 // Found existing shortcut — open in edit mode so saved settings are loaded
-                show(new ContainerDetailFragment(existingShortcut), false);
+                show(new ContainerDetailFragment(existingShortcut));
             } else {
                 // No existing shortcut — open in create-new mode
                 if (createShortcutForAppId > 0) {
-                    show(new ContainerDetailFragment(0, createShortcutForAppId, createShortcutForAppName), false);
+                    show(new ContainerDetailFragment(0, createShortcutForAppId, createShortcutForAppName));
                 } else {
-                    show(new ContainerDetailFragment(0, createShortcutForEpicId, createShortcutForAppName, "EPIC"), false);
+                    show(new ContainerDetailFragment(0, createShortcutForEpicId, createShortcutForAppName, "EPIC"));
                 }
             }
             return;
@@ -230,23 +230,19 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     @Override
+    public void finish() {
+        super.finish();
+        overridePendingTransition(R.anim.settings_enter, R.anim.settings_exit);
+    }
+
+    @Override
     public void onBackPressed() {
         FragmentManager fm = getSupportFragmentManager();
-        
-        // If there are fragments in the backstack (like ContainerDetailFragment), pop them normally!
         if (fm.getBackStackEntryCount() > 0) {
             fm.popBackStack();
-            return;
-        }
-
-        // If backstack is empty, we are at the root fragment (ContainersFragment, Settings, etc).
-        if (getIntent().getBooleanExtra("return_to_unified", false)) {
+        } else {
             finish();
-            overridePendingTransition(R.anim.settings_enter, R.anim.settings_exit);
-            return;
         }
-
-        super.onBackPressed();
     }
 
     private boolean requestAppPermissions() {
@@ -325,24 +321,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
 
         if (fragment != null) {
-            show(fragment, false);
+            show(fragment);
             currentNavigationItemId = item.getItemId();
         }
         return true;
     }
 
-
-//    private void show(Fragment fragment) {
-//        FragmentManager fragmentManager = getSupportFragmentManager();
-//        fragmentManager.beginTransaction()
-//                .replace(R.id.FLFragmentContainer, fragment)
-//                .commit();
-//
-//    }
-
-    private void show(Fragment fragment, boolean reverse) {
-        FragmentManager fragmentManager = getSupportFragmentManager();
-        fragmentManager.beginTransaction()
+    private void show(Fragment fragment) {
+        getSupportFragmentManager().beginTransaction()
                 .setCustomAnimations(R.anim.settings_enter, R.anim.settings_exit)
                 .replace(R.id.FLFragmentContainer, fragment)
                 .commit();
