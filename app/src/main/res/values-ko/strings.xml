@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">GameNative</string>
+    <string name="app_name">WinNative</string>
     <string name="login_user">사용자 로그인</string>
     <string name="login_2fa">2단계 인증</string>
     <string name="home">홈</string>
@@ -668,9 +668,9 @@
     <string name="settings_info_source_title">소스 코드</string>
     <string name="settings_info_source_subtitle">이 프로젝트의 소스 코드 보기</string>
     <string name="settings_info_libraries_title">사용된 라이브러리</string>
-    <string name="settings_info_libraries_subtitle">GameNative를 가능하게 하는 기술 보기</string>
+    <string name="settings_info_libraries_subtitle">WinNative를 가능하게 하는 기술 보기</string>
     <string name="settings_info_privacy_title">개인정보 보호정책</string>
-    <string name="settings_info_privacy_subtitle">GameNative의 개인정보 보호정책 링크 열기</string>
+    <string name="settings_info_privacy_subtitle">WinNative의 개인정보 보호정책 링크 열기</string>
 
     <!-- Settings: Interface Group -->
     <string name="settings_interface_title">인터페이스</string>
@@ -692,7 +692,7 @@
     <string name="settings_downloads_title">다운로드</string>
 
     <!-- Login Screen -->
-    <string name="login_app_name">GameNative</string>
+    <string name="login_app_name">WinNative</string>
     <string name="login_privacy_policy">개인정보 보호정책</string>
     <string name="login_welcome_back">환영합니다</string>
     <string name="login_subtitle">Steam 라이브러리에 액세스하려면 로그인하세요</string>
@@ -757,7 +757,7 @@
     <!-- PluviaMain: Crash & Support -->
     <string name="main_recent_crash_title">최근 충돌</string>
     <string name="main_recent_crash_message">죄송합니다!\n최근 발생한 문제에 대해 알려주시면 감사하겠습니다.\n앱 설정에서 가장 최근의 충돌 로그를 보고 내보낼 수 있으며 프로젝트 저장소에 Github 이슈로 첨부할 수 있습니다.\nGithub 저장소 링크도 설정에 있습니다!</string>
-    <string name="main_thank_you_title">GameNative를 사용해 주셔서 감사합니다!</string>
+    <string name="main_thank_you_title">WinNative를 사용해 주셔서 감사합니다!</string>
     <string name="main_thank_you_message">친구들과 앱을 공유하거나 Ko-fi에서 회원이 되어 Android에서 오픈 소스 PC 게임을 지원하세요.</string>
     <string name="main_join_kofi">Ko-fi에서 참여</string>
     <string name="main_share">공유</string>
@@ -988,7 +988,7 @@
     <string name="wine_proton_install_failed">설치 실패: %s</string>
     <string name="wine_proton_install_error">설치 오류: %s</string>
     <string name="wine_proton_install_success">%1$s %2$s이(가) 성공적으로 설치되었습니다</string>
-    <string name="wine_proton_glibc_incompatible">이 Wine/Proton 빌드는 GLIBC 컨테이너가 필요하며 GameNative와 호환되지 않습니다. ARM64/bionic 빌드만 사용하세요.</string>
+    <string name="wine_proton_glibc_incompatible">이 Wine/Proton 빌드는 GLIBC 컨테이너가 필요하며 WinNative와 호환되지 않습니다. ARM64/bionic 빌드만 사용하세요.</string>
     <string name="wine_proton_containers_in_use">이 버전을 사용하는 컨테이너:</string>
     <string name="wine_proton_no_containers_warning">현재 이 버전을 사용하는 컨테이너가 없습니다.</string>
     <string name="wine_proton_containers_will_break">계속하면 이러한 컨테이너가 더 이상 작동하지 않습니다:</string>

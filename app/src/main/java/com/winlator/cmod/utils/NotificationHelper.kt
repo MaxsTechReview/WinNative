@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Context.NOTIFICATION_SERVICE
 import android.content.Intent
 import androidx.core.app.NotificationCompat
+import com.winlator.cmod.BuildConfig
 import com.winlator.cmod.MainActivity
 import com.winlator.cmod.steam.utils.PrefManager
 import com.winlator.cmod.R
@@ -22,7 +23,7 @@ class NotificationHelper @Inject constructor(private val context: Context) {
         private const val CHANNEL_NAME = "WinNative Foreground Service"
         private const val NOTIFICATION_ID = 1
 
-        const val ACTION_EXIT = "com.winlator.cmod.EXIT"
+        const val ACTION_EXIT = BuildConfig.APPLICATION_ID + ".EXIT"
     }
 
     private val notificationManager: NotificationManager =

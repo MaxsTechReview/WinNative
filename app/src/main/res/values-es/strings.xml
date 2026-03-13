@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">GameNative</string>
+    <string name="app_name">WinNative</string>
     <string name="login_user">Inicio de sesión</string>
     <string name="login_2fa">Autenticación de dos factores</string>
     <string name="home">Inicio</string>
@@ -633,9 +633,9 @@
     <string name="settings_info_source_title">Código fuente</string>
     <string name="settings_info_source_subtitle">Ver el código fuente de este proyecto.</string>
     <string name="settings_info_libraries_title">Librerías utilizadas</string>
-    <string name="settings_info_libraries_subtitle">Descubre qué tecnologías hacen posible GameNative.</string>
+    <string name="settings_info_libraries_subtitle">Descubre qué tecnologías hacen posible WinNative.</string>
     <string name="settings_info_privacy_title">Política de privacidad</string>
-    <string name="settings_info_privacy_subtitle">Abre un enlace a la política de privacidad de GameNative.</string>
+    <string name="settings_info_privacy_subtitle">Abre un enlace a la política de privacidad de WinNative.</string>
 
     <!-- Settings: Interface Group -->
     <string name="settings_interface_title">Interfaz</string>
@@ -657,7 +657,7 @@
     <string name="settings_downloads_title">Descargas</string>
 
     <!-- Login Screen -->
-    <string name="login_app_name">GameNative</string>
+    <string name="login_app_name">WinNative</string>
     <string name="login_privacy_policy">Política de privacidad</string>
     <string name="login_welcome_back">¡Bienvenido de nuevo!</string>
     <string name="login_subtitle">Inicia sesión para acceder a tu biblioteca de Steam.</string>
@@ -723,7 +723,7 @@
     <!-- PluviaMain: Crash & Support -->
     <string name="main_recent_crash_title">Fallo reciente</string>
     <string name="main_recent_crash_message">¡Lo sentimos!\nSería de gran ayuda conocer el problema reciente que has tenido.\nPuedes ver y exportar el registro del fallo más reciente en los ajustes de la aplicación y adjuntarlo como un \'issue\' de GitHub en el repositorio del proyecto.\n¡El enlace al repositorio de GitHub también está en los ajustes!</string>
-    <string name="main_thank_you_title">¡Gracias por usar GameNative!</string>
+    <string name="main_thank_you_title">¡Gracias por usar WinNative!</string>
     <string name="main_thank_you_message">Apoya el proyecto de código abierto para juegos de PC en Android compartiendo la aplicación con tus amigos o haciéndote miembro en Ko-fi.</string>
     <string name="main_join_kofi">Apoyar en Ko-fi</string>
     <string name="main_share">Compartir</string>
@@ -948,7 +948,7 @@
     <string name="wine_proton_install_failed">Error al instalar: %s</string>
     <string name="wine_proton_install_error">Error de instalación: %s</string>
     <string name="wine_proton_install_success">%1$s %2$s instalado correctamente.</string>
-    <string name="wine_proton_glibc_incompatible">Esta compilación de Wine/Proton requiere contenedores GLIBC y no es compatible con GameNative. Por favor, usa únicamente compilaciones ARM64/bionic.</string>
+    <string name="wine_proton_glibc_incompatible">Esta compilación de Wine/Proton requiere contenedores GLIBC y no es compatible con WinNative. Por favor, usa únicamente compilaciones ARM64/bionic.</string>
     <string name="wine_proton_containers_in_use">Contenedores que usan esta versión:</string>
     <string name="wine_proton_no_containers_warning">Ningún contenedor está usando esta versión actualmente.</string>
     <string name="wine_proton_containers_will_break">Estos contenedores dejarán de funcionar si continúas:</string>

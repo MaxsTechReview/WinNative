@@ -151,7 +151,7 @@
             android:name=".ShortcutBroadcastReceiver"
             android:exported="true">
             <intent-filter>
-                <action android:name="com.winlator.cmod.SHORTCUT_ADDED" />
+                <action android:name="${applicationId}.SHORTCUT_ADDED" />
             </intent-filter>
         </receiver>
 
@@ -176,7 +176,7 @@
         <!-- FileProvider for sharing files -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.winlator.cmod.tileprovider"
+            android:authorities="${applicationId}.tileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
@@ -187,7 +187,7 @@
         <!-- Provider for Winlator’s DocumentProvider or similar usage -->
         <provider
             android:name=".core.WinlatorFilesProvider"
-            android:authorities="com.winlator.cmod.core.WinlatorFilesProvider"
+            android:authorities="${applicationId}.core.WinlatorFilesProvider"
             android:exported="true"
             android:grantUriPermissions="true"
             android:permission="android.permission.MANAGE_DOCUMENTS">

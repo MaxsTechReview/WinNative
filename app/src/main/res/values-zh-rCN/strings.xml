@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">GameNative</string>
+    <string name="app_name">WinNative</string>
     <string name="login_user">登录</string>
     <string name="login_2fa">双重验证</string>
     <string name="home">主页</string>
@@ -650,9 +650,9 @@
     <string name="settings_info_source_title">源代码</string>
     <string name="settings_info_source_subtitle">查看此项目的源代码</string>
     <string name="settings_info_libraries_title">使用的库</string>
-    <string name="settings_info_libraries_subtitle">了解哪些技术让 GameNative 成为可能</string>
+    <string name="settings_info_libraries_subtitle">了解哪些技术让 WinNative 成为可能</string>
     <string name="settings_info_privacy_title">隐私政策</string>
-    <string name="settings_info_privacy_subtitle">打开链接至 GameNative 的隐私政策</string>
+    <string name="settings_info_privacy_subtitle">打开链接至 WinNative 的隐私政策</string>
 
     <!-- 设置：界面组 -->
     <string name="settings_interface_title">界面</string>
@@ -673,7 +673,7 @@
     <string name="settings_downloads_title">下载</string>
 
     <!-- 登录界面 -->
-    <string name="login_app_name">GameNative</string>
+    <string name="login_app_name">WinNative</string>
     <string name="login_privacy_policy">隐私政策</string>
     <string name="login_welcome_back">欢迎回来</string>
     <string name="login_subtitle">登录以访问您的 Steam 游戏库</string>
@@ -738,7 +738,7 @@
     <!-- 主界面：崩溃与支持 -->
     <string name="main_recent_crash_title">最近应用程序崩溃</string>
     <string name="main_recent_crash_message">若能了解您最近遇到的问题，将有助于我们改善应用程序。\n您可在应用程序设置中查看并导出最近的崩溃日志，将其附加至项目源代码仓库的 Github Issue中\nGithub 源代码仓库的链接亦位于设置页面内</string>
-    <string name="main_thank_you_title">感谢您使用 GameNative！</string>
+    <string name="main_thank_you_title">感谢您使用 WinNative！</string>
     <string name="main_thank_you_message">通过与朋友分享应用程序或在 Ko-fi 成为会员，支持 Android 平台的开源 PC 游戏</string>
     <string name="main_join_kofi">加入 Ko-fi</string>
     <string name="main_share">分享</string>
@@ -968,7 +968,7 @@
     <string name="wine_proton_install_failed">安装失败：%s</string>
     <string name="wine_proton_install_error">安装错误：%s</string>
     <string name="wine_proton_install_success">%1$s %2$s 已安装成功</string>
-    <string name="wine_proton_glibc_incompatible">此 Wine/Proton 版本需搭配 GLIBC 容器运行，且不兼容 GameNative。\n请使用 ARM64/bionic 版本。</string>
+    <string name="wine_proton_glibc_incompatible">此 Wine/Proton 版本需搭配 GLIBC 容器运行，且不兼容 WinNative。\n请使用 ARM64/bionic 版本。</string>
     <string name="wine_proton_containers_in_use">使用此版本的容器：</string>
     <string name="wine_proton_no_containers_warning">目前没有容器使用此版本</string>
     <string name="wine_proton_containers_will_break">若您继续操作，这些容器将无法继续运行：</string>

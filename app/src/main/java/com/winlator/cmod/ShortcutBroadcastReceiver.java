@@ -14,11 +14,12 @@ import android.widget.Toast;
 public class ShortcutBroadcastReceiver extends BroadcastReceiver {
 
     private static final String LOG_TAG = "ShortcutBroadcastReceiver";
+    private static final String ACTION_SHORTCUT_ADDED = BuildConfig.APPLICATION_ID + ".SHORTCUT_ADDED";
 
     @Override
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
-        if (action != null && action.equals("com.winlator.SHORTCUT_ADDED")) {
+        if (action != null && action.equals(ACTION_SHORTCUT_ADDED)) {
             boolean isShortcutAdded = intent.getBooleanExtra("shortcut_added", false);
             if (isShortcutAdded) {
                 Log.d(LOG_TAG, "Shortcut added successfully!");

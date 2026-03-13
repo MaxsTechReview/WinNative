@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">GameNative</string>
+    <string name="app_name">WinNative</string>
     <string name="login_user">Login do Usuário</string>
     <string name="login_2fa">Dois Fatores</string>
     <string name="home">Home</string>
@@ -474,9 +474,9 @@
     <string name="settings_info_source_title">Código-fonte</string>
     <string name="settings_info_source_subtitle">Ver o código-fonte deste projeto</string>
     <string name="settings_info_libraries_title">Bibliotecas utilizadas</string>
-    <string name="settings_info_libraries_subtitle">Veja quais tecnologias tornam o GameNative possível</string>
+    <string name="settings_info_libraries_subtitle">Veja quais tecnologias tornam o WinNative possível</string>
     <string name="settings_info_privacy_title">Política de privacidade</string>
-    <string name="settings_info_privacy_subtitle">Abre um link para a política de privacidade do GameNative</string>
+    <string name="settings_info_privacy_subtitle">Abre um link para a política de privacidade do WinNative</string>
 
     <!-- Settings: Interface Group -->
     <string name="settings_interface_title">Interface</string>
@@ -498,7 +498,7 @@
     <string name="settings_downloads_title">Downloads</string>
 
     <!-- TODO: Revisão manual - Novas strings para tela de Login -->
-    <string name="login_app_name">GameNative</string>
+    <string name="login_app_name">WinNative</string>
     <string name="login_privacy_policy">Política de Privacidade</string>
     <string name="login_welcome_back">Bem-vindo de volta</string>
     <string name="login_subtitle">Entre para acessar sua biblioteca do Steam</string>
@@ -566,7 +566,7 @@
     <!-- TODO: Revisão manual - PluviaMain: Falha e suporte -->
     <string name="main_recent_crash_title">Falha recente</string>
     <string name="main_recent_crash_message">Desculpe por isso!\nSeria bom saber sobre o problema recente que você teve.\nVocê pode visualizar e exportar o log de falha mais recente nas configurações do aplicativo e anexá-lo como um problema do Github no repositório do projeto.\nO link para o repositório do Github também está nas configurações!</string>
-    <string name="main_thank_you_title">Obrigado por usar o GameNative!</string>
+    <string name="main_thank_you_title">Obrigado por usar o WinNative!</string>
     <string name="main_thank_you_message">Apoie jogos de PC de código aberto no Android compartilhando o aplicativo com seus amigos ou se tornando um membro no Ko-fi.</string>
     <string name="main_join_kofi">Junte-se no Ko-fi</string>
     <string name="main_share">Compartilhar</string>

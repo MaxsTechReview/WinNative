@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">GameNative</string>
+    <string name="app_name">WinNative</string>
     <string name="login_user">Autentificare utilizator</string>
     <string name="login_2fa">Autentificare în doi pași</string>
     <string name="home">Acasă</string>
@@ -660,9 +660,9 @@
 	<string name="settings_info_source_title">Cod sursă</string>
 	<string name="settings_info_source_subtitle">Vezi codul sursă al acestui proiect</string>
 	<string name="settings_info_libraries_title">Biblioteci utilizate</string>
-	<string name="settings_info_libraries_subtitle">Vezi tehnologiile care fac GameNative posibil</string>
+	<string name="settings_info_libraries_subtitle">Vezi tehnologiile care fac WinNative posibil</string>
 	<string name="settings_info_privacy_title">Politica de confidențialitate</string>
-	<string name="settings_info_privacy_subtitle">Deschide linkul către politica de confidențialitate GameNative</string>
+	<string name="settings_info_privacy_subtitle">Deschide linkul către politica de confidențialitate WinNative</string>
 
 	<!-- Settings: Interface Group -->
 	<string name="settings_interface_title">Interfață</string>
@@ -684,7 +684,7 @@
 	<string name="settings_downloads_title">Descărcări</string>
 
 	<!-- Login Screen -->
-	<string name="login_app_name">GameNative</string>
+	<string name="login_app_name">WinNative</string>
 	<string name="login_privacy_policy">Politica de confidențialitate</string>
 	<string name="login_welcome_back">Bine ai revenit</string>
 	<string name="login_subtitle">Autentifică-te pentru a accesa biblioteca ta Steam</string>
@@ -749,7 +749,7 @@
 	<!-- PluviaMain: Crash & Support -->
 	<string name="main_recent_crash_title">Crash recent</string>
 	<string name="main_recent_crash_message">Ne pare rău!\nAr fi util să știm ce problemă ai întâmpinat.\nPoți vizualiza și exporta cel mai recent crash log din setările aplicației și îl poți atașa ca issue pe Github în repository-ul proiectului.\nLinkul către repo este tot în setări!</string>
-	<string name="main_thank_you_title">Mulțumim că folosești GameNative!</string>
+	<string name="main_thank_you_title">Mulțumim că folosești WinNative!</string>
 	<string name="main_thank_you_message">Susține gaming-ul open‑source pe Android distribuind aplicația prietenilor sau devenind membru pe Ko‑fi.</string>
 	<string name="main_join_kofi">Alătură-te pe Ko‑fi</string>
 	<string name="main_share">Distribuie</string>
@@ -981,7 +981,7 @@
 	<string name="wine_proton_install_failed">Instalare eșuată: %s</string>
 	<string name="wine_proton_install_error">Eroare la instalare: %s</string>
 	<string name="wine_proton_install_success">%1$s %2$s instalat cu succes</string>
-	<string name="wine_proton_glibc_incompatible">Această versiune Wine/Proton necesită containere GLIBC și nu este compatibilă cu GameNative. Folosește doar build-uri ARM64/Bionic.</string>
+	<string name="wine_proton_glibc_incompatible">Această versiune Wine/Proton necesită containere GLIBC și nu este compatibilă cu WinNative. Folosește doar build-uri ARM64/Bionic.</string>
 	<string name="wine_proton_containers_in_use">Containere care folosesc această versiune:</string>
 	<string name="wine_proton_no_containers_warning">Niciun container nu folosește această versiune.</string>
 	<string name="wine_proton_containers_will_break">Aceste containere nu vor mai funcționa dacă continui:</string>

@@ -21,10 +21,17 @@ public abstract class WineUtils {
         FileUtils.symlink("../drive_c", dosdevicesPath+"/c:");
         FileUtils.symlink(container.getRootDir().getPath() + "/../..", dosdevicesPath+"/z:");
 
+        String packageStorageSuffix = "/com.winnative.cmod/storage";
+        String legacyPackageStorageSuffix = "/com.winlator.cmod/storage";
+        if (container.getManager() != null && container.getManager().getContext() != null) {
+            packageStorageSuffix = "/" + container.getManager().getContext().getPackageName() + "/storage";
+        }
+
         for (String[] drive : container.drivesIterator()) {
             File linkTarget = new File(drive[1]);
             String path = linkTarget.getAbsolutePath();
-            if (!linkTarget.isDirectory() && path.endsWith("/com.winlator.cmod/storage")) {
+            boolean isAppStoragePath = path.endsWith(packageStorageSuffix) || path.endsWith(legacyPackageStorageSuffix);
+            if (!linkTarget.isDirectory() && isAppStoragePath) {
                 linkTarget.mkdirs();
                 FileUtils.chmod(linkTarget, 0771);
             }

@@ -395,8 +395,25 @@ __attribute__((constructor)) static void initialize_all_pads(void) {
     g_num_players = MAX_GAMEPADS;
 
   const char *data_path = getenv("EVSHIM_DATA_PATH");
-  if (!data_path)
-    data_path = "/data/data/com.winlator.cmod/files/imagefs/tmp";
+  static char derived_path[512];
+  if (!data_path || !*data_path) {
+    const char *home = getenv("HOME");
+    if (home && *home) {
+      const char *home_marker = strstr(home, "/home/");
+      if (home_marker) {
+        size_t prefix_len = (size_t)(home_marker - home);
+        if (prefix_len + 5 < sizeof(derived_path)) {
+          memcpy(derived_path, home, prefix_len);
+          derived_path[prefix_len] = '\0';
+          strncat(derived_path, "/tmp",
+                  sizeof(derived_path) - strlen(derived_path) - 1);
+          data_path = derived_path;
+        }
+      }
+    }
+  }
+  if (!data_path || !*data_path)
+    data_path = "/data/user/0/com.winnative.cmod/files/imagefs/tmp";
 
   /* Store path globally for hotplug detection */
   strncpy(g_data_path, data_path, sizeof(g_data_path) - 1);

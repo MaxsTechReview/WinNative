@@ -1544,9 +1544,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_info_source_title">Source code</string>
     <string name="settings_info_source_subtitle">View the source code of this project</string>
     <string name="settings_info_libraries_title">Libraries Used</string>
-    <string name="settings_info_libraries_subtitle">See what technologies make GameNative possible</string>
+    <string name="settings_info_libraries_subtitle">See what technologies make WinNative possible</string>
     <string name="settings_info_privacy_title">Privacy Policy</string>
-    <string name="settings_info_privacy_subtitle">Opens a link to GameNative\'s privacy policy</string>
+    <string name="settings_info_privacy_subtitle">Opens a link to WinNative\'s privacy policy</string>
 
     
     <string name="settings_interface_title">Interface</string>
@@ -1645,7 +1645,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     
     <string name="main_recent_crash_title">Recent Crash</string>
     <string name="main_recent_crash_message">Sorry about that!\nIt would be nice to know about the recent issue you\'ve had.\nYou can view and export the most recent crash log in the app\'s settings and attach it as a Github issue in the project\'s repository.\nLink to the Github repo is also in settings!</string>
-    <string name="main_thank_you_title">Thank you for using GameNative!</string>
+    <string name="main_thank_you_title">Thank you for using WinNative!</string>
     <string name="main_thank_you_message">Support open-source PC gaming on Android by sharing the app with your friends or becoming a member on Ko-fi.</string>
     <string name="main_join_kofi">Join on Ko-fi</string>
     <string name="main_share">Share</string>
@@ -1872,7 +1872,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="wine_proton_install_failed">Failed to install: %s</string>
     <string name="wine_proton_install_error">Installation error: %s</string>
     <string name="wine_proton_install_success">%1$s %2$s installed successfully</string>
-    <string name="wine_proton_glibc_incompatible">This Wine/Proton build requires GLIBC containers and is not compatible with GameNative. Please use ARM64/bionic builds only.</string>
+    <string name="wine_proton_glibc_incompatible">This Wine/Proton build requires GLIBC containers and is not compatible with WinNative. Please use ARM64/bionic builds only.</string>
     <string name="wine_proton_containers_in_use">Containers using this version:</string>
     <string name="wine_proton_no_containers_warning">No containers are currently using this version.</string>
     <string name="wine_proton_containers_will_break">These containers will no longer work if you proceed:</string>

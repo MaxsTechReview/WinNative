@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">GameNative</string>
+    <string name="app_name">WinNative</string>
     <string name="login_user">Вхід користувача</string>
     <string name="login_2fa">Двофакторна автентифікація</string>
     <string name="home">Домівка</string>
@@ -651,9 +651,9 @@
     <string name="settings_info_source_title">Вихідний код</string>
     <string name="settings_info_source_subtitle">Переглянути вихідний код застосунку</string>
     <string name="settings_info_libraries_title">Використані бібліотеки</string>
-    <string name="settings_info_libraries_subtitle">Дізнайтеся, завдяки яким технологіям працює GameNative</string>
+    <string name="settings_info_libraries_subtitle">Дізнайтеся, завдяки яким технологіям працює WinNative</string>
     <string name="settings_info_privacy_title">Політика конфіденційності</string>
-    <string name="settings_info_privacy_subtitle">Відкриває посилання на Політику конфіденційності GameNative</string>
+    <string name="settings_info_privacy_subtitle">Відкриває посилання на Політику конфіденційності WinNative</string>
 
     <!-- Settings: Interface Group -->
     <string name="settings_interface_title">Інтерфейс</string>
@@ -675,7 +675,7 @@
     <string name="settings_downloads_title">Завантаження</string>
 
     <!-- Login Screen -->
-    <string name="login_app_name">GameNative</string>
+    <string name="login_app_name">WinNative</string>
     <string name="login_privacy_policy">Політика конфіденційності</string>
     <string name="login_welcome_back">З поверненням</string>
     <string name="login_subtitle">Увійдіть, щоб отримати доступ до бібліотеки Steam</string>
@@ -741,7 +741,7 @@
     <!-- PluviaMain: Crash & Support -->
     <string name="main_recent_crash_title">Нещодавній збій</string>
     <string name="main_recent_crash_message">Перепрошуємо!\nБуло б добре дізнатися про проблему, з якою Ви нещодавно зіткнулися.\nВи можете переглянути та експортувати останній журнал збою в налаштуваннях застосунку і додати його як проблему (issue) на GitHub у репозиторії проєкту.\nПосилання на репозиторій GitHub також знаходиться в налаштуваннях!</string>
-    <string name="main_thank_you_title">Дякуємо за користування GameNative!</string>
+    <string name="main_thank_you_title">Дякуємо за користування WinNative!</string>
     <string name="main_thank_you_message">Підтримайте open-source ПК-ігри на Android, поділившись застосунком із друзями або ставши учасником на Ko-fi.</string>
     <string name="main_join_kofi">Стати учасником на Ko-fi</string>
     <string name="main_share">Поділитися</string>
@@ -972,7 +972,7 @@
     <string name="wine_proton_install_failed">Не вдалося інсталювати: %s</string>
     <string name="wine_proton_install_error">Помилка інсталяції: %s</string>
     <string name="wine_proton_install_success">%1$s %2$s успішно інстальовано</string>
-    <string name="wine_proton_glibc_incompatible">Ця збірка Wine/Proton вимагає контейнерів GLIBC і несумісна з GameNative. Будь ласка, використовуйте лише збірки ARM64/bionic.</string>
+    <string name="wine_proton_glibc_incompatible">Ця збірка Wine/Proton вимагає контейнерів GLIBC і несумісна з WinNative. Будь ласка, використовуйте лише збірки ARM64/bionic.</string>
     <string name="wine_proton_containers_in_use">Контейнери, що використовують цю версію:</string>
     <string name="wine_proton_no_containers_warning">Наразі жоден контейнер не використовує цю версію.</string>
     <string name="wine_proton_containers_will_break">Ці контейнери більше не працюватимуть, якщо ви продовжите:</string>

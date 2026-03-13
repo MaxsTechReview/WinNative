@@ -8,6 +8,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.IBinder
+import com.winlator.cmod.BuildConfig
 import com.winlator.cmod.R
 import com.winlator.cmod.steam.data.DownloadInfo
 import com.winlator.cmod.epic.data.EpicCredentials
@@ -39,8 +40,8 @@ class EpicService : Service() {
     companion object {
         private var instance: EpicService? = null
 
-        private const val ACTION_SYNC_LIBRARY = "com.winlator.cmod.EPIC_SYNC_LIBRARY"
-        private const val ACTION_MANUAL_SYNC = "com.winlator.cmod.EPIC_MANUAL_SYNC"
+        private const val ACTION_SYNC_LIBRARY = BuildConfig.APPLICATION_ID + ".EPIC_SYNC_LIBRARY"
+        private const val ACTION_MANUAL_SYNC = BuildConfig.APPLICATION_ID + ".EPIC_MANUAL_SYNC"
         private const val SYNC_THROTTLE_MILLIS = 15 * 60 * 1000L // 15 minutes
 
         // Sync tracking variables
