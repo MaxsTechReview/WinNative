@@ -1066,6 +1066,27 @@
                             android:layout_gravity="center" />
                     </LinearLayout>
 
+                    <LinearLayout
+                        android:id="@+id/LLExclusiveInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/CBExclusiveInput"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@android:color/transparent"
+                            android:fontFamily="@font/inter"
+                            android:text="@string/exclusive_input"
+                            android:textColor="@color/settings_text_primary"
+                            android:textSize="13sp"
+                            app:thumbTint="@color/settings_accent"
+                            app:trackTintMode="src_in" />
+                    </LinearLayout>
+
                     <com.google.android.material.switchmaterial.SwitchMaterial
                         android:id="@+id/CBSdl2Toggle"
                         android:layout_width="match_parent"

@@ -480,6 +480,7 @@ Installed path:
     <string name="help_steamgrid">SteamGrid API Key</string>
     <string name="settings_other_api_key_open_link">Open SteamGridDB API page</string>
     <string name="disable_xinput_for_shortcut">Disable Xinput (For Exclusive M/KB Control)</string>
+    <string name="exclusive_input">Exclusive Input</string>
     <string name="fullscreen_stretched">Enable Fullscreen (Stretched)</string>
     <string name="export_container">Export Container</string>
     <string name="exporting_container">Exporting Container...</string>
