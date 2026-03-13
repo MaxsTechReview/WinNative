@@ -28,6 +28,7 @@ import com.winlator.cmod.ContainerDetailFragment;
 import com.winlator.cmod.R;
 import com.winlator.cmod.ShortcutsFragment;
 import com.winlator.cmod.box64.Box64PresetManager;
+import com.winlator.cmod.container.Container;
 import com.winlator.cmod.container.ContainerManager;
 import com.winlator.cmod.container.Shortcut;
 import com.winlator.cmod.contents.ContentProfile;
@@ -640,7 +641,11 @@ public class ShortcutSettingsDialog extends ContentDialog {
         final Context context = view.getContext();
 
         final EnvVarsView envVarsView = view.findViewById(R.id.EnvVarsView);
-        envVarsView.setEnvVars(new EnvVars(shortcut.getExtra("envVars")));
+        String envVarsValue = shortcut.getExtra(
+                "envVars",
+                shortcut.container != null ? shortcut.container.getEnvVars() : Container.DEFAULT_ENV_VARS
+        );
+        envVarsView.setEnvVars(new EnvVars(envVarsValue));
 
         // Set the click listener for adding new environment variables
         view.findViewById(R.id.BTAddEnvVar).setOnClickListener((v) ->
