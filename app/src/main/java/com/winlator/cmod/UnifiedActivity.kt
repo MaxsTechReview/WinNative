@@ -99,6 +99,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.ui.text.style.TextAlign
+import androidx.core.view.WindowCompat
 
 // ─── Color palette ───────────────────────────────────────────────────
 private val BgDark = Color(0xFF0D1117)
@@ -296,6 +297,7 @@ class UnifiedActivity : ComponentActivity() {
             SteamService.start(this)
         }
 
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         window.navigationBarColor = 0xFF0D1117.toInt()
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
@@ -742,6 +744,7 @@ class UnifiedActivity : ComponentActivity() {
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
+                .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))
                 .height(64.dp)
                 .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically

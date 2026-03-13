@@ -6,7 +6,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="horizontal"
-    android:background="#0D0D0D">
+    android:background="#0D0D0D"
+    android:fitsSystemWindows="true">
 
     <!-- Sidebar: static header + scrollable nav -->
     <LinearLayout
@@ -102,7 +103,6 @@
         android:layout_width="0dp"
         android:layout_weight="1"
         android:layout_height="match_parent"
-        android:fitsSystemWindows="true"
         android:background="#111111" />
 
 </LinearLayout>
