@@ -106,8 +106,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         setTheme(R.style.AppTheme_Dark);
 
         AppUtils.showSystemUI(this);
-        getWindow().setNavigationBarColor(Color.parseColor("#0D1117"));
-        getWindow().setStatusBarColor(Color.parseColor("#0D1117"));
+        getWindow().setNavigationBarColor(Color.parseColor("#121212"));
+        getWindow().setStatusBarColor(Color.parseColor("#121212"));
 
         setContentView(R.layout.main_activity);
 
