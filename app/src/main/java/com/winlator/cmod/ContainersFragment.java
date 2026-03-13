@@ -91,7 +91,7 @@ public class ContainersFragment extends Fragment {
         }
         FragmentManager fragmentManager = getParentFragmentManager();
         fragmentManager.beginTransaction()
-                .setCustomAnimations(R.anim.slide_in_up, R.anim.slide_out_down, R.anim.slide_in_down, R.anim.slide_out_up)
+                .setCustomAnimations(R.anim.settings_enter, R.anim.settings_exit, R.anim.settings_enter, R.anim.settings_exit)
                 .addToBackStack(null)
                 .replace(R.id.FLFragmentContainer, new ContainerDetailFragment())
                 .commit();
@@ -222,7 +222,7 @@ public class ContainersFragment extends Fragment {
         private void editContainer(Container container) {
             FragmentManager fragmentManager = getParentFragmentManager();
             fragmentManager.beginTransaction()
-                    .setCustomAnimations(R.anim.slide_in_up, R.anim.slide_out_down, R.anim.slide_in_down, R.anim.slide_out_up)
+                    .setCustomAnimations(R.anim.settings_enter, R.anim.settings_exit, R.anim.settings_enter, R.anim.settings_exit)
                     .addToBackStack(null)
                     .replace(R.id.FLFragmentContainer, new ContainerDetailFragment(container.id))
                     .commit();

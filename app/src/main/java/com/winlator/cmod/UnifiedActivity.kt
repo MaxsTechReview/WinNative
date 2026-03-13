@@ -2,6 +2,7 @@ package com.winlator.cmod
 
 import android.content.Intent
 import android.net.Uri
+import androidx.core.app.ActivityOptionsCompat
 import android.os.Bundle
 import android.os.Process
 import android.provider.DocumentsContract
@@ -449,7 +450,8 @@ class UnifiedActivity : ComponentActivity() {
                         val intent = Intent(context, MainActivity::class.java)
                         intent.putExtra("selected_menu_item_id", R.id.main_menu_stores)
                         intent.putExtra("return_to_unified", true)
-                        context.startActivity(intent)
+                        val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
+                        context.startActivity(intent, opts.toBundle())
                     }
                     android.view.KeyEvent.KEYCODE_BUTTON_X -> {
                         if (key != "downloads") {
@@ -764,7 +766,8 @@ class UnifiedActivity : ComponentActivity() {
                             val intent = Intent(context, MainActivity::class.java)
                             intent.putExtra("selected_menu_item_id", R.id.main_menu_stores)
                             intent.putExtra("return_to_unified", true)
-                            context.startActivity(intent)
+                            val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
+                            context.startActivity(intent, opts.toBundle())
                         }, modifier = Modifier.size(44.dp), enabled = true) {
                             Icon(Icons.Default.Settings, contentDescription = "Menu", tint = TextPrimary, modifier = Modifier.size(24.dp))
                         }
@@ -1051,7 +1054,8 @@ class UnifiedActivity : ComponentActivity() {
                     val intent = Intent(this@UnifiedActivity, MainActivity::class.java)
                     intent.putExtra("selected_menu_item_id", R.id.main_menu_stores)
                     intent.putExtra("return_to_unified", true)
-                    startActivity(intent)
+                    val opts = ActivityOptionsCompat.makeCustomAnimation(this@UnifiedActivity, R.anim.settings_enter, R.anim.settings_exit)
+                    startActivity(intent, opts.toBundle())
                 }
             } else {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -1473,20 +1477,23 @@ class UnifiedActivity : ComponentActivity() {
                                             val intent = Intent(context, MainActivity::class.java)
                                             intent.putExtra("edit_shortcut_path", sc.file.absolutePath)
                                             intent.putExtra("return_to_unified", true)
-                                            context.startActivity(intent)
+                                            val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
+                                            context.startActivity(intent, opts.toBundle())
                                         } else if (isEpic) {
                                             val intent = Intent(context, MainActivity::class.java)
                                             intent.putExtra("create_shortcut_for_epic_id", epicId)
                                             intent.putExtra("create_shortcut_for_app_name", app.name)
                                             intent.putExtra("return_to_unified", true)
-                                            context.startActivity(intent)
+                                            val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
+                                            context.startActivity(intent, opts.toBundle())
                                         }
                                     } else {
                                         val intent = Intent(context, MainActivity::class.java)
                                         intent.putExtra("create_shortcut_for_app_id", app.id)
                                         intent.putExtra("create_shortcut_for_app_name", app.name)
                                         intent.putExtra("return_to_unified", true)
-                                        context.startActivity(intent)
+                                        val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
+                                        context.startActivity(intent, opts.toBundle())
                                     }
                                     onDismissRequest()
                                 },

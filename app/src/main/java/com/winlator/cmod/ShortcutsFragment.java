@@ -169,7 +169,7 @@ public class ShortcutsFragment extends Fragment {
                 int itemId = menuItem.getItemId();
                 if (itemId == R.id.shortcut_game_settings) {
                     getParentFragmentManager().beginTransaction()
-                            .setCustomAnimations(R.anim.slide_in_up, R.anim.slide_out_down, R.anim.slide_in_down, R.anim.slide_out_up)
+                            .setCustomAnimations(R.anim.settings_enter, R.anim.settings_exit, R.anim.settings_enter, R.anim.settings_exit)
                             .addToBackStack(null)
                             .replace(R.id.FLFragmentContainer, new ContainerDetailFragment(shortcut))
                             .commit();

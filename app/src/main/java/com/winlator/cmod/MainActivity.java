@@ -242,6 +242,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         // If backstack is empty, we are at the root fragment (ContainersFragment, Settings, etc).
         if (getIntent().getBooleanExtra("return_to_unified", false)) {
             finish();
+            overridePendingTransition(R.anim.settings_enter, R.anim.settings_exit);
             return;
         }
 
@@ -341,17 +342,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     private void show(Fragment fragment, boolean reverse) {
         FragmentManager fragmentManager = getSupportFragmentManager();
-        if (reverse) {
-            fragmentManager.beginTransaction()
-                    .setCustomAnimations(R.anim.slide_in_down, R.anim.slide_out_up)  // Reverse animation
-                    .replace(R.id.FLFragmentContainer, fragment)
-                    .commit();
-        } else {
-            fragmentManager.beginTransaction()
-                    .setCustomAnimations(R.anim.slide_in_up, R.anim.slide_out_down)  // Forward animation
-                    .replace(R.id.FLFragmentContainer, fragment)
-                    .commit();
-        }
+        fragmentManager.beginTransaction()
+                .setCustomAnimations(R.anim.settings_enter, R.anim.settings_exit)
+                .replace(R.id.FLFragmentContainer, fragment)
+                .commit();
     }
 
     private void showAboutDialog() {
