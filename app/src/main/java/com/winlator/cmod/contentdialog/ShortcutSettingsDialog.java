@@ -20,6 +20,7 @@ import android.widget.PopupMenu;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.preference.PreferenceManager;
 
@@ -100,6 +101,12 @@ public class ShortcutSettingsDialog extends ContentDialog {
 
         final EditText etName = findViewById(R.id.ETName);
         etName.setText(shortcut.name);
+
+        findViewById(R.id.BTAddToHomeScreen).setOnClickListener((v) -> {
+            boolean requested = fragment.addShortcutToScreen(shortcut);
+            if (!requested)
+                Toast.makeText(context, context.getString(R.string.library_failed_to_create_shortcut, shortcut.name), Toast.LENGTH_SHORT).show();
+        });
 
         final EditText etExecArgs = findViewById(R.id.ETExecArgs);
         etExecArgs.setText(shortcut.getExtra("execArgs"));

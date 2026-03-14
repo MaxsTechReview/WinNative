@@ -263,6 +263,35 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
 
     @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        if (intent == null) return;
+
+        String incomingShortcutPath = intent.getStringExtra("shortcut_path");
+        String incomingShortcutUuid = intent.getStringExtra("shortcut_uuid");
+        int incomingContainerId = intent.getIntExtra("container_id", 0);
+        String currentShortcutPath = shortcut != null ? shortcut.file.getAbsolutePath() : "";
+        String currentShortcutUuid = shortcut != null ? shortcut.getExtra("uuid") : "";
+        int currentContainerId = container != null ? container.id : 0;
+
+        // Ensure all later getIntent() reads use the latest launch intent.
+        setIntent(intent);
+
+        boolean shortcutChanged = incomingShortcutPath != null
+                && !incomingShortcutPath.isEmpty()
+                && !incomingShortcutPath.equals(currentShortcutPath);
+        boolean shortcutUuidChanged = incomingShortcutUuid != null
+                && !incomingShortcutUuid.isEmpty()
+                && !incomingShortcutUuid.equals(currentShortcutUuid);
+        boolean containerChanged = incomingContainerId != 0 && incomingContainerId != currentContainerId;
+
+        if (shortcutChanged || shortcutUuidChanged || containerChanged) {
+            Log.d("XServerDisplayActivity", "onNewIntent: launch target changed, recreating activity");
+            recreate();
+        }
+    }
+
+    @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         AppUtils.hideSystemUI(this);
@@ -376,13 +405,62 @@ public class XServerDisplayActivity extends AppCompatActivity {
         containerManager = new ContainerManager(this);
         container = containerManager.getContainerById(getIntent().getIntExtra("container_id", 0));
 
-        // Log shortcut_path
-        String shortcutPath = getIntent().getStringExtra("shortcut_path");
-        Log.d("XServerDisplayActivity", "Shortcut Path: " + shortcutPath);
-
-
-        // Determine container ID
+        // Determine launch target from intent extras and URI fallback.
         int containerId = getIntent().getIntExtra("container_id", 0);
+        String shortcutPath = getIntent().getStringExtra("shortcut_path");
+        String shortcutUuid = getIntent().getStringExtra("shortcut_uuid");
+        int shortcutPathHash = getIntent().getIntExtra("shortcut_path_hash", 0);
+
+        android.net.Uri launchData = getIntent().getData();
+        if (launchData != null) {
+            try {
+                String uriUuid = launchData.getQueryParameter("uuid");
+                String uriContainer = launchData.getQueryParameter("container");
+                String uriHash = launchData.getQueryParameter("hash");
+
+                if ((shortcutUuid == null || shortcutUuid.isEmpty()) && uriUuid != null && !uriUuid.isEmpty()) {
+                    shortcutUuid = uriUuid;
+                }
+                if (containerId == 0 && uriContainer != null && !uriContainer.isEmpty()) {
+                    try {
+                        containerId = Integer.parseInt(uriContainer);
+                    } catch (NumberFormatException ignored) {}
+                }
+                if (shortcutPathHash == 0 && uriHash != null && !uriHash.isEmpty()) {
+                    try {
+                        shortcutPathHash = Integer.parseInt(uriHash);
+                    } catch (NumberFormatException ignored) {}
+                }
+            } catch (Exception e) {
+                Log.e("XServerDisplayActivity", "Failed to parse shortcut URI fallback", e);
+            }
+        }
+
+        Shortcut resolvedShortcut = null;
+        if (shortcutUuid != null && !shortcutUuid.isEmpty()) {
+            resolvedShortcut = findShortcutByUuid(shortcutUuid, containerId);
+        }
+        if (resolvedShortcut == null && shortcutPathHash != 0) {
+            resolvedShortcut = findShortcutByPathHash(shortcutPathHash, containerId);
+        }
+        if (resolvedShortcut == null && shortcutPath != null && !shortcutPath.isEmpty()) {
+            resolvedShortcut = findShortcutByAbsolutePath(shortcutPath, containerId);
+        }
+        if (resolvedShortcut != null) {
+            shortcutPath = resolvedShortcut.file.getAbsolutePath();
+            containerId = resolvedShortcut.container.id;
+            Log.d("XServerDisplayActivity", "Resolved launch target from shortcut identity: " + shortcutPath + " (container " + containerId + ")");
+        } else {
+            File shortcutPathFile = (shortcutPath != null && !shortcutPath.isEmpty()) ? new File(shortcutPath) : null;
+            boolean hasUsablePath = shortcutPathFile != null && shortcutPathFile.isFile();
+            if (!hasUsablePath) {
+                Log.w("XServerDisplayActivity", "Shortcut path from intent is not usable and no shortcut identity match was found");
+            }
+        }
+
+        // Log shortcut identity data
+        Log.d("XServerDisplayActivity", "Shortcut Path: " + shortcutPath);
+        Log.d("XServerDisplayActivity", "Shortcut UUID: " + shortcutUuid + ", pathHash=" + shortcutPathHash);
         Log.d("XServerDisplayActivity", "Container ID from Intent: " + containerId);
         if (containerId == 0) {
             Log.d("XServerDisplayActivity", "Container ID is 0, attempting to parse from .desktop file");
@@ -578,6 +656,27 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 } else {
                     Log.e("XServerDisplayActivity", "GOG install path missing or invalid: '" + gameInstallPath + "'");
                 }
+            } else if ("CUSTOM".equals(gameSource)) {
+                String customMountPath = resolveCustomMountPath(shortcut);
+                if (!customMountPath.isEmpty() && new File(customMountPath).isDirectory()) {
+                    mountADriveOnContainer(container, customMountPath);
+                    Log.d("XServerDisplayActivity", "Mounted A: drive to custom game folder '" + customMountPath + "' on container " + container.id);
+
+                    if (shortcut.getExtra("custom_game_folder").isEmpty() || shortcut.getExtra("game_install_path").isEmpty()) {
+                        if (shortcut.getExtra("custom_game_folder").isEmpty()) {
+                            shortcut.putExtra("custom_game_folder", customMountPath);
+                        }
+                        if (shortcut.getExtra("game_install_path").isEmpty()) {
+                            shortcut.putExtra("game_install_path", customMountPath);
+                        }
+                        shortcut.saveData();
+                    }
+                } else {
+                    Log.w("XServerDisplayActivity", "CUSTOM mount path missing/invalid. custom_game_folder='"
+                            + shortcut.getExtra("custom_game_folder") + "' launch_exe_path='"
+                            + shortcut.getExtra("launch_exe_path") + "' custom_exe='"
+                            + shortcut.getExtra("custom_exe") + "' shortcut.path='" + shortcut.path + "'");
+                }
             }
 
             graphicsDriver = shortcut.getExtra("graphicsDriver", container.getGraphicsDriver());
@@ -741,9 +840,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
             try (BufferedReader reader = new BufferedReader(new FileReader(desktopFile))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    if (line.startsWith("container_id:")) {
-                        containerId = Integer.parseInt(line.split(":")[1].trim());
-                        break;
+                    String trimmed = line.trim();
+                    if (trimmed.startsWith("container_id:") || trimmed.startsWith("container_id=")) {
+                        int sep = trimmed.indexOf(':');
+                        if (sep == -1) sep = trimmed.indexOf('=');
+                        if (sep != -1 && sep + 1 < trimmed.length()) {
+                            containerId = Integer.parseInt(trimmed.substring(sep + 1).trim());
+                            break;
+                        }
                     }
                 }
             } catch (IOException | NumberFormatException e) {
@@ -751,6 +855,118 @@ public class XServerDisplayActivity extends AppCompatActivity {
             }
         }
         return containerId;
+    }
+
+    @Nullable
+    private Shortcut findShortcutByUuid(String uuid, int preferredContainerId) {
+        if (uuid == null || uuid.isEmpty() || containerManager == null) return null;
+        try {
+            Shortcut fallback = null;
+            for (Shortcut sc : containerManager.loadShortcuts()) {
+                if (!uuid.equals(sc.getExtra("uuid"))) continue;
+                if (preferredContainerId > 0 && sc.container != null && sc.container.id == preferredContainerId) {
+                    return sc;
+                }
+                if (fallback == null) fallback = sc;
+            }
+            return fallback;
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "Failed to resolve shortcut by uuid: " + uuid, e);
+        }
+        return null;
+    }
+
+    @Nullable
+    private Shortcut findShortcutByPathHash(int pathHash, int preferredContainerId) {
+        if (pathHash == 0 || containerManager == null) return null;
+        try {
+            Shortcut fallback = null;
+            for (Shortcut sc : containerManager.loadShortcuts()) {
+                if (sc.file == null || sc.file.getAbsolutePath().hashCode() != pathHash) continue;
+                if (preferredContainerId > 0 && sc.container != null && sc.container.id == preferredContainerId) {
+                    return sc;
+                }
+                if (fallback == null) fallback = sc;
+            }
+            return fallback;
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "Failed to resolve shortcut by path hash: " + pathHash, e);
+        }
+        return null;
+    }
+
+    @Nullable
+    private Shortcut findShortcutByAbsolutePath(String absolutePath, int preferredContainerId) {
+        if (absolutePath == null || absolutePath.isEmpty() || containerManager == null) return null;
+        try {
+            Shortcut fallback = null;
+            for (Shortcut sc : containerManager.loadShortcuts()) {
+                if (sc.file == null) continue;
+                if (!absolutePath.equals(sc.file.getAbsolutePath())) continue;
+                if (preferredContainerId > 0 && sc.container != null && sc.container.id == preferredContainerId) {
+                    return sc;
+                }
+                if (fallback == null) fallback = sc;
+            }
+            return fallback;
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "Failed to resolve shortcut by absolute path", e);
+        }
+        return null;
+    }
+
+    private String resolveCustomMountPath(@NonNull Shortcut shortcut) {
+        String customGameFolder = shortcut.getExtra("custom_game_folder");
+        if (!customGameFolder.isEmpty() && new File(customGameFolder).isDirectory()) {
+            return customGameFolder;
+        }
+
+        String gameInstallPath = shortcut.getExtra("game_install_path");
+        if (!gameInstallPath.isEmpty() && new File(gameInstallPath).isDirectory()) {
+            return gameInstallPath;
+        }
+
+        String launchExePath = shortcut.getExtra("launch_exe_path");
+        String inferredFromLaunchExe = inferCustomMountPathFromExe(shortcut.path, launchExePath);
+        if (!inferredFromLaunchExe.isEmpty()) return inferredFromLaunchExe;
+
+        String customExePath = shortcut.getExtra("custom_exe");
+        String inferredFromCustomExe = inferCustomMountPathFromExe(shortcut.path, customExePath);
+        if (!inferredFromCustomExe.isEmpty()) return inferredFromCustomExe;
+
+        return "";
+    }
+
+    private String inferCustomMountPathFromExe(String shortcutWinPath, String hostExePath) {
+        if (hostExePath == null || hostExePath.isEmpty()) return "";
+        File hostExeFile = new File(hostExePath);
+
+        if (hostExeFile.isDirectory()) return hostExeFile.getAbsolutePath();
+        if (!hostExeFile.isFile()) return "";
+
+        if (shortcutWinPath != null && !shortcutWinPath.isEmpty()) {
+            String normalizedWinPath = shortcutWinPath.replace("/", "\\");
+            if (normalizedWinPath.matches("^[A-Za-z]:\\\\.*")) {
+                String relativeWinPath = normalizedWinPath.substring(3);
+                while (relativeWinPath.startsWith("\\")) relativeWinPath = relativeWinPath.substring(1);
+                if (!relativeWinPath.isEmpty()) {
+                    String relativeFsPath = relativeWinPath.replace("\\", File.separator);
+                    String normalizedHostExe = hostExeFile.getAbsolutePath().replace("\\", File.separator);
+                    if (normalizedHostExe.endsWith(relativeFsPath)) {
+                        String root = normalizedHostExe.substring(0, normalizedHostExe.length() - relativeFsPath.length());
+                        while (root.endsWith(File.separator)) {
+                            root = root.substring(0, root.length() - 1);
+                        }
+                        if (!root.isEmpty() && new File(root).isDirectory()) {
+                            return root;
+                        }
+                    }
+                }
+            }
+        }
+
+        File parent = hostExeFile.getParentFile();
+        return (parent != null && parent.isDirectory()) ? parent.getAbsolutePath() : "";
     }
 
     private boolean parseBoolean(String value) {

@@ -6,6 +6,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
@@ -64,6 +65,7 @@ import com.winlator.cmod.fexcore.FEXCoreManager;
 import com.winlator.cmod.fexcore.FEXCorePreset;
 import com.winlator.cmod.fexcore.FEXCorePresetManager;
 import com.winlator.cmod.midi.MidiManager;
+import com.winlator.cmod.utils.IconFileUtils;
 import com.winlator.cmod.widget.CPUListView;
 import com.winlator.cmod.widget.ColorPickerView;
 import com.winlator.cmod.widget.EnvVarsView;
@@ -82,6 +84,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 public class ContainerDetailFragment extends Fragment {
 
@@ -96,6 +99,7 @@ public class ContainerDetailFragment extends Fragment {
     private JSONArray gpuCards;
     private Callback<String> openDirectoryCallback;
     private Callback<String> openFileCallback;
+    private Callback<String> openIconFileCallback;
     private int createShortcutForAppId = 0;
     private String createShortcutForAppName = "";
     private String createShortcutForSource = "STEAM";
@@ -276,12 +280,21 @@ public class ContainerDetailFragment extends Fragment {
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        if (requestCode == MainActivity.OPEN_FILE_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
-            if (data != null) {
+        if (requestCode == MainActivity.OPEN_FILE_REQUEST_CODE) {
+            if (resultCode == Activity.RESULT_OK && data != null) {
                 Uri uri = data.getData();
                 String path = uri != null ? FileUtils.getFilePathFromUri(getContext(), uri) : null;
                 String fileName = uri != null ? FileUtils.getUriFileName(getContext(), uri) : null;
-                if (path != null && path.toLowerCase(Locale.ENGLISH).endsWith(".exe")) {
+
+                if (openIconFileCallback != null) {
+                    boolean validIcon = (path != null && isSupportedIconFile(path))
+                            || (fileName != null && isSupportedIconFile(fileName));
+                    if (validIcon && path != null) {
+                        openIconFileCallback.call(path);
+                    } else {
+                        Toast.makeText(getContext(), R.string.select_valid_icon_file, Toast.LENGTH_SHORT).show();
+                    }
+                } else if (path != null && path.toLowerCase(Locale.ENGLISH).endsWith(".exe")) {
                     if (openFileCallback != null) {
                         openFileCallback.call(path);
                     }
@@ -294,6 +307,7 @@ public class ContainerDetailFragment extends Fragment {
                 }
             }
             openFileCallback = null;
+            openIconFileCallback = null;
         } else if (requestCode == MainActivity.OPEN_DIRECTORY_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
             if (data != null) {
                 Uri uri = data.getData();
@@ -381,9 +395,14 @@ public class ContainerDetailFragment extends Fragment {
 
         final EditText etName = view.findViewById(R.id.ETName);
         final View llLaunchExe = view.findViewById(R.id.LLLaunchExe);
+        final TextView btSelectIcon = view.findViewById(R.id.BTSelectIcon);
         final TextView btSelectExe = view.findViewById(R.id.BTSelectExe);
         final boolean showLaunchExeSelector = isShortcutMode() || isCreateShortcutMode();
         final String[] selectedExePath = new String[]{resolveInitialLaunchExePath()};
+        final String existingCustomLibraryIconPath = isShortcutMode()
+                ? shortcut.getExtra("customLibraryIconPath", shortcut.getExtra("customCoverArtPath"))
+                : "";
+        final String[] selectedIconPath = new String[]{existingCustomLibraryIconPath};
 
         final Spinner sWineVersion = view.findViewById(R.id.SWineVersion);
 
@@ -405,8 +424,24 @@ public class ContainerDetailFragment extends Fragment {
 
         llLaunchExe.setVisibility(showLaunchExeSelector ? View.VISIBLE : View.GONE);
         if (showLaunchExeSelector) {
+            updateSelectIconButton(btSelectIcon, selectedIconPath[0]);
+            btSelectIcon.setOnClickListener((v) -> {
+                openFileCallback = null;
+                openIconFileCallback = (path) -> {
+                    selectedIconPath[0] = path;
+                    updateSelectIconButton(btSelectIcon, path);
+                };
+
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("*/*");
+                intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {"image/png", "image/x-icon", "image/vnd.microsoft.icon"});
+                getActivity().startActivityFromFragment(this, intent, MainActivity.OPEN_FILE_REQUEST_CODE);
+            });
+
             updateLaunchExeButton(btSelectExe, selectedExePath[0]);
             btSelectExe.setOnClickListener((v) -> {
+                openIconFileCallback = null;
                 openFileCallback = (path) -> {
                     selectedExePath[0] = path;
                     updateLaunchExeButton(btSelectExe, path);
@@ -687,6 +722,33 @@ public class ContainerDetailFragment extends Fragment {
                     }
                 }
 
+                String customLibraryIconPath = existingCustomLibraryIconPath != null ? existingCustomLibraryIconPath : "";
+                if (showLaunchExeSelector) {
+                    String requestedIconPath = selectedIconPath[0] != null ? selectedIconPath[0].trim() : "";
+                    if (requestedIconPath.isEmpty()) {
+                        customLibraryIconPath = "";
+                    } else if (isShortcutMode()
+                            && requestedIconPath.equals(existingCustomLibraryIconPath)
+                            && new File(requestedIconPath).isFile()) {
+                        customLibraryIconPath = requestedIconPath;
+                    } else {
+                        String iconStorageId = buildShortcutLibraryIconId(
+                                isShortcutMode() ? shortcut.name : createShortcutForAppName,
+                                isShortcutMode() ? shortcut : null,
+                                createShortcutForSource,
+                                createShortcutForAppId,
+                                createShortcutForGogId
+                        );
+                        customLibraryIconPath = persistShortcutLibraryIcon(requestedIconPath, iconStorageId);
+                        if (customLibraryIconPath.isEmpty()) {
+                            Toast.makeText(context, R.string.select_valid_icon_file, Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        selectedIconPath[0] = customLibraryIconPath;
+                        updateSelectIconButton(btSelectIcon, customLibraryIconPath);
+                    }
+                }
+
                 if (isShortcutMode()) {
                     String gameSource = shortcut.getExtra("game_source", createShortcutForSource);
                     if (showLaunchExeSelector && selectedExePath[0] != null && !selectedExePath[0].isEmpty()) {
@@ -727,6 +789,8 @@ public class ContainerDetailFragment extends Fragment {
                     shortcut.putExtra("lc_all", lc_all);
                     shortcut.putExtra("primaryController", String.valueOf(primaryController));
                     shortcut.putExtra("controllerMapping", controllerMapping);
+                    shortcut.putExtra("customLibraryIconPath", customLibraryIconPath.isEmpty() ? null : customLibraryIconPath);
+                    shortcut.putExtra("customCoverArtPath", customLibraryIconPath.isEmpty() ? null : customLibraryIconPath);
                     
                     // Handle container_id override
                     boolean saved = false;
@@ -833,6 +897,10 @@ public class ContainerDetailFragment extends Fragment {
                     data.put("lc_all", lc_all);
                     data.put("primaryController", primaryController);
                     data.put("controllerMapping", controllerMapping);
+                    if (!customLibraryIconPath.isEmpty()) {
+                        data.put("customLibraryIconPath", customLibraryIconPath);
+                        data.put("customCoverArtPath", customLibraryIconPath);
+                    }
                     if (showLaunchExeSelector && selectedExePath[0] != null && !selectedExePath[0].isEmpty()) {
                         data.put("launchExePath", selectedExePath[0]);
                         if ("EPIC".equals(createShortcutForSource) || "GOG".equals(createShortcutForSource)) {
@@ -1676,6 +1744,56 @@ public class ContainerDetailFragment extends Fragment {
     private void updateLaunchExeButton(TextView button, String fullPath) {
         if (button == null) return;
         button.setText(fullPath == null || fullPath.isEmpty() ? getString(R.string.select_exe) : fullPath);
+    }
+
+    private void updateSelectIconButton(TextView button, String fullPath) {
+        if (button == null) return;
+        button.setText(fullPath == null || fullPath.isEmpty() ? getString(R.string.select_icon) : fullPath);
+    }
+
+    private boolean isSupportedIconFile(String path) {
+        if (path == null) return false;
+        String lower = path.toLowerCase(Locale.ENGLISH);
+        return lower.endsWith(".png") || lower.endsWith(".ico");
+    }
+
+    private String buildShortcutLibraryIconId(String name, @Nullable Shortcut shortcut, String source, int appId, @Nullable String gogId) {
+        String baseId = "";
+        if (shortcut != null) {
+            baseId = shortcut.getExtra("uuid");
+            if (baseId.isEmpty()) baseId = shortcut.name;
+        }
+
+        if (baseId.isEmpty()) {
+            StringBuilder builder = new StringBuilder();
+            if (source != null && !source.isEmpty()) builder.append(source);
+            if (appId > 0) builder.append("_").append(appId);
+            if (gogId != null && !gogId.isEmpty()) builder.append("_").append(gogId);
+            if (name != null && !name.isEmpty()) builder.append("_").append(name);
+            baseId = builder.toString();
+        }
+
+        if (baseId.isEmpty()) baseId = UUID.randomUUID().toString();
+        return baseId.replaceAll("[^a-zA-Z0-9._-]", "_");
+    }
+
+    private String persistShortcutLibraryIcon(String sourcePath, String iconId) {
+        if (sourcePath == null || sourcePath.isEmpty()) return "";
+
+        File sourceFile = new File(sourcePath);
+        if (!sourceFile.isFile()) return "";
+
+        Bitmap iconBitmap = IconFileUtils.decodeImageOrIco(sourceFile);
+        if (iconBitmap == null) return "";
+
+        Context context = getContext();
+        if (context == null) return "";
+
+        File iconDir = new File(context.getFilesDir(), "library_icons");
+        if (!iconDir.exists()) iconDir.mkdirs();
+
+        File outputFile = new File(iconDir, iconId + ".png");
+        return FileUtils.saveBitmapToFile(iconBitmap, outputFile) ? outputFile.getAbsolutePath() : "";
     }
 
     private int shortcutAppId() {
