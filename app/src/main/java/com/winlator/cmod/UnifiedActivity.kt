@@ -28,7 +28,9 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import com.winlator.cmod.widget.chasingBorder
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.focusable
@@ -1449,6 +1451,14 @@ class UnifiedActivity : ComponentActivity() {
                 app = app,
                 gogGame = gogByPseudoId[app.id],
                 isFocusedOverride = index == focusIndex,
+                onLongClick = {
+                    val gog = gogByPseudoId[app.id]
+                    if (gog != null) {
+                        selectedGogGameForSettings = gog
+                    } else {
+                        selectedAppForSettings = app
+                    }
+                },
                 modifier = Modifier
                     .height(rowHeight)
                     .then(
@@ -1907,7 +1917,8 @@ class UnifiedActivity : ComponentActivity() {
 
     // Single game capsule for carousel
     @Composable
-    private fun GameCapsule(app: SteamApp, gogGame: GOGGame? = null, isFocusedOverride: Boolean = false, modifier: Modifier = Modifier) {
+    @OptIn(ExperimentalFoundationApi::class)
+    private fun GameCapsule(app: SteamApp, gogGame: GOGGame? = null, isFocusedOverride: Boolean = false, onLongClick: (() -> Unit)? = null, modifier: Modifier = Modifier) {
         val context = LocalContext.current
         val isCustom = app.id < 0
         val isEpic = app.id >= 2000000000
@@ -1925,18 +1936,21 @@ class UnifiedActivity : ComponentActivity() {
                 .chasingBorder(isFocused = isFocused, cornerRadius = 12.dp)
                 .background(CardDark, RoundedCornerShape(12.dp))
                 .focusable()
-                .clickable {
-                    val containerManager = com.winlator.cmod.container.ContainerManager(context)
-                    if (isCustom) {
-                        launchCustomGame(context, containerManager, app.name)
-                    } else if (gogGame != null) {
-                        launchGogGame(context, containerManager, gogGame)
-                    } else if (isEpic) {
-                        epicGame?.let { launchEpicGame(context, containerManager, it) }
-                    } else if (SteamService.isAppInstalled(app.id)) {
-                        launchSteamGame(context, containerManager, app)
-                    }
-                }
+                .combinedClickable(
+                    onClick = {
+                        val containerManager = com.winlator.cmod.container.ContainerManager(context)
+                        if (isCustom) {
+                            launchCustomGame(context, containerManager, app.name)
+                        } else if (gogGame != null) {
+                            launchGogGame(context, containerManager, gogGame)
+                        } else if (isEpic) {
+                            epicGame?.let { launchEpicGame(context, containerManager, it) }
+                        } else if (SteamService.isAppInstalled(app.id)) {
+                            launchSteamGame(context, containerManager, app)
+                        }
+                    },
+                    onLongClick = onLongClick
+                )
         ) {
             // Art area — clip only on the image, not the text
             Box(
