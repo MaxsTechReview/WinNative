@@ -11,15 +11,25 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import com.winlator.cmod.widget.chasingBorder
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -48,9 +58,17 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import android.content.res.Configuration
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -118,6 +136,7 @@ private val TextSecondary = Color(0xFF7A8FA8)
 private val StatusOnline = Color(0xFF3FB950)
 private val StatusAway = Color(0xFFF0C040)
 private val StatusOffline = Color(0xFF6E7681)
+
 
 @AndroidEntryPoint
 class UnifiedActivity : ComponentActivity() {
@@ -363,6 +382,7 @@ class UnifiedActivity : ComponentActivity() {
         val storeVisible = remember { mutableStateMapOf("steam" to true, "epic" to true, "gog" to true, "amazon" to true) }
         var showAddCustomGame by remember { mutableStateOf(false) }
         var showExitDialog by remember { mutableStateOf(false) }
+        var searchQuery by remember { mutableStateOf("") }
         var libraryRefreshKey by remember { mutableIntStateOf(0) }
         
         val currentRefreshSignal = this@UnifiedActivity.libraryRefreshSignal
@@ -594,7 +614,7 @@ class UnifiedActivity : ComponentActivity() {
         Box(Modifier.fillMaxSize().background(BgDark)) {
             Scaffold(
                 containerColor = BgDark,
-                topBar = { TopBar(tabs, selectedIdx, { selectedIdx = it }, persona, context, scope, isControllerConnected, isPS, isLibraryTab) {
+                topBar = { TopBar(tabs, selectedIdx, { selectedIdx = it }, persona, context, scope, isControllerConnected, isPS, isLibraryTab, searchQuery, { searchQuery = it }) {
                     if (selectedLibrarySource == "GOG") {
                         globalSettingsGogGame = gogApps.find { it.id == selectedGogGameId }
                     } else {
@@ -628,14 +648,14 @@ class UnifiedActivity : ComponentActivity() {
                     val key = tabs.getOrNull(selectedIdx)?.key ?: "library"
 
                     when (key) {
-                        "library" -> LibraryCarousel(isLoggedIn, filteredSteamApps, epicApps, gogApps, libraryRefreshKey)
+                        "library" -> LibraryCarousel(isLoggedIn, filteredSteamApps, epicApps, gogApps, libraryRefreshKey, searchQuery)
                         "downloads" -> DownloadsTab(selectedDownloadId, onSelectDownload = { selectedDownloadId = it })
-                        "steam", "store" -> SteamStoreTab(isLoggedIn, filteredSteamApps)
+                        "steam", "store" -> SteamStoreTab(isLoggedIn, filteredSteamApps, searchQuery)
 
-                        "epic" -> EpicStoreTab(isEpicLoggedIn) {
+                        "epic" -> EpicStoreTab(isEpicLoggedIn, searchQuery) {
                             epicLoginLauncher.launch(Intent(this@UnifiedActivity, EpicOAuthActivity::class.java))
                         }
-                        "gog" -> GOGStoreTab(isGogLoggedIn) {
+                        "gog" -> GOGStoreTab(isGogLoggedIn, searchQuery) {
                             gogLoginLauncher.launch(Intent(this@UnifiedActivity, GOGOAuthActivity::class.java))
                         }
                         "amazon" -> StorePlaceholderTab("Amazon Games")
@@ -818,6 +838,8 @@ class UnifiedActivity : ComponentActivity() {
         isControllerConnected: Boolean,
         isPS: Boolean,
         isLibraryTab: Boolean,
+        searchQuery: String,
+        onSearchQueryChange: (String) -> Unit,
         onGameSettingsClicked: () -> Unit
     ) {
         var showStatusMenu by remember { mutableStateOf(false) }
@@ -825,6 +847,28 @@ class UnifiedActivity : ComponentActivity() {
         val tabListState = rememberLazyListState()
         val tabWidthsPx = remember(tabs) { mutableStateMapOf<Int, Int>() }
         var tabViewportWidthPx by remember { mutableIntStateOf(0) }
+        var isSearchExpanded by remember { mutableStateOf(false) }
+        val searchFocusRequester = remember { FocusRequester() }
+        val keyboardController = LocalSoftwareKeyboardController.current
+        val isDownloadsTab = tabs.getOrNull(selectedIdx)?.key == "downloads"
+
+        // Auto-collapse search when switching tabs
+        LaunchedEffect(selectedIdx) {
+            if (isSearchExpanded) {
+                onSearchQueryChange("")
+                isSearchExpanded = false
+            }
+        }
+
+        // Auto-focus the search field when expanded
+        LaunchedEffect(isSearchExpanded) {
+            if (isSearchExpanded) {
+                kotlinx.coroutines.delay(150)
+                searchFocusRequester.requestFocus()
+            } else if (searchQuery.isNotEmpty()) {
+                onSearchQueryChange("")
+            }
+        }
 
         LaunchedEffect(selectedIdx, tabs, tabViewportWidthPx, tabWidthsPx[selectedIdx]) {
             val selectedTabWidth = tabWidthsPx[selectedIdx] ?: return@LaunchedEffect
@@ -834,6 +878,7 @@ class UnifiedActivity : ComponentActivity() {
             tabListState.animateScrollToItem(selectedIdx.coerceIn(0, tabs.lastIndex), centeredOffset)
         }
 
+        Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -843,7 +888,7 @@ class UnifiedActivity : ComponentActivity() {
                 .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left Block: Settings & Download Queue
+            // Left Block: Settings, Search & Download Queue
             Row(
                 modifier = Modifier.weight(1f).fillMaxHeight(),
                 verticalAlignment = Alignment.CenterVertically
@@ -872,6 +917,51 @@ class UnifiedActivity : ComponentActivity() {
                     if (isControllerConnected) {
                         Spacer(Modifier.width(8.dp))
                         ControllerBadge(if (isPS) "Options" else "Start")
+                    }
+                }
+
+                // Search Button (hidden on downloads tab)
+                if (!isDownloadsTab) {
+                    Spacer(Modifier.width(12.dp))
+
+                    val searchIconRotation by animateFloatAsState(
+                        targetValue = if (isSearchExpanded) 90f else 0f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        ),
+                        label = "searchIconRotation"
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
+                            .clip(CircleShape)
+                            .background(if (isSearchExpanded) Accent.copy(alpha = 0.15f) else SurfaceDark)
+                            .focusProperties { canFocus = !isLibraryTab },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        IconButton(
+                            onClick = {
+                                if (isSearchExpanded) {
+                                    onSearchQueryChange("")
+                                    isSearchExpanded = false
+                                } else {
+                                    isSearchExpanded = true
+                                }
+                            },
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = "Search",
+                                tint = if (isSearchExpanded) Accent else TextPrimary,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .graphicsLayer { rotationZ = searchIconRotation }
+                            )
+                        }
                     }
                 }
 
@@ -1088,6 +1178,101 @@ class UnifiedActivity : ComponentActivity() {
                 }
             }
         }
+
+        // Dropdown Search Bar
+        AnimatedVisibility(
+            visible = isSearchExpanded && !isDownloadsTab,
+            enter = expandVertically(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioLowBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                ),
+                expandFrom = Alignment.Top
+            ) + fadeIn(animationSpec = tween(200)),
+            exit = shrinkVertically(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMedium
+                ),
+                shrinkTowards = Alignment.Top
+            ) + fadeOut(animationSpec = tween(150))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .widthIn(max = 600.dp)
+                        .fillMaxWidth(0.7f)
+                        .height(44.dp)
+                        .shadow(8.dp, RoundedCornerShape(24.dp), spotColor = Color.Black.copy(alpha = 0.4f))
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(SurfaceDark),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            tint = Accent,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        BasicTextField(
+                            value = searchQuery,
+                            onValueChange = onSearchQueryChange,
+                            singleLine = true,
+                            textStyle = TextStyle(
+                                color = TextPrimary,
+                                fontSize = 15.sp
+                            ),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
+                            cursorBrush = Brush.verticalGradient(listOf(Accent, AccentGlow)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .focusRequester(searchFocusRequester),
+                            decorationBox = { innerTextField ->
+                                Box(contentAlignment = Alignment.CenterStart) {
+                                    if (searchQuery.isEmpty()) {
+                                        Text(
+                                            "Search games...",
+                                            style = TextStyle(
+                                                color = TextSecondary,
+                                                fontSize = 15.sp
+                                            )
+                                        )
+                                    }
+                                    innerTextField()
+                                }
+                            }
+                        )
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(
+                                onClick = { onSearchQueryChange("") },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Clear",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        } // end Column
     }
 
     // PS5-style Library Carousel
@@ -1098,6 +1283,7 @@ class UnifiedActivity : ComponentActivity() {
         epicApps: List<EpicGame>,
         gogApps: List<GOGGame>,
         libraryRefreshKey: Int = 0,
+        searchQuery: String = "",
     ) {
         val context = LocalContext.current
 
@@ -1172,6 +1358,11 @@ class UnifiedActivity : ComponentActivity() {
             }
         }
 
+        val displayedApps = remember(installedApps, searchQuery) {
+            if (searchQuery.isBlank()) installedApps
+            else installedApps.filter { it.name.contains(searchQuery, ignoreCase = true) }
+        }
+
         if (installedApps.isEmpty()) {
             if (!isLoggedIn) {
                 LoginRequiredScreen("Library") {
@@ -1190,253 +1381,41 @@ class UnifiedActivity : ComponentActivity() {
             return
         }
 
-        val listState = rememberLazyListState(initialFirstVisibleItemIndex = 0)
-        var centerIdx by remember { mutableIntStateOf(0) }
-        var snapAfterTouchScroll by remember { mutableStateOf(false) }
-
-        // When entering the library tab for the first time or when it becomes empty -> full, 
-        // ensure we start at the beginning. But don't reset every time the sync status updates
-        // to avoid "cutting out" while the user is browsing.
-        val hasApps = installedApps.isNotEmpty()
-        LaunchedEffect(hasApps) {
-            if (hasApps) {
-                listState.scrollToItem(0)
-                centerIdx = 0
-            }
-        }
-
-        // Listen for D-Pad / Left Joystick carousel scroll commands
-        val activity = LocalContext.current as? UnifiedActivity
-        LaunchedEffect(listState, installedApps) {
-            activity?.libraryScrollFlow?.collect { direction ->
-                // Use a tighter throttle in the collector as the primary throttle is now in the Activity
-                val targetIdx = (centerIdx + direction).coerceIn(0, (installedApps.size - 1).coerceAtLeast(0))
-                if (targetIdx != centerIdx) {
-                    centerIdx = targetIdx
-                    listState.animateScrollToItem(targetIdx)
-                }
-            }
-        }
-
-        // Touch Scroll Support: Update centerIdx as the user scrolls
-        LaunchedEffect(listState, installedApps) {
-            snapshotFlow { 
-                val layoutInfo = listState.layoutInfo
-                val visibleItems = layoutInfo.visibleItemsInfo
-                if (visibleItems.isEmpty()) -1
-                else {
-                    val viewportWidthPx = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
-                    val center = viewportWidthPx / 2 + layoutInfo.viewportStartOffset
-                    visibleItems.minBy { kotlin.math.abs((it.offset + it.size / 2) - center) }.index
-                }
-            }.collect { newIdx ->
-                if (newIdx != -1 && newIdx != centerIdx) {
-                    centerIdx = newIdx
-                }
-            }
-        }
-
-        // Auto-snap to center after touch scrolling stops
-        LaunchedEffect(listState.isScrollInProgress) {
-            if (listState.isScrollInProgress) {
-                snapAfterTouchScroll = true
-            } else if (snapAfterTouchScroll && installedApps.isNotEmpty()) {
-                snapAfterTouchScroll = false
-                listState.animateScrollToItem(centerIdx)
-            }
-        }
-
-        // Track which game is selected for the top-right "Game Settings" button
-        val selectedApp = installedApps.getOrNull(centerIdx)
         var selectedAppForSettings by remember { mutableStateOf<SteamApp?>(null) }
         var selectedGogGameForSettings by remember { mutableStateOf<GOGGame?>(null) }
-        
-        LaunchedEffect(selectedApp) {
-            selectedSteamAppId = selectedApp?.id ?: 0
-            selectedSteamAppName = selectedApp?.name ?: ""
-            val gogGame = selectedApp?.let { gogByPseudoId[it.id] }
+        val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+
+        // Track selected app for the top-right Game Settings button
+        LaunchedEffect(installedApps) {
+            val first = installedApps.firstOrNull()
+            selectedSteamAppId = first?.id ?: 0
+            selectedSteamAppName = first?.name ?: ""
+            val gogGame = first?.let { gogByPseudoId[it.id] }
             selectedLibrarySource = when {
                 gogGame != null -> "GOG"
-                selectedApp == null -> ""
-                selectedApp.id >= 2000000000 -> "EPIC"
-                selectedApp.id < 0 -> "CUSTOM"
+                first == null -> ""
+                first.id >= 2000000000 -> "EPIC"
+                first.id < 0 -> "CUSTOM"
                 else -> "STEAM"
             }
             selectedGogGameId = gogGame?.id.orEmpty()
         }
 
-        // Use half screen width for content padding so first/last item can center
-        val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
-        val itemWidth = 140.dp
-        val centerPadding = (screenWidthDp - itemWidth) / 2
-
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.Center
+        BoxWithConstraints(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) {
+            val rowHeight = (maxHeight - 12.dp) / 2 // 12dp = grid vertical spacing
+            LazyVerticalGrid(
+                state = gridState,
+                columns = GridCells.Fixed(4),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxSize()
             ) {
-
-                // Horizontal carousel
-                LazyRow(
-                    state = listState,
-                    modifier = Modifier.fillMaxWidth().height(260.dp),
-                    contentPadding = PaddingValues(horizontal = centerPadding),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    itemsIndexed(installedApps) { index, app ->
-                        val isCentered = index == centerIdx
-                        val targetScale by animateFloatAsState(
-                            targetValue = if (isCentered) 1.15f else 0.85f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMedium
-                            ),
-                            label = "capsuleScale"
-                        )
-                        val shadowElevation by animateFloatAsState(
-                            targetValue = if (isCentered) 24f else 2f,
-                            spring(stiffness = Spring.StiffnessMedium),
-                            label = "shadowElev"
-                        )
-                        val titleAlpha by animateFloatAsState(
-                            targetValue = if (isCentered) 1f else 0.5f,
-                            spring(stiffness = Spring.StiffnessMedium),
-                            label = "titleAlpha"
-                        )
-
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier
-                                .width(itemWidth)
-                                .graphicsLayer {
-                                    scaleX = targetScale
-                                    scaleY = targetScale
-                                }
-                        ) {
-                            GameCapsule(
-                                app = app,
-                                gogGame = gogByPseudoId[app.id],
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .shadow(
-                                        shadowElevation.dp,
-                                        RoundedCornerShape(12.dp),
-                                        spotColor = if (isCentered) Color.Black.copy(alpha = 0.6f) else Color.Transparent
-                                    )
-                                    .then(if (isCentered) Modifier.border(4.dp, Accent.copy(alpha = 0.8f), RoundedCornerShape(12.dp)) else Modifier)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(24.dp))
-
-                // Selected game details
-                if (selectedApp != null) {
-                    val selectedGogGame = gogByPseudoId[selectedApp.id]
-                    val isPS = ControllerHelper.isPlayStationController()
-                    val isController = ControllerHelper.isControllerConnected()
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 32.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(SurfaceDark)
-                            .padding(20.dp)
-                    ) {
-                        Text(
-                            selectedApp.name,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            if (selectedApp.developer.isNotEmpty()) {
-                                Text(selectedApp.developer, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                            }
-                            val isCustom = selectedApp.id < 0
-                            val isEpic = selectedApp.id >= 2000000000
-                            val installed = when {
-                                selectedGogGame != null -> true
-                                isCustom -> true
-                                isEpic -> true
-                                else -> SteamService.isAppInstalled(selectedApp.id)
-                            }
-                            Text(
-                                if (installed) "● Installed" else "○ Not Installed",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (installed) StatusOnline else TextSecondary
-                            )
-                            if (isCustom) {
-                                Text("Custom", style = MaterialTheme.typography.bodySmall, color = Accent)
-                            } else if (selectedGogGame != null) {
-                                Text("GOG", style = MaterialTheme.typography.bodySmall, color = Accent)
-                            }
-                        }
-                        Spacer(Modifier.height(16.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            val context = LocalContext.current
-                            val containerManager = remember { ContainerManager(context) }
-                            val isCustom = selectedApp.id < 0
-                            val isEpic = selectedApp.id >= 2000000000
-
-                            if (isCustom || isEpic || selectedGogGame != null || SteamService.isAppInstalled(selectedApp.id)) {
-                                Button(
-                                    onClick = {
-                                        if (isCustom) {
-                                            launchCustomGame(context, containerManager, selectedApp.name)
-                                        } else if (selectedGogGame != null) {
-                                            launchGogGame(context, containerManager, selectedGogGame)
-                                        } else if (isEpic) {
-                                            epicApps.find { 2000000000 + it.id == selectedApp.id }?.let {
-                                                launchEpicGame(context, containerManager, it)
-                                            }
-                                        } else {
-                                            launchSteamGame(context, containerManager, selectedApp)
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Accent),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) { 
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("PLAY", fontWeight = FontWeight.Bold)
-                                        if (isController) {
-                                            Spacer(Modifier.width(8.dp))
-                                            ControllerBadge(if (isPS) "Cross" else "A")
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (!isCustom && selectedGogGame == null) {
-                                OutlinedButton(
-                                    onClick = { selectedAppForSettings = selectedApp },
-                                    shape = RoundedCornerShape(12.dp)
-                                ) { 
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("Game Settings", color = TextSecondary)
-                                        if (isController) {
-                                            Spacer(Modifier.width(8.dp))
-                                            ControllerBadge(if (isPS) "Triangle" else "Y")
-                                        }
-                                    }
-                                }
-                            }
-                            if (selectedGogGame != null) {
-                                OutlinedButton(
-                                    onClick = { selectedGogGameForSettings = selectedGogGame },
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Text("Manage", color = TextSecondary)
-                                }
-                            }
-                        }
-                    }
+                items(displayedApps) { app ->
+                    GameCapsule(
+                        app = app,
+                        gogGame = gogByPseudoId[app.id],
+                        modifier = Modifier.height(rowHeight)
+                    )
                 }
             }
         }
@@ -1897,11 +1876,18 @@ class UnifiedActivity : ComponentActivity() {
         val epicGame by produceState<EpicGame?>(initialValue = null, key1 = epicId) {
             value = if (isEpic) db.epicGameDao().getById(epicId) else null
         }
+        var isFocused by remember { mutableStateOf(false) }
 
         Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = modifier
+                .fillMaxWidth()
+                .border(1.dp, CardDark, RoundedCornerShape(12.dp))
+                .chasingBorder(isFocused = isFocused, cornerRadius = 12.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(CardDark)
+                .onFocusChanged { isFocused = it.isFocused }
+                .focusable()
                 .clickable {
                     val containerManager = com.winlator.cmod.container.ContainerManager(context)
                     if (isCustom) {
@@ -1915,8 +1901,8 @@ class UnifiedActivity : ComponentActivity() {
                     }
                 }
         ) {
+            val artModifier = Modifier.fillMaxWidth().weight(1f)
             if (isCustom) {
-                // Custom game artwork — load extracted exe icon, fallback to gamepad
                 val safeName = app.name.replace("/", "_").replace("\\", "_")
                 val iconFile = java.io.File(context.filesDir, "custom_icons/$safeName.png")
                 if (iconFile.exists()) {
@@ -1926,12 +1912,12 @@ class UnifiedActivity : ComponentActivity() {
                             .crossfade(300)
                             .build(),
                         contentDescription = app.name,
-                        modifier = Modifier.fillMaxWidth().height(175.dp),
+                        modifier = artModifier,
                         contentScale = ContentScale.Crop
                     )
                 } else {
                     Box(
-                        modifier = Modifier.fillMaxWidth().height(175.dp).background(SurfaceDark),
+                        modifier = artModifier.background(SurfaceDark),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(Icons.Default.SportsEsports, contentDescription = app.name, tint = Accent.copy(alpha = 0.6f), modifier = Modifier.size(64.dp))
@@ -1944,42 +1930,38 @@ class UnifiedActivity : ComponentActivity() {
                         .crossfade(300)
                         .build(),
                     contentDescription = app.name,
-                    modifier = Modifier.fillMaxWidth().height(175.dp),
+                    modifier = artModifier,
                     contentScale = ContentScale.Crop
                 )
             } else if (isEpic) {
-                // Epic game artwork
                 AsyncImage(
                     model = ImageRequest.Builder(context)
                         .data(epicGame?.primaryImageUrl ?: epicGame?.iconUrl)
                         .crossfade(300)
                         .build(),
                     contentDescription = app.name,
-                    modifier = Modifier.fillMaxWidth().height(175.dp),
+                    modifier = artModifier,
                     contentScale = ContentScale.Crop
                 )
             } else {
-                // Artwork — tiered fallback implemented in SteamApp model
                 val imageUrl = app.getCapsuleUrl()
-
                 AsyncImage(
                     model = ImageRequest.Builder(context)
                         .data(imageUrl)
                         .crossfade(300)
                         .build(),
                     contentDescription = app.name,
-                    modifier = Modifier.fillMaxWidth().height(175.dp),
+                    modifier = artModifier,
                     contentScale = ContentScale.Crop
                 )
             }
 
             Text(
                 text = app.name,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp),
-                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp).basicMarquee(iterations = Int.MAX_VALUE),
+                style = MaterialTheme.typography.bodySmall,
                 color = TextPrimary,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center
             )
@@ -1988,7 +1970,7 @@ class UnifiedActivity : ComponentActivity() {
 
     // Epic Store Tab
     @Composable
-    fun EpicStoreTab(isLoggedIn: Boolean, onLoginClick: () -> Unit) {
+    fun EpicStoreTab(isLoggedIn: Boolean, searchQuery: String = "", onLoginClick: () -> Unit) {
         val context = LocalContext.current
         
         if (!isLoggedIn) {
@@ -2030,17 +2012,25 @@ class UnifiedActivity : ComponentActivity() {
             }
         }
 
-        Column(Modifier.fillMaxSize().padding(16.dp)) {
+        val displayedApps = remember(epicApps, searchQuery) {
+            if (searchQuery.isBlank()) epicApps
+            else epicApps.filter { it.title.contains(searchQuery, ignoreCase = true) }
+        }
+
+        BoxWithConstraints(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) {
+            val rowHeight = (maxHeight - 12.dp) / 2
             LazyVerticalGrid(
                 state = gridState,
-                columns = GridCells.Adaptive(minSize = 150.dp),
+                columns = GridCells.Fixed(4),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(items = epicApps) { app: EpicGame ->
-                    EpicStoreCapsule(app) {
-                        selectedAppId.value = app.id
+                items(items = displayedApps) { app: EpicGame ->
+                    Box(Modifier.height(rowHeight)) {
+                        EpicStoreCapsule(app) {
+                            selectedAppId.value = app.id
+                        }
                     }
                 }
             }
@@ -2059,23 +2049,24 @@ class UnifiedActivity : ComponentActivity() {
     fun EpicStoreCapsule(app: com.winlator.cmod.epic.data.EpicGame, onClick: () -> Unit) {
         val context = LocalContext.current
         var isFocused by remember { mutableStateOf(false) }
-        val borderColor = if (isFocused) Accent.copy(alpha = 0.8f) else Color.Transparent
 
         Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .width(160.dp)
+                .fillMaxSize()
+                .border(1.dp, CardDark, RoundedCornerShape(16.dp))
+                .chasingBorder(isFocused = isFocused, cornerRadius = 16.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(CardDark)
-                .border(4.dp, borderColor, RoundedCornerShape(16.dp))
                 .onFocusChanged { isFocused = it.isFocused }
                 .focusable()
                 .clickable(onClick = onClick)
         ) {
-            Box {
+            Box(Modifier.fillMaxWidth().weight(1f)) {
                 AsyncImage(
                     model = ImageRequest.Builder(context).data(app.primaryImageUrl).crossfade(300).build(),
                     contentDescription = app.title,
-                    modifier = Modifier.fillMaxWidth().height(165.dp),
+                    modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
 
@@ -2090,11 +2081,11 @@ class UnifiedActivity : ComponentActivity() {
 
             Text(
                 app.title,
-                modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp).fillMaxWidth().basicMarquee(iterations = Int.MAX_VALUE),
+                style = MaterialTheme.typography.bodySmall,
                 color = TextPrimary,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -2124,11 +2115,14 @@ class UnifiedActivity : ComponentActivity() {
                             AsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
                                     .data(heroImageUrl)
-                                    .crossfade(300)
+                                    .crossfade(150)
+                                    .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+                                    .diskCachePolicy(coil.request.CachePolicy.ENABLED)
                                     .build(),
                                 contentDescription = "$title artwork",
                                 modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
+                                contentScale = ContentScale.FillWidth,
+                                alignment = Alignment.TopCenter
                             )
                             Box(
                                 modifier = Modifier
@@ -2405,7 +2399,7 @@ class UnifiedActivity : ComponentActivity() {
     }
 
     @Composable
-    fun GOGStoreTab(isLoggedIn: Boolean, onLoginClick: () -> Unit) {
+    fun GOGStoreTab(isLoggedIn: Boolean, searchQuery: String = "", onLoginClick: () -> Unit) {
         if (!isLoggedIn) {
             LoginRequiredScreen("GOG", onLoginClick)
             return
@@ -2415,31 +2409,38 @@ class UnifiedActivity : ComponentActivity() {
         val selectedGameId = remember { mutableStateOf<String?>(null) }
         val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
 
-        Column(Modifier.fillMaxSize().padding(16.dp)) {
+        val displayedApps = remember(gogApps, searchQuery) {
+            if (searchQuery.isBlank()) gogApps
+            else gogApps.filter { it.title.contains(searchQuery, ignoreCase = true) }
+        }
+
+        BoxWithConstraints(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) {
+            val rowHeight = (maxHeight - 12.dp) / 2
             LazyVerticalGrid(
                 state = gridState,
-                columns = GridCells.Adaptive(minSize = 150.dp),
+                columns = GridCells.Fixed(4),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(gogApps) { app ->
+                items(displayedApps) { app ->
                     val isInstalled = app.isInstalled && java.io.File(app.installPath).exists()
                     Column(
                         modifier = Modifier
-                            .width(160.dp)
+                            .fillMaxWidth()
+                            .height(rowHeight)
                             .clip(RoundedCornerShape(16.dp))
                             .background(CardDark)
                             .clickable { selectedGameId.value = app.id }
                     ) {
-                        Box {
+                        Box(Modifier.fillMaxWidth().weight(1f)) {
                             AsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
                                     .data(app.imageUrl.ifEmpty { app.iconUrl })
                                     .crossfade(300)
                                     .build(),
                                 contentDescription = null,
-                                modifier = Modifier.fillMaxWidth().height(165.dp),
+                                modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
                             )
                             if (isInstalled) {
@@ -2454,11 +2455,12 @@ class UnifiedActivity : ComponentActivity() {
 
                         Text(
                             text = app.title,
-                            modifier = Modifier.padding(8.dp),
-                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.bodySmall,
                             color = TextPrimary,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -2598,7 +2600,7 @@ class UnifiedActivity : ComponentActivity() {
 
     // Steam Store Tab
     @Composable
-    fun SteamStoreTab(isLoggedIn: Boolean, steamApps: List<SteamApp>) {
+    fun SteamStoreTab(isLoggedIn: Boolean, steamApps: List<SteamApp>, searchQuery: String = "") {
         if (!isLoggedIn) {
             LoginRequiredScreen("Steam") {
                 startActivity(Intent(this@UnifiedActivity, SteamLoginActivity::class.java))
@@ -2650,17 +2652,25 @@ class UnifiedActivity : ComponentActivity() {
             }
         }
 
-        Column(Modifier.fillMaxSize().padding(16.dp)) {
+        val displayedApps = remember(steamApps, searchQuery) {
+            if (searchQuery.isBlank()) steamApps
+            else steamApps.filter { it.name.contains(searchQuery, ignoreCase = true) }
+        }
+
+        BoxWithConstraints(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) {
+            val rowHeight = (maxHeight - 12.dp) / 2
 
             LazyVerticalGrid(
                 state = gridState,
-                columns = GridCells.Adaptive(minSize = 150.dp),
+                columns = GridCells.Fixed(4),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(steamApps) { app ->
-                    SteamStoreCapsule(app, onClick = { selectedAppForDialog = app })
+                items(displayedApps) { app ->
+                    Box(Modifier.height(rowHeight)) {
+                        SteamStoreCapsule(app, onClick = { selectedAppForDialog = app })
+                    }
                 }
             }
         }
@@ -2678,25 +2688,26 @@ class UnifiedActivity : ComponentActivity() {
         val isInstalled = SteamService.isAppInstalled(app.id)
         val context = LocalContext.current
         var isFocused by remember { mutableStateOf(false) }
-        val borderColor = if (isFocused) Accent.copy(alpha = 0.8f) else Color.Transparent
 
         Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .width(160.dp)
+                .fillMaxSize()
+                .border(1.dp, CardDark, RoundedCornerShape(16.dp))
+                .chasingBorder(isFocused = isFocused, cornerRadius = 16.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(CardDark)
-                .border(4.dp, borderColor, RoundedCornerShape(16.dp))
                 .onFocusChanged { isFocused = it.isFocused }
                 .focusable()
                 .clickable(onClick = onClick)
         ) {
-            Box {
+            Box(Modifier.fillMaxWidth().weight(1f)) {
                 val imageUrl = app.getCapsuleUrl()
 
                 AsyncImage(
                     model = ImageRequest.Builder(context).data(imageUrl).crossfade(300).build(),
                     contentDescription = null,
-                    modifier = Modifier.fillMaxWidth().height(165.dp),
+                    modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
 
@@ -2712,11 +2723,11 @@ class UnifiedActivity : ComponentActivity() {
 
             Text(
                 text = app.name,
-                modifier = Modifier.padding(8.dp),
-                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp).basicMarquee(iterations = Int.MAX_VALUE),
+                style = MaterialTheme.typography.bodySmall,
                 color = TextPrimary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                maxLines = 1,
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -3065,7 +3076,7 @@ class UnifiedActivity : ComponentActivity() {
 
         StoreInstallDialogShell(
             title = app.name,
-            heroImageUrl = app.getHeroUrl(large = true),
+            heroImageUrl = app.getHeroUrl(),
             subtitle = listOfNotNull(
                 app.developer.takeIf { it.isNotBlank() },
                 app.publisher.takeIf { it.isNotBlank() }

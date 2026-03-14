@@ -173,22 +173,23 @@ data class SteamApp(
     }
 
     fun getCapsuleUrl(language: Language = Language.english, large: Boolean = false): String {
-        val capsules = if (large) libraryAssets.libraryCapsule.image2x else libraryAssets.libraryCapsule.image
-        
-        val imageLink = if (capsules.containsKey(language)) {
-            capsules[language]
-        } else if (capsules.isNotEmpty()) {
-            capsules.values.first()
-        } else if (headerImage.containsKey(language)) {
+        val imageLink = if (headerImage.containsKey(language)) {
             headerImage[language]
         } else if (headerImage.isNotEmpty()) {
             headerImage.values.first()
         } else {
-            null
+            val capsules = if (large) libraryAssets.libraryCapsule.image2x else libraryAssets.libraryCapsule.image
+            if (capsules.containsKey(language)) {
+                capsules[language]
+            } else if (capsules.isNotEmpty()) {
+                capsules.values.first()
+            } else {
+                null
+            }
         }
 
-        return imageLink?.takeIf { it.isNotEmpty() }?.let { "$STEAM_URL/$id/$it" } 
-            ?: "$STEAM_URL/$id/library_600x900.jpg"
+        return imageLink?.takeIf { it.isNotEmpty() }?.let { "$STEAM_URL/$id/$it" }
+            ?: "$STEAM_URL/$id/header.jpg"
     }
 
     fun getHeroUrl(language: Language = Language.english, large: Boolean = false): String {
