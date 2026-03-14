@@ -79,6 +79,24 @@
 
                     <TextView
                         style="@style/OtherSettingsFieldLabel"
+                        android:text="@string/select_icon" />
+
+                    <Button
+                        android:id="@+id/BTSelectIcon"
+                        style="@style/OtherSettingsInlineButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:gravity="start|center_vertical"
+                        android:paddingTop="12dp"
+                        android:paddingBottom="12dp"
+                        android:text="@string/select_icon"
+                        android:textAllCaps="false"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        style="@style/OtherSettingsFieldLabel"
+                        android:layout_marginTop="10dp"
                         android:text="@string/select_exe" />
 
                     <Button

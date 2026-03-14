@@ -1946,6 +1946,21 @@ class UnifiedActivity : ComponentActivity() {
         val epicGame by produceState<EpicGame?>(initialValue = null, key1 = epicId) {
             value = if (isEpic) db.epicGameDao().getById(epicId) else null
         }
+        val customLibraryIconPath by produceState<String?>(initialValue = null, key1 = app.id, key2 = gogGame?.id) {
+            value = withContext(Dispatchers.IO) {
+                val containerManager = ContainerManager(context)
+                val shortcut = if (gogGame != null) {
+                    containerManager.loadShortcuts().find {
+                        it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == gogGame.id
+                    }
+                } else {
+                    findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
+                }
+                val customPath = shortcut?.getExtra("customLibraryIconPath")
+                    ?.ifBlank { shortcut.getExtra("customCoverArtPath") }
+                customPath?.takeIf { it.isNotBlank() && java.io.File(it).exists() }
+            }
+        }
 
         Column(
             modifier = modifier
@@ -1964,7 +1979,21 @@ class UnifiedActivity : ComponentActivity() {
                     }
                 }
         ) {
-            if (isCustom) {
+            val customArtworkFile = customLibraryIconPath
+                ?.let { java.io.File(it) }
+                ?.takeIf { it.exists() }
+
+            if (customArtworkFile != null) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(customArtworkFile)
+                        .crossfade(300)
+                        .build(),
+                    contentDescription = app.name,
+                    modifier = Modifier.fillMaxWidth().height(175.dp),
+                    contentScale = ContentScale.Crop
+                )
+            } else if (isCustom) {
                 // Custom game artwork — load extracted exe icon, fallback to gamepad
                 val safeName = app.name.replace("/", "_").replace("\\", "_")
                 val iconFile = java.io.File(context.filesDir, "custom_icons/$safeName.png")
@@ -3298,7 +3327,14 @@ class UnifiedActivity : ComponentActivity() {
             putExtra("shortcut_path", shortcut.file.path)
         }
 
-        val artworkBitmap = loadArtworkBitmap(context, artworkModel)
+        val customIconPath = shortcut.getExtra("customLibraryIconPath")
+            .ifBlank { shortcut.getExtra("customCoverArtPath") }
+        val customArtworkModel = customIconPath
+            .takeIf { it.isNotBlank() }
+            ?.let { java.io.File(it) }
+            ?.takeIf { it.exists() }
+
+        val artworkBitmap = loadArtworkBitmap(context, customArtworkModel) ?: loadArtworkBitmap(context, artworkModel)
         val shortcutIcon = artworkBitmap?.let { android.graphics.drawable.Icon.createWithBitmap(it) }
             ?: shortcut.icon?.let { android.graphics.drawable.Icon.createWithBitmap(it) }
             ?: android.graphics.drawable.Icon.createWithResource(context, R.drawable.icon_shortcut)
