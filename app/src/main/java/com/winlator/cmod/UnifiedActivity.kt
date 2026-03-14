@@ -108,13 +108,13 @@ import androidx.core.view.WindowCompat
 import kotlin.math.roundToInt
 
 // Color palette
-private val BgDark = Color(0xFF0D1117)
+private val BgDark = Color(0xFF0F0F12)
 private val SurfaceDark = Color(0xFF161B22)
-private val CardDark = Color(0xFF1C2333)
-private val Accent = Color(0xFF2F81F7)
+private val CardDark = Color(0xFF14141E)
+private val Accent = Color(0xFF1A9FFF)
 private val AccentGlow = Color(0xFF58A6FF)
-private val TextPrimary = Color(0xFFE6EDF3)
-private val TextSecondary = Color(0xFF8B949E)
+private val TextPrimary = Color(0xFFF0F4FF)
+private val TextSecondary = Color(0xFF7A8FA8)
 private val StatusOnline = Color(0xFF3FB950)
 private val StatusAway = Color(0xFFF0C040)
 private val StatusOffline = Color(0xFF6E7681)

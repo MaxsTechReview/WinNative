@@ -22,6 +22,10 @@ task checkSubmodules {
 
 preBuild.dependsOn(checkSubmodules)
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 android {
     namespace 'com.winlator.cmod'
     compileSdk 35

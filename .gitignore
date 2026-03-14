@@ -33,3 +33,6 @@ local.properties
 logcat*.txt
 *.py
 steam.tzst
+
+# Room schema exports
+app/schemas/
