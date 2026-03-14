@@ -1336,11 +1336,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
         WineStartMenuCreator.create(this, container);
         WineUtils.createDosdevicesSymlinks(container);
 
-        boolean exclusiveXInput = Boolean.parseBoolean(container.getExtra("exclusiveXInput", "false"));
-        if (shortcut != null && !shortcut.getExtra("exclusiveXInput").isEmpty()) {
-            exclusiveXInput = shortcut.getExtra("exclusiveXInput").equals("1") || shortcut.getExtra("exclusiveXInput").equals("true");
-        }
-        WineUtils.setJoystickRegistryKeys(new File(container.getRootDir(), ".wine/user.reg"), exclusiveXInput);
+        // Keep Wine joystick defaults to avoid disabling DirectInput paths that some games need.
+        // This aligns behavior with the known-working Ludashi baseline.
 
         if (shortcut != null)
             startupSelection = shortcut.getExtra("startupSelection", String.valueOf(container.getStartupSelection()));
@@ -1734,6 +1731,39 @@ public class XServerDisplayActivity extends AppCompatActivity {
         dialog.show();
     }
 
+    private ControlsProfile findFirstVirtualProfile() {
+        ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
+        for (ControlsProfile profile : profiles) {
+            if (profile != null && profile.isVirtualGamepad()) return profile;
+        }
+        return null;
+    }
+
+    private ControlsProfile resolvePreferredStartupProfile() {
+        ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
+        int selectedProfileIndex = preferences.getInt("selected_profile_index", -1);
+        ControlsProfile selectedProfile = null;
+
+        if (selectedProfileIndex >= 0 && selectedProfileIndex < profiles.size()) {
+            selectedProfile = profiles.get(selectedProfileIndex);
+        }
+
+        if (selectedProfile != null && selectedProfile.isVirtualGamepad()) {
+            return selectedProfile;
+        }
+
+        ControlsProfile virtualFallback = findFirstVirtualProfile();
+        if (virtualFallback != null) {
+            int virtualIndex = profiles.indexOf(virtualFallback);
+            if (virtualIndex >= 0) {
+                preferences.edit().putInt("selected_profile_index", virtualIndex).apply();
+            }
+            return virtualFallback;
+        }
+
+        return selectedProfile;
+    }
+
     private void simulateConfirmInputControlsDialog() {
         // Simulate setting the relative mouse movement and touchscreen controls from preferences
 
@@ -1749,17 +1779,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
         editor.putBoolean("touchscreen_haptics_enabled", isHapticsEnabled);
         editor.apply();
 
-        // If no profile is selected, hide the controls
-        int selectedProfileIndex = preferences.getInt("selected_profile_index", -1); // Default to -1 for no profile
-
-        if (selectedProfileIndex >= 0 && selectedProfileIndex < inputControlsManager.getProfiles().size()) {
-            // A profile is selected, show the controls
-            ControlsProfile profile = inputControlsManager.getProfiles().get(selectedProfileIndex);
-            showInputControls(profile);
-        } else {
-            // No profile selected, ensure the controls are hidden
-            hideInputControls();
-        }
+        ControlsProfile startupProfile = resolvePreferredStartupProfile();
+        if (startupProfile != null) showInputControls(startupProfile);
+        else hideInputControls();
 
         // Timeout logic should only apply if the controls are visible
         if (isTimeoutEnabled && inputControlsView.getVisibility() == View.VISIBLE) {
@@ -1768,7 +1790,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             touchpadView.setOnTouchListener(null); // Disable the timeout listener if not needed
         }
 
-        Log.d("XServerDisplayActivity", "Input controls simulated confirmation executed.");
+        Log.d("XServerDisplayActivity", "Input controls simulated confirmation executed. startupProfile=" + (startupProfile != null ? startupProfile.getName() : "none"));
     }
 
     private void startTouchscreenTimeout() {
@@ -1811,9 +1833,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private void showInputControls(ControlsProfile profile) {
+        if (profile == null) {
+            hideInputControls();
+            return;
+        }
         inputControlsView.setVisibility(View.VISIBLE);
         inputControlsView.requestFocus();
         inputControlsView.setProfile(profile);
+        Log.d("XServerDisplayActivity", "showInputControls: profile=" + profile.getName() + " id=" + profile.id + " virtual=" + profile.isVirtualGamepad());
 
         touchpadView.setSensitivity(profile.getCursorSpeed() * globalCursorSpeed);
         touchpadView.setPointerButtonRightEnabled(false);

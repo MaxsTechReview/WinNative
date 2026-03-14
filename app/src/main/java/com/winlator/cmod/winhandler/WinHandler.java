@@ -31,8 +31,9 @@ import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayDeque;
-import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -60,7 +61,8 @@ public class WinHandler {
     private InetAddress localhost;
     private byte inputType = DEFAULT_INPUT_TYPE;
     private final XServerDisplayActivity activity;
-    private final List<Integer> gamepadClients = new CopyOnWriteArrayList<>();
+    private final Set<Integer> gamepadClients = new CopyOnWriteArraySet<>();
+    private final Set<Integer> dinputGamepadClients = new CopyOnWriteArraySet<>();
     private SharedPreferences preferences;
     private byte triggerType;
 
@@ -397,6 +399,7 @@ public class WinHandler {
         switch (requestCode) {
             case RequestCodes.INIT: {
                 initReceived = true;
+                Log.d("WinHandler", "INIT received from winhandler.exe");
 
                 preferences = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
 
@@ -453,12 +456,12 @@ public class WinHandler {
                 break;
             }
             case RequestCodes.GET_GAMEPAD: {
-                if (xinputDisabled)
-                    return;
                 boolean isXInput = receiveData.get() == 1;
                 boolean notify = receiveData.get() == 1;
                 final ControlsProfile profile = activity.getInputControlsView().getProfile();
                 boolean useVirtualGamepad = profile != null && profile.isVirtualGamepad();
+                if (xinputDisabled && !useVirtualGamepad)
+                    return;
 
                 if (!useVirtualGamepad && (currentController == null || !currentController.isConnected())) {
                     currentController = ExternalController.getController(0);
@@ -468,12 +471,23 @@ public class WinHandler {
                 }
 
                 final boolean enabled = currentController != null || useVirtualGamepad;
+                Log.d("WinHandler", "GET_GAMEPAD request: isXInput=" + isXInput + " notify=" + notify + " useVirtualGamepad=" + useVirtualGamepad + " enabled=" + enabled + " profile=" + (profile != null ? profile.getName() : "null"));
 
-                if (enabled && notify) {
-                    if (!gamepadClients.contains(port))
+                if (enabled) {
+                    if (notify) {
                         gamepadClients.add(port);
+                    } else {
+                        gamepadClients.remove(port);
+                    }
+
+                    if (isXInput) {
+                        dinputGamepadClients.remove(port);
+                    } else {
+                        dinputGamepadClients.add(port);
+                    }
                 } else {
-                    gamepadClients.remove(Integer.valueOf(port));
+                    gamepadClients.remove(port);
+                    dinputGamepadClients.remove(port);
                 }
 
                 addAction(() -> {
@@ -483,13 +497,24 @@ public class WinHandler {
                     if (enabled) {
                         sendData.putInt(!useVirtualGamepad ? currentController.getDeviceId() : profile.id);
 
+                        byte effectiveInputType = inputType;
+                        byte effectiveDinputMapperType = dinputMapperType;
+                        if (useVirtualGamepad) {
+                            // Keep virtual pad available through both APIs, but use
+                            // standard DInput mapper for full right-stick axis coverage.
+                            effectiveInputType |= (byte) (FLAG_INPUT_TYPE_XINPUT | FLAG_INPUT_TYPE_DINPUT | FLAG_DINPUT_MAPPER_STANDARD);
+                            effectiveInputType &= (byte) ~FLAG_DINPUT_MAPPER_XINPUT;
+                            effectiveDinputMapperType = DINPUT_MAPPER_TYPE_STANDARD;
+                        }
+
                         if (useLegacyInputMethod) {
                             // Use legacy DInput mapper type
-                            sendData.put(dinputMapperType);
+                            sendData.put(effectiveDinputMapperType);
                         } else {
                             // Use new input type flags
-                            sendData.put(inputType);
+                            sendData.put(effectiveInputType);
                         }
+                        Log.d("WinHandler", "GET_GAMEPAD reply: useVirtualGamepad=" + useVirtualGamepad + " isXInputRequest=" + isXInput + " effectiveInputType=0x" + Integer.toHexString(effectiveInputType & 0xFF) + " effectiveDinputMapperType=" + effectiveDinputMapperType);
 
                         byte[] bytes = (useVirtualGamepad ? profile.getName() : currentController.getName()).getBytes();
                         sendData.putInt(bytes.length);
@@ -503,12 +528,13 @@ public class WinHandler {
                 break;
             }
             case RequestCodes.GET_GAMEPAD_STATE: {
-                if (xinputDisabled)
-                    return;
                 int gamepadId = receiveData.getInt();
                 final ControlsProfile profile = activity.getInputControlsView().getProfile();
                 boolean useVirtualGamepad = profile != null && profile.isVirtualGamepad();
+                if (xinputDisabled && !useVirtualGamepad)
+                    return;
                 final boolean enabled = currentController != null || useVirtualGamepad;
+                Log.d("WinHandler", "GET_GAMEPAD_STATE request: gamepadId=" + gamepadId + " useVirtualGamepad=" + useVirtualGamepad + " enabled=" + enabled + " profile=" + (profile != null ? profile.getName() : "null"));
 
                 if (currentController != null && currentController.getDeviceId() != gamepadId)
                     currentController = null;
@@ -520,10 +546,11 @@ public class WinHandler {
 
                     if (enabled) {
                         sendData.putInt(gamepadId);
+                        final boolean remapDinputButtons = useVirtualGamepad && dinputGamepadClients.contains(port);
                         if (useVirtualGamepad) {
-                            profile.getGamepadState().writeTo(sendData);
+                            writeStateToPacket(sendData, profile.getGamepadState(), remapDinputButtons, false);
                         } else {
-                            currentController.state.writeTo(sendData);
+                            writeStateToPacket(sendData, currentController.state, false, false);
                         }
                     }
 
@@ -534,6 +561,7 @@ public class WinHandler {
             case RequestCodes.RELEASE_GAMEPAD: {
                 currentController = null;
                 gamepadClients.clear();
+                dinputGamepadClients.clear();
                 break;
             }
             case RequestCodes.CURSOR_POS_FEEDBACK: {
@@ -625,7 +653,9 @@ public class WinHandler {
         }
 
         // Send via UDP to winhandler.exe (only if connected)
-        if (!initReceived || gamepadClients.isEmpty() || xinputDisabled)
+        if (!initReceived || gamepadClients.isEmpty())
+            return;
+        if (xinputDisabled && !useVirtualGamepad)
             return;
 
         for (final int port : gamepadClients) {
@@ -637,12 +667,8 @@ public class WinHandler {
                 if (enabled) {
                     sendData.putInt(!useVirtualGamepad ? currentController.getDeviceId() : profile.id);
                     GamepadState state = useVirtualGamepad ? profile.getGamepadState() : currentController.state;
-
-                    // Combine gyro input with thumbstick input
-                    state.thumbRX = Mathf.clamp(state.thumbRX + gyroX, -1.0f, 1.0f);
-                    state.thumbRY = Mathf.clamp(state.thumbRY + gyroY, -1.0f, 1.0f);
-
-                    state.writeTo(sendData);
+                    final boolean remapDinputButtons = useVirtualGamepad && dinputGamepadClients.contains(port);
+                    writeStateToPacket(sendData, state, remapDinputButtons, true);
                 }
 
                 sendPacket(port);
@@ -713,6 +739,55 @@ public class WinHandler {
         dst.put(hat); // 27
 
         // Padding bytes 28-31 (don't write, rumble at 32-35 is written by evshim)
+    }
+
+    private void writeStateToPacket(ByteBuffer buffer, GamepadState state, boolean remapDinputButtons, boolean applyGyro) {
+        float rx = state.thumbRX;
+        float ry = state.thumbRY;
+        if (applyGyro) {
+            rx = Mathf.clamp(rx + gyroX, -1.0f, 1.0f);
+            ry = Mathf.clamp(ry + gyroY, -1.0f, 1.0f);
+        }
+
+        short buttons = state.buttons;
+        if (remapDinputButtons) {
+            buttons = remapVirtualDinputButtons(state.buttons);
+        }
+
+        float packetRx = rx;
+        float packetRy = ry;
+
+        buffer.putShort(buttons);
+        buffer.put(state.getPovHat());
+        buffer.putShort((short) (state.thumbLX * Short.MAX_VALUE));
+        buffer.putShort((short) (state.thumbLY * Short.MAX_VALUE));
+        buffer.putShort((short) (packetRx * Short.MAX_VALUE));
+        buffer.putShort((short) (packetRy * Short.MAX_VALUE));
+        buffer.put((byte) (state.triggerL * 255));
+        buffer.put((byte) (state.triggerR * 255));
+    }
+
+    /**
+     * For the Standard DInput mapper path, keep native button ordering.
+     * Reordering here causes Start/R3/R2 permutations on KH2FM.
+     */
+    private short remapVirtualDinputButtons(short buttons) {
+        return buttons;
+    }
+
+    private boolean isButtonSet(short buttons, int index) {
+        return (buttons & (1 << index)) != 0;
+    }
+
+    private short setButton(short buttons, int index, boolean pressed) {
+        int mask = 1 << index;
+        int value = buttons;
+        if (pressed) {
+            value |= mask;
+        } else {
+            value &= ~mask;
+        }
+        return (short) value;
     }
 
     public void setXInputDisabled(boolean disabled) {
