@@ -691,7 +691,7 @@ class UnifiedActivity : ComponentActivity() {
                         }
                     }
 
-                    // ── Bottom-left filter button ──
+                    // Bottom-left filter button
                     if (key != "downloads") {
                         Row(
                             modifier = Modifier
@@ -718,7 +718,7 @@ class UnifiedActivity : ComponentActivity() {
                         }
                     }
 
-                    // ── Bottom-right Add Custom Game button ──
+                    // Bottom-right Add Custom Game button
                     if (key == "library") {
                         Box(
                             modifier = Modifier
@@ -736,7 +736,7 @@ class UnifiedActivity : ComponentActivity() {
                         }
                     }
 
-                    // ── Cloud Sync Dialog ──
+                    // Cloud Sync Dialog
                     val cloudSyncStatus by SteamService.cloudSyncStatus.collectAsState()
                     if (cloudSyncStatus != null) {
                         CloudSyncOverlay(cloudSyncStatus!!)
@@ -1915,7 +1915,7 @@ class UnifiedActivity : ComponentActivity() {
         }
     }
 
-    // ─── Single game capsule for carousel ─────────────────────────────
+    // Single game capsule for carousel
     @Composable
     private fun GameCapsule(app: SteamApp, gogGame: GOGGame? = null, isFocusedOverride: Boolean = false, modifier: Modifier = Modifier) {
         val context = LocalContext.current
