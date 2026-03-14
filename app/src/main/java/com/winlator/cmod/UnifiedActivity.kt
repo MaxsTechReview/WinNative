@@ -51,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusTarget
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -121,6 +122,7 @@ import com.winlator.cmod.utils.ControllerHelper
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.ui.text.style.TextAlign
 import androidx.core.view.WindowCompat
 import kotlin.math.roundToInt
@@ -154,9 +156,23 @@ class UnifiedActivity : ComponentActivity() {
     val rightStickScrollState = kotlinx.coroutines.flow.MutableStateFlow(0f)
     val leftStickScrollState = kotlinx.coroutines.flow.MutableStateFlow(0f)
     val keyEventFlow = kotlinx.coroutines.flow.MutableSharedFlow<android.view.KeyEvent>(extraBufferCapacity = 10)
-    // Flow for library carousel: -1 = scroll left, +1 = scroll right
-    val libraryScrollFlow = kotlinx.coroutines.flow.MutableSharedFlow<Int>(extraBufferCapacity = 1, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
+    // Library grid focus: tracked index and item count, controlled by DPAD
+    val libraryFocusIndex = kotlinx.coroutines.flow.MutableStateFlow(0)
+    var libraryItemCount: Int = 0
     private var lastLibraryMoveTime = 0L
+    private val libraryColumns = 4
+
+    private fun moveLibraryFocus(left: Boolean, right: Boolean, up: Boolean, down: Boolean) {
+        val idx = libraryFocusIndex.value
+        val count = libraryItemCount
+        if (count <= 0) return
+        var newIdx = idx
+        if (left) newIdx = (idx - 1).coerceAtLeast(0)
+        if (right) newIdx = (idx + 1).coerceAtMost(count - 1)
+        if (up) newIdx = (idx - libraryColumns).coerceAtLeast(0)
+        if (down) newIdx = (idx + libraryColumns).coerceAtMost(count - 1)
+        libraryFocusIndex.value = newIdx
+    }
 
     private fun gogPseudoId(gameId: String): Int {
         val normalized = gameId.hashCode() and 0x1FFFFFFF
@@ -182,24 +198,26 @@ class UnifiedActivity : ComponentActivity() {
             else -> false
         }
 
-        if (action == android.view.KeyEvent.ACTION_DOWN) {
-            val now = System.currentTimeMillis()
-            // Intercept D-pad left/right for library carousel scrolling IF we are on the library tab
-            // Throttle at the source to prevent double-triggers from crosstalk with hat axes
-            if (currentTabKey == "library" && (now - lastLibraryMoveTime > 200) && event.repeatCount == 0) {
-                when (keyCode) {
-                    android.view.KeyEvent.KEYCODE_DPAD_LEFT -> {
-                        lastLibraryMoveTime = now
-                        libraryScrollFlow.tryEmit(-1)
-                        return true
-                    }
-                    android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                        lastLibraryMoveTime = now
-                        libraryScrollFlow.tryEmit(1)
-                        return true
-                    }
+        // On library tab, intercept ALL DPAD events so focus can never leave the grid
+        if (currentTabKey == "library") {
+            val isDpad = keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT ||
+                    keyCode == android.view.KeyEvent.KEYCODE_DPAD_RIGHT ||
+                    keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP ||
+                    keyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN
+            if (isDpad) {
+                if (action == android.view.KeyEvent.ACTION_DOWN) {
+                    moveLibraryFocus(
+                        left = keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT,
+                        right = keyCode == android.view.KeyEvent.KEYCODE_DPAD_RIGHT,
+                        up = keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP,
+                        down = keyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN
+                    )
                 }
+                return true // consume both DOWN and UP
             }
+        }
+
+        if (action == android.view.KeyEvent.ACTION_DOWN) {
             if (isHandledGlobally) {
                 keyEventFlow.tryEmit(event)
                 return true
@@ -208,7 +226,7 @@ class UnifiedActivity : ComponentActivity() {
             // Consume ACTION_UP for handled keys to ensure balanced event stream for super
             return true
         }
-        
+
         return super.dispatchKeyEvent(event)
     }
 
@@ -261,26 +279,23 @@ class UnifiedActivity : ComponentActivity() {
             val isLibraryTab = currentTabKey == "library"
             val isStoreTab = currentTabKey == "store" || currentTabKey == "steam" || currentTabKey == "epic"
 
-            // LIBRARY TAB: D-pad left/right scrolls carousel
+            // LIBRARY TAB: update grid focus index directly (no injectKeyEvent to avoid bypassing interception)
             if (isLibraryTab) {
-                // D-pad hat left/right scroll the carousel, throttled relative to shared move time
-                if (isHatLeft || isHatRight) {
-                    if (now - lastLibraryMoveTime > 200) {
-                        if (isHatLeft) libraryScrollFlow.tryEmit(-1)
-                        if (isHatRight) libraryScrollFlow.tryEmit(1)
-                        lastLibraryMoveTime = now
-                        lastHatMoveTime = now
-                        return true
+                val count = libraryItemCount
+                if (count > 0) {
+                    if (isHatLeft || isHatRight || isHatUp || isHatDown) {
+                        if (now - lastHatMoveTime > 150) {
+                            moveLibraryFocus(isHatLeft, isHatRight, isHatUp, isHatDown)
+                            lastHatMoveTime = now
+                            return true
+                        }
                     }
-                }
-                // Left joystick left/right also scrolls carousel
-                if (isJoystickLeft || isJoystickRight) {
-                    if (now - lastLibraryMoveTime > 300) {
-                        if (isJoystickLeft) libraryScrollFlow.tryEmit(-1)
-                        if (isJoystickRight) libraryScrollFlow.tryEmit(1)
-                        lastLibraryMoveTime = now
-                        lastJoystickMoveTime = now
-                        return true
+                    if (isJoystickLeft || isJoystickRight || isJoystickUp || isJoystickDown) {
+                        if (now - lastJoystickMoveTime > 300) {
+                            moveLibraryFocus(isJoystickLeft, isJoystickRight, isJoystickUp, isJoystickDown)
+                            lastJoystickMoveTime = now
+                            return true
+                        }
                     }
                 }
             } else {
@@ -1384,24 +1399,49 @@ class UnifiedActivity : ComponentActivity() {
         var selectedAppForSettings by remember { mutableStateOf<SteamApp?>(null) }
         var selectedGogGameForSettings by remember { mutableStateOf<GOGGame?>(null) }
         val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+        val activity = LocalContext.current as? UnifiedActivity
+
+        // Keep activity's item count in sync
+        LaunchedEffect(displayedApps.size) {
+            activity?.libraryItemCount = displayedApps.size
+        }
+
+        // FocusRequesters for each grid item
+        val focusRequesters = remember(displayedApps.size) {
+            List(displayedApps.size) { FocusRequester() }
+        }
+
+        // Observe focus index changes from the activity and request focus on the target item
+        val focusIndex by (activity?.libraryFocusIndex ?: kotlinx.coroutines.flow.MutableStateFlow(0)).collectAsState()
+        LaunchedEffect(focusIndex, focusRequesters.size) {
+            if (focusRequesters.isNotEmpty() && focusIndex in focusRequesters.indices) {
+                // Scroll to make the focused item visible
+                gridState.animateScrollToItem(focusIndex)
+                try { focusRequesters[focusIndex].requestFocus() } catch (_: Exception) {}
+            }
+        }
 
         // Track selected app for the top-right Game Settings button
-        LaunchedEffect(installedApps) {
-            val first = installedApps.firstOrNull()
-            selectedSteamAppId = first?.id ?: 0
-            selectedSteamAppName = first?.name ?: ""
-            val gogGame = first?.let { gogByPseudoId[it.id] }
+        LaunchedEffect(focusIndex, displayedApps) {
+            val app = displayedApps.getOrNull(focusIndex) ?: displayedApps.firstOrNull()
+            selectedSteamAppId = app?.id ?: 0
+            selectedSteamAppName = app?.name ?: ""
+            val gogGame = app?.let { gogByPseudoId[it.id] }
             selectedLibrarySource = when {
                 gogGame != null -> "GOG"
-                first == null -> ""
-                first.id >= 2000000000 -> "EPIC"
-                first.id < 0 -> "CUSTOM"
+                app == null -> ""
+                app.id >= 2000000000 -> "EPIC"
+                app.id < 0 -> "CUSTOM"
                 else -> "STEAM"
             }
             selectedGogGameId = gogGame?.id.orEmpty()
         }
 
-        BoxWithConstraints(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) {
+        BoxWithConstraints(
+            Modifier
+                .fillMaxSize()
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
+        ) {
             val rowHeight = (maxHeight - 12.dp) / 2 // 12dp = grid vertical spacing
             LazyVerticalGrid(
                 state = gridState,
@@ -1410,11 +1450,18 @@ class UnifiedActivity : ComponentActivity() {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(displayedApps) { app ->
+                itemsIndexed(displayedApps) { index, app ->
                     GameCapsule(
                         app = app,
                         gogGame = gogByPseudoId[app.id],
-                        modifier = Modifier.height(rowHeight)
+                        isFocusedOverride = index == focusIndex,
+                        modifier = Modifier
+                            .height(rowHeight)
+                            .then(
+                                if (index in focusRequesters.indices)
+                                    Modifier.focusRequester(focusRequesters[index])
+                                else Modifier
+                            )
                     )
                 }
             }
@@ -1868,7 +1915,7 @@ class UnifiedActivity : ComponentActivity() {
 
     // ─── Single game capsule for carousel ─────────────────────────────
     @Composable
-    private fun GameCapsule(app: SteamApp, gogGame: GOGGame? = null, modifier: Modifier = Modifier) {
+    private fun GameCapsule(app: SteamApp, gogGame: GOGGame? = null, isFocusedOverride: Boolean = false, modifier: Modifier = Modifier) {
         val context = LocalContext.current
         val isCustom = app.id < 0
         val isEpic = app.id >= 2000000000
@@ -1876,7 +1923,7 @@ class UnifiedActivity : ComponentActivity() {
         val epicGame by produceState<EpicGame?>(initialValue = null, key1 = epicId) {
             value = if (isEpic) db.epicGameDao().getById(epicId) else null
         }
-        var isFocused by remember { mutableStateOf(false) }
+        val isFocused = isFocusedOverride
 
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -1884,9 +1931,7 @@ class UnifiedActivity : ComponentActivity() {
                 .fillMaxWidth()
                 .border(1.dp, CardDark, RoundedCornerShape(12.dp))
                 .chasingBorder(isFocused = isFocused, cornerRadius = 12.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(CardDark)
-                .onFocusChanged { isFocused = it.isFocused }
+                .background(CardDark, RoundedCornerShape(12.dp))
                 .focusable()
                 .clickable {
                     val containerManager = com.winlator.cmod.container.ContainerManager(context)
@@ -1901,14 +1946,49 @@ class UnifiedActivity : ComponentActivity() {
                     }
                 }
         ) {
-            val artModifier = Modifier.fillMaxWidth().weight(1f)
-            if (isCustom) {
-                val safeName = app.name.replace("/", "_").replace("\\", "_")
-                val iconFile = java.io.File(context.filesDir, "custom_icons/$safeName.png")
-                if (iconFile.exists()) {
+            // Art area — clip only on the image, not the text
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+            ) {
+                val artModifier = Modifier.fillMaxSize()
+                if (isCustom) {
+                    val safeName = app.name.replace("/", "_").replace("\\", "_")
+                    val iconFile = java.io.File(context.filesDir, "custom_icons/$safeName.png")
+                    if (iconFile.exists()) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(iconFile)
+                                .crossfade(300)
+                                .build(),
+                            contentDescription = app.name,
+                            modifier = artModifier,
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(
+                            modifier = artModifier.background(SurfaceDark),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.SportsEsports, contentDescription = app.name, tint = Accent.copy(alpha = 0.6f), modifier = Modifier.size(64.dp))
+                        }
+                    }
+                } else if (gogGame != null) {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
-                            .data(iconFile)
+                            .data(gogGame.imageUrl.ifEmpty { gogGame.iconUrl })
+                            .crossfade(300)
+                            .build(),
+                        contentDescription = app.name,
+                        modifier = artModifier,
+                        contentScale = ContentScale.Crop
+                    )
+                } else if (isEpic) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(epicGame?.primaryImageUrl ?: epicGame?.iconUrl)
                             .crossfade(300)
                             .build(),
                         contentDescription = app.name,
@@ -1916,52 +1996,30 @@ class UnifiedActivity : ComponentActivity() {
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    Box(
-                        modifier = artModifier.background(SurfaceDark),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.SportsEsports, contentDescription = app.name, tint = Accent.copy(alpha = 0.6f), modifier = Modifier.size(64.dp))
-                    }
+                    val imageUrl = app.getCapsuleUrl()
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(imageUrl)
+                            .crossfade(300)
+                            .build(),
+                        contentDescription = app.name,
+                        modifier = artModifier,
+                        contentScale = ContentScale.Crop
+                    )
                 }
-            } else if (gogGame != null) {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(gogGame.imageUrl.ifEmpty { gogGame.iconUrl })
-                        .crossfade(300)
-                        .build(),
-                    contentDescription = app.name,
-                    modifier = artModifier,
-                    contentScale = ContentScale.Crop
-                )
-            } else if (isEpic) {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(epicGame?.primaryImageUrl ?: epicGame?.iconUrl)
-                        .crossfade(300)
-                        .build(),
-                    contentDescription = app.name,
-                    modifier = artModifier,
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                val imageUrl = app.getCapsuleUrl()
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(imageUrl)
-                        .crossfade(300)
-                        .build(),
-                    contentDescription = app.name,
-                    modifier = artModifier,
-                    contentScale = ContentScale.Crop
-                )
             }
 
+            // Title below art, outside the clipped area
             Text(
                 text = app.name,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp).basicMarquee(iterations = Int.MAX_VALUE),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
+                    .then(if (isFocused) Modifier.basicMarquee(iterations = Int.MAX_VALUE) else Modifier),
                 style = MaterialTheme.typography.bodySmall,
                 color = TextPrimary,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center
             )
@@ -2056,13 +2114,17 @@ class UnifiedActivity : ComponentActivity() {
                 .fillMaxSize()
                 .border(1.dp, CardDark, RoundedCornerShape(16.dp))
                 .chasingBorder(isFocused = isFocused, cornerRadius = 16.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(CardDark)
+                .background(CardDark, RoundedCornerShape(16.dp))
                 .onFocusChanged { isFocused = it.isFocused }
                 .focusable()
                 .clickable(onClick = onClick)
         ) {
-            Box(Modifier.fillMaxWidth().weight(1f)) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+            ) {
                 AsyncImage(
                     model = ImageRequest.Builder(context).data(app.primaryImageUrl).crossfade(300).build(),
                     contentDescription = app.title,
@@ -2081,10 +2143,12 @@ class UnifiedActivity : ComponentActivity() {
 
             Text(
                 app.title,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp).fillMaxWidth().basicMarquee(iterations = Int.MAX_VALUE),
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp).fillMaxWidth()
+                    .then(if (isFocused) Modifier.basicMarquee(iterations = Int.MAX_VALUE) else Modifier),
                 style = MaterialTheme.typography.bodySmall,
                 color = TextPrimary,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center
             )
         }
@@ -2426,14 +2490,20 @@ class UnifiedActivity : ComponentActivity() {
                 items(displayedApps) { app ->
                     val isInstalled = app.isInstalled && java.io.File(app.installPath).exists()
                     Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(rowHeight)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(CardDark)
+                            .border(1.dp, CardDark, RoundedCornerShape(16.dp))
+                            .background(CardDark, RoundedCornerShape(16.dp))
                             .clickable { selectedGameId.value = app.id }
                     ) {
-                        Box(Modifier.fillMaxWidth().weight(1f)) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                        ) {
                             AsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
                                     .data(app.imageUrl.ifEmpty { app.iconUrl })
@@ -2455,7 +2525,7 @@ class UnifiedActivity : ComponentActivity() {
 
                         Text(
                             text = app.title,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
                             style = MaterialTheme.typography.bodySmall,
                             color = TextPrimary,
                             maxLines = 1,
@@ -2695,13 +2765,17 @@ class UnifiedActivity : ComponentActivity() {
                 .fillMaxSize()
                 .border(1.dp, CardDark, RoundedCornerShape(16.dp))
                 .chasingBorder(isFocused = isFocused, cornerRadius = 16.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(CardDark)
+                .background(CardDark, RoundedCornerShape(16.dp))
                 .onFocusChanged { isFocused = it.isFocused }
                 .focusable()
                 .clickable(onClick = onClick)
         ) {
-            Box(Modifier.fillMaxWidth().weight(1f)) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+            ) {
                 val imageUrl = app.getCapsuleUrl()
 
                 AsyncImage(
@@ -2723,10 +2797,12 @@ class UnifiedActivity : ComponentActivity() {
 
             Text(
                 text = app.name,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp).basicMarquee(iterations = Int.MAX_VALUE),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)
+                    .then(if (isFocused) Modifier.basicMarquee(iterations = Int.MAX_VALUE) else Modifier),
                 style = MaterialTheme.typography.bodySmall,
                 color = TextPrimary,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center
             )
         }
