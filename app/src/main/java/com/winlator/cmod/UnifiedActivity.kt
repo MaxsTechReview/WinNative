@@ -1,6 +1,9 @@
 package com.winlator.cmod
 
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import androidx.core.app.ActivityOptionsCompat
 import android.os.Bundle
@@ -57,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import coil.imageLoader
 import coil.request.ImageRequest
 import com.winlator.cmod.steam.service.SteamService
 import com.winlator.cmod.steam.utils.PrefManager
@@ -1464,6 +1468,14 @@ class UnifiedActivity : ComponentActivity() {
         val isCustom = app.id < 0
         val isEpic = app.id >= 2000000000
         val epicId = if (isEpic) app.id - 2000000000 else 0
+        val epicArtworkUrl by produceState<String?>(initialValue = null, key1 = isEpic, key2 = epicId) {
+            value = if (isEpic) {
+                val epicGame = db.epicGameDao().getById(epicId)
+                epicGame?.primaryImageUrl ?: epicGame?.iconUrl
+            } else {
+                null
+            }
+        }
         
         // Export logic
         val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
@@ -1673,6 +1685,24 @@ class UnifiedActivity : ComponentActivity() {
                             Spacer(Modifier.height(8.dp))
                             Button(
                                 onClick = {
+                                    scope.launch {
+                                        val created = withContext(Dispatchers.IO) {
+                                            addLibraryShortcutToHomeScreen(context, app, isCustom, isEpic, epicId, epicArtworkUrl)
+                                        }
+                                        val message = if (created) {
+                                            context.getString(R.string.library_shortcut_created)
+                                        } else {
+                                            context.getString(R.string.library_failed_to_create_shortcut, app.name)
+                                        }
+                                        android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp)
+                            ) { Text("Shortcut") }
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = {
                                     currentTab = "Saves"
                                 },
                                 modifier = Modifier.fillMaxWidth(),
@@ -1814,6 +1844,25 @@ class UnifiedActivity : ComponentActivity() {
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(8.dp)
                             ) { Text("Settings") }
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        val artworkUrl = app.imageUrl.ifEmpty { app.iconUrl }
+                                        val created = withContext(Dispatchers.IO) {
+                                            addGogShortcutToHomeScreen(context, app, artworkUrl)
+                                        }
+                                        val message = if (created) {
+                                            context.getString(R.string.library_shortcut_created)
+                                        } else {
+                                            context.getString(R.string.library_failed_to_create_shortcut, app.title)
+                                        }
+                                        android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp)
+                            ) { Text("Shortcut") }
                             Spacer(Modifier.height(8.dp))
                             Button(
                                 onClick = { currentTab = "Saves" },
@@ -3163,6 +3212,131 @@ class UnifiedActivity : ComponentActivity() {
                 } else null
             } else docId
         } catch (e: Exception) { uri.path }
+    }
+
+    private fun findLibraryShortcutForGame(
+        containerManager: ContainerManager,
+        app: SteamApp,
+        isCustom: Boolean,
+        isEpic: Boolean,
+        epicId: Int
+    ): Shortcut? {
+        return when {
+            isCustom -> containerManager.loadShortcuts().find {
+                it.getExtra("game_source") == "CUSTOM" && (it.getExtra("custom_name") == app.name || it.name == app.name)
+            }
+            isEpic -> containerManager.loadShortcuts().find {
+                it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == epicId.toString()
+            }
+            else -> containerManager.loadShortcuts().find {
+                it.getExtra("app_id") == app.id.toString()
+            }
+        }
+    }
+
+    private fun resolveLibraryShortcutArtworkModel(
+        context: android.content.Context,
+        app: SteamApp,
+        isCustom: Boolean,
+        isEpic: Boolean,
+        epicArtworkUrl: String?
+    ): Any? {
+        return when {
+            isCustom -> {
+                val safeName = app.name.replace("/", "_").replace("\\", "_")
+                val iconFile = java.io.File(context.filesDir, "custom_icons/$safeName.png")
+                if (iconFile.exists()) iconFile else null
+            }
+            isEpic -> epicArtworkUrl?.takeIf { it.isNotBlank() }
+            else -> app.getCapsuleUrl()
+        }
+    }
+
+    private suspend fun loadArtworkBitmap(context: android.content.Context, artworkModel: Any?): Bitmap? {
+        if (artworkModel == null) return null
+        return try {
+            val request = ImageRequest.Builder(context)
+                .data(artworkModel)
+                .allowHardware(false)
+                .size(192, 192)
+                .build()
+            val result = context.imageLoader.execute(request)
+            val drawable = result.drawable ?: return null
+            if (drawable is BitmapDrawable) {
+                drawable.bitmap
+            } else {
+                val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 192
+                val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 192
+                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bitmap)
+                drawable.setBounds(0, 0, width, height)
+                drawable.draw(canvas)
+                bitmap
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private suspend fun requestPinnedHomeShortcut(
+        context: android.content.Context,
+        shortcut: Shortcut,
+        artworkModel: Any? = null
+    ): Boolean {
+        if (shortcut.getExtra("uuid").isEmpty()) {
+            shortcut.genUUID()
+        }
+        val shortcutId = shortcut.getExtra("uuid")
+        if (shortcutId.isEmpty()) return false
+
+        val shortcutManager = context.getSystemService(android.content.pm.ShortcutManager::class.java) ?: return false
+        if (!shortcutManager.isRequestPinShortcutSupported) return false
+
+        val launchIntent = Intent(context, XServerDisplayActivity::class.java).apply {
+            action = Intent.ACTION_VIEW
+            putExtra("container_id", shortcut.container.id)
+            putExtra("shortcut_path", shortcut.file.path)
+        }
+
+        val artworkBitmap = loadArtworkBitmap(context, artworkModel)
+        val shortcutIcon = artworkBitmap?.let { android.graphics.drawable.Icon.createWithBitmap(it) }
+            ?: shortcut.icon?.let { android.graphics.drawable.Icon.createWithBitmap(it) }
+            ?: android.graphics.drawable.Icon.createWithResource(context, R.drawable.icon_shortcut)
+
+        val pinShortcutInfo = android.content.pm.ShortcutInfo.Builder(context, shortcutId)
+            .setShortLabel(shortcut.name)
+            .setLongLabel(shortcut.name)
+            .setIcon(shortcutIcon)
+            .setIntent(launchIntent)
+            .build()
+
+        return shortcutManager.requestPinShortcut(pinShortcutInfo, null)
+    }
+
+    private suspend fun addLibraryShortcutToHomeScreen(
+        context: android.content.Context,
+        app: SteamApp,
+        isCustom: Boolean,
+        isEpic: Boolean,
+        epicId: Int,
+        epicArtworkUrl: String? = null
+    ): Boolean {
+        val containerManager = ContainerManager(context)
+        val shortcut = findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId) ?: return false
+        val artworkModel = resolveLibraryShortcutArtworkModel(context, app, isCustom, isEpic, epicArtworkUrl)
+        return requestPinnedHomeShortcut(context, shortcut, artworkModel)
+    }
+
+    private suspend fun addGogShortcutToHomeScreen(
+        context: android.content.Context,
+        app: GOGGame,
+        artworkUrl: String?
+    ): Boolean {
+        val shortcut = ContainerManager(context).loadShortcuts().find {
+            it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == app.id
+        } ?: return false
+        val artworkModel = artworkUrl?.takeIf { it.isNotBlank() }
+        return requestPinnedHomeShortcut(context, shortcut, artworkModel)
     }
 
     // Game launch with A: drive mounting

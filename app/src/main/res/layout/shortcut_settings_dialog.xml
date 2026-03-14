@@ -21,6 +21,14 @@
             android:id="@+id/ETName"
             android:inputType="textCapSentences" />
 
+        <Button
+            style="@style/ButtonNeutral"
+            android:id="@+id/BTAddToHomeScreen"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/add_to_home_screen" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

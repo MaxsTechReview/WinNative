@@ -219,8 +219,6 @@ public class ShortcutsFragment extends Fragment {
                     });
                 }
                 else if (itemId == R.id.shortcut_add_to_home_screen) {
-                    if (shortcut.getExtra("uuid").equals(""))
-                        shortcut.genUUID();
                     addShortcutToScreen(shortcut);
                 }
                 else if (itemId == R.id.shortcut_export) {
@@ -411,11 +409,20 @@ public class ShortcutsFragment extends Fragment {
                 .build();
     }
 
-    private void addShortcutToScreen(Shortcut shortcut) {
+    public boolean addShortcutToScreen(Shortcut shortcut) {
+        if (shortcut == null) return false;
+        if (shortcut.getExtra("uuid").equals("")) {
+            shortcut.genUUID();
+        }
         ShortcutManager shortcutManager = getSystemService(requireContext(), ShortcutManager.class);
-        if (shortcutManager != null && shortcutManager.isRequestPinShortcutSupported())
-            shortcutManager.requestPinShortcut(buildScreenShortCut(shortcut.name, shortcut.name, shortcut.container.id,
-                    shortcut.file.getPath(), Icon.createWithBitmap(shortcut.icon), shortcut.getExtra("uuid")), null);
+        if (shortcutManager == null || !shortcutManager.isRequestPinShortcutSupported()) return false;
+
+        Icon shortcutIcon = shortcut.icon != null
+                ? Icon.createWithBitmap(shortcut.icon)
+                : Icon.createWithResource(requireContext(), R.drawable.icon_shortcut);
+
+        return shortcutManager.requestPinShortcut(buildScreenShortCut(shortcut.name, shortcut.name, shortcut.container.id,
+                shortcut.file.getPath(), shortcutIcon, shortcut.getExtra("uuid")), null);
     }
 
     public static void disableShortcutOnScreen(Context context, Shortcut shortcut) {
