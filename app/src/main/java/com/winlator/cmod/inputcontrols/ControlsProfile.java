@@ -61,14 +61,11 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
                     JSONArray elementsJSONArray = profileJSONObject.getJSONArray("elements");
                     for (int i = 0; i < elementsJSONArray.length(); i++) {
                         JSONObject elementJSONObject = elementsJSONArray.getJSONObject(i);
+                        boolean hasGamepadBinding = true;
                         JSONArray bindingsJSONArray = elementJSONObject.getJSONArray("bindings");
-                        boolean hasGamepadBinding = false;
                         for (int j = 0; j < bindingsJSONArray.length(); j++) {
                             Binding binding = Binding.fromString(bindingsJSONArray.getString(j));
-                            if (binding.isGamepad()) {
-                                hasGamepadBinding = true;
-                                break;
-                            }
+                            if (!binding.isGamepad()) hasGamepadBinding = false;
                         }
                         if (hasGamepadBinding) {
                             virtualGamepad = true;
@@ -274,12 +271,12 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
                 if (elementJSONObject.has("range")) element.setRange(ControlElement.Range.valueOf(elementJSONObject.getString("range")));
                 if (elementJSONObject.has("orientation")) element.setOrientation((byte)elementJSONObject.getInt("orientation"));
 
-                boolean hasGamepadBinding = false;
+                boolean hasGamepadBinding = true;
                 JSONArray bindingsJSONArray = elementJSONObject.getJSONArray("bindings");
                 for (int j = 0; j < bindingsJSONArray.length(); j++) {
                     Binding binding = Binding.fromString(bindingsJSONArray.getString(j));
                     element.setBindingAt(j, Binding.fromString(bindingsJSONArray.getString(j)));
-                    if (binding.isGamepad()) hasGamepadBinding = true;
+                    if (!binding.isGamepad()) hasGamepadBinding = false;
                 }
 
                 if (!virtualGamepad && hasGamepadBinding) virtualGamepad = true;

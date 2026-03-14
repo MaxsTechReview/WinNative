@@ -441,8 +441,6 @@ public class ContainerDetailFragment extends Fragment {
         final Runnable showInputWarning = () -> ContentDialog.alert(context, R.string.enable_xinput_and_dinput_same_time, null);
         final CompoundButton cbEnableXInput = view.findViewById(R.id.CBEnableXInput);
         final CompoundButton cbEnableDInput = view.findViewById(R.id.CBEnableDInput);
-        final CompoundButton cbExclusiveInput = view.findViewById(R.id.CBExclusiveInput);
-        final View llExclusiveInput = view.findViewById(R.id.LLExclusiveInput);
         final View llDInputType = view.findViewById(R.id.LLDinputMapperType);
         final View btHelpXInput = view.findViewById(R.id.BTXInputHelp);
         final View btHelpDInput = view.findViewById(R.id.BTDInputHelp);
@@ -469,29 +467,6 @@ public class ContainerDetailFragment extends Fragment {
 
         SDInputType.setSelection(((inputType & WinHandler.FLAG_DINPUT_MAPPER_STANDARD) == WinHandler.FLAG_DINPUT_MAPPER_STANDARD) ? 0 : 1);
         llDInputType.setVisibility(cbEnableDInput.isChecked() ? View.VISIBLE : View.GONE);
-
-        if (cbExclusiveInput != null && llExclusiveInput != null) {
-            boolean exclusiveInputEnabled = isShortcutMode()
-                    ? "1".equals(shortcut.getExtra("disableXinput", "0"))
-                    : preferences.getBoolean("xinput_toggle", false);
-            cbExclusiveInput.setChecked(exclusiveInputEnabled);
-            llExclusiveInput.setVisibility(View.VISIBLE);
-
-            Runnable applyExclusiveInputUiState = () -> {
-                boolean exclusiveOn = cbExclusiveInput.isChecked();
-                if (!exclusiveOn) {
-                    // Ludashi behavior: with Exclusive Input OFF, keep both APIs ON and locked.
-                    cbEnableXInput.setChecked(true);
-                    cbEnableDInput.setChecked(true);
-                }
-                cbEnableXInput.setEnabled(exclusiveOn);
-                cbEnableDInput.setEnabled(exclusiveOn);
-                llDInputType.setVisibility(cbEnableDInput.isChecked() ? View.VISIBLE : View.GONE);
-            };
-
-            cbExclusiveInput.setOnCheckedChangeListener((buttonView, isChecked) -> applyExclusiveInputUiState.run());
-            applyExclusiveInputUiState.run();
-        }
 
         btHelpXInput.setOnClickListener(v -> AppUtils.showHelpBox(context, v, R.string.help_xinput));
         btHelpDInput.setOnClickListener(v -> AppUtils.showHelpBox(context, v, R.string.help_dinput));
@@ -656,9 +631,6 @@ public class ContainerDetailFragment extends Fragment {
                     shortcut.putExtra("showFPS", showFPS ? "1" : "0");
                     shortcut.putExtra("fullscreenStretched", fullscreenStretched ? "1" : "0");
                     shortcut.putExtra("inputType", String.valueOf(finalInputType));
-                    if (cbExclusiveInput != null) {
-                        shortcut.putExtra("disableXinput", cbExclusiveInput.isChecked() ? "1" : null);
-                    }
                     shortcut.putExtra("startupSelection", String.valueOf(startupSelection));
                     shortcut.putExtra("box64Version", box64Version);
                     shortcut.putExtra("box64Preset", box64Preset);
@@ -729,9 +701,6 @@ public class ContainerDetailFragment extends Fragment {
                     container.setPrimaryController(primaryController);
                     container.setControllerMapping(controllerMapping);
                     container.saveData();
-                    if (cbExclusiveInput != null) {
-                        preferences.edit().putBoolean("xinput_toggle", cbExclusiveInput.isChecked()).apply();
-                    }
                     saveWineRegistryKeys(view);
                     getActivity().onBackPressed();
                 } else if (createShortcutForAppId > 0) {
