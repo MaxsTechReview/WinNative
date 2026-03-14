@@ -368,10 +368,12 @@ class UnifiedActivity : ComponentActivity() {
         var showAddCustomGame by remember { mutableStateOf(false) }
         var showExitDialog by remember { mutableStateOf(false) }
         var libraryRefreshKey by remember { mutableIntStateOf(0) }
+        var iconRefreshKey by remember { mutableIntStateOf(0) }
         
         val currentRefreshSignal = this@UnifiedActivity.libraryRefreshSignal
         LaunchedEffect(currentRefreshSignal) {
             libraryRefreshKey++
+            iconRefreshKey++
         }
         
         val contentFilters = remember { mutableStateMapOf("games" to true, "dlc" to false, "applications" to false, "tools" to false) }
@@ -632,7 +634,7 @@ class UnifiedActivity : ComponentActivity() {
                     val key = tabs.getOrNull(selectedIdx)?.key ?: "library"
 
                     when (key) {
-                        "library" -> LibraryCarousel(isLoggedIn, filteredSteamApps, epicApps, gogApps, libraryRefreshKey)
+                        "library" -> LibraryCarousel(isLoggedIn, filteredSteamApps, epicApps, gogApps, libraryRefreshKey, iconRefreshKey)
                         "downloads" -> DownloadsTab(selectedDownloadId, onSelectDownload = { selectedDownloadId = it })
                         "steam", "store" -> SteamStoreTab(isLoggedIn, filteredSteamApps)
 
@@ -1102,6 +1104,7 @@ class UnifiedActivity : ComponentActivity() {
         epicApps: List<EpicGame>,
         gogApps: List<GOGGame>,
         libraryRefreshKey: Int = 0,
+        iconRefreshKey: Int = 0,
     ) {
         val context = LocalContext.current
 
@@ -1321,6 +1324,7 @@ class UnifiedActivity : ComponentActivity() {
                             GameCapsule(
                                 app = app,
                                 gogGame = gogByPseudoId[app.id],
+                                iconRefreshKey = iconRefreshKey,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .shadow(
@@ -1938,7 +1942,12 @@ class UnifiedActivity : ComponentActivity() {
 
     // ─── Single game capsule for carousel ─────────────────────────────
     @Composable
-    private fun GameCapsule(app: SteamApp, gogGame: GOGGame? = null, modifier: Modifier = Modifier) {
+    private fun GameCapsule(
+        app: SteamApp,
+        gogGame: GOGGame? = null,
+        iconRefreshKey: Int = 0,
+        modifier: Modifier = Modifier
+    ) {
         val context = LocalContext.current
         val isCustom = app.id < 0
         val isEpic = app.id >= 2000000000
@@ -1946,7 +1955,12 @@ class UnifiedActivity : ComponentActivity() {
         val epicGame by produceState<EpicGame?>(initialValue = null, key1 = epicId) {
             value = if (isEpic) db.epicGameDao().getById(epicId) else null
         }
-        val customLibraryIconPath by produceState<String?>(initialValue = null, key1 = app.id, key2 = gogGame?.id) {
+        val customLibraryIconPath by produceState<String?>(
+            initialValue = null,
+            key1 = app.id,
+            key2 = gogGame?.id,
+            key3 = iconRefreshKey
+        ) {
             value = withContext(Dispatchers.IO) {
                 val containerManager = ContainerManager(context)
                 val shortcut = if (gogGame != null) {
@@ -1984,9 +1998,13 @@ class UnifiedActivity : ComponentActivity() {
                 ?.takeIf { it.exists() }
 
             if (customArtworkFile != null) {
+                val customArtworkCacheKey =
+                    "library_custom_icon:${customArtworkFile.absolutePath}:${customArtworkFile.lastModified()}"
                 AsyncImage(
                     model = ImageRequest.Builder(context)
                         .data(customArtworkFile)
+                        .memoryCacheKey(customArtworkCacheKey)
+                        .diskCacheKey(customArtworkCacheKey)
                         .crossfade(300)
                         .build(),
                     contentDescription = app.name,
@@ -3317,14 +3335,31 @@ class UnifiedActivity : ComponentActivity() {
         }
         val shortcutId = shortcut.getExtra("uuid")
         if (shortcutId.isEmpty()) return false
+        val canonicalShortcutPath = shortcut.file.absolutePath
+        val shortcutPathHash = canonicalShortcutPath.hashCode()
+        val pinShortcutId = "shortcut_${shortcut.container.id}_${shortcutId}_${shortcutPathHash.toUInt().toString(16)}"
 
         val shortcutManager = context.getSystemService(android.content.pm.ShortcutManager::class.java) ?: return false
         if (!shortcutManager.isRequestPinShortcutSupported) return false
 
         val launchIntent = Intent(context, XServerDisplayActivity::class.java).apply {
+            val containerIdForLaunch = shortcut.getExtra("container_id").toIntOrNull() ?: shortcut.container.id
+            val launchData = Uri.Builder()
+                .scheme("winnative")
+                .authority(BuildConfig.APPLICATION_ID)
+                .appendPath("shortcut")
+                .appendQueryParameter("uuid", shortcutId)
+                .appendQueryParameter("container", containerIdForLaunch.toString())
+                .appendQueryParameter("hash", shortcutPathHash.toString())
+                .build()
             action = Intent.ACTION_VIEW
-            putExtra("container_id", shortcut.container.id)
-            putExtra("shortcut_path", shortcut.file.path)
+            data = launchData
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            putExtra("container_id", containerIdForLaunch)
+            putExtra("shortcut_path", canonicalShortcutPath)
+            putExtra("shortcut_name", shortcut.name)
+            putExtra("shortcut_uuid", shortcutId)
+            putExtra("shortcut_path_hash", shortcutPathHash)
         }
 
         val customIconPath = shortcut.getExtra("customLibraryIconPath")
@@ -3339,7 +3374,7 @@ class UnifiedActivity : ComponentActivity() {
             ?: shortcut.icon?.let { android.graphics.drawable.Icon.createWithBitmap(it) }
             ?: android.graphics.drawable.Icon.createWithResource(context, R.drawable.icon_shortcut)
 
-        val pinShortcutInfo = android.content.pm.ShortcutInfo.Builder(context, shortcutId)
+        val pinShortcutInfo = android.content.pm.ShortcutInfo.Builder(context, pinShortcutId)
             .setShortLabel(shortcut.name)
             .setLongLabel(shortcut.name)
             .setIcon(shortcutIcon)
