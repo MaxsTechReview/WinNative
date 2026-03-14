@@ -11,9 +11,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -667,18 +669,26 @@ class UnifiedActivity : ComponentActivity() {
                 Box(Modifier.padding(padding).fillMaxSize().background(BgDark)) {
                     val key = tabs.getOrNull(selectedIdx)?.key ?: "library"
 
-                    when (key) {
-                        "library" -> LibraryCarousel(isLoggedIn, filteredSteamApps, epicApps, gogApps, libraryRefreshKey, searchQuery)
-                        "downloads" -> DownloadsTab(selectedDownloadId, onSelectDownload = { selectedDownloadId = it })
-                        "steam", "store" -> SteamStoreTab(isLoggedIn, filteredSteamApps, searchQuery)
+                    AnimatedContent(
+                        targetState = key,
+                        transitionSpec = {
+                            fadeIn(tween(200)) togetherWith fadeOut(tween(150))
+                        },
+                        label = "tabContent"
+                    ) { animatedKey ->
+                        when (animatedKey) {
+                            "library" -> LibraryCarousel(isLoggedIn, filteredSteamApps, epicApps, gogApps, libraryRefreshKey, searchQuery)
+                            "downloads" -> DownloadsTab(selectedDownloadId, onSelectDownload = { selectedDownloadId = it })
+                            "steam", "store" -> SteamStoreTab(isLoggedIn, filteredSteamApps, searchQuery)
 
-                        "epic" -> EpicStoreTab(isEpicLoggedIn, searchQuery) {
-                            epicLoginLauncher.launch(Intent(this@UnifiedActivity, EpicOAuthActivity::class.java))
+                            "epic" -> EpicStoreTab(isEpicLoggedIn, searchQuery) {
+                                epicLoginLauncher.launch(Intent(this@UnifiedActivity, EpicOAuthActivity::class.java))
+                            }
+                            "gog" -> GOGStoreTab(isGogLoggedIn, searchQuery) {
+                                gogLoginLauncher.launch(Intent(this@UnifiedActivity, GOGOAuthActivity::class.java))
+                            }
+                            "amazon" -> StorePlaceholderTab("Amazon Games")
                         }
-                        "gog" -> GOGStoreTab(isGogLoggedIn, searchQuery) {
-                            gogLoginLauncher.launch(Intent(this@UnifiedActivity, GOGOAuthActivity::class.java))
-                        }
-                        "amazon" -> StorePlaceholderTab("Amazon Games")
                     }
 
                     // ── Bottom-left filter button ──
