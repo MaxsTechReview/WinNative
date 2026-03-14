@@ -1428,15 +1428,19 @@ class UnifiedActivity : ComponentActivity() {
         BoxWithConstraints(
             Modifier
                 .fillMaxSize()
-                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
+                .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
         ) {
-            val rowHeight = (maxHeight - 12.dp) / 2 // 12dp = grid vertical spacing
+            val borderInset = 6.dp
+            val rowHeight = (maxHeight - 12.dp - borderInset * 2) / 2 // 12dp = grid spacing, borderInset = chasing border room
             LazyVerticalGrid(
                 state = gridState,
                 columns = GridCells.Fixed(4),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize()
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = borderInset + 10.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { clip = false }
             ) {
                 itemsIndexed(displayedApps) { index, app ->
                     GameCapsule(
