@@ -1271,19 +1271,7 @@ public class ContainerDetailFragment extends Fragment {
         final Context context = view.getContext();
         final EnvVarsView envVarsView = view.findViewById(R.id.EnvVarsView);
 
-        String envVarsValue;
-        if (isShortcutMode() && shortcut != null) {
-            envVarsValue = shortcut.getExtra(
-                    "envVars",
-                    container != null ? container.getEnvVars() : Container.DEFAULT_ENV_VARS
-            );
-        } else if (isEditMode() && container != null) {
-            envVarsValue = container.getEnvVars();
-        } else {
-            envVarsValue = Container.DEFAULT_ENV_VARS;
-        }
-
-        envVarsView.setEnvVars(new EnvVars(envVarsValue));
+        envVarsView.setEnvVars(new EnvVars(isEditMode() && container != null ? container.getEnvVars() : Container.DEFAULT_ENV_VARS));
         view.findViewById(R.id.BTAddEnvVar).setOnClickListener((v) -> (new AddEnvVarDialog(context, envVarsView)).show());
         return envVarsView;
     }
