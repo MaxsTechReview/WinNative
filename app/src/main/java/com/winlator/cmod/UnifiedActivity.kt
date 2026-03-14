@@ -13,6 +13,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -26,6 +27,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import com.winlator.cmod.widget.chasingBorder
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -132,6 +135,7 @@ import kotlin.math.roundToInt
 private val BgDark = Color(0xFF0F0F12)
 private val SurfaceDark = Color(0xFF161B22)
 private val CardDark = Color(0xFF14141E)
+private val CardBorder = Color(0xFF21212E)
 private val Accent = Color(0xFF1A9FFF)
 private val AccentGlow = Color(0xFF58A6FF)
 private val TextPrimary = Color(0xFFF0F4FF)
@@ -920,9 +924,10 @@ class UnifiedActivity : ComponentActivity() {
                         modifier = Modifier
                             .width(tabWidth * visibleCount)
                             .height(44.dp)
-                            .shadow(8.dp, RoundedCornerShape(24.dp), spotColor = Color.Black.copy(alpha = 0.4f))
+                            .shadow(8.dp, RoundedCornerShape(24.dp), spotColor = Color.Black.copy(alpha = 0.5f))
                             .clip(RoundedCornerShape(24.dp))
-                            .background(SurfaceDark.copy(alpha = 0.85f))
+                            .background(CardDark)
+                            .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
                     ) {
                         LazyRow(
                             state = tabListState,
@@ -934,18 +939,32 @@ class UnifiedActivity : ComponentActivity() {
                         ) {
                             itemsIndexed(tabs) { index, tab ->
                                 val selected = selectedIdx == index
+                                val interactionSource = remember { MutableInteractionSource() }
+                                val isPressed by interactionSource.collectIsPressedAsState()
+                                val tabScale by animateFloatAsState(
+                                    targetValue = if (isPressed) 0.92f else 1f,
+                                    animationSpec = spring(stiffness = Spring.StiffnessHigh),
+                                    label = "tabScale"
+                                )
+                                val textColor by animateColorAsState(
+                                    targetValue = if (selected) Accent else TextSecondary,
+                                    animationSpec = tween(280),
+                                    label = "tabTextColor"
+                                )
+
                                 Box(
                                     modifier = Modifier
                                         .width(tabWidth)
                                         .fillMaxHeight()
                                         .focusProperties { canFocus = false }
-                                        .then(
-                                            if (selected) Modifier
-                                                .clip(RoundedCornerShape(24.dp))
-                                                .background(Accent.copy(alpha = 0.15f))
-                                            else Modifier
-                                        )
-                                        .clickable { onSelect(index) },
+                                        .graphicsLayer {
+                                            scaleX = tabScale
+                                            scaleY = tabScale
+                                        }
+                                        .clickable(
+                                            interactionSource = interactionSource,
+                                            indication = null
+                                        ) { onSelect(index) },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
@@ -954,7 +973,7 @@ class UnifiedActivity : ComponentActivity() {
                                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                                         fontSize = 13.sp,
                                         maxLines = 1,
-                                        color = if (selected) Accent else TextSecondary
+                                        color = textColor
                                     )
                                 }
                             }
