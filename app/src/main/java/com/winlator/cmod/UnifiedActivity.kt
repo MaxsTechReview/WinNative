@@ -35,6 +35,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -859,9 +860,6 @@ class UnifiedActivity : ComponentActivity() {
     ) {
         var showStatusMenu by remember { mutableStateOf(false) }
         val currentState = persona?.state ?: EPersonaState.Online
-        val tabListState = rememberLazyListState()
-        val tabWidthsPx = remember(tabs) { mutableStateMapOf<Int, Int>() }
-        var tabViewportWidthPx by remember { mutableIntStateOf(0) }
         var isSearchExpanded by remember { mutableStateOf(false) }
         val searchFocusRequester = remember { FocusRequester() }
         val keyboardController = LocalSoftwareKeyboardController.current
@@ -885,192 +883,80 @@ class UnifiedActivity : ComponentActivity() {
             }
         }
 
-        LaunchedEffect(selectedIdx, tabs, tabViewportWidthPx, tabWidthsPx[selectedIdx]) {
-            val selectedTabWidth = tabWidthsPx[selectedIdx] ?: return@LaunchedEffect
-            if (tabViewportWidthPx <= 0 || tabs.isEmpty()) return@LaunchedEffect
-
-            val centeredOffset = -((tabViewportWidthPx - selectedTabWidth) / 2f).roundToInt()
-            tabListState.animateScrollToItem(selectedIdx.coerceIn(0, tabs.lastIndex), centeredOffset)
-        }
 
         Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
                 .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))
                 .height(64.dp)
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 8.dp)
         ) {
-            // Left Block: Settings, Search & Download Queue
+            // Center Block: Tabs (absolutely centered, unaffected by left/right content)
             Row(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Settings Button
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
-                            .clip(CircleShape)
-                            .background(SurfaceDark)
-                            .focusProperties { canFocus = !isLibraryTab },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        IconButton(onClick = {
-                            val intent = Intent(context, MainActivity::class.java)
-                            intent.putExtra("selected_menu_item_id", R.id.main_menu_stores)
-                            intent.putExtra("return_to_unified", true)
-                            val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
-                            context.startActivity(intent, opts.toBundle())
-                        }, modifier = Modifier.size(44.dp), enabled = true) {
-                            Icon(Icons.Default.Settings, contentDescription = "Menu", tint = TextPrimary, modifier = Modifier.size(24.dp))
-                        }
-                    }
-                    if (isControllerConnected) {
-                        Spacer(Modifier.width(8.dp))
-                        ControllerBadge(if (isPS) "Options" else "Start")
-                    }
-                }
-
-                // Search Button (hidden on downloads tab)
-                if (!isDownloadsTab) {
-                    Spacer(Modifier.width(12.dp))
-
-                    val searchIconRotation by animateFloatAsState(
-                        targetValue = if (isSearchExpanded) 90f else 0f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessLow
-                        ),
-                        label = "searchIconRotation"
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
-                            .clip(CircleShape)
-                            .background(if (isSearchExpanded) Accent.copy(alpha = 0.15f) else SurfaceDark)
-                            .focusProperties { canFocus = !isLibraryTab },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        IconButton(
-                            onClick = {
-                                if (isSearchExpanded) {
-                                    onSearchQueryChange("")
-                                    isSearchExpanded = false
-                                } else {
-                                    isSearchExpanded = true
-                                }
-                            },
-                            modifier = Modifier.size(44.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = "Search",
-                                tint = if (isSearchExpanded) Accent else TextPrimary,
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .graphicsLayer { rotationZ = searchIconRotation }
-                            )
-                        }
-                    }
-                }
-
-                // Download Queue (Centered between Settings and Tabs)
-                if (tabs.getOrNull(selectedIdx)?.key == "downloads") {
-                    var queueSize by remember { mutableIntStateOf(PrefManager.downloadQueueSize) }
-                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(
-                                    onClick = { if (queueSize > 1) { queueSize--; PrefManager.downloadQueueSize = queueSize } },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Decrease Queue", tint = TextPrimary, modifier = Modifier.size(18.dp))
-                                }
-                                
-                                Text(
-                                    text = queueSize.toString(),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = TextPrimary,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 4.dp)
-                                )
-                                
-                                IconButton(
-                                    onClick = { queueSize++; PrefManager.downloadQueueSize = queueSize },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Increase Queue", tint = TextPrimary, modifier = Modifier.size(18.dp))
-                                }
-                            }
-                            Text(
-                                text = "Download Queue",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = TextSecondary,
-                                fontSize = 8.sp
-                            )
-                        }
-                    }
-                } else {
-                    Spacer(Modifier.weight(1f))
-                }
-            }
-
-            // Center Block: Tabs
-            Row(
+                modifier = Modifier.align(Alignment.Center),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (isControllerConnected) {
                     ControllerBadge("L1")
                     Spacer(Modifier.width(8.dp))
                 }
-                Row(
-                    modifier = Modifier
-                        .widthIn(max = 340.dp)
-                        .height(44.dp)
-                        .shadow(8.dp, RoundedCornerShape(24.dp), spotColor = Color.Black.copy(alpha = 0.4f))
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(SurfaceDark.copy(alpha = 0.85f))
-                        .onGloballyPositioned { tabViewportWidthPx = it.size.width }
-                        .focusProperties { canFocus = !isLibraryTab },
+                @Suppress("DEPRECATION")
+                CompositionLocalProvider(
+                    androidx.compose.material3.LocalRippleConfiguration provides null
                 ) {
-                    LazyRow(
-                        state = tabListState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    val tabWidth = 100.dp
+                    val visibleCount = minOf(3, tabs.size)
+                    val tabListState = rememberLazyListState()
+                    val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState = tabListState)
+
+                    LaunchedEffect(selectedIdx) {
+                        val scrollTo = maxOf(0, selectedIdx - 1)
+                        tabListState.animateScrollToItem(scrollTo)
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .width(tabWidth * visibleCount)
+                            .height(44.dp)
+                            .shadow(8.dp, RoundedCornerShape(24.dp), spotColor = Color.Black.copy(alpha = 0.4f))
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(SurfaceDark.copy(alpha = 0.85f))
                     ) {
-                        itemsIndexed(tabs) { index, tab ->
-                            val selected = selectedIdx == index
-                            val scale by animateFloatAsState(
-                                if (selected) 1.05f else 1f,
-                                spring(stiffness = Spring.StiffnessMedium),
-                                label = "tabScale"
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .onGloballyPositioned { tabWidthsPx[index] = it.size.width }
-                                    .graphicsLayer { scaleX = scale; scaleY = scale }
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(if (selected) Accent.copy(alpha = 0.15f) else Color.Transparent)
-                                    .clickable { onSelect(index) }
-                                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = tab.label.uppercase(),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (selected) Accent else TextSecondary,
-                                    fontSize = 13.sp,
-                                    maxLines = 1
-                                )
+                        LazyRow(
+                            state = tabListState,
+                            flingBehavior = snapFlingBehavior,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .focusProperties { canFocus = !isLibraryTab },
+                            userScrollEnabled = tabs.size > visibleCount
+                        ) {
+                            itemsIndexed(tabs) { index, tab ->
+                                val selected = selectedIdx == index
+                                Box(
+                                    modifier = Modifier
+                                        .width(tabWidth)
+                                        .fillMaxHeight()
+                                        .focusProperties { canFocus = false }
+                                        .then(
+                                            if (selected) Modifier
+                                                .clip(RoundedCornerShape(24.dp))
+                                                .background(Accent.copy(alpha = 0.15f))
+                                            else Modifier
+                                        )
+                                        .clickable { onSelect(index) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = tab.label.uppercase(),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                        fontSize = 13.sp,
+                                        maxLines = 1,
+                                        color = if (selected) Accent else TextSecondary
+                                    )
+                                }
                             }
                         }
                     }
@@ -1081,9 +967,92 @@ class UnifiedActivity : ComponentActivity() {
                 }
             }
 
+            // Left Block: Settings & Search
+            Row(
+                modifier = Modifier.align(Alignment.CenterStart).fillMaxHeight(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Settings Button
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
+                        .clip(CircleShape)
+                        .background(SurfaceDark)
+                        .focusProperties { canFocus = !isLibraryTab },
+                    contentAlignment = Alignment.Center
+                ) {
+                    IconButton(onClick = {
+                        val intent = Intent(context, MainActivity::class.java)
+                        intent.putExtra("selected_menu_item_id", R.id.main_menu_stores)
+                        intent.putExtra("return_to_unified", true)
+                        val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
+                        context.startActivity(intent, opts.toBundle())
+                    }, modifier = Modifier.size(44.dp), enabled = true) {
+                        Icon(Icons.Default.Settings, contentDescription = "Menu", tint = TextPrimary, modifier = Modifier.size(24.dp))
+                    }
+                }
+                if (isControllerConnected) {
+                    Spacer(Modifier.width(8.dp))
+                    ControllerBadge(if (isPS) "Options" else "Start")
+                }
+
+                // Search Button (disabled on downloads tab)
+                Spacer(Modifier.width(12.dp))
+
+                val searchIconRotation by animateFloatAsState(
+                    targetValue = if (isSearchExpanded) 90f else 0f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    ),
+                    label = "searchIconRotation"
+                )
+
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
+                        .clip(CircleShape)
+                        .background(
+                            if (isDownloadsTab) SurfaceDark.copy(alpha = 0.4f)
+                            else if (isSearchExpanded) Accent.copy(alpha = 0.15f)
+                            else SurfaceDark
+                        )
+                        .focusProperties { canFocus = !isLibraryTab },
+                    contentAlignment = Alignment.Center
+                ) {
+                    IconButton(
+                        onClick = {
+                            if (!isDownloadsTab) {
+                                if (isSearchExpanded) {
+                                    onSearchQueryChange("")
+                                    isSearchExpanded = false
+                                } else {
+                                    isSearchExpanded = true
+                                }
+                            }
+                        },
+                        modifier = Modifier.size(44.dp),
+                        enabled = !isDownloadsTab
+                    ) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = if (isDownloadsTab) TextSecondary.copy(alpha = 0.4f)
+                                   else if (isSearchExpanded) Accent
+                                   else TextPrimary,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .graphicsLayer { rotationZ = searchIconRotation }
+                        )
+                    }
+                }
+            }
+
             // Right Block: Status & Actions
             Row(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
+                modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -2846,6 +2815,38 @@ class UnifiedActivity : ComponentActivity() {
                 }
                 
                 val cancelLabel = if (selectedId == null) "Cancel All" else "Cancel"
+
+                // Download Queue Size
+                var queueSize by remember { mutableIntStateOf(PrefManager.downloadQueueSize) }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(SurfaceDark)
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
+                ) {
+                    IconButton(
+                        onClick = { if (queueSize > 1) { queueSize--; PrefManager.downloadQueueSize = queueSize } },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Decrease Queue", tint = TextPrimary, modifier = Modifier.size(18.dp))
+                    }
+                    Text(
+                        text = queueSize.toString(),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 2.dp)
+                    )
+                    IconButton(
+                        onClick = { queueSize++; PrefManager.downloadQueueSize = queueSize },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Increase Queue", tint = TextPrimary, modifier = Modifier.size(18.dp))
+                    }
+                }
+
+                Spacer(Modifier.width(12.dp))
 
                 Button(
                     onClick = {
