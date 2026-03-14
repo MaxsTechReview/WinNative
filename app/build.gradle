@@ -117,6 +117,7 @@ dependencies {
     // Auth
     implementation 'com.auth0.android:jwtdecode:2.0.2'
     implementation 'androidx.browser:browser:1.8.0'
+    implementation 'androidx.security:security-crypto:1.1.0-alpha06'
 
     // Hilt
     implementation 'com.google.dagger:hilt-android:2.55'

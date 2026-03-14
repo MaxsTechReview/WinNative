@@ -2,12 +2,32 @@ package com.winlator.cmod.steam.utils
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import timber.log.Timber
 
 object PrefManager {
     private var prefs: SharedPreferences? = null
 
     fun init(context: Context) {
-        prefs = context.getSharedPreferences("PluviaPreferences", Context.MODE_PRIVATE)
+        // Delete legacy plaintext prefs file if it still exists
+        context.deleteSharedPreferences("PluviaPreferences")
+
+        prefs = try {
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            EncryptedSharedPreferences.create(
+                context,
+                "PluviaPreferences_enc",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+            )
+        } catch (e: Exception) {
+            Timber.e(e, "EncryptedSharedPreferences init failed")
+            throw RuntimeException("Failed to initialize secure storage", e)
+        }
     }
 
     private fun getString(key: String, defaultValue: String): String = prefs?.getString(key, defaultValue) ?: defaultValue
@@ -136,12 +156,12 @@ object PrefManager {
             remove("steam_user_name")
             remove("steam_user_avatar_hash")
             remove("persona_state")
-            apply()
+            commit()
         }
     }
 
     fun clearPreferences() {
-        prefs?.edit()?.clear()?.apply()
+        prefs?.edit()?.clear()?.commit()
     }
     
     // Legacy support for Winlator properties if needed

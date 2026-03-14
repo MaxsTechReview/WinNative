@@ -4,93 +4,95 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Gamepad
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.winlator.cmod.steam.enums.LoginResult
 import com.winlator.cmod.steam.enums.LoginScreen
 import com.winlator.cmod.steam.ui.SteamLoginViewModel
 import com.winlator.cmod.steam.ui.components.QrCodeImage
+import com.winlator.cmod.steam.ui.data.UserLoginState
 import timber.log.Timber
 
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.res.painterResource
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import android.content.res.Configuration
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
-import com.winlator.cmod.R
-import androidx.compose.ui.text.style.TextAlign
+// Palette (matches Settings > Stores)
+private val BgDark        = Color(0xFF0F0F12)
+private val CardDark      = Color(0xFF14141E)
+private val CardBorder    = Color(0xFF21212E)
+private val IconBoxBg     = Color(0xFF1C1C28)
+private val Accent        = Color(0xFF1A9FFF)
+private val TextPrimary   = Color(0xFFF0F4FF)
+private val TextSecondary = Color(0xFF7A8FA8)
+private val DangerRed     = Color(0xFFFF7A88)
 
 class SteamLoginActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // Ensure SteamService is running
+
         try {
-            val intent = android.content.Intent(this, com.winlator.cmod.steam.service.SteamService::class.java)
-            startForegroundService(intent)
+            startForegroundService(android.content.Intent(this, com.winlator.cmod.steam.service.SteamService::class.java))
         } catch (e: Exception) {
             Timber.e(e, "Failed to start SteamService from SteamLoginActivity")
         }
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        WindowInsetsControllerCompat(window, window.decorView).apply {
-            hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
-            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
 
         setContent {
-            SteamLoginTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    val viewModel: SteamLoginViewModel = viewModel()
-                    LoginContent(viewModel)
-                }
+            MaterialTheme(
+                colorScheme = darkColorScheme(
+                    primary   = Accent,
+                    background = BgDark,
+                    surface   = CardDark,
+                    onSurface = TextPrimary,
+                    secondary = TextSecondary,
+                    outline   = CardBorder,
+                ),
+            ) {
+                val viewModel: SteamLoginViewModel = viewModel()
+                LoginContent(viewModel)
             }
         }
     }
 
-    @Composable
-    fun SteamLoginTheme(content: @Composable () -> Unit) {
-        val darkColorScheme = darkColorScheme(
-            primary = colorResource(R.color.settings_accent),
-            onPrimary = colorResource(R.color.settings_text_primary),
-            secondary = colorResource(R.color.settings_text_secondary),
-            background = colorResource(R.color.window_background_color_dark),
-            surface = colorResource(R.color.settings_card_surface),
-            onSurface = colorResource(R.color.settings_text_primary),
-            outline = colorResource(R.color.settings_outline)
-        )
-
-        MaterialTheme(
-            colorScheme = darkColorScheme,
-            typography = Typography(),
-            content = content
-        )
-    }
-
-    @OptIn(ExperimentalMaterial3Api::class)
+    // Root
     @Composable
     fun LoginContent(viewModel: SteamLoginViewModel) {
         val state by viewModel.loginState.collectAsState()
-        val configuration = LocalConfiguration.current
-        val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         var passwordVisible by remember { mutableStateOf(false) }
 
         LaunchedEffect(state.loginResult) {
@@ -99,115 +101,143 @@ class SteamLoginActivity : ComponentActivity() {
                 finish()
             }
         }
-
-        // Auto-start QR loading if on credential screen
         LaunchedEffect(state.loginScreen) {
-            if (state.loginScreen == LoginScreen.CREDENTIAL) {
-                viewModel.onStartQrLogin()
-            }
+            if (state.loginScreen == LoginScreen.CREDENTIAL) viewModel.onStartQrLogin()
         }
 
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("Steam Login", color = MaterialTheme.colorScheme.onPrimary) },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = colorResource(R.color.settings_section_surface)
-                    ),
-                    navigationIcon = {
-                        if (state.loginScreen == LoginScreen.TWO_FACTOR) {
-                            IconButton(onClick = { viewModel.onShowLoginScreen(LoginScreen.CREDENTIAL) }) {
-                                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onPrimary)
-                            }
-                        }
+        // Entrance: fade + slide up
+        var entered by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { entered = true }
+
+        val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BgDark)
+                .windowInsetsPadding(WindowInsets.navigationBars)
+                .pointerInput(Unit) { detectTapGestures { focusManager.clearFocus() } },
+        ) {
+            AnimatedVisibility(
+                visible = entered,
+                enter = fadeIn(tween(360)) + slideInVertically(
+                    initialOffsetY = { it / 11 },
+                    animationSpec = tween(380, easing = FastOutSlowInEasing),
+                ),
+            ) {
+                AnimatedContent(
+                    targetState = state.loginScreen,
+                    transitionSpec = { fadeIn(tween(240)) togetherWith fadeOut(tween(160)) },
+                    label = "screenSwitch",
+                ) { screen ->
+                    when (screen) {
+                        LoginScreen.TWO_FACTOR ->
+                            TwoFactorLogin(state, viewModel)
+                        else ->
+                            LandscapeLogin(state, viewModel, passwordVisible) { passwordVisible = !passwordVisible }
                     }
-                )
+                }
             }
-        ) { padding ->
-            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-                if (state.loginScreen == LoginScreen.TWO_FACTOR) {
-                    TwoFactorLogin(state, viewModel)
-                } else {
-                    if (isLandscape) {
-                        Row(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(modifier = Modifier.weight(1.2f).fillMaxHeight()) {
-                                CredentialLogin(state, viewModel, passwordVisible, true) { passwordVisible = !passwordVisible }
+
+        }
+    }
+
+    // Landscape
+    @Composable
+    private fun LandscapeLogin(
+        state: UserLoginState,
+        viewModel: SteamLoginViewModel,
+        passwordVisible: Boolean,
+        onTogglePassword: () -> Unit,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().imePadding().padding(start = 8.dp, end = 20.dp, top = 12.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Back arrow — top-left, matching homescreen settings icon position
+            IconButton(
+                onClick = ::finish,
+                modifier = Modifier
+                    .align(Alignment.Top)
+                    .statusBarsPadding()
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(CardDark.copy(alpha = 0.72f)),
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary, modifier = Modifier.size(24.dp))
+            }
+
+            // Left: credentials
+            Column(
+                modifier = Modifier.weight(1.3f).fillMaxHeight().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                // Compact header
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.padding(bottom = 14.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(11.dp))
+                            .background(Accent.copy(alpha = 0.12f))
+                            .border(1.dp, Accent.copy(alpha = 0.3f), RoundedCornerShape(11.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Filled.Gamepad, null, tint = Accent, modifier = Modifier.size(22.dp))
+                    }
+                    Column {
+                        Text("Steam", color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("Sign in to your account", color = TextSecondary, fontSize = 11.sp)
+                            if (!state.isSteamConnected) {
+                                CircularProgressIndicator(modifier = Modifier.size(10.dp), color = Accent, strokeWidth = 1.5.dp)
                             }
-                            
-                            VerticalDivider(
-                                modifier = Modifier.fillMaxHeight().padding(vertical = 24.dp, horizontal = 16.dp),
-                                color = MaterialTheme.colorScheme.outline
-                            )
-                            
-                            Box(modifier = Modifier.weight(0.8f).fillMaxHeight()) {
-                                QrLogin(state, viewModel, true)
-                            }
-                        }
-                    } else {
-                        Column(
-                            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            CredentialLogin(state, viewModel, passwordVisible, false) { passwordVisible = !passwordVisible }
-                            
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 16.dp, horizontal = 32.dp),
-                                color = MaterialTheme.colorScheme.outline
-                            )
-                            
-                            QrLogin(state, viewModel, false)
                         }
                     }
                 }
+                CredentialForm(state, viewModel, passwordVisible, onTogglePassword, compact = true)
+            }
+
+            // Thin divider
+            Box(
+                modifier = Modifier.width(1.dp).fillMaxHeight().padding(vertical = 24.dp).background(CardBorder),
+            )
+
+            // Right: QR
+            Box(
+                modifier = Modifier.weight(0.9f).fillMaxHeight(),
+                contentAlignment = Alignment.Center,
+            ) {
+                QrCard(state, viewModel, isLandscape = true)
             }
         }
     }
 
+    // Credential form
     @Composable
-    fun CredentialLogin(state: com.winlator.cmod.steam.ui.data.UserLoginState, viewModel: SteamLoginViewModel, passwordVisible: Boolean, isLandscape: Boolean, onTogglePassword: () -> Unit) {
-        var showRetryButton by remember { mutableStateOf(false) }
-        
-        LaunchedEffect(state.isSteamConnected) {
-            if (!state.isSteamConnected) {
-                kotlinx.coroutines.delay(15000)
-                if (!state.isSteamConnected) {
-                    showRetryButton = true
-                }
-            } else {
-                showRetryButton = false
-            }
-        }
+    private fun CredentialForm(
+        state: UserLoginState,
+        viewModel: SteamLoginViewModel,
+        passwordVisible: Boolean,
+        onTogglePassword: () -> Unit,
+        compact: Boolean = false,
+    ) {
+        var hasAttemptedLogin by remember { mutableStateOf(false) }
+        // Clear the error when user edits credentials
+        LaunchedEffect(state.username, state.password) { hasAttemptedLogin = false }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(if (isLandscape) 4.dp else 32.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (!state.isSteamConnected) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Connecting...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
-                }
-                
-                if (showRetryButton) {
-                    TextButton(onClick = { 
-                        showRetryButton = false
-                        viewModel.retryConnection() 
-                    }) {
-                        Text("Retry", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-            }
+        val showLoginError = hasAttemptedLogin && !state.isLoggingIn && state.loginResult == LoginResult.Failed
+        val spacing = if (compact) 10.dp else 14.dp
+        val passwordFocus = remember { FocusRequester() }
+        val canSubmit = state.username.isNotEmpty() && state.password.isNotEmpty()
+                && !state.isLoggingIn && state.isSteamConnected
 
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing)) {
             OutlinedTextField(
                 value = state.username,
                 onValueChange = { viewModel.setUsername(it) },
@@ -215,158 +245,451 @@ class SteamLoginActivity : ComponentActivity() {
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !state.isLoggingIn,
                 singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    focusedLabelColor = MaterialTheme.colorScheme.primary,
-                    unfocusedLabelColor = MaterialTheme.colorScheme.secondary
-                )
+                shape = RoundedCornerShape(12.dp),
+                colors = darkFieldColors(),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = { passwordFocus.requestFocus() }),
             )
-            Spacer(Modifier.height(if (isLandscape) 4.dp else 8.dp))
-            OutlinedTextField(
-                value = state.password,
-                onValueChange = { viewModel.setPassword(it) },
-                label = { Text("Password") },
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                trailingIcon = {
-                    IconButton(onClick = onTogglePassword) {
-                        Icon(if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, null, tint = MaterialTheme.colorScheme.secondary)
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !state.isLoggingIn,
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    focusedLabelColor = MaterialTheme.colorScheme.primary,
-                    unfocusedLabelColor = MaterialTheme.colorScheme.secondary
-                )
-            )
-            
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = state.rememberSession, 
-                    onCheckedChange = { viewModel.setRememberSession(it) }, 
-                    enabled = !state.isLoggingIn,
-                    colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary),
-                    modifier = Modifier.scale(0.85f)
-                )
-                Text("Remember Me", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
-            }
-
-            Spacer(Modifier.height(if (isLandscape) 8.dp else 16.dp))
-
-            Button(
-                onClick = { viewModel.onCredentialLogin() },
-                modifier = Modifier.fillMaxWidth().height(44.dp),
-                enabled = state.username.isNotEmpty() && state.password.isNotEmpty() && !state.isLoggingIn && state.isSteamConnected,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                shape = MaterialTheme.shapes.medium
-            ) {
-                if (state.isLoggingIn) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
-                } else {
-                    Text("Login", color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.titleSmall)
-                }
-            }
-
-            Spacer(Modifier.height(if (isLandscape) 4.dp else 16.dp))
-            TextButton(onClick = { finish() }, modifier = Modifier.height(32.dp)) {
-                Text("Cancel", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.bodySmall)
-            }
-        }
-    }
-
-    @Composable
-    fun QrLogin(state: com.winlator.cmod.steam.ui.data.UserLoginState, viewModel: SteamLoginViewModel, isLandscape: Boolean) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(
-                modifier = Modifier
-                    .padding(if (isLandscape) 4.dp else 32.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text("Sign in with QR", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-                Spacer(Modifier.height(if (isLandscape) 8.dp else 16.dp))
-                
-                if (state.qrCode != null) {
-                    QrCodeImage(content = state.qrCode!!, size = if (isLandscape) 160.dp else 220.dp)
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Scan with Steam app", 
-                        style = MaterialTheme.typography.labelSmall, 
-                        color = MaterialTheme.colorScheme.secondary,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                } else if (state.isQrFailed) {
-                    Text("Failed to load QR", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                    Spacer(Modifier.height(8.dp))
-                    Button(onClick = { viewModel.onQrRetry() }, shape = MaterialTheme.shapes.medium, modifier = Modifier.height(36.dp)) {
-                        Text("Retry", style = MaterialTheme.typography.bodySmall)
-                    }
-                } else {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
-                }
-            }
-        }
-    }
-
-    @Composable
-    fun TwoFactorLogin(state: com.winlator.cmod.steam.ui.data.UserLoginState, viewModel: SteamLoginViewModel) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(32.dp).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            val methodText = when (state.lastTwoFactorMethod) {
-                "steam_guard" -> "Confirm login in your Steam mobile app"
-                "email_code" -> "Enter the code sent to your email (${state.email})"
-                else -> "Enter your Steam Guard code"
-            }
-            
-            Text("Two-Factor Authentication", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
-            Spacer(Modifier.height(16.dp))
-            Text(methodText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            
-            if (state.lastTwoFactorMethod != "steam_guard") {
-                Spacer(Modifier.height(24.dp))
+            Box {
                 OutlinedTextField(
-                    value = state.twoFactorCode,
-                    onValueChange = { viewModel.setTwoFactorCode(it) },
-                    label = { Text("Code") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    value = state.password,
+                    onValueChange = { viewModel.setPassword(it) },
+                    label = { Text("Password") },
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = onTogglePassword) {
+                            Icon(
+                                imageVector = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                contentDescription = null,
+                                tint = TextSecondary,
+                            )
+                        }
+                    },
+                    isError = showLoginError,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(passwordFocus)
+                        .onFocusChanged { if (!it.hasFocus && passwordVisible) onTogglePassword() },
                     enabled = !state.isLoggingIn,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    )
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = darkFieldColors(),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        if (canSubmit) { hasAttemptedLogin = true; viewModel.onCredentialLogin() }
+                    }),
                 )
-                Spacer(Modifier.height(24.dp))
-                Button(
-                    onClick = { viewModel.submitTwoFactor() },
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    enabled = state.twoFactorCode.length >= 5 && !state.isLoggingIn,
-                    shape = MaterialTheme.shapes.medium
+                // Error overlaid at bottom of password field — no layout shift
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showLoginError,
+                    enter = fadeIn(tween(200)),
+                    exit = fadeOut(tween(150)),
+                    modifier = Modifier.align(Alignment.BottomStart).offset(y = 8.dp),
                 ) {
-                    Text("Submit", style = MaterialTheme.typography.titleMedium)
+                    Text("Invalid username or password", color = DangerRed, fontSize = 11.sp)
                 }
-            } else {
-                Spacer(Modifier.height(32.dp))
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.height(16.dp))
-                Text("Waiting for confirmation...", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
             }
-            
-            Spacer(Modifier.height(32.dp))
-            TextButton(onClick = { viewModel.onShowLoginScreen(LoginScreen.CREDENTIAL) }) {
-                Text("Cancel", color = MaterialTheme.colorScheme.secondary)
+
+            // Remember me
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End,
+            ) {
+                Text("Remember Me", color = TextSecondary, fontSize = 13.sp)
+                Spacer(Modifier.width(8.dp))
+                Switch(
+                    checked = state.rememberSession,
+                    onCheckedChange = {
+                        if (passwordVisible) onTogglePassword()
+                        viewModel.setRememberSession(it)
+                    },
+                    enabled = !state.isLoggingIn,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Accent,
+                        uncheckedThumbColor = TextSecondary,
+                        uncheckedTrackColor = CardBorder,
+                        uncheckedBorderColor = CardBorder,
+                    ),
+                )
+            }
+
+            LoginButton(
+                text = "Sign In",
+                enabled = canSubmit,
+                loading = state.isLoggingIn,
+                onClick = { hasAttemptedLogin = true; viewModel.onCredentialLogin() },
+            )
+
+        }
+    }
+
+    // QR card
+    @Composable
+    private fun QrCard(state: UserLoginState, viewModel: SteamLoginViewModel, isLandscape: Boolean) {
+        val isLoading = state.qrCode == null && !state.isQrFailed
+
+        // Border pulses while QR loads
+        val pulse = rememberInfiniteTransition(label = "qrPulse")
+        val borderAlpha by pulse.animateFloat(
+            initialValue = 0.14f, targetValue = 0.55f,
+            animationSpec = infiniteRepeatable(tween(1100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+            label = "qrBorder",
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(CardDark)
+                .border(1.dp, if (isLoading) Accent.copy(alpha = borderAlpha) else CardBorder, RoundedCornerShape(16.dp))
+                .padding(if (isLandscape) 16.dp else 20.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text("Sign in with QR Code", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+
+                when {
+                    state.qrCode != null -> {
+                        Box(
+                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color.White).padding(6.dp),
+                        ) {
+                            QrCodeImage(content = state.qrCode!!, size = if (isLandscape) 130.dp else 190.dp)
+                        }
+                        Text(
+                            "Open Steam app → tap the QR icon",
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                    state.isQrFailed -> {
+                        Spacer(Modifier.height(4.dp))
+                        Text("Failed to load QR code", color = DangerRed, fontSize = 13.sp)
+                        Spacer(Modifier.height(4.dp))
+                        SmallActionButton("Retry", Accent) { viewModel.onQrRetry() }
+                    }
+                    else -> {
+                        CircularProgressIndicator(modifier = Modifier.size(28.dp), color = Accent, strokeWidth = 2.dp)
+                        Text("Generating code...", color = TextSecondary, fontSize = 12.sp)
+                    }
+                }
             }
         }
     }
+
+    // 2FA screen
+    @Composable
+    private fun TwoFactorLogin(state: UserLoginState, viewModel: SteamLoginViewModel) {
+        val isSteamGuard = state.lastTwoFactorMethod == "steam_guard"
+        val isEmailCode = state.lastTwoFactorMethod == "email_code"
+
+        // Entrance animation for the card
+        var cardVisible by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { cardVisible = true }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding()
+                .verticalScroll(rememberScrollState()),
+            contentAlignment = Alignment.Center,
+        ) {
+            AnimatedVisibility(
+                visible = cardVisible,
+                enter = fadeIn(tween(320)) + scaleIn(
+                    initialScale = 0.92f,
+                    animationSpec = tween(340, easing = FastOutSlowInEasing),
+                ),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(280.dp)
+                        .background(CardDark, RoundedCornerShape(16.dp))
+                        .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                        .padding(horizontal = 24.dp, vertical = 24.dp),
+                ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            WaitingRipple()
+
+                            Spacer(Modifier.height(14.dp))
+
+                            Text("Two-Factor Auth", color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(6.dp))
+
+                            if (isSteamGuard) {
+                                Text(
+                                    "Approve this login from\nyour Steam mobile app",
+                                    color = TextSecondary, fontSize = 12.sp,
+                                    textAlign = TextAlign.Center, lineHeight = 18.sp,
+                                )
+                            } else {
+                                val methodText = if (isEmailCode)
+                                    "Enter the code sent to\n${state.email}"
+                                else "Enter your Steam Guard code"
+                                Text(
+                                    methodText, color = TextSecondary, fontSize = 12.sp,
+                                    textAlign = TextAlign.Center, lineHeight = 18.sp,
+                                )
+                                Spacer(Modifier.height(12.dp))
+                                OutlinedTextField(
+                                    value = state.twoFactorCode,
+                                    onValueChange = { viewModel.setTwoFactorCode(it) },
+                                    label = { Text("Code", fontSize = 11.sp) },
+                                    modifier = Modifier.widthIn(max = 160.dp),
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Text,
+                                        imeAction = ImeAction.Done,
+                                    ),
+                                    keyboardActions = KeyboardActions(
+                                        onDone = {
+                                            if (state.twoFactorCode.length >= 5 && !state.isLoggingIn) {
+                                                viewModel.submitTwoFactor()
+                                            }
+                                        },
+                                    ),
+                                    enabled = !state.isLoggingIn,
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = darkFieldColors(),
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        fontSize = 14.sp,
+                                        textAlign = TextAlign.Center,
+                                        letterSpacing = 4.sp,
+                                    ),
+                                )
+                                Spacer(Modifier.height(10.dp))
+                                TwoFactorSubmitButton(
+                                    enabled = state.twoFactorCode.length >= 5 && !state.isLoggingIn,
+                                    loading = state.isLoggingIn,
+                                    onClick = { viewModel.submitTwoFactor() },
+                                )
+                            }
+
+                            Spacer(Modifier.height(14.dp))
+                            SmallActionButton("Cancel", TextSecondary) {
+                                viewModel.onShowLoginScreen(LoginScreen.CREDENTIAL)
+                            }
+                    }
+                }
+            }
+        }
+    }
+
+    // Expanding ripple for Steam Guard wait
+    @Composable
+    private fun WaitingRipple() {
+        val inf = rememberInfiniteTransition(label = "ripple")
+        val scale1 by inf.animateFloat(
+            initialValue = 1f, targetValue = 2.8f,
+            animationSpec = infiniteRepeatable(tween(1600, easing = FastOutSlowInEasing), RepeatMode.Restart),
+            label = "r1s",
+        )
+        val alpha1 by inf.animateFloat(
+            initialValue = 0.40f, targetValue = 0f,
+            animationSpec = infiniteRepeatable(tween(1600, easing = FastOutSlowInEasing), RepeatMode.Restart),
+            label = "r1a",
+        )
+        val scale2 by inf.animateFloat(
+            initialValue = 1f, targetValue = 2.8f,
+            animationSpec = infiniteRepeatable(tween(1600, 620, easing = FastOutSlowInEasing), RepeatMode.Restart),
+            label = "r2s",
+        )
+        val alpha2 by inf.animateFloat(
+            initialValue = 0.40f, targetValue = 0f,
+            animationSpec = infiniteRepeatable(tween(1600, 620, easing = FastOutSlowInEasing), RepeatMode.Restart),
+            label = "r2a",
+        )
+
+        Box(modifier = Modifier.size(72.dp), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.size(52.dp).scale(scale1).clip(CircleShape).background(Accent.copy(alpha = alpha1)))
+            Box(modifier = Modifier.size(52.dp).scale(scale2).clip(CircleShape).background(Accent.copy(alpha = alpha2)))
+            Box(
+                modifier = Modifier.size(52.dp).clip(CircleShape)
+                    .background(Accent.copy(alpha = 0.13f))
+                    .border(1.dp, Accent.copy(alpha = 0.4f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Filled.Lock, null, tint = Accent, modifier = Modifier.size(22.dp))
+            }
+        }
+    }
+
+
+    // Primary login/submit button
+    @Composable
+    private fun LoginButton(text: String, enabled: Boolean, loading: Boolean, onClick: () -> Unit) {
+        var pressed by remember { mutableStateOf(false) }
+        val scale by animateFloatAsState(
+            targetValue = if (pressed) 0.97f else 1f,
+            animationSpec = spring(stiffness = Spring.StiffnessHigh),
+            label = "loginScale",
+        )
+        val bgAlpha by animateFloatAsState(
+            targetValue = if (enabled) 1f else 0.32f,
+            animationSpec = tween(200),
+            label = "loginBgAlpha",
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .scale(scale)
+                .height(48.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Accent.copy(alpha = bgAlpha))
+                .then(
+                    if (enabled) Modifier.pointerInput(onClick) {
+                        detectTapGestures(
+                            onPress = { pressed = true; tryAwaitRelease(); pressed = false },
+                            onTap = { onClick() },
+                        )
+                    } else Modifier
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (loading) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+            } else {
+                Text(
+                    text = text,
+                    color = if (enabled) Color.White else TextSecondary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+    }
+
+    // 2FA submit button — compact, matches card theme
+    @Composable
+    private fun TwoFactorSubmitButton(enabled: Boolean, loading: Boolean, onClick: () -> Unit) {
+        var pressed by remember { mutableStateOf(false) }
+        val scale by animateFloatAsState(
+            targetValue = if (pressed) 0.95f else 1f,
+            animationSpec = spring(stiffness = Spring.StiffnessHigh),
+            label = "2faSubmitScale",
+        )
+        val bgAlpha by animateFloatAsState(
+            targetValue = if (enabled) 0.18f else 0.08f,
+            animationSpec = tween(200),
+            label = "2faSubmitBg",
+        )
+        val borderAlpha by animateFloatAsState(
+            targetValue = if (enabled) 0.5f else 0.2f,
+            animationSpec = tween(200),
+            label = "2faSubmitBorder",
+        )
+
+        Box(
+            modifier = Modifier
+                .scale(scale)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Accent.copy(alpha = bgAlpha))
+                .border(1.dp, Accent.copy(alpha = borderAlpha), RoundedCornerShape(10.dp))
+                .padding(horizontal = 28.dp, vertical = 10.dp)
+                .then(
+                    if (enabled) Modifier.pointerInput(onClick) {
+                        detectTapGestures(
+                            onPress = { pressed = true; tryAwaitRelease(); pressed = false },
+                            onTap = { onClick() },
+                        )
+                    } else Modifier
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (loading) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Accent, strokeWidth = 2.dp)
+            } else {
+                Text(
+                    text = "Submit",
+                    color = if (enabled) Accent else TextSecondary.copy(alpha = 0.5f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+    }
+
+    // Small action button (matches StoresScreen ActionButton)
+    @Composable
+    private fun SmallActionButton(label: String, textColor: Color, onClick: () -> Unit) {
+        var pressed by remember { mutableStateOf(false) }
+        val scale by animateFloatAsState(
+            targetValue = if (pressed) 0.93f else 1f,
+            animationSpec = spring(stiffness = Spring.StiffnessHigh),
+            label = "smallBtnScale",
+        )
+        Box(
+            modifier = Modifier
+                .scale(scale)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFF1A1A26))
+                .border(1.dp, textColor.copy(alpha = 0.28f), RoundedCornerShape(8.dp))
+                .pointerInput(onClick) {
+                    detectTapGestures(
+                        onPress = { pressed = true; tryAwaitRelease(); pressed = false },
+                        onTap = { onClick() },
+                    )
+                }
+                .padding(horizontal = 12.dp, vertical = 7.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(label, color = textColor, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+
+    // Cancel button
+    @Composable
+    private fun CancelLink(onClick: () -> Unit) {
+        var pressed by remember { mutableStateOf(false) }
+        val scale by animateFloatAsState(
+            targetValue = if (pressed) 0.95f else 1f,
+            animationSpec = spring(stiffness = Spring.StiffnessHigh),
+            label = "cancelScale",
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .scale(scale)
+                .height(42.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardBorder.copy(alpha = 0.5f))
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                .pointerInput(onClick) {
+                    detectTapGestures(
+                        onPress = { pressed = true; tryAwaitRelease(); pressed = false },
+                        onTap = { onClick() },
+                    )
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("Cancel", color = TextSecondary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        }
+    }
+
+    // Dark text field color preset
+    @Composable
+    private fun darkFieldColors() = OutlinedTextFieldDefaults.colors(
+        focusedContainerColor   = Color.Transparent,
+        unfocusedContainerColor = Color.Transparent,
+        disabledContainerColor  = Color.Transparent,
+        focusedBorderColor      = Accent,
+        unfocusedBorderColor    = CardBorder,
+        disabledBorderColor     = CardBorder.copy(alpha = 0.4f),
+        focusedLabelColor       = Accent,
+        unfocusedLabelColor     = TextSecondary,
+        disabledLabelColor      = TextSecondary.copy(alpha = 0.5f),
+        focusedTextColor        = TextPrimary,
+        unfocusedTextColor      = TextPrimary,
+        disabledTextColor       = TextSecondary,
+        cursorColor             = Accent,
+    )
 }

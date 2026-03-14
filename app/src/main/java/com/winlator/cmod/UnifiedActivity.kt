@@ -107,7 +107,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.core.view.WindowCompat
 import kotlin.math.roundToInt
 
-// ─── Color palette ───────────────────────────────────────────────────
+// Color palette
 private val BgDark = Color(0xFF0D1117)
 private val SurfaceDark = Color(0xFF161B22)
 private val CardDark = Color(0xFF1C2333)
@@ -242,7 +242,7 @@ class UnifiedActivity : ComponentActivity() {
             val isLibraryTab = currentTabKey == "library"
             val isStoreTab = currentTabKey == "store" || currentTabKey == "steam" || currentTabKey == "epic"
 
-            // ── LIBRARY TAB: D-pad left/right scrolls carousel ──
+            // LIBRARY TAB: D-pad left/right scrolls carousel
             if (isLibraryTab) {
                 // D-pad hat left/right scroll the carousel, throttled relative to shared move time
                 if (isHatLeft || isHatRight) {
@@ -265,7 +265,7 @@ class UnifiedActivity : ComponentActivity() {
                     }
                 }
             } else {
-                // ── NON-LIBRARY TABS: D-pad navigates focus ──
+                // NON-LIBRARY TABS: D-pad navigates focus
                 if (isHatLeft || isHatRight || isHatUp || isHatDown) {
                     if (now - lastHatMoveTime > 150) {
                         if (isHatLeft) injectKeyEvent(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
@@ -340,7 +340,7 @@ class UnifiedActivity : ComponentActivity() {
         }
     }
 
-    // ─── Tab definitions ──────────────────────────────────────────────
+    // Tab definitions
     private data class TabDef(val label: String, val key: String)
 
     private fun buildTabs(aio: Boolean, storeVisible: Map<String, Boolean>): List<TabDef> {
@@ -356,7 +356,7 @@ class UnifiedActivity : ComponentActivity() {
         return base
     }
 
-    // ─── Main scaffold ────────────────────────────────────────────────
+    // Main scaffold
     @Composable
     fun UnifiedHub() {
         var aioMode by remember { mutableStateOf(PrefManager.aioStoreMode) }
@@ -735,7 +735,7 @@ class UnifiedActivity : ComponentActivity() {
             AddCustomGameDialog(onDismiss = { showAddCustomGame = false; libraryRefreshKey++ })
         }
 
-        // ── Back button exit confirmation ──
+        // Back button exit confirmation
         BackHandler(enabled = true) {
             // Consistent behavior: close overlays first, then show exit confirmation
             if (showFilter) {
@@ -806,7 +806,7 @@ class UnifiedActivity : ComponentActivity() {
         }
     }
 
-    // ─── Top bar ──────────────────────────────────────────────────────
+    // Top bar
     @Composable
     private fun TopBar(
         tabs: List<TabDef>,
@@ -843,7 +843,7 @@ class UnifiedActivity : ComponentActivity() {
                 .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // ── Left Block: Settings & Download Queue ──
+            // Left Block: Settings & Download Queue
             Row(
                 modifier = Modifier.weight(1f).fillMaxHeight(),
                 verticalAlignment = Alignment.CenterVertically
@@ -916,7 +916,7 @@ class UnifiedActivity : ComponentActivity() {
                 }
             }
 
-            // ── Center Block: Tabs ──
+            // Center Block: Tabs
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -976,7 +976,7 @@ class UnifiedActivity : ComponentActivity() {
                 }
             }
 
-            // ── Right Block: Status & Actions ──
+            // Right Block: Status & Actions
             Row(
                 modifier = Modifier.weight(1f).fillMaxHeight(),
                 horizontalArrangement = Arrangement.End,
@@ -1090,7 +1090,7 @@ class UnifiedActivity : ComponentActivity() {
         }
     }
 
-    // ─── PS5-style Library Carousel ───────────────────────────────────
+    // PS5-style Library Carousel
     @Composable
     fun LibraryCarousel(
         isLoggedIn: Boolean,
@@ -1218,7 +1218,7 @@ class UnifiedActivity : ComponentActivity() {
             }
         }
 
-        // ── Touch Scroll Support: Update centerIdx as the user scrolls ──
+        // Touch Scroll Support: Update centerIdx as the user scrolls
         LaunchedEffect(listState, installedApps) {
             snapshotFlow { 
                 val layoutInfo = listState.layoutInfo
@@ -1236,7 +1236,7 @@ class UnifiedActivity : ComponentActivity() {
             }
         }
 
-        // ── Auto-snap to center after touch scrolling stops ──
+        // Auto-snap to center after touch scrolling stops
         LaunchedEffect(listState.isScrollInProgress) {
             if (listState.isScrollInProgress) {
                 snapAfterTouchScroll = true
@@ -1276,7 +1276,7 @@ class UnifiedActivity : ComponentActivity() {
                 verticalArrangement = Arrangement.Center
             ) {
 
-                // ── Horizontal carousel ──
+                // Horizontal carousel
                 LazyRow(
                     state = listState,
                     modifier = Modifier.fillMaxWidth().height(260.dp),
@@ -1332,7 +1332,7 @@ class UnifiedActivity : ComponentActivity() {
 
                 Spacer(Modifier.height(24.dp))
 
-                // ── Selected game details ──
+                // Selected game details
                 if (selectedApp != null) {
                     val selectedGogGame = gogByPseudoId[selectedApp.id]
                     val isPS = ControllerHelper.isPlayStationController()
@@ -1455,7 +1455,7 @@ class UnifiedActivity : ComponentActivity() {
         }
     }
 
-    // ─── Game Settings Dialog ─────────────────────────────────────────
+    // Game Settings Dialog
     @Composable
     private fun GameSettingsDialog(app: SteamApp, onDismissRequest: () -> Unit) {
         val context = LocalContext.current
@@ -1986,7 +1986,7 @@ class UnifiedActivity : ComponentActivity() {
         }
     }
 
-    // ─── Epic Store Tab ──────────────────────────────────────────────
+    // Epic Store Tab
     @Composable
     fun EpicStoreTab(isLoggedIn: Boolean, onLoginClick: () -> Unit) {
         val context = LocalContext.current
@@ -2596,7 +2596,7 @@ class UnifiedActivity : ComponentActivity() {
         }
     }
 
-    // ─── Steam Store Tab ──────────────────────────────────────────────
+    // Steam Store Tab
     @Composable
     fun SteamStoreTab(isLoggedIn: Boolean, steamApps: List<SteamApp>) {
         if (!isLoggedIn) {
@@ -2721,7 +2721,7 @@ class UnifiedActivity : ComponentActivity() {
         }
     }
 
-    // ─── Downloads Tab ────────────────────────────────────────────────
+    // Downloads Tab
     @Composable
     fun DownloadsTab(selectedId: String?, onSelectDownload: (String?) -> Unit) {
         val downloads = remember { mutableStateListOf<Pair<String, DownloadInfo>>() }
@@ -2742,7 +2742,7 @@ class UnifiedActivity : ComponentActivity() {
             val isController = ControllerHelper.isControllerConnected()
             val isPS = ControllerHelper.isPlayStationController()
 
-            // ── Global Actions row ──
+            // Global Actions row
             Row(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.Center,
@@ -2994,7 +2994,7 @@ class UnifiedActivity : ComponentActivity() {
         }
     }
 
-    // ─── Store placeholder tabs ───────────────────────────────────────
+    // Store placeholder tabs
     @Composable
     fun StorePlaceholderTab(storeName: String) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -3021,7 +3021,7 @@ class UnifiedActivity : ComponentActivity() {
         }
     }
 
-    // ─── Game Manager Dialog ──────────────────────────────────────────
+    // Game Manager Dialog
     @Composable
     fun GameManagerDialog(app: SteamApp, onDismissRequest: () -> Unit) {
         val context = LocalContext.current
@@ -3165,7 +3165,7 @@ class UnifiedActivity : ComponentActivity() {
         } catch (e: Exception) { uri.path }
     }
 
-    // ─── Game launch with A: drive mounting ───────────────────────────
+    // Game launch with A: drive mounting
     private fun launchSteamGame(context: android.content.Context, containerManager: ContainerManager, app: SteamApp) {
         val gameInstallPath = SteamService.getAppDirPath(app.id)
         val gameDir = java.io.File(gameInstallPath)
@@ -3552,7 +3552,7 @@ class UnifiedActivity : ComponentActivity() {
         container.drives = sb.toString()
     }
 
-    // ─── Launch custom game by shortcut name ──────────────────────────
+    // Launch custom game by shortcut name
     private fun launchCustomGame(context: android.content.Context, containerManager: ContainerManager, gameName: String) {
         val allShortcuts = containerManager.loadShortcuts()
         val customShortcuts = allShortcuts.filter { it.getExtra("game_source") == "CUSTOM" }
@@ -3669,7 +3669,7 @@ class UnifiedActivity : ComponentActivity() {
         }
     }
 
-    // ─── Filter panel ─────────────────────────────────────────────────
+    // Filter panel
     @Composable
     private fun FilterPanel(
         visible: Boolean,
@@ -3768,7 +3768,7 @@ class UnifiedActivity : ComponentActivity() {
         }
     }
 
-    // ─── Smart game folder detection ──────────────────────────────────
+    // Smart game folder detection
     private fun detectGameFolder(exePath: String): String {
         val exeFile = java.io.File(exePath)
         // Directories that are typically sub-folders inside a game, not the root
@@ -3790,7 +3790,7 @@ class UnifiedActivity : ComponentActivity() {
         return dir.absolutePath
     }
 
-    // ─── Add Custom Game Dialog ───────────────────────────────────────
+    // Add Custom Game Dialog
     @Composable
     private fun AddCustomGameDialog(onDismiss: () -> Unit) {
         val context = LocalContext.current
@@ -3963,7 +3963,7 @@ class UnifiedActivity : ComponentActivity() {
         }
     }
 
-    // ─── Resolve content URI to real file path ────────────────────────
+    // Resolve content URI to real file path
     private fun getPathFromContentUri(context: android.content.Context, uri: Uri): String? {
         // Try DocumentsContract first
         try {
@@ -3981,7 +3981,7 @@ class UnifiedActivity : ComponentActivity() {
         return uri.path
     }
 
-    // ─── Create custom game shortcut + container ──────────────────────
+    // Create custom game shortcut + container
     private fun addCustomGame(context: android.content.Context, name: String, exePath: String, gameFolderPath: String) {
         val containerManager = ContainerManager(context)
         var containers = containerManager.getContainers()
@@ -4038,7 +4038,7 @@ class UnifiedActivity : ComponentActivity() {
         } catch (_: Exception) {}
     }
 
-    // ─── Cloud Sync UI Overlay ───────────────────────────────────────
+    // Cloud Sync UI Overlay
     @Composable
     fun CloudSyncOverlay(status: SteamService.Companion.CloudSyncMessage) {
         Box(

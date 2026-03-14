@@ -10,6 +10,7 @@ import com.winlator.cmod.steam.service.SteamService
 import com.winlator.cmod.steam.ui.data.UserLoginState
 import `in`.dragonbra.javasteam.steam.authentication.IAuthenticator
 import java.util.concurrent.CompletableFuture
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +28,7 @@ class SteamLoginViewModel : ViewModel() {
     val snackEvents = _snackEvents.receiveAsFlow()
 
     private val submitChannel = Channel<String>()
+    private var credentialLoginJob: Job? = null
 
     private val authenticator = object : IAuthenticator {
         override fun acceptDeviceConfirmation(): CompletableFuture<Boolean> {
@@ -133,9 +135,48 @@ class SteamLoginViewModel : ViewModel() {
         }
     }
 
+    private val onQrCodeScanned: (SteamEvent.QrCodeScanned) -> Unit = {
+        // QR was scanned by the phone — show 2FA "waiting for approval" screen
+        // while the user confirms on their Steam mobile app.
+        _loginState.update { currentState ->
+            currentState.copy(
+                qrCode = null,
+                isQrFailed = false,
+                loginScreen = LoginScreen.TWO_FACTOR,
+                loginResult = LoginResult.DeviceConfirm,
+                isLoggingIn = true,
+                lastTwoFactorMethod = "steam_guard",
+            )
+        }
+    }
+
     private val onQrAuthEnded: (SteamEvent.QrAuthEnded) -> Unit = {
         _loginState.update { currentState ->
-            currentState.copy(isQrFailed = !it.success, qrCode = null)
+            if (it.success) {
+                // Normally already on TWO_FACTOR from QrCodeScanned, but if scan+approval
+                // arrived in the same poll interval, ensure the transition still happens.
+                if (currentState.loginScreen != LoginScreen.TWO_FACTOR) {
+                    currentState.copy(
+                        qrCode = null,
+                        isQrFailed = false,
+                        loginScreen = LoginScreen.TWO_FACTOR,
+                        loginResult = LoginResult.DeviceConfirm,
+                        isLoggingIn = true,
+                        lastTwoFactorMethod = "steam_guard",
+                    )
+                } else {
+                    currentState
+                }
+            } else {
+                // Session expired or failed — return to credential screen
+                currentState.copy(
+                    isQrFailed = true,
+                    qrCode = null,
+                    loginScreen = LoginScreen.CREDENTIAL,
+                    isLoggingIn = false,
+                    lastTwoFactorMethod = null,
+                )
+            }
         }
     }
 
@@ -159,6 +200,7 @@ class SteamLoginViewModel : ViewModel() {
         PluviaApp.events.on<SteamEvent.LogonStarted, Unit>(onLogonStarted)
         PluviaApp.events.on<SteamEvent.LogonEnded, Unit>(onLogonEnded)
         PluviaApp.events.on<SteamEvent.QrChallengeReceived, Unit>(onQrChallengeReceived)
+        PluviaApp.events.on<SteamEvent.QrCodeScanned, Unit>(onQrCodeScanned)
         PluviaApp.events.on<SteamEvent.QrAuthEnded, Unit>(onQrAuthEnded)
         PluviaApp.events.on<SteamEvent.LoggedOut, Unit>(onLoggedOut)
 
@@ -184,6 +226,7 @@ class SteamLoginViewModel : ViewModel() {
         PluviaApp.events.off<SteamEvent.LogonStarted, Unit>(onLogonStarted)
         PluviaApp.events.off<SteamEvent.LogonEnded, Unit>(onLogonEnded)
         PluviaApp.events.off<SteamEvent.QrChallengeReceived, Unit>(onQrChallengeReceived)
+        PluviaApp.events.off<SteamEvent.QrCodeScanned, Unit>(onQrCodeScanned)
         PluviaApp.events.off<SteamEvent.QrAuthEnded, Unit>(onQrAuthEnded)
         PluviaApp.events.off<SteamEvent.LoggedOut, Unit>(onLoggedOut)
 
@@ -193,7 +236,8 @@ class SteamLoginViewModel : ViewModel() {
     fun onCredentialLogin() {
         with(_loginState.value) {
             if (username.isEmpty() || password.isEmpty()) return@with
-            viewModelScope.launch {
+            credentialLoginJob?.cancel()
+            credentialLoginJob = viewModelScope.launch {
                 SteamService.startLoginWithCredentials(
                     username = username,
                     password = password,
@@ -206,13 +250,26 @@ class SteamLoginViewModel : ViewModel() {
 
     fun submitTwoFactor() {
         viewModelScope.launch {
-            submitChannel.send(_loginState.value.twoFactorCode)
+            submitChannel.send(_loginState.value.twoFactorCode.uppercase().trim())
             _loginState.update { it.copy(isLoggingIn = true) }
         }
     }
 
     fun onShowLoginScreen(loginScreen: LoginScreen) {
-        _loginState.update { it.copy(loginScreen = loginScreen, isQrFailed = false, qrCode = null) }
+        // Cancel any in-flight credential login (e.g. 2FA polling)
+        credentialLoginJob?.cancel()
+        credentialLoginJob = null
+
+        _loginState.update {
+            it.copy(
+                loginScreen = loginScreen,
+                isLoggingIn = false,
+                isQrFailed = false,
+                qrCode = null,
+                twoFactorCode = "",
+                password = "",
+            )
+        }
         if (loginScreen == LoginScreen.QR) {
             viewModelScope.launch { SteamService.startLoginWithQr() }
         } else {

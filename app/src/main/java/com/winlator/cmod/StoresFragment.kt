@@ -108,7 +108,10 @@ class StoresFragment : Fragment() {
                         state                = storeState,
                         serverOptions        = serverOptions,
                         onSteamSignIn        = { startActivity(Intent(requireContext(), SteamLoginActivity::class.java)) },
-                        onSteamSignOut       = { SteamService.logOut(); refresh() },
+                        onSteamSignOut       = {
+                            SteamService.logOut()
+                            refresh()
+                        },
                         onEpicSignIn         = { startActivity(Intent(requireContext(), EpicOAuthActivity::class.java)) },
                         onEpicSignOut        = { EpicAuthManager.logoutSync(requireContext()); refresh() },
                         onGogSignIn          = { gogLoginLauncher.launch(Intent(requireContext(), GOGOAuthActivity::class.java)) },

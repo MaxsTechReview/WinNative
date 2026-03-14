@@ -69,6 +69,8 @@ import `in`.dragonbra.javasteam.networking.steam3.ProtocolTypes
 import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesClientObjects.ECloudPendingRemoteOperation
 import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesFamilygroupsSteamclient
 import `in`.dragonbra.javasteam.rpc.service.FamilyGroups
+import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesAuthSteamclient.CAuthentication_PollAuthSessionStatus_Request
+import `in`.dragonbra.javasteam.rpc.service.Authentication
 import `in`.dragonbra.javasteam.steam.authentication.AuthPollResult
 import `in`.dragonbra.javasteam.steam.authentication.AuthSessionDetails
 import `in`.dragonbra.javasteam.steam.authentication.AuthenticationException
@@ -133,6 +135,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.isActive
@@ -594,6 +597,7 @@ class SteamService : Service(), IChallengeUrlChanged {
 
         val isLoggedIn: Boolean
             get() {
+                if (isLoggingOut) return false
                 val real = (instance?.steamClient?.steamID?.isValid == true)
                 if (real != _isLoggedInFlow.value) _isLoggedInFlow.value = real
                 return real
@@ -605,8 +609,8 @@ class SteamService : Service(), IChallengeUrlChanged {
         fun syncStates() {
             val connected = instance?.steamClient?.isConnected == true
             if (connected != _isConnectedFlow.value) _isConnectedFlow.value = connected
-            
-            val loggedIn = instance?.steamClient?.steamID?.isValid == true
+
+            val loggedIn = !isLoggingOut && (instance?.steamClient?.steamID?.isValid == true)
             if (loggedIn != _isLoggedInFlow.value) _isLoggedInFlow.value = loggedIn
         }
 
@@ -3408,6 +3412,7 @@ class SteamService : Service(), IChallengeUrlChanged {
             emailAuth: String? = null,
             clientId: Long? = null,
         ) {
+            isLoggingOut = false
             val steamUser = instance!!._steamUser!!
 
             // Sensitive info, only print in DEBUG build.
@@ -3483,39 +3488,76 @@ class SteamService : Service(), IChallengeUrlChanged {
                     val event = SteamEvent.LogonStarted(username)
                     PluviaApp.events.emit(event)
 
-                    val authSession = steamClient.authentication.beginAuthSessionViaCredentials(authDetails).await()
+                    // Outer loop: retries the entire auth session when the connection
+                    // drops (e.g. TryAnotherCM) during 2FA polling.
+                    var loginComplete = false
+                    while (isActive && !loginComplete) {
+                        val currentClient = instance!!.steamClient ?: break
+                        val authSession = currentClient.authentication.beginAuthSessionViaCredentials(authDetails).await()
 
-                    Timber.d("Polling for authentication result. Interval: ${authSession.pollingInterval}s")
+                        Timber.d("Waiting for authentication result (handles 2FA). Interval: ${authSession.pollingInterval}s")
 
-                    var pollResult: AuthPollResult? = null
-                    while (pollResult == null) {
-                        try {
-                            pollResult = authSession.pollAuthSessionStatus().await()
-                        } catch (e: Exception) {
-                            Timber.e(e, "Poll auth session status error")
-                            throw e
+                        // pollingWaitForResult handles the full 2FA flow:
+                        // - Checks allowedConfirmations for the required guard type
+                        // - Calls IAuthenticator callbacks (acceptDeviceConfirmation, getDeviceCode, getEmailCode)
+                        // - Submits the guard code to Steam via sendSteamGuardCode
+                        // - Polls until authentication completes
+                        var pollResult: AuthPollResult? = null
+                        var disconnected = false
+                        while (isActive && pollResult == null && !disconnected) {
+                            try {
+                                pollResult = authSession.pollingWaitForResult().await()
+                            } catch (e: AuthenticationException) {
+                                if (e.result == EResult.Expired || e.result == EResult.FileNotFound) {
+                                    Timber.w("Auth session expired during 2FA wait, retrying...")
+                                    delay(authSession.pollingInterval.toLong() * 1000L)
+                                    continue
+                                }
+                                throw e
+                            } catch (e: java.util.concurrent.CancellationException) {
+                                // Connection dropped (TryAnotherCM) — all pending futures
+                                // are cancelled. Wait for reconnection and restart the
+                                // auth session so the user doesn't see a spurious failure.
+                                if (!isActive) throw CancellationException("Coroutine cancelled")
+                                Timber.w("Auth poll cancelled (likely TryAnotherCM), waiting for reconnection...")
+                                disconnected = true
+                            }
+                        }
+
+                        if (disconnected) {
+                            // Wait for the service to reconnect to a new CM server
+                            Timber.i("Waiting for Steam reconnection before retrying credential auth...")
+                            try {
+                                withTimeout(30_000L) {
+                                    isConnectedFlow.first { it }
+                                }
+                            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                                throw Exception("Timed out waiting for Steam reconnection")
+                            }
+                            Timber.i("Reconnected, restarting credential auth session...")
+                            delay(500L) // brief settle time after reconnect
+                            continue
                         }
 
                         if (pollResult == null) {
-                            Timber.v("Still waiting for authentication...")
-                            // Convert pollingInterval (seconds) to milliseconds for delay
-                            delay(authSession.pollingInterval.toLong() * 1000L)
+                            throw CancellationException("Credential auth polling cancelled")
                         }
+
+                        Timber.i("Authentication successful for ${pollResult.accountName}")
+
+                        if (pollResult.accountName.isEmpty() && pollResult.refreshToken.isEmpty()) {
+                            throw Exception("No account name or refresh token received.")
+                        }
+
+                        login(
+                            clientId = authSession.clientID,
+                            username = pollResult.accountName,
+                            accessToken = pollResult.accessToken,
+                            refreshToken = pollResult.refreshToken,
+                            rememberSession = rememberSession,
+                        )
+                        loginComplete = true
                     }
-
-                    Timber.i("Authentication successful for ${pollResult.accountName}")
-
-                    if (pollResult.accountName.isEmpty() && pollResult.refreshToken.isEmpty()) {
-                        throw Exception("No account name or refresh token received.")
-                    }
-
-                    login(
-                        clientId = authSession.clientID,
-                        username = pollResult.accountName,
-                        accessToken = pollResult.accessToken,
-                        refreshToken = pollResult.refreshToken,
-                        rememberSession = rememberSession,
-                    )
                 } ?: run {
                     Timber.e("Could not logon: Failed to connect to Steam")
 
@@ -3561,27 +3603,52 @@ class SteamService : Service(), IChallengeUrlChanged {
 
                     var authPollResult: AuthPollResult? = null
 
+                    // FIX: Poll via raw protobuf RPC instead of JavaSteam's pollAuthSessionStatus()
+                    // so we can read hadRemoteInteraction — true when QR is scanned but not yet
+                    // approved. This lets the UI show the 2FA screen while the user confirms.
+                    val authService = steamClient.getHandler<SteamUnifiedMessages>()!!
+                        .createService<Authentication>()
+                    var qrScannedEmitted = false
+
                     while (isWaitingForQRAuth && authPollResult == null) {
                         try {
-                            authPollResult = authSession.pollAuthSessionStatus().await()
+                            val request = CAuthentication_PollAuthSessionStatus_Request.newBuilder().apply {
+                                clientId = authSession.clientID
+                                requestId = com.google.protobuf.ByteString.copyFrom(authSession.requestID)
+                            }.build()
+
+                            val result = authService.pollAuthSessionStatus(request).await()
+
+                            if (result.result != EResult.OK) {
+                                throw AuthenticationException("Failed to poll status", result.result)
+                            }
+
+                            val response = result.body
+
+                            // Replicate handlePollAuthSessionStatusResponse behaviour
+                            if (response.newClientId != 0L) {
+                                authSession.clientID = response.newClientId
+                            }
+                            if (response.newChallengeUrl.isNotEmpty()) {
+                                val urlEvent = SteamEvent.QrChallengeReceived(response.newChallengeUrl)
+                                PluviaApp.events.emit(urlEvent)
+                            }
+
+                            // Detect scan before approval
+                            if (!qrScannedEmitted && response.hadRemoteInteraction) {
+                                qrScannedEmitted = true
+                                PluviaApp.events.emit(SteamEvent.QrCodeScanned)
+                            }
+
+                            // Check for completion
+                            if (response.refreshToken.isNotEmpty()) {
+                                authPollResult = AuthPollResult(response)
+                            } else {
+                                delay(authSession.pollingInterval.toLong() * 1000L)
+                            }
                         } catch (e: Exception) {
                             Timber.e(e, "Poll auth session status error")
                             throw e
-                        }
-
-                        // Sensitive info, only print in DEBUG build.
-//                        if (BuildConfig.DEBUG && authPollResult != null) {
-//                            Timber.d(
-//                                "AccessToken: %s\nAccountName: %s\nRefreshToken: %s\nNewGuardData: %s",
-//                                authPollResult.accessToken,
-//                                authPollResult.accountName,
-//                                authPollResult.refreshToken,
-//                                authPollResult.newGuardData ?: "No new guard data",
-//                            )
-//                        }
-
-                        if (authPollResult == null) {
-                            delay(authSession.pollingInterval.toLong() * 1000L)
                         }
                     }
 
@@ -3646,15 +3713,32 @@ class SteamService : Service(), IChallengeUrlChanged {
         }
 
         fun logOut() {
-            CoroutineScope(Dispatchers.Default).launch {
-                // isConnected = false
+            // Capture username before clearing anything
+            val username = PrefManager.username
 
-                isLoggingOut = true
+            // ── Atomic state flip ──
+            isLoggingOut = true
+            _isLoggedInFlow.value = false
+            PrefManager.clearAuthTokens()
 
-                performLogOffDuties()
+            // Cancel background jobs immediately
+            instance?.picsGetProductInfoJob?.cancel()
+            instance?.picsChangesCheckerJob?.cancel()
+            instance?.friendCheckerJob?.cancel()
 
-                val steamUser = instance!!._steamUser!!
-                steamUser.logOff()
+            // Emit event synchronously so the UI can react in the same frame
+            PluviaApp.events.emit(SteamEvent.LoggedOut(username))
+
+            // Tell Steam we're leaving (best-effort, service will stop in onLoggedOff)
+            instance?.let { svc ->
+                svc.scope.launch(Dispatchers.Default) {
+                    try {
+                        clearDatabase()
+                        svc._steamUser?.logOff()
+                    } catch (e: Exception) {
+                        Timber.e(e, "Error during async logOff")
+                    }
+                }
             }
         }
 
@@ -4128,6 +4212,7 @@ class SteamService : Service(), IChallengeUrlChanged {
         Timber.i("Logged onto Steam: ${callback.result}")
         
         if (callback.result == EResult.OK) {
+            isLoggingOut = false
             _isLoggedInFlow.value = true
         } else {
             _isLoggedInFlow.value = false
@@ -4152,11 +4237,10 @@ class SteamService : Service(), IChallengeUrlChanged {
             }
 
             EResult.OK -> {
-                // save the current cellid somewhere. if we lose our saved server list, we can use this when retrieving
-                // servers from the Steam Directory.
-                if (!PrefManager.cellIdManuallySet) {
-                    PrefManager.cellId = callback.cellID
-                }
+                // Steam's GeoIP-based cellID is often wrong (e.g. returning Romania for US users).
+                // Only log it for debugging; keep cellId at 0 ("Automatic") unless the user
+                // manually picks a server in Settings > Stores > Download Server.
+                Timber.d("Steam suggested cellID: ${callback.cellID} (not auto-saving, using Automatic unless manually set)")
 
                 // retrieve persona data of logged in user
                 scope.launch { requestUserPersona() }
@@ -4218,7 +4302,8 @@ class SteamService : Service(), IChallengeUrlChanged {
         notificationHelper.notify("Disconnected...")
 
         if (isLoggingOut || callback.result == EResult.LogonSessionReplaced) {
-            performLogOffDuties()
+            // logOut() already handled cleanup; just stop the service.
+            if (!isLoggingOut) performLogOffDuties()
 
             scope.launch { stop() }
         } else if (callback.result == EResult.LoggedInElsewhere) {
