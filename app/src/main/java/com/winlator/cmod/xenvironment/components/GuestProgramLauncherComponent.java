@@ -281,35 +281,26 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         }
 
         EnvVars envVars = new EnvVars();
-        boolean enableEvshim = preferences.getBoolean("enable_evshim", false);
-        if (!enableEvshim && this.envVars != null) {
-            String evshimFlag = this.envVars.get("WINNATIVE_ENABLE_EVSHIM");
-            enableEvshim = "1".equals(evshimFlag) || "true".equalsIgnoreCase(evshimFlag) || "yes".equalsIgnoreCase(evshimFlag);
-        }
 
-        if (enableEvshim) {
-            // --- Controller support: create shared memory files for all 4 slots ---
-            // Pre-create all files to support hot-plug (controllers connected mid-game)
-            final int MAX_PLAYERS = 4;
-            File tmpDir = new File(rootDir, "tmp");
-            tmpDir.mkdirs();
-            String tmpPath = tmpDir.getAbsolutePath();
-            for (int i = 0; i < MAX_PLAYERS; i++) {
-                String memPath = (i == 0)
-                        ? tmpPath + "/gamepad.mem"
-                        : tmpPath + "/gamepad" + i + ".mem";
-                File memFile = new File(memPath);
-                try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(memFile, "rw")) {
-                    raf.setLength(64);
-                } catch (IOException e) {
-                    Log.e("GuestProgramLauncher", "Failed to create mem file for player " + i, e);
-                }
+        // --- Controller support: create shared memory files for all 4 slots ---
+        // Pre-create all files to support hot-plug (controllers connected mid-game)
+        final int MAX_PLAYERS = 4;
+        File tmpDir = new File(rootDir, "tmp");
+        tmpDir.mkdirs();
+        String tmpPath = tmpDir.getAbsolutePath();
+        for (int i = 0; i < MAX_PLAYERS; i++) {
+            String memPath = (i == 0)
+                    ? tmpPath + "/gamepad.mem"
+                    : tmpPath + "/gamepad" + i + ".mem";
+            File memFile = new File(memPath);
+            try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(memFile, "rw")) {
+                raf.setLength(64);
+            } catch (IOException e) {
+                Log.e("GuestProgramLauncher", "Failed to create mem file for player " + i, e);
             }
-            envVars.put("EVSHIM_MAX_PLAYERS", String.valueOf(MAX_PLAYERS));
-            envVars.put("EVSHIM_DATA_PATH", tmpPath);
-        } else {
-            Log.d("GuestProgramLauncher", "EVSHIM disabled for compatibility mode");
         }
+        envVars.put("EVSHIM_MAX_PLAYERS", String.valueOf(MAX_PLAYERS));
+        envVars.put("EVSHIM_DATA_PATH", tmpPath);
 
         addBox64EnvVars(envVars, enableBox64Logs);
         envVars.putAll(FEXCorePresetManager.getEnvVars(context, fexcorePreset));
@@ -373,6 +364,22 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         envVars.put("ANDROID_RESOLV_DNS", primaryDNS);
         envVars.put("WINE_NEW_NDIS", "1");
         
+        // Create libSDL symlink if necessary for evshim to intercept correctly
+        try {
+            File sdlSource = new File(imageFs.getLibDir(), "libSDL2-2.0.so");
+            File sdlSymlink = new File(imageFs.getLibDir(), "libSDL2-2.0.so.0");
+            if (sdlSource.exists() && !sdlSymlink.exists()) {
+                android.system.Os.symlink(sdlSource.getAbsolutePath(), sdlSymlink.getAbsolutePath());
+            }
+            
+            File sdlSourceAlt = new File(imageFs.getLibDir(), "libSDL2.so");
+            if (!sdlSource.exists() && sdlSourceAlt.exists() && !sdlSymlink.exists()) {
+                android.system.Os.symlink(sdlSourceAlt.getAbsolutePath(), sdlSymlink.getAbsolutePath());
+            }
+        } catch (Exception e) {
+            Log.e("GuestProgramLauncherComponent", "Failed to setup SDL2 symlink", e);
+        }
+        
         String ld_preload = "";
         
         // Check for specific shared memory libraries
@@ -380,63 +387,45 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
             ld_preload = imageFs.getLibDir() + "/libandroid-sysvshm.so";
         }
 
-        if (enableEvshim) {
-            // Create libSDL symlink if necessary for evshim to intercept correctly
+        // Add evshim for controller support (creates virtual SDL joysticks)
+        // Extract libevshim.so from APK native libs to imagefs if needed
+        // (Android may not extract native libs to disk on newer versions)
+        File evshimInImagefs = new File(imageFs.getLibDir(), "libevshim.so");
+        String apkNativeLibDir = context.getApplicationInfo().nativeLibraryDir;
+        File evshimInNativeDir = new File(apkNativeLibDir, "libevshim.so");
+
+        if (evshimInNativeDir.exists() && (!evshimInImagefs.exists() || evshimInImagefs.length() != evshimInNativeDir.length())) {
+            // Native libs are extracted to disk - copy to imagefs
+            FileUtils.copy(evshimInNativeDir, evshimInImagefs);
+            Log.d("GuestProgramLauncher", "Copied evshim from nativeLibDir to imagefs");
+        } else if (!evshimInImagefs.exists()) {
+            // Native libs NOT extracted (compressed in APK) - extract from APK
             try {
-                File sdlSource = new File(imageFs.getLibDir(), "libSDL2-2.0.so");
-                File sdlSymlink = new File(imageFs.getLibDir(), "libSDL2-2.0.so.0");
-                if (sdlSource.exists() && !sdlSymlink.exists()) {
-                    android.system.Os.symlink(sdlSource.getAbsolutePath(), sdlSymlink.getAbsolutePath());
-                }
-
-                File sdlSourceAlt = new File(imageFs.getLibDir(), "libSDL2.so");
-                if (!sdlSource.exists() && sdlSourceAlt.exists() && !sdlSymlink.exists()) {
-                    android.system.Os.symlink(sdlSourceAlt.getAbsolutePath(), sdlSymlink.getAbsolutePath());
-                }
-            } catch (Exception e) {
-                Log.e("GuestProgramLauncherComponent", "Failed to setup SDL2 symlink", e);
-            }
-
-            // Add evshim for controller support (creates virtual SDL joysticks)
-            // Extract libevshim.so from APK native libs to imagefs if needed
-            // (Android may not extract native libs to disk on newer versions)
-            File evshimInImagefs = new File(imageFs.getLibDir(), "libevshim.so");
-            String apkNativeLibDir = context.getApplicationInfo().nativeLibraryDir;
-            File evshimInNativeDir = new File(apkNativeLibDir, "libevshim.so");
-
-            if (evshimInNativeDir.exists() && (!evshimInImagefs.exists() || evshimInImagefs.length() != evshimInNativeDir.length())) {
-                // Native libs are extracted to disk - copy to imagefs
-                FileUtils.copy(evshimInNativeDir, evshimInImagefs);
-                Log.d("GuestProgramLauncher", "Copied evshim from nativeLibDir to imagefs");
-            } else if (!evshimInImagefs.exists()) {
-                // Native libs NOT extracted (compressed in APK) - extract from APK
-                try {
-                    String abi = android.os.Build.SUPPORTED_ABIS[0];
-                    String entryName = "lib/" + abi + "/libevshim.so";
-                    java.util.zip.ZipFile apk = new java.util.zip.ZipFile(context.getApplicationInfo().sourceDir);
-                    java.util.zip.ZipEntry entry = apk.getEntry(entryName);
-                    if (entry != null) {
-                        try (java.io.InputStream is = apk.getInputStream(entry);
-                             java.io.FileOutputStream fos = new java.io.FileOutputStream(evshimInImagefs)) {
-                            byte[] buf = new byte[8192];
-                            int len;
-                            while ((len = is.read(buf)) != -1) fos.write(buf, 0, len);
-                        }
-                        evshimInImagefs.setExecutable(true, false);
-                        Log.d("GuestProgramLauncher", "Extracted evshim from APK to imagefs: " + evshimInImagefs.getAbsolutePath());
+                String abi = android.os.Build.SUPPORTED_ABIS[0];
+                String entryName = "lib/" + abi + "/libevshim.so";
+                java.util.zip.ZipFile apk = new java.util.zip.ZipFile(context.getApplicationInfo().sourceDir);
+                java.util.zip.ZipEntry entry = apk.getEntry(entryName);
+                if (entry != null) {
+                    try (java.io.InputStream is = apk.getInputStream(entry);
+                         java.io.FileOutputStream fos = new java.io.FileOutputStream(evshimInImagefs)) {
+                        byte[] buf = new byte[8192];
+                        int len;
+                        while ((len = is.read(buf)) != -1) fos.write(buf, 0, len);
                     }
-                    apk.close();
-                } catch (Exception e) {
-                    Log.e("GuestProgramLauncher", "Failed to extract evshim from APK", e);
+                    evshimInImagefs.setExecutable(true, false);
+                    Log.d("GuestProgramLauncher", "Extracted evshim from APK to imagefs: " + evshimInImagefs.getAbsolutePath());
                 }
+                apk.close();
+            } catch (Exception e) {
+                Log.e("GuestProgramLauncher", "Failed to extract evshim from APK", e);
             }
+        }
 
-            if (evshimInImagefs.exists()) {
-                ld_preload += (ld_preload.isEmpty() ? "" : ":") + evshimInImagefs.getAbsolutePath();
-                Log.d("GuestProgramLauncher", "evshim added to LD_PRELOAD: " + evshimInImagefs.getAbsolutePath());
-            } else {
-                Log.w("GuestProgramLauncher", "libevshim.so not found anywhere!");
-            }
+        if (evshimInImagefs.exists()) {
+            ld_preload += (ld_preload.isEmpty() ? "" : ":") + evshimInImagefs.getAbsolutePath();
+            Log.d("GuestProgramLauncher", "evshim added to LD_PRELOAD: " + evshimInImagefs.getAbsolutePath());
+        } else {
+            Log.w("GuestProgramLauncher", "libevshim.so not found anywhere!");
         }
 
         // Winlator legacy hooks (libhook_impl.so, libfile_redirect_hook.so) break FEXCore rendering and stability.

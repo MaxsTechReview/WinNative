@@ -694,14 +694,10 @@ public class InputControlsView extends View {
 
             int buttonIdx = binding.ordinal() - Binding.GAMEPAD_BUTTON_A.ordinal();
             if (buttonIdx <= ExternalController.IDX_BUTTON_R2) {
-                if (buttonIdx == ExternalController.IDX_BUTTON_L2) {
+                if (buttonIdx == ExternalController.IDX_BUTTON_L2)
                     state.triggerL = isActionDown ? 1.0f : 0f;
-                    state.setPressed(buttonIdx, isActionDown);
-                }
-                else if (buttonIdx == ExternalController.IDX_BUTTON_R2) {
+                else if (buttonIdx == ExternalController.IDX_BUTTON_R2)
                     state.triggerR = isActionDown ? 1.0f : 0f;
-                    state.setPressed(buttonIdx, isActionDown);
-                }
                 else
                     state.setPressed(buttonIdx, isActionDown);
             }
