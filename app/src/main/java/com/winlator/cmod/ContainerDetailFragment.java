@@ -396,6 +396,7 @@ public class ContainerDetailFragment extends Fragment {
         final EditText etName = view.findViewById(R.id.ETName);
         final View llLaunchExe = view.findViewById(R.id.LLLaunchExe);
         final TextView btSelectIcon = view.findViewById(R.id.BTSelectIcon);
+        final TextView btRevertIcon = view.findViewById(R.id.BTRevertIcon);
         final TextView btSelectExe = view.findViewById(R.id.BTSelectExe);
         final boolean showLaunchExeSelector = isShortcutMode() || isCreateShortcutMode();
         final String[] selectedExePath = new String[]{resolveInitialLaunchExePath()};
@@ -425,11 +426,13 @@ public class ContainerDetailFragment extends Fragment {
         llLaunchExe.setVisibility(showLaunchExeSelector ? View.VISIBLE : View.GONE);
         if (showLaunchExeSelector) {
             updateSelectIconButton(btSelectIcon, selectedIconPath[0]);
+            updateRevertIconButton(btRevertIcon, selectedIconPath[0]);
             btSelectIcon.setOnClickListener((v) -> {
                 openFileCallback = null;
                 openIconFileCallback = (path) -> {
                     selectedIconPath[0] = path;
                     updateSelectIconButton(btSelectIcon, path);
+                    updateRevertIconButton(btRevertIcon, path);
                 };
 
                 Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -437,6 +440,12 @@ public class ContainerDetailFragment extends Fragment {
                 intent.setType("*/*");
                 intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {"image/png", "image/x-icon", "image/vnd.microsoft.icon"});
                 getActivity().startActivityFromFragment(this, intent, MainActivity.OPEN_FILE_REQUEST_CODE);
+            });
+            btRevertIcon.setOnClickListener((v) -> {
+                selectedIconPath[0] = "";
+                updateSelectIconButton(btSelectIcon, selectedIconPath[0]);
+                updateRevertIconButton(btRevertIcon, selectedIconPath[0]);
+                Toast.makeText(getContext(), R.string.revert_icon, Toast.LENGTH_SHORT).show();
             });
 
             updateLaunchExeButton(btSelectExe, selectedExePath[0]);
@@ -746,6 +755,7 @@ public class ContainerDetailFragment extends Fragment {
                         }
                         selectedIconPath[0] = customLibraryIconPath;
                         updateSelectIconButton(btSelectIcon, customLibraryIconPath);
+                        updateRevertIconButton(btRevertIcon, customLibraryIconPath);
                     }
                 }
 
@@ -1749,6 +1759,13 @@ public class ContainerDetailFragment extends Fragment {
     private void updateSelectIconButton(TextView button, String fullPath) {
         if (button == null) return;
         button.setText(fullPath == null || fullPath.isEmpty() ? getString(R.string.select_icon) : fullPath);
+    }
+
+    private void updateRevertIconButton(View button, String selectedPath) {
+        if (button == null) return;
+        boolean hasCustomIcon = selectedPath != null && !selectedPath.trim().isEmpty();
+        button.setEnabled(hasCustomIcon);
+        button.setAlpha(hasCustomIcon ? 1f : 0.5f);
     }
 
     private boolean isSupportedIconFile(String path) {
