@@ -31,7 +31,9 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import com.winlator.cmod.widget.chasingBorder
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.focusable
@@ -128,11 +130,14 @@ import com.winlator.cmod.gog.service.GOGConstants
 import com.winlator.cmod.gog.service.GOGService
 import com.winlator.cmod.gog.ui.auth.GOGOAuthActivity
 import com.winlator.cmod.utils.ControllerHelper
+import com.winlator.cmod.ui.FourByTwoGridView
+import com.winlator.cmod.ui.JoystickGridScroll
 
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.ui.text.style.TextAlign
 import androidx.core.view.WindowCompat
 import kotlin.math.roundToInt
@@ -1203,18 +1208,18 @@ class UnifiedActivity : ComponentActivity() {
             visible = isSearchExpanded && !isDownloadsTab,
             enter = expandVertically(
                 animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioLowBouncy,
-                    stiffness = Spring.StiffnessMediumLow
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessHigh
                 ),
                 expandFrom = Alignment.Top
-            ) + fadeIn(animationSpec = tween(200)),
+            ) + fadeIn(animationSpec = tween(80)),
             exit = shrinkVertically(
                 animationSpec = spring(
                     dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMedium
+                    stiffness = Spring.StiffnessHigh
                 ),
                 shrinkTowards = Alignment.Top
-            ) + fadeOut(animationSpec = tween(150))
+            ) + fadeOut(animationSpec = tween(60))
         ) {
             Box(
                 modifier = Modifier
@@ -1403,7 +1408,7 @@ class UnifiedActivity : ComponentActivity() {
 
         var selectedAppForSettings by remember { mutableStateOf<SteamApp?>(null) }
         var selectedGogGameForSettings by remember { mutableStateOf<GOGGame?>(null) }
-        val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+        val gridState = rememberLazyGridState()
         val activity = LocalContext.current as? UnifiedActivity
 
         // Keep activity's item count in sync
@@ -1442,39 +1447,49 @@ class UnifiedActivity : ComponentActivity() {
             selectedGogGameId = gogGame?.id.orEmpty()
         }
 
-        BoxWithConstraints(
-            Modifier
-                .fillMaxSize()
-                .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
-        ) {
-            val borderInset = 6.dp
-            val rowHeight = (maxHeight - 12.dp - borderInset * 2) / 2 // 12dp = grid spacing, borderInset = chasing border room
-            LazyVerticalGrid(
-                state = gridState,
-                columns = GridCells.Fixed(4),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = borderInset + 10.dp),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer { clip = false }
-            ) {
-                itemsIndexed(displayedApps) { index, app ->
-                    GameCapsule(
-                        app = app,
-                        gogGame = gogByPseudoId[app.id],
-                        iconRefreshKey = iconRefreshKey,
-                        isFocusedOverride = index == focusIndex,
-                        modifier = Modifier
-                            .height(rowHeight)
-                            .then(
-                                if (index in focusRequesters.indices)
-                                    Modifier.focusRequester(focusRequesters[index])
-                                else Modifier
-                            )
-                    )
-                }
+        val openSettingsForApp: (Int, SteamApp) -> Unit = { index, app ->
+            activity?.libraryFocusIndex?.value = index
+            selectedSteamAppId = app.id
+            selectedSteamAppName = app.name
+            val gogGame = gogByPseudoId[app.id]
+            selectedLibrarySource = when {
+                gogGame != null -> "GOG"
+                app.id >= 2000000000 -> "EPIC"
+                app.id < 0 -> "CUSTOM"
+                else -> "STEAM"
             }
+            selectedGogGameId = gogGame?.id.orEmpty()
+
+            if (gogGame != null) {
+                selectedGogGameForSettings = gogGame
+            } else {
+                selectedAppForSettings = app
+            }
+        }
+
+        FourByTwoGridView(
+            items = displayedApps,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+            gridState = gridState,
+            contentPadding = PaddingValues(vertical = 16.dp), // 6dp border inset + 10dp
+            clipContent = false,
+        ) { app, index, rowHeight ->
+            GameCapsule(
+                app = app,
+                gogGame = gogByPseudoId[app.id],
+                iconRefreshKey = iconRefreshKey,
+                isFocusedOverride = index == focusIndex,
+                onLongClick = {
+                    openSettingsForApp(index, app)
+                },
+                modifier = Modifier
+                    .height(rowHeight)
+                    .then(
+                        if (index in focusRequesters.indices)
+                            Modifier.focusRequester(focusRequesters[index])
+                        else Modifier
+                    )
+            )
         }
 
         if (selectedAppForSettings != null) {
@@ -1970,11 +1985,13 @@ class UnifiedActivity : ComponentActivity() {
 
     // Single game capsule for carousel
     @Composable
+    @OptIn(ExperimentalFoundationApi::class)
     private fun GameCapsule(
         app: SteamApp,
         gogGame: GOGGame? = null,
         iconRefreshKey: Int = 0,
         isFocusedOverride: Boolean = false,
+        onLongClick: (() -> Unit)? = null,
         modifier: Modifier = Modifier
     ) {
         val context = LocalContext.current
@@ -2014,18 +2031,21 @@ class UnifiedActivity : ComponentActivity() {
                 .chasingBorder(isFocused = isFocused, cornerRadius = 12.dp)
                 .background(CardDark, RoundedCornerShape(12.dp))
                 .focusable()
-                .clickable {
-                    val containerManager = com.winlator.cmod.container.ContainerManager(context)
-                    if (isCustom) {
-                        launchCustomGame(context, containerManager, app.name)
-                    } else if (gogGame != null) {
-                        launchGogGame(context, containerManager, gogGame)
-                    } else if (isEpic) {
-                        epicGame?.let { launchEpicGame(context, containerManager, it) }
-                    } else if (SteamService.isAppInstalled(app.id)) {
-                        launchSteamGame(context, containerManager, app)
-                    }
-                }
+                .combinedClickable(
+                    onClick = {
+                        val containerManager = com.winlator.cmod.container.ContainerManager(context)
+                        if (isCustom) {
+                            launchCustomGame(context, containerManager, app.name)
+                        } else if (gogGame != null) {
+                            launchGogGame(context, containerManager, gogGame)
+                        } else if (isEpic) {
+                            epicGame?.let { launchEpicGame(context, containerManager, it) }
+                        } else if (SteamService.isAppInstalled(app.id)) {
+                            launchSteamGame(context, containerManager, app)
+                        }
+                    },
+                    onLongClick = onLongClick
+                )
         ) {
             // Art area — clip only on the image, not the text
             Box(
@@ -2137,10 +2157,9 @@ class UnifiedActivity : ComponentActivity() {
 
         val epicApps by db.epicGameDao().getAll().collectAsState(initial = emptyList())
         val selectedAppId = remember { mutableStateOf<Int?>(null) }
-        val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+        val gridState = rememberLazyGridState()
         val activity = LocalContext.current as? UnifiedActivity
-        val density = LocalContext.current.resources.displayMetrics.density
-        
+
         // Ensure library updates from cloud
         LaunchedEffect(Unit) {
             if (epicApps.isEmpty()) {
@@ -2148,47 +2167,21 @@ class UnifiedActivity : ComponentActivity() {
             }
         }
 
-        LaunchedEffect(gridState) {
-            activity?.rightStickScrollState?.collect { rz ->
-                if (kotlin.math.abs(rz) > 0.1f) {
-                    val speedFactor = kotlin.math.abs(rz)
-                    val baseSpeed = 1.25f + (speedFactor * (8f - 1.25f))
-                    val direction = if (rz > 0) 1f else -1f
-                    
-                    while(kotlin.math.abs(activity.rightStickScrollState.value) > 0.1f) {
-                        val currentRz = activity.rightStickScrollState.value
-                        val currentSpeedFactor = kotlin.math.abs(currentRz)
-                        val currentBaseSpeed = 1.25f + (currentSpeedFactor * (8f - 1.25f))
-                        val currentDirection = if (currentRz > 0) 1f else -1f
-                        
-                        val pixelsToScroll = currentBaseSpeed * currentDirection * density
-                        gridState.dispatchRawDelta(pixelsToScroll)
-                        kotlinx.coroutines.delay(16)
-                    }
-                }
-            }
-        }
+        JoystickGridScroll(gridState, activity?.rightStickScrollState)
 
         val displayedApps = remember(epicApps, searchQuery) {
             if (searchQuery.isBlank()) epicApps
             else epicApps.filter { it.title.contains(searchQuery, ignoreCase = true) }
         }
 
-        BoxWithConstraints(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) {
-            val rowHeight = (maxHeight - 12.dp) / 2
-            LazyVerticalGrid(
-                state = gridState,
-                columns = GridCells.Fixed(4),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(items = displayedApps) { app: EpicGame ->
-                    Box(Modifier.height(rowHeight)) {
-                        EpicStoreCapsule(app) {
-                            selectedAppId.value = app.id
-                        }
-                    }
+        FourByTwoGridView(
+            items = displayedApps,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
+            gridState = gridState,
+        ) { app, _, rowHeight ->
+            Box(Modifier.height(rowHeight)) {
+                EpicStoreCapsule(app) {
+                    selectedAppId.value = app.id
                 }
             }
         }
@@ -2570,69 +2563,62 @@ class UnifiedActivity : ComponentActivity() {
 
         val gogApps by db.gogGameDao().getAll().collectAsState(initial = emptyList())
         val selectedGameId = remember { mutableStateOf<String?>(null) }
-        val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+        val gridState = rememberLazyGridState()
 
         val displayedApps = remember(gogApps, searchQuery) {
             if (searchQuery.isBlank()) gogApps
             else gogApps.filter { it.title.contains(searchQuery, ignoreCase = true) }
         }
 
-        BoxWithConstraints(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) {
-            val rowHeight = (maxHeight - 12.dp) / 2
-            LazyVerticalGrid(
-                state = gridState,
-                columns = GridCells.Fixed(4),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize()
+        FourByTwoGridView(
+            items = displayedApps,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
+            gridState = gridState,
+        ) { app, _, rowHeight ->
+            val isInstalled = app.isInstalled && java.io.File(app.installPath).exists()
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(rowHeight)
+                    .border(1.dp, CardDark, RoundedCornerShape(16.dp))
+                    .background(CardDark, RoundedCornerShape(16.dp))
+                    .clickable { selectedGameId.value = app.id }
             ) {
-                items(displayedApps) { app ->
-                    val isInstalled = app.isInstalled && java.io.File(app.installPath).exists()
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(rowHeight)
-                            .border(1.dp, CardDark, RoundedCornerShape(16.dp))
-                            .background(CardDark, RoundedCornerShape(16.dp))
-                            .clickable { selectedGameId.value = app.id }
-                    ) {
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                                .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                        ) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(app.imageUrl.ifEmpty { app.iconUrl })
-                                    .crossfade(300)
-                                    .build(),
-                                contentDescription = null,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                            if (isInstalled) {
-                                Icon(
-                                    Icons.Default.CheckCircle,
-                                    contentDescription = "Installed",
-                                    tint = StatusOnline,
-                                    modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp).size(24.dp)
-                                )
-                            }
-                        }
-
-                        Text(
-                            text = app.title,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                ) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(app.imageUrl.ifEmpty { app.iconUrl })
+                            .crossfade(300)
+                            .build(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    if (isInstalled) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = "Installed",
+                            tint = StatusOnline,
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp).size(24.dp)
                         )
                     }
                 }
+
+                Text(
+                    text = app.title,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
             }
         }
 
@@ -2778,69 +2764,26 @@ class UnifiedActivity : ComponentActivity() {
         }
 
         var selectedAppForDialog by remember { mutableStateOf<SteamApp?>(null) }
-        val context = LocalContext.current
-        val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+        val gridState = rememberLazyGridState()
         val activity = LocalContext.current as? UnifiedActivity
-        val density = LocalContext.current.resources.displayMetrics.density
 
-        // Right joystick: 2x faster at full push with smooth speed curve
-        LaunchedEffect(gridState) {
-            activity?.rightStickScrollState?.collect { rz ->
-                if (kotlin.math.abs(rz) > 0.1f) {
-                    while(kotlin.math.abs(activity.rightStickScrollState.value) > 0.1f) {
-                        val currentRz = activity.rightStickScrollState.value
-                        val currentSpeedFactor = kotlin.math.abs(currentRz)
-                        val currentDirection = if (currentRz > 0) 1f else -1f
-                        // Speed curve: slow start (2.5) to fast full push (16 = 2x the old max of 8)
-                        val currentBaseSpeed = 2.5f + (currentSpeedFactor * currentSpeedFactor * (16f - 2.5f))
-                        
-                        val pixelsToScroll = currentBaseSpeed * currentDirection * density
-                        gridState.dispatchRawDelta(pixelsToScroll)
-                        kotlinx.coroutines.delay(16)
-                    }
-                }
-            }
-        }
-
+        // Right joystick: 2x faster at full push with quadratic speed curve
+        JoystickGridScroll(gridState, activity?.rightStickScrollState, minSpeed = 2.5f, maxSpeed = 16f, quadratic = true)
         // Left joystick: 75% slower scrolling (vertical only, for browsing store)
-        LaunchedEffect(gridState) {
-            activity?.leftStickScrollState?.collect { ly ->
-                if (kotlin.math.abs(ly) > 0.15f) {
-                    while(kotlin.math.abs(activity.leftStickScrollState.value) > 0.15f) {
-                        val currentLy = activity.leftStickScrollState.value
-                        val currentSpeedFactor = kotlin.math.abs(currentLy)
-                        val currentDirection = if (currentLy > 0) 1f else -1f
-                        // 75% slower than original: base was 1.25..8, now 0.3125..2
-                        val currentBaseSpeed = 0.3125f + (currentSpeedFactor * (2f - 0.3125f))
-                        
-                        val pixelsToScroll = currentBaseSpeed * currentDirection * density
-                        gridState.dispatchRawDelta(pixelsToScroll)
-                        kotlinx.coroutines.delay(16)
-                    }
-                }
-            }
-        }
+        JoystickGridScroll(gridState, activity?.leftStickScrollState, deadZone = 0.15f, minSpeed = 0.3125f, maxSpeed = 2f)
 
         val displayedApps = remember(steamApps, searchQuery) {
             if (searchQuery.isBlank()) steamApps
             else steamApps.filter { it.name.contains(searchQuery, ignoreCase = true) }
         }
 
-        BoxWithConstraints(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) {
-            val rowHeight = (maxHeight - 12.dp) / 2
-
-            LazyVerticalGrid(
-                state = gridState,
-                columns = GridCells.Fixed(4),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(displayedApps) { app ->
-                    Box(Modifier.height(rowHeight)) {
-                        SteamStoreCapsule(app, onClick = { selectedAppForDialog = app })
-                    }
-                }
+        FourByTwoGridView(
+            items = displayedApps,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
+            gridState = gridState,
+        ) { app, _, rowHeight ->
+            Box(Modifier.height(rowHeight)) {
+                SteamStoreCapsule(app, onClick = { selectedAppForDialog = app })
             }
         }
 
