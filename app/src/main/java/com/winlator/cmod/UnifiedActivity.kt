@@ -4803,17 +4803,41 @@ class UnifiedActivity : ComponentActivity() {
 
     @Composable
     private fun DrawerFilterButton(label: String, checked: Boolean, modifier: Modifier = Modifier, onToggle: (Boolean) -> Unit) {
-        val bgColor = if (checked) Accent.copy(alpha = 0.2f) else CardDark
-        val borderColor = if (checked) Accent else Color.Transparent
-        val textColor = if (checked) Accent else TextSecondary
+        val interactionSource = remember { MutableInteractionSource() }
+        val isPressed by interactionSource.collectIsPressedAsState()
+
+        val bgColor by animateColorAsState(
+            targetValue = if (checked) Accent.copy(alpha = 0.2f) else CardDark,
+            animationSpec = tween(200),
+            label = "filterBg"
+        )
+        val borderColor by animateColorAsState(
+            targetValue = if (checked) Accent else CardBorder,
+            animationSpec = tween(200),
+            label = "filterBorder"
+        )
+        val textColor by animateColorAsState(
+            targetValue = if (checked) Accent else TextSecondary,
+            animationSpec = tween(200),
+            label = "filterText"
+        )
+        val scale by animateFloatAsState(
+            targetValue = if (isPressed) 0.92f else 1f,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh),
+            label = "filterScale"
+        )
 
         Box(
             modifier = modifier
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }
                 .clip(RoundedCornerShape(8.dp))
                 .background(bgColor)
                 .border(1.dp, borderColor, RoundedCornerShape(8.dp))
                 .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
+                    interactionSource = interactionSource,
                     indication = null
                 ) { onToggle(!checked) }
                 .padding(vertical = 10.dp, horizontal = 12.dp),
