@@ -135,6 +135,8 @@ import com.winlator.cmod.gog.service.GOGService
 import com.winlator.cmod.gog.ui.auth.GOGOAuthActivity
 import com.winlator.cmod.utils.ControllerHelper
 import com.winlator.cmod.ui.FourByTwoGridView
+import com.winlator.cmod.ui.CarouselView
+import com.winlator.cmod.ui.JoystickCarouselScroll
 import com.winlator.cmod.ui.JoystickGridScroll
 
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -183,6 +185,7 @@ class UnifiedActivity : ComponentActivity() {
 
     val rightStickScrollState = kotlinx.coroutines.flow.MutableStateFlow(0f)
     val leftStickScrollState = kotlinx.coroutines.flow.MutableStateFlow(0f)
+    val leftStickXState = kotlinx.coroutines.flow.MutableStateFlow(0f)
     val keyEventFlow = kotlinx.coroutines.flow.MutableSharedFlow<android.view.KeyEvent>(extraBufferCapacity = 10)
     // Library grid focus: tracked index and item count, controlled by DPAD
     val libraryFocusIndex = kotlinx.coroutines.flow.MutableStateFlow(0)
@@ -292,6 +295,10 @@ class UnifiedActivity : ComponentActivity() {
             // Handle Left Joystick Y axis for scrolling in stores
             val leftY = event.getAxisValue(android.view.MotionEvent.AXIS_Y)
             leftStickScrollState.value = leftY
+
+            // Handle Left Joystick X axis for carousel horizontal scroll
+            val leftX = event.getAxisValue(android.view.MotionEvent.AXIS_X)
+            leftStickXState.value = leftX
 
             // Handle Left Joystick/D-pad to emulate KeyEvents for Compose Focus
             val x = event.getAxisValue(android.view.MotionEvent.AXIS_X)
@@ -1488,20 +1495,41 @@ class UnifiedActivity : ComponentActivity() {
                 }
             }
             LibraryLayoutMode.CAROUSEL -> {
-                LibraryCoverCarousel(
-                    apps = displayedApps,
-                    gogByPseudoId = gogByPseudoId,
-                    iconRefreshKey = iconRefreshKey,
-                    shortcuts = cachedShortcuts,
+                CarouselView(
+                    items = displayedApps,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 20.dp),
                     listState = carouselState,
                     selectedIndex = focusIndex,
-                    focusRequesters = focusRequesters,
-                    onLongClick = openSettingsForApp,
                     onCenteredIndexChanged = { centeredIndex ->
                         if (activity != null && activity.libraryFocusIndex.value != centeredIndex) {
                             activity.libraryFocusIndex.value = centeredIndex
                         }
                     },
+                ) { app, index, isSelected, cardWidth, cardHeight ->
+                    GameCapsule(
+                        app = app,
+                        gogGame = gogByPseudoId[app.id],
+                        iconRefreshKey = iconRefreshKey,
+                        isFocusedOverride = isSelected,
+                        shortcuts = cachedShortcuts,
+                        onLongClick = { openSettingsForApp(index, app) },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .then(
+                                if (index in focusRequesters.indices)
+                                    Modifier.focusRequester(focusRequesters[index])
+                                else Modifier
+                            )
+                    )
+                }
+                JoystickCarouselScroll(
+                    listState = carouselState,
+                    stickFlow = activity?.leftStickXState,
+                    currentIndex = focusIndex,
+                    itemCount = displayedApps.size,
+                    onIndexChanged = { newIdx ->
+                        activity?.libraryFocusIndex?.value = newIdx
+                    }
                 )
             }
         }
@@ -1517,123 +1545,6 @@ class UnifiedActivity : ComponentActivity() {
                 app = selectedGogGameForSettings!!,
                 onDismissRequest = { selectedGogGameForSettings = null }
             )
-        }
-    }
-
-    @Composable
-    private fun LibraryCoverCarousel(
-        apps: List<SteamApp>,
-        gogByPseudoId: Map<Int, GOGGame>,
-        iconRefreshKey: Int,
-        shortcuts: List<Shortcut>,
-        listState: androidx.compose.foundation.lazy.LazyListState,
-        selectedIndex: Int,
-        focusRequesters: List<FocusRequester>,
-        onLongClick: (Int, SteamApp) -> Unit,
-        onCenteredIndexChanged: (Int) -> Unit,
-    ) {
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 20.dp)
-        ) {
-            val spacing = 14.dp
-            val baseCardWidth = maxWidth * 0.22f
-            val baseCardHeight = baseCardWidth * 1.2f
-            val sidePadding = ((maxWidth - baseCardWidth) / 2).coerceAtLeast(0.dp)
-            val flingBehavior = rememberSnapFlingBehavior(listState)
-
-            LaunchedEffect(selectedIndex, apps.size) {
-                if (selectedIndex in apps.indices && !listState.isScrollInProgress) {
-                    listState.animateScrollToItem(selectedIndex)
-                }
-            }
-
-            LaunchedEffect(listState, apps.size) {
-                snapshotFlow { listState.layoutInfo.visibleItemsInfo }
-                    .collect { visibleItems ->
-                        if (visibleItems.isEmpty()) return@collect
-                        val layoutInfo = listState.layoutInfo
-                        val viewportCenter = (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2
-                        val centeredItem = visibleItems.minByOrNull { item ->
-                            kotlin.math.abs((item.offset + item.size / 2) - viewportCenter)
-                        } ?: return@collect
-                        onCenteredIndexChanged(centeredItem.index)
-                    }
-            }
-
-            LaunchedEffect(listState, apps.size) {
-                snapshotFlow { listState.isScrollInProgress }
-                    .collect { isScrolling ->
-                        if (!isScrolling) {
-                            val visibleItems = listState.layoutInfo.visibleItemsInfo
-                            if (visibleItems.isEmpty()) return@collect
-                            val viewportCenter =
-                                (listState.layoutInfo.viewportStartOffset + listState.layoutInfo.viewportEndOffset) / 2
-                            val centeredItem = visibleItems.minByOrNull { item ->
-                                kotlin.math.abs((item.offset + item.size / 2) - viewportCenter)
-                            } ?: return@collect
-                            listState.animateScrollToItem(centeredItem.index)
-                        }
-                    }
-            }
-
-            LazyRow(
-                state = listState,
-                horizontalArrangement = Arrangement.spacedBy(spacing),
-                contentPadding = PaddingValues(start = sidePadding, end = sidePadding, top = 18.dp, bottom = 18.dp),
-                flingBehavior = flingBehavior,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                itemsIndexed(apps) { index, app ->
-                    val isSelected = index == selectedIndex
-                    val scale by animateFloatAsState(
-                        targetValue = if (isSelected) 1.1f else 0.9f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessMediumLow
-                        ),
-                        label = "carouselScale"
-                    )
-                    val rise by animateDpAsState(
-                        targetValue = if (isSelected) 14.dp else 0.dp,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessMedium
-                        ),
-                        label = "carouselRise"
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .width(baseCardWidth)
-                            .height(baseCardHeight + 28.dp)
-                            .graphicsLayer {
-                                scaleX = scale
-                                scaleY = scale
-                                translationY = -rise.toPx()
-                            }
-                    ) {
-                        GameCapsule(
-                            app = app,
-                            gogGame = gogByPseudoId[app.id],
-                            iconRefreshKey = iconRefreshKey,
-                            isFocusedOverride = isSelected,
-                            shortcuts = shortcuts,
-                            onLongClick = {
-                                onLongClick(index, app)
-                            },
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .then(
-                                    if (index in focusRequesters.indices)
-                                        Modifier.focusRequester(focusRequesters[index])
-                                    else Modifier
-                                )
-                        )
-                    }
-                }
-            }
         }
     }
 
