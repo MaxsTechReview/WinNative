@@ -1513,6 +1513,7 @@ class UnifiedActivity : ComponentActivity() {
                         isFocusedOverride = isSelected,
                         shortcuts = cachedShortcuts,
                         onLongClick = { openSettingsForApp(index, app) },
+                        useLibraryCapsule = true,
                         modifier = Modifier
                             .fillMaxSize()
                             .then(
@@ -2387,6 +2388,7 @@ class UnifiedActivity : ComponentActivity() {
         isFocusedOverride: Boolean = false,
         shortcuts: List<Shortcut> = emptyList(),
         onLongClick: (() -> Unit)? = null,
+        useLibraryCapsule: Boolean = false,
         modifier: Modifier = Modifier
     ) {
         val context = LocalContext.current
@@ -2503,7 +2505,7 @@ class UnifiedActivity : ComponentActivity() {
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    val imageUrl = app.getCapsuleUrl()
+                    val imageUrl = if (useLibraryCapsule) app.getLibraryCapsuleUrl() else app.getCapsuleUrl()
                     AsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(imageUrl)

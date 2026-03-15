@@ -172,6 +172,19 @@ data class SteamApp(
         } ?: headerUrl
     }
 
+    fun getLibraryCapsuleUrl(language: Language = Language.english, large: Boolean = false): String {
+        val capsules = if (large) libraryAssets.libraryCapsule.image2x else libraryAssets.libraryCapsule.image
+        val imageLink = if (capsules.containsKey(language)) {
+            capsules[language]
+        } else if (capsules.isNotEmpty()) {
+            capsules.values.first()
+        } else {
+            null
+        }
+        return imageLink?.takeIf { it.isNotEmpty() }?.let { "$STEAM_URL/$id/$it" }
+            ?: "$STEAM_URL/$id/library_600x900_2x.jpg"
+    }
+
     fun getCapsuleUrl(language: Language = Language.english, large: Boolean = false): String {
         val imageLink = if (headerImage.containsKey(language)) {
             headerImage[language]

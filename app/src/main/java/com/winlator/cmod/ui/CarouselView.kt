@@ -1,7 +1,6 @@
 package com.winlator.cmod.ui
 
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
@@ -18,12 +17,14 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.StateFlow
@@ -33,10 +34,13 @@ import kotlin.math.abs
 /**
  * Horizontal snap-carousel layout for library items.
  *
+ * Items smoothly scale, rise, and fade based on their distance from the viewport center,
+ * creating a fluid parallax-like effect during scrolling.
+ *
  * @param items The data to display.
  * @param modifier Outer modifier.
  * @param listState Shared [LazyListState] for external scroll control.
- * @param selectedIndex Currently focused item index (drives scale/rise animation).
+ * @param selectedIndex Currently focused item index (drives scroll position).
  * @param onCenteredIndexChanged Called when the visually centered item changes after scroll settles.
  * @param itemContent Composable for each item; receives item, index, selection state, base card width, and base card height.
  */
@@ -49,8 +53,8 @@ fun <T> CarouselView(
     onCenteredIndexChanged: (Int) -> Unit = {},
     itemContent: @Composable (item: T, index: Int, isSelected: Boolean, cardWidth: Dp, cardHeight: Dp) -> Unit,
 ) {
-    // Track the last index we reported so we don't re-report during programmatic scrolls
     val lastReportedIndex = remember { mutableIntStateOf(selectedIndex) }
+    val density = LocalDensity.current
 
     BoxWithConstraints(
         modifier = modifier.fillMaxSize()
@@ -60,8 +64,9 @@ fun <T> CarouselView(
         val baseCardHeight = baseCardWidth * 1.2f
         val sidePadding = ((maxWidth - baseCardWidth) / 2).coerceAtLeast(0.dp)
         val flingBehavior = rememberSnapFlingBehavior(listState)
+        val cardWidthPx = with(density) { baseCardWidth.toPx() }
 
-        // Scroll to selected index when changed externally (d-pad / joystick updates libraryFocusIndex)
+        // Scroll to selected index when changed externally (d-pad / joystick)
         LaunchedEffect(selectedIndex) {
             if (selectedIndex in items.indices) {
                 lastReportedIndex.intValue = selectedIndex
@@ -93,28 +98,54 @@ fun <T> CarouselView(
         LazyRow(
             state = listState,
             horizontalArrangement = Arrangement.spacedBy(spacing),
-            contentPadding = PaddingValues(start = sidePadding, end = sidePadding, top = 18.dp, bottom = 18.dp),
+            contentPadding = PaddingValues(start = sidePadding, end = sidePadding, top = 24.dp, bottom = 24.dp),
             flingBehavior = flingBehavior,
             modifier = Modifier.fillMaxSize()
         ) {
             itemsIndexed(items) { index, item ->
-                val isSelected = index == selectedIndex
+                // Compute distance from viewport center as a 0..1 fraction
+                val distanceFraction by remember {
+                    derivedStateOf {
+                        val layoutInfo = listState.layoutInfo
+                        val itemInfo = layoutInfo.visibleItemsInfo.find { it.index == index }
+                            ?: return@derivedStateOf 1f
+                        val viewportCenter =
+                            (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2f
+                        val itemCenter = itemInfo.offset + itemInfo.size / 2f
+                        val rawDistance = abs(itemCenter - viewportCenter)
+                        // Normalize: 0 = centered, 1 = one full card-width away or more
+                        (rawDistance / cardWidthPx).coerceIn(0f, 1.5f) / 1.5f
+                    }
+                }
+
+                // Smooth animated values driven by distance
                 val scale by animateFloatAsState(
-                    targetValue = if (isSelected) 1.1f else 0.9f,
+                    targetValue = 1.12f - (0.22f * distanceFraction),
                     animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        dampingRatio = Spring.DampingRatioNoBouncy,
                         stiffness = Spring.StiffnessMediumLow
                     ),
                     label = "carouselScale"
                 )
-                val rise by animateDpAsState(
-                    targetValue = if (isSelected) 14.dp else 0.dp,
+                val rise by animateFloatAsState(
+                    targetValue = 1f - distanceFraction,
                     animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioLowBouncy,
-                        stiffness = Spring.StiffnessMedium
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow
                     ),
                     label = "carouselRise"
                 )
+                val itemAlpha by animateFloatAsState(
+                    targetValue = 1f - (0.35f * distanceFraction),
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    ),
+                    label = "carouselAlpha"
+                )
+
+                val risePx = with(density) { (16.dp * rise).toPx() }
+                val isSelected = index == selectedIndex
 
                 Box(
                     modifier = Modifier
@@ -123,7 +154,8 @@ fun <T> CarouselView(
                         .graphicsLayer {
                             scaleX = scale
                             scaleY = scale
-                            translationY = -rise.toPx()
+                            translationY = -risePx
+                            alpha = itemAlpha
                         }
                 ) {
                     itemContent(item, index, isSelected, baseCardWidth, baseCardHeight)
