@@ -453,7 +453,7 @@ class UnifiedActivity : ComponentActivity() {
         val tabs = remember(aioMode, storeVisible.toMap()) { buildTabs(aioMode, storeVisible) }
         var selectedIdx by rememberSaveable { mutableIntStateOf(0) }
         var selectedDownloadId by remember { mutableStateOf<String?>(null) }
-        var showFilter by remember { mutableStateOf(false) }
+        val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val isLoggedIn by SteamService.isLoggedInFlow.collectAsState()
         val isEpicLoggedIn by EpicAuthManager.isLoggedInFlow.collectAsState()
         val isGogLoggedIn by GOGAuthManager.isLoggedInFlow.collectAsState()
@@ -592,12 +592,12 @@ class UnifiedActivity : ComponentActivity() {
                     }
                     android.view.KeyEvent.KEYCODE_BUTTON_X -> {
                         if (key != "downloads") {
-                            showFilter = !showFilter
+                            if (drawerState.isOpen) drawerState.close() else drawerState.open()
                         }
                     }
                     android.view.KeyEvent.KEYCODE_BUTTON_B -> {
                         // Close menus in order, or show exit confirmation if none are open
-                        if (showFilter) showFilter = false
+                        if (drawerState.isOpen) drawerState.close()
                         else if (globalSettingsApp != null) globalSettingsApp = null
                         else if (globalSettingsGogGame != null) globalSettingsGogGame = null
                         else if (showAddCustomGame) showAddCustomGame = false
@@ -679,10 +679,32 @@ class UnifiedActivity : ComponentActivity() {
             }
         }
 
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                DrawerContent(
+                    persona = persona,
+                    context = context,
+                    scope = scope,
+                    aioMode = aioMode,
+                    onAioToggle = { aioMode = it; PrefManager.aioStoreMode = it },
+                    storeVisible = storeVisible,
+                    contentFilters = contentFilters,
+                    libraryLayoutMode = libraryLayoutMode,
+                    onLibraryLayoutSelected = {
+                        libraryLayoutMode = it
+                        PrefManager.libraryLayoutMode = it.name
+                    },
+                    onClose = { scope.launch { drawerState.close() } }
+                )
+            },
+            scrimColor = Color.Black.copy(alpha = 0.5f),
+            gesturesEnabled = true
+        ) {
         Box(Modifier.fillMaxSize().background(BgDark)) {
             Scaffold(
                 containerColor = BgDark,
-                topBar = { TopBar(tabs, selectedIdx, { selectedIdx = it }, persona, context, scope, isControllerConnected, isPS, isLibraryTab, searchQuery, { searchQuery = it }) {
+                topBar = { TopBar(tabs, selectedIdx, { selectedIdx = it }, persona, context, scope, isControllerConnected, isPS, isLibraryTab, searchQuery, { searchQuery = it }, onFilterClicked = { scope.launch { drawerState.open() } }) {
                     if (selectedLibrarySource == "GOG") {
                         globalSettingsGogGame = gogApps.find { it.id == selectedGogGameId }
                     } else {
@@ -746,33 +768,6 @@ class UnifiedActivity : ComponentActivity() {
                         }
                     }
 
-                    // Bottom-left filter button
-                    if (key != "downloads") {
-                        Row(
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(start = 0.dp, bottom = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .shadow(8.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
-                                    .clip(CircleShape)
-                                    .background(SurfaceDark)
-                                    .focusProperties { canFocus = !isLibraryTab }
-                                    .clickable { showFilter = !showFilter },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = TextPrimary, modifier = Modifier.size(24.dp))
-                            }
-                            if (isControllerConnected) {
-                                Spacer(Modifier.width(12.dp))
-                                ControllerBadge(if (isPS) "Square" else "X")
-                            }
-                        }
-                    }
-
                     // Bottom-right Add Custom Game button
                     if (key == "library") {
                         Box(
@@ -799,34 +794,8 @@ class UnifiedActivity : ComponentActivity() {
                 }
             }
 
-            if (showFilter) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .clickable(
-                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                            indication = null,
-                            onClick = { showFilter = false }
-                        )
-                )
-            }
-
-            Box(modifier = Modifier.matchParentSize(), contentAlignment = Alignment.BottomStart) {
-                FilterPanel(
-                    visible = showFilter,
-                    onDismiss = { showFilter = false },
-                    aioMode = aioMode,
-                    onAioToggle = { aioMode = it; PrefManager.aioStoreMode = it },
-                    storeVisible = storeVisible,
-                    contentFilters = contentFilters,
-                    libraryLayoutMode = libraryLayoutMode,
-                    onLibraryLayoutSelected = {
-                        libraryLayoutMode = it
-                        PrefManager.libraryLayoutMode = it.name
-                    }
-                )
-            }
         }
+        } // end ModalNavigationDrawer
 
         if (globalSettingsApp != null) {
             GameSettingsDialog(
@@ -848,8 +817,8 @@ class UnifiedActivity : ComponentActivity() {
         // Back button exit confirmation
         BackHandler(enabled = true) {
             // Consistent behavior: close overlays first, then show exit confirmation
-            if (showFilter) {
-                showFilter = false
+            if (drawerState.isOpen) {
+                scope.launch { drawerState.close() }
             } else if (globalSettingsApp != null) {
                 globalSettingsApp = null
             } else if (globalSettingsGogGame != null) {
@@ -930,10 +899,9 @@ class UnifiedActivity : ComponentActivity() {
         isLibraryTab: Boolean,
         searchQuery: String,
         onSearchQueryChange: (String) -> Unit,
+        onFilterClicked: () -> Unit,
         onGameSettingsClicked: () -> Unit
     ) {
-        var showStatusMenu by remember { mutableStateOf(false) }
-        val currentState = persona?.state ?: EPersonaState.Online
         var isSearchExpanded by remember { mutableStateOf(false) }
         val searchFocusRequester = remember { FocusRequester() }
         val keyboardController = LocalSoftwareKeyboardController.current
@@ -1179,75 +1147,22 @@ class UnifiedActivity : ComponentActivity() {
 
                 Spacer(Modifier.width(8.dp))
 
-                Box(modifier = Modifier.focusProperties { canFocus = !isLibraryTab }) {
-                    val avatarUrl = persona?.avatarHash?.getAvatarURL()
-                        ?: "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/fe/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg"
-
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
-                            .clip(CircleShape)
-                            .clickable { showStatusMenu = true }
-                    ) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context).data(avatarUrl).crossfade(true).build(),
-                            contentDescription = "Profile",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                        val statusColor = when (currentState) {
-                            EPersonaState.Online -> StatusOnline
-                            EPersonaState.Away -> StatusAway
-                            else -> StatusOffline
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(12.dp)
-                                .align(Alignment.BottomEnd)
-                                .offset((-1).dp, (-1).dp)
-                                .background(BgDark, CircleShape)
-                                .padding(2.dp)
-                                .background(statusColor, CircleShape)
-                        )
-                    }
-
-                    DropdownMenu(
-                        expanded = showStatusMenu,
-                        onDismissRequest = { showStatusMenu = false },
-                        modifier = Modifier
-                            .width(200.dp)
-                            .background(SurfaceDark, RoundedCornerShape(12.dp))
-                    ) {
-                        Text(
-                            "STATUS",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
-                        listOf(
-                            Triple(EPersonaState.Online, "Online", StatusOnline),
-                            Triple(EPersonaState.Away, "Away", StatusAway),
-                            Triple(EPersonaState.Invisible, "Invisible", StatusOffline)
-                        ).forEach { (state, label, color) ->
-                            DropdownMenuItem(
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                        Box(Modifier.size(10.dp).background(color, CircleShape))
-                                        Text(label, color = TextPrimary)
-                                        Spacer(Modifier.weight(1f))
-                                        if (currentState == state) {
-                                            Icon(Icons.Default.Check, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
-                                        }
-                                    }
-                                },
-                                onClick = {
-                                    showStatusMenu = false
-                                    scope.launch { SteamService.setPersonaState(state) }
-                                }
-                            )
-                        }
-                    }
+                // Filter button (opens drawer)
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
+                        .clip(CircleShape)
+                        .background(SurfaceDark)
+                        .focusProperties { canFocus = !isLibraryTab }
+                        .clickable { onFilterClicked() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = TextPrimary, modifier = Modifier.size(24.dp))
+                }
+                if (isControllerConnected) {
+                    Spacer(Modifier.width(8.dp))
+                    ControllerBadge(if (isPS) "Square" else "X")
                 }
             }
         }
@@ -2691,7 +2606,6 @@ class UnifiedActivity : ComponentActivity() {
                 color = TextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center
             )
         }
@@ -4644,111 +4558,210 @@ class UnifiedActivity : ComponentActivity() {
         }
     }
 
-    // Filter panel
+    // Drawer content: avatar card + filters
     @Composable
-    private fun FilterPanel(
-        visible: Boolean,
-        onDismiss: () -> Unit,
+    private fun DrawerContent(
+        persona: com.winlator.cmod.steam.data.SteamFriend?,
+        context: android.content.Context,
+        scope: kotlinx.coroutines.CoroutineScope,
         aioMode: Boolean,
         onAioToggle: (Boolean) -> Unit,
         storeVisible: SnapshotStateMap<String, Boolean>,
         contentFilters: SnapshotStateMap<String, Boolean>,
         libraryLayoutMode: LibraryLayoutMode,
         onLibraryLayoutSelected: (LibraryLayoutMode) -> Unit,
+        onClose: () -> Unit,
     ) {
-        androidx.compose.animation.AnimatedVisibility(
-            visible = visible,
-            enter = androidx.compose.animation.slideInVertically(initialOffsetY = { it }) + androidx.compose.animation.fadeIn(),
-            exit = androidx.compose.animation.slideOutVertically(targetOffsetY = { it }) + androidx.compose.animation.fadeOut()
+        val currentState = persona?.state ?: EPersonaState.Online
+        var statusExpanded by remember { mutableStateOf(false) }
+
+        ModalDrawerSheet(
+            drawerContainerColor = BgDark,
+            drawerContentColor = TextPrimary,
+            modifier = Modifier.width(300.dp)
         ) {
-            Surface(
-                modifier = Modifier
-                    .padding(start = 16.dp, bottom = 72.dp)
-                    .width(280.dp),
-                shape = RoundedCornerShape(16.dp),
-                color = SurfaceDark,
-                shadowElevation = 16.dp,
-                tonalElevation = 4.dp
-            ) {
-                Column(Modifier
-                    .padding(20.dp)
-                    .heightIn(max = 450.dp)
+            Column(
+                Modifier
+                    .fillMaxHeight()
                     .verticalScroll(rememberScrollState())
+                    .padding(20.dp)
+            ) {
+                // ── Avatar Card ──
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = SurfaceDark,
+                    border = BorderStroke(1.dp, CardBorder),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { statusExpanded = !statusExpanded }
                 ) {
-                    // Header
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("FILTERS", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = TextPrimary)
-                        IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Close, contentDescription = "Close", tint = TextSecondary, modifier = Modifier.size(18.dp))
+                    Column(Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            val avatarUrl = persona?.avatarHash?.getAvatarURL()
+                                ?: "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/fe/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg"
+
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                            ) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context).data(avatarUrl).crossfade(true).build(),
+                                    contentDescription = "Profile",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+
+                            Spacer(Modifier.width(12.dp))
+
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    text = persona?.name ?: "Not signed in",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                val statusLabel = when (currentState) {
+                                    EPersonaState.Online -> "Online"
+                                    EPersonaState.Away -> "Away"
+                                    else -> "Offline"
+                                }
+                                val statusColor = when (currentState) {
+                                    EPersonaState.Online -> StatusOnline
+                                    EPersonaState.Away -> StatusAway
+                                    else -> StatusOffline
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(Modifier.size(8.dp).background(statusColor, CircleShape))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(statusLabel, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                }
+                            }
+
+                            val chevronRotation by animateFloatAsState(
+                                targetValue = if (statusExpanded) 90f else 0f,
+                                animationSpec = tween(250),
+                                label = "chevronRotation"
+                            )
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = "Toggle status",
+                                tint = TextSecondary,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .graphicsLayer { rotationZ = chevronRotation }
+                            )
+                        }
+
+                        // Expandable status options
+                        AnimatedVisibility(visible = statusExpanded) {
+                            Column(Modifier.padding(top = 12.dp)) {
+                                HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
+                                Spacer(Modifier.height(8.dp))
+                                Text("STATUS", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                                Spacer(Modifier.height(8.dp))
+
+                                listOf(
+                                    Triple(EPersonaState.Online, "Online", StatusOnline),
+                                    Triple(EPersonaState.Away, "Away", StatusAway),
+                                    Triple(EPersonaState.Invisible, "Invisible", StatusOffline)
+                                ).forEach { (state, label, color) ->
+                                    val isSelected = currentState == state
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (isSelected) Accent.copy(alpha = 0.1f) else Color.Transparent)
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null
+                                            ) {
+                                                scope.launch { SteamService.setPersonaState(state) }
+                                            }
+                                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Box(Modifier.size(10.dp).background(color, CircleShape))
+                                        Text(label, color = TextPrimary, style = MaterialTheme.typography.bodyMedium)
+                                        Spacer(Modifier.weight(1f))
+                                        if (isSelected) {
+                                            Icon(Icons.Default.Check, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
+                }
 
-                    Spacer(Modifier.height(12.dp))
-                    HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
-                    Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(20.dp))
+                HorizontalDivider(color = TextSecondary.copy(alpha = 0.15f))
+                Spacer(Modifier.height(20.dp))
 
-                    // AIO Mode toggle
-                    FilterButton("AIO Store Mode", aioMode, Modifier.fillMaxWidth()) { onAioToggle(it) }
+                // ── Layouts ──
+                Text("LAYOUTS", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp, modifier = Modifier.padding(bottom = 4.dp))
+                Spacer(Modifier.height(8.dp))
 
-                    Spacer(Modifier.height(16.dp))
-                    Text("STORES", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
-                    Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DrawerFilterButton(
+                        label = "4-Grid",
+                        checked = libraryLayoutMode == LibraryLayoutMode.GRID_4,
+                        modifier = Modifier.weight(1f)
+                    ) { if (it) onLibraryLayoutSelected(LibraryLayoutMode.GRID_4) }
+                    DrawerFilterButton(
+                        label = "Carousel",
+                        checked = libraryLayoutMode == LibraryLayoutMode.CAROUSEL,
+                        modifier = Modifier.weight(1f)
+                    ) { if (it) onLibraryLayoutSelected(LibraryLayoutMode.CAROUSEL) }
+                }
 
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterButton("Steam", storeVisible["steam"] == true, Modifier.weight(1f)) { storeVisible["steam"] = it }
-                        FilterButton("Epic", storeVisible["epic"] == true, Modifier.weight(1f)) { storeVisible["epic"] = it }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterButton("GOG", storeVisible["gog"] == true, Modifier.weight(1f)) { storeVisible["gog"] = it }
-                        FilterButton("Amazon", storeVisible["amazon"] == true, Modifier.weight(1f)) { storeVisible["amazon"] = it }
-                    }
+                Spacer(Modifier.height(16.dp))
 
-                    Spacer(Modifier.height(16.dp))
-                    Text("CONTENT TYPES", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
-                    Spacer(Modifier.height(8.dp))
+                // ── Stores ──
+                Text("STORES", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp, modifier = Modifier.padding(bottom = 4.dp))
+                Spacer(Modifier.height(8.dp))
 
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterButton("Games", contentFilters["games"] == true, Modifier.weight(1f)) { contentFilters["games"] = it }
-                        FilterButton("DLC", contentFilters["dlc"] == true, Modifier.weight(1f)) { contentFilters["dlc"] = it }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterButton("Applications", contentFilters["applications"] == true, Modifier.weight(1f)) { contentFilters["applications"] = it }
-                        FilterButton("Tools", contentFilters["tools"] == true, Modifier.weight(1f)) { contentFilters["tools"] = it }
-                    }
+                DrawerFilterButton("AIO Store Mode", aioMode, Modifier.fillMaxWidth()) { onAioToggle(it) }
+                Spacer(Modifier.height(8.dp))
 
-                    Spacer(Modifier.height(16.dp))
-                    Text("LAYOUTS", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
-                    Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DrawerFilterButton("Steam", storeVisible["steam"] == true, Modifier.weight(1f)) { storeVisible["steam"] = it }
+                    DrawerFilterButton("Epic", storeVisible["epic"] == true, Modifier.weight(1f)) { storeVisible["epic"] = it }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DrawerFilterButton("GOG", storeVisible["gog"] == true, Modifier.weight(1f)) { storeVisible["gog"] = it }
+                    DrawerFilterButton("Amazon", storeVisible["amazon"] == true, Modifier.weight(1f)) { storeVisible["amazon"] = it }
+                }
 
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterButton(
-                            label = "4-Grid",
-                            checked = libraryLayoutMode == LibraryLayoutMode.GRID_4,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            if (it) onLibraryLayoutSelected(LibraryLayoutMode.GRID_4)
-                        }
-                        FilterButton(
-                            label = "Carousel",
-                            checked = libraryLayoutMode == LibraryLayoutMode.CAROUSEL,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            if (it) onLibraryLayoutSelected(LibraryLayoutMode.CAROUSEL)
-                        }
-                    }
+                Spacer(Modifier.height(16.dp))
+
+                // ── Content Types ──
+                Text("CONTENT TYPES", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp, modifier = Modifier.padding(bottom = 4.dp))
+                Spacer(Modifier.height(8.dp))
+
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DrawerFilterButton("Games", contentFilters["games"] == true, Modifier.weight(1f)) { contentFilters["games"] = it }
+                    DrawerFilterButton("DLC", contentFilters["dlc"] == true, Modifier.weight(1f)) { contentFilters["dlc"] = it }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DrawerFilterButton("Applications", contentFilters["applications"] == true, Modifier.weight(1f)) { contentFilters["applications"] = it }
+                    DrawerFilterButton("Tools", contentFilters["tools"] == true, Modifier.weight(1f)) { contentFilters["tools"] = it }
                 }
             }
         }
     }
 
     @Composable
-    private fun FilterButton(label: String, checked: Boolean, modifier: Modifier = Modifier, onToggle: (Boolean) -> Unit) {
+    private fun DrawerFilterButton(label: String, checked: Boolean, modifier: Modifier = Modifier, onToggle: (Boolean) -> Unit) {
         val bgColor = if (checked) Accent.copy(alpha = 0.2f) else CardDark
         val borderColor = if (checked) Accent else Color.Transparent
         val textColor = if (checked) Accent else TextSecondary
@@ -4758,7 +4771,10 @@ class UnifiedActivity : ComponentActivity() {
                 .clip(RoundedCornerShape(8.dp))
                 .background(bgColor)
                 .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-                .clickable { onToggle(!checked) }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { onToggle(!checked) }
                 .padding(vertical = 10.dp, horizontal = 12.dp),
             contentAlignment = Alignment.Center
         ) {
