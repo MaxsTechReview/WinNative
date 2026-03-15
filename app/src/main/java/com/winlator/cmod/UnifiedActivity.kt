@@ -4683,16 +4683,38 @@ class UnifiedActivity : ComponentActivity() {
                                     Triple(EPersonaState.Invisible, "Invisible", StatusOffline)
                                 ).forEach { (state, label, color) ->
                                     val isSelected = currentState == state
+                                    val rowBg by animateColorAsState(
+                                        targetValue = if (isSelected) Accent.copy(alpha = 0.12f) else Color.Transparent,
+                                        animationSpec = tween(250),
+                                        label = "statusRowBg"
+                                    )
+                                    val borderAlpha by animateFloatAsState(
+                                        targetValue = if (isSelected) 1f else 0f,
+                                        animationSpec = tween(250),
+                                        label = "statusBorder"
+                                    )
+                                    val checkScale by animateFloatAsState(
+                                        targetValue = if (isSelected) 1f else 0f,
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                            stiffness = Spring.StiffnessMedium
+                                        ),
+                                        label = "checkScale"
+                                    )
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(8.dp))
-                                            .background(if (isSelected) Accent.copy(alpha = 0.1f) else Color.Transparent)
+                                            .background(rowBg)
+                                            .border(1.dp, Accent.copy(alpha = 0.4f * borderAlpha), RoundedCornerShape(8.dp))
                                             .clickable(
                                                 interactionSource = remember { MutableInteractionSource() },
                                                 indication = null
                                             ) {
-                                                scope.launch { SteamService.setPersonaState(state) }
+                                                scope.launch {
+                                                    SteamService.setPersonaState(state)
+                                                    statusExpanded = false
+                                                }
                                             }
                                             .padding(horizontal = 12.dp, vertical = 10.dp),
                                         verticalAlignment = Alignment.CenterVertically,
@@ -4701,9 +4723,18 @@ class UnifiedActivity : ComponentActivity() {
                                         Box(Modifier.size(10.dp).background(color, CircleShape))
                                         Text(label, color = TextPrimary, style = MaterialTheme.typography.bodyMedium)
                                         Spacer(Modifier.weight(1f))
-                                        if (isSelected) {
-                                            Icon(Icons.Default.Check, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
-                                        }
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = Accent,
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                                .graphicsLayer {
+                                                    scaleX = checkScale
+                                                    scaleY = checkScale
+                                                    alpha = checkScale
+                                                }
+                                        )
                                     }
                                 }
                             }
