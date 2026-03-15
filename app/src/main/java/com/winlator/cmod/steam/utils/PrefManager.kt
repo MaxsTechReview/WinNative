@@ -114,6 +114,10 @@ object PrefManager {
         get() = getBoolean("aio_store_mode", true)
         set(value) { setBoolean("aio_store_mode", value) }
 
+    var libraryLayoutMode: String
+        get() = getString("library_layout_mode", "GRID_4")
+        set(value) { setString("library_layout_mode", value) }
+
     var enableSteamLogs: Boolean
         get() = getBoolean("enable_steam_logs", false)
         set(value) { setBoolean("enable_steam_logs", value) }

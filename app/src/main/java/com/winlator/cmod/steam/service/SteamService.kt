@@ -921,6 +921,7 @@ class SteamService : Service(), IChallengeUrlChanged {
                     if (dirFile.exists() && dirFile.isDirectory) {
                         deleteRecursivelyWithRetries(dirFile)
                     }
+                    PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(appId))
                     withContext(kotlinx.coroutines.Dispatchers.Main) {
                         onComplete(true)
                     }

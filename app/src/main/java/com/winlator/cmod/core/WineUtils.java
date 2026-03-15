@@ -39,6 +39,29 @@ public abstract class WineUtils {
         }
     }
 
+    public static boolean isRegistryFileValid(File regFile) {
+        if (regFile == null || !regFile.isFile() || regFile.length() < 24) return false;
+        String contents = FileUtils.readString(regFile);
+        if (contents == null) return false;
+
+        String normalized = contents.trim();
+        return normalized.startsWith("WINE REGISTRY Version");
+    }
+
+    public static boolean isPrefixValid(File containerDir) {
+        if (containerDir == null) return false;
+
+        File prefixDir = new File(containerDir, ".wine");
+        File systemRegFile = new File(prefixDir, "system.reg");
+        File userRegFile = new File(prefixDir, "user.reg");
+        File windowsDir = new File(prefixDir, "drive_c/windows");
+
+        return prefixDir.isDirectory() &&
+                windowsDir.isDirectory() &&
+                isRegistryFileValid(systemRegFile) &&
+                isRegistryFileValid(userRegFile);
+    }
+
     private static void setWindowMetrics(WineRegistryEditor registryEditor) {
         byte[] fontNormalData = (new MSLogFont()).toByteArray();
         byte[] fontBoldData = (new MSLogFont()).setWeight(700).toByteArray();

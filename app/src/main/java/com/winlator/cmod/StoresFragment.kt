@@ -79,6 +79,30 @@ class StoresFragment : Fragment() {
         }
     }
 
+    private val epicLoginLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val code = result.data?.getStringExtra(EpicOAuthActivity.EXTRA_AUTH_CODE)
+            if (!code.isNullOrBlank()) {
+                CoroutineScope(Dispatchers.Main).launch {
+                    EpicAuthManager.authenticateWithCode(requireContext(), code)
+                    refresh()
+                }
+            } else {
+                refresh()
+            }
+        } else {
+            refresh()
+        }
+    }
+
+    private val steamLoginLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        refresh()
+    }
+
     // Lifecycle
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -107,12 +131,12 @@ class StoresFragment : Fragment() {
                     StoresScreen(
                         state                = storeState,
                         serverOptions        = serverOptions,
-                        onSteamSignIn        = { startActivity(Intent(requireContext(), SteamLoginActivity::class.java)) },
+                        onSteamSignIn        = { steamLoginLauncher.launch(Intent(requireContext(), SteamLoginActivity::class.java)) },
                         onSteamSignOut       = {
                             SteamService.logOut()
                             refresh()
                         },
-                        onEpicSignIn         = { startActivity(Intent(requireContext(), EpicOAuthActivity::class.java)) },
+                        onEpicSignIn         = { epicLoginLauncher.launch(Intent(requireContext(), EpicOAuthActivity::class.java)) },
                         onEpicSignOut        = { EpicAuthManager.logoutSync(requireContext()); refresh() },
                         onGogSignIn          = { gogLoginLauncher.launch(Intent(requireContext(), GOGOAuthActivity::class.java)) },
                         onGogSignOut         = {

@@ -114,6 +114,7 @@
     <string name="directshow">DirectShow</string>
     <string name="directx">DirectX</string>
     <string name="xaudio">XAudio</string>
+    <string name="xinput_virtual">Virtual XInput</string>
     <string name="vcrun2010">Visual C++ 2010</string>
     <string name="opengl">OpenGL</string>
     <string name="presets">Presets</string>

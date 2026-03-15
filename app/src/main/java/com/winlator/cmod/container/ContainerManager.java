@@ -14,6 +14,7 @@ import com.winlator.cmod.core.MSLink;
 import com.winlator.cmod.core.OnExtractFileListener;
 import com.winlator.cmod.core.TarCompressorUtils;
 import com.winlator.cmod.core.WineInfo;
+import com.winlator.cmod.core.WineUtils;
 import com.winlator.cmod.xenvironment.ImageFs;
 
 import java.util.Arrays;
@@ -171,6 +172,8 @@ public class ContainerManager {
                 return null;
             }
             Log.d("ContainerManager", "createContainer: container pattern extracted successfully");
+            container.putExtra("wineprefixArch", WineInfo.fromIdentifier(context, contentsManager, wineVersion).getArch());
+            container.putExtra("wineprefixNeedsUpdate", null);
 
 //            // Extract the selected graphics driver files
 //            String driverVersion = container.getGraphicsDriverVersion();
@@ -388,6 +391,57 @@ public class ContainerManager {
         }
    
         return result;
+    }
+
+    public boolean repairContainerWinePrefix(Container container, String wineVersion, ContentsManager contentsManager, OnExtractFileListener onExtractFileListener) {
+        File containerDir = container.getRootDir();
+        if (containerDir == null || !containerDir.isDirectory()) return false;
+
+        File tempDir = FileUtils.createTempFile(context.getCacheDir(), "wineprefix-repair");
+        if (!tempDir.mkdirs()) {
+            Log.e("ContainerManager", "repairContainerWinePrefix: failed to create temp dir " + tempDir.getAbsolutePath());
+            return false;
+        }
+
+        boolean extracted = false;
+        try {
+            extracted = extractContainerPatternFile(container, wineVersion, contentsManager, tempDir, onExtractFileListener);
+            if (!extracted) {
+                Log.e("ContainerManager", "repairContainerWinePrefix: failed to extract repair prefix for " + wineVersion);
+                return false;
+            }
+
+            File repairedPrefixDir = new File(tempDir, ".wine");
+            if (!WineUtils.isPrefixValid(tempDir) || !repairedPrefixDir.isDirectory()) {
+                Log.e("ContainerManager", "repairContainerWinePrefix: extracted prefix is still invalid");
+                return false;
+            }
+
+            File targetPrefixDir = new File(containerDir, ".wine");
+            if (targetPrefixDir.exists() && !FileUtils.delete(targetPrefixDir)) {
+                Log.e("ContainerManager", "repairContainerWinePrefix: failed to clear existing prefix " + targetPrefixDir.getAbsolutePath());
+                return false;
+            }
+
+            if (!FileUtils.copy(repairedPrefixDir, targetPrefixDir)) {
+                Log.e("ContainerManager", "repairContainerWinePrefix: failed to copy repaired prefix");
+                return false;
+            }
+
+            WineInfo wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersion);
+            container.putExtra("wineprefixArch", wineInfo.getArch());
+            container.putExtra("wineprefixNeedsUpdate", null);
+            container.putExtra("appVersion", null);
+            container.putExtra("imgVersion", null);
+            container.putExtra("dxwrapper", null);
+            container.putExtra("wincomponents", null);
+            container.putExtra("desktopTheme", null);
+            container.putExtra("startupSelection", null);
+            container.saveData();
+            return true;
+        } finally {
+            FileUtils.delete(tempDir);
+        }
     }
 
     public Container getContainerForShortcut(Shortcut shortcut) {

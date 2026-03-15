@@ -412,8 +412,21 @@ class GOGService : Service() {
                 ?: return Result.failure(Exception("Game not found: $gameId"))
             val effectiveInstallPath = if (installPath.isNotEmpty()) installPath else activeInstance.gogManager.getGameInstallPath(gameId, game.title)
 
+            val existingDownload = activeInstance.activeDownloads[gameId]
+            if (existingDownload != null) {
+                if (existingDownload.isActive()) {
+                    Timber.tag("GOG").w("Download already in progress for $gameId")
+                    return Result.success(existingDownload)
+                }
+                activeInstance.activeDownloads.remove(gameId)
+            }
+
             // Create DownloadInfo for progress tracking
-            val downloadInfo = DownloadInfo(jobCount = 1, gameId = 0, downloadingAppIds = CopyOnWriteArrayList<Int>())
+            val downloadInfo = DownloadInfo(
+                jobCount = 1,
+                gameId = gameId.toIntOrNull() ?: 0,
+                downloadingAppIds = CopyOnWriteArrayList<Int>(),
+            )
 
             // Track in activeDownloads first
             activeInstance.activeDownloads[gameId] = downloadInfo

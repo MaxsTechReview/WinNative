@@ -361,6 +361,14 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         envVars.put("PATH", winePath + ":" +
                 rootDir.getPath() + "/usr/bin");
 
+        boolean prefer64BitWine = !wineInfo.isArm64EC();
+        String wineLoader = resolveWineBinary(winePath, prefer64BitWine);
+        String wineServer = resolveWineServerBinary(winePath, prefer64BitWine);
+        envVars.put("WINELOADER", wineLoader);
+        if (wineServer != null) {
+            envVars.put("WINESERVER", wineServer);
+        }
+
  
         envVars.put("ANDROID_SYSVSHM_SERVER", rootDir.getPath() + UnixSocketConfig.SYSVSHM_SERVER_PATH);
 
@@ -525,16 +533,19 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
                 command += part + " ";
             command = command.trim();
         }
+        String pinnedGuestExecutable = pinWineLoader(guestExecutable, wineLoader);
+
         if (wineInfo.isArm64EC()) {
             // HODLL is mandatory for Arm64EC Wine to translate x86/x64 guest code.
             // We set both libwow64fex.dll (32-bit) and libarm64ecfex.dll (64-bit)
             // to support mixed architecture process trees (e.g. 32-bit launcher -> 64-bit game).
             envVars.put("HODLL", "libwow64fex.dll:libarm64ecfex.dll");
 
-            command = winePath + "/" + guestExecutable;
+            command = pinnedGuestExecutable;
         } else {
-            // x86_64 containers use Box64 binary translation directly
-            command = imageFs.getBinDir() + "/box64 " + guestExecutable;
+            // x86_64 containers use Box64 binary translation directly.
+            // Pin the selected Wine loader/server so we do not accidentally resolve a mismatched wineserver.
+            command = imageFs.getBinDir() + "/box64 " + pinnedGuestExecutable;
         }
 
         // **Maybe remove this: Set execute permissions for box64 if necessary (Glibc/Proot artifact)
@@ -581,5 +592,31 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         synchronized (lock) {
             if (pid != -1) ProcessHelper.resumeProcess(pid);
         }
+    }
+
+    private String resolveWineBinary(String wineBinDir, boolean prefer64BitWine) {
+        File preferredBinary = new File(wineBinDir, prefer64BitWine ? "wine64" : "wine");
+        if (preferredBinary.exists()) return preferredBinary.getAbsolutePath();
+
+        File fallbackBinary = new File(wineBinDir, "wine");
+        if (fallbackBinary.exists()) return fallbackBinary.getAbsolutePath();
+
+        return preferredBinary.getAbsolutePath();
+    }
+
+    private String resolveWineServerBinary(String wineBinDir, boolean prefer64BitWine) {
+        File preferredBinary = new File(wineBinDir, prefer64BitWine ? "wineserver64" : "wineserver");
+        if (preferredBinary.exists()) return preferredBinary.getAbsolutePath();
+
+        File fallbackBinary = new File(wineBinDir, "wineserver");
+        return fallbackBinary.exists() ? fallbackBinary.getAbsolutePath() : null;
+    }
+
+    private String pinWineLoader(String command, String wineLoader) {
+        if (command == null || command.isEmpty()) return command;
+        if (command.equals("wine") || command.equals("wine64")) return wineLoader;
+        if (command.startsWith("wine ")) return wineLoader + command.substring(4);
+        if (command.startsWith("wine64 ")) return wineLoader + command.substring(6);
+        return command;
     }
 }

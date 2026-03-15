@@ -77,6 +77,7 @@ import com.winlator.cmod.core.WineRequestHandler;
 import com.winlator.cmod.core.WineStartMenuCreator;
 import com.winlator.cmod.core.WineThemeManager;
 import com.winlator.cmod.core.WineUtils;
+import com.winlator.cmod.gamefixes.GameFixes;
 import com.winlator.cmod.inputcontrols.ControlsProfile;
 import com.winlator.cmod.inputcontrols.ControllerManager;
 import com.winlator.cmod.inputcontrols.ExternalController;
@@ -1452,6 +1453,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private void setupWineSystemFiles() {
+        ensureWinePrefixReady();
+
         String appVersion = String.valueOf(AppUtils.getVersionCode(this));
         String imgVersion = String.valueOf(imageFs.getVersion());
         boolean containerDataChanged = false;
@@ -1598,14 +1601,15 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         // Additional container checks and environment configuration
         if (container != null) {
-            if (Byte.parseByte(startupSelection) == Container.STARTUP_SELECTION_AGGRESSIVE) {
-                winHandler.killProcess("services.exe");
-            }
-            guestProgramLauncherComponent.setContainer(this.container);
-            guestProgramLauncherComponent.setWineInfo(this.wineInfo);
+                if (Byte.parseByte(startupSelection) == Container.STARTUP_SELECTION_AGGRESSIVE) {
+                    winHandler.killProcess("services.exe");
+                }
+                guestProgramLauncherComponent.setContainer(this.container);
+                guestProgramLauncherComponent.setWineInfo(this.wineInfo);
+                GameFixes.applyForLaunch(container, shortcut);
 
-            String wineStartCmd = getWineStartCommand(guestProgramLauncherComponent);
-            String guestExecutable;
+                String wineStartCmd = getWineStartCommand(guestProgramLauncherComponent);
+                String guestExecutable;
             
             // Use wine explorer for all containers - GuestProgramLauncherComponent handles
             // the architecture difference (winePath for arm64ec, box64 for x86_64)
@@ -1848,6 +1852,40 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 // If the child is a TextView, set its text color
                 ((TextView) child).setTextColor(color);
             }
+        }
+    }
+
+    private void ensureWinePrefixReady() {
+        if (container == null || wineInfo == null) return;
+
+        File containerDir = container.getRootDir();
+        boolean prefixInvalid = !WineUtils.isPrefixValid(containerDir);
+        String storedPrefixArch = container.getExtra("wineprefixArch");
+        boolean archMismatch = !storedPrefixArch.isEmpty() && !storedPrefixArch.equalsIgnoreCase(wineInfo.getArch());
+        boolean prefixNeedsUpdate = "t".equalsIgnoreCase(container.getExtra("wineprefixNeedsUpdate"));
+
+        if (!prefixInvalid && !archMismatch && !prefixNeedsUpdate) {
+            if (storedPrefixArch.isEmpty()) {
+                container.putExtra("wineprefixArch", wineInfo.getArch());
+                container.putExtra("wineprefixNeedsUpdate", null);
+                container.saveData();
+            }
+            return;
+        }
+
+        Log.w("XServerDisplayActivity", "Repairing Wine prefix for container " + container.id +
+                " invalid=" + prefixInvalid +
+                " archMismatch=" + archMismatch +
+                " storedArch=" + storedPrefixArch +
+                " targetArch=" + wineInfo.getArch() +
+                " needsUpdate=" + prefixNeedsUpdate);
+
+        boolean repaired = containerManager.repairContainerWinePrefix(container, wineVersion, contentsManager, onExtractFileListener);
+        if (repaired) {
+            firstTimeBoot = true;
+            Log.i("XServerDisplayActivity", "Wine prefix repaired successfully for container " + container.id);
+        } else {
+            Log.e("XServerDisplayActivity", "Wine prefix repair failed for container " + container.id);
         }
     }
 
