@@ -398,6 +398,16 @@ class UnifiedActivity : ComponentActivity() {
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.navigationBarColor = 0xFF0D1117.toInt()
+
+        // Exclude left edge from system back gesture so the drawer can capture swipes
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            window.decorView.post {
+                val leftEdgeWidth = (40 * resources.displayMetrics.density).toInt()
+                val exclusionRect = android.graphics.Rect(0, 0, leftEdgeWidth, window.decorView.height)
+                window.decorView.systemGestureExclusionRects = listOf(exclusionRect)
+            }
+        }
+
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
                 primary = Accent,
