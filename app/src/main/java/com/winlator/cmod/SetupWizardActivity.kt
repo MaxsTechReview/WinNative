@@ -214,8 +214,8 @@ class SetupWizardActivity : FragmentActivity() {
         PackageSpec(
             label = "DXVK 2.7.1 GPLAsync",
             type = ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-            url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-Dxvk/Dxvk-2.7.1-gplasync-1.wcp",
-            nameHint = "dxvk-2.7.1-gplasync-1"
+            url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-Dxvk/Dxvk-2.7.1-gplasync.wcp",
+            nameHint = "dxvk-2.7.1-gplasync"
         ),
         PackageSpec(
             label = "VKD3D Proton 3.0b",
