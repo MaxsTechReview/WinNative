@@ -2094,11 +2094,15 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="library_download_phase_finalizing">Finalizing</string>
     <string name="library_download_phase_paused">Paused</string>
     <string name="library_download_phase_failed">Failed</string>
-    <string name="native_rendering">Native Rendering</string>
     <string name="touch_controller">Touch Controller</string>
     <string name="tools">Tools</string>
     <string name="controller">Controller</string>
     -->
+    <string name="native_rendering">Native Rendering</string>
+    <string name="native_rendering_subtitle_enabled">DRI3 hardware rendering</string>
+    <string name="native_rendering_subtitle_disabled">Software WSI fallback</string>
+    <string name="native_rendering_enabled_toast">Native rendering enabled (takes effect on next launch)</string>
+    <string name="native_rendering_disabled_toast">Native rendering disabled (takes effect on next launch)</string>
     <string name="download_in_components">None downloaded. Please download one in Components.</string>
 
     <!-- Various homescreen strings (need to finalize/fix naming) -->

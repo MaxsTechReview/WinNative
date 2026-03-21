@@ -189,6 +189,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private Runnable configChangedCallback = null;
     private boolean isPaused = false;
     private boolean isRelativeMouseMovement = false;
+    private boolean isNativeRenderingEnabled = true;
 
     // Inside the XServerDisplayActivity class
     private SensorManager sensorManager;
@@ -490,6 +491,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         ComposeView navigationComposeView = findViewById(R.id.NavigationComposeView);
         enableLogsMenu = preferences.getBoolean("enable_wine_debug", false) || preferences.getBoolean("enable_box64_logs", false);
+        isNativeRenderingEnabled = preferences.getBoolean("use_dri3", true);
         navigationComposeView.setPointerIcon(PointerIcon.getSystemIcon(this, PointerIcon.TYPE_ARROW));
         navigationComposeView.setOnFocusChangeListener((v, hasFocus) -> navigationFocused = hasFocus);
         renderDrawerMenu();
@@ -1466,7 +1468,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 isMouseDisabled,
                 isPaused,
                 !XrActivity.isEnabled(this),
-                enableLogsMenu
+                enableLogsMenu,
+                isNativeRenderingEnabled,
+                getString(R.string.native_rendering),
+                getString(isNativeRenderingEnabled ? R.string.native_rendering_subtitle_enabled : R.string.native_rendering_subtitle_disabled)
         );
         XServerDrawerMenuKt.setupXServerDrawerComposeView(
                 navigationComposeView,
@@ -1568,6 +1573,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
             case R.id.main_menu_logs:
                 debugDialog.show();
                 drawerLayout.closeDrawers();
+                break;
+            case R.id.main_menu_native_rendering:
+                isNativeRenderingEnabled = !isNativeRenderingEnabled;
+                preferences.edit().putBoolean("use_dri3", isNativeRenderingEnabled).apply();
+                drawerLayout.closeDrawers();
+                showToast(this, getString(isNativeRenderingEnabled
+                    ? R.string.native_rendering_enabled_toast
+                    : R.string.native_rendering_disabled_toast));
                 break;
             case R.id.main_menu_exit:
                 drawerLayout.closeDrawers();
@@ -2510,11 +2523,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
             WineD3DConfigDialog.setEnvVars(this, dxwrapperConfig, envVars);
         }
 
-        boolean useDRI3 = preferences.getBoolean("use_dri3", true);
-        if (!useDRI3) {
-            envVars.put("MESA_VK_WSI_DEBUG", "sw");
-        }
-
         envVars.put("VK_ICD_FILENAMES", imageFs.getShareDir() + "/vulkan/icd.d/wrapper_icd.aarch64.json");
         envVars.put("GALLIUM_DRIVER", "zink");
 
@@ -2572,6 +2580,11 @@ public class XServerDisplayActivity extends AppCompatActivity {
         String syncFrame = graphicsDriverConfig.get("syncFrame");
         if ("1".equals(syncFrame))
             envVars.put("MESA_VK_WSI_DEBUG", "forcesync");
+
+        if (!isNativeRenderingEnabled) {
+            envVars.put("MESA_VK_WSI_DEBUG", "sw");
+        }
+        Log.d("NativeRendering", "use_dri3=" + isNativeRenderingEnabled + " MESA_VK_WSI_DEBUG=" + envVars.get("MESA_VK_WSI_DEBUG"));
 
         String disablePresentWait = graphicsDriverConfig.get("disablePresentWait");
         envVars.put("WRAPPER_DISABLE_PRESENT_WAIT", disablePresentWait);

@@ -63,6 +63,9 @@ fun buildXServerDrawerState(
     paused: Boolean,
     showMagnifier: Boolean,
     showLogs: Boolean,
+    nativeRenderingEnabled: Boolean,
+    nativeRenderingTitle: String,
+    nativeRenderingSubtitle: String,
 ): XServerDrawerState {
     val items = mutableListOf(
         XServerDrawerItem(
@@ -102,6 +105,13 @@ fun buildXServerDrawerState(
             title = "Toggle Fullscreen",
             subtitle = "Switch fullscreen rendering",
             iconRes = R.drawable.icon_fullscreen,
+        ),
+        XServerDrawerItem(
+            itemId = R.id.main_menu_native_rendering,
+            title = nativeRenderingTitle,
+            subtitle = nativeRenderingSubtitle,
+            iconRes = R.drawable.ic_drivers,
+            active = nativeRenderingEnabled,
         ),
         XServerDrawerItem(
             itemId = R.id.main_menu_pause,
