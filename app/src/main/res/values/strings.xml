@@ -21,8 +21,10 @@
     <string name="removing_container">Removing Container…</string>
     <string name="duplicating_container">Duplicating Container…</string>
     <string name="installing_system_files">Installing System Files…</string>
+    <!--
     <string name="updating_system_files">Updating System Files…</string>
     <string name="starting_up">Starting up…</string>
+    -->
     <string name="unable_to_install_system_files">Unable to install system files</string>
     <string name="keyboard">Keyboard</string>
     <string name="toggle_fullscreen">Toggle Fullscreen</string>
@@ -53,11 +55,15 @@
     <string name="do_you_want_to_duplicate_this_container">Do you want to duplicate this container?</string>
     <string name="do_you_want_to_remove_this_shortcut">Do you want to remove this shortcut?</string>
     <string name="do_you_want_to_remove_this_controller">Do you want to remove this controller?</string>
+    <!--
     <string name="do_you_want_to_remove_this_wine_version">Do you want to remove this wine version?</string>
+    -->
     <string name="do_you_want_to_remove_this_preset">Do you want to remove this preset?</string>
     <string name="do_you_want_to_end_this_process">Do you want to end this process?</string>
     <string name="controls_editor">Controls Editor</string>
+    <!--
     <string name="enabled">Enabled</string>
+    -->
     <string name="disabled">Disabled</string>
     <string name="container">Container</string>
     <string name="screen_size">Screen Size</string>
@@ -67,12 +73,16 @@
     <string name="processor_affinity">Processor Affinity</string>
     <string name="processor_affinity_32_bit_apps">Processor Affinity (32-bit apps)</string>
     <string name="cursor_speed">Cursor Speed</string>
+    <!--
     <string name="relative_mouse_movement">Relative Mouse Movement</string>
+    -->
     <string name="toggle_switch">Toggle Switch</string>
     <string name="profile_exported_to">Profile exported to</string>
     <string name="unable_to_import_profile">Unable to import profile</string>
     <string name="wine_configuration">Wine Configuration</string>
+    <!--
     <string name="registry_keys">Registry Keys</string>
+    -->
     <string name="csmt">CSMT (Command Stream Multi-Thread)</string>
     <string name="gpu_name">GPU Name</string>
     <string name="offscreen_rendering_mode">Offscreen Rendering Mode</string>
@@ -84,6 +94,7 @@
     <string name="icon">Icon</string>
     <string name="import_profile">Import Profile</string>
     <string name="export_profile">Export Profile</string>
+    <!--
     <string name="touchpad_help">Touchpad Help</string>
     <string name="touchpad_help_mouse_left_click_title">Mouse Left-Click</string>
     <string name="touchpad_help_mouse_left_click_description">Short tap with one finger</string>
@@ -93,9 +104,12 @@
     <string name="touchpad_help_mouse_scroll_wheel_description">Two fingers tap and move</string>
     <string name="touchpad_help_main_menu_title">Main Menu</string>
     <string name="touchpad_help_main_menu_description">Four fingers tap</string>
+    -->
     <string name="duplicate">Duplicate</string>
+    <!--
     <string name="about">About</string>
     <string name="help">Help</string>
+    -->
     <string name="credits_and_third_party_apps">Credits and Third-party apps</string>
     <string name="external_controllers">External Controllers</string>
     <string name="graphics_driver">Graphics Driver</string>
@@ -107,18 +121,24 @@
     <string name="show_touchscreen_controls">Show Touchscreen Controls</string>
     <string name="dxwrapper">DX Wrapper</string>
     <string name="mouse_warp_override">Mouse Warp Override</string>
+    <!--
     <string name="direct3d">Direct3D</string>
     <string name="directsound">DirectSound</string>
     <string name="directmusic">DirectMusic</string>
     <string name="directplay">DirectPlay</string>
     <string name="directshow">DirectShow</string>
+    -->
     <string name="directx">DirectX</string>
+    <!--
     <string name="xaudio">XAudio</string>
     <string name="xinput_virtual">Virtual XInput</string>
     <string name="vcrun2010">Visual C++ 2010</string>
     <string name="opengl">OpenGL</string>
+    -->
     <string name="presets">Presets</string>
+    <!--
     <string name="settings_presets_subtitle">View, modify, and create Box64 and FEXCore presets</string>
+    -->
     <string name="exec_arguments">Exec Arguments</string>
     <string name="win_components">Win Components</string>
     <string name="drives">Drives</string>
@@ -126,18 +146,24 @@
     <string name="enable">Enable</string>
     <string name="disable">Disable</string>
     <string name="force">Force</string>
+    <!--
     <string name="installed_wine">Installed Wine</string>
     <string name="install_wine">Install Wine</string>
+    -->
     <string name="arch">Arch</string>
     <string name="version">Version</string>
     <string name="dxvk_version">DXVK Version</string>
     <string name="vkd3d_version">VKD3D Version</string>
+    <!--
     <string name="unable_to_install_wine">Unable to install Wine</string>
     <string name="unable_to_remove_this_wine_version">Unable to remove this wine version</string>
+    -->
     <string name="wine_version">Wine Version</string>
+    <!--
     <string name="removing_wine">Removing Wine…</string>
     <string name="preparing_installation">Preparing installation…</string>
     <string name="finishing_installation">Finishing installation…</string>
+    -->
     <string name="storage_info">Storage Info</string>
     <string name="drive_c">Drive C:</string>
     <string name="cache">Cache</string>
@@ -149,14 +175,18 @@
     <string name="system">System</string>
     <string name="box64_preset">Box64 Preset</string>
     <string name="box64_version">Box64 Version</string>
+    <!--
     <string name="letter">Letter</string>
+    -->
     <string name="target_path">Target Path</string>
     <string name="xserver">XServer</string>
     <string name="use_dri3_extension">Use DRI3 extension</string>
     <string name="width">Width</string>
     <string name="height">Height</string>
+    <!--
     <string name="old">old</string>
     <string name="_new">new</string>
+    -->
     <string name="task_manager">Task Manager</string>
     <string name="process_name">Process Name</string>
     <string name="pid">PID</string>
@@ -172,15 +202,19 @@
     <string name="do_you_want_to_download_the_selected_profiles">Do you want to download the selected profiles?</string>
     <string name="downloading_file">Downloading File...</string>
     <string name="unable_to_load_profile_list">Unable to load profile list</string>
+    <!--
     <string name="copy">Copy</string>
     <string name="installed_version">Installed Version</string>
     <string name="unable_to_download_file">Unable to download file</string>
+    -->
     <string name="stability">Stability</string>
     <string name="compatibility">Compatibility</string>
     <string name="intermediate">Intermediate</string>
     <string name="performance">Performance</string>
     <string name="preset">Preset</string>
+    <!--
     <string name="selected_preset">Selected Preset</string>
+    -->
     <string name="new_preset">New Preset</string>
     <string name="rename_preset">Rename Preset</string>
     <string name="import_preset">Import Preset</string>
@@ -198,6 +232,7 @@
         &lt;i&gt;&lt;b&gt;VKD3D&lt;/b&gt;&lt;/i&gt; is a translation layer for Direct3D 12 API to Vulkan.&lt;br /&gt;&lt;br /&gt;
         &lt;i&gt;&lt;b&gt;CNC DDraw&lt;/b&gt;&lt;/i&gt; is an implementation of DirectDraw for better compatibility with classic games.
     </string>
+    <!--
     <string name="box64_env_var_help__dynarec_safeflags">
         Handling of flags on CALL/RET opcodes&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt; : Treats CALL/RET as if it never needed flags (faster, unstable)&lt;br /&gt;
@@ -276,44 +311,64 @@
     <string name="fexcore_env_var_help__disablel2cache">Disables FEXCore JIT L2 cache lookup, saving memory but introducing stutters.</string>
     <string name="fexcore_env_var_help__dynamicl1cache">Switches FEXCore JIT L1 cache to be dynamically sized, saving memory but introducing stutters.</string>
     <string name="fexcore_env_var_help__x87reducedprecision">Emulates X87 floating point using 64-bit precision. This reduces emulation accuracy and may result in rendering bugs.</string>
+    -->
     <string name="columns">Columns</string>
     <string name="directinput_mapper_type">DirectInput Mapper Type</string>
+    <!--
     <string name="desktop">Desktop</string>
+    -->
     <string name="theme">Theme</string>
     <string name="background">Background</string>
+    <!--
     <string name="max_device_memory">Max Device Memory</string>
+    -->
     <string name="frame_rate">Frame Rate</string>
     <string name="configuration">Configuration</string>
     <string name="browse">Browse</string>
     <string name="magnifier">Magnifier</string>
     <string name="bring_to_front">Bring to Front</string>
     <string name="options">Options</string>
+    <!--
     <string name="enable_experimental_wow64_mode">Enable experimental WoW64 mode</string>
+    -->
     <string name="logs">Logs</string>
+    <!--
     <string name="enable_wine_debug">Enable Wine debug</string>
     <string name="enable_box64_logs">Enable Box64 logs</string>
+    -->
     <string name="export">Export</string>
+    <!--
     <string name="logs_exported_to">Logs exported to</string>
+    -->
     <string name="general">General</string>
+    <!--
     <string name="msg_warning_install_wine">Warning: Installing a new version of Wine is recommended for testing purposes only.</string>
+    -->
     <string name="startup_selection">Startup Selection</string>
     <string name="wine_debug_channel">Wine Debug Channel</string>
     <string name="game_controller">Game Controller</string>
     <string name="as_button">Is Button</string>
     <string name="as_axis">Is Axis</string>
+    <!--
     <string name="both">Both</string>
+    -->
     <string name="trigger_type">Type</string>
+    <!--
     <string name="experimental">Experimental</string>
+    -->
     <string name="glibc_exp_edition">Based On</string>
     <string name="enabled_async">Enable Async</string>
     <string name="enabled_async_cache">Enable Async Cache</string>
     <string name="vkd3d_feature_level">VKD3D Feature Level</string>
+    <!--
     <string name="filter">Filter</string>
     <string name="all">All</string>
     <string name="group">Group</string>
     <string name="new_group">New Group</string>
     <string name="import_group">Import Group</string>
+    -->
     <string name="new_file">New File</string>
+    <!--
     <string name="new_item">New Item</string>
     <string name="group_edit">Group Edit</string>
     <string name="group_name">Group Name</string>
@@ -327,23 +382,30 @@
     <string name="cannot_remove_default_profile">Cannot remove default profile.</string>
     <string name="cannot_edit_default_profile">Cannot edit default profile.</string>
     <string name="do_you_want_to_restore_default_profile">Do you want to restore default profile?</string>
+    -->
     <string name="simulate_touch_screen">Simulate touch screen</string>
     <string name="install_content">Install Content</string>
     <string name="content_type">Content Type</string>
     <string name="components">Components</string>
+    <!--
     <string name="do_you_want_to_install_content">Do you want to install additional content?</string>
     <string name="pls_make_sure_content_trustworthy">Contents contain executable files. Unsafe executable files may compromise your data or device security. Before installing, PLEASE make sure that the additional content you are installing is trustworthy.</string>
     <string name="content_suffix_is_wcp_packed_xz_zst">The content files have the .wcp extension and are compressed using either xz or zst formats.</string>
+    -->
     <string name="contents_install_confirm_message">Only install trusted packages. These files can include executable content and may affect your device or data.
 
 Supported packages use the .wcp extension and are compressed as xz or zst.</string>
+    <!--
     <string name="installing_content">Installing Content…</string>
+    -->
     <string name="unable_to_install_content">Unable to install content.</string>
     <string name="install_failed">Install Failed</string>
     <string name="file_cannot_be_recognied">File cannot be recognized.</string>
     <string name="profile_not_found_in_content">Profile not found in content.</string>
     <string name="profile_cannot_be_recognized">Profile cannot be recognized</string>
+    <!--
     <string name="content_already_exist">The content you\'re trying to install already exists.</string>
+    -->
     <string name="content_info">Content Info</string>
     <string name="version_code">Version Code</string>
     <string name="description">Description</string>
@@ -375,15 +437,22 @@ Installed path:
     <string name="reinstall_imagefs">Reinstall Imagefs</string>
     <string name="do_you_want_to_reinstall_imagefs">Do you want to reinstall imagefs? This operation will restore system files, your containers won\'t be changed.</string>
     <string name="unable_to_remove_content_since_container_using">Unable to remove this content, because a container is currently using this Wine.</string>
+    <!--
     <string name="get_more_contents_form_github">You can access https://github.com/longjunyu2/winlator/releases to get more contents.</string>
     <string name="setup_failed">Setup failed</string>
+    -->
     <string name="graphics_driver_configuration">Graphics Driver Configuration</string>
+    <!--
     <string name="select_graphics_driver_version">Select Graphics Driver Version:</string>
+    -->
     <string name="graphics_driver_version">Graphics Driver Version</string>
     <string name="graphics_driver_available_extensions">Available Extensions</string>
+    <!--
     <string name="add_to_homescreen">Add to Homescreen</string>
     <string name="add_save">Add Save</string>
+    -->
     <string name="saves">Saves</string>
+    <!--
     <string name="import_save">Import Save</string>
     <string name="transfer">Transfer</string>
     <string name="share">Share</string>
@@ -397,10 +466,14 @@ Installed path:
     <string name="select_container_first">Please select the container containing your save.</string>
     <string name="fill_all_fields">Path and Save Name are required</string>
     <string name="invalid_path">Not a valid save directory path</string>
+    -->
     <string name="confirm_selection">Confirm Selection</string>
     <string name="select_directory">Select your save directory</string>
+    <!--
     <string name="invalid_container">Invalid Path</string>
+    -->
     <string name="up_directory">Up Directory</string>
+    <!--
     <string name="edit_save_title">Update Save title</string>
     <string name="edit_save">Save edit</string>
     <string name="original_save_path">Registered save path</string>
@@ -410,7 +483,9 @@ Installed path:
     <string name="no">No</string>
     <string name="path_not_changed_prompt">The path has not been changed. Do you want to continue?</string>
     <string name="save_transfer">Transfer Save</string>
+    -->
     <string name="select_container">Target Container:</string>
+    <!--
     <string name="transfer_complete">Transfer complete</string>
     <string name="transfer_failed">Transfer failed</string>
     <string name="unable_to_transfer_save">Unable to transfer save</string>
@@ -418,9 +493,12 @@ Installed path:
     <string name="name_required">Name is required</string>
     <string name="exporting_save">Exporting save...</string>
     <string name="importing_save">Importing save...</string>
+    -->
     <string name="_copy">copy</string>
+    <!--
     <string name="backing_up_data">Backing up data...</string>
     <string name="restoring_data">Restoring data...</string>
+    -->
     <string name="midi_sound_font">MIDI SoundFont</string>
     <string name="refresh_rate">Refresh Rate</string>
     <string name="refresh_rate_auto_max">Max</string>
@@ -441,7 +519,9 @@ Installed path:
     <string name="enable_xinput_for_wine_game">Enable XInput for Games in Wine</string>
     <string name="dinput_legacy">Legacy (Old Gamepads)</string>
     <string name="dinput_modern">Modern (Xinput like)</string>
+    <!--
     <string name="mixed">Mixed</string>
+    -->
     <string name="help_xinput">
         If your game utilizes the &lt;i&gt;&lt;b&gt;XInput API&lt;/b&gt;&lt;/i&gt; for game controller support, please enable this option.&lt;br/&gt;&lt;br/&gt;
         This option will affect both &lt;i&gt;&lt;b&gt;virtual&lt;/b&gt;&lt;/i&gt; (provided by Input Controls) and &lt;i&gt;&lt;b&gt;physical&lt;/b&gt;&lt;/i&gt; game controllers.
@@ -451,18 +531,24 @@ Installed path:
         This option will affect both &lt;i&gt;&lt;b&gt;virtual&lt;/b&gt;&lt;/i&gt; (provided by Input Controls) and &lt;i&gt;&lt;b&gt;physical&lt;/b&gt;&lt;/i&gt; game controllers.
     </string>
     <string name="enable_xinput_and_dinput_same_time">Some games may support both APIs. Enabling both XInput and DInput simultaneously in such games may cause control issues, as seen in titles like The Binding of Isaac and the Resident Evil series.</string>
+    <!--
     <string name="startup_normal">Normal (Load all services)</string>
     <string name="startup_essential">Essential (Load only essential services)</string>
     <string name="startup_aggressive">Aggressive (Stop services on startup)</string>
+    -->
     <string name="lc_all" translatable="false">LC_ALL</string>
     <string name="help_trigger_mode">Depends on your &lt;b&gt;Physical Controller&lt;/b&gt;:&lt;br/&gt;&lt;br/&gt;&#x2022; &lt;b&gt;Is Axis&lt;/b&gt; — trigger has a linear range of motion&lt;br/&gt;&#x2022; &lt;b&gt;Is Button&lt;/b&gt; — trigger acts as a simple switch&lt;br/&gt;&lt;br/&gt;&lt;i&gt;Note: using Is Button with a linear trigger loses analog data.&lt;/i&gt;
     </string>
+    <!--
     <string name="toggle_orientation">Toggle Orientation</string>
+    -->
     <string name="help_file_provider">
         &lt;i&gt;&lt;b&gt;File Provider&lt;/b&gt;&lt;/i&gt; allows access to Winlator\'s internal data through android file manager.&lt;br/&gt;&lt;br/&gt;
     </string>
+    <!--
     <string name="reconfigure">Reconfigure</string>
     <string name="do_you_want_to_reconfigure_wine">Do you want to reconfigure this container on the next startup? This will remove the timestamp to trigger Wine Configuration.</string>
+    -->
     <string name="xr" translatable="false">XR</string>
     <string name="primary_controller">Primary controller</string>
     <string name="left_controller">Left controller</string>
@@ -477,6 +563,7 @@ Installed path:
     <string name="thumbstick_right">Thumbstick right</string>
     <string name="thumbstick_up">Thumbstick up</string>
     <string name="thumbstick_down">Thumbstick down</string>
+    <!--
     <string name="secondary_executable">Path:</string>
     <string name="enter_secondary_exec_path"> ex: "D:/Games/My Game/My Game.exe"</string>
     <string name="exec_delay">Delayed Execution (seconds):</string>
@@ -484,9 +571,12 @@ Installed path:
     <string name="use_secondary_executable">Use secondary executable?</string>
     <string name="secondary_exec">Secondary Executable</string>
     <string name="secondary_exe_path_subtext">(Spaces in paths must be wrapped in quotes)</string>
+    -->
     <string name="pip_mode">PiP Mode</string>
+    <!--
     <string name="configure">Configure</string>
     <string name="enable_sendinput_mode">Use Windows SendInput Mode</string>
+    -->
     <string name="enable_touchscreen_timeout">Touchscreen Timeout (Requires Restart)</string>
     <string name="enable_touchscreen_haptics">Enable Touchscreen Haptic Feedback</string>
     <string name="help_steamgrid">SteamGrid API Key</string>
@@ -494,8 +584,10 @@ Installed path:
     <string name="disable_xinput_for_shortcut">Disable Xinput (For Exclusive M/KB Control)</string>
     <string name="exclusive_input">Exclusive Input</string>
     <string name="fullscreen_stretched">Enable Fullscreen (Stretched)</string>
+    <!--
     <string name="export_container">Export Container</string>
     <string name="exporting_container">Exporting Container...</string>
+    -->
     <string name="brightness">Brightness</string>
     <string name="contrast">Contrast</string>
     <string name="gamma">Gamma</string>
@@ -508,10 +600,13 @@ Installed path:
     <string name="screen_effect">Screen Effects</string>
     <string name="enable_toon_shader">Enable Toon Shader</string>
     <string name="enable_ntsc_effect">Enable NTSC Effect</string>
+    <!--
     <string name="enter_profile_name">Enter Profile Name</string>
+    -->
     <string name="configure_analog_sticks">Configure Analog Sticks</string>
     <string name="gyroscope">Gyroscope</string>
     <string name="calibrate_gyroscope">Calibrate Gyroscope</string>
+    <!--
     <string name="expand_for_more_information">Expand for more information</string>
     <string name="analog_stick_settings">Analog Stick Settings</string>
     <string name="left_analog_stick_settings">Left Analog Stick Settings</string>
@@ -523,11 +618,16 @@ Installed path:
     <string name="invert_x_axis_right">Invert X Axis (Right Stick)</string>
     <string name="invert_y_axis_right">Invert Y Axis (Right Stick)</string>
     <string name="save">Save</string>
+    -->
     <string name="use_xr">Use OpenXR integration</string>
+    <!--
     <string name="not_connected">Not connected</string>
+    -->
     <string name="preferences_button_text">   PREFERENCES   </string>
+    <!--
     <string name="help_button_text">   HELP   </string>
     <string name="exit_button_text">   EXIT   </string>
+    -->
     <string name="extra_keys_config_desc">Here you can set value of extra-keys variable like in Termux app (read <a href="http://wiki.termux.com/wiki/Touch_Keyboard#Extra_Keys_Row">this</a>) and more \n
 E.g. <b>META</b> for <i>META key</i>, \n
 <b>KEYBOARD</b> for <i>soft keyboard toggling key</i>, \n
@@ -535,6 +635,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
 <b>MOUSE_HELPER</b> for <i>mouse helper toggling key</i>, \n
 <b>STYLUS_HELPER</b> for <i>stylus click override overlay toggling key</i>, \n
 <b>EXIT</b> for <i>application exit key</i>.</string>
+    <!--
     <string name="notification_content_text">Pull down to show options</string>
     <string name="notification_open_preferences">Preferences</string>
     <string name="notification_exit">Exit</string>
@@ -543,12 +644,14 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="notification_toggle_additional_key_bar">Toggle additional keyboard</string>
     <string name="notification_release_pointer_and_keyboard_capture">Release captures</string>
     <string name="notification_toggle_fullscreen">Toggle fullscreen</string>
+    -->
     <string name="pref_main">Preferences</string>
     <string name="pref_output">Output</string>
     <string name="pref_pointer">Pointer</string>
     <string name="pref_kbd">Keyboard</string>
     <string name="pref_other">Other</string>
     <string name="pref_version">Version</string>
+    <!--
     <string name="pref_ekbar">Extra key bar preferences</string>
     <string name="pref_userActions">Response to user actions</string>
     <string name="pref_displayResolutionMode">Display resolution mode</string>
@@ -624,6 +727,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="pref_summary_requiresExactOrCustom">Requires "display resolution mode" to be "exact" or "custom"</string>
     <string name="pref_summary_requiresIntercepting">Requires intercepting system shortcuts with Dex mode or with Accessibility service</string>
     <string name="pref_summary_requiresTrackpadAndNative">Requires "Touchscreen input mode" to be "Trackpad" and "Display resolution mode" to be not "native"</string>
+    -->
     <string name="fexcore_config">FEXCore</string>
     <string name="fexcore_preset">FEXCore Preset</string>
     <string name="drivers">Drivers</string>
@@ -633,7 +737,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="driver_installed_success">Driver installed successfully.</string>
     <string name="driver_install_failed">Failed to install driver.</string>
     <string name="do_you_want_to_remove_this_driver">Do you want to remove this driver?</string>
+    <!--
     <string name="github_repo_header_summary">Load release ZIPs directly from the configured GitHub source.</string>
+    -->
     <string name="github_repo_tap_to_load">Tap to load releases</string>
     <string name="github_repo_loading_releases">Loading releases…</string>
     <string name="github_repo_release_count">%1$d releases loaded</string>
@@ -642,7 +748,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="github_repo_download_failed">Download failed.</string>
     <string name="github_repo_no_version">Version unavailable</string>
     <string name="github_repo_unknown_size">Unknown size</string>
+    <!--
     <string name="enable_vulkan_api_dump">Enable dumping of Vulkan api calls to file.</string>
+    -->
     <string name="dll_emulator">32bit Emulator</string>
     <string name="emulator_wine_hint">Emulator is determined by wine version. ARM64EC uses FEXCore, x86_64 uses Box64.</string>
     <string name="container_config_label">Configuration</string>
@@ -663,6 +771,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="vkbasalt_sharpness_effects">Sharpness Effect</string>
     <string name="vkbasalt_sharpness_level">Sharpness Level</string>
     <string name="vkbasalt_sharpness_denoise">Sharpeness Denoise</string>
+    <!--
     <string name="shutdown">Shutdown</string>
     <string name="title_ubuntufs">Ubuntu FS</string>
     <string name="wmdecoder">Windows Media Decoder</string>
@@ -692,11 +801,15 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="steam_2fa_device">Please enter your 2-factor auth code from your authenticator app.</string>
     <string name="steam_2fa_email">Please enter the auth code sent to the email at %s</string>
     <string name="steam_2fa_incorrect">Previous code was incorrect, please try again.</string>
+    -->
     <string name="stores">Stores</string>
+    <!--
     <string name="block">Block</string>
     <string name="chat">Chat</string>
+    -->
     <string name="close">Close</string>
     <string name="confirm">Confirm</string>
+    <!--
     <string name="delete">Delete</string>
     <string name="discard">Discard</string>
     <string name="dismiss">Dismiss</string>
@@ -717,7 +830,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="retry">Retry</string>
     <string name="send">Send</string>
     <string name="tip">Tip</string>
+    -->
     <string name="unnamed">Unnamed</string>
+    <!--
     <string name="username">Username</string>
     <string name="uninstalling">Uninstalling…</string>
     <string name="box64_name_label">Preset name</string>
@@ -1072,10 +1187,14 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="steam_never">Never</string>
     <string name="steam_continue">Continue</string>
     <string name="header_img_desc">App header image</string>
+    -->
     <string name="download">Download</string>
+    <!--
     <string name="install_app">Install</string>
     <string name="delete_app">Delete</string>
+    -->
     <string name="uninstall">Uninstall</string>
+    <!--
     <string name="run_app">Play</string>
     <string name="download_prompt_title">Install App</string>
     <string name="calculating_space_requirements">Calculating space requirements...</string>
@@ -1107,12 +1226,12 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="container_config_invalid_drive_path">Invalid drive path</string>
     <string name="custom_game_exe_selection_title">Executable Selection Required</string>
     <string name="custom_game_exe_selection_message">This game has multiple executables. Please open Custom Game Settings to select which one to launch.</string>
+    -->
     <string name="custom_game_settings">Custom Game Settings</string>
+    <!--
     <string name="custom_game_delete_title">Delete Game</string>
     <string name="custom_game_delete_message">Are you sure you want to uninstall %1$s?</string>
     <string name="custom_game_unknown_developer">Unknown</string>
-
-    
     <string name="denuvo">Denuvo</string>
     <string name="extreme">Extreme</string>
     <string name="unity">Unity</string>
@@ -1136,8 +1255,10 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="shoulder_buttons_category">Shoulder Buttons</string>
     <string name="menu_buttons_category">Menu Buttons</string>
     <string name="thumbstick_buttons_category">Thumbstick Buttons</string>
+    -->
     <string name="left_stick">Left Stick</string>
     <string name="right_stick">Right Stick</string>
+    <!--
     <string name="dpad_category">D-Pad</string>
     <string name="dpad_up">D-Pad Up</string>
     <string name="dpad_down">D-Pad Down</string>
@@ -1157,8 +1278,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="open_navigation_menu">Open Navigation Menu</string>
     <string name="hide_controls_with_controller">Hide on-screen controls with controller</string>
     <string name="hide_controls_with_controller_description">Automatically hide on-screen controls when a physical controller is connected</string>
-
-    
     <string name="select_binding">Select Binding</string>
     <string name="bind_button">Bind: %1$s</string>
     <string name="current_binding">Current: %1$s</string>
@@ -1174,8 +1293,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="binding_none">None</string>
     <string name="clear_binding">Clear Binding</string>
     <string name="no_bindings_found">No bindings found</string>
-
-    
     <string name="edit_element">Edit %1$s</string>
     <string name="element_position_size">Position: (%1$d, %2$d) • Size: %3$.2fx</string>
     <string name="appearance">Appearance</string>
@@ -1215,8 +1332,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="preset_dpad">D-Pad</string>
     <string name="preset_left_stick">Left Stick</string>
     <string name="preset_right_stick">Right Stick</string>
-
-    
     <string name="physical_controller_config">Physical Controller Bindings Editor</string>
     <string name="physical_controller_config_subtitle">Configure button mappings for your physical controller</string>
     <string name="face_buttons">Face Buttons</string>
@@ -1250,12 +1365,12 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="right_stick_down">Right Stick Down</string>
     <string name="right_stick_left">Right Stick Left</string>
     <string name="right_stick_right">Right Stick Right</string>
+    -->
     <string name="other">Other</string>
+    <!--
     <string name="button_home">Home / Guide / PS</string>
     <string name="reset_to_default_bindings">Reset to Default Bindings</string>
     <string name="not_set">Not Set</string>
-
-    
     <string name="toast_controls_reset">Controls reset</string>
     <string name="box86_64_env_var_help__dynarec_weakbarrier">
         Tweak memory barriers to reduce performance impact of strong memory emulation&lt;br /&gt;&lt;br /&gt;
@@ -1296,11 +1411,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="box86_64_env_var_help__unityplayer">Detect UnityPlayer.dll and apply strongmem settings</string>
     <string name="box86_64_env_var_help__mmap32">Force every memory allocation in 32bit address spaces</string>
     <string name="fexcore_env_var_help__maxinst">Maximum instruction budget per translation block. Higher values can improve performance but may reduce stability.</string>
-
     <string name="resume_download">Resume</string>
     <string name="pause_download">Pause</string>
-
-    
     <string name="create_shortcut">Create shortcut</string>
     <string name="label">Label</string>
     <string name="create">Create</string>
@@ -1314,12 +1426,16 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="download_failed_try_again">Download failed. Please try again.</string>
     <string name="update_available">Update Available</string>
     <string name="game_information">Game Information</string>
+    -->
     <string name="status">Status</string>
     <string name="size">Size</string>
+    <!--
     <string name="location">Location</string>
     <string name="developer">Developer</string>
+    -->
     <string name="release_date">Release Date</string>
     <string name="installed">Installed</string>
+    <!--
     <string name="installing">Installing</string>
     <string name="not_installed">Not Installed</string>
     <string name="open">Open</string>
@@ -1338,23 +1454,12 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="base_app_exported">Exported</string>
     <string name="base_app_export_failed">Failed to export: %s</string>
     <string name="base_app_export_cancelled">Export cancelled</string>
-
-
-    
     <string name="app_filter_family">Family</string>
-
-    
     <string name="no_connection_to_steam">No connection to Steam</string>
     <string name="retry_steam_connection">Retry Steam Connection</string>
     <string name="continue_offline">Continue Offline</string>
-
-
-    
     <string name="game_feedback_game_run">How did the game run?</string>
     <string name="game_feedback_issues_question">Select any issues you encountered:</string>
-
-
-    
     <string name="help_and_support">Help &amp; Support</string>
     <string name="hall_of_fame">Hall of Fame</string>
     <string name="go_online">Go Online</string>
@@ -1365,6 +1470,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="exec_arguments_example">Example: -dx11</string>
     <string name="language">Language</string>
     <string name="remove_driver_confirmation">Are you sure you want to remove driver "%s"? This cannot be undone</string>
+    -->
 
     
     <string name="use_legacy_drm">Use Legacy DRM</string>
@@ -1374,9 +1480,12 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="force_dlc_description">Only enable if DLCs are not detected or saves with DLC are not working</string>
     <string name="launch_steam_client_beta">Launch Steam Client (Beta)</string>
     <string name="launch_steam_client_description">Reduces performance and slows down launch\nAllows online play and fixes DRM and controller issues\nNot all games work</string>
+    <!--
     <string name="allow_steam_updates">Allow Steam updates</string>
     <string name="allow_steam_updates_description">Updates Steam to the latest version. Significantly reduces performance.</string>
+    -->
     <string name="steam_type">Steam Type</string>
+    <!--
 
     
     <string name="exposed_vulkan_extensions">Exposed Vulkan Extensions</string>
@@ -1385,7 +1494,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="image_cache_size">Image Cache Size</string>
     <string name="dx_wrapper">DX Wrapper</string>
     <string name="use_dri3">Use DRI3</string>
+    -->
     <string name="use_dri3_description">Disabling may fix graphical glitches on some devices</string>
+    <!--
     <string name="sync_frame">Sync Every Frame</string>
     <string name="disable_present_wait">Disable KHR_present_wait</string>
     <string name="present_modes">Present Modes</string>
@@ -1397,8 +1508,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="sharpness_effect">Sharpness Boost</string>
     <string name="sharpness_level">Sharpness Level</string>
     <string name="sharpness_denoise">Sharpness Denoise</string>
-
-    
     <string name="tso_mode">TSO Mode</string>
     <string name="x87_mode">x87 Mode</string>
     <string name="multiblock">Multiblock</string>
@@ -1408,11 +1517,11 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="fexcore_presets">FEXCore Presets</string>
     <string name="fexcore_presets_description">View, modify, and create FEXCore presets</string>
     <string name="preset_name">Preset name</string>
-
-    
     <string name="use_sdl_api">Use SDL API</string>
+    -->
     <string name="use_steam_input">Use Steam Input</string>
     <string name="steam_offline_mode">Steam Offline Mode</string>
+    <!--
     <string name="enable_xinput_api">Enable XInput API</string>
     <string name="enable_directinput_api">Enable DirectInput API</string>
     <string name="disable_mouse_input">Disable Mouse Input</string>
@@ -1433,8 +1542,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="pause_game">Pause</string>
     <string name="resume_game">Resume</string>
     <string name="paused">Paused</string>
-
-    
     <string name="renderer">Renderer</string>
     <string name="enable_csmt">Enable CSMT (Command Stream Multi-Thread)</string>
     <string name="enable_strict_shader_math">Enable Strict Shader Math</string>
@@ -1446,8 +1553,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="processor_affinity_32bit">Processor Affinity (32-bit apps)</string>
     <string name="executable_path">Executable Path</string>
     <string name="executable_path_placeholder">e.g., path\\to\\exe</string>
-
-    
     <string name="allowed_orientations">Allowed Orientations</string>
     <string name="select_wine_debug_channels">Select Wine Debug Channels</string>
     <string name="cpu_label">CPU%d</string>
@@ -1455,33 +1560,31 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="get_support_on_discord">Get support on Discord</string>
 
     
+    -->
     <string name="driver_manager">Driver Manager</string>
+    <!--
     <string name="select_a_driver">Select a driver</string>
     <string name="import_zip_from_device">Import ZIP from device</string>
-
-    
     <string name="contents_manager">Contents Manager</string>
     <string name="import_wcp_from_device">Import .wcp from device</string>
     <string name="working">Working...</string>
     <string name="selected">Selected</string>
     <string name="selected_content">Selected content</string>
     <string name="installed_contents">Installed contents</string>
+    -->
     <string name="available">Available</string>
+    <!--
     <string name="select_type">Select type</string>
     <string name="untrusted_files_detected">Untrusted Files Detected</string>
     <string name="install_anyway">Install Anyway</string>
     <string name="remove_content">Remove content?</string>
     <string name="remove_content_confirmation">Are you sure you want to remove %1$s (%2$s)?</string>
-
-    
     <string name="settings_language">Language</string>
     <string name="settings_select_language">Select Language</string>
     <string name="settings_language_restart_title">Restart Required</string>
     <string name="settings_language_restart_message">Changing the language requires the app to restart. Do you want to continue?</string>
     <string name="settings_language_restart_confirm">Restart</string>
     <string name="settings_language_changing">Changing language and restarting...</string>
-
-    
     <string name="settings_emulation_title">Emulation</string>
     <string name="settings_emulation_orientations_title">Allowed Orientations</string>
     <string name="settings_emulation_orientations_subtitle">Choose which orientations can be rotated to when in-game</string>
@@ -1498,9 +1601,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_emulation_contents_manager_subtitle">Install additional components (.wcp)</string>
     <string name="settings_emulation_wine_proton_manager_title">Wine/Proton Manager</string>
     <string name="settings_emulation_wine_proton_manager_subtitle">Import custom Wine/Proton versions (Bionic only)</string>
-
-    
     <string name="settings_other_summary">Tune audio, launcher paths, XServer behavior, and integration options with the same card-based interface used elsewhere in settings.</string>
+    -->
     <string name="settings_other_sound_summary">Install, remove, and choose the SoundFont used for MIDI playback.</string>
     <string name="settings_other_paths_title">Path Settings</string>
     <string name="settings_other_paths_summary">Manage where Winlator stores its working data and where exported shortcuts are written.</string>
@@ -1525,7 +1627,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
 
     
     <string name="settings_debug_title">Debug</string>
+    <!--
     <string name="settings_debug_wine_channels_title">Select Wine Debug Channels</string>
+    -->
     <string name="settings_debug_wine_logs_title">Enable Wine Debug Logs</string>
     <string name="settings_debug_wine_logs_subtitle">Write Wine debug output to file</string>
     <string name="settings_debug_box_logs_title">Enable Box86/64 Logs</string>
@@ -1534,11 +1638,14 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_debug_fex_logs_subtitle">Write FEXCore debug output to file</string>
     <string name="settings_debug_steam_logs_title">Enable Steam Logs</string>
     <string name="settings_debug_steam_logs_subtitle">Log Steam authentication and session events for debugging.</string>
+    <!--
     <string name="advanced_logging_subtitle">Low-level logging controls for Wine and emulation backends.</string>
     <string name="advanced_debugging_logs_title">Logging &amp; Diagnostics</string>
     <string name="advanced_debugging_logs_summary">Enable only the logs you need when tracking down rendering, translation, or startup issues.</string>
+    -->
     <string name="advanced_wine_channels_title">Wine Debug Channels</string>
     <string name="advanced_wine_channels_summary">Choose which Wine channels are included when Wine debug logging is enabled.</string>
+    <!--
     <string name="settings_debug_view_crash_title">View latest crash</string>
     <string name="settings_debug_view_log_title">View game debug log</string>
     <string name="settings_debug_clear_prefs_title">Clear Preferences</string>
@@ -1547,8 +1654,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_debug_clear_db_subtitle">[Closes app] May help fix issues with library items or messages.</string>
     <string name="settings_debug_clear_cache_title">Clear Image Cache</string>
     <string name="settings_debug_clear_cache_subtitle">Remove all images that were loaded.</string>
-
-    
     <string name="settings_info_title">Info</string>
     <string name="settings_info_send_tip_title">Send tip</string>
     <string name="settings_info_send_tip_subtitle">Contribute to ongoing development</string>
@@ -1560,8 +1665,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_info_libraries_subtitle">See what technologies make WinNative possible</string>
     <string name="settings_info_privacy_title">Privacy Policy</string>
     <string name="settings_info_privacy_subtitle">Opens a link to WinNative\'s privacy policy</string>
-
-    
     <string name="settings_interface_title">Interface</string>
     <string name="settings_interface_external_links_title">Open web links externally</string>
     <string name="settings_interface_external_links_subtitle">Links open with your main web browser</string>
@@ -1576,11 +1679,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_interface_storage_volume_title">Storage volume</string>
     <string name="settings_interface_download_server_title">Steam Download Server</string>
     <string name="settings_interface_restart_required_title">Restart Required</string>
-
-    
     <string name="settings_downloads_title">Downloads</string>
-
-    
     <string name="login_app_name">WinNative</string>
     <string name="login_welcome_back">Welcome Back</string>
     <string name="login_subtitle">Sign in to access your Steam library</string>
@@ -1590,12 +1689,11 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="login_qr_failed">QR Code Failed</string>
     <string name="login_retry_qr">Retry QR Code</string>
     <string name="login_qr_instructions">Open the Steam mobile app and scan this QR code to sign in instantly</string>
-
-    
     <string name="continue_action">Continue</string>
+    -->
     <string name="settings">Settings</string>
+    <!--
     <string name="settings_text">Settings</string>
-
     <string name="steam_status_logged_in">Status: Logged In as %s</string>
     <string name="steam_status_not_logged_in">Status: Not Logged In</string>
     <string name="steam_logout">Logout from Steam</string>
@@ -1603,13 +1701,13 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="steam_logged_out_toast">Logged out of Steam</string>
     <string name="steam_please_login_first">Please login first</string>
     <string name="steam_library_feature_active">Steam Library Feature is active</string>
+    -->
     <string name="cannot_export_this_preset">Cannot export this preset</string>
+    <!--
 
 
     
     <string name="connect_to_remote_server">Connecting to remote servers...</string>
-
-    
     <string name="library_not_enough_space_message">The app being installed needs %1$s of space but there is only %2$s left on this device</string>
     <string name="library_download_prompt_message">The app being installed has the following space requirements. Would you like to proceed?\n\n\tDownload Size: %1$s\n\tSize on Disk: %2$s\n\tAvailable Space: %3$s</string>
     <string name="library_cancel_download_message">Are you sure you want to cancel the download of the app?</string>
@@ -1626,36 +1724,34 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="library_update_title">Update</string>
     <string name="library_update_message">Please ensure your saves are uploaded to the cloud or backed up before updating, as they may be overwritten otherwise.</string>
     <string name="library_config_title">%s Config</string>
-
-    
     <string name="library_storage_permission_required">Storage permission required</string>
     <string name="library_exported">Exported</string>
     <string name="library_failed_to_export">Failed to export: %s</string>
     <string name="library_export_cancelled">Export cancelled</string>
+    -->
     <string name="library_shortcut_created">Shortcut created</string>
     <string name="library_failed_to_create_shortcut">Failed to create shortcut: %s</string>
+    <!--
     <string name="library_cloud_sync_success">Cloud sync completed successfully</string>
     <string name="library_cloud_sync_up_to_date">Save files are already up to date</string>
     <string name="library_cloud_sync_failed">Cloud sync failed: %s</string>
-
-    
     <string name="library_need_internet">Need internet to install</string>
     <string name="library_wifi_only_enabled">Install over Wi-Fi/LAN only enabled</string>
     <string name="library_file_count">File %1$d of %2$d</string>
+    -->
 
     
     <string name="download_no_wifi">Not connected to Wi-Fi/LAN</string>
     <string name="download_paused_wifi">Download paused – waiting for Wi-Fi/LAN</string>
 
     
+    <!--
     <string name="main_update_available_title">Update Available</string>
     <string name="main_update_available_message">A new version (%1$s) is available!%2$s</string>
     <string name="main_update_button">Update</string>
     <string name="main_later_button">Later</string>
     <string name="main_update_failed_title">Update Failed</string>
     <string name="main_update_failed_message">Failed to download or install the update. Please try again later.</string>
-
-    
     <string name="main_recent_crash_title">Recent Crash</string>
     <string name="main_recent_crash_message">Sorry about that!\nIt would be nice to know about the recent issue you\'ve had.\nYou can view and export the most recent crash log in the app\'s settings and attach it as a Github issue in the project\'s repository.\nLink to the Github repo is also in settings!</string>
     <string name="main_thank_you_title">Thank you for using WinNative!</string>
@@ -1665,26 +1761,18 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="main_discord_support_title">Did the game work?</string>
     <string name="main_discord_support_message">Join the Discord to get support to fix your game or improve performance.</string>
     <string name="main_open_discord">Open Discord</string>
-
-    
     <string name="main_downloading_steam">Downloading Steam...</string>
     <string name="main_installing_glibc">Installing glibc components...</string>
     <string name="main_installing_bionic">Installing Bionic components...</string>
     <string name="main_loading">Loading...</string>
-
-    
     <string name="main_app_running_title">App Running</string>
     <string name="main_app_running_message">You are logged in on another device already playing %s. \nYou can still play this game, but that will disconnect the other session from Steam.</string>
     <string name="main_app_running_other_device">You are logged in on another device (%1$s) already playing %2$s (%3$s), and that save is not yet in the cloud. \nYou can still play this game, but that will disconnect the other session from Steam and may create a save conflict when that session progress is synced</string>
     <string name="main_play_anyway">Play anyway</string>
-
-    
     <string name="main_save_conflict_title">Save Conflict</string>
     <string name="main_save_conflict_message">There is a new remote save and a new local save, which would you like to keep?\n\nLocal save:\n\t%1$s\nRemote save:\n\t%2$s</string>
     <string name="main_keep_local">Keep local</string>
     <string name="main_keep_remote">Keep remote</string>
-
-    
     <string name="main_sync_in_progress_retry">Sync operation is taking too long. Please try launching the game again in a moment.</string>
     <string name="main_sync_in_progress">Sync is currently in progress. Please try again in a moment.</string>
     <string name="main_sync_in_progress_launch_anyway_message">Cloud save sync for this game is already running. You can wait and try again, or launch anyway without syncing (may cause save conflicts).</string>
@@ -1692,8 +1780,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="main_wait">Wait</string>
     <string name="main_syncing_cloud_saves">Syncing cloud saves...</string>
     <string name="main_sync_failed">Failed to sync save files: %s.</string>
-
-    
     <string name="main_upload_in_progress_title">Upload in Progress</string>
     <string name="main_upload_in_progress_message">You played %1$s on the device %2$s (%3$s) and the save of that session is still uploading.\nTry again later.</string>
     <string name="main_pending_upload_title">Pending Upload</string>
@@ -1701,8 +1787,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="main_app_session_suspended">App session suspended. Please restart app.</string>
     <string name="main_pending_operation_none">Received pending remote operations whose operation was \'none\'. Please restart app.</string>
     <string name="main_multiple_pending_operations">Multiple pending remote operations, try again later. Please restart app.</string>
-
-    
     <string name="container_config_title">Configure Container</string>
     <string name="container_config_unsaved_changes_title">Unsaved Changes</string>
     <string name="container_config_unsaved_changes_message">Are you sure you\'d like to discard your changes?</string>
@@ -1718,12 +1802,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="container_config_vkd3d_version">VKD3D Version</string>
     <string name="container_config_executable_path">Executable Path</string>
     <string name="container_config_executable_path_placeholder">e.g., path\\to\\exe</string>
-
-    
     <string name="libraries_title">Libraries Used</string>
     <string name="libraries_message">Pluvia - github.com/oxters168/Pluvia\nJavaSteam - github.com/Longi94/JavaSteam\nWinlator &amp; Vortek - github.com/brunodev85/winlator\nWinlator Cmod - github.com/coffincolors/winlator\nWrapper - https://github.com/leegao/bionic-vulkan-wrapper &amp; https://github.com/pipetto-crypto/\nUbuntu RootFs - releases.ubuntu.com/focal</string>
-
-    
     <string name="supporters_art_credits">Art Credits</string>
     <string name="supporters_app_icon">App Icon: Hachi</string>
     <string name="supporters_alt_icon">Alternate App Icon: rhapsody_mdr</string>
@@ -1732,8 +1812,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="supporters_supporters">Supporters</string>
     <string name="supporters_none">No supporters yet.</string>
     <string name="supporters_anonymous">Anonymous</string>
-
-    
     <string name="chat_preview_warning">Chatting is still an early feature.\nPlease report any issues in the project repo.</string>
     <string name="chat_send_message">Send a message</string>
     <string name="chat_send">Send</string>
@@ -1745,14 +1823,10 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="library_compatible">Compatible</string>
     <string name="library_compatibility_unknown">Unknown</string>
     <string name="library_not_compatible">Not Compatible</string>
-
-    
     <string name="best_config_exact_gpu_match">Known config works on your GPU</string>
     <string name="best_config_gpu_family_match">Known config should work on your GPU</string>
     <string name="best_config_fallback_match">Known config may work on your GPU</string>
     <string name="best_config_compatibility_unknown">No known config</string>
-
-    
     <string name="best_config_applied_successfully">Config applied successfully</string>
     <string name="best_config_known_config_invalid">Known config invalid</string>
     <string name="best_config_no_config_available">No best config available for this game</string>
@@ -1775,13 +1849,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="library_source_steam">Steam</string>
     <string name="library_source_custom">Custom Games</string>
     <string name="library_layout_title">Layout</string>
-
-    
     <string name="two_factor_login">Login</string>
     <string name="two_factor_verification_code">Verification Code</string>
     <string name="two_factor_enter_code">Enter 5-character code</string>
-
-    
     <string name="contents_validating">Validating content…</string>
     <string name="contents_error_badtar">File cannot be recognized</string>
     <string name="contents_error_noprofile">Profile not found in content</string>
@@ -1802,14 +1872,10 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="contents_delete">Delete</string>
     <string name="contents_review_confirm">This content includes files outside the trusted set. Review and confirm to proceed.</string>
     <string name="contents_removed">Removed %1$s</string>
-
-    
     <string name="driver_error_manifest">Failed to load driver manifest: %1$d</string>
     <string name="driver_error_loading">Error loading driver manifest: %1$s</string>
     <string name="driver_timeout">Connection timed out. Please check your network and try again.</string>
     <string name="driver_network_error">Network error: %1$s</string>
-
-    
     <string name="settings_theme_default">Default</string>
     <string name="settings_theme_alternate">Alternate</string>
     <string name="settings_download_slow">Slow</string>
@@ -1820,18 +1886,11 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_download_heat_warning">Higher speeds may cause increased device heat during downloads</string>
     <string name="settings_region_default">Default</string>
     <string name="settings_saving_restarting">Saving settings and restarting…</string>
-
-    
     <string name="settings_title">Settings</string>
-
-    
     <string name="contents_install_success">Content installed successfully</string>
     <string name="contents_install_failed">Failed to install content</string>
     <string name="contents_install_error">Installation error: %1$s</string>
-
-    
     <string name="library_status_ready">Ready</string>
-    
     <string name="wine_proton_manager">Wine/Proton Manager</string>
     <string name="wine_proton_bionic_notice_header">Bionic Images Only</string>
     <string name="wine_proton_info_description">Import custom Wine or Proton versions for Bionic containers. Filename must begin with \'wine\' or \'proton\' (case-insensitive). Packages must include bin/, lib/, and prefixPack.txz. All imports are bionic-compatible only.</string>
@@ -1862,8 +1921,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="cancel_import_message">An import is currently in progress. Cancelling will discard all extracted files and you will need to start the import again.\n\nAre you sure you want to cancel?</string>
     <string name="cancel_import_confirm">Yes, Cancel Import</string>
     <string name="cancel_import_keep">No, Keep Import</string>
-
-    
     <string name="wine_proton_extracting">Extracting and validating package (this may take 2-3 minutes for large files)...</string>
     <string name="wine_proton_filename_error">Filename must begin with \'wine\' or \'proton\' (case-insensitive)</string>
     <string name="wine_proton_file_empty">File is empty or cannot be read</string>
@@ -1889,7 +1946,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="wine_proton_containers_in_use">Containers using this version:</string>
     <string name="wine_proton_no_containers_warning">No containers are currently using this version.</string>
     <string name="wine_proton_containers_will_break">These containers will no longer work if you proceed:</string>
+    -->
     <string name="auth_webview_title">Authorization</string>
+    <!--
 
     
     <string name="gog_integration_title">GOG Games</string>
@@ -1905,8 +1964,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="gog_logout_success">Logged out from GOG successfully</string>
     <string name="gog_logout_failed">Failed to logout: %s</string>
     <string name="gog_logout_in_progress">Logging out from GOG…</string>
-
-    
     <string name="epic_integration_title">Epic Games</string>
     <string name="epic_settings_login_title">Sign in</string>
     <string name="epic_settings_login_subtitle">Sign in to your Epic Games account</string>
@@ -1922,7 +1979,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="epic_logout_in_progress">Logging out from Epic Games…</string>
 
     
+    -->
     <string name="steam_integration_title">Steam</string>
+    <!--
     <string name="steam_settings_login_title">Sign in</string>
     <string name="steam_settings_login_subtitle">Sign in to your Steam account</string>
     <string name="steam_settings_logout_title">Logout</string>
@@ -1933,7 +1992,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="steam_logout_success">Logged out from Steam successfully</string>
     <string name="steam_logout_failed">Failed to logout: %s</string>
     <string name="steam_logout_in_progress">Logging out from Steam…</string>
-
     <string name="manifest_downloading_item">Downloading %1$s...</string>
     <string name="manifest_download_failed">Download failed: %1$s</string>
     <string name="manifest_install_failed">Failed to install %1$s</string>
@@ -1941,6 +1999,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="manifest_content_untrusted">Content is not trusted and was not installed.</string>
     <string name="manifest_type_mismatch">Downloaded content does not match expected type.</string>
     <string name="manifest_glibc_not_supported">GLIBC builds are not supported.</string>
+    -->
 
     <string name="controller_manager">Controller Manager</string>
     <string name="player_1">Player 1</string>
@@ -1952,7 +2011,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="press_any_button_for_player">Press any button on the controller for</string>
     <string name="restart_required_for_changes">Restart container for changes to take effect</string>
     <string name="vibrate">Vibration</string>
+    <!--
     <string name="gyro">Motion Controls</string>
+    -->
     <string name="enable_right_stick_gyro">Enable Right Stick Gyroscopic Motion</string>
     <string name="gyro_activator_button">Gyroscope Activation Button</string>
     <string name="hold">Hold</string>
@@ -1962,15 +2023,19 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="smoothing">Smoothing</string>
     <string name="invert_x">Invert X-Axis</string>
     <string name="invert_y">Invert Y-Axis</string>
+    <!--
     <string name="gyro_settings">Motion Controls</string>
     <string name="percent_fmt">%1$d%%</string>
+    -->
     <string name="filtering">Filtering</string>
     <string name="gyro_deadzone">Deadzone</string>
     <string name="gyro_sensitivity">Sensitivity</string>
     <string name="direction">Direction</string>
     <string name="gyro_mode">Gyroscope Activation Mode</string>
+    <!--
     <string name="motion_controls">Motion Controls</string>
     <string name="hud">HUD</string>
+    -->
     <string name="macros_hint">Toggle buttons to enable autofire.</string>
     <string name="macros">Macros</string>
     <string name="include_triggers_note">Also apply turbo to L2/R2 as digital presses</string>
@@ -1978,16 +2043,17 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="disable_all">Disable all</string>
     <string name="on">On</string>
     <string name="off">Off</string>
+    <!--
     <string name="input_macros">Turbo / Macros</string>
     <string name="button_lb">LB</string>
     <string name="button_rb">RB</string>
     <string name="button_back">Back</string>
+    -->
     <string name="gyro_target_stick">Apply gyro to</string>
     <string name="enable_stick_gyro">Enable Analog Stick Gyroscopic Motion</string>
+    <!--
     <string name="vibrate_slot">Vibration Player %d</string>
     <string name="frame_synchronization">Frame Synchronization</string>
-
-    
     <string name="amazon_integration_title">Amazon Games</string>
     <string name="amazon_games_integration_title">Amazon Games</string>
     <string name="amazon_settings_login_title">Sign in</string>
@@ -2013,9 +2079,13 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="amazon_verify_success">All files verified successfully.\n\n%1$d / %2$d files OK.</string>
     <string name="amazon_verify_failed_detail">Verification found issues.\n\n%1$d / %2$d files OK\n%3$d missing\n%4$d size mismatch\n%5$d hash mismatch\n\nReinstall the game to fix corrupted files.</string>
     <string name="amazon_verify_error">Verification failed: %1$s</string>
+    -->
     <string name="error_wine_not_installed">Wine/Proton package \'%1$s\' is not installed and could not be downloaded.</string>
+    <!--
     <string name="osc_transparency">On-Screen Controls Transparency</string>
+    -->
     <string name="osc_transparency_description">Adjust the transparency of the on-screen controls.</string>
+    <!--
     <string name="library_download_phase_downloading">Downloading</string>
     <string name="library_download_phase_preparing">Preparing</string>
     <string name="library_download_phase_patching">Patching</string>
@@ -2028,6 +2098,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="touch_controller">Touch Controller</string>
     <string name="tools">Tools</string>
     <string name="controller">Controller</string>
+    -->
     <string name="download_in_components">None downloaded. Please download one in Components.</string>
 
     <!-- Various homescreen strings (need to finalize/fix naming) -->
@@ -2035,8 +2106,10 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="download_slash_install">Download / Install</string>
     <string name="cloud_sync">Cloud Sync</string>
     <string name="already_set">Already Set</string>
+    <!--
     <string name="dlcs_available">DLCS AVAILABLE</string>
     <string name="add_ons_dlcs">ADD-ONS / DLCS</string>
+    -->
     <string name="shortcut">Shortcut</string>
     <string name="custom">Custom</string>
     <string name="save_management">SAVE MANAGEMENT</string>
@@ -2046,5 +2119,18 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="playtime">Playtime</string>
     <string name="plays">Plays</string>
     <string name="dlcs">DLCs</string>
+
+    <!-- Uninstall / remove -->
+    <string name="uninstall_game">UNINSTALL GAME</string>
+    <string name="remove_game">REMOVE GAME</string>
+    <string name="uninstall_confirm">Uninstall %1$s and permanently delete its installed game folder?</string>
+    <string name="remove_confirm">Remove %1$s from your library. Game files on disk will stay untouched?</string>
+    <string name="game_uninstalled">%1$s uninstalled.</string>
+    <string name="game_removed">%1$s removed.</string>
+    <string name="failed_to_uninstall">Failed to uninstall.</string>
+    <string name="failed_to_uninstall_reason">Failed to uninstall: %1$s</string>
+    <string name="loading_library">Loading library\u2026</string>
+    <string name="no_games_installed">No games installed. Use a Store tab or the + button to add games.</string>
+    <string name="cancel_all">Cancel All</string>
 
     </resources>

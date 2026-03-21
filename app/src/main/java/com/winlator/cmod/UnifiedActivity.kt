@@ -14,6 +14,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -38,7 +42,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import com.winlator.cmod.widget.chasingBorder
-import com.winlator.cmod.core.RefreshRateUtils
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -74,8 +77,11 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusTarget
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -122,7 +128,6 @@ import com.winlator.cmod.steam.events.AndroidEvent
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import `in`.dragonbra.javasteam.enums.EPersonaState
@@ -348,8 +353,6 @@ class UnifiedActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Maintain the user's preferred refresh rate when returning to this activity
-        applyPreferredRefreshRate()
         // Ensure all store services are running when returning from a game or other activity
         if (GOGService.hasStoredCredentials(this) && !GOGService.isRunning) {
             GOGService.start(this)
@@ -357,59 +360,10 @@ class UnifiedActivity : ComponentActivity() {
         if (EpicService.hasStoredCredentials(this) && !EpicService.isRunning) {
             EpicService.start(this)
         }
-        if (SteamService.isLoggedIn && SteamService.instance == null) {
+        if (SteamService.hasStoredCredentials(this) && SteamService.instance == null) {
             SteamService.start(this)
         }
         libraryRefreshSignal++
-    }
-
-    /**
-     * Apply the user's refresh rate preference to this activity's window.
-     * Reads the global override from SharedPreferences; 0 means use device max.
-     */
-    private fun applyPreferredRefreshRate() {
-        RefreshRateUtils.applyPreferredRefreshRate(this)
-    }
-
-    @Composable
-    private fun rememberUnifiedTargetRefreshHz(refreshSignal: Int): Int {
-        val targetRefreshHz = remember(refreshSignal) {
-            RefreshRateUtils.resolvePreferredRefreshRate(
-                this@UnifiedActivity,
-                RefreshRateUtils.getSavedGlobalRefreshRateOverride(this@UnifiedActivity)
-            ).roundToInt().coerceAtLeast(1)
-        }
-        return targetRefreshHz
-    }
-
-    @Composable
-    private fun BoxScope.UnifiedRedrawDriver(targetRefreshHz: Int) {
-        val targetFrameIntervalNanos = remember(targetRefreshHz) {
-            1_000_000_000L / targetRefreshHz.toLong().coerceAtLeast(1L)
-        }
-        var pulseAlpha by remember(targetRefreshHz) { mutableFloatStateOf(0.004f) }
-
-        LaunchedEffect(targetRefreshHz) {
-            var lastRedrawNanos = 0L
-            var highAlpha = false
-            while (isActive) {
-                withFrameNanos { frameTimeNanos ->
-                    if (lastRedrawNanos == 0L || frameTimeNanos - lastRedrawNanos >= targetFrameIntervalNanos) {
-                        highAlpha = !highAlpha
-                        pulseAlpha = if (highAlpha) 0.008f else 0.004f
-                        lastRedrawNanos = frameTimeNanos
-                    }
-                }
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .size(1.dp)
-                .graphicsLayer(alpha = pulseAlpha)
-                .background(Color.White)
-        )
     }
 
     override fun dispatchGenericMotionEvent(event: android.view.MotionEvent): Boolean {
@@ -488,23 +442,21 @@ class UnifiedActivity : ComponentActivity() {
         EpicAuthManager.updateLoginStatus(this)
         GOGAuthManager.updateLoginStatus(this)
         GOGConstants.init(this)
-        
+        SteamService.initLoginStatus(this)
+
         // Start EpicService if user is logged in
         if (EpicService.hasStoredCredentials(this)) {
             EpicService.start(this)
         }
 
         // Start SteamService if user is logged in
-        if (SteamService.isLoggedIn) {
+        if (SteamService.hasStoredCredentials(this)) {
             SteamService.start(this)
         }
 
         if (GOGAuthManager.isLoggedIn(this)) {
             GOGService.start(this)
         }
-
-        // Apply user's preferred refresh rate on launch
-        applyPreferredRefreshRate()
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.navigationBarColor = 0xFF0D1117.toInt()
@@ -559,7 +511,6 @@ class UnifiedActivity : ComponentActivity() {
         var iconRefreshKey by remember { mutableIntStateOf(0) }
         
         val currentRefreshSignal = this@UnifiedActivity.libraryRefreshSignal
-        val targetRefreshHz = rememberUnifiedTargetRefreshHz(currentRefreshSignal)
         LaunchedEffect(currentRefreshSignal) {
             libraryRefreshKey++
             iconRefreshKey++
@@ -804,68 +755,85 @@ class UnifiedActivity : ComponentActivity() {
             }
         }
 
-        Box(modifier = Modifier.fillMaxSize()) {
-            ModalNavigationDrawer(
-                drawerState = drawerState,
-                drawerContent = {
-                    DrawerContent(
-                        persona = persona,
-                        context = context,
-                        scope = scope,
-                        aioMode = aioMode,
-                        onAioToggle = { aioMode = it; PrefManager.aioStoreMode = it },
-                        storeVisible = storeVisible,
-                        contentFilters = contentFilters,
-                        libraryLayoutMode = libraryLayoutMode,
-                        onLibraryLayoutSelected = {
-                            libraryLayoutMode = it
-                            PrefManager.libraryLayoutMode = it.name
-                        },
-                        onClose = { scope.launch { drawerState.close() } }
-                    )
-                },
-                scrimColor = Color.Black.copy(alpha = 0.5f),
-                gesturesEnabled = true
-            ) {
-            Box(Modifier.fillMaxSize().background(BgDark)) {
-                Scaffold(
-                    containerColor = BgDark,
-                    topBar = { TopBar(tabs, selectedIdx, { selectedIdx = it }, persona, context, scope, isControllerConnected, isPS, isLibraryTab, searchQueryTfv, { searchQueryTfv = it }, onFilterClicked = { scope.launch { drawerState.open() } }) {
-                        if (selectedLibrarySource == "GOG") {
-                            globalSettingsGogGame = gogApps.find { it.id == selectedGogGameId }
-                        } else {
-                            // Try Steam apps first, then fall back to custom or epic pseudo-apps
-                            globalSettingsApp = (steamApps.find { it.id == selectedSteamAppId }
-                            ?: if (selectedSteamAppId < 0) {
-                                // Build a pseudo SteamApp for the custom game
-                                SteamApp(
-                                    id = selectedSteamAppId,
-                                    name = selectedSteamAppName,
-                                    developer = "Custom"
-                                )
-                            } else if (selectedSteamAppId >= 2000000000) {
-                                val epicId = selectedSteamAppId - 2000000000
-                                val epic = epicApps.find { it.id == epicId }
-                                SteamApp(
-                                    id = selectedSteamAppId,
-                                    name = selectedSteamAppName,
-                                    developer = epic?.developer ?: "Epic Games",
-                                    gameDir = epic?.installPath ?: ""
-                                )
-                            } else null)
-                        }
-                    } }
-                ) { padding ->
-                    LaunchedEffect(selectedIdx, tabs) {
-                        currentTabKey = tabs.getOrNull(selectedIdx)?.key ?: "library"
-                        // Reset store focus when switching tabs
-                        storeFocusIndex.value = 0
-                        storeItemClickCallback = null
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                DrawerContent(
+                    persona = persona,
+                    context = context,
+                    scope = scope,
+                    aioMode = aioMode,
+                    onAioToggle = { aioMode = it; PrefManager.aioStoreMode = it },
+                    storeVisible = storeVisible,
+                    contentFilters = contentFilters,
+                    libraryLayoutMode = libraryLayoutMode,
+                    onLibraryLayoutSelected = {
+                        libraryLayoutMode = it
+                        PrefManager.libraryLayoutMode = it.name
+                    },
+                    onClose = { scope.launch { drawerState.close() } }
+                )
+            },
+            scrimColor = Color.Black.copy(alpha = 0.5f),
+            gesturesEnabled = true
+        ) {
+        Box(Modifier.fillMaxSize().background(BgDark)) {
+            Scaffold(
+                containerColor = BgDark,
+                topBar = { TopBar(tabs, selectedIdx, { selectedIdx = it }, persona, context, scope, isControllerConnected, isPS, isLibraryTab, searchQueryTfv, { searchQueryTfv = it }, onFilterClicked = { scope.launch { drawerState.open() } }) {
+                    if (selectedLibrarySource == "GOG") {
+                        globalSettingsGogGame = gogApps.find { it.id == selectedGogGameId }
+                    } else {
+                        // Try Steam apps first, then fall back to custom or epic pseudo-apps
+                        globalSettingsApp = (steamApps.find { it.id == selectedSteamAppId }
+                        ?: if (selectedSteamAppId < 0) {
+                            // Build a pseudo SteamApp for the custom game
+                            SteamApp(
+                                id = selectedSteamAppId,
+                                name = selectedSteamAppName,
+                                developer = "Custom"
+                            )
+                        } else if (selectedSteamAppId >= 2000000000) {
+                            val epicId = selectedSteamAppId - 2000000000
+                            val epic = epicApps.find { it.id == epicId }
+                            SteamApp(
+                                id = selectedSteamAppId,
+                                name = selectedSteamAppName,
+                                developer = epic?.developer ?: "Epic Games",
+                                gameDir = epic?.installPath ?: ""
+                            )
+                        } else null)
+                    }
+                } }
+            ) { padding ->
+                LaunchedEffect(selectedIdx, tabs) {
+                    currentTabKey = tabs.getOrNull(selectedIdx)?.key ?: "library"
+                    // Reset store focus when switching tabs
+                    storeFocusIndex.value = 0
+                    storeItemClickCallback = null
+                }
+
+                Box(Modifier.padding(padding).fillMaxSize().background(BgDark)) {
+                    val key = tabs.getOrNull(selectedIdx)?.key ?: "library"
+
+                    // Keep Library tab always composed so its state survives tab switches
+                    Box(Modifier.fillMaxSize().let {
+                        if (key == "library") it
+                        else it.alpha(0f).pointerInput(Unit) { /* block ghost taps */ }
+                    }) {
+                        LibraryCarousel(
+                            isLoggedIn = isLoggedIn,
+                            steamApps = filteredSteamApps,
+                            epicApps = epicApps,
+                            gogApps = gogApps,
+                            layoutMode = libraryLayoutMode,
+                            libraryRefreshKey = libraryRefreshKey,
+                            iconRefreshKey = iconRefreshKey,
+                            searchQuery = searchQuery
+                        )
                     }
 
-                    Box(Modifier.padding(padding).fillMaxSize().background(BgDark)) {
-                        val key = tabs.getOrNull(selectedIdx)?.key ?: "library"
-
+                    if (key != "library") {
                         AnimatedContent(
                             targetState = key,
                             transitionSpec = {
@@ -874,16 +842,6 @@ class UnifiedActivity : ComponentActivity() {
                             label = "tabContent"
                         ) { animatedKey ->
                             when (animatedKey) {
-                            "library" -> LibraryCarousel(
-                                isLoggedIn = isLoggedIn,
-                                steamApps = filteredSteamApps,
-                                epicApps = epicApps,
-                                gogApps = gogApps,
-                                layoutMode = libraryLayoutMode,
-                                libraryRefreshKey = libraryRefreshKey,
-                                iconRefreshKey = iconRefreshKey,
-                                searchQuery = searchQuery
-                            )
                                 "downloads" -> DownloadsTab(selectedDownloadId, onSelectDownload = { selectedDownloadId = it })
                                 "steam", "store" -> SteamStoreTab(isLoggedIn, filteredSteamApps, searchQuery, libraryLayoutMode)
 
@@ -894,39 +852,39 @@ class UnifiedActivity : ComponentActivity() {
                                     gogLoginLauncher.launch(Intent(this@UnifiedActivity, GOGOAuthActivity::class.java))
                                 }
                                 "amazon" -> StorePlaceholderTab("Amazon Games")
+                                else -> {}
                             }
-                        }
-
-                        // Bottom-right Add Custom Game button
-                        if (key == "library") {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(16.dp)
-                                    .size(52.dp)
-                                    .shadow(10.dp, CircleShape, spotColor = Accent.copy(alpha = 0.4f))
-                                    .clip(CircleShape)
-                                    .background(Accent)
-                                    .focusProperties { canFocus = false } // No specific button for this, handle via long press or touch
-                                    .clickable { showAddCustomGame = true },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = "Add Custom Game", tint = Color.White, modifier = Modifier.size(28.dp))
-                            }
-                        }
-
-                        // Cloud Sync Dialog
-                        val cloudSyncStatus by SteamService.cloudSyncStatus.collectAsState()
-                        if (cloudSyncStatus != null) {
-                            CloudSyncOverlay(cloudSyncStatus!!)
                         }
                     }
-                }
 
+                    // Bottom-right Add Custom Game button
+                    if (key == "library") {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(16.dp)
+                                .size(52.dp)
+                                .shadow(10.dp, CircleShape, spotColor = Accent.copy(alpha = 0.4f))
+                                .clip(CircleShape)
+                                .background(Accent)
+                                .focusProperties { canFocus = false } // No specific button for this, handle via long press or touch
+                                .clickable { showAddCustomGame = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Add Custom Game", tint = Color.White, modifier = Modifier.size(28.dp))
+                        }
+                    }
+
+                    // Cloud Sync Dialog
+                    val cloudSyncStatus by SteamService.cloudSyncStatus.collectAsState()
+                    if (cloudSyncStatus != null) {
+                        CloudSyncOverlay(cloudSyncStatus!!)
+                    }
+                }
             }
-            } // end ModalNavigationDrawer
-            UnifiedRedrawDriver(targetRefreshHz)
+
         }
+        } // end ModalNavigationDrawer
 
         if (globalSettingsApp != null) {
             GameSettingsDialog(
@@ -1413,8 +1371,18 @@ class UnifiedActivity : ComponentActivity() {
         // Move expensive filtering (runBlocking DB queries, file I/O) off the main thread
         var installedApps by remember { mutableStateOf<List<SteamApp>>(emptyList()) }
         var gogByPseudoId by remember { mutableStateOf<Map<Int, GOGGame>>(emptyMap()) }
+        var libraryLoaded by remember { mutableStateOf(false) }
+        // Track whether the LaunchedEffect is still reprocessing after input changes
+        // so we don't flash the empty state while filtering is in progress.
+        var inputVersion by remember { mutableIntStateOf(0) }
+        var processedVersion by remember { mutableIntStateOf(0) }
 
         LaunchedEffect(steamApps, epicApps, gogApps, customApps, libraryRefreshKey) {
+            inputVersion++
+            // On first run, wait for DB to emit before declaring loaded
+            if (!libraryLoaded) {
+                db.steamAppDao().getAllOwnedApps().first()
+            }
             withContext(Dispatchers.IO) {
                 val steamInstalled = steamApps.filter { SteamService.isAppInstalled(it.id) }
 
@@ -1455,6 +1423,8 @@ class UnifiedActivity : ComponentActivity() {
                 withContext(Dispatchers.Main) {
                     gogByPseudoId = gogMap
                     installedApps = sorted
+                    libraryLoaded = true
+                    processedVersion = inputVersion
                 }
             }
         }
@@ -1464,8 +1434,49 @@ class UnifiedActivity : ComponentActivity() {
             else installedApps.filter { it.name.contains(searchQuery, ignoreCase = true) }
         }
 
+        // Show a loading spinner until the first library scan completes,
+        // with a minimum display time so it doesn't flash
+        var minTimeElapsed by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            delay(500)
+            minTimeElapsed = true
+        }
+        // A logged-in store whose owned-apps list is still empty hasn't finished
+        // its initial library fetch yet — keep the spinner up instead of flashing
+        // "No games installed". This resolves itself once the store populates its
+        // DB (steamApps/epicApps/gogApps become non-empty) or if other sources
+        // (custom apps, other stores) already have installed games.
+        val awaitingStoreSync = installedApps.isEmpty() && (
+            (isLoggedIn && steamApps.isEmpty()) ||
+            (epicApps.isEmpty() && EpicService.hasStoredCredentials(context)) ||
+            (gogApps.isEmpty() && GOGAuthManager.isLoggedIn(context))
+        )
+        val showLoading = !libraryLoaded || !minTimeElapsed || processedVersion < inputVersion || awaitingStoreSync
+        if (showLoading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                val spinAlpha by animateFloatAsState(
+                    targetValue = 1f,
+                    animationSpec = tween(durationMillis = 600),
+                    label = "loaderFade"
+                )
+                CircularProgressIndicator(
+                    color = Accent,
+                    strokeWidth = 3.dp,
+                    modifier = Modifier.size(48.dp).alpha(spinAlpha)
+                )
+            }
+            return
+        }
+
         if (installedApps.isEmpty()) {
-            if (!isLoggedIn) {
+            val epicLoggedIn by EpicAuthManager.isLoggedInFlow.collectAsState()
+            val gogLoggedIn by GOGAuthManager.isLoggedInFlow.collectAsState()
+            val anyLoggedIn = isLoggedIn || epicLoggedIn || gogLoggedIn
+            val hasAnyCredentials = anyLoggedIn ||
+                SteamService.hasStoredCredentials(context) ||
+                EpicService.hasStoredCredentials(context) ||
+                GOGAuthManager.isLoggedIn(context)
+            if (!anyLoggedIn && !hasAnyCredentials) {
                 LoginRequiredScreen("Library") {
                     // Redirect to the Stores section in settings
                     val intent = Intent(this@UnifiedActivity, MainActivity::class.java)
@@ -1474,9 +1485,9 @@ class UnifiedActivity : ComponentActivity() {
                     val opts = ActivityOptionsCompat.makeCustomAnimation(this@UnifiedActivity, R.anim.settings_enter, R.anim.settings_exit)
                     startActivity(intent, opts.toBundle())
                 }
-            } else {
+            } else if (anyLoggedIn) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    EmptyStateMessage("No games installed. Use a Store tab or the + button to add games.")
+                    EmptyStateMessage(stringResource(R.string.no_games_installed))
                 }
             }
             return
@@ -1841,6 +1852,59 @@ class UnifiedActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Shared uninstall/remove confirmation UI used by GameSettingsDialog,
+     * GOGGameSettingsDialog, and LibraryGameDetailDialog.
+     */
+    @Composable
+    private fun UninstallConfirmation(
+        message: String,
+        confirmLabel: String = stringResource(R.string.uninstall),
+        onConfirm: () -> Unit,
+        onCancel: () -> Unit,
+    ) {
+        var isUninstalling by remember { mutableStateOf(false) }
+
+        GameSettingsInfoCard(message = message, accentColor = DangerRed)
+
+        if (isUninstalling) {
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(color = DangerRed)
+            }
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        isUninstalling = true
+                        onConfirm()
+                    },
+                    border = BorderStroke(1.dp, DangerRed.copy(alpha = 0.5f)),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
+                ) {
+                    Text(
+                        confirmLabel,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                TextButton(onClick = onCancel) {
+                    Text(stringResource(R.string.cancel), color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+    }
+
     // Game Settings Dialog
     @Composable
     private fun GameSettingsDialog(app: SteamApp, onDismissRequest: () -> Unit) {
@@ -2110,7 +2174,7 @@ class UnifiedActivity : ComponentActivity() {
                             onClick = { currentTab = GameSettingsScreen.Saves },
                         ),
                         GameSettingsActionItem(
-                            title = if (isCustom) "Remove" else "Uninstall",
+                            title = if (isCustom) stringResource(R.string.remove) else stringResource(R.string.uninstall),
                             icon = Icons.Default.Delete,
                             accentColor = DangerRed,
                             onClick = { currentTab = GameSettingsScreen.Uninstall },
@@ -2147,117 +2211,45 @@ class UnifiedActivity : ComponentActivity() {
                 }
 
                 GameSettingsScreen.Uninstall -> {
-                    var isUninstalling by remember { mutableStateOf(false) }
-
-                    GameSettingsInfoCard(
-                        message = if (isCustom) {
-                            "Remove ${app.name} from your library. Game files on disk will stay untouched?"
-                        } else {
-                            "Uninstall ${app.name} and permanently delete its installed game folder?"
-                        },
-                        accentColor = DangerRed,
-                    )
-
-                    if (isUninstalling) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularProgressIndicator(color = DangerRed)
-                        }
-                    } else {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            OutlinedButton(
-                                onClick = {
-                                    isUninstalling = true
-                                    if (isCustom) {
-                                        scope.launch(Dispatchers.IO) {
-                                            val cm = ContainerManager(context)
-                                            val sc = cm.loadShortcuts().find {
-                                                it.getExtra("game_source") == "CUSTOM" &&
-                                                    (it.getExtra("custom_name") == app.name || it.name == app.name)
-                                            }
-                                            sc?.file?.delete()
-                                            val iconFile = java.io.File(
-                                                context.filesDir,
-                                                "custom_icons/${app.name.replace("/", "_")}.png",
-                                            )
-                                            iconFile.delete()
-                                            PluviaApp.events.emit(
-                                                AndroidEvent.LibraryInstallStatusChanged(app.id),
-                                            )
-                                            withContext(Dispatchers.Main) {
-                                                android.widget.Toast.makeText(
-                                                    context,
-                                                    "${app.name} removed.",
-                                                    android.widget.Toast.LENGTH_SHORT,
-                                                ).show()
-                                                onDismissRequest()
-                                            }
-                                        }
-                                    } else if (isEpic) {
-                                        scope.launch(Dispatchers.IO) {
-                                            val result = EpicService.deleteGame(context, epicId)
-                                            withContext(Dispatchers.Main) {
-                                                if (result.isSuccess) {
-                                                    android.widget.Toast.makeText(
-                                                        context,
-                                                        "${app.name} uninstalled.",
-                                                        android.widget.Toast.LENGTH_SHORT,
-                                                    ).show()
-                                                } else {
-                                                    val error =
-                                                        result.exceptionOrNull()?.message ?: "Unknown error"
-                                                    android.widget.Toast.makeText(
-                                                        context,
-                                                        "Failed to uninstall: $error",
-                                                        android.widget.Toast.LENGTH_LONG,
-                                                    ).show()
-                                                }
-                                                onDismissRequest()
-                                            }
-                                        }
-                                    } else {
-                                        SteamService.uninstallApp(app.id) { success ->
-                                            if (success) {
-                                                android.widget.Toast.makeText(
-                                                    context,
-                                                    "${app.name} uninstalled.",
-                                                    android.widget.Toast.LENGTH_SHORT,
-                                                ).show()
-                                            } else {
-                                                android.widget.Toast.makeText(
-                                                    context,
-                                                    "Failed to uninstall.",
-                                                    android.widget.Toast.LENGTH_SHORT,
-                                                ).show()
-                                            }
-                                            onDismissRequest()
-                                        }
+                    UninstallConfirmation(
+                        message = if (isCustom) getString(R.string.remove_confirm, app.name)
+                            else getString(R.string.uninstall_confirm, app.name),
+                        confirmLabel = if (isCustom) stringResource(R.string.remove) else stringResource(R.string.uninstall),
+                        onConfirm = {
+                            if (isCustom) {
+                                scope.launch(Dispatchers.IO) {
+                                    val cm = ContainerManager(context)
+                                    val sc = cm.loadShortcuts().find {
+                                        it.getExtra("game_source") == "CUSTOM" &&
+                                            (it.getExtra("custom_name") == app.name || it.name == app.name)
                                     }
-                                },
-                                border = BorderStroke(1.dp, DangerRed.copy(alpha = 0.5f)),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
-                            ) {
-                                Text(
-                                    if (isCustom) "Remove" else "Uninstall",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.Medium,
-                                )
+                                    sc?.file?.delete()
+                                    java.io.File(context.filesDir, "custom_icons/${app.name.replace("/", "_")}.png").delete()
+                                    PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(app.id))
+                                    withContext(Dispatchers.Main) {
+                                        android.widget.Toast.makeText(context, getString(R.string.game_removed, app.name), android.widget.Toast.LENGTH_SHORT).show()
+                                        onDismissRequest()
+                                    }
+                                }
+                            } else if (isEpic) {
+                                scope.launch(Dispatchers.IO) {
+                                    val result = EpicService.deleteGame(context, epicId)
+                                    withContext(Dispatchers.Main) {
+                                        if (result.isSuccess) android.widget.Toast.makeText(context, getString(R.string.game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
+                                        else android.widget.Toast.makeText(context, getString(R.string.failed_to_uninstall_reason, result.exceptionOrNull()?.message ?: "Unknown error"), android.widget.Toast.LENGTH_LONG).show()
+                                        onDismissRequest()
+                                    }
+                                }
+                            } else {
+                                SteamService.uninstallApp(app.id) { success ->
+                                    if (success) android.widget.Toast.makeText(context, getString(R.string.game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
+                                    else android.widget.Toast.makeText(context, getString(R.string.failed_to_uninstall), android.widget.Toast.LENGTH_SHORT).show()
+                                    onDismissRequest()
+                                }
                             }
-                            Spacer(Modifier.width(8.dp))
-                            TextButton(onClick = { currentTab = GameSettingsScreen.Menu }) {
-                                Text("Cancel", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    }
+                        },
+                        onCancel = { currentTab = GameSettingsScreen.Menu },
+                    )
                 }
             }
         }
@@ -2333,7 +2325,7 @@ class UnifiedActivity : ComponentActivity() {
                                 onClick = { currentTab = GameSettingsScreen.Saves },
                             ),
                             GameSettingsActionItem(
-                                title = "Uninstall",
+                                title = stringResource(R.string.uninstall),
                                 icon = Icons.Default.Delete,
                                 accentColor = DangerRed,
                                 onClick = { currentTab = GameSettingsScreen.Uninstall },
@@ -2354,7 +2346,7 @@ class UnifiedActivity : ComponentActivity() {
                                     }
                                     android.widget.Toast.makeText(
                                         context,
-                                        "Cloud sync started.",
+                                        getString(R.string.cloud_sync_started),
                                         android.widget.Toast.LENGTH_SHORT,
                                     ).show()
                                 },
@@ -2369,66 +2361,22 @@ class UnifiedActivity : ComponentActivity() {
                 }
 
                 GameSettingsScreen.Uninstall -> {
-                    var isUninstalling by remember { mutableStateOf(false) }
-
-                    GameSettingsInfoCard(
-                        message = "Uninstall ${app.title} and permanently delete its installed game folder?",
-                        accentColor = DangerRed,
-                    )
-
-                    if (isUninstalling) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularProgressIndicator(color = DangerRed)
-                        }
-                    } else {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            OutlinedButton(
-                                onClick = {
-                                    isUninstalling = true
-                                    scope.launch(Dispatchers.IO) {
-                                        GOGService.deleteGame(
-                                            context,
-                                            LibraryItem(
-                                                "GOG_${app.id}",
-                                                app.title,
-                                                com.winlator.cmod.steam.enums.GameSource.GOG,
-                                            ),
-                                        )
-                                        withContext(Dispatchers.Main) {
-                                            android.widget.Toast.makeText(
-                                                context,
-                                                "${app.title} uninstalled.",
-                                                android.widget.Toast.LENGTH_SHORT,
-                                            ).show()
-                                            onDismissRequest()
-                                        }
-                                    }
-                                },
-                                border = BorderStroke(1.dp, DangerRed.copy(alpha = 0.5f)),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
-                            ) {
-                                Text(
-                                    "Uninstall",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.Medium,
+                    UninstallConfirmation(
+                        message = getString(R.string.uninstall_confirm, app.title),
+                        onConfirm = {
+                            scope.launch(Dispatchers.IO) {
+                                GOGService.deleteGame(
+                                    context,
+                                    LibraryItem("GOG_${app.id}", app.title, com.winlator.cmod.steam.enums.GameSource.GOG),
                                 )
+                                withContext(Dispatchers.Main) {
+                                    android.widget.Toast.makeText(context, getString(R.string.game_uninstalled, app.title), android.widget.Toast.LENGTH_SHORT).show()
+                                    onDismissRequest()
+                                }
                             }
-                            Spacer(Modifier.width(8.dp))
-                            TextButton(onClick = { currentTab = GameSettingsScreen.Menu }) {
-                                Text("Cancel", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    }
+                        },
+                        onCancel = { currentTab = GameSettingsScreen.Menu },
+                    )
                 }
             }
         }
@@ -2950,7 +2898,7 @@ class UnifiedActivity : ComponentActivity() {
                                                         scope.launch(Dispatchers.IO) {
                                                             GOGService.syncCloudSaves(context, "GOG_${gogGame!!.id}", "auto")
                                                         }
-                                                        android.widget.Toast.makeText(context, "Cloud sync started.", android.widget.Toast.LENGTH_SHORT).show()
+                                                        android.widget.Toast.makeText(context, getString(R.string.cloud_sync_started), android.widget.Toast.LENGTH_SHORT).show()
                                                     },
                                                 ),
                                                 GameSettingsActionItem(
@@ -2996,7 +2944,6 @@ class UnifiedActivity : ComponentActivity() {
                             }
 
                             LibraryDetailScreen.Uninstall -> {
-                                var isUninstalling by remember { mutableStateOf(false) }
                                 Column(
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -3004,94 +2951,64 @@ class UnifiedActivity : ComponentActivity() {
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
                                     Text(
-                                        if (isCustom) "REMOVE GAME" else "UNINSTALL GAME",
+                                        stringResource(if (isCustom) R.string.remove_game else R.string.uninstall_game),
                                         style = MaterialTheme.typography.labelMedium,
                                         color = TextSecondary,
                                         fontWeight = FontWeight.Bold,
                                         letterSpacing = 1.1.sp,
                                     )
 
-                                    GameSettingsInfoCard(
-                                        message = if (isCustom) "Remove ${app.name} from your library. Game files on disk will stay untouched?"
-                                        else "Uninstall ${app.name} and permanently delete its installed game folder?",
-                                        accentColor = DangerRed,
-                                    )
-
                                     Spacer(Modifier.weight(1f))
 
-                                    if (isUninstalling) {
-                                        Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
-                                            CircularProgressIndicator(color = DangerRed)
-                                        }
-                                    } else {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 4.dp, vertical = 8.dp),
-                                            horizontalArrangement = Arrangement.End,
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            OutlinedButton(
-                                                onClick = {
-                                                    isUninstalling = true
-                                                    if (isGog) {
-                                                        scope.launch(Dispatchers.IO) {
-                                                            GOGService.deleteGame(
-                                                                context,
-                                                                LibraryItem("GOG_${gogGame!!.id}", gogGame.title, com.winlator.cmod.steam.enums.GameSource.GOG),
-                                                            )
-                                                            withContext(Dispatchers.Main) {
-                                                                android.widget.Toast.makeText(context, "${app.name} uninstalled.", android.widget.Toast.LENGTH_SHORT).show()
-                                                                onDismissRequest()
-                                                            }
-                                                        }
-                                                    } else if (isCustom) {
-                                                        scope.launch(Dispatchers.IO) {
-                                                            val cm = ContainerManager(context)
-                                                            val sc = cm.loadShortcuts().find {
-                                                                it.getExtra("game_source") == "CUSTOM" && (it.getExtra("custom_name") == app.name || it.name == app.name)
-                                                            }
-                                                            sc?.file?.delete()
-                                                            java.io.File(context.filesDir, "custom_icons/${app.name.replace("/", "_")}.png").delete()
-                                                            PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(app.id))
-                                                            withContext(Dispatchers.Main) {
-                                                                android.widget.Toast.makeText(context, "${app.name} removed.", android.widget.Toast.LENGTH_SHORT).show()
-                                                                onDismissRequest()
-                                                            }
-                                                        }
-                                                    } else if (isEpic) {
-                                                        scope.launch(Dispatchers.IO) {
-                                                            val result = EpicService.deleteGame(context, epicId)
-                                                            withContext(Dispatchers.Main) {
-                                                                if (result.isSuccess) android.widget.Toast.makeText(context, "${app.name} uninstalled.", android.widget.Toast.LENGTH_SHORT).show()
-                                                                else android.widget.Toast.makeText(context, "Failed to uninstall: ${result.exceptionOrNull()?.message}", android.widget.Toast.LENGTH_LONG).show()
-                                                                onDismissRequest()
-                                                            }
-                                                        }
-                                                    } else {
-                                                        SteamService.uninstallApp(app.id) { success ->
-                                                            if (success) android.widget.Toast.makeText(context, "${app.name} uninstalled.", android.widget.Toast.LENGTH_SHORT).show()
-                                                            else android.widget.Toast.makeText(context, "Failed to uninstall.", android.widget.Toast.LENGTH_SHORT).show()
-                                                            onDismissRequest()
-                                                        }
+                                    UninstallConfirmation(
+                                        message = if (isCustom) getString(R.string.remove_confirm, app.name)
+                                            else getString(R.string.uninstall_confirm, app.name),
+                                        confirmLabel = stringResource(if (isCustom) R.string.remove else R.string.uninstall),
+                                        onConfirm = {
+                                            if (isGog) {
+                                                scope.launch(Dispatchers.IO) {
+                                                    GOGService.deleteGame(
+                                                        context,
+                                                        LibraryItem("GOG_${gogGame!!.id}", gogGame.title, com.winlator.cmod.steam.enums.GameSource.GOG),
+                                                    )
+                                                    withContext(Dispatchers.Main) {
+                                                        android.widget.Toast.makeText(context, getString(R.string.game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
+                                                        onDismissRequest()
                                                     }
-                                                },
-                                                border = BorderStroke(1.dp, DangerRed.copy(alpha = 0.5f)),
-                                                shape = RoundedCornerShape(8.dp),
-                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
-                                            ) {
-                                                Text(
-                                                    if (isCustom) "Remove" else "Uninstall",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    fontWeight = FontWeight.Medium,
-                                                )
+                                                }
+                                            } else if (isCustom) {
+                                                scope.launch(Dispatchers.IO) {
+                                                    val cm = ContainerManager(context)
+                                                    val sc = cm.loadShortcuts().find {
+                                                        it.getExtra("game_source") == "CUSTOM" && (it.getExtra("custom_name") == app.name || it.name == app.name)
+                                                    }
+                                                    sc?.file?.delete()
+                                                    java.io.File(context.filesDir, "custom_icons/${app.name.replace("/", "_")}.png").delete()
+                                                    PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(app.id))
+                                                    withContext(Dispatchers.Main) {
+                                                        android.widget.Toast.makeText(context, getString(R.string.game_removed, app.name), android.widget.Toast.LENGTH_SHORT).show()
+                                                        onDismissRequest()
+                                                    }
+                                                }
+                                            } else if (isEpic) {
+                                                scope.launch(Dispatchers.IO) {
+                                                    val result = EpicService.deleteGame(context, epicId)
+                                                    withContext(Dispatchers.Main) {
+                                                        if (result.isSuccess) android.widget.Toast.makeText(context, getString(R.string.game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
+                                                        else android.widget.Toast.makeText(context, getString(R.string.failed_to_uninstall_reason, result.exceptionOrNull()?.message ?: ""), android.widget.Toast.LENGTH_LONG).show()
+                                                        onDismissRequest()
+                                                    }
+                                                }
+                                            } else {
+                                                SteamService.uninstallApp(app.id) { success ->
+                                                    if (success) android.widget.Toast.makeText(context, getString(R.string.game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
+                                                    else android.widget.Toast.makeText(context, getString(R.string.failed_to_uninstall), android.widget.Toast.LENGTH_SHORT).show()
+                                                    onDismissRequest()
+                                                }
                                             }
-                                            Spacer(Modifier.width(8.dp))
-                                            TextButton(onClick = { currentScreen = LibraryDetailScreen.Main }) {
-                                                Text("Cancel", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
-                                            }
-                                        }
-                                    }
+                                        },
+                                        onCancel = { currentScreen = LibraryDetailScreen.Main },
+                                    )
                                 }
                             }
                         }
@@ -4452,7 +4369,7 @@ class UnifiedActivity : ComponentActivity() {
     // Steam Store Tab
     @Composable
     fun SteamStoreTab(isLoggedIn: Boolean, steamApps: List<SteamApp>, searchQuery: String = "", layoutMode: LibraryLayoutMode = LibraryLayoutMode.GRID_4) {
-        if (!isLoggedIn) {
+        if (!isLoggedIn && !SteamService.hasStoredCredentials(this)) {
             LoginRequiredScreen("Steam") {
                 startActivity(Intent(this@UnifiedActivity, SteamLoginActivity::class.java))
             }
@@ -4691,23 +4608,8 @@ class UnifiedActivity : ComponentActivity() {
         LaunchedEffect(Unit) {
             while (true) {
                 val currentDownloads = DownloadService.getAllDownloads()
-                // Sort: Completed first, then Downloading, Paused, Queued, then others
-                val sorted = currentDownloads.sortedWith(compareBy { (_, info) ->
-                    when (info.getStatusFlow().value) {
-                        DownloadPhase.COMPLETE   -> 0
-                        DownloadPhase.DOWNLOADING -> 1
-                        DownloadPhase.PREPARING  -> 1
-                        DownloadPhase.VERIFYING  -> 1
-                        DownloadPhase.PATCHING   -> 1
-                        DownloadPhase.PAUSED     -> 2
-                        DownloadPhase.QUEUED     -> 3
-                        DownloadPhase.FAILED     -> 4
-                        DownloadPhase.CANCELLED  -> 5
-                        else                     -> 6
-                    }
-                })
                 downloads.clear()
-                downloads.addAll(sorted)
+                downloads.addAll(currentDownloads)
                 if (selectedId != null && currentDownloads.none { it.first == selectedId }) {
                     onSelectDownload(null)
                 }
@@ -4750,7 +4652,7 @@ class UnifiedActivity : ComponentActivity() {
                     if (isPaused) "Resume" else "Pause"
                 }
 
-                val cancelLabel = if (selectedId == null) "Cancel All" else "Cancel"
+                val cancelLabel = if (selectedId == null) getString(R.string.cancel_all) else getString(R.string.cancel)
 
                 // Disable pause/resume for completed or cancelled downloads
                 val pauseResumeEnabled = if (selectedId != null) {

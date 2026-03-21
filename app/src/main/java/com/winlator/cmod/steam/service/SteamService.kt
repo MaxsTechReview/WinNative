@@ -713,7 +713,11 @@ class SteamService : Service(), IChallengeUrlChanged {
             get() {
                 if (isLoggingOut) return false
                 val real = (instance?.steamClient?.steamID?.isValid == true)
-                if (real != _isLoggedInFlow.value) _isLoggedInFlow.value = real
+                // Only update flow if instance exists, to avoid overwriting
+                // the pre-seeded credential-based state before service starts
+                if (instance != null && real != _isLoggedInFlow.value) {
+                    _isLoggedInFlow.value = real
+                }
                 return real
             }
 
@@ -724,8 +728,15 @@ class SteamService : Service(), IChallengeUrlChanged {
             val connected = instance?.steamClient?.isConnected == true
             if (connected != _isConnectedFlow.value) _isConnectedFlow.value = connected
 
-            val loggedIn = !isLoggingOut && (instance?.steamClient?.steamID?.isValid == true)
-            if (loggedIn != _isLoggedInFlow.value) _isLoggedInFlow.value = loggedIn
+            // Only update login state if the service instance exists (i.e. it has started).
+            // Before that, the flow may be pre-seeded from stored credentials and we
+            // don't want to overwrite it with false.
+            if (instance != null) {
+                val loggedIn = !isLoggingOut && (instance?.steamClient?.steamID?.isValid == true)
+                if (loggedIn != _isLoggedInFlow.value) {
+                    _isLoggedInFlow.value = loggedIn
+                }
+            }
         }
 
         /**
@@ -735,6 +746,16 @@ class SteamService : Service(), IChallengeUrlChanged {
         fun hasStoredCredentials(context: Context): Boolean {
             PrefManager.init(context)
             return PrefManager.refreshToken.isNotBlank()
+        }
+
+        /**
+         * Pre-seeds the login flow with stored credential state so the UI
+         * doesn't flash a "sign in" prompt while the service is connecting.
+         */
+        fun initLoginStatus(context: Context) {
+            if (!isLoggingOut) {
+                _isLoggedInFlow.value = hasStoredCredentials(context)
+            }
         }
 
         private val serverListPath: String
@@ -4349,7 +4370,8 @@ class SteamService : Service(), IChallengeUrlChanged {
         startForeground(1, notification)
 
         _isConnectedFlow.value = steamClient?.isConnected ?: false
-        _isLoggedInFlow.value = steamClient?.steamID?.isValid ?: false
+        // Login flow is already pre-seeded by initLoginStatus() before start()
+        _isLoggedInFlow.value = steamClient?.steamID?.isValid ?: _isLoggedInFlow.value
 
         // JavaSteam logger CME hot-fix
         runCatching {
