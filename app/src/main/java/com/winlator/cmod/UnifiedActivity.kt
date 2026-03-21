@@ -23,6 +23,11 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -63,6 +68,8 @@ import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusTarget
@@ -86,8 +93,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
@@ -153,7 +163,7 @@ import kotlin.math.roundToInt
 // Color palette
 private val BgDark = Color(0xFF0F0F12)
 private val SurfaceDark = Color(0xFF161B22)
-private val CardDark = Color(0xFF14141E)
+private val CardDark = Color(0xFF0A0A0F)
 private val CardBorder = Color(0xFF21212E)
 private val Accent = Color(0xFF1A9FFF)
 private val AccentGlow = Color(0xFF58A6FF)
@@ -487,7 +497,8 @@ class UnifiedActivity : ComponentActivity() {
         val storeVisible = remember { mutableStateMapOf("steam" to true, "epic" to true, "gog" to true, "amazon" to true) }
         var showAddCustomGame by remember { mutableStateOf(false) }
         var showExitDialog by remember { mutableStateOf(false) }
-        var searchQuery by remember { mutableStateOf("") }
+        var searchQueryTfv by remember { mutableStateOf(TextFieldValue("")) }
+        val searchQuery = searchQueryTfv.text
         var libraryRefreshKey by remember { mutableIntStateOf(0) }
         var iconRefreshKey by remember { mutableIntStateOf(0) }
         
@@ -761,7 +772,7 @@ class UnifiedActivity : ComponentActivity() {
         Box(Modifier.fillMaxSize().background(BgDark)) {
             Scaffold(
                 containerColor = BgDark,
-                topBar = { TopBar(tabs, selectedIdx, { selectedIdx = it }, persona, context, scope, isControllerConnected, isPS, isLibraryTab, searchQuery, { searchQuery = it }, onFilterClicked = { scope.launch { drawerState.open() } }) {
+                topBar = { TopBar(tabs, selectedIdx, { selectedIdx = it }, persona, context, scope, isControllerConnected, isPS, isLibraryTab, searchQueryTfv, { searchQueryTfv = it }, onFilterClicked = { scope.launch { drawerState.open() } }) {
                     if (selectedLibrarySource == "GOG") {
                         globalSettingsGogGame = gogApps.find { it.id == selectedGogGameId }
                     } else {
@@ -957,8 +968,8 @@ class UnifiedActivity : ComponentActivity() {
         isControllerConnected: Boolean,
         isPS: Boolean,
         isLibraryTab: Boolean,
-        searchQuery: String,
-        onSearchQueryChange: (String) -> Unit,
+        searchQuery: TextFieldValue,
+        onSearchQueryChange: (TextFieldValue) -> Unit,
         onFilterClicked: () -> Unit,
         onGameSettingsClicked: () -> Unit
     ) {
@@ -970,7 +981,7 @@ class UnifiedActivity : ComponentActivity() {
         // Auto-collapse search when switching tabs
         LaunchedEffect(selectedIdx) {
             if (isSearchExpanded) {
-                onSearchQueryChange("")
+                onSearchQueryChange(TextFieldValue(""))
                 isSearchExpanded = false
             }
         }
@@ -980,8 +991,8 @@ class UnifiedActivity : ComponentActivity() {
             if (isSearchExpanded) {
                 kotlinx.coroutines.delay(150)
                 searchFocusRequester.requestFocus()
-            } else if (searchQuery.isNotEmpty()) {
-                onSearchQueryChange("")
+            } else if (searchQuery.text.isNotEmpty()) {
+                onSearchQueryChange(TextFieldValue(""))
             }
         }
 
@@ -1143,7 +1154,7 @@ class UnifiedActivity : ComponentActivity() {
                         onClick = {
                             if (!isDownloadsTab) {
                                 if (isSearchExpanded) {
-                                    onSearchQueryChange("")
+                                    onSearchQueryChange(TextFieldValue(""))
                                     isSearchExpanded = false
                                 } else {
                                     isSearchExpanded = true
@@ -1179,32 +1190,6 @@ class UnifiedActivity : ComponentActivity() {
                     Spacer(Modifier.width(8.dp))
                 }
                 
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
-                        .clip(CircleShape)
-                        .background(SurfaceDark)
-                        .focusProperties { canFocus = !isLibraryTab },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isStore) {
-                        IconButton(onClick = { SteamService.requestSync() }, modifier = Modifier.size(44.dp)) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Refresh Store", tint = TextPrimary, modifier = Modifier.size(24.dp))
-                        }
-                    } else {
-                        IconButton(onClick = {
-                            if (selectedSteamAppId != 0 || selectedGogGameId.isNotEmpty()) {
-                                onGameSettingsClicked()
-                            } else {
-                                android.widget.Toast.makeText(context, "Select a game from your library first", android.widget.Toast.LENGTH_SHORT).show()
-                            }
-                        }, modifier = Modifier.size(44.dp)) {
-                            Icon(Icons.Default.Tune, contentDescription = "Game Settings", tint = TextPrimary, modifier = Modifier.size(24.dp))
-                        }
-                    }
-                }
-
                 Spacer(Modifier.width(8.dp))
 
                 // Filter button (opens drawer)
@@ -1233,17 +1218,17 @@ class UnifiedActivity : ComponentActivity() {
             enter = expandVertically(
                 animationSpec = spring(
                     dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessHigh
+                    stiffness = Spring.StiffnessMedium
                 ),
                 expandFrom = Alignment.Top
-            ) + fadeIn(animationSpec = tween(80)),
+            ) + fadeIn(animationSpec = tween(200)),
             exit = shrinkVertically(
                 animationSpec = spring(
                     dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessHigh
+                    stiffness = Spring.StiffnessMedium
                 ),
                 shrinkTowards = Alignment.Top
-            ) + fadeOut(animationSpec = tween(60))
+            ) + fadeOut(animationSpec = tween(120))
         ) {
             Box(
                 modifier = Modifier
@@ -1290,7 +1275,7 @@ class UnifiedActivity : ComponentActivity() {
                                 .focusRequester(searchFocusRequester),
                             decorationBox = { innerTextField ->
                                 Box(contentAlignment = Alignment.CenterStart) {
-                                    if (searchQuery.isEmpty()) {
+                                    if (searchQuery.text.isEmpty()) {
                                         Text(
                                             "Search games...",
                                             style = TextStyle(
@@ -1303,9 +1288,9 @@ class UnifiedActivity : ComponentActivity() {
                                 }
                             }
                         )
-                        if (searchQuery.isNotEmpty()) {
+                        if (searchQuery.text.isNotEmpty()) {
                             IconButton(
-                                onClick = { onSearchQueryChange("") },
+                                onClick = { onSearchQueryChange(TextFieldValue("")) },
                                 modifier = Modifier.size(32.dp)
                             ) {
                                 Icon(
@@ -1439,6 +1424,8 @@ class UnifiedActivity : ComponentActivity() {
 
         var selectedAppForSettings by remember { mutableStateOf<SteamApp?>(null) }
         var selectedGogGameForSettings by remember { mutableStateOf<GOGGame?>(null) }
+        var detailApp by remember { mutableStateOf<SteamApp?>(null) }
+        var detailGogGame by remember { mutableStateOf<GOGGame?>(null) }
         val gridState = rememberLazyGridState()
         val carouselState = rememberLazyListState()
         val activity = LocalContext.current as? UnifiedActivity
@@ -1464,7 +1451,8 @@ class UnifiedActivity : ComponentActivity() {
         // Observe focus index changes from the activity and request focus on the target item
         val focusIndex by (activity?.libraryFocusIndex ?: kotlinx.coroutines.flow.MutableStateFlow(0)).collectAsState()
         LaunchedEffect(focusIndex, focusRequesters.size, layoutMode) {
-            if (layoutMode == LibraryLayoutMode.GRID_4 &&
+            if (searchQuery.isEmpty() &&
+                layoutMode == LibraryLayoutMode.GRID_4 &&
                 focusRequesters.isNotEmpty() &&
                 focusIndex in focusRequesters.indices
             ) {
@@ -1523,7 +1511,12 @@ class UnifiedActivity : ComponentActivity() {
                         gogGame = gogByPseudoId[app.id],
                         iconRefreshKey = iconRefreshKey,
                         isFocusedOverride = index == focusIndex,
+                        isControllerActive = ControllerHelper.isControllerConnected(),
                         shortcuts = cachedShortcuts,
+                        onClick = {
+                            detailGogGame = gogByPseudoId[app.id]
+                            detailApp = app
+                        },
                         onLongClick = {
                             openSettingsForApp(index, app)
                         },
@@ -1554,7 +1547,12 @@ class UnifiedActivity : ComponentActivity() {
                         gogGame = gogByPseudoId[app.id],
                         iconRefreshKey = iconRefreshKey,
                         isFocusedOverride = isSelected,
+                        isControllerActive = ControllerHelper.isControllerConnected(),
                         shortcuts = cachedShortcuts,
+                        onClick = {
+                            detailGogGame = gogByPseudoId[app.id]
+                            detailApp = app
+                        },
                         onLongClick = { openSettingsForApp(index, app) },
                         useLibraryCapsule = true,
                         modifier = Modifier
@@ -1593,7 +1591,12 @@ class UnifiedActivity : ComponentActivity() {
                         gogGame = gogByPseudoId[app.id],
                         iconRefreshKey = iconRefreshKey,
                         isFocusedOverride = isSelected,
+                        isControllerActive = ControllerHelper.isControllerConnected(),
                         shortcuts = cachedShortcuts,
+                        onClick = {
+                            detailGogGame = gogByPseudoId[app.id]
+                            detailApp = app
+                        },
                         onLongClick = { openSettingsForApp(index, app) },
                         listMode = true,
                         modifier = Modifier
@@ -1626,6 +1629,13 @@ class UnifiedActivity : ComponentActivity() {
                 onDismissRequest = { selectedGogGameForSettings = null }
             )
         }
+        if (detailApp != null) {
+            LibraryGameDetailDialog(
+                app = detailApp!!,
+                gogGame = detailGogGame,
+                onDismissRequest = { detailApp = null; detailGogGame = null },
+            )
+        }
     }
 
     private enum class GameSettingsScreen {
@@ -1644,8 +1654,6 @@ class UnifiedActivity : ComponentActivity() {
     @Composable
     private fun GameSettingsDialogFrame(
         title: String,
-        subtitle: String,
-        sectionTitle: String,
         onDismissRequest: () -> Unit,
         content: @Composable ColumnScope.() -> Unit,
     ) {
@@ -1655,82 +1663,27 @@ class UnifiedActivity : ComponentActivity() {
         ) {
             Surface(
                 modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .widthIn(max = 760.dp),
-                shape = RoundedCornerShape(20.dp),
+                    .widthIn(min = 200.dp, max = 280.dp),
+                shape = RoundedCornerShape(14.dp),
                 color = CardDark,
-                tonalElevation = 4.dp,
+                border = BorderStroke(1.dp, CardBorder),
+                tonalElevation = 8.dp,
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    modifier = Modifier.padding(vertical = 6.dp),
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Text(
-                                text = title,
-                                style = MaterialTheme.typography.headlineSmall,
-                                color = TextPrimary,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Text(
-                                text = subtitle,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = TextSecondary,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-
-                        IconButton(
-                            onClick = onDismissRequest,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(SurfaceDark),
-                        ) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = TextPrimary,
-                            )
-                        }
-                    }
-
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 220.dp),
-                        color = SurfaceDark,
-                        shape = RoundedCornerShape(18.dp),
-                        border = BorderStroke(1.dp, CardBorder),
-                        tonalElevation = 2.dp,
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 220.dp)
-                                .padding(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Text(
-                                text = sectionTitle.uppercase(),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = TextSecondary,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.1.sp,
-                            )
-                            content()
-                        }
-                    }
+                    // Title header
+                    Text(
+                        text = title,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Divider(color = CardBorder, thickness = 0.5.dp)
+                    content()
                 }
             }
         }
@@ -1741,27 +1694,16 @@ class UnifiedActivity : ComponentActivity() {
         actions: List<GameSettingsActionItem>,
         modifier: Modifier = Modifier,
     ) {
-        Column(
-            modifier = modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            actions.chunked(3).forEach { rowActions ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    repeat(3) { index ->
-                        val action = rowActions.getOrNull(index)
-                        if (action != null) {
-                            GameSettingsActionCard(
-                                action = action,
-                                modifier = Modifier.weight(1f),
-                            )
-                        } else {
-                            Spacer(Modifier.weight(1f))
-                        }
-                    }
+        Column(modifier = modifier) {
+            actions.forEachIndexed { index, action ->
+                if (index > 0) {
+                    Divider(
+                        color = CardBorder.copy(alpha = 0.5f),
+                        thickness = 0.5.dp,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
                 }
+                GameSettingsActionCard(action = action)
             }
         }
     }
@@ -1772,50 +1714,42 @@ class UnifiedActivity : ComponentActivity() {
         modifier: Modifier = Modifier,
     ) {
         val isDanger = action.accentColor == DangerRed
-        val borderColor = if (isDanger) DangerRed.copy(alpha = 0.4f) else CardBorder
-        val iconBg = if (isDanger) DangerRed.copy(alpha = 0.16f) else action.accentColor.copy(alpha = 0.14f)
+        val iconColor = if (isDanger) DangerRed else TextSecondary
+        val textColor = if (isDanger) DangerRed else TextPrimary
 
-        Surface(
+        val interactionSource = remember { MutableInteractionSource() }
+        val isPressed by interactionSource.collectIsPressedAsState()
+        val scale by animateFloatAsState(
+            targetValue = if (isPressed) 0.96f else 1f,
+            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+            label = "actionCardScale",
+        )
+        Row(
             modifier = modifier
-                .height(58.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .clickable(onClick = action.onClick),
-            color = CardDark,
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, borderColor),
-            tonalElevation = 1.dp,
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(30.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(iconBg),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = action.icon,
-                        contentDescription = null,
-                        tint = action.accentColor,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-
-                Text(
-                    text = action.title,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                .fillMaxWidth()
+                .graphicsLayer { scaleX = scale; scaleY = scale }
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = action.onClick,
                 )
-            }
+                .padding(horizontal = 16.dp, vertical = 11.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = action.icon,
+                contentDescription = null,
+                tint = iconColor,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = action.title,
+                style = MaterialTheme.typography.bodyMedium,
+                color = textColor,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+            )
         }
     }
 
@@ -1824,39 +1758,26 @@ class UnifiedActivity : ComponentActivity() {
         message: String,
         accentColor: Color = Accent,
     ) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = CardDark,
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, accentColor.copy(alpha = 0.28f)),
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.Top,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(accentColor.copy(alpha = 0.14f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = accentColor,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary,
-                )
-            }
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = accentColor.copy(alpha = 0.7f),
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary,
+                lineHeight = 18.sp,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 
@@ -2033,20 +1954,8 @@ class UnifiedActivity : ComponentActivity() {
             }
         }
 
-        val dialogSubtitle = when {
-            isCustom -> "Custom game profile and local save management."
-            isEpic -> "Epic Games profile, shortcut tools, and local saves."
-            else -> "Steam profile, shortcut tools, and local saves."
-        }
-
         GameSettingsDialogFrame(
             title = app.name,
-            subtitle = dialogSubtitle,
-            sectionTitle = when (currentTab) {
-                GameSettingsScreen.Menu -> "Actions"
-                GameSettingsScreen.Saves -> "Save Management"
-                GameSettingsScreen.Uninstall -> if (isCustom) "Remove Game" else "Uninstall Game"
-            },
             onDismissRequest = onDismissRequest,
         ) {
             when (currentTab) {
@@ -2182,9 +2091,9 @@ class UnifiedActivity : ComponentActivity() {
 
                     GameSettingsInfoCard(
                         message = if (isCustom) {
-                            "Remove ${app.name} from your library. Game files on disk will stay untouched."
+                            "Remove ${app.name} from your library. Game files on disk will stay untouched?"
                         } else {
-                            "Uninstall ${app.name} and permanently delete its installed game folder."
+                            "Uninstall ${app.name} and permanently delete its installed game folder?"
                         },
                         accentColor = DangerRed,
                     )
@@ -2198,15 +2107,13 @@ class UnifiedActivity : ComponentActivity() {
                         }
                     } else {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            TextButton(onClick = { currentTab = GameSettingsScreen.Menu }) {
-                                Text("Back", color = TextSecondary)
-                            }
-                            Spacer(Modifier.width(10.dp))
-                            Button(
+                            OutlinedButton(
                                 onClick = {
                                     isUninstalling = true
                                     if (isCustom) {
@@ -2275,10 +2182,19 @@ class UnifiedActivity : ComponentActivity() {
                                         }
                                     }
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = DangerRed),
-                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, DangerRed.copy(alpha = 0.5f)),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
                             ) {
-                                Text(if (isCustom) "Confirm Remove" else "Confirm Uninstall")
+                                Text(
+                                    if (isCustom) "Remove" else "Uninstall",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            TextButton(onClick = { currentTab = GameSettingsScreen.Menu }) {
+                                Text("Cancel", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
@@ -2295,12 +2211,6 @@ class UnifiedActivity : ComponentActivity() {
 
         GameSettingsDialogFrame(
             title = app.title,
-            subtitle = "GOG profile, shortcut tools, and cloud save actions.",
-            sectionTitle = when (currentTab) {
-                GameSettingsScreen.Menu -> "Actions"
-                GameSettingsScreen.Saves -> "Cloud Saves"
-                GameSettingsScreen.Uninstall -> "Uninstall Game"
-            },
             onDismissRequest = onDismissRequest,
         ) {
             when (currentTab) {
@@ -2402,7 +2312,7 @@ class UnifiedActivity : ComponentActivity() {
                     var isUninstalling by remember { mutableStateOf(false) }
 
                     GameSettingsInfoCard(
-                        message = "Uninstall ${app.title} and permanently delete its installed game folder.",
+                        message = "Uninstall ${app.title} and permanently delete its installed game folder?",
                         accentColor = DangerRed,
                     )
 
@@ -2415,15 +2325,13 @@ class UnifiedActivity : ComponentActivity() {
                         }
                     } else {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            TextButton(onClick = { currentTab = GameSettingsScreen.Menu }) {
-                                Text("Back", color = TextSecondary)
-                            }
-                            Spacer(Modifier.width(10.dp))
-                            Button(
+                            OutlinedButton(
                                 onClick = {
                                     isUninstalling = true
                                     scope.launch(Dispatchers.IO) {
@@ -2445,14 +2353,948 @@ class UnifiedActivity : ComponentActivity() {
                                         }
                                     }
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = DangerRed),
-                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, DangerRed.copy(alpha = 0.5f)),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
                             ) {
-                                Text("Confirm Uninstall")
+                                Text(
+                                    "Uninstall",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            TextButton(onClick = { currentTab = GameSettingsScreen.Menu }) {
+                                Text("Cancel", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // Library Game Detail Dialog
+
+    private enum class LibraryDetailScreen { Main, Saves, Uninstall }
+
+    @Composable
+    private fun LibraryGameDetailDialog(
+        app: SteamApp,
+        gogGame: GOGGame? = null,
+        onDismissRequest: () -> Unit,
+    ) {
+        val context = LocalContext.current
+        val scope = rememberCoroutineScope()
+        var currentScreen by remember { mutableStateOf(LibraryDetailScreen.Main) }
+
+        val isCustom = app.id < 0
+        val isEpic = app.id >= 2000000000
+        val isGog = gogGame != null
+        val epicId = if (isEpic) app.id - 2000000000 else 0
+
+        val epicGame by produceState<EpicGame?>(initialValue = null, key1 = epicId) {
+            value = if (isEpic) db.epicGameDao().getById(epicId) else null
+        }
+
+        val epicArtworkUrl by produceState<String?>(initialValue = null, key1 = isEpic, key2 = epicId) {
+            value = if (isEpic) {
+                val eg = db.epicGameDao().getById(epicId)
+                eg?.primaryImageUrl ?: eg?.iconUrl
+            } else null
+        }
+
+        // Hero image
+        val heroImageUrl: Any? = when {
+            isGog -> gogGame!!.imageUrl.ifEmpty { gogGame.iconUrl }
+            isEpic -> epicGame?.primaryImageUrl ?: epicGame?.iconUrl
+            isCustom -> {
+                val safeName = app.name.replace("/", "_").replace("\\", "_")
+                val iconFile = java.io.File(context.filesDir, "custom_icons/$safeName.png")
+                if (iconFile.exists()) iconFile else null
+            }
+            else -> app.getHeroUrl()
+        }
+
+        val subtitle = when {
+            isGog -> gogGame!!.developer
+            isCustom -> "Custom Game"
+            isEpic -> epicGame?.developer ?: ""
+            else -> listOfNotNull(
+                app.developer.takeIf { it.isNotBlank() },
+                app.publisher.takeIf { it.isNotBlank() }
+            ).joinToString(" • ")
+        }
+
+        // Playtime info
+        val playtimePrefs = remember {
+            context.getSharedPreferences("playtime_stats", android.content.Context.MODE_PRIVATE)
+        }
+        val searchKey = remember(app) {
+            if (app.id >= 2000000000 || app.id < 0) app.name
+            else app.name.replace(LIBRARY_NAME_SANITIZE_REGEX, "")
+        }
+        val lastPlayed = playtimePrefs.getLong("${searchKey}_last_played", 0L)
+        val totalPlaytime = playtimePrefs.getLong("${searchKey}_playtime", 0L)
+        val playCount = playtimePrefs.getInt("${searchKey}_play_count", 0)
+
+        val sourceLabel = when {
+            isGog -> "GOG"
+            isEpic -> "Epic Games"
+            isCustom -> "Custom"
+            else -> "Steam"
+        }
+
+        // Install path
+        val installPath = remember(app, gogGame) {
+            when {
+                isGog -> gogGame!!.installPath
+                isEpic -> epicGame?.installPath ?: ""
+                isCustom -> app.gameDir
+                else -> try { SteamService.getAppDirPath(app.id) } catch (_: Exception) { "" }
+            }
+        }
+
+        // Install size (computed async)
+        val installSizeText by produceState<String?>(initialValue = null, key1 = installPath) {
+            value = if (installPath.isNotBlank()) {
+                withContext(Dispatchers.IO) {
+                    try {
+                        val bytes = StorageUtils.getFolderSize(installPath)
+                        if (bytes > 0) StorageUtils.formatBinarySize(bytes) else null
+                    } catch (_: Exception) { null }
+                }
+            } else null
+        }
+
+        // Export / Import launchers (reuse GameSettingsDialog pattern)
+
+        val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+            if (uri != null) {
+                scope.launch(Dispatchers.IO) {
+                    try {
+                        val os = context.contentResolver.openOutputStream(uri) ?: return@launch
+                        val zos = java.util.zip.ZipOutputStream(java.io.BufferedOutputStream(os))
+                        val containerManager = ContainerManager(context)
+                        val shortcut = when {
+                            isGog -> containerManager.loadShortcuts().find {
+                                it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == gogGame!!.id
+                            }
+                            isCustom -> containerManager.loadShortcuts().find {
+                                it.getExtra("game_source") == "CUSTOM" && (it.getExtra("custom_name") == app.name || it.name == app.name)
+                            }
+                            isEpic -> containerManager.loadShortcuts().find {
+                                it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == epicId.toString()
+                            }
+                            else -> containerManager.loadShortcuts().find {
+                                it.getExtra("app_id") == app.id.toString()
+                            }
+                        }
+                        val dirsToZip = mutableListOf<java.io.File>()
+                        val goldbergSaves = java.io.File(SteamService.getAppDirPath(app.id), "steam_settings/saves")
+                        if (goldbergSaves.exists() && goldbergSaves.isDirectory) dirsToZip.add(goldbergSaves)
+                        if (shortcut != null) {
+                            val prefixDir = java.io.File(shortcut.container.getRootDir(), ".wine/drive_c/users/xuser")
+                            listOf("Documents", "Saved Games", "AppData").forEach { name ->
+                                val dir = java.io.File(prefixDir, name)
+                                if (dir.exists()) dirsToZip.add(dir)
+                            }
+                        }
+                        fun zipDir(dir: java.io.File, baseName: String) {
+                            val children = dir.listFiles() ?: return
+                            for (child in children) {
+                                val name = if (baseName.isEmpty()) child.name else "$baseName/${child.name}"
+                                if (child.isDirectory) {
+                                    zos.putNextEntry(java.util.zip.ZipEntry("$name/")); zos.closeEntry()
+                                    zipDir(child, name)
+                                } else {
+                                    zos.putNextEntry(java.util.zip.ZipEntry(name))
+                                    child.inputStream().use { it.copyTo(zos) }
+                                    zos.closeEntry()
+                                }
+                            }
+                        }
+                        for (dir in dirsToZip) {
+                            zos.putNextEntry(java.util.zip.ZipEntry("${dir.name}/")); zos.closeEntry()
+                            zipDir(dir, dir.name)
+                        }
+                        zos.close()
+                        withContext(Dispatchers.Main) {
+                            android.widget.Toast.makeText(context, "Saves exported successfully", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        withContext(Dispatchers.Main) {
+                            android.widget.Toast.makeText(context, "Failed to export saves: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+        }
+
+        val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri != null) {
+                scope.launch(Dispatchers.IO) {
+                    try {
+                        val inputStream = context.contentResolver.openInputStream(uri) ?: return@launch
+                        val zis = java.util.zip.ZipInputStream(java.io.BufferedInputStream(inputStream))
+                        val containerManager = ContainerManager(context)
+                        val shortcut = when {
+                            isGog -> containerManager.loadShortcuts().find {
+                                it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == gogGame!!.id
+                            }
+                            isCustom -> containerManager.loadShortcuts().find {
+                                it.getExtra("game_source") == "CUSTOM" && (it.getExtra("custom_name") == app.name || it.name == app.name)
+                            }
+                            isEpic -> containerManager.loadShortcuts().find {
+                                it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == epicId.toString()
+                            }
+                            else -> containerManager.loadShortcuts().find {
+                                it.getExtra("app_id") == app.id.toString()
+                            }
+                        }
+                        val goldbergSavesParent = java.io.File(
+                            if (isEpic) app.gameDir else SteamService.getAppDirPath(app.id),
+                            if (isEpic) "" else "steam_settings"
+                        )
+                        val prefixDir = shortcut?.let { java.io.File(it.container.getRootDir(), ".wine/drive_c/users/xuser") }
+                        var ze: java.util.zip.ZipEntry?
+                        while (zis.nextEntry.also { ze = it } != null) {
+                            val entry = ze!!
+                            val name = entry.name
+                            var destFile: java.io.File? = null
+                            if (name.startsWith("saves/")) destFile = java.io.File(goldbergSavesParent, name)
+                            else if (prefixDir != null && (name.startsWith("Documents/") || name.startsWith("Saved Games/") || name.startsWith("AppData/")))
+                                destFile = java.io.File(prefixDir, name)
+                            if (destFile != null) {
+                                if (entry.isDirectory) destFile.mkdirs()
+                                else { destFile.parentFile?.mkdirs(); java.io.FileOutputStream(destFile).use { fos -> zis.copyTo(fos) } }
+                            }
+                            zis.closeEntry()
+                        }
+                        zis.close()
+                        withContext(Dispatchers.Main) {
+                            android.widget.Toast.makeText(context, "Saves imported successfully", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        withContext(Dispatchers.Main) {
+                            android.widget.Toast.makeText(context, "Failed to import saves: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+        }
+
+        Dialog(
+            onDismissRequest = onDismissRequest,
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(0.864f).fillMaxHeight(0.92f),
+                shape = RoundedCornerShape(20.dp),
+                color = CardDark,
+            ) {
+                Box(Modifier.fillMaxSize()) {
+                    Column(Modifier.fillMaxSize()) {
+                        // Hero image section
+                        Box(
+                            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.42f)
+                        ) {
+                            if (heroImageUrl != null) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context)
+                                        .data(heroImageUrl)
+                                        .crossfade(150)
+                                        .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+                                        .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+                                        .build(),
+                                    contentDescription = "${app.name} artwork",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.FillWidth,
+                                    alignment = Alignment.TopCenter,
+                                )
+                            } else {
+                                Box(
+                                    Modifier.fillMaxSize().background(SurfaceDark),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(Icons.Default.SportsEsports, contentDescription = null, tint = Accent.copy(alpha = 0.4f), modifier = Modifier.size(72.dp))
+                                }
+                            }
+                            Box(
+                                modifier = Modifier.fillMaxSize().background(
+                                    Brush.verticalGradient(
+                                        colorStops = arrayOf(
+                                            0.0f to Color.Transparent,
+                                            0.45f to Color.Transparent,
+                                            0.72f to CardDark.copy(alpha = 0.72f),
+                                            1.0f to CardDark,
+                                        )
+                                    )
+                                )
+                            )
+                            Column(
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(start = 24.dp, end = 80.dp, bottom = 24.dp)
+                            ) {
+                                Text(
+                                    app.name,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    color = TextPrimary,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                if (subtitle.isNotBlank()) {
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        subtitle,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = TextSecondary,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                        }
+
+                        // Bottom content
+                        when (currentScreen) {
+                            LibraryDetailScreen.Main -> {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 24.dp, vertical = 14.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                ) {
+                                    // Left: Game details as individual cards
+                                    Column(
+                                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                                        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.Bottom),
+                                    ) {
+                                        // Source badge row
+                                        Surface(
+                                            color = Accent.copy(alpha = 0.15f),
+                                            shape = RoundedCornerShape(8.dp),
+                                        ) {
+                                            Text(
+                                                sourceLabel,
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                                color = Accent,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                            )
+                                        }
+
+                                        if (installPath.isNotBlank() || installSizeText != null) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            ) {
+                                                if (installPath.isNotBlank()) {
+                                                    DetailCard(
+                                                        label = stringResource(R.string.install_path),
+                                                        value = installPath,
+                                                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                                                    )
+                                                }
+                                                if (installSizeText != null) {
+                                                    DetailCard(stringResource(R.string.size), installSizeText!!, modifier = Modifier.fillMaxHeight())
+                                                }
+                                            }
+                                        }
+
+                                        // Release date card
+                                        if (app.releaseDate > 0L) {
+                                            val releaseDateText = remember(app.releaseDate) {
+                                                java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault())
+                                                    .format(java.util.Date(app.releaseDate * 1000L))
+                                            }
+                                            DetailCard(stringResource(R.string.release_date), releaseDateText)
+                                        }
+
+                                        // Playtime row — multiple stats side by side
+                                        val hasPlaytimeStats = lastPlayed > 0L || totalPlaytime > 0L || playCount > 0
+                                        if (hasPlaytimeStats) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            ) {
+                                                if (lastPlayed > 0L) {
+                                                    val dateFormat = java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault())
+                                                    DetailCard(stringResource(R.string.last_played), dateFormat.format(java.util.Date(lastPlayed)), modifier = Modifier.weight(1f))
+                                                }
+                                                if (totalPlaytime > 0L) {
+                                                    val hours = totalPlaytime / 3_600_000L
+                                                    val minutes = (totalPlaytime % 3_600_000L) / 60_000L
+                                                    val playtimeText = when {
+                                                        hours > 0 -> "${hours}h ${minutes}m"
+                                                        else -> "${minutes}m"
+                                                    }
+                                                    DetailCard(stringResource(R.string.playtime), playtimeText, modifier = Modifier.weight(1f))
+                                                }
+                                                if (playCount > 0) {
+                                                    DetailCard(stringResource(R.string.plays), playCount.toString(), modifier = Modifier.weight(1f))
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Right: Compact action buttons
+                                    Column(
+                                        modifier = Modifier
+                                            .widthIn(min = 200.dp, max = 260.dp)
+                                            .fillMaxHeight(),
+                                        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.Bottom),
+                                    ) {
+                                        // Play button — animated gradient
+                                        PlayButton(onClick = {
+                                            val containerManager = ContainerManager(context)
+                                            if (isCustom) {
+                                                launchCustomGame(context, containerManager, app.name)
+                                            } else if (isGog) {
+                                                launchGogGame(context, containerManager, gogGame!!)
+                                            } else if (isEpic) {
+                                                epicGame?.let { launchEpicGame(context, containerManager, it) }
+                                            } else {
+                                                launchSteamGame(context, containerManager, app)
+                                            }
+                                            onDismissRequest()
+                                        })
+
+                                        // Settings + Shortcut — half width each
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        ) {
+                                            CompactActionButton(
+                                                icon = Icons.Default.Settings,
+                                                label = stringResource(R.string.settings),
+                                                modifier = Modifier.weight(1f),
+                                                onClick = {
+                                                    if (isGog) {
+                                                        val shortcut = ContainerManager(context).loadShortcuts().find {
+                                                            it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == gogGame!!.id
+                                                        }
+                                                        val intent = Intent(context, MainActivity::class.java)
+                                                        if (shortcut != null) {
+                                                            intent.putExtra("edit_shortcut_path", shortcut.file.absolutePath)
+                                                        } else {
+                                                            intent.putExtra("create_shortcut_for_gog_id", gogGame!!.id)
+                                                            intent.putExtra("create_shortcut_for_app_id", gogPseudoId(gogGame.id))
+                                                            intent.putExtra("create_shortcut_for_app_name", app.name)
+                                                        }
+                                                        intent.putExtra("return_to_unified", true)
+                                                        val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
+                                                        context.startActivity(intent, opts.toBundle())
+                                                    } else if (isCustom || isEpic) {
+                                                        val cm = ContainerManager(context)
+                                                        val sc = cm.loadShortcuts().find {
+                                                            if (isCustom) it.getExtra("game_source") == "CUSTOM" && (it.getExtra("custom_name") == app.name || it.name == app.name)
+                                                            else it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == epicId.toString()
+                                                        }
+                                                        if (sc != null) {
+                                                            val intent = Intent(context, MainActivity::class.java)
+                                                            intent.putExtra("edit_shortcut_path", sc.file.absolutePath)
+                                                            intent.putExtra("return_to_unified", true)
+                                                            val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
+                                                            context.startActivity(intent, opts.toBundle())
+                                                        } else if (isEpic) {
+                                                            val intent = Intent(context, MainActivity::class.java)
+                                                            intent.putExtra("create_shortcut_for_epic_id", epicId)
+                                                            intent.putExtra("create_shortcut_for_app_name", app.name)
+                                                            intent.putExtra("return_to_unified", true)
+                                                            val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
+                                                            context.startActivity(intent, opts.toBundle())
+                                                        }
+                                                    } else {
+                                                        val intent = Intent(context, MainActivity::class.java)
+                                                        intent.putExtra("create_shortcut_for_app_id", app.id)
+                                                        intent.putExtra("create_shortcut_for_app_name", app.name)
+                                                        intent.putExtra("return_to_unified", true)
+                                                        val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
+                                                        context.startActivity(intent, opts.toBundle())
+                                                    }
+                                                    onDismissRequest()
+                                                },
+                                            )
+
+                                            CompactActionButton(
+                                                icon = Icons.Default.Home,
+                                                label = stringResource(R.string.shortcut),
+                                                modifier = Modifier.weight(1f),
+                                                onClick = {
+                                                    scope.launch {
+                                                        val created = withContext(Dispatchers.IO) {
+                                                            if (isGog) {
+                                                                val artworkUrl = gogGame!!.imageUrl.ifEmpty { gogGame.iconUrl }
+                                                                addGogShortcutToHomeScreen(context, gogGame, artworkUrl)
+                                                            } else {
+                                                                addLibraryShortcutToHomeScreen(context, app, isCustom, isEpic, epicId, epicArtworkUrl)
+                                                            }
+                                                        }
+                                                        val message = if (created) context.getString(R.string.library_shortcut_created)
+                                                        else context.getString(R.string.library_failed_to_create_shortcut, app.name)
+                                                        android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+                                                    }
+                                                },
+                                            )
+                                        }
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        ) {
+                                            CompactActionButton(
+                                                icon = Icons.Default.Save,
+                                                label = stringResource(R.string.saves),
+                                                modifier = Modifier.weight(1f),
+                                                onClick = { currentScreen = LibraryDetailScreen.Saves },
+                                            )
+
+                                            CompactActionButton(
+                                                icon = Icons.Default.Delete,
+                                                label = if (isCustom) stringResource(R.string.remove) else stringResource(R.string.uninstall),
+                                                tint = DangerRed,
+                                                bgColor = DangerRed.copy(alpha = 0.12f),
+                                                modifier = Modifier.weight(1f),
+                                                onClick = { currentScreen = LibraryDetailScreen.Uninstall },
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            LibraryDetailScreen.Saves -> {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 24.dp, vertical = 20.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    Text(
+                                        stringResource(R.string.save_management),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = TextSecondary,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 1.1.sp,
+                                    )
+
+                                    if (isGog) {
+                                        GameSettingsActionGrid(
+                                            actions = listOf(
+                                                GameSettingsActionItem(
+                                                    title = "Sync",
+                                                    icon = Icons.Default.Cloud,
+                                                    onClick = {
+                                                        scope.launch(Dispatchers.IO) {
+                                                            GOGService.syncCloudSaves(context, "GOG_${gogGame!!.id}", "auto")
+                                                        }
+                                                        android.widget.Toast.makeText(context, "Cloud sync started.", android.widget.Toast.LENGTH_SHORT).show()
+                                                    },
+                                                ),
+                                                GameSettingsActionItem(
+                                                    title = "Export",
+                                                    icon = Icons.Default.Upload,
+                                                    onClick = {
+                                                        exportLauncher.launch("${app.name.replace(" ", "_").replace(":", "")}_Saves.zip")
+                                                    },
+                                                ),
+                                                GameSettingsActionItem(
+                                                    title = "Import",
+                                                    icon = Icons.Default.Download,
+                                                    onClick = { importLauncher.launch(arrayOf("application/zip")) },
+                                                ),
+                                            ),
+                                        )
+                                    } else {
+                                        GameSettingsActionGrid(
+                                            actions = listOf(
+                                                GameSettingsActionItem(
+                                                    title = "Export",
+                                                    icon = Icons.Default.Upload,
+                                                    onClick = {
+                                                        exportLauncher.launch("${app.name.replace(" ", "_").replace(":", "")}_Saves.zip")
+                                                    },
+                                                ),
+                                                GameSettingsActionItem(
+                                                    title = "Import",
+                                                    icon = Icons.Default.Download,
+                                                    onClick = { importLauncher.launch(arrayOf("application/zip")) },
+                                                ),
+                                            ),
+                                        )
+                                    }
+
+                                    Spacer(Modifier.weight(1f))
+                                    TextButton(onClick = { currentScreen = LibraryDetailScreen.Main }) {
+                                        Icon(Icons.Default.ArrowBack, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("Back", color = TextSecondary)
+                                    }
+                                }
+                            }
+
+                            LibraryDetailScreen.Uninstall -> {
+                                var isUninstalling by remember { mutableStateOf(false) }
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 24.dp, vertical = 20.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    Text(
+                                        if (isCustom) "REMOVE GAME" else "UNINSTALL GAME",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = TextSecondary,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 1.1.sp,
+                                    )
+
+                                    GameSettingsInfoCard(
+                                        message = if (isCustom) "Remove ${app.name} from your library. Game files on disk will stay untouched?"
+                                        else "Uninstall ${app.name} and permanently delete its installed game folder?",
+                                        accentColor = DangerRed,
+                                    )
+
+                                    Spacer(Modifier.weight(1f))
+
+                                    if (isUninstalling) {
+                                        Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                                            CircularProgressIndicator(color = DangerRed)
+                                        }
+                                    } else {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 4.dp, vertical = 8.dp),
+                                            horizontalArrangement = Arrangement.End,
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            OutlinedButton(
+                                                onClick = {
+                                                    isUninstalling = true
+                                                    if (isGog) {
+                                                        scope.launch(Dispatchers.IO) {
+                                                            GOGService.deleteGame(
+                                                                context,
+                                                                LibraryItem("GOG_${gogGame!!.id}", gogGame.title, com.winlator.cmod.steam.enums.GameSource.GOG),
+                                                            )
+                                                            withContext(Dispatchers.Main) {
+                                                                android.widget.Toast.makeText(context, "${app.name} uninstalled.", android.widget.Toast.LENGTH_SHORT).show()
+                                                                onDismissRequest()
+                                                            }
+                                                        }
+                                                    } else if (isCustom) {
+                                                        scope.launch(Dispatchers.IO) {
+                                                            val cm = ContainerManager(context)
+                                                            val sc = cm.loadShortcuts().find {
+                                                                it.getExtra("game_source") == "CUSTOM" && (it.getExtra("custom_name") == app.name || it.name == app.name)
+                                                            }
+                                                            sc?.file?.delete()
+                                                            java.io.File(context.filesDir, "custom_icons/${app.name.replace("/", "_")}.png").delete()
+                                                            PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(app.id))
+                                                            withContext(Dispatchers.Main) {
+                                                                android.widget.Toast.makeText(context, "${app.name} removed.", android.widget.Toast.LENGTH_SHORT).show()
+                                                                onDismissRequest()
+                                                            }
+                                                        }
+                                                    } else if (isEpic) {
+                                                        scope.launch(Dispatchers.IO) {
+                                                            val result = EpicService.deleteGame(context, epicId)
+                                                            withContext(Dispatchers.Main) {
+                                                                if (result.isSuccess) android.widget.Toast.makeText(context, "${app.name} uninstalled.", android.widget.Toast.LENGTH_SHORT).show()
+                                                                else android.widget.Toast.makeText(context, "Failed to uninstall: ${result.exceptionOrNull()?.message}", android.widget.Toast.LENGTH_LONG).show()
+                                                                onDismissRequest()
+                                                            }
+                                                        }
+                                                    } else {
+                                                        SteamService.uninstallApp(app.id) { success ->
+                                                            if (success) android.widget.Toast.makeText(context, "${app.name} uninstalled.", android.widget.Toast.LENGTH_SHORT).show()
+                                                            else android.widget.Toast.makeText(context, "Failed to uninstall.", android.widget.Toast.LENGTH_SHORT).show()
+                                                            onDismissRequest()
+                                                        }
+                                                    }
+                                                },
+                                                border = BorderStroke(1.dp, DangerRed.copy(alpha = 0.5f)),
+                                                shape = RoundedCornerShape(8.dp),
+                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
+                                            ) {
+                                                Text(
+                                                    if (isCustom) "Remove" else "Uninstall",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    fontWeight = FontWeight.Medium,
+                                                )
+                                            }
+                                            Spacer(Modifier.width(8.dp))
+                                            TextButton(onClick = { currentScreen = LibraryDetailScreen.Main }) {
+                                                Text("Cancel", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Close button overlay
+                    IconButton(
+                        onClick = onDismissRequest,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(16.dp)
+                            .size(42.dp)
+                            .shadow(8.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.35f))
+                            .clip(CircleShape)
+                            .background(BgDark.copy(alpha = 0.7f)),
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = TextPrimary)
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun DetailCard(label: String, value: String, modifier: Modifier = Modifier.fillMaxWidth(), valueColor: Color? = null, onClick: (() -> Unit)? = null) {
+        Surface(
+            modifier = modifier
+                .then(if (onClick != null) Modifier.clip(RoundedCornerShape(10.dp)).clickable(onClick = onClick) else Modifier),
+            color = SurfaceDark,
+            shape = RoundedCornerShape(10.dp),
+            border = BorderStroke(1.dp, if (onClick != null) Accent.copy(alpha = 0.25f) else CardBorder),
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(1.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        label.uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.8.sp,
+                        fontSize = 10.sp,
+                    )
+                    if (onClick != null) {
+                        Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(10.dp), tint = Accent.copy(alpha = 0.6f))
+                    }
+                }
+                Text(
+                    value,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = valueColor ?: (if (onClick != null) Accent else TextPrimary),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+
+    @Composable
+    private fun PlayButton(onClick: () -> Unit) {
+        val interactionSource = remember { MutableInteractionSource() }
+        val isPressed by interactionSource.collectIsPressedAsState()
+        val scale by animateFloatAsState(
+            targetValue = if (isPressed) 0.92f else 1f,
+            animationSpec = spring(dampingRatio = 0.5f, stiffness = 600f),
+            label = "playScale",
+        )
+
+        // Idle glow pulse
+        val infiniteTransition = rememberInfiniteTransition(label = "playGlow")
+        val glowPulse by infiniteTransition.animateFloat(
+            initialValue = 0.3f,
+            targetValue = 0.6f,
+            animationSpec = infiniteRepeatable(
+                animation = tween<Float>(1200, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "playPulse",
+        )
+
+        val baseGradient = Brush.horizontalGradient(
+            colors = listOf(
+                Color(0xFF00B4D8),
+                Accent,
+                Color(0xFF7B2FF7),
+            ),
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }
+                .shadow(
+                    elevation = 12.dp,
+                    shape = RoundedCornerShape(12.dp),
+                    ambientColor = Accent.copy(alpha = glowPulse),
+                    spotColor = Accent.copy(alpha = glowPulse),
+                )
+                .clip(RoundedCornerShape(12.dp))
+                .background(baseGradient)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Icon(
+                    Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = Color.White,
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Play",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp,
+                )
+            }
+        }
+    }
+
+    @Composable
+    private fun InstallButton(loading: Boolean = false, onClick: () -> Unit) {
+        val interactionSource = remember { MutableInteractionSource() }
+        val isPressed by interactionSource.collectIsPressedAsState()
+        val scale by animateFloatAsState(
+            targetValue = if (isPressed && !loading) 0.92f else 1f,
+            animationSpec = spring(dampingRatio = 0.5f, stiffness = 600f),
+            label = "installScale",
+        )
+        val infiniteTransition = rememberInfiniteTransition(label = "installGlow")
+        val glowPulse by infiniteTransition.animateFloat(
+            initialValue = 0.3f,
+            targetValue = 0.6f,
+            animationSpec = infiniteRepeatable(
+                animation = tween<Float>(1200, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "installPulse",
+        )
+        val baseGradient = Brush.horizontalGradient(
+            colors = listOf(
+                Color(0xFF00B4D8),
+                Accent,
+                Color(0xFF7B2FF7),
+            ),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }
+                .shadow(
+                    elevation = 12.dp,
+                    shape = RoundedCornerShape(12.dp),
+                    ambientColor = Accent.copy(alpha = glowPulse),
+                    spotColor = Accent.copy(alpha = glowPulse),
+                )
+                .clip(RoundedCornerShape(12.dp))
+                .background(baseGradient)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = { if (!loading) onClick() },
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp,
+                )
+            } else {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Icon(
+                        Icons.Default.Download,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = Color.White,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        stringResource(R.string.download),
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp,
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun CompactActionButton(
+        icon: ImageVector,
+        label: String,
+        tint: Color = TextPrimary,
+        bgColor: Color = SurfaceDark,
+        modifier: Modifier = Modifier,
+        height: Dp = 36.dp,
+        fontSize: TextUnit = 13.sp,
+        onClick: () -> Unit,
+    ) {
+        val interactionSource = remember { MutableInteractionSource() }
+        val isPressed by interactionSource.collectIsPressedAsState()
+        val scale by animateFloatAsState(
+            targetValue = if (isPressed) 0.93f else 1f,
+            animationSpec = spring(dampingRatio = 0.6f, stiffness = 800f),
+            label = "btnScale",
+        )
+        val glowAlpha by animateFloatAsState(
+            targetValue = if (isPressed) 0.18f else 0f,
+            animationSpec = tween(durationMillis = 120),
+            label = "btnGlow",
+        )
+        Surface(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(height)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }
+                .clip(RoundedCornerShape(10.dp))
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
+            color = bgColor,
+            shape = RoundedCornerShape(10.dp),
+            border = BorderStroke(1.dp, tint.copy(alpha = glowAlpha)),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = tint)
+                Spacer(Modifier.width(6.dp))
+                Text(label, color = tint, fontSize = fontSize, fontWeight = FontWeight.SemiBold, maxLines = 1)
             }
         }
     }
@@ -2465,7 +3307,9 @@ class UnifiedActivity : ComponentActivity() {
         gogGame: GOGGame? = null,
         iconRefreshKey: Int = 0,
         isFocusedOverride: Boolean = false,
+        isControllerActive: Boolean = false,
         shortcuts: List<Shortcut> = emptyList(),
+        onClick: (() -> Unit)? = null,
         onLongClick: (() -> Unit)? = null,
         useLibraryCapsule: Boolean = false,
         listMode: Boolean = false,
@@ -2491,22 +3335,41 @@ class UnifiedActivity : ComponentActivity() {
                 ?.ifBlank { shortcut.getExtra("customCoverArtPath") }
             customPath?.takeIf { it.isNotBlank() && java.io.File(it).exists() }
         }
-        val isFocused = isFocusedOverride
-
+        val defaultClick: () -> Unit = {
+            val containerManager = com.winlator.cmod.container.ContainerManager(context)
+            if (isCustom) {
+                launchCustomGame(context, containerManager, app.name)
+            } else if (gogGame != null) {
+                launchGogGame(context, containerManager, gogGame)
+            } else if (isEpic) {
+                epicGame?.let { launchEpicGame(context, containerManager, it) }
+            } else if (SteamService.isAppInstalled(app.id)) {
+                launchSteamGame(context, containerManager, app)
+            }
+        }
+        val clickInteraction = remember { MutableInteractionSource() }
+        val isPressed by clickInteraction.collectIsPressedAsState()
+        val isFocused = isControllerActive && isFocusedOverride
+        val glowAlpha by animateFloatAsState(
+            targetValue = if (isPressed) 0.7f else 0f,
+            animationSpec = if (isPressed) tween(100) else tween(400),
+            label = "capsuleGlow",
+        )
         val clickModifier = Modifier
+            .then(
+                if (glowAlpha > 0f) Modifier.drawWithContent {
+                    drawContent()
+                    drawRoundRect(
+                        color = AccentGlow,
+                        alpha = glowAlpha * 0.25f,
+                        cornerRadius = CornerRadius(12.dp.toPx()),
+                    )
+                } else Modifier
+            )
             .combinedClickable(
-                onClick = {
-                    val containerManager = com.winlator.cmod.container.ContainerManager(context)
-                    if (isCustom) {
-                        launchCustomGame(context, containerManager, app.name)
-                    } else if (gogGame != null) {
-                        launchGogGame(context, containerManager, gogGame)
-                    } else if (isEpic) {
-                        epicGame?.let { launchEpicGame(context, containerManager, it) }
-                    } else if (SteamService.isAppInstalled(app.id)) {
-                        launchSteamGame(context, containerManager, app)
-                    }
-                },
+                interactionSource = clickInteraction,
+                indication = null,
+                onClick = onClick ?: defaultClick,
                 onLongClick = onLongClick
             )
 
@@ -2597,7 +3460,7 @@ class UnifiedActivity : ComponentActivity() {
                 modifier = modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                    .border(1.dp, if (isControllerActive) CardBorder else Color.Transparent, RoundedCornerShape(14.dp))
                     .chasingBorder(isFocused = isFocused, cornerRadius = 14.dp)
                     .background(CardDark, RoundedCornerShape(14.dp))
                     .focusable()
@@ -2742,7 +3605,7 @@ class UnifiedActivity : ComponentActivity() {
                 listState = listViewState,
                 contentPadding = PaddingValues(vertical = 12.dp),
             ) { app, _, _ ->
-                EpicStoreCapsule(app, listMode = true) { selectedAppId.value = app.id }
+                EpicStoreCapsule(app, listMode = true, isControllerActive = ControllerHelper.isControllerConnected()) { selectedAppId.value = app.id }
             }
         } else {
             val focusIndex by (activity?.storeFocusIndex ?: kotlinx.coroutines.flow.MutableStateFlow(0)).collectAsState()
@@ -2750,7 +3613,7 @@ class UnifiedActivity : ComponentActivity() {
                 List(displayedApps.size) { FocusRequester() }
             }
             LaunchedEffect(focusIndex, focusRequesters.size) {
-                if (focusRequesters.isNotEmpty() && focusIndex in focusRequesters.indices) {
+                if (searchQuery.isEmpty() && focusRequesters.isNotEmpty() && focusIndex in focusRequesters.indices) {
                     gridState.animateScrollToItem(focusIndex)
                     try { focusRequesters[focusIndex].requestFocus() } catch (_: Exception) {}
                 }
@@ -2766,7 +3629,7 @@ class UnifiedActivity : ComponentActivity() {
                         Modifier.focusRequester(focusRequesters[index])
                     else Modifier
                 )) {
-                    EpicStoreCapsule(app, isFocusedOverride = index == focusIndex) { selectedAppId.value = app.id }
+                    EpicStoreCapsule(app, isFocusedOverride = index == focusIndex, isControllerActive = ControllerHelper.isControllerConnected()) { selectedAppId.value = app.id }
                 }
             }
         }
@@ -2781,12 +3644,21 @@ class UnifiedActivity : ComponentActivity() {
     }
 
     @Composable
-    fun EpicStoreCapsule(app: com.winlator.cmod.epic.data.EpicGame, listMode: Boolean = false, isFocusedOverride: Boolean = false, onClick: () -> Unit) {
+    fun EpicStoreCapsule(app: com.winlator.cmod.epic.data.EpicGame, listMode: Boolean = false, isFocusedOverride: Boolean = false, isControllerActive: Boolean = false, onClick: () -> Unit) {
         val context = LocalContext.current
         var isFocused by remember { mutableStateOf(false) }
-        val effectiveFocus = isFocusedOverride || isFocused
+        val clickInteraction = remember { MutableInteractionSource() }
+        val isPressed by clickInteraction.collectIsPressedAsState()
+        val glowAlpha by animateFloatAsState(
+            targetValue = if (isPressed) 0.7f else 0f,
+            animationSpec = if (isPressed) tween(100) else tween(400),
+            label = "epicCapsuleGlow",
+        )
+        val effectiveFocus = isControllerActive && (isFocusedOverride || isFocused)
         val isInstalled = app.installPath != null && java.io.File(app.installPath!!).exists()
         val imageUrl = app.primaryImageUrl ?: app.iconUrl
+
+        val borderColor = if (isControllerActive) CardBorder else Color.Transparent
 
         if (listMode) {
             Row(
@@ -2794,12 +3666,18 @@ class UnifiedActivity : ComponentActivity() {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
-                    .chasingBorder(isFocused = isFocused, cornerRadius = 14.dp)
+                    .border(1.dp, borderColor, RoundedCornerShape(14.dp))
+                    .chasingBorder(isFocused = effectiveFocus, cornerRadius = 14.dp)
                     .background(CardDark, RoundedCornerShape(14.dp))
                     .onFocusChanged { isFocused = it.isFocused }
                     .focusable()
-                    .clickable(onClick = onClick)
+                    .then(
+                        if (glowAlpha > 0f) Modifier.drawWithContent {
+                            drawContent()
+                            drawRoundRect(color = AccentGlow, alpha = glowAlpha * 0.25f, cornerRadius = CornerRadius(14.dp.toPx()))
+                        } else Modifier
+                    )
+                    .clickable(interactionSource = clickInteraction, indication = null, onClick = onClick)
                     .padding(horizontal = 14.dp, vertical = 11.dp),
                 horizontalArrangement = Arrangement.Center
             ) {
@@ -2827,7 +3705,7 @@ class UnifiedActivity : ComponentActivity() {
                 Text(
                     app.title,
                     modifier = Modifier.weight(1f)
-                        .then(if (isFocused) Modifier.basicMarquee(iterations = Int.MAX_VALUE) else Modifier),
+                        .then(if (effectiveFocus) Modifier.basicMarquee(iterations = Int.MAX_VALUE) else Modifier),
                     color = TextPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -2840,12 +3718,18 @@ class UnifiedActivity : ComponentActivity() {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .fillMaxSize()
-                    .border(1.dp, CardDark, RoundedCornerShape(16.dp))
+                    .border(1.dp, borderColor, RoundedCornerShape(16.dp))
                     .chasingBorder(isFocused = effectiveFocus, cornerRadius = 16.dp)
                     .background(CardDark, RoundedCornerShape(16.dp))
                     .onFocusChanged { isFocused = it.isFocused }
                     .focusable()
-                    .clickable(onClick = onClick)
+                    .then(
+                        if (glowAlpha > 0f) Modifier.drawWithContent {
+                            drawContent()
+                            drawRoundRect(color = AccentGlow, alpha = glowAlpha * 0.25f, cornerRadius = CornerRadius(16.dp.toPx()))
+                        } else Modifier
+                    )
+                    .clickable(interactionSource = clickInteraction, indication = null, onClick = onClick)
             ) {
                 Box(
                     Modifier
@@ -2888,6 +3772,7 @@ class UnifiedActivity : ComponentActivity() {
         title: String,
         heroImageUrl: String?,
         subtitle: String,
+        sourceLabel: String = "",
         onDismissRequest: () -> Unit,
         infoContent: @Composable ColumnScope.() -> Unit = {},
         actionsContent: @Composable ColumnScope.() -> Unit
@@ -2958,43 +3843,36 @@ class UnifiedActivity : ComponentActivity() {
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(horizontal = 24.dp, vertical = 20.dp),
-                            horizontalArrangement = Arrangement.spacedBy(20.dp)
+                                .padding(horizontal = 24.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             Column(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .fillMaxHeight()
+                                    .fillMaxHeight(),
+                                verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.Bottom)
                             ) {
-                                Text(
-                                    "Installation Details",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = TextPrimary,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(Modifier.height(10.dp))
-                                Surface(
-                                    modifier = Modifier.weight(1f),
-                                    color = SurfaceDark,
-                                    shape = RoundedCornerShape(16.dp),
-                                    tonalElevation = 2.dp
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .verticalScroll(rememberScrollState())
-                                            .padding(18.dp)
+                                if (sourceLabel.isNotBlank()) {
+                                    Surface(
+                                        color = Accent.copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(8.dp),
                                     ) {
-                                        infoContent()
+                                        Text(
+                                            sourceLabel,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                            color = Accent,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                        )
                                     }
                                 }
+                                infoContent()
                             }
 
                             Column(
                                 modifier = Modifier
-                                    .widthIn(min = 220.dp, max = 280.dp)
-                                    .fillMaxHeight()
-                                    .verticalScroll(rememberScrollState()),
+                                    .widthIn(min = 200.dp, max = 260.dp)
+                                    .fillMaxHeight(),
                                 verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.Bottom)
                             ) {
                                 actionsContent()
@@ -3031,6 +3909,7 @@ class UnifiedActivity : ComponentActivity() {
         val selectedDlcIds = remember { mutableStateListOf<Int>() }
         var customPath by remember { mutableStateOf<String?>(null) }
         var showCustomPathWarning by remember { mutableStateOf(false) }
+        var showDlcDialog by remember { mutableStateOf(false) }
 
         val folderPickerLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocumentTree()
@@ -3044,6 +3923,53 @@ class UnifiedActivity : ComponentActivity() {
                     folderPickerLauncher.launch(null)
                 }
             )
+        }
+
+        if (showDlcDialog && dlcApps.isNotEmpty()) {
+            GameSettingsDialogFrame(
+                title = stringResource(R.string.dlcs),
+                onDismissRequest = { showDlcDialog = false },
+            ) {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 300.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    dlcApps.forEachIndexed { index, dlc ->
+                        if (index > 0) {
+                            Divider(
+                                color = CardBorder.copy(alpha = 0.5f),
+                                thickness = 0.5.dp,
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                            )
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                ) {
+                                    if (selectedDlcIds.contains(dlc.id)) selectedDlcIds.remove(dlc.id)
+                                    else selectedDlcIds.add(dlc.id)
+                                }
+                                .padding(horizontal = 16.dp, vertical = 2.dp)
+                        ) {
+                            Checkbox(
+                                checked = selectedDlcIds.contains(dlc.id),
+                                onCheckedChange = { if (it) selectedDlcIds.add(dlc.id) else selectedDlcIds.remove(dlc.id) },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = Accent,
+                                    uncheckedColor = TextSecondary,
+                                    checkmarkColor = Color.White,
+                                ),
+                            )
+                            Text(dlc.title, color = TextPrimary, fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
         }
 
         LaunchedEffect(app.id, installed) {
@@ -3071,108 +3997,68 @@ class UnifiedActivity : ComponentActivity() {
                 app.developer.takeIf { it.isNotBlank() },
                 app.publisher.takeIf { it.isNotBlank() }
             ).joinToString(" • "),
+            sourceLabel = "Epic Games",
             onDismissRequest = onDismissRequest,
             infoContent = {
                 if (isLoading && !installed) {
                     Spacer(Modifier.height(18.dp))
                     CircularProgressIndicator(color = Accent)
+                } else if (installed) {
+                    DetailCard(
+                        label = stringResource(R.string.install_path),
+                        value = app.installPath,
+                    )
+                    DetailCard(
+                        label = stringResource(R.string.status),
+                        value = stringResource(R.string.installed),
+                        valueColor = StatusOnline,
+                    )
                 } else {
-                    Text(
-                        "Download: ${StorageUtils.formatBinarySize(totalDownloadSize)} • Install: ${StorageUtils.formatBinarySize(totalInstallSize)}",
-                        color = TextPrimary
+                    DetailCard(
+                        label = stringResource(R.string.install_path),
+                        value = installPathDisplay,
                     )
-                    Text(
-                        "Available: ${StorageUtils.formatBinarySize(availableBytes)}",
-                        color = if (isInstallEnabled) TextSecondary else Color(0xFFFF6B6B)
+                    DetailCard(
+                        stringResource(R.string.download_slash_install),
+                        stringResource(R.string.download_install_available, StorageUtils.formatBinarySize(totalDownloadSize), StorageUtils.formatBinarySize(totalInstallSize), StorageUtils.formatBinarySize(availableBytes)),
+                        valueColor = if (!isInstallEnabled) DangerRed else null,
                     )
-
-                    if (dlcApps.isNotEmpty()) {
-                        Spacer(Modifier.height(20.dp))
-                        Text("Add-ons / DLCs", color = TextSecondary, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(8.dp))
-                        dlcApps.forEach { dlc ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        if (selectedDlcIds.contains(dlc.id)) selectedDlcIds.remove(dlc.id)
-                                        else selectedDlcIds.add(dlc.id)
-                                    }
-                                    .padding(vertical = 2.dp)
-                            ) {
-                                Checkbox(
-                                    checked = selectedDlcIds.contains(dlc.id),
-                                    onCheckedChange = { if (it) selectedDlcIds.add(dlc.id) else selectedDlcIds.remove(dlc.id) }
-                                )
-                                Text(dlc.title, color = TextPrimary)
-                            }
-                        }
-                    }
                 }
             }
         ) {
             if (installed) {
+                PlayButton(onClick = {
+                    launchEpicGame(context, ContainerManager(context), app)
+                    onDismissRequest()
+                })
                 if (app.cloudSaveEnabled) {
-                    Button(
+                    CompactActionButton(
+                        icon = Icons.Default.CloudSync,
+                        label = stringResource(R.string.cloud_sync),
                         onClick = {
                             scope.launch(Dispatchers.IO) {
                                 EpicCloudSavesManager.syncCloudSaves(context, app.id, "auto")
                             }
                             onDismissRequest()
-                            android.widget.Toast.makeText(context, "Cloud sync started.", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, context.getString(R.string.cloud_sync_started), android.widget.Toast.LENGTH_SHORT).show()
                         },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = SurfaceDark),
-                        shape = RoundedCornerShape(12.dp)
-                    ) { Text("Sync Cloud Saves", color = TextPrimary) }
-                    Spacer(Modifier.height(10.dp))
+                    )
                 }
-
-                OutlinedButton(
+                CompactActionButton(
+                    icon = Icons.Default.Delete,
+                    label = stringResource(R.string.uninstall),
+                    tint = DangerRed,
+                    bgColor = DangerRed.copy(alpha = 0.12f),
                     onClick = {
                         scope.launch(Dispatchers.IO) {
                             EpicService.deleteGame(context, app.id)
                         }
                         onDismissRequest()
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text("Uninstall", color = TextSecondary) }
-                Spacer(Modifier.height(12.dp))
-                Button(
-                    onClick = {
-                        launchEpicGame(context, ContainerManager(context), app)
-                        onDismissRequest()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Accent),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text("Play Game") }
-            } else {
-                Text(
-                    text = installPathDisplay,
-                    color = TextSecondary,
-                    fontSize = 11.sp,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
                 )
-                Button(
-                    onClick = {
-                        if (customPath == null && defaultPathSet) {
-                            showCustomPathWarning = true
-                        } else {
-                            folderPickerLauncher.launch(null)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = SurfaceDark),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(if (customPath != null) "Custom" else if (defaultPathSet) "Already Set" else "Custom", color = TextPrimary)
-                }
-                Button(
-                    enabled = !isLoading && isInstallEnabled,
+            } else {
+                InstallButton(
+                    loading = isLoading,
                     onClick = {
                         val installPath = if (customPath != null) {
                             val sanitizedTitle = app.title.replace(Regex("[^a-zA-Z0-9 \\-_]"), "").trim()
@@ -3183,10 +4069,32 @@ class UnifiedActivity : ComponentActivity() {
                         EpicService.downloadGame(context, app.id, selectedDlcIds.toList(), installPath, "en-US")
                         onDismissRequest()
                     },
+                )
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (!isLoading && isInstallEnabled) Accent else Color.Gray),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text("Install") }
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    CompactActionButton(
+                        icon = Icons.Default.Folder,
+                        label = if (customPath != null) stringResource(R.string.custom) else if (defaultPathSet) stringResource(R.string.already_set) else stringResource(R.string.custom),
+                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            if (customPath == null && defaultPathSet) {
+                                showCustomPathWarning = true
+                            } else {
+                                folderPickerLauncher.launch(null)
+                            }
+                        },
+                    )
+                    if (dlcApps.isNotEmpty()) {
+                        CompactActionButton(
+                            icon = Icons.Default.Extension,
+                            label = stringResource(R.string.dlcs),
+                            modifier = Modifier.weight(1f),
+                            onClick = { showDlcDialog = true },
+                        )
+                    }
+                }
             }
         }
     }
@@ -3227,6 +4135,9 @@ class UnifiedActivity : ComponentActivity() {
             }
         }
 
+        val isControllerActive = ControllerHelper.isControllerConnected()
+        val gogBorderColor = if (isControllerActive) CardBorder else Color.Transparent
+
         if (layoutMode == LibraryLayoutMode.LIST) {
             val listViewState = rememberLazyListState()
             ListView(
@@ -3241,7 +4152,7 @@ class UnifiedActivity : ComponentActivity() {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
-                        .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                        .border(1.dp, gogBorderColor, RoundedCornerShape(14.dp))
                         .background(CardDark, RoundedCornerShape(14.dp))
                         .clickable { selectedGameId.value = app.id }
                         .padding(horizontal = 14.dp, vertical = 11.dp),
@@ -3289,7 +4200,7 @@ class UnifiedActivity : ComponentActivity() {
                 List(displayedApps.size) { FocusRequester() }
             }
             LaunchedEffect(focusIndex, focusRequesters.size) {
-                if (focusRequesters.isNotEmpty() && focusIndex in focusRequesters.indices) {
+                if (searchQuery.isEmpty() && focusRequesters.isNotEmpty() && focusIndex in focusRequesters.indices) {
                     gridState.animateScrollToItem(focusIndex)
                     try { focusRequesters[focusIndex].requestFocus() } catch (_: Exception) {}
                 }
@@ -3300,7 +4211,7 @@ class UnifiedActivity : ComponentActivity() {
                 gridState = gridState,
             ) { app, index, rowHeight ->
                 val isInstalled = app.isInstalled && java.io.File(app.installPath).exists()
-                val isItemFocused = index == focusIndex
+                val isItemFocused = isControllerActive && index == focusIndex
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
@@ -3311,7 +4222,7 @@ class UnifiedActivity : ComponentActivity() {
                                 Modifier.focusRequester(focusRequesters[index])
                             else Modifier
                         )
-                        .border(1.dp, CardDark, RoundedCornerShape(16.dp))
+                        .border(1.dp, gogBorderColor, RoundedCornerShape(16.dp))
                         .chasingBorder(isFocused = isItemFocused, cornerRadius = 16.dp)
                         .background(CardDark, RoundedCornerShape(16.dp))
                         .clickable { selectedGameId.value = app.id }
@@ -3402,62 +4313,70 @@ class UnifiedActivity : ComponentActivity() {
                 app.developer.takeIf { it.isNotBlank() },
                 app.publisher.takeIf { it.isNotBlank() }
             ).joinToString(" • "),
+            sourceLabel = "GOG",
             onDismissRequest = onDismissRequest,
             infoContent = {
-                Text(
-                    "Download: ${StorageUtils.formatBinarySize(app.downloadSize)} • Install: ${StorageUtils.formatBinarySize(app.installSize)}",
-                    color = TextPrimary
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Available: ${StorageUtils.formatBinarySize(availableBytes)}",
-                    color = if (isInstallEnabled) TextSecondary else Color(0xFFFF6B6B)
-                )
+                if (installed) {
+                    DetailCard(
+                        label = stringResource(R.string.install_path),
+                        value = app.installPath,
+                    )
+                    DetailCard(
+                        label = stringResource(R.string.status),
+                        value = stringResource(R.string.installed),
+                        valueColor = StatusOnline,
+                    )
+                } else {
+                    DetailCard(
+                        label = stringResource(R.string.install_path),
+                        value = installPathDisplay,
+                    )
+                    DetailCard(
+                        stringResource(R.string.download_slash_install),
+                        stringResource(R.string.download_install_available, StorageUtils.formatBinarySize(app.downloadSize), StorageUtils.formatBinarySize(app.installSize), StorageUtils.formatBinarySize(availableBytes)),
+                        valueColor = if (!isInstallEnabled) DangerRed else null,
+                    )
+                }
             }
         ) {
             if (installed) {
-                Button(
+                PlayButton(onClick = {
+                    launchGogGame(context, ContainerManager(context), app)
+                    onDismissRequest()
+                })
+                CompactActionButton(
+                    icon = Icons.Default.CloudSync,
+                    label = stringResource(R.string.cloud_sync),
                     onClick = {
                         scope.launch(Dispatchers.IO) {
                             GOGService.syncCloudSaves(context, "GOG_${app.id}", "auto")
                         }
                         onDismissRequest()
-                        android.widget.Toast.makeText(context, "Cloud sync started.", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, context.getString(R.string.cloud_sync_started), android.widget.Toast.LENGTH_SHORT).show()
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = SurfaceDark),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text("Sync Cloud Saves", color = TextPrimary) }
-                Spacer(Modifier.height(10.dp))
-                OutlinedButton(
-                    onClick = {
-                        launchGogGame(context, ContainerManager(context), app)
-                        onDismissRequest()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text("Play Game", color = TextSecondary) }
-                Spacer(Modifier.height(12.dp))
-                Button(
+                )
+                CompactActionButton(
+                    icon = Icons.Default.Delete,
+                    label = stringResource(R.string.uninstall),
+                    tint = DangerRed,
+                    bgColor = DangerRed.copy(alpha = 0.12f),
                     onClick = {
                         scope.launch(Dispatchers.IO) {
                             GOGService.deleteGame(context, LibraryItem("GOG_${app.id}", app.title, com.winlator.cmod.steam.enums.GameSource.GOG))
                             withContext(Dispatchers.Main) { onDismissRequest() }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF4444)),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text("Uninstall") }
-            } else {
-                Text(
-                    text = installPathDisplay,
-                    color = TextSecondary,
-                    fontSize = 11.sp,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
                 )
-                Button(
+            } else {
+                InstallButton(
+                    onClick = {
+                        GOGService.downloadGame(context, app.id, installPathDisplay, PrefManager.containerLanguage)
+                        onDismissRequest()
+                    },
+                )
+                CompactActionButton(
+                    icon = Icons.Default.Folder,
+                    label = if (customPath != null) stringResource(R.string.custom) else if (defaultPathSet) stringResource(R.string.already_set) else stringResource(R.string.custom),
                     onClick = {
                         if (customPath == null && defaultPathSet) {
                             showCustomPathWarning = true
@@ -3465,22 +4384,7 @@ class UnifiedActivity : ComponentActivity() {
                             folderPickerLauncher.launch(null)
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = SurfaceDark),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(if (customPath != null) "Custom" else if (defaultPathSet) "Already Set" else "Custom", color = TextPrimary)
-                }
-                Button(
-                    enabled = isInstallEnabled,
-                    onClick = {
-                        GOGService.downloadGame(context, app.id, installPathDisplay, PrefManager.containerLanguage)
-                        onDismissRequest()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (isInstallEnabled) Accent else Color.Gray),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text("Install") }
+                )
             }
         }
     }
@@ -3533,7 +4437,7 @@ class UnifiedActivity : ComponentActivity() {
                 listState = listViewState,
                 contentPadding = PaddingValues(vertical = 12.dp),
             ) { app, _, _ ->
-                SteamStoreCapsule(app, listMode = true, onClick = { selectedAppForDialog = app })
+                SteamStoreCapsule(app, listMode = true, isControllerActive = ControllerHelper.isControllerConnected(), onClick = { selectedAppForDialog = app })
             }
         } else {
             val focusIndex by (activity?.storeFocusIndex ?: kotlinx.coroutines.flow.MutableStateFlow(0)).collectAsState()
@@ -3541,7 +4445,7 @@ class UnifiedActivity : ComponentActivity() {
                 List(displayedApps.size) { FocusRequester() }
             }
             LaunchedEffect(focusIndex, focusRequesters.size) {
-                if (focusRequesters.isNotEmpty() && focusIndex in focusRequesters.indices) {
+                if (searchQuery.isEmpty() && focusRequesters.isNotEmpty() && focusIndex in focusRequesters.indices) {
                     gridState.animateScrollToItem(focusIndex)
                     try { focusRequesters[focusIndex].requestFocus() } catch (_: Exception) {}
                 }
@@ -3560,7 +4464,7 @@ class UnifiedActivity : ComponentActivity() {
                         Modifier.focusRequester(focusRequesters[index])
                     else Modifier
                 )) {
-                    SteamStoreCapsule(app, isFocusedOverride = index == focusIndex, onClick = { selectedAppForDialog = app })
+                    SteamStoreCapsule(app, isFocusedOverride = index == focusIndex, isControllerActive = ControllerHelper.isControllerConnected(), onClick = { selectedAppForDialog = app })
                 }
             }
         }
@@ -3574,23 +4478,37 @@ class UnifiedActivity : ComponentActivity() {
     }
 
     @Composable
-    fun SteamStoreCapsule(app: SteamApp, listMode: Boolean = false, isFocusedOverride: Boolean = false, onClick: () -> Unit) {
+    fun SteamStoreCapsule(app: SteamApp, listMode: Boolean = false, isFocusedOverride: Boolean = false, isControllerActive: Boolean = false, onClick: () -> Unit) {
         val isInstalled = SteamService.isAppInstalled(app.id)
         val context = LocalContext.current
         var isFocused by remember { mutableStateOf(false) }
-        val effectiveFocus = isFocusedOverride || isFocused
+        val clickInteraction = remember { MutableInteractionSource() }
+        val isPressed by clickInteraction.collectIsPressedAsState()
+        val glowAlpha by animateFloatAsState(
+            targetValue = if (isPressed) 0.7f else 0f,
+            animationSpec = if (isPressed) tween(100) else tween(400),
+            label = "steamCapsuleGlow",
+        )
+        val effectiveFocus = isControllerActive && (isFocusedOverride || isFocused)
+        val borderColor = if (isControllerActive) CardBorder else Color.Transparent
 
         if (listMode) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
-                    .chasingBorder(isFocused = isFocused, cornerRadius = 14.dp)
+                    .border(1.dp, borderColor, RoundedCornerShape(14.dp))
+                    .chasingBorder(isFocused = effectiveFocus, cornerRadius = 14.dp)
                     .background(CardDark, RoundedCornerShape(14.dp))
                     .onFocusChanged { isFocused = it.isFocused }
                     .focusable()
-                    .clickable(onClick = onClick)
+                    .then(
+                        if (glowAlpha > 0f) Modifier.drawWithContent {
+                            drawContent()
+                            drawRoundRect(color = AccentGlow, alpha = glowAlpha * 0.25f, cornerRadius = CornerRadius(14.dp.toPx()))
+                        } else Modifier
+                    )
+                    .clickable(interactionSource = clickInteraction, indication = null, onClick = onClick)
             ) {
                 // Hero background
                 AsyncImage(
@@ -3637,7 +4555,7 @@ class UnifiedActivity : ComponentActivity() {
                     Text(
                         text = app.name,
                         modifier = Modifier.weight(1f)
-                            .then(if (isFocused) Modifier.basicMarquee(iterations = Int.MAX_VALUE) else Modifier),
+                            .then(if (effectiveFocus) Modifier.basicMarquee(iterations = Int.MAX_VALUE) else Modifier),
                         color = TextPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -3651,12 +4569,18 @@ class UnifiedActivity : ComponentActivity() {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .fillMaxSize()
-                    .border(1.dp, CardDark, RoundedCornerShape(16.dp))
+                    .border(1.dp, borderColor, RoundedCornerShape(16.dp))
                     .chasingBorder(isFocused = effectiveFocus, cornerRadius = 16.dp)
                     .background(CardDark, RoundedCornerShape(16.dp))
                     .onFocusChanged { isFocused = it.isFocused }
                     .focusable()
-                    .clickable(onClick = onClick)
+                    .then(
+                        if (glowAlpha > 0f) Modifier.drawWithContent {
+                            drawContent()
+                            drawRoundRect(color = AccentGlow, alpha = glowAlpha * 0.25f, cornerRadius = CornerRadius(16.dp.toPx()))
+                        } else Modifier
+                    )
+                    .clickable(interactionSource = clickInteraction, indication = null, onClick = onClick)
             ) {
                 Box(
                     Modifier
@@ -4142,6 +5066,7 @@ class UnifiedActivity : ComponentActivity() {
         val selectedDlcIds = remember { mutableStateListOf<Int>() }
         var customPath by remember { mutableStateOf<String?>(null) }
         var showCustomPathWarning by remember { mutableStateOf(false) }
+        var showDlcDialog by remember { mutableStateOf(false) }
         val scope = rememberCoroutineScope()
 
         val folderPickerLauncher = rememberLauncherForActivityResult(
@@ -4156,6 +5081,53 @@ class UnifiedActivity : ComponentActivity() {
                     folderPickerLauncher.launch(null)
                 }
             )
+        }
+
+        if (showDlcDialog && dlcApps.isNotEmpty()) {
+            GameSettingsDialogFrame(
+                title = stringResource(R.string.dlcs),
+                onDismissRequest = { showDlcDialog = false },
+            ) {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 300.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    dlcApps.forEachIndexed { index, dlc ->
+                        if (index > 0) {
+                            Divider(
+                                color = CardBorder.copy(alpha = 0.5f),
+                                thickness = 0.5.dp,
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                            )
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                ) {
+                                    if (selectedDlcIds.contains(dlc.id)) selectedDlcIds.remove(dlc.id)
+                                    else selectedDlcIds.add(dlc.id)
+                                }
+                                .padding(horizontal = 16.dp, vertical = 2.dp)
+                        ) {
+                            Checkbox(
+                                checked = selectedDlcIds.contains(dlc.id),
+                                onCheckedChange = { if (it) selectedDlcIds.add(dlc.id) else selectedDlcIds.remove(dlc.id) },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = Accent,
+                                    uncheckedColor = TextSecondary,
+                                    checkmarkColor = Color.White,
+                                ),
+                            )
+                            Text(dlc.name, color = TextPrimary, fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
         }
 
         LaunchedEffect(app.id) {
@@ -4173,6 +5145,7 @@ class UnifiedActivity : ComponentActivity() {
         val availableBytes = try { StorageUtils.getAvailableSpace(effectivePath) } catch (e: Exception) { 0L }
         val isInstallEnabled = availableBytes >= totalInstallSize
         val installPathDisplay = customPath ?: SteamService.defaultAppInstallPath
+        val installed = SteamService.isAppInstalled(app.id)
 
         StoreInstallDialogShell(
             title = app.name,
@@ -4181,80 +5154,61 @@ class UnifiedActivity : ComponentActivity() {
                 app.developer.takeIf { it.isNotBlank() },
                 app.publisher.takeIf { it.isNotBlank() }
             ).joinToString(" • "),
+            sourceLabel = "Steam",
             onDismissRequest = onDismissRequest,
             infoContent = {
                 if (isLoading) {
                     Spacer(Modifier.height(18.dp))
                     CircularProgressIndicator(color = Accent)
                 } else {
-                    Text(
-                        "Download: ${StorageUtils.formatBinarySize(totalDownloadSize)} • Install: ${StorageUtils.formatBinarySize(totalInstallSize)}",
-                        color = TextPrimary
+                    DetailCard(
+                        label = stringResource(R.string.install_path),
+                        value = installPathDisplay,
                     )
-                    Text(
-                        "Available: ${StorageUtils.formatBinarySize(availableBytes)}",
-                        color = if (isInstallEnabled) TextSecondary else Color(0xFFFF6B6B)
+                    DetailCard(
+                        stringResource(R.string.download_slash_install),
+                        stringResource(R.string.download_install_available, StorageUtils.formatBinarySize(totalDownloadSize), StorageUtils.formatBinarySize(totalInstallSize), StorageUtils.formatBinarySize(availableBytes)),
+                        valueColor = if (!isInstallEnabled) DangerRed else null,
                     )
-
-                    if (dlcApps.isNotEmpty()) {
-                        Spacer(Modifier.height(20.dp))
-                        Text("DLCs Available", color = TextSecondary, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(8.dp))
-                        dlcApps.forEach { dlc ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        if (selectedDlcIds.contains(dlc.id)) selectedDlcIds.remove(dlc.id)
-                                        else selectedDlcIds.add(dlc.id)
-                                    }
-                                    .padding(vertical = 2.dp)
-                            ) {
-                                Checkbox(
-                                    checked = selectedDlcIds.contains(dlc.id),
-                                    onCheckedChange = { if (it) selectedDlcIds.add(dlc.id) else selectedDlcIds.remove(dlc.id) }
-                                )
-                                Text(dlc.name, color = TextPrimary)
-                            }
-                        }
-                    }
                 }
             }
         ) {
-            Text(
-                text = installPathDisplay,
-                color = TextSecondary,
-                fontSize = 11.sp,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
-            )
-            Button(
-                onClick = {
-                    if (customPath == null && defaultPathSet) {
-                        showCustomPathWarning = true
-                    } else {
-                        folderPickerLauncher.launch(null)
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = SurfaceDark),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(if (customPath != null) "Custom" else if (defaultPathSet) "Already Set" else "Custom", color = TextPrimary)
+            if (!installed) {
+                InstallButton(
+                    loading = isLoading,
+                    onClick = {
+                        scope.launch(Dispatchers.IO) {
+                            SteamService.downloadApp(app.id, selectedDlcIds.toList(), false, customPath)
+                            withContext(Dispatchers.Main) { onDismissRequest() }
+                        }
+                    },
+                )
             }
-            Button(
-                enabled = !isLoading && isInstallEnabled,
-                onClick = {
-                    scope.launch(Dispatchers.IO) {
-                        SteamService.downloadApp(app.id, selectedDlcIds.toList(), false, customPath)
-                        withContext(Dispatchers.Main) { onDismissRequest() }
-                    }
-                },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = if (!isLoading && isInstallEnabled) Accent else Color.Gray),
-                shape = RoundedCornerShape(12.dp)
-            ) { Text("Install") }
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                CompactActionButton(
+                    icon = Icons.Default.Folder,
+                    label = if (customPath != null) stringResource(R.string.custom) else if (defaultPathSet) stringResource(R.string.already_set) else stringResource(R.string.custom),
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        if (customPath == null && defaultPathSet) {
+                            showCustomPathWarning = true
+                        } else {
+                            folderPickerLauncher.launch(null)
+                        }
+                    },
+                )
+                if (dlcApps.isNotEmpty()) {
+                    CompactActionButton(
+                        icon = Icons.Default.Extension,
+                        label = stringResource(R.string.dlcs),
+                        modifier = Modifier.weight(1f),
+                        onClick = { showDlcDialog = true },
+                    )
+                }
+            }
         }
     }
 

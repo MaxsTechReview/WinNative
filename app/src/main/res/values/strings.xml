@@ -2024,4 +2024,21 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="controller">Controller</string>
     <string name="download_in_components">None downloaded. Please download one in Components.</string>
 
+    <!-- Various homescreen strings (need to finalize/fix naming) -->
+    <string name="install_path">Install Path</string>
+    <string name="download_slash_install">Download / Install</string>
+    <string name="cloud_sync">Cloud Sync</string>
+    <string name="already_set">Already Set</string>
+    <string name="dlcs_available">DLCS AVAILABLE</string>
+    <string name="add_ons_dlcs">ADD-ONS / DLCS</string>
+    <string name="shortcut">Shortcut</string>
+    <string name="custom">Custom</string>
+    <string name="save_management">SAVE MANAGEMENT</string>
+    <string name="download_install_available">%1$s / %2$s • Available: %3$s</string>
+    <string name="cloud_sync_started">Cloud sync started.</string>
+    <string name="last_played">Last Played</string>
+    <string name="playtime">Playtime</string>
+    <string name="plays">Plays</string>
+    <string name="dlcs">DLCs</string>
+
     </resources>
