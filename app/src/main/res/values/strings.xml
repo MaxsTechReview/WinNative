@@ -579,8 +579,6 @@ Installed path:
     -->
     <string name="enable_touchscreen_timeout">Touchscreen Timeout (Requires Restart)</string>
     <string name="enable_touchscreen_haptics">Enable Touchscreen Haptic Feedback</string>
-    <string name="help_steamgrid">SteamGrid API Key</string>
-    <string name="settings_other_api_key_open_link">Open SteamGridDB API page</string>
     <string name="disable_xinput_for_shortcut">Disable Xinput (For Exclusive M/KB Control)</string>
     <string name="exclusive_input">Exclusive Input</string>
     <string name="fullscreen_stretched">Enable Fullscreen (Stretched)</string>
@@ -1609,11 +1607,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_other_winlator_path_title">Winlator Path</string>
     <string name="settings_other_shortcut_export_path_title">Shortcut Export Path</string>
     <string name="settings_other_choose_path">Choose Path</string>
-    <string name="settings_other_big_picture_title">Big Picture Mode</string>
-    <string name="settings_other_big_picture_launch_title">Enable Big Picture Mode on App Launch</string>
-    <string name="settings_other_big_picture_launch_summary">Open directly into the Big Picture shell when the app starts.</string>
-    <string name="settings_other_api_key_summary">Optional SteamGridDB key used to fetch cover art while Big Picture Mode builds your library.</string>
-    <string name="settings_other_api_key_hint">Enter your API key</string>
     <string name="settings_other_xserver_cursor_summary">Adjust pointer speed for touch, trackpad, and mouse input inside the XServer session.</string>
     <string name="settings_other_xr_summary">Use OpenXR integration when the device and runtime support it.</string>
     <string name="settings_other_cursor_lock_title">True Mouse Control</string>

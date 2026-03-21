@@ -13,7 +13,6 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
-import android.widget.EditText;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -44,9 +43,6 @@ public class OtherSettingsFragment extends Fragment {
     private Spinner sRefreshRate;
     private CompoundButton cbCursorLock;
     private CompoundButton cbXinputToggle;
-    private CompoundButton cbEnableBigPictureMode;
-    private CompoundButton cbEnableCustomApiKey;
-    private EditText etCustomApiKey;
     private CompoundButton cbUseDRI3;
     private CompoundButton cbUseXR;
     private CompoundButton cbEnableFileProvider;
@@ -85,12 +81,6 @@ public class OtherSettingsFragment extends Fragment {
             @Override
             public void onNothingSelected(AdapterView<?> parent) {}
         });
-
-        // Initialize Big Picture Mode Checkbox
-        cbEnableBigPictureMode = view.findViewById(R.id.CBEnableBigPictureMode);
-        cbEnableBigPictureMode.setChecked(preferences.getBoolean("enable_big_picture_mode", false));
-
-        initCustomApiKeySettings(view);
 
         // Initialize the cursor lock checkbox
         cbCursorLock = view.findViewById(R.id.CBCursorLock);
@@ -248,46 +238,9 @@ public class OtherSettingsFragment extends Fragment {
         editor.putBoolean("open_with_android_browser", cbOpenInBrowser.isChecked());
         editor.putBoolean("share_android_clipboard", cbShareClipboard.isChecked());
 
-        editor.putBoolean("enable_big_picture_mode", cbEnableBigPictureMode.isChecked());
-        saveCustomApiKeySettings(editor);
         editor.apply();
         if (isAdded()) {
             RefreshRateUtils.applyPreferredRefreshRate(requireActivity());
-        }
-    }
-
-    private void initCustomApiKeySettings(View view) {
-        cbEnableCustomApiKey = view.findViewById(R.id.CBEnableCustomApiKey);
-        etCustomApiKey = view.findViewById(R.id.ETCustomApiKey);
-
-        boolean isCustomApiKeyEnabled = preferences.getBoolean("enable_custom_api_key", false);
-        String customApiKey = preferences.getString("custom_api_key", "");
-
-        cbEnableCustomApiKey.setChecked(isCustomApiKeyEnabled);
-        etCustomApiKey.setText(customApiKey);
-
-        etCustomApiKey.setVisibility(isCustomApiKeyEnabled ? View.VISIBLE : View.GONE);
-
-        cbEnableCustomApiKey.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            etCustomApiKey.setVisibility(isChecked ? View.VISIBLE : View.GONE);
-        });
-
-        view.findViewById(R.id.BTHelpApiKey).setOnClickListener(v -> {
-            String url = "https://www.steamgriddb.com/profile/preferences/api";
-            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-            startActivity(intent);
-        });
-    }
-
-    private void saveCustomApiKeySettings(SharedPreferences.Editor editor) {
-        boolean isCustomApiKeyEnabled = cbEnableCustomApiKey.isChecked();
-        editor.putBoolean("enable_custom_api_key", isCustomApiKeyEnabled);
-
-        if (isCustomApiKeyEnabled) {
-            String customApiKey = etCustomApiKey.getText().toString().trim();
-            editor.putString("custom_api_key", customApiKey);
-        } else {
-            editor.remove("custom_api_key");
         }
     }
 

@@ -54,7 +54,6 @@ android {
         buildConfigField("String", "POSTHOG_HOST", "\"\"")
         buildConfigField("String", "SUPABASE_URL", "\"\"")
         buildConfigField("String", "SUPABASE_KEY", "\"\"")
-        buildConfigField("String", "STEAMGRIDDB_API_KEY", "\"\"")
     }
 
     compileOptions {

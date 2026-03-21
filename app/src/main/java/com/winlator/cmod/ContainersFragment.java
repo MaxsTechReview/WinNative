@@ -115,19 +115,9 @@ public class ContainersFragment extends Fragment {
                 openAddContainer();
                 return true;
 
-            case R.id.action_big_picture_mode:
-                toggleBigPictureMode();
-                return true;
-
             default:
                 return super.onOptionsItemSelected(menuItem);
         }
-    }
-
-    private void toggleBigPictureMode() {
-        Intent intent = new Intent(getContext(), BigPictureActivity.class);
-        startActivity(intent);
-        getActivity().overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
     }
 
     private class ContainersAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
