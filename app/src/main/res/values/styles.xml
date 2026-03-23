@@ -83,13 +83,6 @@
         <item name="android:popupBackground">@drawable/content_dialog_background</item>
     </style>
 
-    <!-- Dark ComboBox Styles -->
-    <style name="ComboBox.Dark" parent="ComboBox">
-        <item name="android:textColor">#ffffff</item>
-        <item name="android:background">@drawable/combo_box_dark</item>
-        <item name="android:popupBackground">@drawable/content_dialog_background_dark</item>
-    </style>
-
     <style name="SpinnerDropDownItem" parent="Widget.AppCompat.DropDownItem.Spinner">
         <item name="android:textColor">#000000</item>
         <item name="android:paddingLeft">16dp</item>
@@ -102,7 +95,6 @@
     </style>
 
     <style name="MultiSelectionComboBox" parent="ComboBox"/>
-    <style name="MultiSelectionComboBox.Dark" parent="ComboBox.Dark"/>
 
     <!-- Popup Styles -->
     <style name="ListPopupWindow" parent="@android:style/Widget.ListPopupWindow">

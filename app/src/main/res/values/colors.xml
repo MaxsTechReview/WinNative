@@ -17,8 +17,7 @@
     <color name="gray">#888888</color>
 
     
-    <color name="combo_box_dark">#303030</color>
-    <color name="content_dialog_background_dark">#424242</color>
+<color name="content_dialog_background_dark">#424242</color>
     <color name="button_neutral_dark">#37474f</color>
     <color name="button_positive_dark">#1e88e5</color>
     <color name="settings_section_surface">#151E2A</color>
