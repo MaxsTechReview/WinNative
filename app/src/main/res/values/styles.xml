@@ -80,7 +80,10 @@
         <item name="android:ellipsize">end</item>
         <item name="android:spinnerMode">dropdown</item>
         <item name="android:background">@drawable/combo_box</item>
-        <item name="android:popupBackground">@drawable/content_dialog_background</item>
+        <item name="android:popupBackground">@drawable/spinner_dropdown_background</item>
+        <item name="android:overlapAnchor">false</item>
+        <item name="android:dropDownVerticalOffset">4dp</item>
+        <item name="android:popupElevation">8dp</item>
     </style>
 
     <style name="SpinnerDropDownItem" parent="Widget.AppCompat.DropDownItem.Spinner">
@@ -90,8 +93,15 @@
     </style>
 
     <style name="SpinnerDropDownItem.Dark" parent="SpinnerDropDownItem">
-        <item name="android:textColor">#ffffff</item>
-        <item name="android:background">@color/window_background_color_dark</item>
+        <item name="android:textColor">@color/settings_text_primary</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="android:background">@android:color/transparent</item>
+        <item name="android:paddingTop">10dp</item>
+        <item name="android:paddingBottom">10dp</item>
+        <item name="android:paddingLeft">16dp</item>
+        <item name="android:paddingRight">16dp</item>
+        <item name="android:minHeight">0dp</item>
     </style>
 
     <style name="MultiSelectionComboBox" parent="ComboBox"/>
@@ -104,7 +114,10 @@
 
 
     <style name="ListPopupWindow.Dark" parent="ListPopupWindow">
-        <item name="android:popupBackground">@drawable/content_dialog_background_dark</item>
+        <item name="android:popupBackground">@drawable/spinner_dropdown_background</item>
+        <item name="android:overlapAnchor">true</item>
+        <item name="android:dropDownVerticalOffset">4dp</item>
+        <item name="android:popupElevation">8dp</item>
     </style>
 
     <style name="PopupWindow" parent="@android:style/Widget.PopupWindow">
@@ -113,7 +126,8 @@
     </style>
 
     <style name="PopupWindow.Dark" parent="PopupWindow">
-        <item name="android:popupBackground">@drawable/content_dialog_background_dark</item>
+        <item name="android:popupBackground">@drawable/spinner_dropdown_background</item>
+        <item name="android:popupElevation">8dp</item>
     </style>
 
     <style name="PopupMenu" parent="@android:style/Widget.PopupMenu">
@@ -121,7 +135,8 @@
     </style>
 
     <style name="PopupMenu.Dark" parent="PopupMenu">
-        <item name="android:popupBackground">@drawable/content_dialog_background_dark</item>
+        <item name="android:popupBackground">@drawable/spinner_dropdown_background</item>
+        <item name="android:popupElevation">8dp</item>
     </style>
 
     <style name="Widget.ContentPopupMenu" parent="Widget.AppCompat.PopupMenu">
@@ -154,8 +169,8 @@
     </style>
 
     <style name="SpinnerDropDownListView" parent="Widget.AppCompat.ListView.DropDown">
-        <item name="android:divider">@null</item>
-        <item name="android:dividerHeight">0dp</item>
+        <item name="android:divider">@drawable/spinner_dropdown_divider</item>
+        <item name="android:dividerHeight">1dp</item>
         <item name="android:listSelector">@android:color/transparent</item>
     </style>
 
@@ -870,12 +885,15 @@
         <item name="android:layout_height">40dp</item>
         <item name="android:background">@drawable/preset_combo_box_background</item>
         <item name="android:fontFamily">@font/inter</item>
-        <item name="android:popupBackground">@drawable/content_popup_menu_background</item>
+        <item name="android:popupBackground">@drawable/spinner_dropdown_background</item>
         <item name="android:textColor">@color/settings_text_primary</item>
         <item name="android:textSize">14sp</item>
         <item name="android:paddingStart">12dp</item>
         <item name="android:paddingEnd">32dp</item>
         <item name="android:spinnerMode">dropdown</item>
+        <item name="android:overlapAnchor">false</item>
+        <item name="android:dropDownVerticalOffset">4dp</item>
+        <item name="android:popupElevation">8dp</item>
         <item name="android:maxLines">1</item>
         <item name="android:ellipsize">end</item>
     </style>
