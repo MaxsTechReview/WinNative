@@ -90,11 +90,6 @@ import com.winlator.cmod.math.XForm;
 import com.winlator.cmod.midi.MidiHandler;
 import com.winlator.cmod.midi.MidiManager;
 import com.winlator.cmod.renderer.GLRenderer;
-import com.winlator.cmod.renderer.effects.CRTEffect;
-import com.winlator.cmod.renderer.effects.ColorEffect;
-import com.winlator.cmod.renderer.effects.FXAAEffect;
-import com.winlator.cmod.renderer.effects.NTSCCombinedEffect;
-import com.winlator.cmod.renderer.effects.ToonEffect;
 import com.winlator.cmod.widget.FrameRating;
 import com.winlator.cmod.widget.InputControlsView;
 import com.winlator.cmod.widget.LogView;
@@ -1543,30 +1538,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 drawerLayout.closeDrawers();
                 break;
             case R.id.main_menu_screen_effects:
-                Log.d("ScreenEffectDialog", "Initializing ScreenEffectDialog");
-                ScreenEffectDialog screenEffectDialog = new ScreenEffectDialog(this);
-                screenEffectDialog.setOnConfirmCallback(() -> {
-                    Log.d("ScreenEffectDialog", "Confirm callback triggered. About to apply effects.");
-                    GLRenderer currentRenderer = xServerView.getRenderer();
-                    ColorEffect colorEffect = (ColorEffect) currentRenderer.getEffectComposer().getEffect(ColorEffect.class);
-                    FXAAEffect fxaaEffect = (FXAAEffect) currentRenderer.getEffectComposer().getEffect(FXAAEffect.class);
-                    CRTEffect crtEffect = (CRTEffect) currentRenderer.getEffectComposer().getEffect(CRTEffect.class);
-                    ToonEffect toonEffect = (ToonEffect) currentRenderer.getEffectComposer().getEffect(ToonEffect.class);
-                    NTSCCombinedEffect ntscEffect = (NTSCCombinedEffect) currentRenderer.getEffectComposer().getEffect(NTSCCombinedEffect.class);
-
-                    // Check if effects are null before applying
-                    Log.d("ScreenEffectDialog", "ColorEffect: " + (colorEffect != null));
-                    Log.d("ScreenEffectDialog", "FXAAEffect: " + (fxaaEffect != null));
-                    Log.d("ScreenEffectDialog", "CRTEffect: " + (crtEffect != null));
-                    Log.d("ScreenEffectDialog", "ToonEffect: " + (toonEffect != null));
-                    Log.d("ScreenEffectDialog", "NTSCCombinedEffect: " + (ntscEffect != null));
-
-                    Log.d("ScreenEffectDialog", "Calling applyEffects()");
-                    screenEffectDialog.applyEffects(colorEffect, currentRenderer, fxaaEffect, crtEffect, toonEffect, ntscEffect);
-                    Log.d("ScreenEffectDialog", "applyEffects() called.");
-                });
-                Log.d("ScreenEffectDialog", "Showing ScreenEffectDialog");
-                screenEffectDialog.show();
+                new ScreenEffectDialog(this).show();
                 drawerLayout.closeDrawers();
                 break;
             case R.id.main_menu_logs:
