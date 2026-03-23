@@ -1481,26 +1481,24 @@ public class XServerDisplayActivity extends AppCompatActivity {
         switch (itemId) {
             case R.id.main_menu_keyboard:
                 AppUtils.showKeyboard(this);
-                drawerLayout.closeDrawers();
                 break;
             case R.id.main_menu_input_controls:
                 showInputControlsDialog();
-                drawerLayout.closeDrawers();
                 break;
             case R.id.main_menu_relative_mouse_movement:
                 isRelativeMouseMovement = !isRelativeMouseMovement;
-                drawerLayout.closeDrawers();
                 xServer.setRelativeMouseMovement(isRelativeMouseMovement);
+                renderDrawerMenu();
                 break;
             case R.id.main_menu_disable_mouse:
                 isMouseDisabled = !isMouseDisabled;
                 touchpadView.setMouseEnabled(!isMouseDisabled);
-                drawerLayout.closeDrawers();
+                renderDrawerMenu();
                 break;
             case R.id.main_menu_toggle_fullscreen:
                 renderer.toggleFullscreen();
-                drawerLayout.closeDrawers();
                 touchpadView.toggleFullscreen();
+                renderDrawerMenu();
                 break;
             case R.id.main_menu_pause:
                 if (isPaused) {
@@ -1510,7 +1508,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     ProcessHelper.pauseAllWineProcesses();
                 }
                 isPaused = !isPaused;
-                drawerLayout.closeDrawers();
+                renderDrawerMenu();
                 break;
             case R.id.main_menu_pip_mode:
                 enterPictureInPictureMode();
@@ -1518,7 +1516,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 break;
             case R.id.main_menu_task_manager:
                 new TaskManagerDialog(this).show();
-                drawerLayout.closeDrawers();
                 break;
             case R.id.main_menu_magnifier:
                 if (magnifierView == null) {
@@ -1535,20 +1532,18 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     });
                     container.addView(magnifierView);
                 }
-                drawerLayout.closeDrawers();
+                renderDrawerMenu();
                 break;
             case R.id.main_menu_screen_effects:
                 new ScreenEffectDialog(this).show();
-                drawerLayout.closeDrawers();
                 break;
             case R.id.main_menu_logs:
                 debugDialog.show();
-                drawerLayout.closeDrawers();
                 break;
             case R.id.main_menu_native_rendering:
                 isNativeRenderingEnabled = !isNativeRenderingEnabled;
                 preferences.edit().putBoolean("use_dri3", isNativeRenderingEnabled).apply();
-                drawerLayout.closeDrawers();
+                renderDrawerMenu();
                 showToast(this, getString(isNativeRenderingEnabled
                     ? R.string.native_rendering_enabled_toast
                     : R.string.native_rendering_disabled_toast));
@@ -2307,26 +2302,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private void showInputControlsDialog() {
-        final ContentDialog dialog = new ContentDialog(this, R.layout.input_controls_dialog);
-        dialog.setTitle(R.string.input_controls);
-        dialog.setIcon(R.drawable.icon_input_controls);
+        final com.winlator.cmod.contentdialog.InputControlsDialog dialog =
+            new com.winlator.cmod.contentdialog.InputControlsDialog(this);
 
-        final Spinner sProfile = dialog.findViewById(R.id.SProfile);
-
-        dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0));
-        
-        float density = getResources().getDisplayMetrics().density;
-        com.winlator.cmod.widget.ChasingBorderDrawable animatedBorder = new com.winlator.cmod.widget.ChasingBorderDrawable(16f, 1.5f, density);
-        android.graphics.drawable.GradientDrawable solidBg = new android.graphics.drawable.GradientDrawable();
-        solidBg.setColor(android.graphics.Color.parseColor("#171A1C"));
-        solidBg.setCornerRadius(16f * density);
-        android.graphics.drawable.Drawable[] layers = {solidBg, animatedBorder};
-        android.graphics.drawable.LayerDrawable layerDrawable = new android.graphics.drawable.LayerDrawable(layers);
-        dialog.getContentView().setBackground(layerDrawable);
-        dialog.getContentView().setClipToOutline(true);
-
-        sProfile.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
-
+        // Load profile list
         Runnable loadProfileSpinner = () -> {
             ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
             ArrayList<String> profileItems = new ArrayList<>();
@@ -2338,43 +2317,27 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     selectedPosition = i + 1;
                 profileItems.add(profile.getName());
             }
-
-            sProfile.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, profileItems));
-            sProfile.setSelection(selectedPosition);
+            dialog.getProfileNames().setValue(profileItems);
+            dialog.getSelectedProfileIndex().setIntValue(selectedPosition);
         };
         loadProfileSpinner.run();
 
-        final CheckBox cbShowTouchscreenControls = dialog.findViewById(R.id.CBShowTouchscreenControls);
-        cbShowTouchscreenControls.setChecked(inputControlsView.isShowTouchscreenControls());
-
-        final CheckBox cbEnableTimeout = dialog.findViewById(R.id.CBEnableTimeout);
-        cbEnableTimeout.setChecked(preferences.getBoolean("touchscreen_timeout_enabled", false));
-
-        final CheckBox cbEnableHaptics = dialog.findViewById(R.id.CBEnableHaptics);
-        cbEnableHaptics.setChecked(preferences.getBoolean("touchscreen_haptics_enabled", false));
-
-        // Auto-enable Show Touchscreen Controls when a profile is selected
-        sProfile.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (position > 0) {
-                    cbShowTouchscreenControls.setChecked(true);
-                }
-            }
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
-        });
+        // Initialize checkbox states
+        dialog.getShowTouchscreenControls().setValue(inputControlsView.isShowTouchscreenControls());
+        dialog.getTouchscreenTimeout().setValue(preferences.getBoolean("touchscreen_timeout_enabled", false));
+        dialog.getTouchscreenHaptics().setValue(preferences.getBoolean("touchscreen_haptics_enabled", false));
 
         final Runnable updateProfile = () -> {
-            int position = sProfile.getSelectedItemPosition();
+            int position = dialog.getSelectedProfileIndex().getIntValue();
             if (position > 0) {
                 showInputControls(inputControlsManager.getProfiles(true).get(position - 1));
             }
             else hideInputControls();
         };
 
-        dialog.findViewById(R.id.BTSettings).setOnClickListener((v) -> {
-            int position = sProfile.getSelectedItemPosition();
+        // Settings button callback
+        dialog.setOnSettingsClickCallback(() -> {
+            int position = dialog.getSelectedProfileIndex().getIntValue();
             Intent intent = new Intent(this, MainActivity.class);
             intent.putExtra("edit_input_controls", true);
             intent.putExtra("selected_profile_id", position > 0 ? inputControlsManager.getProfiles(true).get(position - 1).id : 0);
@@ -2387,32 +2350,27 @@ public class XServerDisplayActivity extends AppCompatActivity {
             controlsEditorActivityResultLauncher.launch(intent);
         });
 
+        // Confirm callback
         dialog.setOnConfirmCallback(() -> {
-            inputControlsView.setShowTouchscreenControls(cbShowTouchscreenControls.isChecked());
-            boolean isTimeoutEnabled = cbEnableTimeout.isChecked();
-            boolean isHapticsEnabled = cbEnableHaptics.isChecked();
+            inputControlsView.setShowTouchscreenControls(dialog.getShowTouchscreenControls().getValue());
+            boolean isTimeoutEnabled = dialog.getTouchscreenTimeout().getValue();
+            boolean isHapticsEnabled = dialog.getTouchscreenHaptics().getValue();
             SharedPreferences.Editor editor = preferences.edit();
-            editor.putBoolean("show_touchscreen_controls_enabled", cbShowTouchscreenControls.isChecked());
+            editor.putBoolean("show_touchscreen_controls_enabled", dialog.getShowTouchscreenControls().getValue());
             editor.putBoolean("touchscreen_timeout_enabled", isTimeoutEnabled);
             editor.putBoolean("touchscreen_haptics_enabled", isHapticsEnabled);
             editor.apply();
 
             if (isTimeoutEnabled) {
-                startTouchscreenTimeout(); // Start the timeout functionality if enabled
+                startTouchscreenTimeout();
             } else {
-                touchpadView.setOnTouchListener(null); // Disable the listener if timeout is disabled
+                touchpadView.setOnTouchListener(null);
             }
-            int position = sProfile.getSelectedItemPosition();
-            if (position > 0) {
-                showInputControls(inputControlsManager.getProfiles(true).get(position - 1));
-            }
-            else hideInputControls();
             updateProfile.run();
         });
 
         dialog.setOnCancelCallback(updateProfile::run);
 
-        dialog.setCanceledOnTouchOutside(false);
         dialog.show();
     }
 
