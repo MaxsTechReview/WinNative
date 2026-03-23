@@ -232,7 +232,6 @@
         &lt;i&gt;&lt;b&gt;VKD3D&lt;/b&gt;&lt;/i&gt; is a translation layer for Direct3D 12 API to Vulkan.&lt;br /&gt;&lt;br /&gt;
         &lt;i&gt;&lt;b&gt;CNC DDraw&lt;/b&gt;&lt;/i&gt; is an implementation of DirectDraw for better compatibility with classic games.
     </string>
-    <!--
     <string name="box64_env_var_help__dynarec_safeflags">
         Handling of flags on CALL/RET opcodes&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt; : Treats CALL/RET as if it never needed flags (faster, unstable)&lt;br /&gt;
@@ -311,7 +310,6 @@
     <string name="fexcore_env_var_help__disablel2cache">Disables FEXCore JIT L2 cache lookup, saving memory but introducing stutters.</string>
     <string name="fexcore_env_var_help__dynamicl1cache">Switches FEXCore JIT L1 cache to be dynamically sized, saving memory but introducing stutters.</string>
     <string name="fexcore_env_var_help__x87reducedprecision">Emulates X87 floating point using 64-bit precision. This reduces emulation accuracy and may result in rendering bugs.</string>
-    -->
     <string name="columns">Columns</string>
     <string name="directinput_mapper_type">DirectInput Mapper Type</string>
     <!--
