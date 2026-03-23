@@ -3,7 +3,6 @@ package com.winlator.cmod.contentdialog;
 
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.drawable.Icon;
 import android.util.Log;
@@ -21,8 +20,6 @@ import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import androidx.preference.PreferenceManager;
 
 import com.google.android.material.tabs.TabLayout;
 import com.winlator.cmod.ContainerDetailFragment;
@@ -127,10 +124,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
         LinearLayout llContent = findViewById(R.id.LLContent);
         llContent.getLayoutParams().width = AppUtils.getPreferredDialogWidth(context);
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        boolean isDarkMode = prefs.getBoolean("dark_mode", false);
-
-        applyDynamicStyles(findViewById(R.id.LLContent), isDarkMode);
+        applyDynamicStyles(findViewById(R.id.LLContent));
 
         // Initialize the turnip version TextView
         tvGraphicsDriverVersion = findViewById(R.id.TVGraphicsDriverVersion);
@@ -151,7 +145,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
 
         ContainerDetailFragment containerDetailFragment = new ContainerDetailFragment(shortcut.container.id);
 
-        loadScreenSizeSpinner(getContentView(), shortcut.getExtra("screenSize", container.getScreenSize()), isDarkMode);
+        loadScreenSizeSpinner(getContentView(), shortcut.getExtra("screenSize", container.getScreenSize()));
 
 
         final Spinner sGraphicsDriver = findViewById(R.id.SGraphicsDriver);
@@ -287,7 +281,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
         cbSimTouchScreen.setChecked(isTouchScreenMode.equals("1") ? true : false);
 
         ContainerDetailFragment.createWinComponentsTabFromShortcut(this, getContentView(),
-                shortcut.getExtra("wincomponents", container.getWinComponents()), isDarkMode);
+                shortcut.getExtra("wincomponents", container.getWinComponents()));
 
         final EnvVarsView envVarsView = createEnvVarsTab();
 
@@ -326,7 +320,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
             cbSimTouchScreen.setChecked(false);
 
             // Reset the screen size
-            loadScreenSizeSpinner(getContentView(), container.getScreenSize(), isDarkMode);
+            loadScreenSizeSpinner(getContentView(), container.getScreenSize());
 
             // Reset refresh rate to default (global)
             loadShortcutRefreshRateSpinner(sRefreshRate, "0");
@@ -341,11 +335,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
 
         TabLayout tabLayout = findViewById(R.id.TabLayout);
 
-        if (isDarkMode) {
-            tabLayout.setBackgroundResource(R.drawable.tab_layout_background_dark);
-        } else {
-            tabLayout.setBackgroundResource(R.drawable.tab_layout_background);
-        }
+        tabLayout.setBackgroundResource(R.drawable.tab_layout_background_dark);
 
         findViewById(R.id.BTExtraArgsMenu).setOnClickListener((v) -> {
             PopupMenu popupMenu = new PopupMenu(context, v);
@@ -517,16 +507,15 @@ public class ShortcutSettingsDialog extends ContentDialog {
     }
 
     // Utility method to apply styles to dynamically added TextViews based on their content
-    private void applyFieldSetLabelStylesDynamically(ViewGroup rootView, boolean isDarkMode) {
+    private void applyFieldSetLabelStylesDynamically(ViewGroup rootView) {
         for (int i = 0; i < rootView.getChildCount(); i++) {
             View child = rootView.getChildAt(i);
             if (child instanceof ViewGroup) {
-                applyFieldSetLabelStylesDynamically((ViewGroup) child, isDarkMode); // Recursive call for nested ViewGroups
+                applyFieldSetLabelStylesDynamically((ViewGroup) child);
             } else if (child instanceof TextView) {
                 TextView textView = (TextView) child;
-                // Apply the style based on the content of the TextView
                 if (isFieldSetLabel(textView.getText().toString())) {
-                    applyFieldSetLabelStyle(textView, isDarkMode);
+                    applyFieldSetLabelStyle(textView);
                 }
             }
         }
@@ -542,20 +531,19 @@ public class ShortcutSettingsDialog extends ContentDialog {
                 text.equalsIgnoreCase("System");
     }
 
-    public void onWinComponentsViewsAdded(boolean isDarkMode) {
-        // Apply styles to all dynamically added TextViews
+    public void onWinComponentsViewsAdded() {
         ViewGroup llContent = findViewById(R.id.LLContent);
-        applyFieldSetLabelStylesDynamically(llContent, isDarkMode);
+        applyFieldSetLabelStylesDynamically(llContent);
     }
 
 
-    public static void loadScreenSizeSpinner(View view, String selectedValue, boolean isDarkMode) {
+    public static void loadScreenSizeSpinner(View view, String selectedValue) {
         final Spinner sScreenSize = view.findViewById(R.id.SScreenSize);
 
         final LinearLayout llCustomScreenSize = view.findViewById(R.id.LLCustomScreenSize);
 
-        applyDarkThemeToEditText(view.findViewById(R.id.ETScreenWidth), isDarkMode);
-        applyDarkThemeToEditText(view.findViewById(R.id.ETScreenHeight), isDarkMode);
+        applyDarkThemeToEditText(view.findViewById(R.id.ETScreenWidth));
+        applyDarkThemeToEditText(view.findViewById(R.id.ETScreenHeight));
 
 
         sScreenSize.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -578,11 +566,11 @@ public class ShortcutSettingsDialog extends ContentDialog {
         }
     }
 
-    private void applyDynamicStyles(View view, boolean isDarkMode) {
+    private void applyDynamicStyles(View view) {
 
         // Update edit text
         EditText etName = view.findViewById(R.id.ETName);
-        applyDarkThemeToEditText(etName, isDarkMode);
+        applyDarkThemeToEditText(etName);
 
         // Update Spinners
         Spinner sGraphicsDriver = view.findViewById(R.id.SGraphicsDriver);
@@ -600,52 +588,39 @@ public class ShortcutSettingsDialog extends ContentDialog {
         Spinner sRefreshRate = view.findViewById(R.id.SRefreshRate);
 
 
-        // Set dark or light mode background for spinners
-        sGraphicsDriver.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
-        sDXWrapper.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
-        sAudioDriver.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
-        sEmulatorSpinner.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
-        sBox64Preset.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
-        sControlsProfile.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
-        sDInputType.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
-        sMIDISoundFont.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
-        sBox64Version.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
-        sFEXCorePreset.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
-        sFEXCoreVersion.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
-        sStartupSelection.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
+        // Set dark mode background for spinners
+        sGraphicsDriver.setPopupBackgroundResource(R.drawable.content_dialog_background_dark);
+        sDXWrapper.setPopupBackgroundResource(R.drawable.content_dialog_background_dark);
+        sAudioDriver.setPopupBackgroundResource(R.drawable.content_dialog_background_dark);
+        sEmulatorSpinner.setPopupBackgroundResource(R.drawable.content_dialog_background_dark);
+        sBox64Preset.setPopupBackgroundResource(R.drawable.content_dialog_background_dark);
+        sControlsProfile.setPopupBackgroundResource(R.drawable.content_dialog_background_dark);
+        sDInputType.setPopupBackgroundResource(R.drawable.content_dialog_background_dark);
+        sMIDISoundFont.setPopupBackgroundResource(R.drawable.content_dialog_background_dark);
+        sBox64Version.setPopupBackgroundResource(R.drawable.content_dialog_background_dark);
+        sFEXCorePreset.setPopupBackgroundResource(R.drawable.content_dialog_background_dark);
+        sFEXCoreVersion.setPopupBackgroundResource(R.drawable.content_dialog_background_dark);
+        sStartupSelection.setPopupBackgroundResource(R.drawable.content_dialog_background_dark);
         if (sRefreshRate != null)
-            sRefreshRate.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
+            sRefreshRate.setPopupBackgroundResource(R.drawable.content_dialog_background_dark);
 
 //        EditText etLC_ALL = view.findViewById(R.id.ETlcall);
         EditText etExecArgs = view.findViewById(R.id.ETExecArgs);
 
-//        applyDarkThemeToEditText(etLC_ALL, isDarkMode);
-        applyDarkThemeToEditText(etExecArgs, isDarkMode);
+//        applyDarkThemeToEditText(etLC_ALL);
+        applyDarkThemeToEditText(etExecArgs);
 
     }
 
-    private void applyFieldSetLabelStyle(TextView textView, boolean isDarkMode) {
-        if (isDarkMode) {
-            // Apply dark mode-specific attributes
-            textView.setTextColor(Color.parseColor("#cccccc")); // Set text color to #cccccc
-            textView.setBackgroundColor(Color.parseColor("#424242")); // Set dark background color
-        } else {
-            // Apply light mode-specific attributes
-            textView.setTextColor(Color.parseColor("#bdbdbd")); // Set text color to #bdbdbd
-            textView.setBackgroundResource(R.color.window_background_color); // Set light background color
-        }
+    private void applyFieldSetLabelStyle(TextView textView) {
+        textView.setTextColor(Color.parseColor("#cccccc"));
+        textView.setBackgroundColor(Color.parseColor("#424242"));
     }
 
-    private static void applyDarkThemeToEditText(EditText editText, boolean isDarkMode) {
-        if (isDarkMode) {
-            editText.setTextColor(Color.WHITE);
-            editText.setHintTextColor(Color.GRAY);
-            editText.setBackgroundResource(R.drawable.edit_text_dark);
-        } else {
-            editText.setTextColor(Color.BLACK);
-            editText.setHintTextColor(Color.GRAY);
-            editText.setBackgroundResource(R.drawable.edit_text);
-        }
+    private static void applyDarkThemeToEditText(EditText editText) {
+        editText.setTextColor(Color.WHITE);
+        editText.setHintTextColor(Color.GRAY);
+        editText.setBackgroundResource(R.drawable.edit_text_dark);
     }
 
     private void updateExtra(String extraName, String containerValue, String newValue) {

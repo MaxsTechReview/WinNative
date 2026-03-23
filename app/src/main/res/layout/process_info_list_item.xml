@@ -18,19 +18,22 @@
         android:layout_weight="1"
         android:maxLines="1"
         android:ellipsize="end"
-        android:paddingLeft="6dp" />
+        android:paddingLeft="6dp"
+        android:textColor="#DDDDDD" />
 
     <TextView
         android:id="@+id/TVPID"
         android:layout_width="60dp"
         android:layout_height="wrap_content"
-        android:paddingLeft="4dp" />
+        android:paddingLeft="4dp"
+        android:textColor="#DDDDDD" />
 
     <TextView
         android:id="@+id/TVMemoryUsage"
         android:layout_width="110dp"
         android:layout_height="wrap_content"
-        android:paddingLeft="4dp" />
+        android:paddingLeft="4dp"
+        android:textColor="#DDDDDD" />
 
     <RelativeLayout
         android:layout_width="40dp"

@@ -65,6 +65,7 @@
                     android:layout_height="match_parent"
                     android:gravity="center"
                     android:text="@string/no_items_to_display"
+                    android:textColor="#DDDDDD"
                     android:visibility="gone" />
             </FrameLayout>
         </LinearLayout>
@@ -118,7 +119,8 @@
                     <TextView
                         android:id="@+id/TVMemoryInfo"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
+                        android:layout_height="wrap_content"
+                        android:textColor="#DDDDDD" />
                 </LinearLayout>
             </LinearLayout>
         </ScrollView>

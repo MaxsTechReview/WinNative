@@ -190,6 +190,7 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
         for (int i = 0; i < clockSpeeds.length; i++) {
             TextView textView = new TextView(activity);
             textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+            textView.setTextColor(0xFFDDDDDD);
             short clockSpeed = CPUStatus.getMaxClockSpeed(i);
             textView.setText(clockSpeeds[i]+"/"+clockSpeed+" MHz");
             llCPUInfo.addView(textView);

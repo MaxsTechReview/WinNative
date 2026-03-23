@@ -51,10 +51,8 @@ public class ScreenEffectDialog extends ContentDialog {
 
         preferences = PreferenceManager.getDefaultSharedPreferences(activity);
 
-        boolean isDarkMode = preferences.getBoolean("dark_mode", false);
-
         TextView lblColorAdjustment = findViewById(R.id.LBLColorAdjustment);
-        applyFieldSetLabelStyle(lblColorAdjustment, isDarkMode);
+        applyFieldSetLabelStyle(lblColorAdjustment);
 
         sProfile = findViewById(R.id.SProfile);
         sbBrightness = findViewById(R.id.SBBrightness);
@@ -145,18 +143,9 @@ public class ScreenEffectDialog extends ContentDialog {
 
     }
 
-    private static void applyFieldSetLabelStyle(TextView textView, boolean isDarkMode) {
-//        Context context = textView.getContext();
-
-        if (isDarkMode) {
-            // Apply dark mode-specific attributes
-            textView.setTextColor(Color.parseColor("#cccccc")); // Set text color to #cccccc
-            textView.setBackgroundResource(R.color.window_background_color_dark); // Set dark background color
-        } else {
-            // Apply light mode-specific attributes (original FieldSetLabel)
-            textView.setTextColor(Color.parseColor("#bdbdbd")); // Set text color to #bdbdbd
-            textView.setBackgroundResource(R.color.window_background_color); // Set light background color
-        }
+    private static void applyFieldSetLabelStyle(TextView textView) {
+        textView.setTextColor(Color.parseColor("#cccccc"));
+        textView.setBackgroundResource(R.color.window_background_color_dark);
     }
 
     private void promptAddProfile() {
