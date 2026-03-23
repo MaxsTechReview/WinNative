@@ -49,7 +49,7 @@ public class FrameRating extends FrameLayout implements Runnable {
         tvRenderer.setText("OpenGL");
         tvGPU = view.findViewById(R.id.TVGPU);
         String version = (graphicsDriverConfig != null && graphicsDriverConfig.get("version") != null) ? graphicsDriverConfig.get("version").toString() : null;
-        tvGPU.setText(GPUInformation.getRendererSafe(version, context));
+        tvGPU.setText(GPUInformation.getRenderer(version, context));
         tvRAM = view.findViewById(R.id.TVRAM);
         totalRAM = getTotalRAM();
         this.graphicsDriverConfig = graphicsDriverConfig;
@@ -86,7 +86,7 @@ public class FrameRating extends FrameLayout implements Runnable {
     public void reset() {
         tvRenderer.setText("OpenGL");
         String version = (graphicsDriverConfig != null && graphicsDriverConfig.get("version") != null) ? graphicsDriverConfig.get("version").toString() : null;
-        tvGPU.setText(GPUInformation.getRendererSafe(version, context));
+        tvGPU.setText(GPUInformation.getRenderer(version, context));
     }
 
     public void update() {

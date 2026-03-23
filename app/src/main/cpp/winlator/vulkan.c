@@ -114,9 +114,9 @@ static void init_original_vulkan() {
 }
 
 static void init_vulkan(JNIEnv  *env, jobject context, const char *driver_name) {
-    char *tmpdir = NULL;
-    char *library_name = NULL;
-    char *native_library_dir = NULL;
+    char *tmpdir;
+    char *library_name;
+    char *native_library_dir;
 
     const char *driver_path = get_driver_path(env, context, driver_name);
 
@@ -127,18 +127,7 @@ static void init_vulkan(JNIEnv  *env, jobject context, const char *driver_name) 
         mkdir(tmpdir, S_IRWXU | S_IRWXG);
     }
 
-    if (!driver_path || !library_name || !native_library_dir || !tmpdir) {
-        printf("init_vulkan: missing required path components, falling back to system vulkan");
-        init_original_vulkan();
-        return;
-    }
-
     vulkan_handle = adrenotools_open_libvulkan(RTLD_LOCAL | RTLD_NOW, ADRENOTOOLS_DRIVER_CUSTOM, tmpdir, native_library_dir, driver_path, library_name, NULL, NULL);
-
-    if (!vulkan_handle) {
-        printf("init_vulkan: adrenotools_open_libvulkan failed, falling back to system vulkan");
-        init_original_vulkan();
-    }
 }
 
 static VkResult create_instance(jstring driverName, JNIEnv *env, jobject context) {
@@ -333,8 +322,8 @@ Java_com_winlator_cmod_core_GPUInformation_enumerateExtensions(JNIEnv *env, jcla
     if (result != VK_SUCCESS || extensionCount < 1) {
         printf("Failed to query extension count");
         return (*env)->NewObjectArray(env, 0, (*env)->FindClass(env, "java/lang/String"), NULL);
-    }    
-    
+    }
+
     VkExtensionProperties *extensionProperties = malloc(sizeof(VkExtensionProperties) * extensionCount);
     enumerateDeviceExtensionProperties(physicalDevice, NULL, &extensionCount,
                                        extensionProperties);

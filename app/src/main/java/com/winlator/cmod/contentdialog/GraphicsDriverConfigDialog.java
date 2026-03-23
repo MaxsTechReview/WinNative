@@ -179,7 +179,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
     }
 
     private String[] queryAvailableExtensions(String driver, Context context) {
-        return GPUInformation.enumerateExtensionsSafe(driver, context);
+        return GPUInformation.enumerateExtensions(driver, context);
     }
 
     private void initializeDialog(View anchor, String graphicsDriver, TextView graphicsDriverVersionView) {
@@ -225,9 +225,6 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         String bcnEmulationType = config.get("bcnEmulationType") != null ? config.get("bcnEmulationType") : "compute";
         String bcnEmulationCache = config.get("bcnEmulationCache") != null ? config.get("bcnEmulationCache") : "0";
 
-        // Initialize extensions with placeholder
-        mscAvailableExtensions.setItems(new String[]{"Loading..."}, "Extensions");
-
         // Update the selectedVersion whenever the user selects a different version
         sVersion.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
@@ -235,25 +232,18 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
                 try {
                     selectedVersion = sVersion.getSelectedItem() != null ? sVersion.getSelectedItem().toString() : "";
                     String[] availableExtensions = queryAvailableExtensions(selectedVersion, anchor.getContext());
-                    String currentBlacklisted = "";
+                    String blacklistedExtensions = "";
 
-                    if (availableExtensions.length > 0) {
-                        mscAvailableExtensions.setItems(availableExtensions, "Extensions");
-                        mscAvailableExtensions.setSelectedItems(availableExtensions);
-                    } else {
-                        mscAvailableExtensions.setItems(new String[]{"No extensions found"}, "Extensions");
-                    }
+                    mscAvailableExtensions.setItems(availableExtensions, "Extensions");
+                    mscAvailableExtensions.setSelectedItems(availableExtensions);
 
-                    if (selectedVersion != null && selectedVersion.equals(initialVersion))
-                        currentBlacklisted = blExtensions != null ? blExtensions : "";
+                    if (selectedVersion.equals(initialVersion))
+                        blacklistedExtensions = blExtensions;
 
-                    if (!currentBlacklisted.isEmpty()) {
-                        String[] bl = currentBlacklisted.split(",");
-                        for (String extension : bl) {
-                            if (extension != null && !extension.trim().isEmpty()) {
-                                mscAvailableExtensions.unsetSelectedItem(extension.trim());
-                            }
-                        }
+                    String[] bl = blacklistedExtensions.split("\\,");
+
+                    for (String extension : bl) {
+                        mscAvailableExtensions.unsetSelectedItem(extension);
                     }
                 } catch (Throwable e) {
                     Log.e(TAG, "Error updating extensions list", e);
@@ -403,7 +393,6 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
                         wrapperVersions.add(version);
                 } catch (Throwable e) {
                     Log.w(TAG, "Error checking driver support for: " + version, e);
-                    wrapperVersions.add(version);
                 }
             }
 

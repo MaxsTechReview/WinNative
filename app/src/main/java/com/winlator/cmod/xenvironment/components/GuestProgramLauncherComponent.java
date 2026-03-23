@@ -531,7 +531,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         addBox64EnvVars(envVars, enableBox64Logs);
         envVars.putAll(FEXCorePresetManager.getEnvVars(context, fexcorePreset));
 
-        String renderer = GPUInformation.getRendererSafe(null, null);
+        String renderer = GPUInformation.getRenderer(null, null);
 
         if (renderer.contains("Mali"))
             envVars.put("BOX64_MMAP32", "0");
