@@ -1,4 +1,4 @@
-name: PR CI # fresh cache test
+name: PR CI # warm cache test
 
 on:
   pull_request:
