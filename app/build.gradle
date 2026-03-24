@@ -48,6 +48,8 @@ android {
         ndk {
             abiFilters 'arm64-v8a'
         }
+
+        resConfigs "en", "da", "de", "es", "fr", "it", "ko", "pl", "pt-rBR", "ro", "uk", "zh-rCN", "zh-rTW"
         
         buildConfigField("boolean", "GOLD", "false")
         buildConfigField("String", "POSTHOG_API_KEY", "\"\"")
