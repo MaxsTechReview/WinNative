@@ -1,4 +1,4 @@
-name: PR CI # cache test
+name: PR CI
 
 on:
   pull_request:
@@ -50,6 +50,15 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
         cache: gradle
+
+    - name: Cache Gradle configuration
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/configuration-cache
+          .gradle/configuration-cache
+        key: gradle-cc-${{ hashFiles('**/*.gradle', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
+        restore-keys: gradle-cc-
 
     - name: Decode keystore and build
       timeout-minutes: 15
