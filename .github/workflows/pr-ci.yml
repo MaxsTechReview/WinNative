@@ -1,6 +1,12 @@
 name: PR CI
 
 on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'input_controls/**'
   pull_request:
     branches: [ main ]
     paths-ignore:
@@ -55,7 +61,12 @@ jobs:
         validate-wrappers: true
         cache-cleanup: 'on-success'
 
+    - name: Seed Gradle cache
+      if: github.event_name == 'push'
+      run: ./gradlew :app:dependencies --build-cache
+
     - name: Decode keystore and build
+      if: github.event_name == 'pull_request'
       timeout-minutes: 15
       env:
         KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -81,10 +92,12 @@ jobs:
         ./gradlew :app:assembleDebug --build-cache --parallel -x lint
 
     - name: Set short SHA
+      if: github.event_name == 'pull_request'
       id: sha
       run: echo "short=$(echo $GITHUB_SHA | cut -c1-7)" >> "$GITHUB_OUTPUT"
 
     - name: Upload APK
+      if: github.event_name == 'pull_request'
       uses: actions/upload-artifact@v4
       with:
         name: WinNative-debug-PR${{ github.event.pull_request.number }}-${{ steps.sha.outputs.short }}
