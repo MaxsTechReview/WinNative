@@ -21,6 +21,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
 
     steps:
     - name: Clone repository
@@ -118,3 +121,18 @@ jobs:
         path: app/build/outputs/apk/debug/app-debug.apk
         retention-days: 7
         compression-level: 0
+
+    - name: Cleanup duplicate caches
+      continue-on-error: true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh cache list --repo "$GITHUB_REPOSITORY" --json id,key,createdAt --limit 100 |
+          jq -r '
+            group_by(.key | sub("-[a-f0-9]{20,}$"; ""))
+            | .[]
+            | sort_by(.createdAt) | reverse
+            | .[1:][]
+            | .id
+          ' |
+          xargs -I {} gh cache delete {} --repo "$GITHUB_REPOSITORY" || true
