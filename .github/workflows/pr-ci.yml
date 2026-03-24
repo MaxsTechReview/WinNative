@@ -59,7 +59,7 @@ jobs:
         KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'dummypass' }}
         KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'winnative' }}
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'dummypass' }}
-        GRADLE_OPTS: -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false
+        GRADLE_OPTS: -Dorg.gradle.parallel=true -Dorg.gradle.caching=true
       run: ./gradlew assembleDebug --build-cache --parallel
 
     - name: Upload APK
