@@ -63,7 +63,15 @@ jobs:
 
     - name: Seed Gradle cache
       if: github.event_name == 'push'
-      run: ./gradlew :app:dependencies --build-cache
+      run: |
+        export KEYSTORE_FILE="${{ github.workspace }}/release.jks"
+        keytool -genkey -v \
+          -keystore "$KEYSTORE_FILE" \
+          -alias winnative \
+          -keyalg RSA -keysize 2048 -validity 1 \
+          -storepass dummypass -keypass dummypass \
+          -dname "CN=CI, OU=CI, O=CI, L=CI, ST=CI, C=US"
+        ./gradlew :app:dependencies --build-cache
 
     - name: Decode keystore and build
       if: github.event_name == 'pull_request'
