@@ -1,4 +1,4 @@
-name: PR CI # test resConfigs cache
+name: PR CI # fresh cache test
 
 on:
   pull_request:
