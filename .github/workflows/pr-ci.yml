@@ -12,11 +12,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
-permissions:
-  id-token: write
-  attestations: write
-  contents: read
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,6 +22,16 @@ jobs:
       with:
         submodules: recursive
         fetch-depth: 1
+        persist-credentials: false
+
+    - name: Cache NDK build outputs
+      uses: actions/cache@v4
+      with:
+        path: |
+          app/.cxx
+          ~/.android/ndk
+        key: ndk-${{ hashFiles('app/src/main/cpp/**', 'app/build.gradle', 'app/src/main/cpp/CMakeLists.txt') }}
+        restore-keys: ndk-
 
     - name: Validate Gradle wrapper
       uses: gradle/actions/wrapper-validation@v4
@@ -36,53 +41,34 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
+        cache: gradle
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4
-
-    - name: Cache NDK build outputs
-      uses: actions/cache@v4
-      with:
-        path: |
-          app/.cxx
-          ~/.android/ndk
-        key: ndk-${{ hashFiles('app/src/main/cpp/**') }}
-        restore-keys: ndk-
-
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-
-    - name: Decode signing keystore
+    - name: Decode keystore and build
+      timeout-minutes: 15
       env:
         KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        KEYSTORE_FILE: ${{ github.workspace }}/release.jks
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'dummypass' }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'winnative' }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'dummypass' }}
+        GRADLE_OPTS: -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Xmx4g -XX:+UseG1GC
       run: |
         if [ -n "$KEYSTORE_BASE64" ]; then
-          echo "$KEYSTORE_BASE64" | base64 -d > ${{ github.workspace }}/release.jks
+          echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_FILE"
         else
           keytool -genkey -v \
-            -keystore ${{ github.workspace }}/release.jks \
+            -keystore "$KEYSTORE_FILE" \
             -alias winnative \
             -keyalg RSA -keysize 2048 -validity 1 \
             -storepass dummypass -keypass dummypass \
             -dname "CN=CI, OU=CI, O=CI, L=CI, ST=CI, C=US"
         fi
-
-    - name: Build debug APK
-      env:
-        KEYSTORE_FILE: ${{ github.workspace }}/release.jks
-        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'dummypass' }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'winnative' }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'dummypass' }}
-        GRADLE_OPTS: -Dorg.gradle.parallel=true -Dorg.gradle.caching=true
-      run: ./gradlew assembleDebug --build-cache --parallel
-
-    - name: Attest build provenance
-      uses: actions/attest-build-provenance@v2
-      with:
-        subject-path: app/build/outputs/apk/debug/app-debug.apk
+        ./gradlew :app:assembleDebug --build-cache --parallel -x lint
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: WinNative-debug-PR${{ github.event.pull_request.number }}-${{ github.sha }}
         path: app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 7
+        compression-level: 1
