@@ -262,17 +262,13 @@ public class ShortcutsFragment extends Fragment {
         private void runFromShortcut(Shortcut shortcut) {
             Activity activity = getActivity();
 
-            if (!XrActivity.isEnabled(getContext())) {
-                Intent intent = new Intent(activity, XServerDisplayActivity.class);
-                intent.putExtra("container_id", shortcut.container.id);
-                intent.putExtra("shortcut_path", shortcut.file.getPath());
-                intent.putExtra("shortcut_name", shortcut.name); // Add this line to pass the shortcut name
-                // Check if the shortcut has the disableXinput value; if not, default to false.
-                String disableXinputValue = shortcut.getExtra("disableXinput", "0"); // Get value from shortcut or use "0" (false) by default
-                intent.putExtra("disableXinput", disableXinputValue); // Use the actual value from the shortcut
-                activity.startActivity(intent);
-            }
-            else XrActivity.openIntent(activity, shortcut.container.id, shortcut.file.getPath());
+            Intent intent = new Intent(activity, XServerDisplayActivity.class);
+            intent.putExtra("container_id", shortcut.container.id);
+            intent.putExtra("shortcut_path", shortcut.file.getPath());
+            intent.putExtra("shortcut_name", shortcut.name);
+            String disableXinputValue = shortcut.getExtra("disableXinput", "0");
+            intent.putExtra("disableXinput", disableXinputValue);
+            activity.startActivity(intent);
         }
 
         private void exportShortcut(Shortcut shortcut) {

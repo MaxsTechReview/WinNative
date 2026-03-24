@@ -44,7 +44,6 @@ public class OtherSettingsFragment extends Fragment {
     private CompoundButton cbCursorLock;
     private CompoundButton cbXinputToggle;
     private CompoundButton cbUseDRI3;
-    private CompoundButton cbUseXR;
     private CompoundButton cbEnableFileProvider;
     private CompoundButton cbOpenInBrowser;
     private CompoundButton cbShareClipboard;
@@ -178,13 +177,6 @@ public class OtherSettingsFragment extends Fragment {
         cbUseDRI3 = view.findViewById(R.id.CBUseDRI3);
         cbUseDRI3.setChecked(preferences.getBoolean("use_dri3", true));
 
-        final View xrCard = view.findViewById(R.id.CardUseXR);
-        cbUseXR = view.findViewById(R.id.CBUseXR);
-        cbUseXR.setChecked(preferences.getBoolean("use_xr", true));
-        if (!XrActivity.isSupported()) {
-            xrCard.setVisibility(View.GONE);
-        }
-
         final TextView tvCursorSpeed = view.findViewById(R.id.TVCursorSpeed);
         sbCursorSpeed = view.findViewById(R.id.SBCursorSpeed);
         sbCursorSpeed.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -230,7 +222,6 @@ public class OtherSettingsFragment extends Fragment {
         editor.putInt("refresh_rate_override", getSelectedRefreshRateValue());
 
         editor.putBoolean("use_dri3", cbUseDRI3.isChecked());
-        editor.putBoolean("use_xr", cbUseXR.isChecked());
         editor.putFloat("cursor_speed", sbCursorSpeed.getProgress() / 100.0f);
         editor.putBoolean("cursor_lock", cbCursorLock.isChecked());
         editor.putBoolean("xinput_toggle", cbXinputToggle.isChecked());

@@ -99,7 +99,7 @@ public class ContainerDetailFragment extends Fragment {
             "dxwrapper", "dxwrapperConfig", "audioDriver", "emulator", "emulator64", "wincomponents",
             "drives", "showFPS", "fullscreenStretched", "inputType", "disableXinput",
             "startupSelection", "box64Version", "box64Preset", "fexcoreVersion", "fexcorePreset",
-            "desktopTheme", "midiSoundFont", "lc_all", "primaryController", "controllerMapping",
+            "desktopTheme", "midiSoundFont", "lc_all",
             "launchRealSteam", "useLegacyDRM", "useSteamInput",
             "steamType", "forceDlc", "steamOfflineMode", "unpackFiles"
     };
@@ -586,9 +586,6 @@ public class ContainerDetailFragment extends Fragment {
         if (valuesDiffer(snapshot.get("desktopTheme"), targetContainer.getDesktopTheme())) return false;
         if (valuesDiffer(snapshot.get("midiSoundFont"), targetContainer.getMIDISoundFont())) return false;
         if (valuesDiffer(snapshot.get("lc_all"), targetContainer.getLC_ALL())) return false;
-        if (valuesDiffer(snapshot.get("primaryController"), targetContainer.getPrimaryController())) return false;
-        if (valuesDiffer(snapshot.get("controllerMapping"), targetContainer.getControllerMapping())) return false;
-
         if ("STEAM".equals(gameSource)) {
             if (valuesDiffer(snapshot.get("useLegacyDRM"), targetContainer.isUseLegacyDRM())) return false;
             if (valuesDiffer(snapshot.get("launchRealSteam"), targetContainer.isLaunchRealSteam())) return false;
@@ -695,7 +692,6 @@ public class ContainerDetailFragment extends Fragment {
                 : sMIDISoundFont.getSelectedItem().toString();
 
         EditText etLC_ALL = view.findViewById(R.id.ETlcall);
-        Spinner sPrimaryController = view.findViewById(R.id.SPrimaryController);
 
         CompoundButton cbEnableXInput = view.findViewById(R.id.CBEnableXInput);
         CompoundButton cbEnableDInput = view.findViewById(R.id.CBEnableDInput);
@@ -746,8 +742,6 @@ public class ContainerDetailFragment extends Fragment {
         snapshot.put("desktopTheme", getDesktopTheme(view));
         snapshot.put("midiSoundFont", midiSoundFont);
         snapshot.put("lc_all", etLC_ALL.getText().toString());
-        snapshot.put("primaryController", String.valueOf(Math.max(0, sPrimaryController.getSelectedItemPosition())));
-        snapshot.put("controllerMapping", getControllerMapping(view));
         snapshot.put("useLegacyDRM", cbUseLegacyDRM != null && cbUseLegacyDRM.isChecked() ? "1" : "0");
         snapshot.put("launchRealSteam", cbLaunchRealSteam != null && cbLaunchRealSteam.isChecked() ? "1" : "0");
         CompoundButton cbUseSteamInput = view.findViewById(R.id.CBUseSteamInput);
@@ -1189,24 +1183,6 @@ public class ContainerDetailFragment extends Fragment {
                     : (settingsContainer != null ? settingsContainer.getCPUListWoW64(true) : Container.getFallbackCPUListWoW64()))
                 : (isEditMode() && container != null ? container.getCPUListWoW64(true) : Container.getFallbackCPUListWoW64()));
 
-        final Spinner sPrimaryController = view.findViewById(R.id.SPrimaryController);
-        applyThemedAdapter(sPrimaryController, R.array.xr_controllers);
-        sPrimaryController.setSelection(isPerGameSettingsMode()
-                ? (isShortcutMode()
-                    ? getShortcutSettingInt("primaryController", settingsContainer != null ? settingsContainer.getPrimaryController() : 1)
-                    : (settingsContainer != null ? settingsContainer.getPrimaryController() : 1))
-                : (isEditMode() && container != null ? container.getPrimaryController() : 1));
-        setControllerMapping(view.findViewById(R.id.SButtonA), Container.XrControllerMapping.BUTTON_A, XKeycode.KEY_A.ordinal());
-        setControllerMapping(view.findViewById(R.id.SButtonB), Container.XrControllerMapping.BUTTON_B, XKeycode.KEY_B.ordinal());
-        setControllerMapping(view.findViewById(R.id.SButtonX), Container.XrControllerMapping.BUTTON_X, XKeycode.KEY_X.ordinal());
-        setControllerMapping(view.findViewById(R.id.SButtonY), Container.XrControllerMapping.BUTTON_Y, XKeycode.KEY_Y.ordinal());
-        setControllerMapping(view.findViewById(R.id.SButtonGrip), Container.XrControllerMapping.BUTTON_GRIP, XKeycode.KEY_SPACE.ordinal());
-        setControllerMapping(view.findViewById(R.id.SButtonTrigger), Container.XrControllerMapping.BUTTON_TRIGGER, XKeycode.KEY_ENTER.ordinal());
-        setControllerMapping(view.findViewById(R.id.SThumbstickUp), Container.XrControllerMapping.THUMBSTICK_UP, XKeycode.KEY_UP.ordinal());
-        setControllerMapping(view.findViewById(R.id.SThumbstickDown), Container.XrControllerMapping.THUMBSTICK_DOWN, XKeycode.KEY_DOWN.ordinal());
-        setControllerMapping(view.findViewById(R.id.SThumbstickLeft), Container.XrControllerMapping.THUMBSTICK_LEFT, XKeycode.KEY_LEFT.ordinal());
-        setControllerMapping(view.findViewById(R.id.SThumbstickRight), Container.XrControllerMapping.THUMBSTICK_RIGHT, XKeycode.KEY_RIGHT.ordinal());
-
         createWineConfigurationTab(view);
         final EnvVarsView envVarsView = createEnvVarsTab(view);
         createWinComponentsTab(view, isPerGameSettingsMode()
@@ -1329,8 +1305,6 @@ public class ContainerDetailFragment extends Fragment {
                 // Capture missing properties
                 String midiSoundFont = (sMIDISoundFont.getSelectedItemPosition() <= 0 || sMIDISoundFont.getSelectedItem() == null) ? "" : sMIDISoundFont.getSelectedItem().toString();
                 String lc_all = etLC_ALL.getText().toString();
-                int primaryController = Math.max(0, sPrimaryController.getSelectedItemPosition());
-                String controllerMapping = getControllerMapping(view);
                 boolean useLegacyDRM = cbUseLegacyDRM.isChecked();
                 boolean launchRealSteam = cbLaunchRealSteam.isChecked();
                 boolean useSteamInput = cbUseSteamInput.isChecked();
@@ -1446,8 +1420,6 @@ public class ContainerDetailFragment extends Fragment {
                         shortcut.putExtra("desktopTheme", desktopTheme);
                         shortcut.putExtra("midiSoundFont", midiSoundFont);
                         shortcut.putExtra("lc_all", lc_all);
-                        shortcut.putExtra("primaryController", String.valueOf(primaryController));
-                        shortcut.putExtra("controllerMapping", controllerMapping);
                         if ("STEAM".equals(gameSource)) {
                             shortcut.putExtra("useLegacyDRM", useLegacyDRM ? "1" : "0");
                             shortcut.putExtra("launchRealSteam", launchRealSteam ? "1" : "0");
@@ -1522,8 +1494,6 @@ public class ContainerDetailFragment extends Fragment {
                     container.setDesktopTheme(desktopTheme);
                     container.setMidiSoundFont(midiSoundFont);
                     container.setLC_ALL(lc_all);
-                    container.setPrimaryController(primaryController);
-                    container.setControllerMapping(controllerMapping);
                     container.setSteamType(steamType);
                     container.setForceDlc(forceDlc);
                     container.setSteamOfflineMode(steamOfflineMode);
@@ -1581,8 +1551,6 @@ public class ContainerDetailFragment extends Fragment {
                     data.put("wineVersion", finalWineVersion);
                     data.put("midiSoundFont", midiSoundFont);
                     data.put("lc_all", lc_all);
-                    data.put("primaryController", primaryController);
-                    data.put("controllerMapping", controllerMapping);
                     if (!customLibraryIconPath.isEmpty()) {
                         data.put("customLibraryIconPath", customLibraryIconPath);
                         data.put("customCoverArtPath", customLibraryIconPath);
@@ -1692,8 +1660,6 @@ public class ContainerDetailFragment extends Fragment {
                     data.put("wineVersion", selectedWineStr);
                     data.put("midiSoundFont", midiSoundFont);
                     data.put("lc_all", lc_all);
-                    data.put("primaryController", primaryController);
-                    data.put("controllerMapping", controllerMapping);
 
                     preloaderDialog.show(R.string.creating_container);
 
@@ -1829,20 +1795,12 @@ public class ContainerDetailFragment extends Fragment {
             { R.id.LLHeaderWinComponents, R.id.LLTabWinComponents, R.id.IVChevronWinComponents },
             { R.id.LLHeaderEnvVars, R.id.LLTabEnvVars, R.id.IVChevronEnvVars },
             { R.id.LLHeaderDrives, R.id.LLTabDrives, R.id.IVChevronDrives },
-            { R.id.LLHeaderXR, R.id.LLTabXR, R.id.IVChevronXR },
         };
 
         for (int[] section : sections) {
             View header = view.findViewById(section[0]);
             View content = view.findViewById(section[1]);
             ImageView chevron = view.findViewById(section[2]);
-
-            // Hide XR section if not supported
-            if (section[0] == R.id.LLHeaderXR && !XrActivity.isSupported()) {
-                View card = header.getParent() instanceof View ? (View) header.getParent() : header;
-                card.setVisibility(View.GONE);
-                continue;
-            }
 
             header.setOnClickListener(v -> {
                 // Clear focus from any child to prevent ScrollView from jumping
@@ -2430,55 +2388,6 @@ public class ContainerDetailFragment extends Fragment {
         }
     }
 
-    public String getControllerMapping(View view) {
-        //The order has to be the same like Container.XrControllerMapping
-        int[] ids = {
-                R.id.SButtonA, R.id.SButtonB, R.id.SButtonX, R.id.SButtonY, R.id.SButtonGrip, R.id.SButtonTrigger,
-                R.id.SThumbstickUp, R.id.SThumbstickDown, R.id.SThumbstickLeft, R.id.SThumbstickRight
-        };
-        byte[] controllerMapping = new byte[ids.length];
-        for (int i = 0; i < ids.length; i++) {
-            int index =  ((Spinner)view.findViewById(ids[i])).getSelectedItemPosition();
-            byte value = (index >= 0) ? XKeycode.values()[index].id : 0;
-            controllerMapping[i] = value;
-        }
-        return new String(controllerMapping);
-    }
-
-    public void setControllerMapping(Spinner spinner, Container.XrControllerMapping mapping, int defaultValue) {
-        XKeycode[] values = XKeycode.values();
-        ArrayList<String> array = new ArrayList<>();
-        for (XKeycode value : values) {
-            array.add(value.name());
-        }
-        spinner.setAdapter(createThemedAdapter(spinner.getContext(), array));
-        applyPopupBackground(spinner);
-
-        byte keycode = (byte) defaultValue;
-        if (isPerGameSettingsMode()) {
-            Container settingsContainer = isShortcutMode()
-                    ? getShortcutSettingsContainer()
-                    : (isCreateShortcutMode() ? getInitialPerGameContainer() : container);
-            String mappingValue = getShortcutSettingValue(
-                    "controllerMapping",
-                    settingsContainer != null ? settingsContainer.getControllerMapping() : ""
-            );
-            if (!mappingValue.isEmpty() && mapping.ordinal() < mappingValue.length()) {
-                keycode = (byte) mappingValue.charAt(mapping.ordinal());
-            }
-        } else if (isEditMode() && container != null) {
-            keycode = container.getControllerMapping(mapping);
-        }
-        int index = 0;
-        for (int i = 0; i < values.length; i++) {
-            if (values[i].id == keycode) {
-                index = i;
-                break;
-            }
-        }
-        spinner.setSelection((isEditMode() || isPerGameSettingsMode()) && (index != 0) ? index : defaultValue);
-    }
-
     private void applyDarkMode(View view) {
         // This is a simplified version of applyDarkMode.
         // It should recursively visit all views and apply dark mode colors/backgrounds.
@@ -2595,10 +2504,6 @@ public class ContainerDetailFragment extends Fragment {
         EditText etLC_ALL = view.findViewById(R.id.ETlcall);
         if (etLC_ALL != null) etLC_ALL.setText(c.getLC_ALL());
 
-        Spinner sPrimaryController = view.findViewById(R.id.SPrimaryController);
-        if (sPrimaryController != null) sPrimaryController.setSelection(c.getPrimaryController());
-        applyControllerMappingToUi(view, c.getControllerMapping());
-
         CPUListView cpuListView = view.findViewById(R.id.CPUListView);
         if (cpuListView != null) cpuListView.setCheckedCPUList(c.getCPUList(true));
 
@@ -2683,32 +2588,6 @@ public class ContainerDetailFragment extends Fragment {
         }
     }
 
-    private void applyControllerMappingToUi(View view, String controllerMapping) {
-        if (controllerMapping == null) controllerMapping = "";
-        int[] ids = {
-                R.id.SButtonA, R.id.SButtonB, R.id.SButtonX, R.id.SButtonY, R.id.SButtonGrip, R.id.SButtonTrigger,
-                R.id.SThumbstickUp, R.id.SThumbstickDown, R.id.SThumbstickLeft, R.id.SThumbstickRight
-        };
-        XKeycode[] values = XKeycode.values();
-
-        for (int i = 0; i < ids.length; i++) {
-            Spinner spinner = view.findViewById(ids[i]);
-            if (spinner == null) continue;
-
-            byte keycode = 0;
-            if (i < controllerMapping.length()) keycode = (byte) controllerMapping.charAt(i);
-
-            int selection = 0;
-            for (int valueIndex = 0; valueIndex < values.length; valueIndex++) {
-                if (values[valueIndex].id == keycode) {
-                    selection = valueIndex;
-                    break;
-                }
-            }
-            spinner.setSelection(selection);
-        }
-    }
-
     private void populateDrivesTab(View view, String drives) {
         final Context context = getContext();
         if (context == null) return;
@@ -2783,7 +2662,6 @@ public class ContainerDetailFragment extends Fragment {
         attachRefreshOnSelection(contentView.findViewById(R.id.SStartupSelection), refreshIndicators);
         attachRefreshOnSelection(contentView.findViewById(R.id.SSteamType), refreshIndicators);
         attachRefreshOnSelection(contentView.findViewById(R.id.SDInputType), refreshIndicators);
-        attachRefreshOnSelection(contentView.findViewById(R.id.SPrimaryController), refreshIndicators);
         attachRefreshOnSelection(contentView.findViewById(R.id.SDesktopTheme), refreshIndicators);
         attachRefreshOnSelection(contentView.findViewById(R.id.SMouseWarpOverride), refreshIndicators);
 
@@ -2812,7 +2690,6 @@ public class ContainerDetailFragment extends Fragment {
         });
 
         attachWinComponentsIndicatorListeners(contentView, refreshIndicators);
-        attachControllerMappingIndicatorListeners(contentView, refreshIndicators);
     }
 
     private void attachRefreshOnSelection(@Nullable Spinner spinner, Runnable refreshIndicators) {
@@ -2847,17 +2724,6 @@ public class ContainerDetailFragment extends Fragment {
             @Override
             public void afterTextChanged(Editable s) {}
         });
-    }
-
-    private void attachControllerMappingIndicatorListeners(View contentView, Runnable refreshIndicators) {
-        int[] ids = {
-                R.id.SButtonA, R.id.SButtonB, R.id.SButtonX, R.id.SButtonY, R.id.SButtonGrip, R.id.SButtonTrigger,
-                R.id.SThumbstickUp, R.id.SThumbstickDown, R.id.SThumbstickLeft, R.id.SThumbstickRight
-        };
-        for (int id : ids) {
-            Spinner spinner = contentView.findViewById(id);
-            attachRefreshOnSelection(spinner, refreshIndicators);
-        }
     }
 
     private void attachWinComponentsIndicatorListeners(View contentView, Runnable refreshIndicators) {
@@ -2931,7 +2797,6 @@ public class ContainerDetailFragment extends Fragment {
                 FEXCorePresetManager.getSpinnerSelectedId((Spinner) contentView.findViewById(R.id.SFEXCorePreset)),
                 comparisonContainer.getFEXCorePreset());
         markSpinnerPositionIfChanged(contentView, R.id.SStartupSelection, String.valueOf(comparisonContainer.getStartupSelection()));
-        markSpinnerPositionIfChanged(contentView, R.id.SPrimaryController, String.valueOf(comparisonContainer.getPrimaryController()));
         markIfChanged(findLabelForView(contentView.findViewById(R.id.ETlcall), llContent),
                 ((EditText) contentView.findViewById(R.id.ETlcall)).getText().toString(),
                 comparisonContainer.getLC_ALL());
@@ -2966,7 +2831,6 @@ public class ContainerDetailFragment extends Fragment {
         }
 
         markInputIndicators(contentView, comparisonContainer);
-        markControllerMappingIndicator(contentView, comparisonContainer, llContent);
         markSteamIndicators(contentView, comparisonContainer);
         refreshWinComponentsIndicators(contentView, comparisonContainer);
     }
@@ -3000,11 +2864,6 @@ public class ContainerDetailFragment extends Fragment {
             trackLabel((TextView) cbExclusiveInput);
             markIfChanged((TextView) cbExclusiveInput, cbExclusiveInput.isChecked() ? "1" : "0", "0");
         }
-    }
-
-    private void markControllerMappingIndicator(View contentView, Container comparisonContainer, ViewGroup llContent) {
-        TextView label = findLabelForView(contentView.findViewById(R.id.SButtonA), llContent);
-        markIfChanged(label, getControllerMapping(contentView), comparisonContainer.getControllerMapping());
     }
 
     private void markSteamIndicators(View contentView, Container comparisonContainer) {
@@ -3473,8 +3332,6 @@ public class ContainerDetailFragment extends Fragment {
         appendShortcutOverrideIfNeeded(content, container, "desktopTheme", data.opt("desktopTheme"), container.getDesktopTheme(), hasOverrides);
         appendShortcutOverrideIfNeeded(content, container, "midiSoundFont", data.opt("midiSoundFont"), container.getMIDISoundFont(), hasOverrides);
         appendShortcutOverrideIfNeeded(content, container, "lc_all", data.opt("lc_all"), container.getLC_ALL(), hasOverrides);
-        appendShortcutOverrideIfNeeded(content, container, "primaryController", data.opt("primaryController"), container.getPrimaryController(), hasOverrides);
-        appendShortcutOverrideIfNeeded(content, container, "controllerMapping", data.opt("controllerMapping"), container.getControllerMapping(), hasOverrides);
         appendShortcutOverrideIfNeeded(content, container, "useLegacyDRM", data.opt("useLegacyDRM"), container.isUseLegacyDRM(), hasOverrides);
         appendShortcutOverrideIfNeeded(content, container, "launchRealSteam", data.opt("launchRealSteam"), container.isLaunchRealSteam(), hasOverrides);
         appendShortcutOverrideIfNeeded(content, container, "useSteamInput", data.opt("useSteamInput"), container.getExtra("useSteamInput", "0"), hasOverrides);

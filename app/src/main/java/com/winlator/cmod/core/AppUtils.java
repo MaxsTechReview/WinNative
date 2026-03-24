@@ -37,7 +37,6 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.tabs.TabLayout;
 import com.winlator.cmod.R;
-import com.winlator.cmod.XrActivity;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -339,13 +338,6 @@ public abstract class AppUtils {
         };
 
         TabLayout tabLayout = view.findViewById(tabLayoutResId);
-        for (int i = 0; i < tabResIds.length; i++) {
-            TabLayout.Tab tab = tabLayout.getTabAt(i);
-            if (view.getResources().getString(R.string.xr).compareTo(tab.getText().toString()) == 0) {
-                tab.view.setVisibility(XrActivity.isSupported() ? View.VISIBLE : View.GONE);
-            }
-        }
-
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {

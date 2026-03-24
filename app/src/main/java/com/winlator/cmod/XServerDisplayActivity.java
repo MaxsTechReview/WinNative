@@ -1463,7 +1463,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 isRelativeMouseMovement,
                 isMouseDisabled,
                 isPaused,
-                !XrActivity.isEnabled(this),
+                true,
                 enableLogsMenu,
                 isNativeRenderingEnabled,
                 getString(R.string.native_rendering),

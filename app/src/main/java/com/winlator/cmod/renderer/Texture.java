@@ -3,7 +3,6 @@ package com.winlator.cmod.renderer;
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 
-import com.winlator.cmod.XrActivity;
 import com.winlator.cmod.xserver.Drawable;
 
 import java.nio.ByteBuffer;
@@ -119,7 +118,6 @@ public class Texture {
         GLES20.glCopyTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, 0, 0, width, height, 0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
-        if (XrActivity.isEnabled(null)) XrActivity.getInstance().bindFramebuffer();
     }
 
     public void destroy() {

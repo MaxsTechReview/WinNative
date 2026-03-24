@@ -22,12 +22,4 @@
         android:focusableInTouchMode="true"
         android:pointerIcon="arrow" />
 
-    <EditText
-        android:id="@+id/XRTextInput"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:inputType="textMultiLine"
-        android:autofillHints="no"
-        tools:ignore="LabelFor"
-        android:visibility="gone" />
 </androidx.drawerlayout.widget.DrawerLayout>

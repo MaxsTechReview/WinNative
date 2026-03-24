@@ -5,6 +5,5 @@
         <item android:icon="@drawable/ic_presets" android:id="@+id/menu_graphics_display" android:title="Graphics &amp; Display" />
         <item android:icon="@drawable/ic_stores" android:id="@+id/menu_windows_env" android:title="Windows Environment" />
         <item android:icon="@drawable/icon_debug" android:id="@+id/menu_advanced" android:title="@string/advanced" />
-        <item android:icon="@drawable/ic_x11_icon" android:id="@+id/menu_xr" android:title="@string/xr" />
     </group>
 </menu>

@@ -548,10 +548,6 @@ Installed path:
     <string name="reconfigure">Reconfigure</string>
     <string name="do_you_want_to_reconfigure_wine">Do you want to reconfigure this container on the next startup? This will remove the timestamp to trigger Wine Configuration.</string>
     -->
-    <string name="xr" translatable="false">XR</string>
-    <string name="primary_controller">Primary controller</string>
-    <string name="left_controller">Left controller</string>
-    <string name="right_controller">Right controller</string>
     <string name="button_a">Button A</string>
     <string name="button_b">Button B</string>
     <string name="button_x">Button X</string>
@@ -616,7 +612,6 @@ Installed path:
     <string name="invert_y_axis_right">Invert Y Axis (Right Stick)</string>
     <string name="save">Save</string>
     -->
-    <string name="use_xr">Use OpenXR integration</string>
     <!--
     <string name="not_connected">Not connected</string>
     -->
@@ -702,7 +697,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="pref_enableGboardCJK_summary">May require Android 14 and Gboard 14</string>
     <string name="pref_clipboardEnable">Clipboard sharing</string>
     <string name="pref_requestNotificationPermission">Request notification permission</string>
-    <string name="pref_xrMode">Meta Oculus XR mode</string>
     <string name="pref_configureResponseToUserActions">Configure response to user actions</string>
     <string name="pref_storeSecondaryDisplayPreferencesSeparately">Store preferences for secondary displays separately</string>
     <string name="pref_storeSecondaryDisplayPreferencesSeparately_summary">Open this screen on display you want to configure</string>
@@ -1607,7 +1601,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_other_shortcut_export_path_title">Shortcut Export Path</string>
     <string name="settings_other_choose_path">Choose Path</string>
     <string name="settings_other_xserver_cursor_summary">Adjust pointer speed for touch, trackpad, and mouse input inside the XServer session.</string>
-    <string name="settings_other_xr_summary">Use OpenXR integration when the device and runtime support it.</string>
     <string name="settings_other_cursor_lock_title">True Mouse Control</string>
     <string name="settings_other_cursor_lock_summary">Keeps direct mouse capture enabled for games that need raw pointer input. Disable it with Volume Down.</string>
     <string name="settings_other_xinput_toggle_title">Disable XInput</string>

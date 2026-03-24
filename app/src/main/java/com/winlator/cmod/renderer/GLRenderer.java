@@ -8,7 +8,6 @@ import android.opengl.GLSurfaceView;
 import android.util.Log;
 
 import com.winlator.cmod.R;
-import com.winlator.cmod.XrActivity;
 import com.winlator.cmod.math.Mathf;
 import com.winlator.cmod.math.XForm;
 import com.winlator.cmod.renderer.material.CursorMaterial;
@@ -87,15 +86,6 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
 
     @Override
     public void onSurfaceChanged(GL10 gl, int width, int height) {
-        if (XrActivity.isEnabled(null)) {
-            XrActivity activity = XrActivity.getInstance();
-            activity.init();
-            width = activity.getWidth();
-            height = activity.getHeight();
-            GLES20.glViewport(0, 0, width, height);
-            magnifierEnabled = false;
-        }
-
         surfaceWidth = width;
         surfaceHeight = height;
         viewTransformation.update(width, height, xServer.screenInfo.width, xServer.screenInfo.height);
@@ -115,13 +105,6 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
     }
 
     public void drawFrame() {
-        boolean xrFrame = false;
-        boolean xrImmersive = false;
-        if (XrActivity.isEnabled(null)) {
-            xrImmersive = XrActivity.getImmersive();
-            xrFrame = XrActivity.getInstance().beginFrame(xrImmersive, XrActivity.getSBS());
-        }
-
         // Update the viewport if necessary
         if (viewportNeedsUpdate && magnifierEnabled) {
             if (fullscreen) {
@@ -186,12 +169,6 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
             effectComposer.render();  // <-- This line applies the effects
         }
 
-        // Finalize XR frame if supported
-        if (xrFrame) {
-            XrActivity.getInstance().endFrame();
-            XrActivity.updateControllers();
-            xServerView.requestRender();
-        }
     }
 
 
