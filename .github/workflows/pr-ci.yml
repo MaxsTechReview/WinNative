@@ -1,4 +1,4 @@
-name: PR CI # test ndk cache
+name: PR CI
 
 on:
   pull_request:
@@ -40,8 +40,8 @@ jobs:
         path: |
           app/.cxx
           app/build/intermediates/cxx
-        key: ndk-${{ hashFiles('app/src/main/cpp/**', 'app/build.gradle', 'app/src/main/cpp/CMakeLists.txt') }}
-        restore-keys: ndk-
+        key: ndk-v2-${{ hashFiles('app/src/main/cpp/**', 'app/build.gradle', 'app/src/main/cpp/CMakeLists.txt') }}
+        restore-keys: ndk-v2-
 
     - name: Validate Gradle wrapper
       uses: gradle/actions/wrapper-validation@v4
