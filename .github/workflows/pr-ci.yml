@@ -27,9 +27,7 @@ jobs:
     - name: Cache NDK build outputs
       uses: actions/cache@v4
       with:
-        path: |
-          app/.cxx
-          ~/.android/ndk
+        path: app/.cxx
         key: ndk-${{ hashFiles('app/src/main/cpp/**', 'app/build.gradle', 'app/src/main/cpp/CMakeLists.txt') }}
         restore-keys: ndk-
 
@@ -47,15 +45,18 @@ jobs:
       timeout-minutes: 15
       env:
         KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        KEYSTORE_FILE: ${{ github.workspace }}/release.jks
-        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'dummypass' }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'winnative' }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'dummypass' }}
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         GRADLE_OPTS: -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Xmx4g -XX:+UseG1GC
       run: |
+        export KEYSTORE_FILE="${{ github.workspace }}/release.jks"
         if [ -n "$KEYSTORE_BASE64" ]; then
           echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_FILE"
         else
+          export KEYSTORE_PASSWORD="dummypass"
+          export KEY_ALIAS="winnative"
+          export KEY_PASSWORD="dummypass"
           keytool -genkey -v \
             -keystore "$KEYSTORE_FILE" \
             -alias winnative \
