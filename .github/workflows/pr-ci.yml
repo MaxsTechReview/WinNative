@@ -23,6 +23,7 @@ jobs:
         submodules: recursive
         fetch-depth: 1
         persist-credentials: false
+        lfs: true
 
     - name: Cache NDK build outputs
       uses: actions/cache@v4
