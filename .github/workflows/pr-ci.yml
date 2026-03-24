@@ -1,4 +1,4 @@
-name: PR CI
+name: PR CI # test ndk cache
 
 on:
   pull_request:
