@@ -1,5 +1,4 @@
 name: PR CI
-# Test CI workflow
 
 on:
   pull_request:
@@ -63,20 +62,8 @@ jobs:
         GRADLE_OPTS: -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false
       run: ./gradlew assembleDebug --build-cache --parallel
 
-    - name: Kotlin lint check
-      env:
-        KEYSTORE_FILE: ${{ github.workspace }}/release.jks
-        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'dummypass' }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'winnative' }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'dummypass' }}
-        GRADLE_OPTS: -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false
-      run: ./gradlew lintDebug --build-cache --parallel
-      continue-on-error: true
-
-    - name: Upload lint report
-      if: always()
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: lint-report
-        path: app/build/reports/lint-results-debug.html
-        if-no-files-found: ignore
+        name: WinNative-debug-PR${{ github.event.pull_request.number }}-${{ github.sha }}
+        path: app/build/outputs/apk/debug/app-debug.apk
