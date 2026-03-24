@@ -6,13 +6,16 @@ on:
     paths-ignore:
       - '**.md'
       - '.gitignore'
-      - 'media/**'
       - 'input_controls/**'
-      - '.github/ISSUE_TEMPLATE/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
+
+permissions:
+  id-token: write
+  attestations: write
+  contents: read
 
 jobs:
   build:
@@ -72,6 +75,11 @@ jobs:
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'dummypass' }}
         GRADLE_OPTS: -Dorg.gradle.parallel=true -Dorg.gradle.caching=true
       run: ./gradlew assembleDebug --build-cache --parallel
+
+    - name: Attest build provenance
+      uses: actions/attest-build-provenance@v2
+      with:
+        subject-path: app/build/outputs/apk/debug/app-debug.apk
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
