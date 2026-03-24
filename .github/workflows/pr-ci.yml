@@ -1,4 +1,4 @@
-name: PR CI # verify config cache
+name: PR CI
 
 on:
   pull_request:
