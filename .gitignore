@@ -1,5 +1,7 @@
 *.iml
 .gradle
+.mcp.json
+.vscode/
 /local.properties
 /.idea/
 .DS_Store

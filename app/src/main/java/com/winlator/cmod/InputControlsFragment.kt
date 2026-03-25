@@ -40,7 +40,6 @@ import com.winlator.cmod.core.HttpUtils
 import com.winlator.cmod.databinding.InputControlsFragmentV2Binding
 import com.winlator.cmod.databinding.ControlsProfileCardBinding
 import com.winlator.cmod.databinding.ControlsSettingSliderCardBinding
-import com.winlator.cmod.databinding.ControlsSettingToggleCardBinding
 import com.winlator.cmod.databinding.ControlsSettingChipsCardBinding
 import com.winlator.cmod.databinding.ControlsActionCardBinding
 import com.winlator.cmod.databinding.ControlsGyroscopeCardBinding
