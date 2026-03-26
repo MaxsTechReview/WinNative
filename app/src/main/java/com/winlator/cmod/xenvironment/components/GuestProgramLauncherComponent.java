@@ -67,12 +67,15 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         File sourceFile = new File(nativeLibDir, libraryName);
 
         if (sourceFile.exists() && (!destFile.exists() || destFile.length() != sourceFile.length())) {
+            Log.d("GuestLauncher", "Copying " + libraryName + " from nativeLibDir to imagefs (dest exists=" + destFile.exists() + ")");
             try {
                 FileUtils.copy(sourceFile, destFile);
+                Log.d("GuestLauncher", "Successfully copied " + libraryName + " to " + destFile.getAbsolutePath());
             } catch (Exception e) {
                 Log.e("GuestLauncher", "Failed to copy " + libraryName, e);
             }
         } else if (!destFile.exists()) {
+            Log.d("GuestLauncher", "Extracting " + libraryName + " from APK (not found in nativeLibDir or imagefs)");
             try (java.util.zip.ZipFile apk = new java.util.zip.ZipFile(context.getApplicationInfo().sourceDir)) {
                 String abi = android.os.Build.SUPPORTED_ABIS[0];
                 String entryName = "lib/" + abi + "/" + libraryName;
@@ -87,13 +90,22 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
                         }
                     }
                     destFile.setExecutable(true, false);
+                    Log.d("GuestLauncher", "Successfully extracted " + libraryName + " from APK to " + destFile.getAbsolutePath());
+                } else {
+                    Log.w("GuestLauncher", libraryName + " not found in APK at " + entryName);
                 }
             } catch (Exception e) {
                 Log.e("GuestLauncher", "Failed to extract " + libraryName, e);
             }
+        } else {
+            Log.d("GuestLauncher", libraryName + " already exists at " + destFile.getAbsolutePath() + " (size=" + destFile.length() + ")");
         }
 
-        return destFile.exists() ? destFile : null;
+        boolean result = destFile.exists();
+        if (!result) {
+            Log.e("GuestLauncher", libraryName + " is NOT available after ensure - this will cause issues!");
+        }
+        return result ? destFile : null;
     }
 
     public void setWorkingDir(File workingDir) {
@@ -157,16 +169,18 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         envVars.put("FONTCONFIG_PATH", imageFs.getRootDir().getPath() + "/usr/etc/fonts");
 
         File libDir = imageFs.getLibDir();
-        File sysvshm64 = new File(libDir, "libandroid-sysvshm.so");
+        File sysvshm64 = ensureImageFsNativeLibrary(context, imageFs, "libandroid-sysvshm.so");
         File libredirect64 = new File(libDir, "libredirect.so");
-        if (sysvshm64.exists() || libredirect64.exists()) {
+        Log.d("GuestLauncher", "execShellCommand LD_PRELOAD setup: sysvshm=" + (sysvshm64 != null) + " libredirect=" + libredirect64.exists());
+        if ((sysvshm64 != null && sysvshm64.exists()) || libredirect64.exists()) {
             StringBuilder ldPreload = new StringBuilder();
             if (libredirect64.exists()) ldPreload.append(libredirect64.getPath());
-            if (sysvshm64.exists()) {
+            if (sysvshm64 != null && sysvshm64.exists()) {
                 if (ldPreload.length() > 0) ldPreload.append(" ");
                 ldPreload.append(sysvshm64.getPath());
             }
             envVars.put("LD_PRELOAD", ldPreload.toString());
+            Log.d("GuestLauncher", "execShellCommand LD_PRELOAD=" + ldPreload.toString());
         }
         envVars.put("WINEESYNC_WINLATOR", "1");
         mergeExternalEnvVars(envVars, envVars.get("LD_PRELOAD"), envVars.get("FAKE_EVDEV_DIR"));
@@ -590,10 +604,13 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         envVars.put("WINE_NEW_NDIS", "1");
         
         String ld_preload = "";
-        
-        // Check for specific shared memory libraries
-        if ((new File(imageFs.getLibDir(), "libandroid-sysvshm.so")).exists()){
-            ld_preload = imageFs.getLibDir() + "/libandroid-sysvshm.so";
+
+        // Ensure shared memory library is extracted and available
+        File sysvshmDest = ensureImageFsNativeLibrary(context, imageFs, "libandroid-sysvshm.so");
+        if (sysvshmDest != null && sysvshmDest.exists()){
+            ld_preload = sysvshmDest.getAbsolutePath();
+        } else {
+            Log.w("GuestProgramLauncher", "libandroid-sysvshm.so not available for LD_PRELOAD - shared memory may fail!");
         }
 
         File fakeinputDest = ensureImageFsNativeLibrary(context, imageFs, "libfakeinput.so");
@@ -603,7 +620,10 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
                 ld_preload += ":";
             }
             ld_preload += fakeinputDest.getAbsolutePath();
+        } else {
+            Log.w("GuestProgramLauncher", "libfakeinput.so not available for LD_PRELOAD");
         }
+        Log.d("GuestProgramLauncher", "execGuestProgram LD_PRELOAD=" + ld_preload);
 
         File devInputDir = new File(imageFs.getRootDir(), "dev/input");
         devInputDir.mkdirs();

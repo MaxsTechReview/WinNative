@@ -629,15 +629,8 @@ object SteamAutoCloud {
             val localAppChangeNumber = overrideLocalChangeNumber ?: steamInstance.changeNumbersDao.getByAppId(appInfo.id)?.changeNumber ?: -1
 
             val changeNumber = if (localAppChangeNumber >= 0) localAppChangeNumber else 0
-            val appFileListChange = steamCloud.getAppFileListChange(appInfo.id, changeNumber).await()
 
-            val cloudAppChangeNumber = appFileListChange.currentChangeNumber
-
-            Timber.i("AppChangeNumber: $localAppChangeNumber -> $cloudAppChangeNumber")
-
-            appFileListChange.printFileChangeList(appInfo)
-
-            // retrieve existing user files from local storage
+            // retrieve existing user files from local storage first so we can detect missing saves
             val localUserFilesMap: Map<String, List<UserFileInfo>>
             val allLocalUserFiles: List<UserFileInfo>
 
@@ -645,6 +638,23 @@ object SteamAutoCloud {
                 localUserFilesMap = getLocalUserFilesAsPrefixMap()
                 allLocalUserFiles = localUserFilesMap.map { it.value }.flatten()
             }.inWholeMicroseconds
+
+            // If local saves are missing but we have a stored change number, request full file list
+            // (change number 0) instead of a delta, so the cloud returns all files for download
+            val effectiveChangeNumber = if (allLocalUserFiles.isEmpty() && changeNumber > 0) {
+                Timber.w("No local saves found but stored changeNumber=$changeNumber; requesting full file list from cloud")
+                0
+            } else {
+                changeNumber
+            }
+
+            val appFileListChange = steamCloud.getAppFileListChange(appInfo.id, effectiveChangeNumber).await()
+
+            val cloudAppChangeNumber = appFileListChange.currentChangeNumber
+
+            Timber.i("AppChangeNumber: $localAppChangeNumber -> $cloudAppChangeNumber (requested with changeNumber=$effectiveChangeNumber)")
+
+            appFileListChange.printFileChangeList(appInfo)
 
             val downloadUserFiles: (CoroutineScope) -> Deferred<PostSyncInfo?> = { parentScope ->
                 parentScope.async {

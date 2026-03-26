@@ -93,10 +93,36 @@ public class ContainerManager {
 
 
     public void activateContainer(Container container) {
-        container.setRootDir(new File(homeDir, ImageFs.USER+"-"+container.id));
+        File containerDir = new File(homeDir, ImageFs.USER+"-"+container.id);
+        container.setRootDir(containerDir);
         File file = new File(homeDir, ImageFs.USER);
-        file.delete();
+        // Replace the real "xuser" dir (from imagefs.txz) with a symlink to the active
+        // container. Migrate winhandler.exe/wfm.exe first since they aren't in container
+        // pattern archives. Only runs once — after that xuser is already a symlink.
+        if (file.exists() && !FileUtils.isSymlink(file)) {
+            Log.w("ContainerManager", "activateContainer: migrating essential files from " + file.getPath() + " to container " + container.id);
+            migrateEssentialFiles(file, containerDir);
+            FileUtils.delete(file);
+        } else {
+            file.delete();
+        }
         FileUtils.symlink("./"+ImageFs.USER+"-"+container.id, file.getPath());
+    }
+
+    private void migrateEssentialFiles(File sourceDir, File destDir) {
+        String[] essentialPaths = {
+            ".wine/drive_c/windows/winhandler.exe",
+            ".wine/drive_c/windows/wfm.exe"
+        };
+        for (String path : essentialPaths) {
+            File source = new File(sourceDir, path);
+            File dest = new File(destDir, path);
+            if (source.exists() && !dest.exists()) {
+                dest.getParentFile().mkdirs();
+                FileUtils.copy(source, dest);
+                Log.d("ContainerManager", "Migrated " + path + " to container");
+            }
+        }
     }
 
     public void createContainerAsync(final JSONObject data, ContentsManager contentsManager, Callback<Container> callback) {

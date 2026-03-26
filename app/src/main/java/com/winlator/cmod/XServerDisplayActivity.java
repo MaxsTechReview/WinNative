@@ -503,6 +503,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         imageFs = ImageFs.find(this);
         GuestProgramLauncherComponent.ensureImageFsNativeLibrary(this, imageFs, "libfakeinput.so");
+        GuestProgramLauncherComponent.ensureImageFsNativeLibrary(this, imageFs, "libandroid-sysvshm.so");
         File devInputDir = new File(imageFs.getRootDir(), "dev/input");
         if (devInputDir.exists() || devInputDir.mkdirs()) {
             for (int i = 0; i < 4; i++) {
@@ -1589,6 +1590,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     private void setupWineSystemFiles() {
         ensureWinePrefixReady();
+        ensureWinePrefixEssentialFiles();
 
         String appVersion = String.valueOf(AppUtils.getVersionCode(this));
         String imgVersion = String.valueOf(imageFs.getVersion());
@@ -1617,16 +1619,16 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     preNormalizedDxwrapperConfig + "' after='" + dxwrapperConfig + "' wrapper='" + dxwrapper + "'");
         }
 
-        if (!dxwrapper.equals(container.getExtra("dxwrapper"))) {
-            extractDXWrapperFiles(dxwrapper);
-            container.putExtra("dxwrapper", dxwrapper);
-            containerDataChanged = true;
-        }
-
         String wincomponents = shortcut != null ? getShortcutSetting("wincomponents", container.getWinComponents()) : container.getWinComponents();
         if (!wincomponents.equals(container.getExtra("wincomponents")) || firstTimeBoot) {
             extractWinComponentFiles();
             container.putExtra("wincomponents", wincomponents);
+            containerDataChanged = true;
+        }
+
+        if (!dxwrapper.equals(container.getExtra("dxwrapper")) || firstTimeBoot) {
+            extractDXWrapperFiles(dxwrapper);
+            container.putExtra("dxwrapper", dxwrapper);
             containerDataChanged = true;
         }
 
@@ -2291,6 +2293,58 @@ public class XServerDisplayActivity extends AppCompatActivity {
             Log.i("XServerDisplayActivity", "Wine prefix repaired successfully for container " + container.id);
         } else {
             Log.e("XServerDisplayActivity", "Wine prefix repair failed for container " + container.id);
+        }
+    }
+
+    private void ensureWinePrefixEssentialFiles() {
+        if (container == null) return;
+        File containerWindowsDir = new File(container.getRootDir(), ".wine/drive_c/windows");
+        String[] essentialFiles = {"winhandler.exe", "wfm.exe"};
+
+        boolean anyMissing = false;
+        for (String filename : essentialFiles) {
+            if (!new File(containerWindowsDir, filename).exists()) {
+                anyMissing = true;
+                break;
+            }
+        }
+
+        if (anyMissing) {
+            // Try to find the files from another container that has them
+            File homeDir = new File(imageFs.getRootDir(), "home");
+            File[] homeDirs = homeDir.listFiles();
+            File sourceWindowsDir = null;
+            if (homeDirs != null) {
+                for (File dir : homeDirs) {
+                    if (!dir.isDirectory() || FileUtils.isSymlink(dir)) continue;
+                    File candidate = new File(dir, ".wine/drive_c/windows");
+                    if (new File(candidate, "winhandler.exe").exists()) {
+                        sourceWindowsDir = candidate;
+                        break;
+                    }
+                }
+            }
+
+            if (sourceWindowsDir != null) {
+                for (String filename : essentialFiles) {
+                    File dest = new File(containerWindowsDir, filename);
+                    if (!dest.exists()) {
+                        File source = new File(sourceWindowsDir, filename);
+                        if (source.exists()) {
+                            Log.d("XServerDisplayActivity", "Copying missing " + filename + " from " + sourceWindowsDir.getParent() + " to container");
+                            FileUtils.copy(source, dest);
+                        }
+                    }
+                }
+            } else {
+                // No source found — re-extract from imagefs to get the files
+                Log.w("XServerDisplayActivity", "Essential wine prefix files missing and no source container found, re-extracting container pattern");
+                TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this,
+                        "container_pattern.tzst", container.getRootDir(), onExtractFileListener);
+                for (String filename : essentialFiles) {
+                    Log.d("XServerDisplayActivity", filename + " exists after re-extraction: " + new File(containerWindowsDir, filename).exists());
+                }
+            }
         }
     }
 
