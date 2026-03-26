@@ -1,424 +1,902 @@
+<?xml version="1.0" encoding="utf-8"?>
+
 <resources>
-    <string name="app_name">Pluvia</string>
-    <string name="title_ubuntufs">Ubuntu FS</string>
+    <!-- Common > UI Labels -->
+    <string name="common_ui_app_name">WinNative</string>
+    <string name="common_ui_run">Kør</string>
+    <string name="common_ui_edit">Rediger</string>
+    <string name="common_ui_remove">Fjern</string>
+    <string name="common_ui_add">Tilføj</string>
+    <string name="common_ui_shortcuts">Genveje</string>
+    <string name="common_ui_containers">Containere</string>
+    <string name="common_ui_input_controls">Inputkontroller</string>
+    <string name="common_ui_no_items_to_display">Ingen elementer at vise</string>
+    <string name="common_ui_select_icon">Vælg ikon</string>
+    <string name="common_ui_revert_icon">Gendan ikon</string>
+    <string name="common_ui_select_exe">Vælg EXE</string>
+    <string name="common_ui_select_valid_exe_file">Vælg venligst en gyldig .exe-fil</string>
+    <string name="common_ui_select_valid_icon_file">Vælg venligst en gyldig .ico- eller .png-fil.</string>
+    <string name="common_ui_exit">Afslut</string>
+    <string name="common_ui_profile">Profil</string>
+    <string name="common_ui_name">Navn</string>
+    <string name="common_ui_ok">OK</string>
+    <string name="common_ui_cancel">Annuller</string>
+    <string name="common_ui_untitled">Unavngivet</string>
+    <string name="common_ui_disabled">Deaktiveret</string>
+    <string name="common_ui_container">Container</string>
+    <string name="common_ui_value">Værdi</string>
+    <string name="common_ui_none">Ingen</string>
+    <string name="common_ui_custom_text">Brugerdefineret tekst</string>
+    <string name="common_ui_icon">Ikon</string>
+    <string name="common_ui_duplicate">Dupliker</string>
+    <string name="common_ui_credits_and_third_party_apps">Credits og tredjepartsapps</string>
+    <string name="common_ui_loading">Indlæser…</string>
+    <string name="common_ui_enable">Aktiver</string>
+    <string name="common_ui_disable">Deaktiver</string>
+    <string name="common_ui_force">Tving</string>
+    <string name="common_ui_version">Version</string>
+    <string name="common_ui_advanced">Avanceret</string>
+    <string name="common_ui_system">System</string>
+    <string name="common_ui_width">Bredde</string>
+    <string name="common_ui_height">Højde</string>
+    <string name="common_ui_open_file">Åbn fil</string>
+    <string name="common_ui_download_file">Download fil</string>
+    <string name="common_ui_downloading_file">Downloader fil...</string>
+    <string name="common_ui_browse">Gennemse</string>
+    <string name="common_ui_options">Indstillinger</string>
+    <string name="common_ui_export">Eksporter</string>
+    <string name="common_ui_new_file">Ny fil</string>
+    <string name="common_ui_description">Beskrivelse</string>
+    <string name="common_ui_continue">Fortsæt</string>
+    <string name="common_ui_warning">Advarsel</string>
+    <string name="common_ui_copy">kopier</string>
+    <string name="common_ui_reset">Nulstil</string>
+    <string name="common_ui_close">Luk</string>
+    <string name="common_ui_confirm">Bekræft</string>
+    <string name="common_ui_unnamed">Unavngivet</string>
+    <string name="common_ui_download">Download</string>
+    <string name="common_ui_uninstall">Afinstaller</string>
+    <string name="common_ui_other">Andet</string>
+    <string name="common_ui_status">Status</string>
+    <string name="common_ui_size">Størrelse</string>
+    <string name="common_ui_release_date">Udgivelsesdato</string>
+    <string name="common_ui_installed">Installeret</string>
+    <string name="common_ui_available">Tilgængelig</string>
+    <string name="common_ui_settings">Indstillinger</string>
+    <string name="common_ui_enable_all">Aktiver alle</string>
+    <string name="common_ui_disable_all">Deaktiver alle</string>
+    <string name="common_ui_on">Til</string>
+    <string name="common_ui_off">Fra</string>
+    <string name="common_ui_already_set">Allerede indstillet</string>
+    <string name="common_ui_shortcut">Genvej</string>
+    <string name="common_ui_custom">Brugerdefineret</string>
+    <string name="common_ui_about">Om</string>
+    <string name="common_ui_back">Tilbage</string>
+    <string name="common_ui_apply">Anvend</string>
+    <string name="common_ui_save">Gem</string>
+    <string name="common_ui_clone">Klon</string>
+    <string name="common_ui_properties">Egenskaber</string>
+    <string name="common_ui_store">Butik</string>
+    <string name="common_ui_library">Bibliotek</string>
+    <string name="common_ui_downloads">Downloads</string>
+    <string name="common_ui_import">Importer</string>
+    <string name="common_ui_sync">Synkroniser</string>
+    <string name="common_ui_sign_in">Log ind</string>
+    <string name="common_ui_submit">Indsend</string>
+    <string name="common_ui_coming_soon">Kommer snart</string>
+    <string name="common_ui_signed_in">Logget ind</string>
+    <string name="common_ui_required">Påkrævet</string>
+    <string name="common_ui_optional">Valgfrit</string>
+    <string name="common_ui_notifications">Notifikationer</string>
+    <string name="common_ui_mode">Tilstand</string>
+    <string name="common_ui_experimental">(Eksperimentel)</string>
+    <string name="common_ui_current_version_label">Nuværende version:</string>
+    <string name="common_ui_cannot_write_folder">Kan ikke skrive til den valgte mappe</string>
+    <string name="common_ui_failed_create_directory">Kunne ikke oprette standardmappe</string>
+    <string name="common_ui_device_not_supported">Beklager, din enhed understøttes muligvis ikke</string>
+    <string name="common_ui_please_wait">Vent venligst\u2026</string>
+    <string name="common_ui_done">Færdig</string>
+    <string name="common_ui_open">Åbn</string>
+    <string name="common_ui_connected">Forbundet</string>
+    <string name="common_ui_install">Installer</string>
+    <string name="common_ui_exit_app_confirm">Afslut WinNative?</string>
+    <string name="common_ui_elements_count">%1$d elementer</string>
+    <string name="common_ui_disabled_placeholder">-- Deaktiveret --</string>
+    <string name="common_ui_enabled">Aktiveret</string>
+    <string name="common_ui_unknown_error">Ukendt fejl</string>
+    <string name="common_ui_proceed">Fortsæt</string>
 
-    <!-- Winlator || Win Components -->
-    <string name="direct3d">Direct3D</string>
-    <string name="directsound">DirectSound</string>
-    <string name="directmusic">DirectMusic</string>
-    <string name="directplay">DirectPlay</string>
-    <string name="directshow">DirectShow</string>
-    <string name="directx">DirectX</string>
-    <string name="vcrun2010">Visual C++ 2010</string>
-    <string name="wmdecoder">Windows Media Decoder</string>
+    <!-- Library > Games -->
+    <string name="library_games_shortcut_created">Genvej oprettet</string>
+    <string name="library_games_failed_to_create_shortcut">Kunne ikke oprette genvej: %s</string>
+    <string name="library_games_install_path">Installationssti</string>
+    <string name="library_games_download_slash_install">Download / Installer</string>
+    <string name="library_games_save_management">GEMMEDATA HÅNDTERING</string>
+    <string name="library_games_download_install_available">%1$s / %2$s • Tilgængelig: %3$s</string>
+    <string name="library_games_last_played">Sidst spillet</string>
+    <string name="library_games_playtime">Spilletid</string>
+    <string name="library_games_plays">Gange spillet</string>
+    <string name="library_games_dlcs">DLC\'er</string>
+    <string name="library_games_uninstall_game">AFINSTALLER SPIL</string>
+    <string name="library_games_remove_game">FJERN SPIL</string>
+    <string name="library_games_uninstall_confirm">Afinstaller %1$s og slet permanent den installerede spilmappe?</string>
+    <string name="library_games_remove_confirm">Fjern %1$s fra dit bibliotek. Spilfiler på disken forbliver uberørte?</string>
+    <string name="library_games_game_uninstalled">%1$s afinstalleret.</string>
+    <string name="library_games_game_removed">%1$s fjernet.</string>
+    <string name="library_games_failed_to_uninstall">Kunne ikke afinstallere.</string>
+    <string name="library_games_failed_to_uninstall_reason">Kunne ikke afinstallere: %1$s</string>
+    <string name="library_games_loading">Indlæser bibliotek\u2026</string>
+    <string name="library_games_no_games_installed">Ingen spil installeret. Brug en Butik-fane eller + knappen for at tilføje spil.</string>
+    <string name="library_games_times_played_label">Antal gange spillet: </string>
+    <string name="library_games_playtime_label">Spilletid: </string>
+    <string name="library_games_no_games_hub">Ingen spil installeret\nKlik for at åbne Winlator Backend</string>
+    <string name="library_games_installed_badge">INSTALLERET</string>
+    <string name="library_games_unknown_game">Ukendt spil</string>
+    <string name="library_games_layouts_header">LAYOUTS</string>
+    <string name="library_games_layout_carousel">Karrusel</string>
+    <string name="library_games_layout_list">Liste</string>
+    <string name="library_games_custom_game">Brugerdefineret spil</string>
+    <string name="library_games_play">Spil</string>
+    <string name="library_games_add_custom_game">Tilføj brugerdefineret spil</string>
+    <string name="library_games_game_name">Spilnavn</string>
+    <string name="library_games_select_exe_provide_name">Vælg en exe og angiv et navn</string>
+    <string name="library_games_sign_in_prompt">Log ind på en butik eller tilføj et brugerdefineret spil for at opbygge dit bibliotek.</string>
 
-    <!-- Navigation Titles -->
-    <string name="destination_downloads">Downloads</string>
-    <string name="destination_friends">Venner</string>
-    <string name="destination_library">Bibliotek</string>
+    <!-- Stores > Accounts -->
+    <string name="stores_accounts_title">Butikker</string>
+    <string name="stores_accounts_steam_integration_title">Steam</string>
+    <string name="stores_accounts_wifi_only_downloads">Kun Wi-Fi downloads</string>
+    <string name="stores_accounts_wifi_only_downloads_subtitle">Begræns downloads til Wi-Fi-forbindelser</string>
+    <string name="stores_accounts_shared_downloads_folder">Delt downloadmappe</string>
+    <string name="stores_accounts_shared_downloads_subtitle">Brug en enkelt mappe på tværs af alle butikker</string>
+    <string name="stores_accounts_download_speed">Downloadhastighed</string>
+    <string name="stores_accounts_download_speed_subtitle">Styrer Steam download-trådsamtidighed</string>
+    <string name="stores_accounts_download_server">Downloadserver</string>
+    <string name="stores_accounts_sign_out_confirm">Log ud af %1$s?</string>
+    <string name="stores_accounts_sign_out_message">Du skal logge ind igen for at få adgang til dit bibliotek.</string>
+    <string name="stores_accounts_logged_in_epic">Logget ind på Epic Games!</string>
+    <string name="stores_accounts_epic_login_failed">Epic-login mislykkedes: %1$s</string>
+    <string name="stores_accounts_logged_in_gog">Logget ind på GOG!</string>
+    <string name="stores_accounts_gog_login_failed">GOG-login mislykkedes: %1$s</string>
+    <string name="stores_accounts_custom_download_path">Brugerdefineret downloadsti</string>
+    <string name="stores_accounts_custom_download_path_description">En standard downloadsti er allerede konfigureret i Indstillinger &gt; Butikker. Hvis du ønsker at angive en unik brugerdefineret sti til denne specifikke installation, klik Fortsæt.</string>
+    <string name="stores_accounts_not_signed_in">Ikke logget ind</string>
+    <string name="stores_accounts_status_online">Online</string>
+    <string name="stores_accounts_status_away">Væk</string>
+    <string name="stores_accounts_status_offline">Offline</string>
+    <string name="stores_accounts_status_invisible">Usynlig</string>
+    <string name="stores_accounts_status_header">STATUS</string>
+    <string name="stores_accounts_stores_header">BUTIKKER</string>
+    <string name="stores_accounts_aio_store_mode">AIO Butikstilstand</string>
+    <string name="stores_accounts_sign_in_store_prompt">Log venligst ind for at få adgang til %1$s butikken.</string>
+    <string name="stores_accounts_manage">Administrer butikskonti</string>
+    <string name="stores_accounts_sign_into_store">Log ind på %1$s</string>
 
-    <!-- App Theme Settings -->
-    <string name="theme_auto">Systemstandard</string>
-    <string name="theme_day">Lyst</string>
-    <string name="theme_night">Mørkt</string>
-    <string name="theme_amoled">Mørkt + AMOLED</string>
+    <!-- Downloads > Queue -->
+    <string name="downloads_queue_no_wifi">Ikke forbundet til Wi-Fi/LAN</string>
+    <string name="downloads_queue_paused_wifi">Download sat på pause – venter på Wi-Fi/LAN</string>
+    <string name="downloads_queue_cancel_all">Annuller alle</string>
+    <string name="downloads_queue_preparing_download">Forbereder download</string>
+    <string name="downloads_queue_installing_package">Installerer pakke</string>
+    <string name="downloads_queue_resume_all">Genoptag alle</string>
+    <string name="downloads_queue_pause_all">Sæt alle på pause</string>
+    <string name="downloads_queue_clear">Ryd</string>
+    <string name="downloads_queue_phase_paused">Sat på pause</string>
+    <string name="downloads_queue_phase_complete">Fuldført</string>
+    <string name="downloads_queue_phase_cancelled">Annulleret</string>
+    <string name="downloads_queue_phase_failed">Mislykkedes: %1$s</string>
+    <string name="downloads_queue_cancel_download">Annuller download</string>
 
-    <!-- Top Bar Titles -->
-    <string name="title_box64_presets">Box64 Indstillinger</string>
-    <string name="title_web_view">Pluvia Webvisning</string>
-    <string name="title_settings">Indstillinger</string>
-    <string name="title_downloads">Downloads</string>
-    <string name="title_friends">Venner</string>
-    <string name="title_profile">Profil</string>
+    <!-- Containers > List -->
+    <string name="containers_list_new">Ny container</string>
+    <string name="containers_list_edit">Rediger container</string>
+    <string name="containers_list_creating">Opretter container…</string>
+    <string name="containers_list_removing">Fjerner container…</string>
+    <string name="containers_list_duplicating">Duplikerer container…</string>
+    <string name="containers_list_confirm_remove">Vil du fjerne denne container?</string>
+    <string name="containers_list_confirm_duplicate">Vil du duplikere denne container?</string>
 
-    <!-- Two Factor Responses -->
-    <string name="steam_2fa_confirmation">Brug Steam-mobilappen til at bekræfte dit login…</string>
-    <string name="steam_2fa_device">Indtast venligst din 2-faktor godkendelseskode fra din godkendelsesapp.</string>
-    <string name="steam_2fa_email">Indtast venligst godkendelseskoden sendt til e-mailen på %s</string>
-    <string name="steam_2fa_incorrect">Den tidligere kode var forkert, prøv venligst igen.</string>
+    <!-- Shortcuts > List -->
+    <string name="shortcuts_list_confirm_remove">Vil du fjerne denne genvej?</string>
+    <string name="shortcuts_list_add_to_home_screen">Tilføj til startskærm</string>
+    <string name="shortcuts_list_not_available">Denne genvej er ikke længere tilgængelig. Slet eller genopret den venligst.</string>
+    <string name="shortcuts_list_select_a_container">Vælg en container</string>
+    <string name="shortcuts_list_error_opening_settings">Fejl ved åbning af genvejsindstillinger</string>
+    <string name="shortcuts_list_removed">Genvej fjernet.</string>
+    <string name="shortcuts_list_remove_failed">Kunne ikke fjerne genvejen. Prøv venligst igen.</string>
+    <string name="shortcuts_list_cloned">Genvej klonet.</string>
+    <string name="shortcuts_list_clone_failed">Kunne ikke klone genvej.</string>
+    <string name="shortcuts_list_exported_to">Genvej eksporteret til %1$s</string>
+    <string name="shortcuts_list_failed_export">Kunne ikke eksportere genvej</string>
+    <string name="shortcuts_list_added">Genvej tilføjet.</string>
+    <string name="shortcuts_list_failed_add">Kunne ikke tilføje genvej.</string>
 
-    <!-- Single Words -->
-    <string name="advanced">Advanceret</string>
-    <string name="block">Blok</string>
-    <string name="box64">Box64</string>
-    <string name="cancel">Afslut</string>
-    <string name="chat">Chat</string>
-    <string name="close">Luk</string>
-    <string name="confirm">Bekræft</string>
-    <string name="copy">Kopier</string>
-    <string name="delete">Slet</string>
-    <string name="discard">Kassér</string>
-    <string name="dismiss">Afsked</string>
-    <string name="downloads">Downloads</string>
-    <string name="exit">Luk</string>
-    <string name="favorite">Favorit</string>
-    <string name="filters">Filtre</string>
-    <string name="games">Spil</string>
-    <string name="general">Generel</string>
-    <string name="height">Skærmhøjde</string>
-    <string name="home">Hjem</string>
-    <string name="install">Installer</string>
-    <string name="library">Bibliotek</string>
-    <string name="loading">Indlæser…</string>
-    <string name="login">Log ind</string>
-    <string name="logout">Log Ud</string>
-    <string name="more">Mere</string>
-    <string name="name">Navn</string>
-    <string name="nickname">Kaldenavn</string>
-    <string name="no">Nej</string>
-    <string name="ok">OK</string>
-    <string name="options">Valgmuligheder</string>
-    <string name="password">Adgangskode</string>
-    <string name="play">Spil</string>
-    <string name="proceed">Fortsæt</string>
-    <string name="profile">Profil</string>
-    <string name="remove">Slet</string>
-    <string name="retry">Prøv Igen</string>
-    <string name="send">Send</string>
-    <string name="settings">Indstillinger</string>
-    <string name="system">System</string>
-    <string name="tip">Tip</string>
-    <string name="unnamed">Unavngivet</string>
-    <string name="username">Brugernavn</string>
-    <string name="value">Værdi</string>
-    <string name="width">Skærmbredde</string>
-    <string name="yes">Ja</string>
+    <!-- Shortcuts > Properties -->
+    <string name="shortcuts_properties_exec_arguments">Exec-argumenter</string>
+    <string name="shortcuts_properties_target_path">Målsti</string>
+    <string name="shortcuts_properties_disable_xinput">Deaktiver XInput (For eksklusiv M/KB-styring)</string>
+    <string name="shortcuts_properties_exclusive_input">Eksklusivt input</string>
+    <string name="shortcuts_properties_custom_game_settings">Brugerdefinerede spilindstillinger</string>
+    <string name="shortcuts_properties_use_legacy_drm">Brug ældre DRM</string>
+    <string name="shortcuts_properties_unpack_files">Udpak filer</string>
+    <string name="shortcuts_properties_unpack_files_description">Brug kun hvis du får \'Application Load Error 3:0000065432\'.</string>
+    <string name="shortcuts_properties_force_dlc">Tving DLC</string>
+    <string name="shortcuts_properties_force_dlc_description">Aktiver kun hvis DLC\'er ikke bliver fundet eller gemmedata med DLC ikke virker</string>
+    <string name="shortcuts_properties_launch_steam_client_beta">Start Steam-klient (Beta)</string>
+    <string name="shortcuts_properties_launch_steam_client_description">Reducerer ydeevne og gør opstart langsommere\nTillader onlinespil og løser DRM- og controller-problemer\nIkke alle spil virker</string>
+    <string name="shortcuts_properties_steam_type">Steam-type</string>
+    <string name="shortcuts_properties_use_steam_input">Brug Steam Input</string>
+    <string name="shortcuts_properties_steam_offline_mode">Steam offlinetilstand</string>
+    <string name="shortcuts_properties_reset">Nulstil egenskaber</string>
+    <string name="shortcuts_properties_updated_at">Genvej opdateret kl. %1$s</string>
+    <string name="shortcuts_properties_properties_reset">Egenskaber nulstillet.</string>
+    <string name="shortcuts_properties_reset_per_game">Nulstil per-spil indstillinger</string>
+    <string name="shortcuts_properties_reset_per_game_message">Nulstil dette spil til at bruge den valgte containers standardindstillinger?</string>
+    <string name="shortcuts_properties_per_game_reset">Per-spil indstillinger nulstillet til valgte containerstandard</string>
 
-    <!-- Box 86 || Box 64 -->
-    <string name="box64_name_label">Indstillings navn</string>
-    <string name="box64_env_variables">Miljøvariabler</string>
-    <string name="box64_stability">Stabilitet</string>
-    <string name="box64_compatibility">Kompatibilitet</string>
-    <string name="box64_intermediate">Mellemliggende</string>
-    <string name="box64_performance">Ydeevne</string>
-    <string name="box86_64_env_var_help__dynarec_safeflags"><![CDATA[
-         Håndtering af flag på CALL/RET opkoder<br /><br />
-        <b>0</b> : Behandler CALL/RET, som om det aldrig havde brug for flag (hurtigere, ustabilt)<br />
-        <b>1</b> : De fleste RET har brug for flag, de fleste OPKALD vil ikke<br />
-        <b>2</b> : Alle CALL/RET skal bruge flag (langsommere)
-    ]]></string>
-    <string name="box86_64_env_var_help__dynarec_fastnan">Generation af -NAN som på x86</string>
-    <string name="box86_64_env_var_help__dynarec_fastround">Generering af præcis x86 afrunding</string>
-    <string name="box86_64_env_var_help__dynarec_x87double">Brug af Float/Double til x87-emulering</string>
-    <string name="box86_64_env_var_help__dynarec_bigblock"><![CDATA[
-        Dynarec bygger BigBlock<br /><br />
-        <b>0</b> : Forsøg ikke at bygge en så stor blok som muligt<br />
-        <b>1</b> : Byg Dynarec-blok så stor som muligt<br />
-        <b>2</b> : Byg Dynarec-blok større (fortsæt, når blokken overlapper, men kun for blokke i elverhukommelsen)<br />
-        <b>3</b> : Byg Dynarec-blok større (fortsæt, når blokken overlapper, for alle typer hukommelse)
-    ]]></string>
-    <string name="box86_64_env_var_help__dynarec_strongmem"><![CDATA[
-        Simulering af Strong Memory-model<br /><br />
-        <b>0</b> : Prøv ikke noget særligt<br />
-        <b>1</b> : Aktiver en hukommelsesbarriere, når du skriver til hukommelsen (på nogle MOV-opkoder)<br />
-        <b>2</b> : Alle 1 plus en hukommelsesbarriere ved hver skrivning til hukommelse ved hjælp af MOV<br />
-        <b>3</b> : Alle 2 plus Memory Barrier ved læsning fra hukommelsen og på nogle SSE/SSE2 opkoder
-    ]]></string>
-    <string name="box86_64_env_var_help__dynarec_forward">Definerer den maksimalt tilladte fremadrettede værdi, når der bygges en blok</string>
-    <string name="box86_64_env_var_help__dynarec_callret">Optimering af CALL/RET opkoder</string>
-    <string name="box86_64_env_var_help__dynarec_wait">Definerer, om Dynarec vil vente på, at FillBlock er klar</string>
+    <!-- Input Controls > Editor -->
+    <string name="input_controls_editor_no_element_selected">Intet kontrolelement valgt</string>
+    <string name="input_controls_editor_scale">Skala</string>
+    <string name="input_controls_editor_shape">Form</string>
+    <string name="input_controls_editor_type">Type</string>
+    <string name="input_controls_editor_binding">Binding</string>
+    <string name="input_controls_editor_binding_up">Binding op</string>
+    <string name="input_controls_editor_binding_right">Binding højre</string>
+    <string name="input_controls_editor_binding_down">Binding ned</string>
+    <string name="input_controls_editor_binding_left">Binding venstre</string>
+    <string name="input_controls_editor_overlay_opacity">Overlay-gennemsigtighed</string>
+    <string name="input_controls_editor_select_profile">Vælg profil</string>
+    <string name="input_controls_editor_profile_name">Profilnavn</string>
+    <string name="input_controls_editor_no_profile_selected">Ingen profil valgt</string>
+    <string name="input_controls_editor_no_profile_found">Ingen profil fundet</string>
+    <string name="input_controls_editor_confirm_remove_profile">Vil du fjerne denne profil?</string>
+    <string name="input_controls_editor_confirm_duplicate_profile">Vil du duplikere denne profil?</string>
+    <string name="input_controls_editor_title">Kontroleditor</string>
+    <string name="input_controls_editor_toggle_switch">Skiftekontakt</string>
+    <string name="input_controls_editor_profile_exported_to">Profil eksporteret til</string>
+    <string name="input_controls_editor_unable_to_import">Kan ikke importere profil</string>
+    <string name="input_controls_editor_import_profile">Importer profil</string>
+    <string name="input_controls_editor_export_profile">Eksporter profil</string>
+    <string name="input_controls_editor_range">Område</string>
+    <string name="input_controls_editor_confirm_download_profiles">Vil du downloade de valgte profiler?</string>
+    <string name="input_controls_editor_unable_to_load_list">Kan ikke indlæse profilliste</string>
+    <string name="input_controls_editor_osc_transparency">Gennemsigtighed for skærmkontroller</string>
+    <string name="input_controls_editor_osc_transparency_description">Juster gennemsigtigheden af skærmkontrollerne.</string>
 
-    <!-- Descriptions || Content Descriptions -->
-    <string name="desc_account_button">Logget ind som profil</string>
-    <string name="desc_add_env_variable">Tilføj miljøvariabel</string>
-    <string name="desc_box64_close">Close Box64 Indstillinger</string>
-    <string name="desc_box64_copy_preset">Dupliker Indstillinger</string>
-    <string name="desc_box64_create_preset">Opret Indstillinger</string>
-    <string name="desc_box64_delete_preset">Slet Indstillinger</string>
-    <string name="desc_box64_list_preset">indstillet liste</string>
-    <string name="desc_box64_variable_info">Variabel info</string>
-    <string name="desc_chat_emoticon">Humørikon %1$s</string>
-    <string name="desc_chat_scroll_down">Rul tilbage ned til den seneste chatbesked</string>
-    <string name="desc_chat_sticker">Klistermærke %1$s</string>
-    <string name="desc_chip_item">Chip Punkt %1$s</string>
-    <string name="desc_close_dialog">Luk Dialog</string>
-    <string name="desc_container_known_variable_name">Liste kendte variabelnavne</string>
-    <string name="desc_delete_variable">Slet variabel</string>
-    <string name="desc_dropdown_arrow">Dropdown-pil</string>
-    <string name="desc_failed_image">Billedet kunne ikke indlæses</string>
-    <string name="desc_failed_image_alt">[Billedet blev ikke fundet]</string>
-    <string name="desc_fg_notification">Giver mulighed for at vise Pluvia-forgrundsmeddelelser</string>
-    <string name="desc_fg_notification_title">Pluvia Forgrundstjeneste</string>
-    <string name="desc_filters">Filtre knap</string>
-    <string name="desc_friend_avatar">%1$s profil avatar</string>
-    <string name="desc_friend_header_action">Skjul eller udvid overskrift</string>
-    <string name="desc_library_icon">%1$s klient ikon</string>
-    <string name="desc_library_search_clear">Ryd søgning</string>
-    <string name="desc_login_hide_password">Skjul adgangskode</string>
-    <string name="desc_login_show_password">Vis adgangskode</string>
-    <string name="desc_nav_back">Naviger tilbage</string>
-    <string name="desc_qr_image">QR BGem crashlogillede</string>
-    <string name="desc_save_crash">Gem crashlog</string>
-    <string name="desc_show_emojis">Vis eller skjul humørikoner og klistermærker</string>
+    <!-- Container > Configuration -->
+    <string name="container_config_screen_size">Skærmstørrelse</string>
+    <string name="container_config_new_env_var">Ny miljøvariabel</string>
+    <string name="container_config_env_vars">Miljøvariabler</string>
+    <string name="container_config_processor_affinity">Processoraffinitet</string>
+    <string name="container_config_processor_affinity_32bit">Processoraffinitet (32-bit apps)</string>
+    <string name="container_config_audio_driver">Lyddriver</string>
+    <string name="container_config_win_components">Win-komponenter</string>
+    <string name="container_config_drives">Drev</string>
+    <string name="container_config_arch">Arkitektur</string>
+    <string name="container_config_storage_info">Lagerinfo</string>
+    <string name="container_config_drive_c">Drev C:</string>
+    <string name="container_config_cache">Cache</string>
+    <string name="container_config_total">Total</string>
+    <string name="container_config_clear_cache">Ryd cache</string>
+    <string name="container_config_estimated_used_space">Estimeret brugt plads</string>
+    <string name="container_config_directinput_mapper_type">DirectInput Mapper-type</string>
+    <string name="container_config_title">Konfiguration</string>
+    <string name="container_config_startup_selection">Opstartsvalg</string>
+    <string name="container_config_glibc_exp_edition">Baseret på</string>
+    <string name="container_config_refresh_rate_default_global">Standard (Global)</string>
+    <string name="container_config_enable_dinput">Aktiver DInput for spil i Wine</string>
+    <string name="container_config_enable_xinput">Aktiver XInput for spil i Wine</string>
+    <string name="container_config_dinput_legacy">Ældre (Gamle gamepads)</string>
+    <string name="container_config_dinput_modern">Moderne (XInput-lignende)</string>
+    <string name="container_config_help_xinput">
+        Hvis dit spil bruger &lt;i&gt;&lt;b&gt;XInput API&lt;/b&gt;&lt;/i&gt; til controller-understøttelse, skal du aktivere denne indstilling.&lt;br/&gt;&lt;br/&gt;
+        Denne indstilling påvirker både &lt;i&gt;&lt;b&gt;virtuelle&lt;/b&gt;&lt;/i&gt; (leveret af Inputkontroller) og &lt;i&gt;&lt;b&gt;fysiske&lt;/b&gt;&lt;/i&gt; controllere.
+    </string>
+    <string name="container_config_help_dinput">
+        Hvis dit spil bruger &lt;i&gt;&lt;b&gt;DInput API&lt;/b&gt;&lt;/i&gt; til controller-understøttelse, skal du aktivere denne indstilling.&lt;br/&gt;&lt;br/&gt;
+        Denne indstilling påvirker både &lt;i&gt;&lt;b&gt;virtuelle&lt;/b&gt;&lt;/i&gt; (leveret af Inputkontroller) og &lt;i&gt;&lt;b&gt;fysiske&lt;/b&gt;&lt;/i&gt; controllere.
+    </string>
+    <string name="container_config_xinput_dinput_warning">Nogle spil understøtter muligvis begge API\'er. At aktivere både XInput og DInput samtidigt i sådanne spil kan forårsage styringsproblemer, som det ses i titler som The Binding of Isaac og Resident Evil-serien.</string>
+    <string name="container_config_lc_all" translatable="false">LC_ALL</string>
+    <string name="container_config_dll_emulator">32bit Emulator</string>
+    <string name="container_config_emulator_wine_hint">Emulator bestemmes af Wine-versionen. ARM64EC bruger FEXCore, x86_64 bruger Box64.</string>
+    <string name="container_config_label">Konfiguration</string>
+    <string name="container_config_restart_required">Genstart containeren for at ændringer træder i kraft</string>
+    <string name="container_config_renderer">Renderer</string>
+    <string name="container_config_variables">Variabler</string>
+    <string name="container_config_windows">Windows</string>
+    <string name="container_config_inputs">Input</string>
+    <string name="container_config_tab">Konfig</string>
+    <string name="container_config_av_tab">A/V</string>
+    <string name="container_config_emulator_64bit">64bit Emulator</string>
+    <string name="container_config_sdl2_compatibility">Aktiver SDL2-kompatibilitet</string>
 
-    <!-- Dialog Messages -->
-    <string name="dialog_message_cancel_download">Er du sikker på, at du vil annullere download af appen?</string>
-    <string name="dialog_message_delete_app">Er du sikker på, at du vil slette denne app?\n\n\tStørrelse på disk: %1$s</string>
-    <string name="dialog_message_download_app">Den app, der installeres, har følgende pladskrav. Vil du fortsætte?\nDownloadstørrelse: %1$s\nStørrelse på disk: %2$s\nTilgængelig plads: %3$s</string>
-    <string name="dialog_message_download_install_fs">Ubuntu Isoen skal downloades og installeres, før du kan redigere konfigurationen. Denne handling kan tage et par minutter. Vil du fortsætte?</string>
-    <string name="dialog_message_exit_game">"Er du sikker på, at du vil lukke spillet  %1$s?"</string>
-    <string name="dialog_message_friend_block">Er du sikker på, at du vil blokere %1$s?</string>
-    <string name="dialog_message_friend_favorite">Er du sikker på, at du vil sætte %1$s som favorit?</string>
-    <string name="dialog_message_friend_no_past_aliases">Ingen tidligere aliaser fundet</string>
-    <string name="dialog_message_friend_remove">Er du sikker på, at du vil fjerne %1$s?</string>
-    <string name="dialog_message_friend_set_nickname">Indstil et nyt kaldenavn til %1$s</string>
-    <string name="dialog_message_install_fs">Ubuntu-billedet skal installeres, før du kan redigere konfigurationen. Denne handling kan tage et par minutter. Vil du fortsætte?</string>
-    <string name="dialog_message_no_space">Den app, der installeres, kræver %1$s plads, men der er kun %2$s tilbage på denne enhed</string>
-    <string name="dialog_message_sync_error">Kunne ikke synkronisere gemte filer: %1$s</string>
-    <string name="dialog_message_sync_multiple">Flere afventende fjern oberationer. Prøv igen senere</string>
-    <string name="dialog_message_sync_none">Modtaget afventende fjern oberationer, hvis ingen operation var aktiv.</string>
-    <string name="dialog_message_sync_terminated">App-session suspenderet</string>
-    <string name="dialog_message_tip">Tak fordi du bruger Pluvia. Overvej venligst at støtte os ved at give drikkepenge det beløb, der er behageligt for dig.</string>
-    <string name="dialog_message_unsaved_changes">Er du sikker på, at du vil kassere dine ændringer?</string>
-    <string name="dialog_message_libraries">
-        JavaSteam - github.com/Longi94/JavaSteam\n
-        Winlator - github.com/brunodev85/winlator\n
-        Ubuntu RootFs - releases.ubuntu.com/focal\n
-        Wine - winehq.org\n
-        Box86/Box64 - box86.org\n
-        PRoot - proot-me.github.io\n
-        Mesa (Turnip/Zink/VirGL) - mesa3d.org\n
-        DXVK - github.com/doitsujin/dxvk\n
-        VKD3D - gitlab.winehq.org/wine/vkd3d\n
-        D8VK - github.com/AlpyneDreams/d8vk\n
-        CNC DDraw - github.com/FunkyFr3sh/cnc-ddraw</string>
-    <string name="dialog_message_crash">
-        Undskyld!\n\n
-        Det ville være rart at vide om det seneste problem, du har haft.\n\n
-        Du kan se og eksportere den seneste crashlog i appens indstillinger\n\n
-        og vedhæft det som et Github-problem i projektets repository.\n\n
-        Link til Github repo er også i indstillinger!
-		- Du bedes kun skrive på engelsk på vores github -</string>
-    <string name="dialog_message_sync_conflict">
-        Der er en ny fjernlagring og en ny lokal lagring,
-        hvilken en vil du gerne beholde?\n\n
-        Lokalt:\n\t %1$s \n
-        Fjernlagring:\n\t%2$s</string>
-    <string name="dialog_message_app_running">
-        Du er logget ind på en anden enhed (%1$s) som allerede spiller %2$s (%3$s),
-        og den lagring er endnu ikke i skyen.\n
-        Du kan stadig spille dette spil, men det vil afbryde det andet
-        session fra Steam og kan skabe en lagringskonflikt, når sessionens fremskridt synkroniseres</string>
-    <string name="dialog_message_pending_upload">
-        Du spillede %1$s på enheden %2$s (%3$s), og den lagring er endnu ikke i skyen.
-        (upload ikke startet)\nDu kan stadig spille dette spil, men det kan skabe en konflikt
-        når dine tidligere spilfremskridt er uploadet.</string>
-    <string name="dialog_message_sync_upload">
-        Du spillede %1$s på enheden %2$s (%3$s), og lagringen af ​​den session uploades stadig.\nPrøv igen senere.</string>
+    <!-- Container > Wine and DirectX -->
+    <string name="container_wine_configuration">Wine-konfiguration</string>
+    <string name="container_wine_csmt">CSMT (Command Stream Multi-Thread)</string>
+    <string name="container_wine_gpu_name">GPU-navn</string>
+    <string name="container_wine_offscreen_rendering_mode">Offscreen-renderingstilstand</string>
+    <string name="container_wine_strict_shader_math">Streng shader-matematik</string>
+    <string name="container_wine_video_memory_size">Videohukommelsesstørrelse</string>
+    <string name="container_wine_dxwrapper">DX Wrapper</string>
+    <string name="container_wine_mouse_warp_override">Mouse Warp-tilsidesættelse</string>
+    <string name="container_wine_directx">DirectX</string>
+    <string name="container_wine_dxvk_version">DXVK-version</string>
+    <string name="container_wine_vkd3d_version">VKD3D-version</string>
+    <string name="container_wine_version">Wine-version</string>
+    <string name="container_wine_dxwrapper_help_content">
+        &lt;i&gt;&lt;b&gt;WineD3D&lt;/b&gt;&lt;/i&gt; er et oversættelseslag for DirectX 1-11 til OpenGL.&lt;br /&gt;&lt;br /&gt;
+        &lt;i&gt;&lt;b&gt;DXVK&lt;/b&gt;&lt;/i&gt; er et oversættelseslag for Direct3D 9-11 til Vulkan.&lt;br /&gt;&lt;br /&gt;
+        &lt;i&gt;&lt;b&gt;VKD3D&lt;/b&gt;&lt;/i&gt; er et oversættelseslag for Direct3D 12 API til Vulkan.&lt;br /&gt;&lt;br /&gt;
+        &lt;i&gt;&lt;b&gt;CNC DDraw&lt;/b&gt;&lt;/i&gt; er en implementering af DirectDraw for bedre kompatibilitet med klassiske spil.
+    </string>
+    <string name="container_wine_enabled_async">Aktiver Async</string>
+    <string name="container_wine_enabled_async_cache">Aktiver Async Cache</string>
+    <string name="container_wine_vkd3d_feature_level">VKD3D-funktionsniveau</string>
+    <string name="container_wine_ddraw_wrapper">DDraw Wrapper</string>
+    <string name="container_wine_error_not_installed">Wine/Proton-pakken \'%1$s\' er ikke installeret og kunne ikke downloades.</string>
+    <string name="container_wine_title">Wine</string>
+    <string name="container_wine_opengl">OpenGL</string>
 
-    <!-- Dialog Titles -->
-    <string name="dialog_title_app_running">App Kører</string>
-    <string name="dialog_title_app_theme">App Tema</string>
-    <string name="dialog_title_cancel_download">Annuller download</string>
-    <string name="dialog_title_close_app">Er du sikker på, at du vil lukke Pluvia?</string>
-    <string name="dialog_title_container_config">%1$s Konfig</string>
-    <string name="dialog_title_default_container_config">Standard Container Config</string>
-    <string name="dialog_title_delete_app">Slet App</string>
-    <string name="dialog_title_download_app">Installer App</string>
-    <string name="dialog_title_download_install_fs">Download &amp; Installer ImageFS</string>
-    <string name="dialog_title_exit_game">Forlad Spillet</string>
-    <string name="dialog_title_friend_block">Bloker ven</string>
-    <string name="dialog_title_friend_favorite">Sæt ven som favorit</string>
-    <string name="dialog_title_friend_past_aliases">Tidligere aliaser</string>
-    <string name="dialog_title_friend_remove">Fjern ven</string>
-    <string name="dialog_title_friend_set_nickname">Indstil kaldenavn</string>
-    <string name="dialog_title_install_fs">Installer ImageFS</string>
-    <string name="dialog_title_libraries">Brugte biblioteker</string>
-    <string name="dialog_title_new_env_variable">Ny miljøvariabel</string>
-    <string name="dialog_title_no_space">Ikke nok plads</string>
-    <string name="dialog_title_orientations">Tilladte orienteringer</string>
-    <string name="dialog_title_palette_style">Palette stil</string>
-    <string name="dialog_title_pending_upload">Afventer upload</string>
-    <string name="dialog_title_recent_crash">Seneste nedbrud</string>
-    <string name="dialog_title_start_screen">Startskærm</string>
-    <string name="dialog_title_sync_conflict">Gem konflikt</string>
-    <string name="dialog_title_sync_error">Synkroniseringsfejl</string>
-    <string name="dialog_title_sync_upload">Upload i gang</string>
-    <string name="dialog_title_unsaved_changes">Ikke-gemte ændringer</string>
+    <!-- Container > Box64 -->
+    <string name="container_box64_title">Box64</string>
+    <string name="container_box64_preset">Box64-forudindstilling</string>
+    <string name="container_box64_version">Box64-version</string>
+    <string name="container_box64_stability">Stabilitet</string>
+    <string name="container_box64_compatibility">Kompatibilitet</string>
+    <string name="container_box64_intermediate">Mellemliggende</string>
+    <string name="container_box64_performance">Ydeevne</string>
+    <string name="box64_env_var_help__dynarec_safeflags">
+        Håndtering af flag på CALL/RET-opkoder&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Behandler CALL/RET som om de aldrig havde brug for flag (hurtigere, ustabilt)&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : De fleste RET har brug for flag, de fleste CALLS har ikke&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Alle CALL/RET har brug for flag (langsommere)
+    </string>
+    <string name="box64_env_var_help__dynarec_fastnan">Generering af -NAN som på x86</string>
+    <string name="box64_env_var_help__dynarec_fastround">Generering af præcis x86-afrunding</string>
+    <string name="box64_env_var_help__dynarec_x87double">Brug af Float/Double til x87-emulering</string>
+    <string name="box64_env_var_help__dynarec_bigblock">
+        Dynarec bygger BigBlock&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Forsøg ikke at bygge blokke så store som muligt&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Byg Dynarec-blokke så store som muligt&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Byg Dynarec-blokke større (fortsæt ved blokoverlap, men kun for blokke i elf-hukommelse)&lt;br /&gt;
+        &lt;b&gt;3&lt;/b&gt; : Byg Dynarec-blokke større (fortsæt ved blokoverlap, for alle typer hukommelse)
+    </string>
+    <string name="box64_env_var_help__dynarec_strongmem">
+        Simulering af Strong Memory-model&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Forsøg ikke noget særligt&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Aktiver nogle hukommelsesbarrierer ved skrivning til hukommelse (på visse MOV-opkoder)&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Alt fra 1 plus en hukommelsesbarriere ved hver skrivning til hukommelse via MOV&lt;br /&gt;
+        &lt;b&gt;3&lt;/b&gt; : Alt fra 2 plus hukommelsesbarriere ved læsning fra hukommelse og på visse SSE/SSE2-opkoder
+    </string>
+    <string name="box64_env_var_help__dynarec_forward">Definerer den maksimalt tilladte forward-værdi ved blokopbygning</string>
+    <string name="box64_env_var_help__dynarec_callret">Optimering af CALL/RET-opkoder</string>
+    <string name="box64_env_var_help__dynarec_wait">Definerer om Dynarec venter på at FillBlock er klar</string>
+    <string name="box64_env_var_help__dynarec_weakbarrier">
+        Juster hukommelsesbarrierer for at reducere ydeevnepåvirkning af strong memory-emulering&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Brug normale sikre barrierer&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Brug svage barrierer for let ydeevneforbedring&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Brug svage barrierer, deaktiver desuden sidste skrivebarrierer</string>
+    <string name="box64_env_var_help__dynarec_aligned_atomics">
+        Generer kun justerede atomare operationer (kun tilgængelig på Arm64 for nu).&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Generer kode til håndtering af ujusterede atomare operationer.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Generer kun justerede atomare operationer, hvilket er hurtigere og giver mindre kode, men vil forårsage SIGBUS for LOCK-præfikserede opkoder der opererer på justerede dataadresser.</string>
+    <string name="box64_env_var_help__dynarec_df">
+        Aktiver eller deaktiver brugen af udskudte flag.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Deaktiver brugen af udskudte flag.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Aktiver brugen af udskudte flag.</string>
+    <string name="box64_env_var_help__dynarec_dirty">
+        Tillad at fortsætte med at køre en blok der er ubeskyttet og potentielt ændret.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Tillad ikke at fortsætte med at køre en blok der er ubeskyttet og potentielt ændret.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Tillad at fortsætte med at køre en dynablok der skriver data på samme side som kode. Det kan gøre indlæsningstiden hurtigere for nogle spil, men kan også give uventede nedbrud.&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Vil desuden, når den registrerer en HotPage, markere den side som NEVERCLEAN, så den ikke bliver skrivebeskyttet, men blokke bygget fra den side vil altid blive testet. Det kan være hurtigere på den måde (men nogle SMC-tilfælde fanges muligvis ikke).</string>
+    <string name="box64_env_var_help__dynarec_nativeflags">
+        Aktiver eller deaktiver brugen af native flag.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Brug ikke native flag.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Brug native flag når det er muligt.</string>
+    <string name="box64_env_var_help__dynarec_pause">
+        Aktiver x86 PAUSE-emulering, kan forbedre ydeevnen for spinlocks.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Ignorer x86 PAUSE-instruktion.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Brug YIELD til at emulere x86 PAUSE-instruktion.&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Brug WFI til at emulere x86 PAUSE-instruktion.&lt;br /&gt;
+        &lt;b&gt;3&lt;/b&gt; : Brug SEVL+WFE til at emulere x86 PAUSE-instruktion.
+    </string>
+    <string name="box64_env_var_help__avx">
+        AVX og AVX2 implementeret, sammen med BMI1, BMI2, ADX, FMA, F16C og RDANDR-udvidelser!&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Deaktiver AVX-udvidelse&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Aktiver AVX, BMI1, F16C og VAES-udvidelse.&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Alt fra 1 plus aktiver AVX2, BMI2, FMA, ADX, VPCLMULQDQ og RDRAND.&lt;br /&gt;\
+    </string>
+    <string name="box64_env_var_help__maxcpu">Maksimalt antal CPU\'er præsenteret for programmer af Box64</string>
+    <string name="box64_env_var_help__unityplayer">Registrer UnityPlayer.dll og anvend strongmem-indstillinger</string>
+    <string name="box64_env_var_help__mmap32">Tving alle hukommelsesallokeringer til 32bit-adresserum</string>
 
-    <!-- Dialog Actions -->
-    <string name="dialog_action_keep_local">Hold dig Lokalt</string>
-    <string name="dialog_action_keep_remote">Hold dig Fjernt</string>
-    <string name="dialog_action_play_anyway">Spil alligevel</string>
+    <!-- Container > FEXCore -->
+    <string name="fexcore_env_var_help__tsoenabled">Aktiverer TSO IR-operationer (kræves til flertrådsapps).</string>
+    <string name="fexcore_env_var_help__vectortsoenabled">Gør vektor-load/stores atomare når TSO er aktiveret.</string>
+    <string name="fexcore_env_var_help__halfbarriertsoenabled">Bruger halvbarriereatomare operationer for ujusterede loads/stores under TSO.</string>
+    <string name="fexcore_env_var_help__memcpysettsoenabled">Gør REP MOVS / REP STOS atomare under TSO.</string>
+    <string name="fexcore_env_var_help__multiblock">Aktiverer multiblok-kodekompilering. Kan forårsage længere JIT-kompilering og hakken.</string>
+    <string name="fexcore_env_var_help__hostfeatures">Styrer tvungen CPU-funktioner.</string>
+    <string name="fexcore_env_var_help__smalltscscale">Skalerer TSC på lavfrekvens-systemer.</string>
+    <string name="fexcore_env_var_help__smc_checks">Kontrol af selvmodificerende kode.</string>
+    <string name="fexcore_env_var_help__volatilemetadata">Bruger volatil metadata fra PE-filer til TSO når det er tilgængeligt.</string>
+    <string name="fexcore_env_var_help__monohacks">Specielle SMC + JIT-blokhacks til Mono-registrering.</string>
+    <string name="fexcore_env_var_help__hidehypervisorbit">Skjuler CPUID hypervisor-bit (nyttigt for apps der crasher med det).</string>
+    <string name="fexcore_env_var_help__disablel2cache">Deaktiverer FEXCore JIT L2-cacheopslag, sparer hukommelse men introducerer hakken.</string>
+    <string name="fexcore_env_var_help__dynamicl1cache">Skifter FEXCore JIT L1-cache til dynamisk størrelse, sparer hukommelse men introducerer hakken.</string>
+    <string name="fexcore_env_var_help__x87reducedprecision">Emulerer X87-flydende komma med 64-bit præcision. Dette reducerer emuleringsnojagtighed og kan resultere i renderingsfejl.</string>
+    <string name="container_fexcore_config">FEXCore</string>
+    <string name="container_fexcore_preset">FEXCore-forudindstilling</string>
+    <string name="container_fexcore_version">FEXCore-version</string>
 
-    <!-- Library Filter Titles -->
-    <string name="filter_app_status">App Status</string>
-    <string name="filter_app_type">App Type</string>
+    <!-- Container > Graphics Driver -->
+    <string name="container_graphics_driver">Grafikdriver</string>
+    <string name="container_graphics_configuration">Grafikdriver-konfiguration</string>
+    <string name="container_graphics_version">Grafikdriver-version</string>
+    <string name="container_graphics_available_extensions">Tilgængelige udvidelser</string>
+    <string name="container_graphics_max_device_memory">Maks enhedshukommelse</string>
+    <string name="container_graphics_sync_frame">Synkroniser hver frame</string>
+    <string name="container_graphics_disable_present_wait">Deaktiver KHR_present_wait</string>
+    <string name="container_graphics_present_modes">Præsentationstilstande</string>
+    <string name="container_graphics_resource_type">Hukommelsesressourcetype</string>
+    <string name="container_graphics_vulkan_version">Vulkan-version</string>
+    <string name="container_graphics_bcn_emulation">BCn-emulering</string>
+    <string name="container_graphics_bcn_emulation_type">BCn-emuleringstype</string>
+    <string name="container_graphics_bcn_emulation_cache">BCn-emuleringscache</string>
+    <string name="container_graphics_vkbasalt">vkBasalt</string>
+    <string name="container_graphics_vkbasalt_sharpness_effects">Skarphedseffekt</string>
+    <string name="container_graphics_vkbasalt_sharpness_level">Skarphedsniveau</string>
+    <string name="container_graphics_vkbasalt_sharpness_denoise">Skarphedsstøjreduktion</string>
 
-    <!-- Library Filter Items -->
-    <string name="app_filter_application">Application</string>
-    <string name="app_filter_demo">Demo</string>
-    <string name="app_filter_game">Spil</string>
-    <string name="app_filter_installed">Installeret</string>
-    <string name="app_filter_shared">Familie</string>
-    <string name="app_filter_tool">Værktøj</string>
+    <!-- Container > Presets -->
+    <string name="container_presets_confirm_duplicate">Vil du duplikere denne forudindstilling?</string>
+    <string name="container_presets_confirm_remove">Vil du fjerne denne forudindstilling?</string>
+    <string name="container_presets_title">Forudindstillinger</string>
+    <string name="container_presets_preset">Forudindstilling</string>
+    <string name="container_presets_new">Ny forudindstilling</string>
+    <string name="container_presets_rename">Omdøb forudindstilling</string>
+    <string name="container_presets_import">Importer forudindstilling</string>
+    <string name="container_presets_custom">Brugerdefineret</string>
+    <string name="container_presets_built_in">Indbygget</string>
+    <string name="container_presets_changes_auto_saved">Ændringer gemmes automatisk mens du redigerer denne brugerdefinerede forudindstilling.</string>
+    <string name="container_presets_builtin_readonly_hint">Indbyggede forudindstillinger er skrivebeskyttede. Opret eller dupliker en forudindstilling for at tilpasse disse variabler.</string>
+    <string name="container_presets_cannot_rename">Indbyggede forudindstillinger kan ikke omdøbes</string>
+    <string name="container_presets_unable_to_import">Kan ikke importere forudindstilling</string>
+    <string name="container_presets_no_description">Ingen beskrivelse tilgængelig</string>
+    <string name="container_presets_cannot_remove">Du kan ikke fjerne denne forudindstilling</string>
+    <string name="container_presets_cannot_export">Kan ikke eksportere denne forudindstilling</string>
 
-    <!-- Library App Launch Options -->
-    <string name="app_option_menu_edit">Rediger container</string>
-    <string name="app_option_menu_open">Åben container</string>
-    <string name="app_option_menu_remove">Afinstaller</string>
-    <string name="app_option_menu_store">Åbn butiksside</string>
+    <!-- Session > XServer -->
+    <string name="session_xserver_title">XServer</string>
+    <string name="session_xserver_use_dri3_extension">Brug DRI3-udvidelse</string>
+    <string name="session_xserver_simulate_touch_screen">Simuler touchskærm</string>
+    <string name="session_xserver_preferences_button_text">   PRÆFERENCER   </string>
+    <string name="session_xserver_extra_keys_config_desc">Her kan du indstille værdien af extra-keys-variablen ligesom i Termux-appen (læs <a href="http://wiki.termux.com/wiki/Touch_Keyboard#Extra_Keys_Row">dette</a>) og mere \n
+F.eks. <b>META</b> for <i>META-tast</i>, \n
+<b>KEYBOARD</b> for <i>tastatur til/fra-tast</i>, \n
+<b>PREFERENCES</b> for <i>præference-åbningstast</i>, \n
+<b>MOUSE_HELPER</b> for <i>musehjælper til/fra-tast</i>, \n
+<b>STYLUS_HELPER</b> for <i>stylusklik-overlay til/fra-tast</i>, \n
+<b>EXIT</b> for <i>afslut-tast</i>.</string>
+    <string name="session_xserver_pref_main">Præferencer</string>
+    <string name="session_xserver_pref_output">Output</string>
+    <string name="session_xserver_pref_pointer">Markør</string>
+    <string name="session_xserver_pref_kbd">Tastatur</string>
+    <string name="session_xserver_pref_other">Andet</string>
+    <string name="session_xserver_pref_version">Version</string>
+    <string name="session_xserver_use_dri3_description">Deaktivering kan rette grafiske fejl på visse enheder</string>
+    <string name="session_xserver_native_rendering">Native rendering</string>
+    <string name="session_xserver_native_rendering_enabled">DRI3 hardware-rendering</string>
+    <string name="session_xserver_native_rendering_disabled">Software WSI-fallback</string>
+    <string name="session_xserver_native_rendering_enabled_toast">Native rendering aktiveret (træder i kraft ved næste start)</string>
+    <string name="session_xserver_native_rendering_disabled_toast">Native rendering deaktiveret (træder i kraft ved næste start)</string>
+    <string name="session_xserver_notification_description">Winlator XServer-beskeder</string>
 
-    <!-- Orientation -->
-    <string name="orientation_landscape">Landskab</string>
-    <string name="orientation_portrait">Portræt</string>
-	<string name="orientation_rev_landscape">Omvendt landskab</string>
-    Uspecificeret<string name="orientation_rev_portrait">Omvendt portræt</string>
-    <string name="orientation_unspecified">Uspecificeret</string>
+    <!-- Session > Drawer Menu -->
+    <string name="session_drawer_keyboard">Tastatur</string>
+    <string name="session_drawer_toggle_fullscreen">Skift fuldskærm</string>
+    <string name="session_drawer_show_touchscreen_controls">Vis touchskærmkontroller</string>
+    <string name="session_drawer_magnifier">Forstørrelsesglas</string>
+    <string name="session_drawer_logs">Logfiler</string>
+    <string name="session_drawer_pip_mode">PiP-tilstand</string>
+    <string name="session_drawer_toggle_relative_mouse">Skift relativ musebevægelse</string>
+    <string name="session_drawer_toggle_mouse">Skift mus</string>
+    <string name="session_drawer_pause_resume">Pause/Genoptag</string>
+    <string name="session_drawer_keyboard_subtitle">Åbn softwaretastaturet</string>
+    <string name="session_drawer_input_controls_subtitle">Konfigurer eller skift skærmkontroller</string>
+    <string name="session_drawer_relative_mouse_movement">Relativ musebevægelse</string>
+    <string name="session_drawer_mouse_input">Museinput</string>
+    <string name="session_drawer_screen_effects_subtitle">Farve-, CRT-, FXAA- og shader-indstillinger</string>
+    <string name="session_drawer_fullscreen_subtitle">Skift fuldskærmsrendering</string>
+    <string name="session_drawer_picture_in_picture">Billede-i-billede</string>
+    <string name="session_drawer_pip_subtitle">Formindsk spillet til et flydende vindue</string>
+    <string name="session_drawer_task_manager_subtitle">Inspicer og administrer kørende processer</string>
+    <string name="session_drawer_magnifier_subtitle">Zoom ind på skærmen</string>
+    <string name="session_drawer_logs_subtitle">Åbn Wine- og Box64-logfiler</string>
+    <string name="session_drawer_exit_subtitle">Luk den kørende session</string>
+    <string name="session_drawer_touchscreen_overlay">Touchskærm-overlay</string>
+    <string name="session_drawer_resume">Genoptag</string>
+    <string name="session_drawer_pause">Pause</string>
+    <string name="session_drawer_wine_processes_paused">Wine-processer er sat på pause</string>
+    <string name="session_drawer_pause_all_wine_processes">Sæt alle Wine-processer på pause</string>
 
-    <!-- Toast -->
-	<string name="toast_container_reset_verify">Er du sikker? Langt klik igen for at bekræfte</string>
-    <string name="toast_containers_reset">Nulstilling af beholdere</string>
-    <string name="toast_failed_crash_save">Kunne ikke gemme crashlog på destinationen</string>
-    <string name="toast_failed_log_save">Kunne ikke gemme logcat på destinationen</string>
-    <string name="toast_settings_activate">Lang klik for at aktivere</string>
+    <!-- Session > Task Manager -->
+    <string name="session_task_confirm_end_process">Vil du afslutte denne proces?</string>
+    <string name="session_task_title">Jobliste</string>
+    <string name="session_task_process_name">Procesnavn</string>
+    <string name="session_task_pid">PID</string>
+    <string name="session_task_memory">Hukommelse</string>
+    <string name="session_task_end_process">Afslut proces</string>
+    <string name="session_task_new_task">Ny opgave</string>
+    <string name="session_task_processes">Processer</string>
+    <string name="session_task_bring_to_front">Bring til forgrunden</string>
+    <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
 
-    <!-- Snack -->
-    <string name="snack_permissions_needed">Tilladelse er nødvendig for at få adgang til eksternt lager</string>
+    <!-- Session > Screen Effects -->
+    <string name="session_effects_brightness">Lysstyrke</string>
+    <string name="session_effects_contrast">Kontrast</string>
+    <string name="session_effects_gamma">Gamma</string>
+    <string name="session_effects_color_adjustment">Farvejustering</string>
+    <string name="session_effects_enable_fxaa">Aktiver FXAA</string>
+    <string name="session_effects_enable_crt_shader">Aktiver CRT-shader</string>
+    <string name="session_effects_confirm_add_profile">Vil du tilføje en ny profil?</string>
+    <string name="session_effects_default_profile">Standardprofil</string>
+    <string name="session_effects_title">Skærmeffekter</string>
+    <string name="session_effects_enable_toon_shader">Aktiver Toon-shader</string>
+    <string name="session_effects_enable_ntsc_effect">Aktiver NTSC-effekt</string>
+    <string name="session_effects_post_processing">Efterbehandling</string>
+    <string name="session_effects_profile_selection">Profilvalg</string>
 
-    <!-- Settings -->
-    <string name="settings_allowed_orientations_subtitle">Vælg, hvilke retninger der kan roteres til, når du er i spillet</string>
-    <string name="settings_allowed_orientations_title">Tilladte orienteringer</string>
-    <string name="settings_app_palette_subtitle">Skift Material Design 3-farvepaletten</string>
-    <string name="settings_app_palette_title">Palette stil</string>
-    <string name="settings_app_theme_subtitle">Vælg mellem Dag, Nat eller Auto</string>
-    <string name="settings_app_theme_title">App-tema</string>
-    <string name="settings_box64_presets_subtitle">Se, rediger og opret Box64-indstillinger</string>
-    <string name="settings_box64_presets_title">Box64 indstillinger</string>
-    <string name="settings_broadcast_game_subtitle">Giv Steam besked om, at du spiller et spil. Dette gør dig grøn</string>
-    <string name="settings_broadcast_game_title">Vis spille spil</string>
-    <string name="settings_clear_db_subtitle">[Lukker app] Kan hjælpe med at løse problemer med bibliotekselementer eller meddelelser.</string>
-    <string name="settings_clear_db_title">Ryd lokal database</string>
-    <string name="settings_clear_pref_subtitle">[Lukker app] Logger klienten ud og sletter lokale præferencedata.</string>
-    <string name="settings_clear_pref_title">Ryd præferencer</string>
-    <string name="settings_default_crash_filename">Intet filnavn</string>
-    <string name="settings_default_crash_message">Kunne ikke læse crashlog.</string>
-    <string name="settings_group_debug">Fejlretning</string>
-    <string name="settings_group_emulation">Emulering</string>
-    <string name="settings_group_info">Info</string>
-    <string name="settings_group_interface">Grænseflade</string>
-    <string name="settings_modify_default_config_subtitle">De indledende containerindstillinger for hvert spil (påvirker ikke allerede installerede spil)</string>
-    <string name="settings_modify_default_config_title">Rediger standardkonfiguration</string>
-    <string name="settings_reset_containers_subtitle">Dette vil slette containeren, standard containerindstillinger og alle containerindstillinger pr. spil.</string>
-    <string name="settings_reset_containers_title">Fjern og nulstil ALLE beholdere</string>
-    <string name="settings_reset_image_cache_subtitle">Fjern alle ISOer, der blev indlæst.</string>
-    <string name="settings_reset_image_cache_title">Ryd isocache</string>
-    <string name="settings_save_logcat_subtitle">Gemmer kun et øjebliksbillede af logcat for denne app\'s PID</string>
-    <string name="settings_save_logcat_title">Gem logcat</string>
-    <string name="settings_show_libraries_subtitle">Se hvilke teknologier der gør Pluvia mulig</string>
-    <string name="settings_show_libraries_title">Brugte biblioteker</string>
-    <string name="settings_show_privacy_subtitle">Åbner et link til Pluvias privatlivspolitik</string>
-    <string name="settings_show_privacy_title">Privatlivspolitik</string>
-    <string name="settings_show_source_subtitle">Se kildekoden til dette projekt</string>
-    <string name="settings_show_source_title">Kildekode</string>
-    <string name="settings_show_tip_subtitle">Deaktiver for at stoppe tipmeddelelsen i at blive vist</string>
-    <string name="settings_show_tip_title">Bed om drikkepenge ved opstart</string>
-    <string name="settings_start_destination_subtitle">Vælg mellem bibliotek, downloads eller venner</string>
-    <string name="settings_start_destination_title">Start Destination</string>
-    <string name="settings_tip_subtitle">Bidrage til den løbende udvikling</string>
-    <string name="settings_tip_title">Send tip</string>
-    <string name="settings_view_logcat_subtitle">Viser den seneste crash-log</string>
-    <string name="settings_view_logcat_subtitle_alt">Der blev ikke fundet nogen nylige crashlogs</string>
-    <string name="settings_view_logcat_title">Se seneste nedbrud</string>
-    <string name="settings_web_links_subtitle">Links åbnes med din primære webbrowser</string>
-    <string name="settings_web_links_title">Åbn weblinks eksternt</string>
+    <!-- Session > Display -->
+    <string name="session_display_show_fps">Vis FPS</string>
+    <string name="session_display_orientation">Orientering</string>
+    <string name="session_display_horizontal">Vandret</string>
+    <string name="session_display_vertical">Lodret</string>
+    <string name="session_display_columns">Kolonner</string>
+    <string name="session_display_frame_rate">Billedhastighed</string>
+    <string name="session_display_title">Skærm</string>
+    <string name="session_display_fullscreen_stretched">Aktiver fuldskærm (strakt)</string>
+    <string name="session_display_fps_label">FPS:</string>
+    <string name="session_display_renderer_label">Renderer:</string>
+    <string name="session_display_gpu_label">GPU:</string>
+    <string name="session_display_ram_label">RAM:</string>
+    <string name="session_display_ram_usage_format">%1$s GB brugt / %2$s total</string>
 
-    <!-- Container -->
-    <string name="container_audio_driver">Audio Driver</string>
-    <string name="container_box64_version">Box64 Version</string>
-    <string name="container_direct_input">DirectInput</string>
-    <string name="container_dxvk_wrapper">DX Wrapper</string>
-    <string name="container_enable_csmt">Aktiver CSMT (Command Stream Multi-Thread)</string>
-    <string name="container_enable_strict_shader">Aktiver Strict Shader Math</string>
-    <string name="container_gpu_driver">Graphics Driver</string>
-    <string name="container_gpu_name">GPU Navn</string>
-    <string name="container_group_drives">Drives</string>
-    <string name="container_group_env_vars">Miljøvariabler</string>
-    <string name="container_group_launch_options">Startindstillinger</string>
-    <string name="container_group_win_components">Win Components</string>
-    <string name="container_group_wine_config">Wine Konfiguration</string>
-    <string name="container_mouse_warp">Mouse Warp Tilsidesæt</string>
-    <string name="container_no_drives">Ingen drev</string>
-    <string name="container_no_env_variables">Ingen miljøvariabler</string>
-    <string name="container_no_more_variables">Ikke flere kendte variable</string>
-    <string name="container_offscreen_rendering_mode">Offscreen-gengivelsestilstand</string>
-    <string name="container_proc_affinity">Processor Affinity</string>
-    <string name="container_proc_affinity_32">Processor Affinity (32-bit apps)</string>
-    <string name="container_screen_size">Skærmstørrelse</string>
-    <string name="container_show_fps">Vis FPS</string>
-    <string name="container_startup_selection">Opstartsvalg</string>
-    <string name="container_video_memory_size">Videohukommelsesstørrelse</string>
-    <string name="container_wined3d">WineD3D</string>
-    <string name="container_cpu_item">CPU%1$d</string>
+    <!-- Session > Gamepad -->
+    <string name="session_gamepad_confirm_remove_controller">Vil du fjerne denne controller?</string>
+    <string name="session_gamepad_external_controllers">Eksterne controllere</string>
+    <string name="session_gamepad_press_any_button">Tryk på en vilkårlig knap på din controller</string>
+    <string name="session_gamepad_bindings">bindinger</string>
+    <string name="session_gamepad_control_bindings">Kontrolbindinger</string>
+    <string name="session_gamepad_game_controller">Spilcontroller</string>
+    <string name="session_gamepad_as_button">Er knap</string>
+    <string name="session_gamepad_as_axis">Er akse</string>
+    <string name="session_gamepad_trigger_type">Type</string>
+    <string name="session_gamepad_help_trigger_mode">Afhænger af din &lt;b&gt;fysiske controller&lt;/b&gt;:&lt;br/&gt;&lt;br/&gt;&#x2022; &lt;b&gt;Er akse&lt;/b&gt; — trigger har et lineært bevægelsesområde&lt;br/&gt;&#x2022; &lt;b&gt;Er knap&lt;/b&gt; — trigger fungerer som en simpel kontakt&lt;br/&gt;&lt;br/&gt;&lt;i&gt;Bemærk: at bruge Er knap med en lineær trigger mister analoge data.&lt;/i&gt;
+    </string>
+    <string name="session_gamepad_button_a">Knap A</string>
+    <string name="session_gamepad_button_b">Knap B</string>
+    <string name="session_gamepad_button_x">Knap X</string>
+    <string name="session_gamepad_button_y">Knap Y</string>
+    <string name="session_gamepad_button_grip">Greb-knap</string>
+    <string name="session_gamepad_button_trigger">Trigger-knap</string>
+    <string name="session_gamepad_thumbstick_left">Thumbstick venstre</string>
+    <string name="session_gamepad_thumbstick_right">Thumbstick højre</string>
+    <string name="session_gamepad_thumbstick_up">Thumbstick op</string>
+    <string name="session_gamepad_thumbstick_down">Thumbstick ned</string>
+    <string name="session_gamepad_configure_analog_sticks">Konfigurer analoge sticks</string>
+    <string name="session_gamepad_left_stick">Venstre stick</string>
+    <string name="session_gamepad_right_stick">Højre stick</string>
+    <string name="session_gamepad_controller_manager">Controller-manager</string>
+    <string name="session_gamepad_player_1">Spiller 1</string>
+    <string name="session_gamepad_player_2">Spiller 2</string>
+    <string name="session_gamepad_player_3">Spiller 3</string>
+    <string name="session_gamepad_player_4">Spiller 4</string>
+    <string name="session_gamepad_not_assigned">Ikke tildelt</string>
+    <string name="session_gamepad_assign">Tildel</string>
+    <string name="session_gamepad_press_any_button_for_player">Tryk på en vilkårlig knap på controlleren for</string>
+    <string name="session_gamepad_vibrate">Vibration</string>
+    <string name="session_gamepad_macros_hint">Skift knapper for at aktivere autofire.</string>
+    <string name="session_gamepad_macros">Makroer</string>
+    <string name="session_gamepad_include_triggers_note">Anvend også turbo på L2/R2 som digitale tryk</string>
+    <string name="session_gamepad_square_deadzone">Firkantet dødzone</string>
+    <string name="session_gamepad_invert_x">Inverter X</string>
+    <string name="session_gamepad_invert_y">Inverter Y</string>
+    <string name="session_gamepad_save_profile">Gem profil</string>
+    <string name="session_gamepad_load_profile">Indlæs profil</string>
+    <string name="session_gamepad_button_start">Knap Start</string>
+    <string name="session_gamepad_button_select">Knap Select</string>
+    <string name="session_gamepad_button_l1">Knap L1</string>
+    <string name="session_gamepad_button_r1">Knap R1</string>
+    <string name="session_gamepad_button_l2">Knap L2</string>
+    <string name="session_gamepad_button_r2">Knap R2</string>
+    <string name="session_gamepad_button_l3">Knap L3</string>
+    <string name="session_gamepad_button_r3">Knap R3</string>
+    <string name="session_gamepad_dpad_up">D-pad op</string>
+    <string name="session_gamepad_dpad_down">D-pad ned</string>
+    <string name="session_gamepad_dpad_left">D-pad venstre</string>
+    <string name="session_gamepad_dpad_right">D-pad højre</string>
+    <string name="session_gamepad_overwrite">Overskriv</string>
+    <string name="session_gamepad_save_as_new">Gem som ny</string>
+    <string name="session_gamepad_overwrite_profile_message">Vil du overskrive den nuværende profil eller gemme som en ny profil?</string>
+    <string name="session_gamepad_enter_profile_name">Indtast profilnavn</string>
+    <string name="session_gamepad_mappings_saved">Mappings gemt!</string>
+    <string name="session_gamepad_profile_saved">Profil gemt!</string>
+    <string name="session_gamepad_profile_saved_as_new">Profil gemt som ny!</string>
+    <string name="session_gamepad_profile_loaded">Profil indlæst!</string>
+    <string name="session_gamepad_profile_name_empty">Profilnavn kan ikke være tomt</string>
+    <string name="session_gamepad_no_profiles">-- Ingen profiler --</string>
+    <string name="session_gamepad_error_loading_profile">Fejl ved indlæsning af profil</string>
 
-    <!-- Friends List Sticky Item Headers -->
-    <string name="friend_sticky_game">I Spil</string>
-    <string name="friend_sticky_offline">Offline</string>
-    <string name="friend_sticky_online">Online</string>
-    <string name="friend_sticky_request">Venneanmodning</string>
+    <!-- Session > Gyroscope -->
+    <string name="session_gyroscope_title">Gyroskop</string>
+    <string name="session_gyroscope_calibrate">Kalibrer gyroskop</string>
+    <string name="session_gyroscope_enable_right_stick">Aktiver gyroskopisk bevægelse for højre stick</string>
+    <string name="session_gyroscope_activator_button">Gyroskop-aktiveringsknap</string>
+    <string name="session_gyroscope_hold">Hold</string>
+    <string name="session_gyroscope_toggle">Skift</string>
+    <string name="session_gyroscope_x_sensitivity">X-akse følsomhed</string>
+    <string name="session_gyroscope_y_sensitivity">Y-akse følsomhed</string>
+    <string name="session_gyroscope_smoothing">Udjævning</string>
+    <string name="session_gyroscope_invert_x">Inverter X-akse</string>
+    <string name="session_gyroscope_invert_y">Inverter Y-akse</string>
+    <string name="session_gyroscope_filtering">Filtrering</string>
+    <string name="session_gyroscope_deadzone">Dødzone</string>
+    <string name="session_gyroscope_sensitivity">Følsomhed</string>
+    <string name="session_gyroscope_direction">Retning</string>
+    <string name="session_gyroscope_mode">Gyroskop-aktiveringstilstand</string>
+    <string name="session_gyroscope_target_stick">Anvend gyro på</string>
+    <string name="session_gyroscope_enable_stick">Aktiver gyroskopisk bevægelse for analog stick</string>
+    <string name="session_gyroscope_reset_stick">Nulstil stick</string>
+    <string name="session_gyroscope_reset_stick_to_center">Nulstil stick til centrum</string>
+    <string name="session_gyroscope_configuration">Gyroskop-konfiguration</string>
+    <string name="session_gyroscope_x_sensitivity_format">X-følsomhed: %1$d%%</string>
+    <string name="session_gyroscope_y_sensitivity_format">Y-følsomhed: %1$d%%</string>
+    <string name="session_gyroscope_smoothing_format">Udjævning: %1$d%%</string>
+    <string name="session_gyroscope_deadzone_format">Dødzone: %1$d%%</string>
+    <string name="session_gyroscope_sensitivity_format">Følsomhed: %1$d%%</string>
 
-    <!-- Library Selected App Game Info -->
-    <string name="game_info_controller">Controller Support:</string>
-    <string name="game_info_developer">Udvikler:</string>
-    <string name="game_info_publisher">Forlægger:</string>
-    <string name="game_info_release">Udgivelsesdato:</string>
+    <!-- Settings > General -->
+    <string name="settings_general_cursor_speed">Markørhastighed</string>
+    <string name="settings_general_theme">Tema</string>
+    <string name="settings_general_background">Baggrund</string>
+    <string name="settings_general_title">Generelt</string>
+    <string name="settings_general_enable_file_provider">Aktiver filudbyder</string>
+    <string name="settings_general_take_effect_next_startup">Denne indstilling træder i kraft ved næste opstart.</string>
+    <string name="settings_general_imagefs">Imagefs</string>
+    <string name="settings_general_reinstall_imagefs">Geninstaller Imagefs</string>
+    <string name="settings_general_confirm_reinstall_imagefs">Vil du geninstallere imagefs? Denne handling gendanner systemfiler, dine containere ændres ikke.</string>
+    <string name="settings_general_refresh_rate">Opdateringshastighed</string>
+    <string name="settings_general_refresh_rate_auto_max">Maks</string>
+    <string name="settings_general_refresh_rate_summary">Indstil skærmens opdateringshastighed og DXVK-billedgrænse</string>
+    <string name="settings_general_help_file_provider">
+        &lt;i&gt;&lt;b&gt;Filudbyder&lt;/b&gt;&lt;/i&gt; giver adgang til Winlators interne data gennem Android-filhåndtering.&lt;br/&gt;&lt;br/&gt;
+    </string>
+    <string name="settings_general_touchscreen_timeout">Touchskærm-timeout (kræver genstart)</string>
+    <string name="settings_general_touchscreen_haptics">Aktiver haptisk feedback for touchskærm</string>
+    <string name="settings_general_open_with_android_browser">Åbn Android-browser i Wine</string>
+    <string name="settings_general_share_android_clipboard">Del Android-udklipsholder med Wine</string>
+    <string name="settings_general_paths_title">Sti-indstillinger</string>
+    <string name="settings_general_paths_summary">Administrer hvor Winlator gemmer sine arbejdsdata og hvor eksporterede genveje skrives.</string>
+    <string name="settings_general_winlator_path_title">Winlator-sti</string>
+    <string name="settings_general_shortcut_export_path_title">Genvejs-eksportsti</string>
+    <string name="settings_general_choose_path">Vælg sti</string>
+    <string name="settings_general_xserver_cursor_summary">Juster markørhastighed for touch, trackpad og museinput i XServer-sessionen.</string>
+    <string name="settings_general_cursor_lock_title">Ægte musekontrol</string>
+    <string name="settings_general_cursor_lock_summary">Holder direkte museopfangning aktiveret for spil der kræver rå markørinput. Deaktiver med Lydstyrke ned.</string>
+    <string name="settings_general_xinput_toggle_title">Deaktiver XInput</string>
+    <string name="settings_general_xinput_toggle_summary">Slår XInput-håndtering fra når du ønsker eksklusiv mus- og tastaturkontrol.</string>
+    <string name="settings_general_file_provider_summary">Gør Winlator-filer tilgængelige for Android-dokumentvælgere og filhåndtering.</string>
+    <string name="settings_general_open_browser_summary">Åbn understøttede weblinks i Android-browseren i stedet for inde i Wine.</string>
+    <string name="settings_general_clipboard_summary">Tillad kopiering og indsættelse mellem Android og Wine-sessioner.</string>
+    <string name="settings_general_imagefs_summary">Gendan medfølgende systemfiler uden at fjerne dine eksisterende containere.</string>
 
-    <!-- Library Selected App Controller Support -->
-    <string name="controller_none">Ingen</string>
-    <string name="controller_partial">Delvis</string>
-    <string name="controller_full">Fuldt</string>
+    <!-- Settings > Audio -->
+    <string name="settings_audio_midi_sound_font">MIDI SoundFont</string>
+    <string name="settings_audio_sound">Lyd</string>
+    <string name="settings_audio_confirm_remove_sound_font">Vil du fjerne denne SoundFont?</string>
+    <string name="settings_audio_sound_font_removed_success">SoundFont fjernet!</string>
+    <string name="settings_audio_sound_font_removed_failed">Fjernelse af SoundFont mislykkedes!</string>
+    <string name="settings_audio_sound_font_installed_success">SoundFont installeret!</string>
+    <string name="settings_audio_sound_font_installed_failed">Installation af SoundFont mislykkedes!</string>
+    <string name="settings_audio_sound_font_already_exist">Den SoundFont du vil installere eksisterer allerede.</string>
+    <string name="settings_audio_unable_to_install_soundfont">Kan ikke installere SoundFont</string>
+    <string name="settings_audio_installing_soundfont">Installerer SoundFont…</string>
+    <string name="settings_audio_sound_font_bad_format">Forkert SoundFont-format.</string>
+    <string name="settings_audio_cannot_remove_default">Kan ikke fjerne standard-SoundFont</string>
+    <string name="settings_audio_summary">Installer, fjern og vælg den SoundFont der bruges til MIDI-afspilning.</string>
 
-    <!-- Chat -->
-    <string name="chat_input_placeholder">Send en besked</string>
-    <string name="chat_no_history">Ingen chathistorik</string>
-    <string name="chat_preview_message">Chat er stadig en tidlig funktion.\nRapportér venligst eventuelle problemer i projektets repo.</string>
-    <string name="chat_text_quoted">Oprindeligt indsendt af %1$s:\n</string>
-    <string name="chat_emoticons">Humørikoner</string>
-    <string name="chat_stickers">Klistermærker</string>
+    <!-- Settings > Debug -->
+    <string name="settings_debug_wine_debug_channel">Wine Debug-kanal</string>
+    <string name="settings_debug_title">Fejlfinding</string>
+    <string name="settings_debug_wine_logs_title">Aktiver Wine-fejllogfiler</string>
+    <string name="settings_debug_wine_logs_subtitle">Skriv Wine-fejloutput til fil</string>
+    <string name="settings_debug_box_logs_title">Aktiver Box86/64-logfiler</string>
+    <string name="settings_debug_box_logs_subtitle">Skriv Box86 &amp; Box64-fejloutput til fil</string>
+    <string name="settings_debug_fex_logs_title">Aktiver FEXCore-logfiler</string>
+    <string name="settings_debug_fex_logs_subtitle">Skriv FEXCore-fejloutput til fil</string>
+    <string name="settings_debug_steam_logs_title">Aktiver Steam-logfiler</string>
+    <string name="settings_debug_steam_logs_subtitle">Log Steam-godkendelses- og sessionshændelser til fejlfinding.</string>
+    <string name="settings_debug_wine_channels_title">Wine Debug-kanaler</string>
+    <string name="settings_debug_wine_channels_summary">Vælg hvilke Wine-kanaler der medtages når Wine-fejllogning er aktiveret.</string>
+    <string name="settings_debug_input_logs">Input-logfiler</string>
+    <string name="settings_debug_input_logs_description">Log gamepad-, touch- og tastaturinputhændelser</string>
+    <string name="settings_debug_download_logs">Download-logfiler</string>
+    <string name="settings_debug_download_logs_description">Log download-resolver og WinNative-fallback-hændelser</string>
+    <string name="settings_debug_share_logs">Del logfiler</string>
 
-    <!-- Friend -->
-    <string name="friend_add_favorite">Føj til favoritter</string>
-    <string name="friend_block">Bloker ven</string>
-    <string name="friend_no_selection">Vælg en ven til deres profil</string>
-    <string name="friend_playing_game">Spiller: %1$s</string>
-    <string name="friend_playing_game_id">Spiller: %1$d</string>
-    <string name="friend_profile_city">By: %1$s</string>
-    <string name="friend_profile_country">Land: %1$s</string>
-    <string name="friend_profile_created">Oprettet: %1$s</string>
-    <string name="friend_profile_name">Navn: %1$s</string>
-    <string name="friend_profile_private">Profil højst sandsynligt privat.\nKan ikke hente oplysninger</string>
-    <string name="friend_profile_state">Stat: %1$s</string>
-    <string name="friend_profile_summary">Oversigt:</string>
-    <string name="friend_remove">Fjern ven</string>
-    <string name="friend_set_alerts">Indstil advarsler</string>
-    <string name="friend_set_nickname">Indstil kaldenavn</string>
-    <string name="friend_shared_game">Familie Delt Spil</string>
-    <string name="friend_view_aliases">Se aliaser</string>
+    <!-- Settings > Content Packages -->
+    <string name="settings_content_install">Installer indhold</string>
+    <string name="settings_content_type">Indholdstype</string>
+    <string name="settings_content_components">Komponenter</string>
+    <string name="settings_content_install_confirm_message">Installer kun betroede pakker. Disse filer kan indeholde eksekverbart indhold og kan påvirke din enhed eller data.
 
-    <!-- Status -->
-    <string name="status_away">Væk</string>
-    <string name="status_invisible">Usynlig</string>
-    <string name="status_online">Online</string>
+Understøttede pakker bruger .wcp-udvidelsen og er komprimeret som xz eller zst.</string>
+    <string name="settings_content_unable_to_install">Kan ikke installere indhold.</string>
+    <string name="settings_content_install_failed">Installation mislykkedes</string>
+    <string name="settings_content_file_cannot_be_recognized">Filen kan ikke genkendes.</string>
+    <string name="settings_content_profile_not_found">Profil ikke fundet i indhold.</string>
+    <string name="settings_content_profile_cannot_be_recognized">Profil kan ikke genkendes</string>
+    <string name="settings_content_info">Indholdsinfo</string>
+    <string name="settings_content_version_code">Versionskode</string>
+    <string name="settings_content_file_list">Filliste</string>
+    <string name="settings_content_install_directory">Installationsmappe</string>
+    <string name="settings_content_installed_success">Indhold installeret!</string>
+    <string name="settings_content_downloading_title">Downloader indhold</string>
+    <string name="settings_content_installing_title">Installerer indhold</string>
+    <string name="settings_content_extracting_title">Udpakker indhold</string>
+    <string name="settings_content_extracting_detail">Udpakker… (%1$d filer)</string>
+    <string name="settings_content_preparing_package">Forbereder pakke…</string>
+    <string name="settings_content_download_complete">Download fuldført</string>
+    <string name="settings_content_conflicting_title">Modstridende indhold installeret</string>
+    <string name="settings_content_conflicting_message">Afinstaller venligst det modstridende indhold før du downloader denne pakke.
 
-    <!-- Search -->
-    <string name="search_text_placeholder">Søg efter spil</string>
+Installeret sti:
+%1$s</string>
+    <string name="settings_content_cannot_be_trusted">Indholdet kan ikke betros.</string>
+    <string name="settings_content_is_incomplete">Indholdet er ufuldstændigt.</string>
+    <string name="settings_content_untrusted_files_warning">Advarsel: Det ekstra indhold indeholder upålidelige filer. Generelt bør følgende filer ikke ændres. Beslut venligst om du vil fortsætte med installationen.</string>
+    <string name="settings_content_confirm_remove">Vil du fjerne dette indhold?</string>
+    <string name="settings_content_unable_to_remove_in_use">Kan ikke fjerne dette indhold, fordi en container bruger denne Wine.</string>
+    <string name="settings_content_download_in_components">Ingen downloadet. Download venligst en i Komponenter.</string>
+    <string name="settings_content_types_header">INDHOLDSTYPER</string>
 
-    <!-- Game Item -->
-    <string name="games_played_forever">Samlet spilletid: %1$s timer</string>
-    <string name="games_played_two_weeks">Spilletid sidste 2 uger: %1$s timer</string>
+    <!-- Settings > Drivers -->
+    <string name="settings_drivers_title">Drivere</string>
+    <string name="settings_drivers_manager_header">Driver-manager</string>
+    <string name="settings_drivers_github_repos">GitHub-repos</string>
+    <string name="settings_drivers_install">Installer drivere</string>
+    <string name="settings_drivers_installed_success">Driver installeret.</string>
+    <string name="settings_drivers_install_failed">Kunne ikke installere driver.</string>
+    <string name="settings_drivers_confirm_remove">Vil du fjerne denne driver?</string>
+    <string name="settings_drivers_repo_tap_to_load">Tryk for at indlæse udgivelser</string>
+    <string name="settings_drivers_repo_loading_releases">Indlæser udgivelser…</string>
+    <string name="settings_drivers_repo_release_count">%1$d udgivelser indlæst</string>
+    <string name="settings_drivers_repo_no_release_assets">Ingen downloadbare ZIP-filer blev fundet i de hentede udgivelser.</string>
+    <string name="settings_drivers_repo_fetch_failed">Kunne ikke indlæse GitHub-udgivelser.</string>
+    <string name="settings_drivers_repo_download_failed">Download mislykkedes.</string>
+    <string name="settings_drivers_repo_no_version">Version ikke tilgængelig</string>
+    <string name="settings_drivers_repo_unknown_size">Ukendt størrelse</string>
+    <string name="settings_drivers_manager">Driver-manager</string>
 
-    <!-- XServer -->
-    <string name="xserver_no_game_name">dit spil</string>
+    <!-- Setup > Wizard -->
+    <string name="setup_wizard_installing_system_files">Installerer systemfiler…</string>
+    <string name="setup_wizard_unable_to_install_system_files">Kan ikke installere systemfiler</string>
+    <string name="setup_wizard_system_image_not_installed">Systemimage ikke installeret. Installer venligst komponenter først.</string>
+    <string name="setup_wizard_recommended_components">Anbefalede komponenter</string>
+    <string name="setup_wizard_step_format">Trin %1$d af %2$d</string>
+    <string name="setup_wizard_allow_file_access">Tillad fuld filadgang</string>
+    <string name="setup_wizard_install_system_files">Installer systemfiler</string>
+    <string name="setup_wizard_recommended_components_description">Anbefalede komponenter downloader og installerer de understøttede DXVK-, VKD3D-, FEX-, Box64- og Wowbox64-pakker automatisk.</string>
+    <string name="setup_wizard_each_button_downloads_description">Hver knap downloader pakken, installerer den og opretter dens standardcontainer automatisk.</string>
+    <string name="setup_wizard_recommended_x86_64">Anbefalet x86-64</string>
+    <string name="setup_wizard_recommended_arm64ec">Anbefalet ARM64EC</string>
+    <string name="setup_wizard_choose_components_description">Vælg hvilke komponenter der skal installeres. Wine/Proton opretter automatisk en container.</string>
+    <string name="setup_wizard_loading_components">Indlæser komponenter\u2026</string>
+    <string name="setup_wizard_no_components_available">Ingen komponenter tilgængelige for denne kategori.</string>
+    <string name="setup_wizard_default_settings">Standardindstillinger</string>
+    <string name="setup_wizard_containers_description">Åbn hver container og indstil de standarder du ønsker at alle nye spil skal arve. Nye spil vil som standard bruge x86-64-containeren.</string>
+    <string name="setup_wizard_store_sign_in_optional">Butikslogin er valgfrit. Hvert login vender tilbage hertil når det er færdigt.</string>
+    <string name="setup_wizard_granted">Givet</string>
+    <string name="setup_wizard_grant">Giv</string>
+    <string name="setup_wizard_denied">Afvist</string>
+    <string name="setup_wizard_allow">Tillad</string>
+    <string name="setup_wizard_installing">Installerer</string>
+    <string name="setup_wizard_required_access">Påkrævet adgang</string>
+    <string name="setup_wizard_select_components">Vælg komponenter</string>
+    <string name="setup_wizard_recommended_wine_proton">Anbefalet Wine / Proton</string>
+    <string name="setup_wizard_advanced_setup">Avanceret opsætning</string>
+    <string name="setup_wizard_title">Opsætningsguide</string>
+    <string name="setup_wizard_advanced_user">Avanceret bruger</string>
+    <string name="setup_wizard_next">Næste</string>
+    <string name="setup_wizard_finish">Afslut</string>
+    <string name="setup_wizard_download_and_install">Download + Installer</string>
+    <string name="setup_wizard_open_drivers">Åbn drivere</string>
+    <string name="setup_wizard_ready">Klar</string>
+    <string name="setup_wizard_download_and_create">Download + Opret</string>
+    <string name="setup_wizard_configured">Konfigureret</string>
 
-    <!-- Login -->
-    <string name="login_fab_credential">Log ind med legitimationsoplysninger</string>
-    <string name="login_fab_qr">QR Log ind</string>
-    <string name="login_footer">Pluvia er en uofficiel Steam™-klient.\n</string>
-    <string name="login_privacy_policy">Privatlivspolitik</string>
-    <string name="login_remember_session">Husk Mig</string>
+    <!-- Steam > Login -->
+    <string name="steam_login_auth_webview_title">Godkendelse</string>
+    <string name="steam_login_sign_in_to_your_account">Log ind på din konto</string>
+    <string name="steam_login_username">Brugernavn</string>
+    <string name="steam_login_password">Adgangskode</string>
+    <string name="steam_login_invalid_username_or_password">Ugyldigt brugernavn eller adgangskode</string>
+    <string name="steam_login_remember_me">Husk mig</string>
+    <string name="steam_login_sign_in_with_qr_code">Log ind med QR-kode</string>
+    <string name="steam_login_open_steam_app_qr_hint">Åbn Steam-appen → tryk på QR-ikonet</string>
+    <string name="steam_login_failed_to_load_qr_code">Kunne ikke indlæse QR-kode</string>
+    <string name="steam_login_retry">Prøv igen</string>
+    <string name="steam_login_generating_code">Genererer kode\u2026</string>
+    <string name="steam_login_two_factor_auth">Tofaktor-godkendelse</string>
+    <string name="steam_login_approve_login_steam_app">Godkend dette login fra\ndin Steam-mobilapp</string>
+    <string name="steam_login_enter_code_sent_to">Indtast koden sendt til\n%1$s</string>
+    <string name="steam_login_enter_steam_guard_code">Indtast din Steam Guard-kode</string>
+    <string name="steam_login_code">Kode</string>
 
-    <!-- Library -->
-    <string name="library_no_items">Ingen elementer angivet med valg</string>
-    <string name="library_no_selection">Vælg et element på listen for at se spiloplysninger</string>
+    <!-- Google > Cloud Sync -->
+    <string name="google_cloud_title">Skysynkronisering</string>
+    <string name="google_cloud_sync_started">Skysynkronisering startet.</string>
+    <string name="google_cloud_google">Google</string>
+    <string name="google_cloud_services">Google-tjenester</string>
+    <string name="google_cloud_play_games">Google Play Spil</string>
+    <string name="google_cloud_status_syncing">Synkroniserer</string>
+    <string name="google_cloud_status_connected">Forbundet</string>
+    <string name="google_cloud_status_not_signed_in">Ikke logget ind</string>
+    <string name="google_cloud_working">Arbejder\u2026</string>
+    <string name="google_cloud_sign_in">Log ind</string>
+    <string name="google_cloud_disable_sync">Deaktiver synkronisering</string>
+    <string name="google_cloud_store_logins">Butikslogins</string>
+    <string name="google_cloud_store_login_sync_busy">Arbejder på din butikslogin-synkronisering\u2026</string>
+    <string name="google_cloud_saved_games_unavailable">Google Gemte Spil ikke tilgængelig</string>
+    <string name="google_cloud_snapshot_ready">Sky-snapshot klar</string>
+    <string name="google_cloud_waiting_first_backup">Venter på første backup</string>
+    <string name="google_cloud_no_store_logins_detected">Ingen butikslogins fundet</string>
+    <string name="google_cloud_last_synced">Sidst synkroniseret %1$s</string>
+    <string name="google_cloud_backup">Sikkerhedskopi</string>
+    <string name="google_cloud_restore">Gendan</string>
+    <string name="google_cloud_sign_in_to_sync">Log ind på Google Play Spil for at synkronisere butikslogins.</string>
+    <string name="google_cloud_sign_in_failed">Google Play Spil-login mislykkedes.</string>
+    <string name="google_cloud_sign_in_finishing">Google Play Spil-login er stadig ved at afslutte. Vent et øjeblik og prøv skysynkronisering igen.</string>
+    <string name="google_cloud_connected_restore_available">Google Play Spil forbundet. Gendannelse er tilgængelig for %1$s.</string>
+    <string name="google_cloud_connected_tap_backup">Google Play Spil forbundet. Tryk Sikkerhedskopi for at gemme %1$s-logins.</string>
+    <string name="google_cloud_connected_ready">Google Play Spil forbundet. Sikkerhedskopi og gendannelse er klar.</string>
+    <string name="google_cloud_sync_disabled">Google Play Spil-synkronisering deaktiveret for denne app.</string>
+    <string name="google_cloud_sign_in_first">Log ind på Google Play Spil først.</string>
+    <string name="google_cloud_no_saved_logins_found">Ingen gemte butikslogins blev fundet i Google skysynkronisering.</string>
+    <string name="google_cloud_backup_already_matches">Sky-sikkerhedskopi matcher allerede de nuværende butikslogins.</string>
+    <string name="google_cloud_no_local_logins">Ingen lokale butikslogins er tilgængelige til sikkerhedskopiering.</string>
+    <string name="google_cloud_logins_restored_and_synced">Butikslogins gendannet og synkroniseret for %1$s.</string>
+    <string name="google_cloud_logins_restored">Butikslogins gendannet for %1$s.</string>
+    <string name="google_cloud_logins_backed_up">Butikslogins sikkerhedskopieret for %1$s.</string>
+    <string name="google_cloud_sync_ready">Butikslogin-synkronisering er klar.</string>
+    <string name="google_cloud_no_logins_to_sync">Ingen butikslogins tilgængelige til synkronisering endnu.</string>
+    <string name="google_cloud_sign_in_to_backup">Log ind for at sikkerhedskopiere %1$s login-tokens.</string>
+    <string name="google_cloud_no_backed_up_logins">Ingen sikkerhedskopierede butikslogins fundet endnu.</string>
+    <string name="google_cloud_local_cloud_differ">Lokale og sky-butikslogins er forskellige. Brug Sikkerhedskopi for at overskrive skydata eller Gendan for at hente de gemte tokens.</string>
+    <string name="google_cloud_local_ready_to_backup">Lokale butikslogins er klar til sikkerhedskopiering for %1$s.</string>
+    <string name="google_cloud_backup_ready">Butikslogin-sikkerhedskopiering er klar.</string>
+    <string name="google_cloud_restore_available">Sky-login-gendannelse er tilgængelig for %1$s.</string>
+    <string name="google_cloud_logins_synced">Butikslogins er synkroniseret med Google Play Spil.</string>
+    <string name="google_cloud_sync_problem">Butikslogin-synkronisering stødte på et problem.</string>
+    <string name="google_cloud_error_auth_needed">Google Play Spil skal afslutte godkendelsen før skysynkronisering kan få adgang til Gemte Spil. Åbn Play Spil-profilprompten hvis den vises, og prøv igen.</string>
+    <string name="google_cloud_error_developer">Google Play Spil Gemte Spil afviste denne build. Tjek Play Spil app-ID, tilknyttet pakkenavn og signeringscertifikat i Play Console.</string>
+    <string name="google_cloud_error_build_rejected">Google-konto er forbundet, men Google Play Spil Gemte Spil afviste denne build. Tjek Play Spil app-ID, tilknyttet pakke og signeringscertifikat.</string>
+    <string name="google_cloud_error_network">Google skysynkronisering mislykkedes fordi netværksanmodningen ikke blev fuldført, eller Google Play-tjenester kræver opmærksomhed.</string>
+    <string name="google_cloud_error_no_snapshot">Ingen gemte butikslogins blev fundet i Google skysynkronisering endnu.</string>
+    <string name="google_cloud_error_generic">Google skysynkronisering mislykkedes: %1$s</string>
+    <string name="google_cloud_error_before_open">Google skysynkronisering mislykkedes før Google Gemte Spil kunne åbne.</string>
+
+    <!-- Saves > Import and Export -->
+    <string name="saves_import_export_title">Gemmedata</string>
+    <string name="saves_import_export_confirm_selection">Bekræft valg</string>
+    <string name="saves_import_export_select_directory">Vælg din gemmedatamappe</string>
+    <string name="saves_import_export_up_directory">Op i mappe</string>
+    <string name="saves_import_export_select_container">Målcontainer:</string>
+    <string name="saves_import_export_exported">Gemmedata eksporteret</string>
+    <string name="saves_import_export_exported_failed">Kunne ikke eksportere gemmedata: %1$s</string>
+    <string name="saves_import_export_imported">Gemmedata importeret</string>
+    <string name="saves_import_export_imported_failed">Kunne ikke importere gemmedata: %1$s</string>
 
 </resources>
