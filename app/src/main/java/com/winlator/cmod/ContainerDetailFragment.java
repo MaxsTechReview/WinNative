@@ -101,7 +101,8 @@ public class ContainerDetailFragment extends Fragment {
             "startupSelection", "box64Version", "box64Preset", "fexcoreVersion", "fexcorePreset",
             "desktopTheme", "midiSoundFont", "lc_all",
             "launchRealSteam", "useLegacyDRM", "useSteamInput",
-            "steamType", "forceDlc", "steamOfflineMode", "unpackFiles"
+            "steamType", "forceDlc", "steamOfflineMode", "unpackFiles",
+            "execArgs"
     };
 
     private ContainerManager manager;
@@ -586,6 +587,7 @@ public class ContainerDetailFragment extends Fragment {
         if (valuesDiffer(snapshot.get("desktopTheme"), targetContainer.getDesktopTheme())) return false;
         if (valuesDiffer(snapshot.get("midiSoundFont"), targetContainer.getMIDISoundFont())) return false;
         if (valuesDiffer(snapshot.get("lc_all"), targetContainer.getLC_ALL())) return false;
+        if (valuesDiffer(snapshot.get("execArgs"), targetContainer.getExecArgs())) return false;
         if ("STEAM".equals(gameSource)) {
             if (valuesDiffer(snapshot.get("useLegacyDRM"), targetContainer.isUseLegacyDRM())) return false;
             if (valuesDiffer(snapshot.get("launchRealSteam"), targetContainer.isLaunchRealSteam())) return false;
@@ -754,6 +756,8 @@ public class ContainerDetailFragment extends Fragment {
         snapshot.put("steamOfflineMode", cbSteamOfflineMode != null && cbSteamOfflineMode.isChecked() ? "1" : "0");
         CompoundButton cbUnpackFiles = view.findViewById(R.id.CBUnpackFiles);
         snapshot.put("unpackFiles", cbUnpackFiles != null && cbUnpackFiles.isChecked() ? "1" : "0");
+        EditText etExecArgs = view.findViewById(R.id.ETExecArgs);
+        snapshot.put("execArgs", etExecArgs != null ? etExecArgs.getText().toString() : "");
         return snapshot;
     }
 
@@ -1183,6 +1187,78 @@ public class ContainerDetailFragment extends Fragment {
                     : (settingsContainer != null ? settingsContainer.getCPUListWoW64(true) : Container.getFallbackCPUListWoW64()))
                 : (isEditMode() && container != null ? container.getCPUListWoW64(true) : Container.getFallbackCPUListWoW64()));
 
+        // Exec arguments
+        final EditText etExecArgs = view.findViewById(R.id.ETExecArgs);
+        etExecArgs.setText(isPerGameSettingsMode()
+                ? (isShortcutMode()
+                    ? getShortcutSettingValue("execArgs", settingsContainer != null ? settingsContainer.getExecArgs() : "")
+                    : (settingsContainer != null ? settingsContainer.getExecArgs() : ""))
+                : (isEditMode() && container != null ? container.getExecArgs() : ""));
+        etExecArgs.setOnEditorActionListener((v, actionId, event) -> {
+            etExecArgs.clearFocus();
+            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) imm.hideSoftInputFromWindow(etExecArgs.getWindowToken(), 0);
+            return true;
+        });
+
+        // Dismiss keyboard and clear focus when tapping outside the EditText
+        View scrollView = view.findViewById(R.id.SVContainerDetail);
+        if (scrollView != null) {
+            scrollView.setOnTouchListener((v, event) -> {
+                if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                    View focused = v.findFocus();
+                    if (focused instanceof EditText) {
+                        android.graphics.Rect outRect = new android.graphics.Rect();
+                        focused.getGlobalVisibleRect(outRect);
+                        if (!outRect.contains((int) event.getRawX(), (int) event.getRawY())) {
+                            focused.clearFocus();
+                            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+                            if (imm != null) imm.hideSoftInputFromWindow(focused.getWindowToken(), 0);
+                        }
+                    }
+                }
+                return false;
+            });
+        }
+
+        final View btExtraArgsMenu = view.findViewById(R.id.BTExtraArgsMenu);
+        btExtraArgsMenu.setOnClickListener(v -> {
+            // Dismiss keyboard if open
+            etExecArgs.clearFocus();
+            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) imm.hideSoftInputFromWindow(etExecArgs.getWindowToken(), 0);
+            Context themedContext = new android.view.ContextThemeWrapper(context, R.style.ThemeOverlay_ContentPopupMenu);
+            PopupMenu popupMenu = new PopupMenu(themedContext, v);
+            popupMenu.getMenuInflater().inflate(R.menu.extra_args_popup_menu, popupMenu.getMenu());
+
+            // Bold the section header items
+            Menu menu = popupMenu.getMenu();
+            for (int i = 0; i < menu.size(); i++) {
+                android.view.MenuItem mi = menu.getItem(i);
+                String title = mi.getTitle().toString();
+                if (title.startsWith("──")) {
+                    android.text.SpannableString styled = new android.text.SpannableString(title);
+                    styled.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, title.length(), 0);
+                    styled.setSpan(new android.text.style.ForegroundColorSpan(0xFFFFFFFF), 0, title.length(), 0);
+                    mi.setTitle(styled);
+                }
+            }
+
+            popupMenu.setOnMenuItemClickListener(item -> {
+                String value = item.getTitle().toString();
+                if (value.startsWith("──")) return false;
+                String current = etExecArgs.getText().toString();
+                if (!current.contains(value)) {
+                    String newText = !current.isEmpty() ? current + " " + value : value;
+                    etExecArgs.setText(newText);
+                    etExecArgs.setSelection(newText.length());
+                }
+                item.setChecked(!item.isChecked());
+                return false;
+            });
+            popupMenu.show();
+        });
+
         createWineConfigurationTab(view);
         final EnvVarsView envVarsView = createEnvVarsTab(view);
         createWinComponentsTab(view, isPerGameSettingsMode()
@@ -1314,6 +1390,7 @@ public class ContainerDetailFragment extends Fragment {
                 boolean forceDlc = cbForceDlc.isChecked();
                 boolean steamOfflineMode = cbSteamOfflineMode.isChecked();
                 boolean unpackFiles = cbUnpackFiles.isChecked();
+                String execArgs = etExecArgs.getText().toString();
 
                 // Define final input type
                 int finalInputType = 0;
@@ -1437,6 +1514,7 @@ public class ContainerDetailFragment extends Fragment {
                             shortcut.putExtra("steamOfflineMode", null);
                             shortcut.putExtra("unpackFiles", null);
                         }
+                        shortcut.putExtra("execArgs", !execArgs.isEmpty() ? execArgs : null);
                         shortcut.putExtra(EXTRA_USE_CONTAINER_DEFAULTS, "0");
                     }
                     
@@ -1498,6 +1576,7 @@ public class ContainerDetailFragment extends Fragment {
                     container.setForceDlc(forceDlc);
                     container.setSteamOfflineMode(steamOfflineMode);
                     container.setUnpackFiles(unpackFiles);
+                    container.setExecArgs(execArgs);
                     Log.d(TAG, "Persist container.saveData containerId=" + container.id +
                             " finalDxwrapperConfig='" + container.getDXWrapperConfig() + "'");
                     container.saveData();
@@ -1531,6 +1610,7 @@ public class ContainerDetailFragment extends Fragment {
                     data.put("fexcoreVersion", fexcoreVersion);
                     data.put("fexcorePreset", fexcorePreset);
                     data.put("desktopTheme", desktopTheme);
+                    if (!execArgs.isEmpty()) data.put("execArgs", execArgs);
                     if ("STEAM".equals(createShortcutForSource)) {
                         data.put("useLegacyDRM", useLegacyDRM ? "1" : "0");
                         data.put("launchRealSteam", launchRealSteam ? "1" : "0");
@@ -2510,6 +2590,9 @@ public class ContainerDetailFragment extends Fragment {
         CPUListView cpuListViewWoW64 = view.findViewById(R.id.CPUListViewWoW64);
         if (cpuListViewWoW64 != null) cpuListViewWoW64.setCheckedCPUList(c.getCPUListWoW64(true));
 
+        EditText etExecArgs = view.findViewById(R.id.ETExecArgs);
+        if (etExecArgs != null) etExecArgs.setText(c.getExecArgs());
+
         applyInputTypeToUi(view, c.getInputType(), false);
         EnvVarsView envVarsView = view.findViewById(R.id.EnvVarsView);
         if (envVarsView != null) {
@@ -2812,6 +2895,12 @@ public class ContainerDetailFragment extends Fragment {
         markIfChanged(findLabelForView(contentView.findViewById(R.id.CPUListViewWoW64), llContent),
                 ((CPUListView) contentView.findViewById(R.id.CPUListViewWoW64)).getCheckedCPUListAsString(),
                 comparisonContainer.getCPUListWoW64(true));
+        EditText etExecArgsIndicator = contentView.findViewById(R.id.ETExecArgs);
+        if (etExecArgsIndicator != null) {
+            markIfChanged(findLabelForView(etExecArgsIndicator, llContent),
+                    etExecArgsIndicator.getText().toString(),
+                    comparisonContainer.getExecArgs());
+        }
         markIfChanged(findLabelForView(contentView.findViewById(R.id.SDesktopTheme), llContent),
                 getDesktopTheme(contentView),
                 comparisonContainer.getDesktopTheme());

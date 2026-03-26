@@ -2886,6 +2886,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
             if (gameSource.equals("STEAM")) {
                 int appId = Integer.parseInt(shortcut.getExtra("app_id"));
+                String steamExtraArgs = shortcut.getSettingExtra("execArgs", container.getExecArgs());
+                steamExtraArgs = (steamExtraArgs != null && !steamExtraArgs.isEmpty()) ? " " + steamExtraArgs : "";
 
                 if (!container.isUseLegacyDRM()) {
                     // ColdClient mode: ALWAYS launch through steamclient_loader_x64.exe
@@ -2902,27 +2904,30 @@ public class XServerDisplayActivity extends AppCompatActivity {
                             String dir = gameExeWinPath.substring(0, lastBackslash);
                             if (dir.endsWith(":")) dir += "\\";
                             String file = gameExeWinPath.substring(lastBackslash + 1);
-                            
+
                             File nativeDir = com.winlator.cmod.core.WineUtils.getNativePath(imageFs, dir);
                             if (nativeDir != null && nativeDir.exists()) {
                                 launcherComponent.setWorkingDir(nativeDir);
                                 Log.d("XServerDisplayActivity", "Set native working dir for Steam process: " + nativeDir.getPath());
                             }
-                            
+
                             if (wineInfo != null && wineInfo.isArm64EC()) {
-                                args = "\"" + gameExeWinPath + "\"";
+                                args = "\"" + gameExeWinPath + "\"" + steamExtraArgs;
                             } else {
-                                args = "/dir " + StringUtils.escapeDOSPath(dir) + " \"" + file + "\"";
+                                args = "/dir " + StringUtils.escapeDOSPath(dir) + " \"" + file + "\"" + steamExtraArgs;
                             }
                         } else {
-                            args = "\"" + gameExeWinPath + "\"";
+                            args = "\"" + gameExeWinPath + "\"" + steamExtraArgs;
                         }
                     } else {
                         args = "\"wfm.exe\"";
                     }
                 }
             } else if (gameSource.equals("EPIC") || gameSource.equals("GOG")) {
-                String extraArgs = getIntent().getStringExtra("extra_exec_args");
+                String extraArgs = shortcut.getSettingExtra("execArgs", container.getExecArgs());
+                if (extraArgs == null || extraArgs.isEmpty()) {
+                    extraArgs = getIntent().getStringExtra("extra_exec_args");
+                }
                 extraArgs = (extraArgs != null && !extraArgs.isEmpty()) ? " " + extraArgs : "";
 
                 boolean needsAutoDetect = path == null || path.isEmpty() || "A:\\".equals(path) || "A:\\\\".equals(path);
@@ -3000,7 +3005,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 Log.d("XServerDisplayActivity", gameSource + " game launch: " + args);
             } else {
                 // Custom shortcut
-                String extraArgs = shortcut.getExtra("execArgs");
+                String extraArgs = shortcut.getSettingExtra("execArgs", container.getExecArgs());
                 extraArgs = (extraArgs != null && !extraArgs.isEmpty()) ? " " + extraArgs : "";
 
                 if (path != null && (path.startsWith("explorer") || path.contains(" /desktop"))) {
@@ -3208,7 +3213,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
             exePath = "";
         }
 
-        String exeCommandLine = container.getExecArgs() != null ? container.getExecArgs() : "";
+        String perGameExecArgs = shortcut != null ? shortcut.getSettingExtra("execArgs", container.getExecArgs()) : container.getExecArgs();
+        String exeCommandLine = perGameExecArgs != null ? perGameExecArgs : "";
 
         String injectionSection = container.isUnpackFiles()
                 ? "[Injection]\nIgnoreLoaderArchDifference=1\nDllsToInjectFolder=extra_dlls\n"

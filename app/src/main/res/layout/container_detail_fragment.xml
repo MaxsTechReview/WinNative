@@ -1443,7 +1443,48 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:visibility="gone">
+                android:visibility="gone"
+                android:focusable="true"
+                android:focusableInTouchMode="true">
+
+            <!-- Exec Arguments -->
+            <TextView
+                style="@style/OtherSettingsSectionLabel"
+                android:text="@string/shortcuts_properties_exec_arguments" />
+
+            <LinearLayout
+                style="@style/OtherSettingsCard"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="6dp">
+
+                    <EditText
+                        android:id="@+id/ETExecArgs"
+                        style="@style/OtherSettingsEditText"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:hint="@string/shortcuts_properties_exec_arguments"
+                        android:inputType="text"
+                        android:imeOptions="actionDone|flagNoExtractUi|flagNoFullscreen"
+                        android:singleLine="true" />
+
+                    <ImageButton
+                        android:id="@+id/BTExtraArgsMenu"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/content_icon_surface"
+                        android:padding="6dp"
+                        android:scaleType="centerInside"
+                        android:src="@drawable/ic_terminal"
+                        android:contentDescription="@string/common_ui_options" />
+                </LinearLayout>
+            </LinearLayout>
 
             <TextView
                 style="@style/OtherSettingsSectionLabel"
