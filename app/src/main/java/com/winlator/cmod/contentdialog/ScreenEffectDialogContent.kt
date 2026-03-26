@@ -38,12 +38,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.sp
+import com.winlator.cmod.R
 import kotlin.math.roundToInt
 
 // Near-black palette
@@ -99,13 +101,13 @@ fun ScreenEffectDialogContent(
             .padding(start = 28.dp, end = 28.dp, top = 22.dp, bottom = 16.dp)
     ) {
         // Color Adjustment sliders
-        SectionLabel("Color Adjustment")
+        SectionLabel(stringResource(R.string.color_adjustment))
         Spacer(Modifier.height(10.dp))
-        SliderField("Brightness", state.brightness, -50f, 50f, 1f, onBrightnessChange)
+        SliderField(stringResource(R.string.brightness), state.brightness, -50f, 50f, 1f, onBrightnessChange)
         Spacer(Modifier.height(6.dp))
-        SliderField("Contrast", state.contrast, -100f, 100f, 1f, onContrastChange)
+        SliderField(stringResource(R.string.contrast), state.contrast, -100f, 100f, 1f, onContrastChange)
         Spacer(Modifier.height(6.dp))
-        SliderField("Gamma", state.gamma, 0.5f, 3f, 0.01f, onGammaChange, decimalPlaces = 2)
+        SliderField(stringResource(R.string.gamma), state.gamma, 0.5f, 3f, 0.01f, onGammaChange, decimalPlaces = 2)
 
         Spacer(Modifier.height(16.dp))
 
@@ -117,7 +119,7 @@ fun ScreenEffectDialogContent(
         ) {
             // Profile selector
             Column(modifier = Modifier.weight(1f)) {
-                SectionLabel("Profile")
+                SectionLabel(stringResource(R.string.profile))
                 Spacer(Modifier.height(8.dp))
                 ProfileSelector(
                     profileNames = state.profileNames,
@@ -131,7 +133,7 @@ fun ScreenEffectDialogContent(
 
             // Post-Processing toggles
             Column(modifier = Modifier.weight(1f)) {
-                SectionLabel("Post-Processing")
+                SectionLabel(stringResource(R.string.post_processing))
                 Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -154,11 +156,11 @@ fun ScreenEffectDialogContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextButton(onClick = onReset) {
-                Text("Reset", color = TextSecondary, fontSize = 14.sp)
+                Text(stringResource(R.string.reset), color = TextSecondary, fontSize = 14.sp)
             }
             Spacer(Modifier.weight(1f))
             TextButton(onClick = onCancel) {
-                Text("Cancel", color = TextSecondary, fontSize = 14.sp)
+                Text(stringResource(R.string.cancel), color = TextSecondary, fontSize = 14.sp)
             }
             Spacer(Modifier.width(12.dp))
             Box(
@@ -170,7 +172,7 @@ fun ScreenEffectDialogContent(
                     .padding(horizontal = 20.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text("OK", color = Accent, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text(stringResource(R.string.ok), color = Accent, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             }
         }
     }
@@ -242,7 +244,8 @@ private fun ProfileSelector(
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedText = profileNames.getOrElse(selectedIndex) { "-- Default Profile --" }
+    val defaultProfileText = stringResource(R.string.default_profile)
+    val selectedText = profileNames.getOrElse(selectedIndex) { "-- $defaultProfileText --" }
 
     if (expanded) {
         Dialog(
@@ -260,7 +263,7 @@ private fun ProfileSelector(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "Select Profile",
+                    stringResource(R.string.select_profile),
                     color = TextSecondary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,

@@ -236,7 +236,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     private void createNotifcationChannel() {
         String name = "Winlator";
-        String description = "Winlator XServer Messages";
+        String description = getString(R.string.xserver_notification_description);
         int importance = NotificationManager.IMPORTANCE_HIGH;
         NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance);
         channel.setDescription(description);
@@ -1460,6 +1460,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (navigationComposeView == null) return;
 
         XServerDrawerState state = XServerDrawerMenuKt.buildXServerDrawerState(
+                this,
                 isRelativeMouseMovement,
                 isMouseDisabled,
                 isPaused,

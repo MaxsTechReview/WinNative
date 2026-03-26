@@ -61,7 +61,7 @@
             android:layout_height="wrap_content"
             android:layout_marginEnd="12dp"
             android:fontFamily="@font/inter"
-            android:text="Mode"
+            android:text="@string/mode"
             android:textColor="@color/settings_text_secondary"
             android:textSize="13sp" />
 
@@ -132,7 +132,7 @@
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
             android:fontFamily="@font/inter"
-            android:text="(Experimental)"
+            android:text="@string/experimental"
             android:textColor="@color/settings_accent"
             android:textSize="11sp"
             android:textStyle="italic" />
@@ -301,7 +301,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/inter"
-                    android:text="Invert X"
+                    android:text="@string/invert_x_short"
                     android:textColor="@color/settings_text_secondary"
                     android:textSize="13sp" />
 
@@ -327,7 +327,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/inter"
-                    android:text="Invert Y"
+                    android:text="@string/invert_y_short"
                     android:textColor="@color/settings_text_secondary"
                     android:textSize="13sp" />
 
@@ -365,7 +365,7 @@
                 android:gravity="center"
                 android:minWidth="64dp"
                 android:paddingHorizontal="14dp"
-                android:text="Reset Stick"
+                android:text="@string/reset_stick"
                 android:textColor="@color/content_type_nav_text"
                 android:textSize="13sp"
                 android:textStyle="bold" />

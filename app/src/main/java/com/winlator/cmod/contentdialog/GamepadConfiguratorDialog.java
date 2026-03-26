@@ -222,7 +222,7 @@ public class GamepadConfiguratorDialog {
         // Update triggerType in WinHandler
 //        ((XServerDisplayActivity) context).getWinHandler().updateTriggerType(externalController.getTriggerType());
 
-        Toast.makeText(context, "Mappings saved!", Toast.LENGTH_SHORT).show();
+        Toast.makeText(context, R.string.mappings_saved, Toast.LENGTH_SHORT).show();
         ((XServerDisplayActivity) context).getWinHandler().refreshControllerMappings();
     }
 
@@ -267,20 +267,20 @@ public class GamepadConfiguratorDialog {
         });
 
         saveProfileButton.setOnClickListener(v -> {
-            if (currentProfileName != null && !currentProfileName.equals("-- No Profiles --")) {
+            if (currentProfileName != null && !currentProfileName.equals(context.getString(R.string.no_profiles))) {
                 // Ask the user if they want to overwrite or save as a new profile
                 new AlertDialog.Builder(context)
-                        .setTitle("Save Profile")
-                        .setMessage("Do you want to overwrite the current profile or save as a new profile?")
-                        .setPositiveButton("Overwrite", (dialog, which) -> {
+                        .setTitle(R.string.save_profile)
+                        .setMessage(R.string.overwrite_profile_message)
+                        .setPositiveButton(R.string.overwrite, (dialog, which) -> {
                             saveProfile(currentProfileName); // Overwrite with the current name
-                            Toast.makeText(context, "Profile saved!", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, R.string.profile_saved, Toast.LENGTH_SHORT).show();
                         })
-                        .setNegativeButton("Save as New", (dialog, which) -> {
+                        .setNegativeButton(R.string.save_as_new, (dialog, which) -> {
                             promptForProfileName(name -> {
                                 saveProfile(name);  // Save with a new name
                                 currentProfileName = name;
-                                Toast.makeText(context, "Profile saved as new!", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(context, R.string.profile_saved_as_new, Toast.LENGTH_SHORT).show();
                                 loadProfileSpinner(profileSpinner); // Refresh spinner with the new profile
                             });
                         })
@@ -290,7 +290,7 @@ public class GamepadConfiguratorDialog {
                 promptForProfileName(name -> {
                     saveProfile(name);
                     currentProfileName = name;
-                    Toast.makeText(context, "Profile saved!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, R.string.profile_saved, Toast.LENGTH_SHORT).show();
                     loadProfileSpinner(profileSpinner); // Refresh spinner with the new profile
                 });
             }
@@ -301,7 +301,7 @@ public class GamepadConfiguratorDialog {
             String profileName = profileSpinner.getSelectedItem().toString();
             loadProfile(profileName);
             refreshSpinners();
-            Toast.makeText(context, "Profile loaded!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, R.string.profile_loaded, Toast.LENGTH_SHORT).show();
         });
     }
 
@@ -309,23 +309,23 @@ public class GamepadConfiguratorDialog {
 
     private void promptForProfileName(Callback<String> callback) {
         AlertDialog.Builder builder = new AlertDialog.Builder(dialog.getContext());
-        builder.setTitle("Enter Profile Name");
+        builder.setTitle(R.string.enter_profile_name);
 
         // Set up the input
         final EditText input = new EditText(dialog.getContext());
-        input.setHint("Profile Name");
+        input.setHint(context.getString(R.string.profile_name));
         builder.setView(input);
 
         // Set up the buttons
-        builder.setPositiveButton("Save", (dialogInterface, which) -> {
+        builder.setPositiveButton(R.string.save, (dialogInterface, which) -> {
             String profileName = input.getText().toString().trim();
             if (!profileName.isEmpty()) {
                 callback.call(profileName); // Pass the name back to the callback
             } else {
-                Toast.makeText(context, "Profile name cannot be empty", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.profile_name_empty, Toast.LENGTH_SHORT).show();
             }
         });
-        builder.setNegativeButton("Cancel", (dialogInterface, which) -> dialogInterface.cancel());
+        builder.setNegativeButton(R.string.cancel, (dialogInterface, which) -> dialogInterface.cancel());
 
         builder.show();
     }
@@ -336,7 +336,7 @@ public class GamepadConfiguratorDialog {
         ArrayList<String> items = new ArrayList<>(profiles);
 
         if (items.isEmpty()) {
-            items.add("-- No Profiles --");
+            items.add(context.getString(R.string.no_profiles));
         }
 
         ArrayAdapter<String> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, items);
@@ -399,7 +399,7 @@ public class GamepadConfiguratorDialog {
     public void loadProfile(String profileName) {
         File profileFile = new File(getProfilesDir(), profileName + ".json");
         if (!profileFile.exists()) {
-            Toast.makeText(context, "Profile not found", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, R.string.no_profile_found, Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -419,7 +419,7 @@ public class GamepadConfiguratorDialog {
             }
         } catch (IOException | JSONException e) {
             e.printStackTrace();
-            Toast.makeText(context, "Error loading profile", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, R.string.error_loading_profile, Toast.LENGTH_SHORT).show();
         }
     }
 

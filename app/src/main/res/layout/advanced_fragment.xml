@@ -341,7 +341,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/inter"
-                        android:text="Input Logs"
+                        android:text="@string/input_logs"
                         android:textColor="@color/settings_text_primary"
                         android:textSize="15sp"
                         android:textStyle="bold" />
@@ -351,7 +351,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:fontFamily="@font/inter"
-                        android:text="Log gamepad, touch, and keyboard input events"
+                        android:text="@string/input_logs_description"
                         android:textColor="@color/settings_text_secondary"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -396,7 +396,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/inter"
-                        android:text="Download Logs"
+                        android:text="@string/download_logs"
                         android:textColor="@color/settings_text_primary"
                         android:textSize="15sp"
                         android:textStyle="bold" />
@@ -406,7 +406,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:fontFamily="@font/inter"
-                        android:text="Log download resolver and WinNative fallback events"
+                        android:text="@string/download_logs_description"
                         android:textColor="@color/settings_text_secondary"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -427,7 +427,7 @@
                 android:layout_height="48dp"
                 android:layout_marginTop="8dp"
                 android:fontFamily="@font/inter"
-                android:text="Share Logs"
+                android:text="@string/share_logs"
                 android:textAllCaps="false"
                 android:textSize="14sp"
                 android:backgroundTint="@color/settings_accent" />

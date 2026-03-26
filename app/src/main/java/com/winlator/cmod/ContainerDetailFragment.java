@@ -1239,13 +1239,13 @@ public class ContainerDetailFragment extends Fragment {
                 if (selectedShortcutContainer == null) return;
 
                 ContentDialog dialog = new ContentDialog(context);
-                dialog.setTitle("Reset Per-Game Settings");
-                dialog.setMessage("Reset this game to use the selected container defaults?");
+                dialog.setTitle(R.string.reset_per_game_settings);
+                dialog.setMessage(R.string.reset_per_game_settings_message);
                 Container finalSelectedShortcutContainer = selectedShortcutContainer;
                 dialog.setOnConfirmCallback(() -> {
                     updateUIWithContainerSettings(view, finalSelectedShortcutContainer);
                     runIndicatorRefresh(refreshIndicatorsRef);
-                    Toast.makeText(context, "Per-game settings reset to selected container defaults", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, R.string.per_game_settings_reset, Toast.LENGTH_SHORT).show();
                 });
                 dialog.show();
             });

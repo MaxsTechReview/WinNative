@@ -52,7 +52,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/inter"
-                    android:text="A/V"
+                    android:text="@string/av_tab"
                     android:textColor="#FFB0BEC5"
                     android:textSize="13sp" />
                 <ImageView
@@ -87,7 +87,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/inter"
-                    android:text="Wine"
+                    android:text="@string/wine"
                     android:textColor="#FFB0BEC5"
                     android:textSize="13sp" />
             </LinearLayout>
@@ -116,7 +116,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/inter"
-                    android:text="Windows"
+                    android:text="@string/windows"
                     android:textColor="#FFB0BEC5"
                     android:textSize="13sp" />
             </LinearLayout>
@@ -145,7 +145,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/inter"
-                    android:text="Inputs"
+                    android:text="@string/inputs"
                     android:textColor="#FFB0BEC5"
                     android:textSize="13sp" />
             </LinearLayout>
@@ -174,7 +174,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/inter"
-                    android:text="Config"
+                    android:text="@string/config"
                     android:textColor="#FFB0BEC5"
                     android:textSize="13sp" />
             </LinearLayout>
@@ -902,7 +902,7 @@
 
                     <TextView
                         style="@style/OtherSettingsFieldLabel"
-                        android:text="64bit Emulator" />
+                        android:text="@string/emulator_64bit" />
 
                     <androidx.appcompat.widget.AppCompatSpinner
                         android:id="@+id/SEmulator64"
@@ -1428,7 +1428,7 @@
                         android:layout_marginTop="8dp"
                         android:background="@android:color/transparent"
                         android:fontFamily="@font/inter"
-                        android:text="Enable SDL2 Compatibility"
+                        android:text="@string/sdl2_compatibility"
                         android:textColor="@color/settings_text_primary"
                         android:textSize="13sp"
                         app:thumbTint="@color/settings_accent"

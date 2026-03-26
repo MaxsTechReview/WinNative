@@ -117,8 +117,8 @@ public abstract class ImageFsInstaller {
 
         // Show a simple progress dialog
         final android.app.ProgressDialog dialog = new android.app.ProgressDialog(activity);
-        dialog.setTitle("Installing System Files");
-        dialog.setMessage("Please wait...");
+        dialog.setTitle(activity.getString(R.string.installing_system_files));
+        dialog.setMessage(activity.getString(R.string.please_wait));
         dialog.setProgressStyle(android.app.ProgressDialog.STYLE_HORIZONTAL);
         dialog.setMax(100);
         dialog.setCancelable(false);

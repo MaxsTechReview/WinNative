@@ -32,10 +32,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.winlator.cmod.R
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
@@ -86,7 +88,7 @@ fun InputControlsDialogContent(
                 modifier = Modifier.padding(bottom = 18.dp)
             ) {
                 Text(
-                    "Input Controls",
+                    stringResource(R.string.input_controls),
                     color = TextPrimary,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold
@@ -94,7 +96,7 @@ fun InputControlsDialogContent(
             }
 
             // Profile Selection section
-            SectionLabel("Profile Selection")
+            SectionLabel(stringResource(R.string.profile_selection))
             Spacer(Modifier.height(10.dp))
 
             ProfileRow(
@@ -117,23 +119,23 @@ fun InputControlsDialogContent(
             Spacer(Modifier.height(16.dp))
 
             // Touchscreen Overlay section
-            SectionLabel("Touchscreen Overlay")
+            SectionLabel(stringResource(R.string.touchscreen_overlay))
             Spacer(Modifier.height(10.dp))
 
             OptionCheckbox(
-                label = "Show Touchscreen Controls",
+                label = stringResource(R.string.show_touchscreen_controls),
                 checked = state.showTouchscreenControls,
                 onCheckedChange = onShowTouchscreenControlsChange
             )
             Spacer(Modifier.height(4.dp))
             OptionCheckbox(
-                label = "Touchscreen Timeout (Requires Restart)",
+                label = stringResource(R.string.enable_touchscreen_timeout),
                 checked = state.touchscreenTimeout,
                 onCheckedChange = onTouchscreenTimeoutChange
             )
             Spacer(Modifier.height(4.dp))
             OptionCheckbox(
-                label = "Enable Touchscreen Haptic Feedback",
+                label = stringResource(R.string.enable_touchscreen_haptics),
                 checked = state.touchscreenHaptics,
                 onCheckedChange = onTouchscreenHapticsChange
             )
@@ -147,7 +149,7 @@ fun InputControlsDialogContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = onCancel) {
-                    Text("Cancel", color = TextSecondary, fontSize = 14.sp)
+                    Text(stringResource(R.string.cancel), color = TextSecondary, fontSize = 14.sp)
                 }
                 Spacer(Modifier.width(12.dp))
                 Box(
@@ -159,7 +161,7 @@ fun InputControlsDialogContent(
                         .padding(horizontal = 20.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("OK", color = Accent, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.ok), color = Accent, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -185,7 +187,8 @@ private fun ProfileRow(
     onSettingsClick: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedText = profileNames.getOrElse(selectedIndex) { "-- Disabled --" }
+    val disabledPlaceholder = stringResource(R.string.disabled_placeholder)
+    val selectedText = profileNames.getOrElse(selectedIndex) { disabledPlaceholder }
 
     if (expanded) {
         Dialog(
@@ -203,7 +206,7 @@ private fun ProfileRow(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "Select Profile",
+                    stringResource(R.string.select_profile),
                     color = TextSecondary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,

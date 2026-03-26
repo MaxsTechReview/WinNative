@@ -11,10 +11,10 @@
             android:title="@string/input_controls" />
         <item
             android:id="@+id/main_menu_relative_mouse_movement"
-            android:title="Toggle Relative Mouse Movement" />
+            android:title="@string/toggle_relative_mouse" />
         <item
             android:id="@+id/main_menu_disable_mouse"
-            android:title="Toggle Mouse" />
+            android:title="@string/toggle_mouse" />
         <item
             android:icon="@drawable/icon_screen_effect"
             android:id="@+id/main_menu_screen_effects"
@@ -29,7 +29,7 @@
         <item
             android:icon="@drawable/icon_pause"
             android:id="@+id/main_menu_pause"
-            android:title="Pause/Resume" />
+            android:title="@string/pause_resume" />
         <item
             android:icon="@drawable/ic_picture_in_picture_alt"
             android:id="@+id/main_menu_pip_mode"

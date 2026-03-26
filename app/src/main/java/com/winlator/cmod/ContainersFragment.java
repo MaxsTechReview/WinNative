@@ -94,7 +94,7 @@ public class ContainersFragment extends Fragment {
 
     private void openAddContainer() {
         if (!ImageFs.find(getContext()).isValid()) {
-            Toast.makeText(getContext(), "System image not installed. Please install components first.", Toast.LENGTH_LONG).show();
+            Toast.makeText(getContext(), R.string.system_image_not_installed, Toast.LENGTH_LONG).show();
             return;
         }
         FragmentManager fragmentManager = getParentFragmentManager();

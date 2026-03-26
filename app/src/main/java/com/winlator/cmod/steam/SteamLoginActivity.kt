@@ -39,9 +39,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.winlator.cmod.R
 import com.winlator.cmod.steam.enums.LoginResult
 import com.winlator.cmod.steam.enums.LoginScreen
 import com.winlator.cmod.steam.ui.SteamLoginViewModel
@@ -191,9 +193,9 @@ class SteamLoginActivity : ComponentActivity() {
                         Icon(Icons.Filled.Gamepad, null, tint = Accent, modifier = Modifier.size(22.dp))
                     }
                     Column {
-                        Text("Steam", color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.steam_integration_title), color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("Sign in to your account", color = TextSecondary, fontSize = 11.sp)
+                            Text(stringResource(R.string.sign_in_to_your_account), color = TextSecondary, fontSize = 11.sp)
                             if (!state.isSteamConnected) {
                                 CircularProgressIndicator(modifier = Modifier.size(10.dp), color = Accent, strokeWidth = 1.5.dp)
                             }
@@ -241,7 +243,7 @@ class SteamLoginActivity : ComponentActivity() {
             OutlinedTextField(
                 value = state.username,
                 onValueChange = { viewModel.setUsername(it) },
-                label = { Text("Username") },
+                label = { Text(stringResource(R.string.username)) },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !state.isLoggingIn,
                 singleLine = true,
@@ -254,7 +256,7 @@ class SteamLoginActivity : ComponentActivity() {
                 OutlinedTextField(
                     value = state.password,
                     onValueChange = { viewModel.setPassword(it) },
-                    label = { Text("Password") },
+                    label = { Text(stringResource(R.string.password)) },
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         IconButton(onClick = onTogglePassword) {
@@ -286,7 +288,7 @@ class SteamLoginActivity : ComponentActivity() {
                     exit = fadeOut(tween(150)),
                     modifier = Modifier.align(Alignment.BottomStart).offset(y = 8.dp),
                 ) {
-                    Text("Invalid username or password", color = DangerRed, fontSize = 11.sp)
+                    Text(stringResource(R.string.invalid_username_or_password), color = DangerRed, fontSize = 11.sp)
                 }
             }
 
@@ -296,7 +298,7 @@ class SteamLoginActivity : ComponentActivity() {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.End,
             ) {
-                Text("Remember Me", color = TextSecondary, fontSize = 13.sp)
+                Text(stringResource(R.string.remember_me), color = TextSecondary, fontSize = 13.sp)
                 Spacer(Modifier.width(8.dp))
                 Switch(
                     checked = state.rememberSession,
@@ -316,7 +318,7 @@ class SteamLoginActivity : ComponentActivity() {
             }
 
             LoginButton(
-                text = "Sign In",
+                text = stringResource(R.string.sign_in),
                 enabled = canSubmit,
                 loading = state.isLoggingIn,
                 onClick = { hasAttemptedLogin = true; viewModel.onCredentialLogin() },
@@ -351,7 +353,7 @@ class SteamLoginActivity : ComponentActivity() {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text("Sign in with QR Code", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.sign_in_with_qr_code), color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
 
                 when {
                     state.qrCode != null -> {
@@ -361,7 +363,7 @@ class SteamLoginActivity : ComponentActivity() {
                             QrCodeImage(content = state.qrCode!!, size = if (isLandscape) 130.dp else 190.dp)
                         }
                         Text(
-                            "Open Steam app → tap the QR icon",
+                            stringResource(R.string.open_steam_app_qr_hint),
                             color = TextSecondary,
                             fontSize = 11.sp,
                             textAlign = TextAlign.Center,
@@ -369,13 +371,13 @@ class SteamLoginActivity : ComponentActivity() {
                     }
                     state.isQrFailed -> {
                         Spacer(Modifier.height(4.dp))
-                        Text("Failed to load QR code", color = DangerRed, fontSize = 13.sp)
+                        Text(stringResource(R.string.failed_to_load_qr_code), color = DangerRed, fontSize = 13.sp)
                         Spacer(Modifier.height(4.dp))
-                        SmallActionButton("Retry", Accent) { viewModel.onQrRetry() }
+                        SmallActionButton(stringResource(R.string.retry), Accent) { viewModel.onQrRetry() }
                     }
                     else -> {
                         CircularProgressIndicator(modifier = Modifier.size(28.dp), color = Accent, strokeWidth = 2.dp)
-                        Text("Generating code...", color = TextSecondary, fontSize = 12.sp)
+                        Text(stringResource(R.string.generating_code), color = TextSecondary, fontSize = 12.sp)
                     }
                 }
             }
@@ -421,19 +423,19 @@ class SteamLoginActivity : ComponentActivity() {
 
                             Spacer(Modifier.height(14.dp))
 
-                            Text("Two-Factor Auth", color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.two_factor_auth), color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(6.dp))
 
                             if (isSteamGuard) {
                                 Text(
-                                    "Approve this login from\nyour Steam mobile app",
+                                    stringResource(R.string.approve_login_steam_app),
                                     color = TextSecondary, fontSize = 12.sp,
                                     textAlign = TextAlign.Center, lineHeight = 18.sp,
                                 )
                             } else {
                                 val methodText = if (isEmailCode)
-                                    "Enter the code sent to\n${state.email}"
-                                else "Enter your Steam Guard code"
+                                    stringResource(R.string.enter_code_sent_to, state.email ?: "")
+                                else stringResource(R.string.enter_steam_guard_code)
                                 Text(
                                     methodText, color = TextSecondary, fontSize = 12.sp,
                                     textAlign = TextAlign.Center, lineHeight = 18.sp,
@@ -442,7 +444,7 @@ class SteamLoginActivity : ComponentActivity() {
                                 OutlinedTextField(
                                     value = state.twoFactorCode,
                                     onValueChange = { viewModel.setTwoFactorCode(it) },
-                                    label = { Text("Code", fontSize = 11.sp) },
+                                    label = { Text(stringResource(R.string.code), fontSize = 11.sp) },
                                     modifier = Modifier.widthIn(max = 160.dp),
                                     keyboardOptions = KeyboardOptions(
                                         keyboardType = KeyboardType.Text,
@@ -474,7 +476,7 @@ class SteamLoginActivity : ComponentActivity() {
                             }
 
                             Spacer(Modifier.height(14.dp))
-                            SmallActionButton("Cancel", TextSecondary) {
+                            SmallActionButton(stringResource(R.string.cancel), TextSecondary) {
                                 viewModel.onShowLoginScreen(LoginScreen.CREDENTIAL)
                             }
                     }
@@ -609,7 +611,7 @@ class SteamLoginActivity : ComponentActivity() {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Accent, strokeWidth = 2.dp)
             } else {
                 Text(
-                    text = "Submit",
+                    text = stringResource(R.string.submit),
                     color = if (enabled) Accent else TextSecondary.copy(alpha = 0.5f),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -671,7 +673,7 @@ class SteamLoginActivity : ComponentActivity() {
                 },
             contentAlignment = Alignment.Center,
         ) {
-            Text("Cancel", color = TextSecondary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.cancel), color = TextSecondary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         }
     }
 

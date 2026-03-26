@@ -10,6 +10,7 @@ import com.google.android.gms.games.SnapshotsClient
 import com.google.android.gms.games.snapshot.Snapshot
 import com.google.android.gms.games.snapshot.SnapshotMetadataChange
 import com.google.android.gms.tasks.Tasks
+import com.winlator.cmod.R
 import com.winlator.cmod.epic.service.EpicAuthManager
 import com.winlator.cmod.epic.service.EpicService
 import com.winlator.cmod.gog.service.GOGAuthManager
@@ -74,7 +75,7 @@ object CloudSyncManager {
         val cloudStores: Set<String> = emptySet(),
         val lastSyncTime: Long? = null,
         val status: SyncStatus = SyncStatus.NOT_SIGNED_IN,
-        val detail: String = "Sign in to Google Play Games to sync store logins."
+        val detail: String = ""
     )
 
     enum class SyncStatus {
@@ -104,18 +105,18 @@ object CloudSyncManager {
         val cloudStores: Set<String> = emptySet(),
         val lastSyncTime: Long? = null
     ) {
-        fun message(): String {
+        fun message(context: Context): String {
             return when {
                 restoredStores.isNotEmpty() && uploadedStores.isNotEmpty() ->
-                    "Store logins restored and synced for ${restoredStores.union(uploadedStores).joinToString()}."
+                    context.getString(R.string.google_logins_restored_and_synced, restoredStores.union(uploadedStores).joinToString())
                 restoredStores.isNotEmpty() ->
-                    "Restored store logins for ${restoredStores.joinToString()}."
+                    context.getString(R.string.google_logins_restored, restoredStores.joinToString())
                 uploadedStores.isNotEmpty() ->
-                    "Backed up store logins for ${uploadedStores.joinToString()}."
+                    context.getString(R.string.google_logins_backed_up, uploadedStores.joinToString())
                 cloudStores.isNotEmpty() ->
-                    "Store login sync is ready."
+                    context.getString(R.string.google_sync_ready)
                 else ->
-                    "No store logins available to sync yet."
+                    context.getString(R.string.google_no_logins_to_sync)
             }
         }
     }
@@ -132,7 +133,7 @@ object CloudSyncManager {
             } else {
                 Log.e(TAG, "Sign in failed: ${task.exception?.message}")
                 Timber.tag(TAG).e(task.exception, "Google Play Games sign-in failed")
-                callback(false, "Google Play Games sign-in failed.")
+                callback(false, activity.getString(R.string.google_sign_in_failed))
             }
         }
     }
@@ -147,7 +148,7 @@ object CloudSyncManager {
             if (!awaitAuthenticatedSession(activity)) {
                 callback(
                     false,
-                    "Google Play Games sign-in is still finishing. Wait a moment and try cloud sync again."
+                    activity.getString(R.string.google_sign_in_finishing)
                 )
                 return@launch
             }
@@ -157,11 +158,11 @@ object CloudSyncManager {
                 val state = readStateInternal(activity, authenticated = true)
                 when {
                     state.cloudStores.isNotEmpty() ->
-                        "Google Play Games connected. Restore is available for ${state.cloudStores.joinToString()}."
+                        activity.getString(R.string.google_connected_restore_available, state.cloudStores.joinToString())
                     state.localStores.isNotEmpty() ->
-                        "Google Play Games connected. Tap Backup to save ${state.localStores.joinToString()} logins."
+                        activity.getString(R.string.google_connected_tap_backup, state.localStores.joinToString())
                     else ->
-                        "Google Play Games connected. Backup and Restore are ready."
+                        activity.getString(R.string.google_connected_ready)
                 }
             }.getOrElse { error ->
                 rememberSyncError(activity, error)
@@ -178,7 +179,7 @@ object CloudSyncManager {
             .putBoolean(KEY_GOOGLE_SYNC_ENABLED, false)
             .apply()
         clearSyncError(activity)
-        callback(true, "Google Play Games sync disabled for this app.")
+        callback(true, activity.getString(R.string.google_sync_disabled))
     }
 
     fun isAuthenticated(activity: Activity, callback: (Boolean) -> Unit) {
@@ -210,7 +211,7 @@ object CloudSyncManager {
                     googleSignedIn = false,
                     localStores = collectLocalStoreNames(activity),
                     status = SyncStatus.NOT_SIGNED_IN,
-                    detail = "Sign in to Google Play Games to sync store logins."
+                    detail = activity.getString(R.string.google_sign_in_to_sync)
                 )
             }
             val authenticated = isAuthenticatedBlocking(activity)
@@ -226,7 +227,7 @@ object CloudSyncManager {
                     googleSignedIn = false,
                     localStores = collectLocalStoreNames(activity),
                     status = SyncStatus.NOT_SIGNED_IN,
-                    detail = "Sign in to Google Play Games to sync store logins."
+                    detail = activity.getString(R.string.google_sign_in_to_sync)
                 )
             }
             val authenticated = isAuthenticatedBlocking(activity)
@@ -238,11 +239,11 @@ object CloudSyncManager {
     suspend fun restoreStoreLogins(activity: Activity): String {
         return withContext(Dispatchers.IO) {
             if (!isGoogleSyncEnabled(activity)) {
-                return@withContext "Sign in to Google Play Games first."
+                return@withContext activity.getString(R.string.google_sign_in_first)
             }
             if (!isAuthenticatedBlocking(activity)) {
                 Timber.tag(TAG).w("restoreStoreLogins aborted: Google Play Games not authenticated")
-                return@withContext "Sign in to Google Play Games first."
+                return@withContext activity.getString(R.string.google_sign_in_first)
             }
 
             Log.i(TAG, "Starting manual store login restore")
@@ -271,9 +272,9 @@ object CloudSyncManager {
 
                 clearSyncError(activity)
                 if (summary.cloudStores.isEmpty()) {
-                    "No saved store logins were found in Google cloud sync."
+                    activity.getString(R.string.google_no_saved_logins_found)
                 } else {
-                    summary.message()
+                    summary.message(activity)
                 }
             }.getOrElse { error ->
                 rememberSyncError(activity, error)
@@ -284,11 +285,11 @@ object CloudSyncManager {
     suspend fun backupStoreLogins(activity: Activity): String {
         return withContext(Dispatchers.IO) {
             if (!isGoogleSyncEnabled(activity)) {
-                return@withContext "Sign in to Google Play Games first."
+                return@withContext activity.getString(R.string.google_sign_in_first)
             }
             if (!isAuthenticatedBlocking(activity)) {
                 Timber.tag(TAG).w("backupStoreLogins aborted: Google Play Games not authenticated")
-                return@withContext "Sign in to Google Play Games first."
+                return@withContext activity.getString(R.string.google_sign_in_first)
             }
 
             Log.i(TAG, "Starting manual store login backup")
@@ -322,11 +323,11 @@ object CloudSyncManager {
 
                 clearSyncError(activity)
                 if (summary.uploadedStores.isNotEmpty()) {
-                    summary.message()
+                    summary.message(activity)
                 } else if (summary.cloudStores.isNotEmpty()) {
-                    "Cloud backup already matches the current store logins."
+                    activity.getString(R.string.google_backup_already_matches)
                 } else {
-                    "No local store logins are available to back up."
+                    activity.getString(R.string.google_no_local_logins)
                 }
             }.getOrElse { error ->
                 rememberSyncError(activity, error)
@@ -577,9 +578,9 @@ object CloudSyncManager {
                 localStores = localStores,
                 status = SyncStatus.NOT_SIGNED_IN,
                 detail = if (localStores.isEmpty()) {
-                    "Sign in to Google Play Games to sync store logins."
+                    activity.getString(R.string.google_sign_in_to_sync)
                 } else {
-                    "Sign in to back up ${localStores.joinToString()} login tokens."
+                    activity.getString(R.string.google_sign_in_to_backup, localStores.joinToString())
                 }
             )
         }
@@ -597,19 +598,19 @@ object CloudSyncManager {
                 else -> SyncStatus.EMPTY
             }
             val detail = when (status) {
-                SyncStatus.EMPTY -> "No backed up store logins found yet."
+                SyncStatus.EMPTY -> activity.getString(R.string.google_no_backed_up_logins)
                 SyncStatus.BACKUP_PENDING -> when {
                     cloudStores.isNotEmpty() && localStores.isNotEmpty() && cloudStores != localStores ->
-                        "Local and cloud store logins differ. Use Backup to overwrite cloud data or Restore to pull the saved tokens."
+                        activity.getString(R.string.google_local_cloud_differ)
                     localStores.isNotEmpty() ->
-                        "Local store logins are ready to back up for ${localStores.joinToString()}."
+                        activity.getString(R.string.google_local_ready_to_backup, localStores.joinToString())
                     else ->
-                        "Store login backup is ready."
+                        activity.getString(R.string.google_backup_ready)
                 }
-                SyncStatus.RESTORE_AVAILABLE -> "Cloud login restore is available for ${cloudStores.joinToString()}."
-                SyncStatus.SYNCED -> "Store logins are synced with Google Play Games."
-                SyncStatus.NOT_SIGNED_IN -> "Sign in to Google Play Games to sync store logins."
-                SyncStatus.ERROR -> "Store login sync ran into a problem."
+                SyncStatus.RESTORE_AVAILABLE -> activity.getString(R.string.google_restore_available, cloudStores.joinToString())
+                SyncStatus.SYNCED -> activity.getString(R.string.google_logins_synced)
+                SyncStatus.NOT_SIGNED_IN -> activity.getString(R.string.google_sign_in_to_sync)
+                SyncStatus.ERROR -> activity.getString(R.string.google_sync_problem)
             }
             StoreLoginSyncState(
                 googleSignedIn = true,
@@ -879,7 +880,7 @@ object CloudSyncManager {
     }
 
     private fun rememberSyncError(context: Context, error: Throwable): String {
-        val detail = explainSyncError(error)
+        val detail = explainSyncError(context, error)
         Log.e(TAG, detail, error)
         prefs(context).edit()
             .putString(KEY_LAST_SYNC_ERROR, detail)
@@ -887,7 +888,7 @@ object CloudSyncManager {
         return detail
     }
 
-    private fun explainSyncError(error: Throwable): String {
+    private fun explainSyncError(context: Context, error: Throwable): String {
         val apiStatusCode = generateSequence(error) { it.cause }
             .filterIsInstance<ApiException>()
             .map { it.statusCode }
@@ -908,27 +909,27 @@ object CloudSyncManager {
         return when {
             apiStatusCode == CommonStatusCodes.SIGN_IN_REQUIRED ||
                 "sign_in_required" in normalized || "apiexception: 4" in normalized ->
-                "Google Play Games needs to finish authentication before cloud sync can access Saved Games. Open the Play Games profile prompt if shown, then try again."
+                context.getString(R.string.google_error_auth_needed)
             apiStatusCode == CommonStatusCodes.DEVELOPER_ERROR ||
                 "developer_error" in normalized ||
                 "statuscode=10" in normalized ->
-                "Google Play Games Saved Games rejected this build. Check the Play Games app ID, linked package name, and signing certificate in Play Console."
+                context.getString(R.string.google_error_developer)
             "sign-in check failed" in normalized ||
                 "cannot find the installed destination app" in normalized ||
                 "games service" in normalized ->
-                "Google account is connected, but Google Play Games Saved Games rejected this build. Check the Play Games app ID, linked package, and signing certificate."
+                context.getString(R.string.google_error_build_rejected)
             apiStatusCode == CommonStatusCodes.NETWORK_ERROR ||
                 apiStatusCode == CommonStatusCodes.TIMEOUT ||
                 apiStatusCode == CommonStatusCodes.ERROR ||
                 "service_version_update_required" in normalized ||
                 "network" in normalized || "timeout" in normalized ->
-                "Google cloud sync failed because the network request did not complete or Google Play services needs attention."
+                context.getString(R.string.google_error_network)
             isMissingSnapshotError(error) ->
-                "No saved store logins were found in Google cloud sync yet."
+                context.getString(R.string.google_error_no_snapshot)
             rawMessage.isNotBlank() ->
-                "Google cloud sync failed: $rawMessage"
+                context.getString(R.string.google_error_generic, rawMessage)
             else ->
-                "Google cloud sync failed before Google Saved Games could open."
+                context.getString(R.string.google_error_before_open)
         }
     }
 

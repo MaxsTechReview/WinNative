@@ -144,7 +144,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:fontFamily="@font/inter"
-                android:text="Invert X"
+                android:text="@string/invert_x_short"
                 android:textColor="@color/settings_text_secondary"
                 android:textSize="13sp" />
 
@@ -169,7 +169,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:fontFamily="@font/inter"
-                android:text="Invert Y"
+                android:text="@string/invert_y_short"
                 android:textColor="@color/settings_text_secondary"
                 android:textSize="13sp" />
 
@@ -195,7 +195,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:fontFamily="@font/inter"
-                android:text="Square Deadzone"
+                android:text="@string/square_deadzone"
                 android:textColor="@color/settings_text_secondary"
                 android:textSize="13sp" />
 

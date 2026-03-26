@@ -485,7 +485,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.gyro_config_dialog, null)
         val builder = AlertDialog.Builder(requireContext())
         builder.setView(dialogView)
-        builder.setTitle("Gyroscope Configuration")
+        builder.setTitle(R.string.gyroscope_configuration)
 
         val inputControlsView = InputControlsView(requireContext(), true)
         inputControlsView.layoutParams = FrameLayout.LayoutParams(
@@ -524,24 +524,24 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
         cbInvertGyroX.isChecked = preferences.getBoolean("invert_gyro_x", false)
         cbInvertGyroY.isChecked = preferences.getBoolean("invert_gyro_y", false)
 
-        tvGyroXSensitivity.text = "X Sensitivity: ${sbGyroXSensitivity.progress}%"
-        tvGyroYSensitivity.text = "Y Sensitivity: ${sbGyroYSensitivity.progress}%"
-        tvGyroSmoothing.text = "Smoothing: ${sbGyroSmoothing.progress}%"
-        tvGyroDeadzone.text = "Deadzone: ${sbGyroDeadzone.progress}%"
+        tvGyroXSensitivity.text = getString(R.string.x_sensitivity_format, sbGyroXSensitivity.progress)
+        tvGyroYSensitivity.text = getString(R.string.y_sensitivity_format, sbGyroYSensitivity.progress)
+        tvGyroSmoothing.text = getString(R.string.smoothing_format, sbGyroSmoothing.progress)
+        tvGyroDeadzone.text = getString(R.string.deadzone_format, sbGyroDeadzone.progress)
 
-        val seekBarListener = { seekBar: SeekBar, textView: TextView, prefix: String ->
+        val seekBarListener = { seekBar: SeekBar, textView: TextView, formatResId: Int ->
             seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar, progress: Int, fromUser: Boolean) {
-                    textView.text = "$prefix: $progress%"
+                    textView.text = getString(formatResId, progress)
                 }
                 override fun onStartTrackingTouch(s: SeekBar) {}
                 override fun onStopTrackingTouch(s: SeekBar) {}
             })
         }
-        seekBarListener(sbGyroXSensitivity, tvGyroXSensitivity, "X Sensitivity")
-        seekBarListener(sbGyroYSensitivity, tvGyroYSensitivity, "Y Sensitivity")
-        seekBarListener(sbGyroSmoothing, tvGyroSmoothing, "Smoothing")
-        seekBarListener(sbGyroDeadzone, tvGyroDeadzone, "Deadzone")
+        seekBarListener(sbGyroXSensitivity, tvGyroXSensitivity, R.string.x_sensitivity_format)
+        seekBarListener(sbGyroYSensitivity, tvGyroYSensitivity, R.string.y_sensitivity_format)
+        seekBarListener(sbGyroSmoothing, tvGyroSmoothing, R.string.smoothing_format)
+        seekBarListener(sbGyroDeadzone, tvGyroDeadzone, R.string.deadzone_format)
 
         val smoothingFactor = preferences.getFloat("gyro_smoothing", 0.9f)
         val gyroDeadzone = preferences.getFloat("gyro_deadzone", 0.05f)
@@ -603,7 +603,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
 
         sensorManager.registerListener(gyroListener, gyroscopeSensor, SensorManager.SENSOR_DELAY_GAME)
 
-        builder.setPositiveButton("OK") { _, _ ->
+        builder.setPositiveButton(R.string.ok) { _, _ ->
             preferences.edit().apply {
                 putFloat("gyro_x_sensitivity", sbGyroXSensitivity.progress / 100.0f)
                 putFloat("gyro_y_sensitivity", sbGyroYSensitivity.progress / 100.0f)
@@ -616,7 +616,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
             sensorManager.unregisterListener(gyroListener)
         }
 
-        builder.setNegativeButton("Cancel") { _, _ ->
+        builder.setNegativeButton(R.string.cancel) { _, _ ->
             sensorManager.unregisterListener(gyroListener)
         }
 
@@ -712,7 +712,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
                 itemBinding.TVProfileName.text = profile.name
                 val elementCount = profile.elementCountFromFile
                 Log.d("ICFrag", "ProfileViewHolder.bind: name=${profile.name}, id=${profile.id}, elementCountFromFile=$elementCount")
-                itemBinding.TVProfileSubtitle.text = "$elementCount elements"
+                itemBinding.TVProfileSubtitle.text = getString(R.string.elements_count, elementCount)
             } else {
                 itemBinding.TVProfileName.setText(R.string.select_profile)
                 itemBinding.TVProfileSubtitle.text = getString(R.string.no_profile_selected)
@@ -958,13 +958,13 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
             val smoothing = (preferences.getFloat("gyro_smoothing", 0.9f) * 100).toInt()
             val deadzone = (preferences.getFloat("gyro_deadzone", 0.05f) * 100).toInt()
 
-            itemBinding.TVGyroXSensitivity.text = "X Sensitivity: $xSens%"
+            itemBinding.TVGyroXSensitivity.text = getString(R.string.x_sensitivity_format, xSens)
             itemBinding.SBGyroXSensitivity.progress = xSens
-            itemBinding.TVGyroYSensitivity.text = "Y Sensitivity: $ySens%"
+            itemBinding.TVGyroYSensitivity.text = getString(R.string.y_sensitivity_format, ySens)
             itemBinding.SBGyroYSensitivity.progress = ySens
-            itemBinding.TVGyroSmoothing.text = "Smoothing: $smoothing%"
+            itemBinding.TVGyroSmoothing.text = getString(R.string.smoothing_format, smoothing)
             itemBinding.SBGyroSmoothing.progress = smoothing
-            itemBinding.TVGyroDeadzone.text = "Deadzone: $deadzone%"
+            itemBinding.TVGyroDeadzone.text = getString(R.string.deadzone_format, deadzone)
             itemBinding.SBGyroDeadzone.progress = deadzone
 
             // Remove old listeners before setting checked state
@@ -977,7 +977,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
             // Seekbar listeners
             itemBinding.SBGyroXSensitivity.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar, progress: Int, fromUser: Boolean) {
-                    itemBinding.TVGyroXSensitivity.text = "X Sensitivity: $progress%"
+                    itemBinding.TVGyroXSensitivity.text = getString(R.string.x_sensitivity_format, progress)
                     if (fromUser) preferences.edit().putFloat("gyro_x_sensitivity", progress / 100.0f).apply()
                 }
                 override fun onStartTrackingTouch(s: SeekBar) {}
@@ -986,7 +986,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
 
             itemBinding.SBGyroYSensitivity.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar, progress: Int, fromUser: Boolean) {
-                    itemBinding.TVGyroYSensitivity.text = "Y Sensitivity: $progress%"
+                    itemBinding.TVGyroYSensitivity.text = getString(R.string.y_sensitivity_format, progress)
                     if (fromUser) preferences.edit().putFloat("gyro_y_sensitivity", progress / 100.0f).apply()
                 }
                 override fun onStartTrackingTouch(s: SeekBar) {}
@@ -995,7 +995,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
 
             itemBinding.SBGyroSmoothing.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar, progress: Int, fromUser: Boolean) {
-                    itemBinding.TVGyroSmoothing.text = "Smoothing: $progress%"
+                    itemBinding.TVGyroSmoothing.text = getString(R.string.smoothing_format, progress)
                     if (fromUser) preferences.edit().putFloat("gyro_smoothing", progress / 100.0f).apply()
                 }
                 override fun onStartTrackingTouch(s: SeekBar) {}
@@ -1004,7 +1004,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
 
             itemBinding.SBGyroDeadzone.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar, progress: Int, fromUser: Boolean) {
-                    itemBinding.TVGyroDeadzone.text = "Deadzone: $progress%"
+                    itemBinding.TVGyroDeadzone.text = getString(R.string.deadzone_format, progress)
                     if (fromUser) preferences.edit().putFloat("gyro_deadzone", progress / 100.0f).apply()
                 }
                 override fun onStartTrackingTouch(s: SeekBar) {}
@@ -1148,9 +1148,9 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
             val deadzone = (preferences.getFloat(deadzoneKey, 0.1f) * 100).toInt()
             val sensitivity = (preferences.getFloat(sensitivityKey, 1.0f) * 100).toInt()
 
-            itemBinding.TVDeadzone.text = "Deadzone: $deadzone%"
+            itemBinding.TVDeadzone.text = getString(R.string.deadzone_format, deadzone)
             itemBinding.SBDeadzone.progress = deadzone
-            itemBinding.TVSensitivity.text = "Sensitivity: $sensitivity%"
+            itemBinding.TVSensitivity.text = getString(R.string.sensitivity_format, sensitivity)
             itemBinding.SBSensitivity.progress = sensitivity
 
             // Remove old listeners before setting checked state
@@ -1170,7 +1170,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
             // Seekbar listeners
             itemBinding.SBDeadzone.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar, progress: Int, fromUser: Boolean) {
-                    itemBinding.TVDeadzone.text = "Deadzone: $progress%"
+                    itemBinding.TVDeadzone.text = getString(R.string.deadzone_format, progress)
                     if (fromUser) preferences.edit().putFloat(deadzoneKey, progress / 100.0f).apply()
                 }
                 override fun onStartTrackingTouch(s: SeekBar) {}
@@ -1179,7 +1179,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
 
             itemBinding.SBSensitivity.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar, progress: Int, fromUser: Boolean) {
-                    itemBinding.TVSensitivity.text = "Sensitivity: $progress%"
+                    itemBinding.TVSensitivity.text = getString(R.string.sensitivity_format, progress)
                     if (fromUser) preferences.edit().putFloat(sensitivityKey, progress / 100.0f).apply()
                 }
                 override fun onStartTrackingTouch(s: SeekBar) {}

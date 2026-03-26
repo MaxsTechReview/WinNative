@@ -201,7 +201,7 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
         int avgClockSpeed = totalClockSpeed / clockSpeeds.length;
         TextView tvCPUTitle = findViewById(R.id.TVCPUTitle);
         byte cpuUsagePercent = (byte)(((float)avgClockSpeed / maxClockSpeed) * 100.0f);
-        tvCPUTitle.setText("CPU ("+cpuUsagePercent+"%)");
+        tvCPUTitle.setText(activity.getString(R.string.cpu_usage_format, cpuUsagePercent));
     }
 
     private void updateMemoryInfoView() {
