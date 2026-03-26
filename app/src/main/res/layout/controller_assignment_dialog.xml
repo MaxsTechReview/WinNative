@@ -18,7 +18,7 @@
             android:id="@+id/TVRestartRequired"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/restart_required_for_changes"
+            android:text="@string/container_config_restart_required"
             android:textAppearance="?android:attr/textAppearanceMedium"
             android:textColor="@color/colorAccent"
             android:gravity="center"
@@ -52,7 +52,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/player_1"
+                    android:text="@string/session_gamepad_player_1"
                     android:textSize="16sp"
                     app:layout_flexShrink="0"
                     android:layout_marginEnd="12dp"/>
@@ -67,7 +67,7 @@
                     android:focusable="true"
                     android:focusableInTouchMode="true"
                     android:maxLines="1"
-                    android:text="@string/not_assigned"
+                    android:text="@string/session_gamepad_not_assigned"
                     android:textStyle="bold"
                     app:layout_flexGrow="1"
                     app:layout_minWidth="0dp"/>
@@ -86,7 +86,7 @@
                     android:id="@+id/CBVibrateP1"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/vibrate"
+                    android:text="@string/session_gamepad_vibrate"
                     app:layout_flexShrink="0"
                     android:layout_marginEnd="8dp"
                     android:layout_marginBottom="6dp"/>
@@ -96,7 +96,7 @@
                     style="@style/ButtonNeutral"
                     android:layout_width="wrap_content"
                     android:layout_height="40dp"
-                    android:text="@string/macros"
+                    android:text="@string/session_gamepad_macros"
                     android:layout_marginEnd="8dp"
                     android:layout_marginBottom="6dp"/>
 
@@ -105,7 +105,7 @@
                     style="@style/ButtonNeutral"
                     android:layout_width="wrap_content"
                     android:layout_height="40dp"
-                    android:text="@string/reset"
+                    android:text="@string/common_ui_reset"
                     app:layout_flexShrink="0"
                     android:layout_marginEnd="8dp"
                     android:layout_marginBottom="6dp"/>
@@ -115,7 +115,7 @@
                     style="@style/ButtonNeutral"
                     android:layout_width="wrap_content"
                     android:layout_height="40dp"
-                    android:text="@string/assign"
+                    android:text="@string/session_gamepad_assign"
                     app:layout_flexShrink="0"
                     android:layout_marginBottom="6dp"/>
             </com.google.android.flexbox.FlexboxLayout>
@@ -148,7 +148,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/player_2"
+                    android:text="@string/session_gamepad_player_2"
                     android:textSize="16sp"
                     app:layout_flexShrink="0"
                     android:layout_marginEnd="12dp"/>
@@ -163,7 +163,7 @@
                     android:focusable="true"
                     android:focusableInTouchMode="true"
                     android:maxLines="1"
-                    android:text="@string/not_assigned"
+                    android:text="@string/session_gamepad_not_assigned"
                     android:textStyle="bold"
                     app:layout_flexGrow="1"
                     app:layout_minWidth="0dp"/>
@@ -182,7 +182,7 @@
                     android:id="@+id/CBVibrateP2"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/vibrate"
+                    android:text="@string/session_gamepad_vibrate"
                     android:layout_marginEnd="8dp"
                     android:layout_marginBottom="6dp"/>
 
@@ -191,7 +191,7 @@
                     style="@style/ButtonNeutral"
                     android:layout_width="wrap_content"
                     android:layout_height="40dp"
-                    android:text="@string/macros"
+                    android:text="@string/session_gamepad_macros"
                     android:layout_marginEnd="8dp"
                     android:layout_marginBottom="6dp"/>
 
@@ -200,7 +200,7 @@
                     style="@style/ButtonNeutral"
                     android:layout_width="wrap_content"
                     android:layout_height="40dp"
-                    android:text="@string/reset"
+                    android:text="@string/common_ui_reset"
                     android:layout_marginEnd="8dp"
                     android:layout_marginBottom="6dp"/>
 
@@ -209,7 +209,7 @@
                     style="@style/ButtonNeutral"
                     android:layout_width="wrap_content"
                     android:layout_height="40dp"
-                    android:text="@string/assign"
+                    android:text="@string/session_gamepad_assign"
                     android:layout_marginBottom="6dp"/>
             </com.google.android.flexbox.FlexboxLayout>
         </LinearLayout>
@@ -239,7 +239,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/player_3"
+                    android:text="@string/session_gamepad_player_3"
                     android:textSize="16sp"
                     android:layout_marginEnd="12dp"/>
 
@@ -253,7 +253,7 @@
                     android:focusable="true"
                     android:focusableInTouchMode="true"
                     android:maxLines="1"
-                    android:text="@string/not_assigned"
+                    android:text="@string/session_gamepad_not_assigned"
                     android:textStyle="bold"
                     app:layout_flexGrow="1"
                     app:layout_minWidth="0dp"/>
@@ -272,7 +272,7 @@
                     android:id="@+id/CBVibrateP3"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/vibrate"
+                    android:text="@string/session_gamepad_vibrate"
                     android:layout_marginEnd="8dp"
                     android:layout_marginBottom="6dp"/>
 
@@ -281,7 +281,7 @@
                     style="@style/ButtonNeutral"
                     android:layout_width="wrap_content"
                     android:layout_height="40dp"
-                    android:text="@string/macros"
+                    android:text="@string/session_gamepad_macros"
                     android:layout_marginEnd="8dp"
                     android:layout_marginBottom="6dp"/>
 
@@ -290,7 +290,7 @@
                     style="@style/ButtonNeutral"
                     android:layout_width="wrap_content"
                     android:layout_height="40dp"
-                    android:text="@string/reset"
+                    android:text="@string/common_ui_reset"
                     android:layout_marginEnd="8dp"
                     android:layout_marginBottom="6dp"/>
 
@@ -299,7 +299,7 @@
                     style="@style/ButtonNeutral"
                     android:layout_width="wrap_content"
                     android:layout_height="40dp"
-                    android:text="@string/assign"
+                    android:text="@string/session_gamepad_assign"
                     android:layout_marginBottom="6dp"/>
             </com.google.android.flexbox.FlexboxLayout>
         </LinearLayout>
@@ -330,7 +330,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/player_4"
+                    android:text="@string/session_gamepad_player_4"
                     android:textSize="16sp"
                     android:layout_marginEnd="12dp"/>
 
@@ -344,7 +344,7 @@
                     android:focusable="true"
                     android:focusableInTouchMode="true"
                     android:maxLines="1"
-                    android:text="@string/not_assigned"
+                    android:text="@string/session_gamepad_not_assigned"
                     android:textStyle="bold"
                     app:layout_flexGrow="1"
                     app:layout_minWidth="0dp"/>
@@ -362,7 +362,7 @@
                     android:id="@+id/CBVibrateP4"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/vibrate"
+                    android:text="@string/session_gamepad_vibrate"
                     android:layout_marginEnd="8dp"
                     android:layout_marginBottom="6dp"/>
 
@@ -371,7 +371,7 @@
                     style="@style/ButtonNeutral"
                     android:layout_width="wrap_content"
                     android:layout_height="40dp"
-                    android:text="@string/macros"
+                    android:text="@string/session_gamepad_macros"
                     android:layout_marginEnd="8dp"
                     android:layout_marginBottom="6dp"/>
 
@@ -380,7 +380,7 @@
                     style="@style/ButtonNeutral"
                     android:layout_width="wrap_content"
                     android:layout_height="40dp"
-                    android:text="@string/reset"
+                    android:text="@string/common_ui_reset"
                     android:layout_marginEnd="8dp"
                     android:layout_marginBottom="6dp"/>
 
@@ -389,7 +389,7 @@
                     style="@style/ButtonNeutral"
                     android:layout_width="wrap_content"
                     android:layout_height="40dp"
-                    android:text="@string/assign"
+                    android:text="@string/session_gamepad_assign"
                     android:layout_marginBottom="6dp"/>
             </com.google.android.flexbox.FlexboxLayout>
         </LinearLayout>

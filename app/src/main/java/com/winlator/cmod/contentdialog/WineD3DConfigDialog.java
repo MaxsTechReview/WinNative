@@ -31,7 +31,7 @@ public class WineD3DConfigDialog extends ContentDialog {
         super(anchor.getContext(), R.layout.wined3d_config_dialog);
         context = anchor.getContext();
         setIcon(R.drawable.icon_settings);
-        setTitle("WineD3D " + context.getString(R.string.configuration));
+        setTitle("WineD3D " + context.getString(R.string.container_config_title));
 
         final Spinner sCSMT = findViewById(R.id.SCSMT);
         final Spinner sGPUName = findViewById(R.id.SGPUName);

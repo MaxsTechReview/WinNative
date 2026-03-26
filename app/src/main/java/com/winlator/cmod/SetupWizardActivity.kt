@@ -199,7 +199,7 @@ class SetupWizardActivity : FragmentActivity() {
         fun promptToInstallWineOrCreateContainer(context: Context, missingWineVersion: String? = null) {
             val runtimeLabel = resolveWineVersionLabel(context, missingWineVersion)
             val message = if (runtimeLabel.isNotBlank()) {
-                context.getString(R.string.error_wine_not_installed, runtimeLabel)
+                context.getString(R.string.container_wine_error_not_installed, runtimeLabel)
             } else {
                 "Download a Wine/Proton package and create a container before launching games."
             }
@@ -787,7 +787,7 @@ class SetupWizardActivity : FragmentActivity() {
                     val resolvedSpec = resolveRecommendedRuntimeSpec(spec)
                     transferState.value = TransferState(
                         title = spec.label,
-                        detail = getString(R.string.preparing_download),
+                        detail = getString(R.string.downloads_queue_preparing_download),
                         currentIndex = 0,
                         total = 2
                     )
@@ -802,7 +802,7 @@ class SetupWizardActivity : FragmentActivity() {
 
                     transferState.value = TransferState(
                         title = spec.label,
-                        detail = getString(R.string.installing_package),
+                        detail = getString(R.string.downloads_queue_installing_package),
                         currentIndex = 2,
                         total = 2,
                         progress = null
@@ -832,7 +832,7 @@ class SetupWizardActivity : FragmentActivity() {
         total: Int
     ): ContentProfile? {
         transferState.value = TransferState(
-            title = getString(R.string.recommended_components),
+            title = getString(R.string.setup_wizard_recommended_components),
             detail = "Downloading ${spec.label}",
             currentIndex = index + 1,
             total = total,
@@ -847,7 +847,7 @@ class SetupWizardActivity : FragmentActivity() {
         ) ?: return null
 
         transferState.value = TransferState(
-            title = getString(R.string.recommended_components),
+            title = getString(R.string.setup_wizard_recommended_components),
             detail = "Installing ${spec.label}",
             currentIndex = index + 1,
             total = total,
@@ -1266,7 +1266,7 @@ class SetupWizardActivity : FragmentActivity() {
                 try {
                     transferState.value = TransferState(
                         title = spec.verName,
-                        detail = getString(R.string.preparing_download),
+                        detail = getString(R.string.downloads_queue_preparing_download),
                         currentIndex = 1,
                         total = 1
                     )
@@ -1280,7 +1280,7 @@ class SetupWizardActivity : FragmentActivity() {
 
                     transferState.value = TransferState(
                         title = spec.verName,
-                        detail = getString(R.string.installing),
+                        detail = getString(R.string.setup_wizard_installing),
                         currentIndex = 1,
                         total = 1,
                         progress = null
@@ -1359,14 +1359,14 @@ class SetupWizardActivity : FragmentActivity() {
         val scrollState = rememberScrollState()
         val totalPages = if (advanced) 4 else 5
         val pageTitle = when {
-            page == 0 -> stringResource(R.string.required_access)
-            advanced && page == 1 -> stringResource(R.string.select_components)
-            advanced && page == 2 -> stringResource(R.string.default_settings)
-            advanced && page == 3 -> stringResource(R.string.stores)
-            !advanced && page == 1 -> stringResource(R.string.recommended_components)
-            !advanced && page == 2 -> stringResource(R.string.recommended_wine_proton)
-            !advanced && page == 3 -> stringResource(R.string.default_settings)
-            else -> stringResource(R.string.stores)
+            page == 0 -> stringResource(R.string.setup_wizard_required_access)
+            advanced && page == 1 -> stringResource(R.string.setup_wizard_select_components)
+            advanced && page == 2 -> stringResource(R.string.setup_wizard_default_settings)
+            advanced && page == 3 -> stringResource(R.string.stores_accounts_title)
+            !advanced && page == 1 -> stringResource(R.string.setup_wizard_recommended_components)
+            !advanced && page == 2 -> stringResource(R.string.setup_wizard_recommended_wine_proton)
+            !advanced && page == 3 -> stringResource(R.string.setup_wizard_default_settings)
+            else -> stringResource(R.string.stores_accounts_title)
         }
         val canGoNext = when {
             page == 0 -> storageGranted.value && imageFsDone.value
@@ -1398,7 +1398,7 @@ class SetupWizardActivity : FragmentActivity() {
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Text(
-                            text = stringResource(if (advanced) R.string.advanced_setup else R.string.setup_wizard),
+                            text = stringResource(if (advanced) R.string.setup_wizard_advanced_setup else R.string.setup_wizard_title),
                             color = Color(0xFFE6EDF3),
                             fontFamily = SyncopateFont,
                             fontSize = 18.sp,
@@ -1407,7 +1407,7 @@ class SetupWizardActivity : FragmentActivity() {
                         )
                     }
                     Text(
-                        text = stringResource(R.string.step_format, page + 1, totalPages),
+                        text = stringResource(R.string.setup_wizard_step_format, page + 1, totalPages),
                         color = Color(0xFF8B949E),
                         fontFamily = InterFont,
                         fontSize = 12.sp,
@@ -1479,7 +1479,7 @@ class SetupWizardActivity : FragmentActivity() {
                                 contentColor = Color(0xFFE6EDF3)
                             )
                         ) {
-                            Text(stringResource(R.string.advanced_user), fontFamily = InterFont)
+                            Text(stringResource(R.string.setup_wizard_advanced_user), fontFamily = InterFont)
                         }
                     } else {
                         OutlinedButton(
@@ -1497,7 +1497,7 @@ class SetupWizardActivity : FragmentActivity() {
                                 disabledContentColor = Color(0xFF6E7681)
                             )
                         ) {
-                            Text(stringResource(R.string.back), fontFamily = InterFont)
+                            Text(stringResource(R.string.common_ui_back), fontFamily = InterFont)
                         }
                     }
 
@@ -1512,7 +1512,7 @@ class SetupWizardActivity : FragmentActivity() {
                                 disabledContentColor = Color(0xFF8B949E)
                             )
                         ) {
-                            Text(stringResource(R.string.next), fontFamily = InterFont, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.setup_wizard_next), fontFamily = InterFont, fontWeight = FontWeight.Bold)
                         }
                     } else {
                         Button(
@@ -1520,7 +1520,7 @@ class SetupWizardActivity : FragmentActivity() {
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF238636))
                         ) {
-                            Text(stringResource(R.string.finish), fontFamily = InterFont, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.setup_wizard_finish), fontFamily = InterFont, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -1540,22 +1540,22 @@ class SetupWizardActivity : FragmentActivity() {
         ) {
             Box(modifier = Modifier.weight(1f)) {
                 WizardActionCard(
-                    title = stringResource(R.string.allow_file_access),
-                    subtitle = stringResource(R.string.required),
+                    title = stringResource(R.string.setup_wizard_allow_file_access),
+                    subtitle = stringResource(R.string.common_ui_required),
                     completed = storageGranted.value,
-                    buttonLabel = stringResource(if (storageGranted.value) R.string.granted else R.string.grant),
+                    buttonLabel = stringResource(if (storageGranted.value) R.string.setup_wizard_granted else R.string.setup_wizard_grant),
                     onClick = { requestFileAccess() }
                 )
             }
             Box(modifier = Modifier.weight(1f)) {
                 WizardActionCard(
-                    title = stringResource(R.string.notifications),
-                    subtitle = stringResource(R.string.optional),
+                    title = stringResource(R.string.common_ui_notifications),
+                    subtitle = stringResource(R.string.common_ui_optional),
                     completed = notifGranted.value,
                     buttonLabel = when {
-                        notifGranted.value -> stringResource(R.string.granted)
-                        notifDenied.value -> stringResource(R.string.denied)
-                        else -> stringResource(R.string.allow)
+                        notifGranted.value -> stringResource(R.string.setup_wizard_granted)
+                        notifDenied.value -> stringResource(R.string.setup_wizard_denied)
+                        else -> stringResource(R.string.setup_wizard_allow)
                     },
                     onClick = { requestNotifications() }
                 )
@@ -1563,13 +1563,13 @@ class SetupWizardActivity : FragmentActivity() {
         }
         Spacer(Modifier.height(12.dp))
         WizardActionCard(
-            title = stringResource(R.string.install_system_files),
-            subtitle = stringResource(R.string.required),
+            title = stringResource(R.string.setup_wizard_install_system_files),
+            subtitle = stringResource(R.string.common_ui_required),
             completed = imageFsDone.value,
             buttonLabel = when {
-                imageFsDone.value -> stringResource(R.string.installed)
-                imageFsInstalling.value -> stringResource(R.string.installing)
-                else -> stringResource(R.string.install_system_files)
+                imageFsDone.value -> stringResource(R.string.common_ui_installed)
+                imageFsInstalling.value -> stringResource(R.string.setup_wizard_installing)
+                else -> stringResource(R.string.setup_wizard_install_system_files)
             },
             onClick = { installImageFs() },
             enabled = !imageFsInstalling.value
@@ -1596,7 +1596,7 @@ class SetupWizardActivity : FragmentActivity() {
     @Composable
     private fun PageComponents() {
         Text(
-            text = stringResource(R.string.recommended_components_description),
+            text = stringResource(R.string.setup_wizard_recommended_components_description),
             color = Color(0xFF8B949E),
             fontFamily = InterFont,
             fontSize = 13.sp
@@ -1604,19 +1604,19 @@ class SetupWizardActivity : FragmentActivity() {
         Spacer(Modifier.height(18.dp))
 
         WizardActionCard(
-            title = stringResource(R.string.recommended_components),
-            subtitle = stringResource(R.string.required),
+            title = stringResource(R.string.setup_wizard_recommended_components),
+            subtitle = stringResource(R.string.common_ui_required),
             completed = recommendedComponentsDone.value,
-            buttonLabel = stringResource(if (recommendedComponentsDone.value) R.string.installed else R.string.download_and_install),
+            buttonLabel = stringResource(if (recommendedComponentsDone.value) R.string.common_ui_installed else R.string.setup_wizard_download_and_install),
             onClick = { installRecommendedComponents() },
             enabled = transferState.value == null
         )
         Spacer(Modifier.height(12.dp))
         WizardActionCard(
-            title = stringResource(R.string.drivers),
-            subtitle = stringResource(R.string.required),
+            title = stringResource(R.string.settings_drivers_title),
+            subtitle = stringResource(R.string.common_ui_required),
             completed = driversVisited.value,
-            buttonLabel = stringResource(if (driversVisited.value) R.string.done else R.string.open_drivers),
+            buttonLabel = stringResource(if (driversVisited.value) R.string.common_ui_done else R.string.setup_wizard_open_drivers),
             onClick = { openDrivers() },
             enabled = imageFsDone.value
         )
@@ -1625,7 +1625,7 @@ class SetupWizardActivity : FragmentActivity() {
     @Composable
     private fun PageWineAndProton() {
         Text(
-            text = stringResource(R.string.each_button_downloads_description),
+            text = stringResource(R.string.setup_wizard_each_button_downloads_description),
             color = Color(0xFF8B949E),
             fontFamily = InterFont,
             fontSize = 13.sp
@@ -1633,19 +1633,19 @@ class SetupWizardActivity : FragmentActivity() {
         Spacer(Modifier.height(18.dp))
 
         WizardActionCard(
-            title = stringResource(R.string.recommended_x86_64),
-            subtitle = stringResource(R.string.required),
+            title = stringResource(R.string.setup_wizard_recommended_x86_64),
+            subtitle = stringResource(R.string.common_ui_required),
             completed = x86ProtonDone.value,
-            buttonLabel = stringResource(if (x86ProtonDone.value) R.string.ready else R.string.download_and_create),
+            buttonLabel = stringResource(if (x86ProtonDone.value) R.string.setup_wizard_ready else R.string.setup_wizard_download_and_create),
             onClick = { installRecommendedProton(x86ProtonSpec) },
             enabled = transferState.value == null
         )
         Spacer(Modifier.height(12.dp))
         WizardActionCard(
-            title = stringResource(R.string.recommended_arm64ec),
-            subtitle = stringResource(R.string.required),
+            title = stringResource(R.string.setup_wizard_recommended_arm64ec),
+            subtitle = stringResource(R.string.common_ui_required),
             completed = arm64ProtonDone.value,
-            buttonLabel = stringResource(if (arm64ProtonDone.value) R.string.ready else R.string.download_and_create),
+            buttonLabel = stringResource(if (arm64ProtonDone.value) R.string.setup_wizard_ready else R.string.setup_wizard_download_and_create),
             onClick = { installRecommendedProton(arm64ProtonSpec) },
             enabled = transferState.value == null
         )
@@ -1674,7 +1674,7 @@ class SetupWizardActivity : FragmentActivity() {
         var selectedTab by remember { mutableStateOf(typeOrder[0]) }
 
         Text(
-            text = stringResource(R.string.choose_components_description),
+            text = stringResource(R.string.setup_wizard_choose_components_description),
             color = Color(0xFF8B949E),
             fontFamily = InterFont,
             fontSize = 13.sp
@@ -1683,10 +1683,10 @@ class SetupWizardActivity : FragmentActivity() {
 
         // Also show Drivers button
         WizardActionCard(
-            title = stringResource(R.string.drivers),
-            subtitle = stringResource(R.string.required),
+            title = stringResource(R.string.settings_drivers_title),
+            subtitle = stringResource(R.string.common_ui_required),
             completed = driversVisited.value,
-            buttonLabel = stringResource(if (driversVisited.value) R.string.done else R.string.open_drivers),
+            buttonLabel = stringResource(if (driversVisited.value) R.string.common_ui_done else R.string.setup_wizard_open_drivers),
             onClick = { openDrivers() },
             enabled = imageFsDone.value
         )
@@ -1743,7 +1743,7 @@ class SetupWizardActivity : FragmentActivity() {
                 )
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    text = stringResource(R.string.loading_components),
+                    text = stringResource(R.string.setup_wizard_loading_components),
                     color = Color(0xFF8B949E),
                     fontFamily = InterFont,
                     fontSize = 13.sp
@@ -1751,7 +1751,7 @@ class SetupWizardActivity : FragmentActivity() {
             }
         } else if (tabProfiles.isEmpty()) {
             Text(
-                text = stringResource(R.string.no_components_available),
+                text = stringResource(R.string.setup_wizard_no_components_available),
                 color = Color(0xFF8B949E),
                 fontFamily = InterFont,
                 fontSize = 13.sp,
@@ -1811,7 +1811,7 @@ class SetupWizardActivity : FragmentActivity() {
                     )
                 ) {
                     Text(
-                        text = stringResource(if (installed) R.string.installed else R.string.install),
+                        text = stringResource(if (installed) R.string.common_ui_installed else R.string.common_ui_install),
                         fontFamily = InterFont,
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp
@@ -1824,7 +1824,7 @@ class SetupWizardActivity : FragmentActivity() {
     @Composable
     private fun PageDefaultSettings() {
         Text(
-            text = stringResource(R.string.setup_containers_description),
+            text = stringResource(R.string.setup_wizard_containers_description),
             color = Color(0xFF8B949E),
             fontFamily = InterFont,
             fontSize = 13.sp
@@ -1836,9 +1836,9 @@ class SetupWizardActivity : FragmentActivity() {
 
         WizardActionCard(
             title = defaultX86ContainerName.value.ifBlank { "x86-64 container" },
-            subtitle = stringResource(R.string.default_settings),
+            subtitle = stringResource(R.string.setup_wizard_default_settings),
             completed = defaultX86SettingsDone.value,
-            buttonLabel = stringResource(if (defaultX86SettingsDone.value) R.string.configured else R.string.open),
+            buttonLabel = stringResource(if (defaultX86SettingsDone.value) R.string.setup_wizard_configured else R.string.common_ui_open),
             onClick = {
                 if (x86Id > 0) openContainerDefaultSettings(x86Id, "x86")
             },
@@ -1847,9 +1847,9 @@ class SetupWizardActivity : FragmentActivity() {
         Spacer(Modifier.height(12.dp))
         WizardActionCard(
             title = defaultArmContainerName.value.ifBlank { "ARM64EC container" },
-            subtitle = stringResource(R.string.default_settings),
+            subtitle = stringResource(R.string.setup_wizard_default_settings),
             completed = defaultArmSettingsDone.value,
-            buttonLabel = stringResource(if (defaultArmSettingsDone.value) R.string.configured else R.string.open),
+            buttonLabel = stringResource(if (defaultArmSettingsDone.value) R.string.setup_wizard_configured else R.string.common_ui_open),
             onClick = {
                 if (armId > 0) openContainerDefaultSettings(armId, "arm64")
             },
@@ -1862,7 +1862,7 @@ class SetupWizardActivity : FragmentActivity() {
         val storeState by storeLoginState
 
         Text(
-            text = stringResource(R.string.store_sign_in_optional),
+            text = stringResource(R.string.setup_wizard_store_sign_in_optional),
             color = Color(0xFF8B949E),
             fontFamily = InterFont,
             fontSize = 13.sp
@@ -1902,7 +1902,7 @@ class SetupWizardActivity : FragmentActivity() {
             accent = Color(0xFFFF9900),
             onClick = {},
             enabled = false,
-            buttonLabel = stringResource(R.string.coming_soon)
+            buttonLabel = stringResource(R.string.common_ui_coming_soon)
         )
     }
 
@@ -1973,7 +1973,7 @@ class SetupWizardActivity : FragmentActivity() {
         accent: Color,
         onClick: () -> Unit,
         enabled: Boolean = true,
-        buttonLabel: String = if (signedIn) stringResource(R.string.signed_in) else stringResource(R.string.sign_in)
+        buttonLabel: String = if (signedIn) stringResource(R.string.common_ui_signed_in) else stringResource(R.string.common_ui_sign_in)
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -1996,7 +1996,7 @@ class SetupWizardActivity : FragmentActivity() {
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = stringResource(if (signedIn) R.string.connected else R.string.optional),
+                        text = stringResource(if (signedIn) R.string.common_ui_connected else R.string.common_ui_optional),
                         color = if (signedIn) Color(0xFF3FB950) else Color(0xFF8B949E),
                         fontFamily = InterFont,
                         fontSize = 12.sp

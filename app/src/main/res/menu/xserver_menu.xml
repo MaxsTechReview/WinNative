@@ -4,52 +4,52 @@
         <item
             android:icon="@drawable/icon_keyboard"
             android:id="@+id/main_menu_keyboard"
-            android:title="@string/keyboard" />
+            android:title="@string/session_drawer_keyboard" />
         <item
             android:icon="@drawable/icon_input_controls"
             android:id="@+id/main_menu_input_controls"
-            android:title="@string/input_controls" />
+            android:title="@string/common_ui_input_controls" />
         <item
             android:id="@+id/main_menu_relative_mouse_movement"
-            android:title="@string/toggle_relative_mouse" />
+            android:title="@string/session_drawer_toggle_relative_mouse" />
         <item
             android:id="@+id/main_menu_disable_mouse"
-            android:title="@string/toggle_mouse" />
+            android:title="@string/session_drawer_toggle_mouse" />
         <item
             android:icon="@drawable/icon_screen_effect"
             android:id="@+id/main_menu_screen_effects"
-            android:title="@string/screen_effect" />
+            android:title="@string/session_effects_title" />
         <item
             android:icon="@drawable/icon_fullscreen"
             android:id="@+id/main_menu_toggle_fullscreen"
-            android:title="@string/toggle_fullscreen" />
+            android:title="@string/session_drawer_toggle_fullscreen" />
         <item
             android:id="@+id/main_menu_native_rendering"
-            android:title="@string/native_rendering" />
+            android:title="@string/session_xserver_native_rendering" />
         <item
             android:icon="@drawable/icon_pause"
             android:id="@+id/main_menu_pause"
-            android:title="@string/pause_resume" />
+            android:title="@string/session_drawer_pause_resume" />
         <item
             android:icon="@drawable/ic_picture_in_picture_alt"
             android:id="@+id/main_menu_pip_mode"
-            android:title="@string/pip_mode" />
+            android:title="@string/session_drawer_pip_mode" />
         <item
             android:icon="@drawable/icon_task_manager"
             android:id="@+id/main_menu_task_manager"
-            android:title="@string/task_manager" />
+            android:title="@string/session_task_title" />
         <item
             android:icon="@drawable/icon_magnifier"
             android:id="@+id/main_menu_magnifier"
-            android:title="@string/magnifier" />
+            android:title="@string/session_drawer_magnifier" />
         <item
             android:icon="@drawable/icon_debug"
             android:id="@+id/main_menu_logs"
-            android:title="@string/logs" />
+            android:title="@string/session_drawer_logs" />
         <item
             android:icon="@drawable/icon_exit"
             android:id="@+id/main_menu_exit"
-            android:title="@string/exit" />
+            android:title="@string/common_ui_exit" />
 
     </group>
 </menu>

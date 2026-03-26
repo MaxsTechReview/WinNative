@@ -32,7 +32,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:fontFamily="@font/inter"
-            android:text="@string/configure_analog_sticks"
+            android:text="@string/session_gamepad_configure_analog_sticks"
             android:textColor="@color/settings_text_primary"
             android:textSize="15sp"
             android:textStyle="bold" />
@@ -144,7 +144,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:fontFamily="@font/inter"
-                android:text="@string/invert_x_short"
+                android:text="@string/session_gamepad_invert_x"
                 android:textColor="@color/settings_text_secondary"
                 android:textSize="13sp" />
 
@@ -169,7 +169,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:fontFamily="@font/inter"
-                android:text="@string/invert_y_short"
+                android:text="@string/session_gamepad_invert_y"
                 android:textColor="@color/settings_text_secondary"
                 android:textSize="13sp" />
 
@@ -195,7 +195,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:fontFamily="@font/inter"
-                android:text="@string/square_deadzone"
+                android:text="@string/session_gamepad_square_deadzone"
                 android:textColor="@color/settings_text_secondary"
                 android:textSize="13sp" />
 

@@ -57,7 +57,7 @@ public class OtherSettingsFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         if (getActivity() != null && ((AppCompatActivity) getActivity()).getSupportActionBar() != null) {
-            ((AppCompatActivity) getActivity()).getSupportActionBar().setTitle(R.string.other);
+            ((AppCompatActivity) getActivity()).getSupportActionBar().setTitle(R.string.common_ui_other);
         }
     }
 
@@ -134,13 +134,13 @@ public class OtherSettingsFragment extends Fragment {
         btInstallSF.setOnClickListener(v -> {
             installSoundFontCallback = uri -> {
                 PreloaderDialog dialog = new PreloaderDialog(requireActivity());
-                dialog.showOnUiThread(R.string.installing_soundfont);
+                dialog.showOnUiThread(R.string.settings_audio_installing_soundfont);
                 MidiManager.installSF2File(context, uri, new MidiManager.OnSoundFontInstalledCallback() {
                     @Override
                     public void onSuccess() {
                         dialog.closeOnUiThread();
                         requireActivity().runOnUiThread(() -> {
-                            ContentDialog.alert(context, R.string.sound_font_installed_success, null);
+                            ContentDialog.alert(context, R.string.settings_audio_sound_font_installed_success, null);
                             loadSoundFontSpinner(sMIDISoundFont);
                         });
                     }
@@ -149,9 +149,9 @@ public class OtherSettingsFragment extends Fragment {
                     public void onFailed(int reason) {
                         dialog.closeOnUiThread();
                         int resId = switch (reason) {
-                            case MidiManager.ERROR_BADFORMAT -> R.string.sound_font_bad_format;
-                            case MidiManager.ERROR_EXIST -> R.string.sound_font_already_exist;
-                            default -> R.string.sound_font_installed_failed;
+                            case MidiManager.ERROR_BADFORMAT -> R.string.settings_audio_sound_font_bad_format;
+                            case MidiManager.ERROR_EXIST -> R.string.settings_audio_sound_font_already_exist;
+                            default -> R.string.settings_audio_sound_font_installed_failed;
                         };
                         requireActivity().runOnUiThread(() -> ContentDialog.alert(context, resId, null));
                     }
@@ -163,15 +163,15 @@ public class OtherSettingsFragment extends Fragment {
 
         btRemoveSF.setOnClickListener(v -> {
             if (sMIDISoundFont.getSelectedItemPosition() != 0) {
-                ContentDialog.confirm(context, R.string.do_you_want_to_remove_this_sound_font, () -> {
+                ContentDialog.confirm(context, R.string.settings_audio_confirm_remove_sound_font, () -> {
                     if (MidiManager.removeSF2File(context, sMIDISoundFont.getSelectedItem().toString())) {
-                        AppUtils.showToast(context, R.string.sound_font_removed_success);
+                        AppUtils.showToast(context, R.string.settings_audio_sound_font_removed_success);
                         loadSoundFontSpinner(sMIDISoundFont);
                     } else
-                        AppUtils.showToast(context, R.string.sound_font_removed_failed);
+                        AppUtils.showToast(context, R.string.settings_audio_sound_font_removed_failed);
                 });
             } else
-                AppUtils.showToast(context, R.string.cannot_remove_default_sound_font);
+                AppUtils.showToast(context, R.string.settings_audio_cannot_remove_default);
         });
 
         cbUseDRI3 = view.findViewById(R.id.CBUseDRI3);
@@ -197,8 +197,8 @@ public class OtherSettingsFragment extends Fragment {
         final View btHelpFileProvider = view.findViewById(R.id.BTHelpFileProvider);
 
         cbEnableFileProvider.setChecked(preferences.getBoolean("enable_file_provider", true));
-        cbEnableFileProvider.setOnClickListener(v -> AppUtils.showToast(context, R.string.take_effect_next_startup));
-        btHelpFileProvider.setOnClickListener(v -> AppUtils.showHelpBox(context, v, R.string.help_file_provider));
+        cbEnableFileProvider.setOnClickListener(v -> AppUtils.showToast(context, R.string.settings_general_take_effect_next_startup));
+        btHelpFileProvider.setOnClickListener(v -> AppUtils.showHelpBox(context, v, R.string.settings_general_help_file_provider));
 
         cbOpenInBrowser = view.findViewById(R.id.CBOpenWithAndroidBrowser);
         cbOpenInBrowser.setChecked(preferences.getBoolean("open_with_android_browser", false));
@@ -207,7 +207,7 @@ public class OtherSettingsFragment extends Fragment {
         cbShareClipboard.setChecked(preferences.getBoolean("share_android_clipboard", false));
 
         view.findViewById(R.id.BTReInstallImagefs).setOnClickListener(v -> {
-            ContentDialog.confirm(context, R.string.do_you_want_to_reinstall_imagefs, () -> ImageFsInstaller.installFromAssets((MainActivity) getActivity()));
+            ContentDialog.confirm(context, R.string.settings_general_confirm_reinstall_imagefs, () -> ImageFsInstaller.installFromAssets((MainActivity) getActivity()));
         });
 
         return view;
@@ -259,7 +259,7 @@ public class OtherSettingsFragment extends Fragment {
     private void loadRefreshRateSpinner(Spinner spinner) {
         List<String> entries = RefreshRateUtils.buildRefreshRateEntryLabels(
                 requireActivity(),
-                getString(R.string.refresh_rate_auto_max)
+                getString(R.string.settings_general_refresh_rate_auto_max)
         );
 
         ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), R.layout.spinner_item_themed, entries);
@@ -288,7 +288,7 @@ public class OtherSettingsFragment extends Fragment {
     public static List<String> buildRefreshRateEntries(android.app.Activity activity) {
         return RefreshRateUtils.buildRefreshRateEntryLabels(
                 activity,
-                activity.getString(R.string.refresh_rate_default_global)
+                activity.getString(R.string.container_config_refresh_rate_default_global)
         );
     }
 
@@ -370,7 +370,7 @@ public class OtherSettingsFragment extends Fragment {
                             try {
                                 installSoundFontCallback.call(uri);
                             } catch (Exception e) {
-                                AppUtils.showToast(getContext(), R.string.unable_to_install_soundfont);
+                                AppUtils.showToast(getContext(), R.string.settings_audio_unable_to_install_soundfont);
                             } finally {
                                 installSoundFontCallback = null;
                             }

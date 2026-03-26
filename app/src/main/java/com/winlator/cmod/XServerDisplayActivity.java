@@ -236,7 +236,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     private void createNotifcationChannel() {
         String name = "Winlator";
-        String description = getString(R.string.xserver_notification_description);
+        String description = getString(R.string.session_xserver_notification_description);
         int importance = NotificationManager.IMPORTANCE_HIGH;
         NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance);
         channel.setDescription(description);
@@ -1467,8 +1467,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 true,
                 enableLogsMenu,
                 isNativeRenderingEnabled,
-                getString(R.string.native_rendering),
-                getString(isNativeRenderingEnabled ? R.string.native_rendering_subtitle_enabled : R.string.native_rendering_subtitle_disabled)
+                getString(R.string.session_xserver_native_rendering),
+                getString(isNativeRenderingEnabled ? R.string.session_xserver_native_rendering_enabled : R.string.session_xserver_native_rendering_disabled)
         );
         XServerDrawerMenuKt.setupXServerDrawerComposeView(
                 navigationComposeView,
@@ -1548,8 +1548,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 preferences.edit().putBoolean("use_dri3", isNativeRenderingEnabled).apply();
                 renderDrawerMenu();
                 showToast(this, getString(isNativeRenderingEnabled
-                    ? R.string.native_rendering_enabled_toast
-                    : R.string.native_rendering_disabled_toast));
+                    ? R.string.session_xserver_native_rendering_enabled_toast
+                    : R.string.session_xserver_native_rendering_disabled_toast));
                 break;
             case R.id.main_menu_exit:
                 drawerLayout.closeDrawers();
@@ -2313,7 +2313,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
             ArrayList<String> profileItems = new ArrayList<>();
             int selectedPosition = 0;
-            profileItems.add("-- "+getString(R.string.disabled)+" --");
+            profileItems.add("-- "+getString(R.string.common_ui_disabled)+" --");
             for (int i = 0; i < profiles.size(); i++) {
                 ControlsProfile profile = profiles.get(i);
                 if (inputControlsView.getProfile() != null && profile.id == inputControlsView.getProfile().id)

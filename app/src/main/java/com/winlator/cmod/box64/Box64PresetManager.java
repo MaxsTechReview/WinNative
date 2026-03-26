@@ -112,10 +112,10 @@ public abstract class Box64PresetManager {
 
     public static ArrayList<Box64Preset> getPresets(String prefix, Context context) {
         ArrayList<Box64Preset> presets = new ArrayList<>();
-        presets.add(new Box64Preset(Box64Preset.STABILITY, context.getString(R.string.stability)));
-        presets.add(new Box64Preset(Box64Preset.COMPATIBILITY, context.getString(R.string.compatibility)));
-        presets.add(new Box64Preset(Box64Preset.INTERMEDIATE, context.getString(R.string.intermediate)));
-        presets.add(new Box64Preset(Box64Preset.PERFORMANCE, context.getString(R.string.performance)));
+        presets.add(new Box64Preset(Box64Preset.STABILITY, context.getString(R.string.container_box64_stability)));
+        presets.add(new Box64Preset(Box64Preset.COMPATIBILITY, context.getString(R.string.container_box64_compatibility)));
+        presets.add(new Box64Preset(Box64Preset.INTERMEDIATE, context.getString(R.string.container_box64_intermediate)));
+        presets.add(new Box64Preset(Box64Preset.PERFORMANCE, context.getString(R.string.container_box64_performance)));
         for (String[] preset : customPresetsIterator(prefix, context)) presets.add(new Box64Preset(preset[0], preset[1]));
         return presets;
     }

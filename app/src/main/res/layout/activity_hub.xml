@@ -22,7 +22,7 @@
             android:layout_height="32dp"
             android:src="@drawable/ic_launcher_foreground"
             android:tint="#FFFFFF"
-            android:contentDescription="@string/store" />
+            android:contentDescription="@string/common_ui_store" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -36,7 +36,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:gravity="center"
-                android:text="@string/library"
+                android:text="@string/common_ui_library"
                 android:textColor="#FFFFFF"
                 android:textSize="18sp"
                 android:textStyle="bold"
@@ -50,7 +50,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:gravity="center"
-                android:text="@string/store"
+                android:text="@string/common_ui_store"
                 android:textColor="#888888"
                 android:textSize="18sp"
                 android:textStyle="bold"
@@ -64,7 +64,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:gravity="center"
-                android:text="@string/downloads"
+                android:text="@string/common_ui_downloads"
                 android:textColor="#888888"
                 android:textSize="18sp"
                 android:textStyle="bold"
@@ -80,7 +80,7 @@
             android:layout_height="32dp"
             android:src="@android:drawable/ic_menu_preferences"
             android:tint="#FFFFFF"
-            android:contentDescription="@string/settings"
+            android:contentDescription="@string/common_ui_settings"
             android:background="?android:attr/selectableItemBackground"
             android:focusable="true"
             android:clickable="true"/>
@@ -113,7 +113,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:text="@string/no_games_hub"
+                android:text="@string/library_games_no_games_hub"
                 android:textColor="#FFFFFF"
                 android:textSize="20sp"
                 android:gravity="center"

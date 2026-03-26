@@ -39,14 +39,14 @@
                 android:elevation="6dp"
                 android:padding="10dp"
                 android:scaleType="centerInside"
-                android:contentDescription="@string/back"
+                android:contentDescription="@string/common_ui_back"
                 tools:ignore="UseAppTint" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="14dp"
-                android:text="@string/settings"
+                android:text="@string/common_ui_settings"
                 android:fontFamily="@font/inter"
                 android:textColor="#FFFFFF"
                 android:textSize="18sp"

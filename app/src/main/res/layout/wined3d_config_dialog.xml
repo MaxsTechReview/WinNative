@@ -11,7 +11,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/csmt" />
+            android:text="@string/container_wine_csmt" />
 
         <Spinner
             style="@style/ComboBox"
@@ -22,7 +22,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/gpu_name" />
+            android:text="@string/container_wine_gpu_name" />
 
         <Spinner
             style="@style/ComboBox"
@@ -33,7 +33,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/video_memory_size" />
+            android:text="@string/container_wine_video_memory_size" />
 
         <Spinner
             style="@style/ComboBox"
@@ -45,7 +45,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/strict_shader_math" />
+            android:text="@string/container_wine_strict_shader_math" />
 
         <Spinner
             style="@style/ComboBox"
@@ -56,7 +56,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/offscreen_rendering_mode" />
+            android:text="@string/container_wine_offscreen_rendering_mode" />
 
         <Spinner
             style="@style/ComboBox"
@@ -67,7 +67,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/renderer" />
+            android:text="@string/container_config_renderer" />
 
         <Spinner
             style="@style/ComboBox"

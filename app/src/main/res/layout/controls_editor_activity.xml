@@ -28,7 +28,7 @@
                 android:textStyle="bold"
                 android:textSize="14sp"
                 android:textColor="#ffffff"
-                android:text="@string/profile" />
+                android:text="@string/common_ui_profile" />
 
             <TextView
                 android:id="@+id/TVProfileName"

@@ -57,7 +57,7 @@ public class ControllerAssignmentDialog {
 
     private ControllerAssignmentDialog(Activity activity, int initialPlayerCount, WinHandler winHandler) {
         this.dialog = new ContentDialog(activity, R.layout.controller_assignment_dialog);
-        this.dialog.setTitle(R.string.controller_manager);
+        this.dialog.setTitle(R.string.session_gamepad_controller_manager);
 
         this.controllerManager = ControllerManager.getInstance();
         this.initialPlayerCount = initialPlayerCount;
@@ -152,7 +152,7 @@ public class ControllerAssignmentDialog {
             }
             InputDevice device = controllerManager.getAssignedDeviceForSlot(i);
             deviceNameTextViews[i].setText(
-                    device != null ? device.getName() : dialog.getContext().getString(R.string.not_assigned)
+                    device != null ? device.getName() : dialog.getContext().getString(R.string.session_gamepad_not_assigned)
             );
             deviceNameTextViews[i].setSelected(true);
         }
@@ -191,7 +191,7 @@ public class ControllerAssignmentDialog {
             });
 
             assignButtons[i].setOnClickListener(v -> {
-                String message = dialog.getContext().getString(R.string.press_any_button_for_player) + " " + (slotIndex + 1);
+                String message = dialog.getContext().getString(R.string.session_gamepad_press_any_button_for_player) + " " + (slotIndex + 1);
                 dialog.setMessage(message);
 
                 dialog.setOnControllerInputListener(device -> {

@@ -108,7 +108,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        (activity as? AppCompatActivity)?.supportActionBar?.setTitle(R.string.input_controls)
+        (activity as? AppCompatActivity)?.supportActionBar?.setTitle(R.string.common_ui_input_controls)
 
         controlAdapter = ControlRowAdapter()
         binding.RecyclerView.apply {
@@ -146,7 +146,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
                 val imported = manager.importProfile(JSONObject(FileUtils.readString(requireContext(), data?.data)))
                 importProfileCallback?.invoke(imported)
             } catch (e: Exception) {
-                AppUtils.showToast(requireContext(), R.string.unable_to_import_profile)
+                AppUtils.showToast(requireContext(), R.string.input_controls_editor_unable_to_import)
             }
             importProfileCallback = null
         }
@@ -260,36 +260,36 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
         val rows = mutableListOf<ControlRow>()
 
         // Profiles
-        rows += ControlRow.SectionHeader(R.string.profile)
+        rows += ControlRow.SectionHeader(R.string.common_ui_profile)
         rows += ControlRow.ProfileSelector(currentProfile?.id, currentProfile?.name, currentProfile?.elementCountFromFile ?: 0)
 
         // Overlay
-        rows += ControlRow.SectionHeader(R.string.overlay_opacity)
+        rows += ControlRow.SectionHeader(R.string.input_controls_editor_overlay_opacity)
         rows += ControlRow.OverlayOpacity
 
         // Gyroscope
-        rows += ControlRow.SectionHeader(R.string.gyroscope)
+        rows += ControlRow.SectionHeader(R.string.session_gyroscope_title)
         rows += ControlRow.GyroscopeCard(gyroscopeExpanded)
 
         // Trigger
-        rows += ControlRow.SectionHeader(R.string.trigger_type)
+        rows += ControlRow.SectionHeader(R.string.session_gamepad_trigger_type)
         rows += ControlRow.TriggerType(triggerTypeExpanded)
 
         // Import / Export
-        rows += ControlRow.SectionHeader(R.string.profile)
+        rows += ControlRow.SectionHeader(R.string.common_ui_profile)
         rows += ControlRow.ActionCard(
             iconRes = R.drawable.ic_controls_import,
-            labelResId = R.string.import_profile,
+            labelResId = R.string.input_controls_editor_import_profile,
             action = ACTION_IMPORT
         )
         rows += ControlRow.ActionCard(
             iconRes = R.drawable.ic_controls_export,
-            labelResId = R.string.export_profile,
+            labelResId = R.string.input_controls_editor_export_profile,
             action = ACTION_EXPORT
         )
 
         // External Controllers
-        rows += ControlRow.SectionHeader(R.string.external_controllers)
+        rows += ControlRow.SectionHeader(R.string.session_gamepad_external_controllers)
         val connectedControllers = ExternalController.getControllers()
         val controllers = if (currentProfile != null) {
             val loaded = currentProfile!!.loadControllers()
@@ -307,7 +307,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
                 rows += ControlRow.ExternalControllerRow(controller, controller.id in expandedControllerIds, controller.controllerBindingCount)
             }
         } else {
-            rows += ControlRow.EmptyState(R.string.no_items_to_display)
+            rows += ControlRow.EmptyState(R.string.common_ui_no_items_to_display)
         }
 
         return rows
@@ -329,12 +329,12 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
             intent.putExtra("profile_id", profile.id)
             startActivity(intent)
         } else {
-            AppUtils.showToast(requireContext(), R.string.no_profile_selected)
+            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
         }
     }
 
     private fun addProfile() {
-        ContentDialog.prompt(requireContext(), R.string.profile_name, null) { name ->
+        ContentDialog.prompt(requireContext(), R.string.input_controls_editor_profile_name, null) { name ->
             currentProfile = manager.createProfile(name)
             persistSelectedProfileId()
             submitRows()
@@ -344,47 +344,47 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
     private fun editProfile() {
         val profile = currentProfile
         if (profile != null) {
-            ContentDialog.prompt(requireContext(), R.string.profile_name, profile.name) { name ->
+            ContentDialog.prompt(requireContext(), R.string.input_controls_editor_profile_name, profile.name) { name ->
                 profile.name = name
                 profile.save()
                 submitRows()
             }
         } else {
-            AppUtils.showToast(requireContext(), R.string.no_profile_selected)
+            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
         }
     }
 
     private fun duplicateProfile() {
         val profile = currentProfile
         if (profile != null) {
-            ContentDialog.confirm(requireContext(), R.string.do_you_want_to_duplicate_this_profile) {
+            ContentDialog.confirm(requireContext(), R.string.input_controls_editor_confirm_duplicate_profile) {
                 currentProfile = manager.duplicateProfile(profile)
                 persistSelectedProfileId()
                 submitRows()
             }
         } else {
-            AppUtils.showToast(requireContext(), R.string.no_profile_selected)
+            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
         }
     }
 
     private fun removeProfile() {
         val profile = currentProfile
         if (profile != null) {
-            ContentDialog.confirm(requireContext(), R.string.do_you_want_to_remove_this_profile) {
+            ContentDialog.confirm(requireContext(), R.string.input_controls_editor_confirm_remove_profile) {
                 manager.removeProfile(profile)
                 currentProfile = null
                 persistSelectedProfileId()
                 submitRows()
             }
         } else {
-            AppUtils.showToast(requireContext(), R.string.no_profile_selected)
+            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
         }
     }
 
     private fun showProfilePicker() {
         val profiles = manager.profiles
         if (profiles.isEmpty()) {
-            AppUtils.showToast(requireContext(), R.string.no_profile_found)
+            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_found)
             return
         }
         val names = profiles.map { it.name }.toTypedArray()
@@ -392,7 +392,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
         if (selectedIndex < 0) selectedIndex = 0
 
         AlertDialog.Builder(requireContext())
-            .setTitle(R.string.select_profile)
+            .setTitle(R.string.input_controls_editor_select_profile)
             .setSingleChoiceItems(names, selectedIndex) { dialog, which ->
                 onProfileSelected(profiles[which])
                 dialog.dismiss()
@@ -421,21 +421,21 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
 
     private fun downloadProfileList() {
         val activity = activity as? MainActivity ?: return
-        activity.preloaderDialog.show(R.string.loading)
+        activity.preloaderDialog.show(R.string.common_ui_loading)
         HttpUtils.download(String.format(INPUT_CONTROLS_URL, "index.txt")) { content ->
             activity.runOnUiThread {
                 activity.preloaderDialog.close()
                 if (content != null) {
                     val items = content.split("\n").toTypedArray()
-                    ContentDialog.showMultipleChoiceList(activity, R.string.import_profile, items) { positions ->
+                    ContentDialog.showMultipleChoiceList(activity, R.string.input_controls_editor_import_profile, items) { positions ->
                         if (positions.isNotEmpty()) {
-                            ContentDialog.confirm(activity, R.string.do_you_want_to_download_the_selected_profiles) {
+                            ContentDialog.confirm(activity, R.string.input_controls_editor_confirm_download_profiles) {
                                 downloadSelectedProfiles(items, positions)
                             }
                         }
                     }
                 } else {
-                    AppUtils.showToast(activity, R.string.unable_to_load_profile_list)
+                    AppUtils.showToast(activity, R.string.input_controls_editor_unable_to_load_list)
                 }
             }
         }
@@ -443,7 +443,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
 
     private fun downloadSelectedProfiles(items: Array<String>, positions: ArrayList<Int>) {
         val activity = activity as? MainActivity ?: return
-        activity.preloaderDialog.show(R.string.downloading_file)
+        activity.preloaderDialog.show(R.string.common_ui_downloading_file)
         currentProfile = null
         persistSelectedProfileId()
         val processedCount = AtomicInteger()
@@ -471,11 +471,11 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
             if (exportedFile != null) {
                 AppUtils.showToast(
                     requireContext(),
-                    getString(R.string.profile_exported_to) + " " + exportedFile.path
+                    getString(R.string.input_controls_editor_profile_exported_to) + " " + exportedFile.path
                 )
             }
         } else {
-            AppUtils.showToast(requireContext(), R.string.no_profile_selected)
+            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
         }
     }
 
@@ -485,7 +485,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.gyro_config_dialog, null)
         val builder = AlertDialog.Builder(requireContext())
         builder.setView(dialogView)
-        builder.setTitle(R.string.gyroscope_configuration)
+        builder.setTitle(R.string.session_gyroscope_configuration)
 
         val inputControlsView = InputControlsView(requireContext(), true)
         inputControlsView.layoutParams = FrameLayout.LayoutParams(
@@ -524,10 +524,10 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
         cbInvertGyroX.isChecked = preferences.getBoolean("invert_gyro_x", false)
         cbInvertGyroY.isChecked = preferences.getBoolean("invert_gyro_y", false)
 
-        tvGyroXSensitivity.text = getString(R.string.x_sensitivity_format, sbGyroXSensitivity.progress)
-        tvGyroYSensitivity.text = getString(R.string.y_sensitivity_format, sbGyroYSensitivity.progress)
-        tvGyroSmoothing.text = getString(R.string.smoothing_format, sbGyroSmoothing.progress)
-        tvGyroDeadzone.text = getString(R.string.deadzone_format, sbGyroDeadzone.progress)
+        tvGyroXSensitivity.text = getString(R.string.session_gyroscope_x_sensitivity_format, sbGyroXSensitivity.progress)
+        tvGyroYSensitivity.text = getString(R.string.session_gyroscope_y_sensitivity_format, sbGyroYSensitivity.progress)
+        tvGyroSmoothing.text = getString(R.string.session_gyroscope_smoothing_format, sbGyroSmoothing.progress)
+        tvGyroDeadzone.text = getString(R.string.session_gyroscope_deadzone_format, sbGyroDeadzone.progress)
 
         val seekBarListener = { seekBar: SeekBar, textView: TextView, formatResId: Int ->
             seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -538,10 +538,10 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
                 override fun onStopTrackingTouch(s: SeekBar) {}
             })
         }
-        seekBarListener(sbGyroXSensitivity, tvGyroXSensitivity, R.string.x_sensitivity_format)
-        seekBarListener(sbGyroYSensitivity, tvGyroYSensitivity, R.string.y_sensitivity_format)
-        seekBarListener(sbGyroSmoothing, tvGyroSmoothing, R.string.smoothing_format)
-        seekBarListener(sbGyroDeadzone, tvGyroDeadzone, R.string.deadzone_format)
+        seekBarListener(sbGyroXSensitivity, tvGyroXSensitivity, R.string.session_gyroscope_x_sensitivity_format)
+        seekBarListener(sbGyroYSensitivity, tvGyroYSensitivity, R.string.session_gyroscope_y_sensitivity_format)
+        seekBarListener(sbGyroSmoothing, tvGyroSmoothing, R.string.session_gyroscope_smoothing_format)
+        seekBarListener(sbGyroDeadzone, tvGyroDeadzone, R.string.session_gyroscope_deadzone_format)
 
         val smoothingFactor = preferences.getFloat("gyro_smoothing", 0.9f)
         val gyroDeadzone = preferences.getFloat("gyro_deadzone", 0.05f)
@@ -603,7 +603,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
 
         sensorManager.registerListener(gyroListener, gyroscopeSensor, SensorManager.SENSOR_DELAY_GAME)
 
-        builder.setPositiveButton(R.string.ok) { _, _ ->
+        builder.setPositiveButton(R.string.common_ui_ok) { _, _ ->
             preferences.edit().apply {
                 putFloat("gyro_x_sensitivity", sbGyroXSensitivity.progress / 100.0f)
                 putFloat("gyro_y_sensitivity", sbGyroYSensitivity.progress / 100.0f)
@@ -616,7 +616,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
             sensorManager.unregisterListener(gyroListener)
         }
 
-        builder.setNegativeButton(R.string.cancel) { _, _ ->
+        builder.setNegativeButton(R.string.common_ui_cancel) { _, _ ->
             sensorManager.unregisterListener(gyroListener)
         }
 
@@ -712,10 +712,10 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
                 itemBinding.TVProfileName.text = profile.name
                 val elementCount = profile.elementCountFromFile
                 Log.d("ICFrag", "ProfileViewHolder.bind: name=${profile.name}, id=${profile.id}, elementCountFromFile=$elementCount")
-                itemBinding.TVProfileSubtitle.text = getString(R.string.elements_count, elementCount)
+                itemBinding.TVProfileSubtitle.text = getString(R.string.common_ui_elements_count, elementCount)
             } else {
-                itemBinding.TVProfileName.setText(R.string.select_profile)
-                itemBinding.TVProfileSubtitle.text = getString(R.string.no_profile_selected)
+                itemBinding.TVProfileName.setText(R.string.input_controls_editor_select_profile)
+                itemBinding.TVProfileSubtitle.text = getString(R.string.input_controls_editor_no_profile_selected)
             }
 
             itemBinding.root.setOnClickListener { showProfilePicker() }
@@ -732,7 +732,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
     ) : RecyclerView.ViewHolder(itemBinding.root) {
         fun bind() {
             itemBinding.IVIcon.setImageResource(R.drawable.ic_controls_opacity)
-            itemBinding.TVLabel.setText(R.string.overlay_opacity)
+            itemBinding.TVLabel.setText(R.string.input_controls_editor_overlay_opacity)
 
             val currentOpacity = (preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY) * 100).toInt()
             itemBinding.TVValue.text = "$currentOpacity%"
@@ -928,7 +928,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
                 itemBinding.TVActivatorValue.text = buttonNames[position]
                 dialog.dismiss()
             }
-            dialog.setTitle(R.string.gyro_activator_button)
+            dialog.setTitle(R.string.session_gyroscope_activator_button)
             dialog.show()
         }
 
@@ -958,13 +958,13 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
             val smoothing = (preferences.getFloat("gyro_smoothing", 0.9f) * 100).toInt()
             val deadzone = (preferences.getFloat("gyro_deadzone", 0.05f) * 100).toInt()
 
-            itemBinding.TVGyroXSensitivity.text = getString(R.string.x_sensitivity_format, xSens)
+            itemBinding.TVGyroXSensitivity.text = getString(R.string.session_gyroscope_x_sensitivity_format, xSens)
             itemBinding.SBGyroXSensitivity.progress = xSens
-            itemBinding.TVGyroYSensitivity.text = getString(R.string.y_sensitivity_format, ySens)
+            itemBinding.TVGyroYSensitivity.text = getString(R.string.session_gyroscope_y_sensitivity_format, ySens)
             itemBinding.SBGyroYSensitivity.progress = ySens
-            itemBinding.TVGyroSmoothing.text = getString(R.string.smoothing_format, smoothing)
+            itemBinding.TVGyroSmoothing.text = getString(R.string.session_gyroscope_smoothing_format, smoothing)
             itemBinding.SBGyroSmoothing.progress = smoothing
-            itemBinding.TVGyroDeadzone.text = getString(R.string.deadzone_format, deadzone)
+            itemBinding.TVGyroDeadzone.text = getString(R.string.session_gyroscope_deadzone_format, deadzone)
             itemBinding.SBGyroDeadzone.progress = deadzone
 
             // Remove old listeners before setting checked state
@@ -977,7 +977,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
             // Seekbar listeners
             itemBinding.SBGyroXSensitivity.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar, progress: Int, fromUser: Boolean) {
-                    itemBinding.TVGyroXSensitivity.text = getString(R.string.x_sensitivity_format, progress)
+                    itemBinding.TVGyroXSensitivity.text = getString(R.string.session_gyroscope_x_sensitivity_format, progress)
                     if (fromUser) preferences.edit().putFloat("gyro_x_sensitivity", progress / 100.0f).apply()
                 }
                 override fun onStartTrackingTouch(s: SeekBar) {}
@@ -986,7 +986,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
 
             itemBinding.SBGyroYSensitivity.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar, progress: Int, fromUser: Boolean) {
-                    itemBinding.TVGyroYSensitivity.text = getString(R.string.y_sensitivity_format, progress)
+                    itemBinding.TVGyroYSensitivity.text = getString(R.string.session_gyroscope_y_sensitivity_format, progress)
                     if (fromUser) preferences.edit().putFloat("gyro_y_sensitivity", progress / 100.0f).apply()
                 }
                 override fun onStartTrackingTouch(s: SeekBar) {}
@@ -995,7 +995,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
 
             itemBinding.SBGyroSmoothing.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar, progress: Int, fromUser: Boolean) {
-                    itemBinding.TVGyroSmoothing.text = getString(R.string.smoothing_format, progress)
+                    itemBinding.TVGyroSmoothing.text = getString(R.string.session_gyroscope_smoothing_format, progress)
                     if (fromUser) preferences.edit().putFloat("gyro_smoothing", progress / 100.0f).apply()
                 }
                 override fun onStartTrackingTouch(s: SeekBar) {}
@@ -1004,7 +1004,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
 
             itemBinding.SBGyroDeadzone.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar, progress: Int, fromUser: Boolean) {
-                    itemBinding.TVGyroDeadzone.text = getString(R.string.deadzone_format, progress)
+                    itemBinding.TVGyroDeadzone.text = getString(R.string.session_gyroscope_deadzone_format, progress)
                     if (fromUser) preferences.edit().putFloat("gyro_deadzone", progress / 100.0f).apply()
                 }
                 override fun onStartTrackingTouch(s: SeekBar) {}
@@ -1148,9 +1148,9 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
             val deadzone = (preferences.getFloat(deadzoneKey, 0.1f) * 100).toInt()
             val sensitivity = (preferences.getFloat(sensitivityKey, 1.0f) * 100).toInt()
 
-            itemBinding.TVDeadzone.text = getString(R.string.deadzone_format, deadzone)
+            itemBinding.TVDeadzone.text = getString(R.string.session_gyroscope_deadzone_format, deadzone)
             itemBinding.SBDeadzone.progress = deadzone
-            itemBinding.TVSensitivity.text = getString(R.string.sensitivity_format, sensitivity)
+            itemBinding.TVSensitivity.text = getString(R.string.session_gyroscope_sensitivity_format, sensitivity)
             itemBinding.SBSensitivity.progress = sensitivity
 
             // Remove old listeners before setting checked state
@@ -1170,7 +1170,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
             // Seekbar listeners
             itemBinding.SBDeadzone.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar, progress: Int, fromUser: Boolean) {
-                    itemBinding.TVDeadzone.text = getString(R.string.deadzone_format, progress)
+                    itemBinding.TVDeadzone.text = getString(R.string.session_gyroscope_deadzone_format, progress)
                     if (fromUser) preferences.edit().putFloat(deadzoneKey, progress / 100.0f).apply()
                 }
                 override fun onStartTrackingTouch(s: SeekBar) {}
@@ -1179,7 +1179,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
 
             itemBinding.SBSensitivity.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar, progress: Int, fromUser: Boolean) {
-                    itemBinding.TVSensitivity.text = getString(R.string.sensitivity_format, progress)
+                    itemBinding.TVSensitivity.text = getString(R.string.session_gyroscope_sensitivity_format, progress)
                     if (fromUser) preferences.edit().putFloat(sensitivityKey, progress / 100.0f).apply()
                 }
                 override fun onStartTrackingTouch(s: SeekBar) {}
@@ -1207,9 +1207,9 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
 
         fun bindTriggerType(expanded: Boolean) {
             itemBinding.IVIcon.setImageResource(R.drawable.ic_controls_trigger)
-            itemBinding.TVLabel.setText(R.string.trigger_type)
+            itemBinding.TVLabel.setText(R.string.session_gamepad_trigger_type)
 
-            val descRaw = itemBinding.root.context.getString(R.string.help_trigger_mode).trim()
+            val descRaw = itemBinding.root.context.getString(R.string.session_gamepad_help_trigger_mode).trim()
             itemBinding.TVDescription.text = android.text.Html.fromHtml(descRaw, android.text.Html.FROM_HTML_MODE_LEGACY)
 
             ExpandableCardHelper.applyTransition(
@@ -1229,8 +1229,8 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
             }
 
             val options = listOf(
-                getString(R.string.as_button),
-                getString(R.string.as_axis)
+                getString(R.string.session_gamepad_as_button),
+                getString(R.string.session_gamepad_as_axis)
             )
             val selectedIndex = preferences.getInt("trigger_type", ExternalController.TRIGGER_IS_AXIS.toInt())
 
@@ -1293,7 +1293,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
             itemBinding.IVIcon.setImageResource(R.drawable.icon_gamepad)
             itemBinding.TVControllerName.text = controller.name
             val bindingCount = controller.controllerBindingCount
-            itemBinding.TVBindingCount.text = "$bindingCount ${getString(R.string.bindings)}"
+            itemBinding.TVBindingCount.text = "$bindingCount ${getString(R.string.session_gamepad_bindings)}"
 
             val tintColor = if (controller.isConnected)
                 ContextCompat.getColor(requireContext(), R.color.colorAccent)
@@ -1304,7 +1304,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
             itemBinding.BTRemove.isVisible = bindingCount > 0 && currentProfile != null
             if (bindingCount > 0 && currentProfile != null) {
                 itemBinding.BTRemove.setOnClickListener {
-                    ContentDialog.confirm(requireContext(), R.string.do_you_want_to_remove_this_controller) {
+                    ContentDialog.confirm(requireContext(), R.string.session_gamepad_confirm_remove_controller) {
                         expandedControllerIds.remove(controller.id)
                         stopControllerInputCapture()
                         currentProfile?.removeController(controller)
@@ -1331,7 +1331,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
                 itemBinding.IVExpandChevron
             ) {
                 if (currentProfile == null) {
-                    AppUtils.showToast(requireContext(), R.string.no_profile_selected)
+                    AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
                     return@setupClickListeners
                 }
                 if (controller.id in expandedControllerIds) {
@@ -1395,7 +1395,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
                     profile.save()
                     populateBindings(controller)
                     // Update binding count in header
-                    itemBinding.TVBindingCount.text = "${controller.controllerBindingCount} ${getString(R.string.bindings)}"
+                    itemBinding.TVBindingCount.text = "${controller.controllerBindingCount} ${getString(R.string.session_gamepad_bindings)}"
                     itemBinding.BTRemove.isVisible = controller.controllerBindingCount > 0
                 }
 
@@ -1406,7 +1406,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
         fun refreshAfterBindingChange(controller: ExternalController) {
             populateBindings(controller)
             val count = controller.controllerBindingCount
-            itemBinding.TVBindingCount.text = "$count ${getString(R.string.bindings)}"
+            itemBinding.TVBindingCount.text = "$count ${getString(R.string.session_gamepad_bindings)}"
             itemBinding.BTRemove.isVisible = count > 0 && currentProfile != null
         }
 

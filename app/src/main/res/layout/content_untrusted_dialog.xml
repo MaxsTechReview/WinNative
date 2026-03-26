@@ -14,7 +14,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="@string/warning_content_has_untrusted_files"
+            android:text="@string/settings_content_untrusted_files_warning"
             android:textSize="16sp" />
 
         <androidx.recyclerview.widget.RecyclerView

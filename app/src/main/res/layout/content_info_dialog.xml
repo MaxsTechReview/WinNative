@@ -30,7 +30,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/inter"
-                    android:text="@string/type"
+                    android:text="@string/input_controls_editor_type"
                     android:textColor="@color/settings_text_secondary"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -62,7 +62,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/inter"
-                    android:text="@string/version"
+                    android:text="@string/common_ui_version"
                     android:textColor="@color/settings_text_secondary"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -94,7 +94,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/inter"
-                    android:text="@string/version_code"
+                    android:text="@string/settings_content_version_code"
                     android:textColor="@color/settings_text_secondary"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -123,7 +123,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/inter"
-                android:text="@string/description"
+                android:text="@string/common_ui_description"
                 android:textColor="@color/settings_text_secondary"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -153,7 +153,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/inter"
-                android:text="@string/install_directory"
+                android:text="@string/settings_content_install_directory"
                 android:textColor="@color/settings_text_secondary"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -182,7 +182,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/inter"
-                android:text="@string/file_list"
+                android:text="@string/settings_content_file_list"
                 android:textColor="@color/settings_text_secondary"
                 android:textSize="13sp"
                 android:textStyle="bold" />

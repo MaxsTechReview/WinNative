@@ -16,12 +16,12 @@ public class ContentUntrustedDialog extends ContentDialog {
     public ContentUntrustedDialog(Context context, List<ContentProfile.ContentFile> contentFiles) {
         super(context, R.layout.content_untrusted_dialog);
         setIcon(R.drawable.icon_info);
-        setTitle(R.string.warning);
+        setTitle(R.string.common_ui_warning);
 
         RecyclerView recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setAdapter(new ContentInfoDialog.ContentInfoFileAdapter(contentFiles));
         recyclerView.setLayoutManager(new LinearLayoutManager(recyclerView.getContext()));
         recyclerView.addItemDecoration(new DividerItemDecoration(recyclerView.getContext(), DividerItemDecoration.VERTICAL));
-        ((TextView) (findViewById(R.id.BTConfirm))).setText(R.string._continue);
+        ((TextView) (findViewById(R.id.BTConfirm))).setText(R.string.common_ui_continue);
     }
 }

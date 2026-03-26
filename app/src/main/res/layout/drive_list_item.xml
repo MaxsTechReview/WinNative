@@ -21,7 +21,7 @@
         style="@style/OtherSettingsEditText"
         android:layout_width="0dp"
         android:layout_weight="1"
-        android:hint="@string/target_path"
+        android:hint="@string/shortcuts_properties_target_path"
         android:maxLines="1"
         android:singleLine="true" />
 
@@ -29,7 +29,7 @@
         android:id="@+id/BTSearch"
         style="@style/OtherSettingsIconButton"
         android:layout_marginStart="6dp"
-        android:contentDescription="@string/target_path"
+        android:contentDescription="@string/shortcuts_properties_target_path"
         android:src="@drawable/ic_content_folder"
         app:tint="@color/settings_icon_tint" />
 
@@ -37,7 +37,7 @@
         android:id="@+id/BTRemove"
         style="@style/OtherSettingsIconButton"
         android:layout_marginStart="4dp"
-        android:contentDescription="@string/remove"
+        android:contentDescription="@string/common_ui_remove"
         android:src="@drawable/ic_content_menu_remove"
         app:tint="@color/settings_icon_tint" />
 </LinearLayout>

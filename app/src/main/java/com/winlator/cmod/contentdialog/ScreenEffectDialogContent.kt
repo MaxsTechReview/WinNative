@@ -101,13 +101,13 @@ fun ScreenEffectDialogContent(
             .padding(start = 28.dp, end = 28.dp, top = 22.dp, bottom = 16.dp)
     ) {
         // Color Adjustment sliders
-        SectionLabel(stringResource(R.string.color_adjustment))
+        SectionLabel(stringResource(R.string.session_effects_color_adjustment))
         Spacer(Modifier.height(10.dp))
-        SliderField(stringResource(R.string.brightness), state.brightness, -50f, 50f, 1f, onBrightnessChange)
+        SliderField(stringResource(R.string.session_effects_brightness), state.brightness, -50f, 50f, 1f, onBrightnessChange)
         Spacer(Modifier.height(6.dp))
-        SliderField(stringResource(R.string.contrast), state.contrast, -100f, 100f, 1f, onContrastChange)
+        SliderField(stringResource(R.string.session_effects_contrast), state.contrast, -100f, 100f, 1f, onContrastChange)
         Spacer(Modifier.height(6.dp))
-        SliderField(stringResource(R.string.gamma), state.gamma, 0.5f, 3f, 0.01f, onGammaChange, decimalPlaces = 2)
+        SliderField(stringResource(R.string.session_effects_gamma), state.gamma, 0.5f, 3f, 0.01f, onGammaChange, decimalPlaces = 2)
 
         Spacer(Modifier.height(16.dp))
 
@@ -119,7 +119,7 @@ fun ScreenEffectDialogContent(
         ) {
             // Profile selector
             Column(modifier = Modifier.weight(1f)) {
-                SectionLabel(stringResource(R.string.profile))
+                SectionLabel(stringResource(R.string.common_ui_profile))
                 Spacer(Modifier.height(8.dp))
                 ProfileSelector(
                     profileNames = state.profileNames,
@@ -133,7 +133,7 @@ fun ScreenEffectDialogContent(
 
             // Post-Processing toggles
             Column(modifier = Modifier.weight(1f)) {
-                SectionLabel(stringResource(R.string.post_processing))
+                SectionLabel(stringResource(R.string.session_effects_post_processing))
                 Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -156,11 +156,11 @@ fun ScreenEffectDialogContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextButton(onClick = onReset) {
-                Text(stringResource(R.string.reset), color = TextSecondary, fontSize = 14.sp)
+                Text(stringResource(R.string.common_ui_reset), color = TextSecondary, fontSize = 14.sp)
             }
             Spacer(Modifier.weight(1f))
             TextButton(onClick = onCancel) {
-                Text(stringResource(R.string.cancel), color = TextSecondary, fontSize = 14.sp)
+                Text(stringResource(R.string.common_ui_cancel), color = TextSecondary, fontSize = 14.sp)
             }
             Spacer(Modifier.width(12.dp))
             Box(
@@ -172,7 +172,7 @@ fun ScreenEffectDialogContent(
                     .padding(horizontal = 20.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(stringResource(R.string.ok), color = Accent, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text(stringResource(R.string.common_ui_ok), color = Accent, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             }
         }
     }
@@ -244,7 +244,7 @@ private fun ProfileSelector(
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val defaultProfileText = stringResource(R.string.default_profile)
+    val defaultProfileText = stringResource(R.string.session_effects_default_profile)
     val selectedText = profileNames.getOrElse(selectedIndex) { "-- $defaultProfileText --" }
 
     if (expanded) {
@@ -263,7 +263,7 @@ private fun ProfileSelector(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    stringResource(R.string.select_profile),
+                    stringResource(R.string.input_controls_editor_select_profile),
                     color = TextSecondary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,

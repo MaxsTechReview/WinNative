@@ -236,7 +236,7 @@ class DebugFragment : Fragment() {
         onConfirm: (List<String>) -> Unit
     ) {
         val dialog = ContentDialog(context, R.layout.wine_debug_channel_dialog)
-        dialog.setTitle(R.string.wine_debug_channel)
+        dialog.setTitle(R.string.settings_debug_wine_debug_channel)
         shrinkWineDebugDialogChrome(dialog)
 
         val scrollView = dialog.findViewById<View>(R.id.SVDebugChannelGrid)

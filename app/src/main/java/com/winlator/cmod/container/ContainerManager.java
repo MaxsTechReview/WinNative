@@ -220,7 +220,7 @@ public class ContainerManager {
 
         Container dstContainer = new Container(id, this);
         dstContainer.setRootDir(dstDir);
-        dstContainer.setName(srcContainer.getName() + " (" + context.getString(R.string._copy) + ")");
+        dstContainer.setName(srcContainer.getName() + " (" + context.getString(R.string.common_ui_copy) + ")");
         dstContainer.setScreenSize(srcContainer.getScreenSize());
         dstContainer.setEnvVars(srcContainer.getEnvVars());
         dstContainer.setCPUList(srcContainer.getCPUList());

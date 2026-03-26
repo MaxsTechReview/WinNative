@@ -46,7 +46,7 @@ public class FrameRating extends FrameLayout implements Runnable {
         View view = LayoutInflater.from(context).inflate(R.layout.frame_rating, this, false);
         tvFPS = view.findViewById(R.id.TVFPS);
         tvRenderer = view.findViewById(R.id.TVRenderer);
-        tvRenderer.setText(R.string.opengl);
+        tvRenderer.setText(R.string.container_wine_opengl);
         tvGPU = view.findViewById(R.id.TVGPU);
         String version = (graphicsDriverConfig != null && graphicsDriverConfig.get("version") != null) ? graphicsDriverConfig.get("version").toString() : null;
         tvGPU.setText(GPUInformation.getRenderer(version, context));
@@ -84,7 +84,7 @@ public class FrameRating extends FrameLayout implements Runnable {
     }
 
     public void reset() {
-        tvRenderer.setText(R.string.opengl);
+        tvRenderer.setText(R.string.container_wine_opengl);
         String version = (graphicsDriverConfig != null && graphicsDriverConfig.get("version") != null) ? graphicsDriverConfig.get("version").toString() : null;
         tvGPU.setText(GPUInformation.getRenderer(version, context));
     }
@@ -105,6 +105,6 @@ public class FrameRating extends FrameLayout implements Runnable {
     public void run() {
         if (getVisibility() == GONE) setVisibility(View.VISIBLE);
         tvFPS.setText(String.format(Locale.ENGLISH, "%.1f", lastFPS));
-        tvRAM.setText(context.getString(R.string.ram_usage_format, getAvailableRAM(), totalRAM));
+        tvRAM.setText(context.getString(R.string.session_display_ram_usage_format, getAvailableRAM(), totalRAM));
     }
 }

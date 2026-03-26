@@ -52,7 +52,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/inter"
-                    android:text="@string/av_tab"
+                    android:text="@string/container_config_av_tab"
                     android:textColor="#FFB0BEC5"
                     android:textSize="13sp" />
                 <ImageView
@@ -87,7 +87,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/inter"
-                    android:text="@string/wine"
+                    android:text="@string/container_wine_title"
                     android:textColor="#FFB0BEC5"
                     android:textSize="13sp" />
             </LinearLayout>
@@ -116,7 +116,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/inter"
-                    android:text="@string/windows"
+                    android:text="@string/container_config_windows"
                     android:textColor="#FFB0BEC5"
                     android:textSize="13sp" />
             </LinearLayout>
@@ -145,7 +145,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/inter"
-                    android:text="@string/inputs"
+                    android:text="@string/container_config_inputs"
                     android:textColor="#FFB0BEC5"
                     android:textSize="13sp" />
             </LinearLayout>
@@ -174,7 +174,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/inter"
-                    android:text="@string/config"
+                    android:text="@string/container_config_tab"
                     android:textColor="#FFB0BEC5"
                     android:textSize="13sp" />
             </LinearLayout>
@@ -199,7 +199,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="44dp"
                 android:layout_marginBottom="8dp"
-                android:text="@string/reset"
+                android:text="@string/common_ui_reset"
                 android:visibility="gone" />
 
             <Button
@@ -207,7 +207,7 @@
                 style="@style/ContentDialogButtonPositive"
                 android:layout_width="match_parent"
                 android:layout_height="44dp"
-                android:text="@string/confirm" />
+                android:text="@string/common_ui_confirm" />
         </LinearLayout>
     </LinearLayout>
 
@@ -252,7 +252,7 @@
             <!-- GENERAL -->
             <TextView
                 style="@style/OtherSettingsSectionLabel"
-                android:text="@string/general" />
+                android:text="@string/settings_general_title" />
 
             <LinearLayout
                 style="@style/OtherSettingsCard"
@@ -281,7 +281,7 @@
 
                         <TextView
                             style="@style/OtherSettingsCardTitle"
-                            android:text="@string/name" />
+                            android:text="@string/common_ui_name" />
                     </LinearLayout>
                 </LinearLayout>
 
@@ -301,7 +301,7 @@
 
                     <TextView
                         style="@style/OtherSettingsFieldLabel"
-                        android:text="@string/select_icon" />
+                        android:text="@string/common_ui_select_icon" />
 
                     <Button
                         android:id="@+id/BTSelectIcon"
@@ -312,7 +312,7 @@
                         android:gravity="start|center_vertical"
                         android:paddingTop="12dp"
                         android:paddingBottom="12dp"
-                        android:text="@string/select_icon"
+                        android:text="@string/common_ui_select_icon"
                         android:textAllCaps="false"
                         android:textSize="12sp" />
 
@@ -325,14 +325,14 @@
                         android:gravity="start|center_vertical"
                         android:paddingTop="12dp"
                         android:paddingBottom="12dp"
-                        android:text="@string/revert_icon"
+                        android:text="@string/common_ui_revert_icon"
                         android:textAllCaps="false"
                         android:textSize="12sp" />
 
                     <TextView
                         style="@style/OtherSettingsFieldLabel"
                         android:layout_marginTop="10dp"
-                        android:text="@string/select_exe" />
+                        android:text="@string/common_ui_select_exe" />
 
                     <Button
                         android:id="@+id/BTSelectExe"
@@ -343,7 +343,7 @@
                         android:gravity="start|center_vertical"
                         android:paddingTop="12dp"
                         android:paddingBottom="12dp"
-                        android:text="@string/select_exe"
+                        android:text="@string/common_ui_select_exe"
                         android:textAllCaps="false"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -357,7 +357,7 @@
 
                 <TextView
                     style="@style/OtherSettingsFieldLabel"
-                    android:text="@string/screen_size" />
+                    android:text="@string/container_config_screen_size" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -421,7 +421,7 @@
 
                 <TextView
                     style="@style/OtherSettingsSectionLabel"
-                    android:text="@string/steam_integration_title" />
+                    android:text="@string/stores_accounts_steam_integration_title" />
 
                 <LinearLayout
                     style="@style/OtherSettingsCard"
@@ -433,7 +433,7 @@
                         android:layout_height="wrap_content"
                         android:background="@android:color/transparent"
                         android:fontFamily="@font/inter"
-                        android:text="@string/use_legacy_drm"
+                        android:text="@string/shortcuts_properties_use_legacy_drm"
                         android:textColor="@color/settings_text_primary"
                         android:textSize="13sp"
                         app:thumbTint="@color/settings_accent"
@@ -452,7 +452,7 @@
                         android:layout_height="wrap_content"
                         android:background="@android:color/transparent"
                         android:fontFamily="@font/inter"
-                        android:text="@string/launch_steam_client_beta"
+                        android:text="@string/shortcuts_properties_launch_steam_client_beta"
                         android:textColor="@color/settings_text_primary"
                         android:textSize="13sp"
                         app:thumbTint="@color/settings_accent"
@@ -465,7 +465,7 @@
                         android:fontFamily="@font/inter"
                         android:paddingStart="4dp"
                         android:paddingEnd="4dp"
-                        android:text="@string/launch_steam_client_description"
+                        android:text="@string/shortcuts_properties_launch_steam_client_description"
                         android:textColor="@color/settings_text_secondary"
                         android:textSize="11sp"
                         android:lineSpacingMultiplier="1.2" />
@@ -483,7 +483,7 @@
                         android:layout_height="wrap_content"
                         android:background="@android:color/transparent"
                         android:fontFamily="@font/inter"
-                        android:text="@string/use_steam_input"
+                        android:text="@string/shortcuts_properties_use_steam_input"
                         android:textColor="@color/settings_text_primary"
                         android:textSize="13sp"
                         app:thumbTint="@color/settings_accent"
@@ -508,7 +508,7 @@
 
                         <TextView
                             style="@style/OtherSettingsFieldLabel"
-                            android:text="@string/steam_type" />
+                            android:text="@string/shortcuts_properties_steam_type" />
 
                         <Spinner
                             android:id="@+id/SSteamType"
@@ -531,7 +531,7 @@
                         android:layout_height="wrap_content"
                         android:background="@android:color/transparent"
                         android:fontFamily="@font/inter"
-                        android:text="@string/force_dlc"
+                        android:text="@string/shortcuts_properties_force_dlc"
                         android:textColor="@color/settings_text_primary"
                         android:textSize="13sp"
                         app:thumbTint="@color/settings_accent"
@@ -544,7 +544,7 @@
                         android:fontFamily="@font/inter"
                         android:paddingStart="4dp"
                         android:paddingEnd="4dp"
-                        android:text="@string/force_dlc_description"
+                        android:text="@string/shortcuts_properties_force_dlc_description"
                         android:textColor="@color/settings_text_secondary"
                         android:textSize="11sp"
                         android:lineSpacingMultiplier="1.2" />
@@ -562,7 +562,7 @@
                         android:layout_height="wrap_content"
                         android:background="@android:color/transparent"
                         android:fontFamily="@font/inter"
-                        android:text="@string/steam_offline_mode"
+                        android:text="@string/shortcuts_properties_steam_offline_mode"
                         android:textColor="@color/settings_text_primary"
                         android:textSize="13sp"
                         app:thumbTint="@color/settings_accent"
@@ -581,7 +581,7 @@
                         android:layout_height="wrap_content"
                         android:background="@android:color/transparent"
                         android:fontFamily="@font/inter"
-                        android:text="@string/unpack_files"
+                        android:text="@string/shortcuts_properties_unpack_files"
                         android:textColor="@color/settings_text_primary"
                         android:textSize="13sp"
                         app:thumbTint="@color/settings_accent"
@@ -594,7 +594,7 @@
                         android:fontFamily="@font/inter"
                         android:paddingStart="4dp"
                         android:paddingEnd="4dp"
-                        android:text="@string/unpack_files_description"
+                        android:text="@string/shortcuts_properties_unpack_files_description"
                         android:textColor="@color/settings_text_secondary"
                         android:textSize="11sp"
                         android:lineSpacingMultiplier="1.2" />
@@ -604,7 +604,7 @@
             <!-- GRAPHICS -->
             <TextView
                 style="@style/OtherSettingsSectionLabel"
-                android:text="@string/graphics_driver" />
+                android:text="@string/container_graphics_driver" />
 
             <LinearLayout
                 style="@style/OtherSettingsCard"
@@ -622,7 +622,7 @@
 
                     <TextView
                         style="@style/OtherSettingsFieldLabel"
-                        android:text="@string/graphics_driver" />
+                        android:text="@string/container_graphics_driver" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -661,7 +661,7 @@
 
                     <TextView
                         style="@style/OtherSettingsFieldLabel"
-                        android:text="@string/dxwrapper" />
+                        android:text="@string/container_wine_dxwrapper" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -696,7 +696,7 @@
             <!-- AUDIO & SOUND -->
             <TextView
                 style="@style/OtherSettingsSectionLabel"
-                android:text="@string/sound" />
+                android:text="@string/settings_audio_sound" />
 
             <LinearLayout
                 style="@style/OtherSettingsCard"
@@ -714,7 +714,7 @@
 
                     <TextView
                         style="@style/OtherSettingsFieldLabel"
-                        android:text="@string/audio_driver" />
+                        android:text="@string/container_config_audio_driver" />
 
                     <androidx.appcompat.widget.AppCompatSpinner
                         android:id="@+id/SAudioDriver"
@@ -738,7 +738,7 @@
 
                     <TextView
                         style="@style/OtherSettingsFieldLabel"
-                        android:text="@string/midi_sound_font" />
+                        android:text="@string/settings_audio_midi_sound_font" />
 
                     <androidx.appcompat.widget.AppCompatSpinner
                         android:id="@+id/SMIDISoundFont"
@@ -752,7 +752,7 @@
             <!-- DISPLAY OPTIONS -->
             <TextView
                 style="@style/OtherSettingsSectionLabel"
-                android:text="@string/xserver" />
+                android:text="@string/session_xserver_title" />
 
             <LinearLayout
                 style="@style/OtherSettingsCard"
@@ -772,7 +772,7 @@
                     style="@style/OtherSettingsCardTitle"
                     android:layout_width="0dp"
                     android:layout_weight="1"
-                    android:text="@string/show_fps" />
+                    android:text="@string/session_display_show_fps" />
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/CBShowFPS"
@@ -802,7 +802,7 @@
                     style="@style/OtherSettingsCardTitle"
                     android:layout_width="0dp"
                     android:layout_weight="1"
-                    android:text="@string/fullscreen_stretched" />
+                    android:text="@string/session_display_fullscreen_stretched" />
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/CBFullscreenStretched"
@@ -825,7 +825,7 @@
 
             <TextView
                 style="@style/OtherSettingsSectionLabel"
-                android:text="@string/system" />
+                android:text="@string/common_ui_system" />
 
             <LinearLayout
                 style="@style/OtherSettingsCard"
@@ -833,7 +833,7 @@
 
                 <TextView
                     style="@style/OtherSettingsFieldLabel"
-                    android:text="@string/startup_selection" />
+                    android:text="@string/container_config_startup_selection" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -858,7 +858,7 @@
             <!-- EMULATION -->
             <TextView
                 style="@style/OtherSettingsSectionLabel"
-                android:text="@string/advanced" />
+                android:text="@string/common_ui_advanced" />
 
             <LinearLayout
                 style="@style/OtherSettingsCard"
@@ -878,7 +878,7 @@
 
                     <TextView
                         style="@style/OtherSettingsFieldLabel"
-                        android:text="@string/wine_version" />
+                        android:text="@string/container_wine_version" />
 
                     <androidx.appcompat.widget.AppCompatSpinner
                         android:id="@+id/SWineVersion"
@@ -902,7 +902,7 @@
 
                     <TextView
                         style="@style/OtherSettingsFieldLabel"
-                        android:text="@string/emulator_64bit" />
+                        android:text="@string/container_config_emulator_64bit" />
 
                     <androidx.appcompat.widget.AppCompatSpinner
                         android:id="@+id/SEmulator64"
@@ -915,7 +915,7 @@
                     <TextView
                         style="@style/OtherSettingsFieldLabel"
                         android:layout_marginTop="8dp"
-                        android:text="@string/dll_emulator" />
+                        android:text="@string/container_config_dll_emulator" />
 
                     <androidx.appcompat.widget.AppCompatSpinner
                         android:id="@+id/SEmulator"
@@ -932,7 +932,7 @@
                         android:fontFamily="@font/inter"
                         android:gravity="center"
                         android:paddingHorizontal="8dp"
-                        android:text="@string/emulator_wine_hint"
+                        android:text="@string/container_config_emulator_wine_hint"
                         android:textColor="@color/settings_text_secondary"
                         android:textSize="11sp"
                         android:lineSpacingMultiplier="1.3" />
@@ -951,7 +951,7 @@
 
                     <TextView
                         style="@style/OtherSettingsFieldLabel"
-                        android:text="@string/lc_all" />
+                        android:text="@string/container_config_lc_all" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -988,7 +988,7 @@
 
                     <TextView
                         style="@style/OtherSettingsFieldLabel"
-                        android:text="@string/box64" />
+                        android:text="@string/container_box64_title" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -1003,7 +1003,7 @@
 
                         <TextView
                             style="@style/OtherSettingsFieldLabel"
-                            android:text="@string/box64_version" />
+                            android:text="@string/container_box64_version" />
 
                         <androidx.appcompat.widget.AppCompatSpinner
                             android:id="@+id/SBox64Version"
@@ -1016,7 +1016,7 @@
                         <TextView
                             style="@style/OtherSettingsFieldLabel"
                             android:layout_marginTop="8dp"
-                            android:text="@string/box64_preset" />
+                            android:text="@string/container_box64_preset" />
 
                         <androidx.appcompat.widget.AppCompatSpinner
                             android:id="@+id/SBox64Preset"
@@ -1038,7 +1038,7 @@
 
                     <TextView
                         style="@style/OtherSettingsFieldLabel"
-                        android:text="@string/fexcore_config" />
+                        android:text="@string/container_fexcore_config" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -1053,7 +1053,7 @@
 
                         <TextView
                             style="@style/OtherSettingsFieldLabel"
-                            android:text="@string/fexcore_version" />
+                            android:text="@string/container_fexcore_version" />
 
                         <androidx.appcompat.widget.AppCompatSpinner
                             android:id="@+id/SFEXCoreVersion"
@@ -1065,7 +1065,7 @@
                         <TextView
                             style="@style/OtherSettingsFieldLabel"
                             android:layout_marginTop="8dp"
-                            android:text="@string/fexcore_preset" />
+                            android:text="@string/container_fexcore_preset" />
 
                         <androidx.appcompat.widget.AppCompatSpinner
                             android:id="@+id/SFEXCorePreset"
@@ -1100,7 +1100,7 @@
                         style="@style/OtherSettingsCardTitle"
                         android:layout_width="0dp"
                         android:layout_weight="1"
-                        android:text="@string/wine_configuration" />
+                        android:text="@string/container_wine_configuration" />
 
                     <FrameLayout
                         android:layout_width="30dp"
@@ -1135,7 +1135,7 @@
 
                         <TextView
                             style="@style/OtherSettingsFieldLabel"
-                            android:text="@string/theme" />
+                            android:text="@string/settings_general_theme" />
 
                         <androidx.appcompat.widget.AppCompatSpinner
                             android:id="@+id/SDesktopTheme"
@@ -1148,7 +1148,7 @@
                         <TextView
                             style="@style/OtherSettingsFieldLabel"
                             android:layout_marginTop="8dp"
-                            android:text="@string/background" />
+                            android:text="@string/settings_general_background" />
 
                         <LinearLayout
                             android:layout_width="match_parent"
@@ -1195,7 +1195,7 @@
 
                         <TextView
                             style="@style/OtherSettingsFieldLabel"
-                            android:text="@string/mouse_warp_override" />
+                            android:text="@string/container_wine_mouse_warp_override" />
 
                         <androidx.appcompat.widget.AppCompatSpinner
                             android:id="@+id/SMouseWarpOverride"
@@ -1237,7 +1237,7 @@
                         style="@style/OtherSettingsCardTitle"
                         android:layout_width="0dp"
                         android:layout_weight="1"
-                        android:text="@string/win_components" />
+                        android:text="@string/container_config_win_components" />
 
                     <FrameLayout
                         android:layout_width="30dp"
@@ -1261,7 +1261,7 @@
 
                     <TextView
                         style="@style/OtherSettingsFieldLabel"
-                        android:text="@string/directx" />
+                        android:text="@string/container_wine_directx" />
 
                     <LinearLayout
                         android:id="@+id/LLWinComponentsDirectX"
@@ -1278,7 +1278,7 @@
                     <TextView
                         style="@style/OtherSettingsFieldLabel"
                         android:layout_marginTop="12dp"
-                        android:text="@string/general" />
+                        android:text="@string/settings_general_title" />
 
                     <LinearLayout
                         android:id="@+id/LLWinComponentsGeneral"
@@ -1306,7 +1306,7 @@
 
             <TextView
                 style="@style/OtherSettingsSectionLabel"
-                android:text="@string/game_controller" />
+                android:text="@string/session_gamepad_game_controller" />
 
             <LinearLayout
                 style="@style/OtherSettingsCard"
@@ -1316,7 +1316,7 @@
                 <TextView
                     style="@style/OtherSettingsFieldLabel"
                     android:layout_marginTop="12dp"
-                    android:text="@string/game_controller" />
+                    android:text="@string/session_gamepad_game_controller" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -1337,7 +1337,7 @@
 
                         <TextView
                             style="@style/OtherSettingsFieldLabel"
-                            android:text="@string/directinput_mapper_type" />
+                            android:text="@string/container_config_directinput_mapper_type" />
 
                         <androidx.appcompat.widget.AppCompatSpinner
                             android:id="@+id/SDInputType"
@@ -1362,7 +1362,7 @@
                             android:layout_weight="1"
                             android:background="@android:color/transparent"
                             android:fontFamily="@font/inter"
-                            android:text="@string/enable_xinput_for_wine_game"
+                            android:text="@string/container_config_enable_xinput"
                             android:textColor="@color/settings_text_primary"
                             android:textSize="13sp"
                             app:thumbTint="@color/settings_accent"
@@ -1388,7 +1388,7 @@
                             android:layout_weight="1"
                             android:background="@android:color/transparent"
                             android:fontFamily="@font/inter"
-                            android:text="@string/enable_dinput_for_wine_game"
+                            android:text="@string/container_config_enable_dinput"
                             android:textColor="@color/settings_text_primary"
                             android:textSize="13sp"
                             app:thumbTint="@color/settings_accent"
@@ -1414,7 +1414,7 @@
                             android:layout_height="wrap_content"
                             android:background="@android:color/transparent"
                             android:fontFamily="@font/inter"
-                            android:text="@string/exclusive_input"
+                            android:text="@string/shortcuts_properties_exclusive_input"
                             android:textColor="@color/settings_text_primary"
                             android:textSize="13sp"
                             app:thumbTint="@color/settings_accent"
@@ -1428,7 +1428,7 @@
                         android:layout_marginTop="8dp"
                         android:background="@android:color/transparent"
                         android:fontFamily="@font/inter"
-                        android:text="@string/sdl2_compatibility"
+                        android:text="@string/container_config_sdl2_compatibility"
                         android:textColor="@color/settings_text_primary"
                         android:textSize="13sp"
                         app:thumbTint="@color/settings_accent"
@@ -1447,7 +1447,7 @@
 
             <TextView
                 style="@style/OtherSettingsSectionLabel"
-                android:text="@string/processor_affinity" />
+                android:text="@string/container_config_processor_affinity" />
 
             <LinearLayout
                 style="@style/OtherSettingsCard"
@@ -1455,7 +1455,7 @@
 
                 <TextView
                     style="@style/OtherSettingsFieldLabel"
-                    android:text="@string/processor_affinity" />
+                    android:text="@string/container_config_processor_affinity" />
 
                 <com.winlator.cmod.widget.CPUListView
                     android:id="@+id/CPUListView"
@@ -1467,7 +1467,7 @@
                 <TextView
                     style="@style/OtherSettingsFieldLabel"
                     android:layout_marginTop="12dp"
-                    android:text="@string/processor_affinity_32_bit_apps" />
+                    android:text="@string/container_config_processor_affinity_32bit" />
 
                 <com.winlator.cmod.widget.CPUListView
                     android:id="@+id/CPUListViewWoW64"
@@ -1499,7 +1499,7 @@
                         style="@style/OtherSettingsCardTitle"
                         android:layout_width="0dp"
                         android:layout_weight="1"
-                        android:text="@string/environment_variables" />
+                        android:text="@string/container_config_env_vars" />
 
                     <FrameLayout
                         android:layout_width="30dp"
@@ -1531,7 +1531,7 @@
                         style="@style/OtherSettingsInlineButton"
                         android:layout_gravity="center_horizontal"
                         android:layout_marginTop="10dp"
-                        android:text="@string/add" />
+                        android:text="@string/common_ui_add" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -1556,7 +1556,7 @@
                         style="@style/OtherSettingsCardTitle"
                         android:layout_width="0dp"
                         android:layout_weight="1"
-                        android:text="@string/drives" />
+                        android:text="@string/container_config_drives" />
 
                     <FrameLayout
                         android:layout_width="30dp"
@@ -1591,7 +1591,7 @@
                     android:fontFamily="@font/inter"
                     android:gravity="center"
                     android:padding="16dp"
-                    android:text="@string/no_items_to_display"
+                    android:text="@string/common_ui_no_items_to_display"
                     android:textColor="@color/settings_text_secondary"
                     android:textSize="13sp"
                     android:visibility="gone" />
@@ -1601,7 +1601,7 @@
                     style="@style/OtherSettingsInlineButton"
                     android:layout_gravity="center_horizontal"
                     android:layout_marginTop="10dp"
-                    android:text="@string/add" />
+                    android:text="@string/common_ui_add" />
                 </LinearLayout>
             </LinearLayout>
 

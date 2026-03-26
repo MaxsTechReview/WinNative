@@ -106,7 +106,7 @@ class StoresFragment : Fragment() {
     // Lifecycle
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        (activity as? AppCompatActivity)?.supportActionBar?.setTitle(R.string.stores)
+        (activity as? AppCompatActivity)?.supportActionBar?.setTitle(R.string.stores_accounts_title)
     }
 
     override fun onCreateView(

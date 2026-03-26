@@ -26,7 +26,7 @@
                 android:letterSpacing="0.06"
                 android:textAllCaps="true"
                 android:textStyle="bold"
-                android:text="@string/drive_c" />
+                android:text="@string/container_config_drive_c" />
 
             <TextView
                 android:id="@+id/TVDriveCSize"
@@ -47,7 +47,7 @@
                 android:letterSpacing="0.06"
                 android:textAllCaps="true"
                 android:textStyle="bold"
-                android:text="@string/cache"
+                android:text="@string/container_config_cache"
                 android:layout_marginTop="10dp" />
 
             <TextView
@@ -69,7 +69,7 @@
                 android:letterSpacing="0.06"
                 android:textAllCaps="true"
                 android:textStyle="bold"
-                android:text="@string/total"
+                android:text="@string/container_config_total"
                 android:layout_marginTop="10dp" />
 
             <TextView
@@ -122,7 +122,7 @@
                 android:textSize="11sp"
                 android:layout_marginTop="6dp"
                 android:textColor="@color/settings_text_secondary"
-                android:text="@string/estimated_used_space" />
+                android:text="@string/container_config_estimated_used_space" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

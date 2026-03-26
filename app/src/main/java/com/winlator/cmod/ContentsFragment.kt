@@ -57,14 +57,14 @@ class ContentsFragment : Fragment() {
             uri?.let {
                 val transferDialog = ContentTransferDialog(requireActivity())
                 transferDialog.show(
-                    getString(R.string.contents_installing_title),
-                    getString(R.string.contents_preparing_package),
+                    getString(R.string.settings_content_installing_title),
+                    getString(R.string.settings_content_preparing_package),
                     indeterminate = true
                 )
                 installSelectedContent(
                     it,
                     transferDialog,
-                    getString(R.string.content_installed_success)
+                    getString(R.string.settings_content_installed_success)
                 )
             }
         }
@@ -92,7 +92,7 @@ class ContentsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        (activity as? AppCompatActivity)?.supportActionBar?.setTitle(R.string.components)
+        (activity as? AppCompatActivity)?.supportActionBar?.setTitle(R.string.settings_content_components)
 
         contentAdapter = ContentItemAdapter()
         binding.RecyclerView.apply {
@@ -105,7 +105,7 @@ class ContentsFragment : Fragment() {
         binding.BTInstallContent.setOnClickListener {
             val dialog = ContentDialog(requireContext())
             dialog.setIcon(R.drawable.ic_content_notice)
-            dialog.setTitle(R.string.install_content)
+            dialog.setTitle(R.string.settings_content_install)
             dialog.setMessage(buildInstallConfirmMessage())
             dialog.setOnConfirmCallback {
                 contentPicker.launch(arrayOf("*/*"))
@@ -183,7 +183,7 @@ class ContentsFragment : Fragment() {
 
     private fun updateInstallAction(type: ContentProfile.ContentType) {
         binding.BTInstallContent.contentDescription =
-            "${getString(R.string.install_content)} ${type}"
+            "${getString(R.string.settings_content_install)} ${type}"
     }
 
     private fun refreshRemoteProfiles() {
@@ -235,12 +235,12 @@ class ContentsFragment : Fragment() {
                 }
 
                 val msgId = when (reason) {
-                    ContentsManager.InstallFailedReason.ERROR_BADTAR -> R.string.file_cannot_be_recognied
-                    ContentsManager.InstallFailedReason.ERROR_NOPROFILE -> R.string.profile_not_found_in_content
-                    ContentsManager.InstallFailedReason.ERROR_BADPROFILE -> R.string.profile_cannot_be_recognized
-                    ContentsManager.InstallFailedReason.ERROR_MISSINGFILES -> R.string.content_is_incomplete
-                    ContentsManager.InstallFailedReason.ERROR_UNTRUSTPROFILE -> R.string.content_cannot_be_trusted
-                    else -> R.string.unable_to_install_content
+                    ContentsManager.InstallFailedReason.ERROR_BADTAR -> R.string.settings_content_file_cannot_be_recognized
+                    ContentsManager.InstallFailedReason.ERROR_NOPROFILE -> R.string.settings_content_profile_not_found
+                    ContentsManager.InstallFailedReason.ERROR_BADPROFILE -> R.string.settings_content_profile_cannot_be_recognized
+                    ContentsManager.InstallFailedReason.ERROR_MISSINGFILES -> R.string.settings_content_is_incomplete
+                    ContentsManager.InstallFailedReason.ERROR_UNTRUSTPROFILE -> R.string.settings_content_cannot_be_trusted
+                    else -> R.string.settings_content_unable_to_install
                 }
 
                 activity?.runOnUiThread {
@@ -250,7 +250,7 @@ class ContentsFragment : Fragment() {
                     } else {
                         ContentDialog.alert(
                             requireContext(),
-                            getString(R.string.install_failed) + ": " + getString(msgId),
+                            getString(R.string.settings_content_install_failed) + ": " + getString(msgId),
                             null
                         )
                     }
@@ -263,7 +263,7 @@ class ContentsFragment : Fragment() {
                     extractedProfile = profile
                     // Transition from extracting to installing phase
                     transferDialog.update(
-                        getString(R.string.contents_installing_title),
+                        getString(R.string.settings_content_installing_title),
                         profile.verName,
                         indeterminate = true
                     )
@@ -308,7 +308,7 @@ class ContentsFragment : Fragment() {
                         }
 
                         val preloaderDialog = com.winlator.cmod.core.PreloaderDialog(activity)
-                        preloaderDialog.show(R.string.creating_container)
+                        preloaderDialog.show(R.string.containers_list_creating)
                         
                         containerManager.createContainerAsync(data, manager) { newContainer ->
                             preloaderDialog.close()
@@ -324,8 +324,8 @@ class ContentsFragment : Fragment() {
         // Progress listener that updates the dialog during extraction
         val extractionProgress = ContentsManager.OnExtractionProgressListener { filesExtracted, currentFileName ->
             transferDialog.update(
-                getString(R.string.contents_extracting_title),
-                getString(R.string.contents_extracting_detail, filesExtracted),
+                getString(R.string.settings_content_extracting_title),
+                getString(R.string.settings_content_extracting_detail, filesExtracted),
                 indeterminate = true
             )
         }
@@ -335,7 +335,7 @@ class ContentsFragment : Fragment() {
                 .onFailure {
                     activity?.runOnUiThread {
                         transferDialog.dismiss()
-                        AppUtils.showToast(requireContext(), R.string.unable_to_import_profile)
+                        AppUtils.showToast(requireContext(), R.string.input_controls_editor_unable_to_import)
                     }
                 }
         }
@@ -360,12 +360,12 @@ class ContentsFragment : Fragment() {
 
         return buildList {
             if (installed.isNotEmpty()) {
-                add(ContentRow.Header(R.string.installed))
+                add(ContentRow.Header(R.string.common_ui_installed))
                 installed.forEach { add(ContentRow.Item(it)) }
             }
 
             if (available.isNotEmpty()) {
-                add(ContentRow.Header(R.string.available))
+                add(ContentRow.Header(R.string.common_ui_available))
                 available.forEach { add(ContentRow.Item(it)) }
             }
         }
@@ -374,10 +374,10 @@ class ContentsFragment : Fragment() {
     private fun showConflictingContentDialog(profile: ContentProfile) {
         val conflictingPath = ContentsManager.getInstallDir(requireContext(), profile).absolutePath
         val dialog = ContentDialog(requireContext())
-        dialog.setTitle(R.string.conflicting_content_title)
+        dialog.setTitle(R.string.settings_content_conflicting_title)
         dialog.setMessage(
             getString(
-                R.string.conflicting_content_message,
+                R.string.settings_content_conflicting_message,
                 conflictingPath
             )
         )
@@ -386,7 +386,7 @@ class ContentsFragment : Fragment() {
     }
 
     private fun buildInstallConfirmMessage(): CharSequence {
-        val message = getString(R.string.contents_install_confirm_message)
+        val message = getString(R.string.settings_content_install_confirm_message)
         val builder = SpannableStringBuilder(message)
 
         listOf(".wcp", "xz", "zst").forEach { token ->
@@ -430,9 +430,9 @@ class ContentsFragment : Fragment() {
             fun bind(profile: ContentProfile) {
                 itemBinding.IVIcon.setImageResource(iconFor(profile.type))
                 itemBinding.TVVersionName.text =
-                    getString(R.string.version) + ": " + profile.verName
+                    getString(R.string.common_ui_version) + ": " + profile.verName
                 itemBinding.TVVersionCode.text =
-                    getString(R.string.version_code) + ": " + profile.verCode
+                    getString(R.string.settings_content_version_code) + ": " + profile.verCode
 
                 itemBinding.Progress.isVisible = false
                 itemBinding.BTMenu.isVisible = profile.isInstalled
@@ -506,7 +506,7 @@ class ContentsFragment : Fragment() {
                 R.id.remove_content -> {
                     ContentDialog.confirm(
                         requireContext(),
-                        R.string.do_you_want_to_remove_this_content
+                        R.string.settings_content_confirm_remove
                     ) {
                         var containerInUse: String? = null
                         if (profile.type == ContentProfile.ContentType.CONTENT_TYPE_WINE ||
@@ -525,7 +525,7 @@ class ContentsFragment : Fragment() {
                             ContentDialog.alert(
                                 requireContext(),
                                 getString(
-                                    R.string.unable_to_remove_content_since_container_using,
+                                    R.string.settings_content_unable_to_remove_in_use,
                                     containerInUse
                                 ),
                                 null
@@ -548,7 +548,7 @@ class ContentsFragment : Fragment() {
         val remoteUrl = profile.remoteUrl ?: return
         val transferDialog = ContentTransferDialog(requireActivity())
         transferDialog.show(
-            getString(R.string.contents_downloading_title),
+            getString(R.string.settings_content_downloading_title),
             profile.verName
         )
 
@@ -558,7 +558,7 @@ class ContentsFragment : Fragment() {
                 Downloader.downloadFileWinNativeFirst(remoteUrl, output) { downloadedBytes, totalBytes ->
                     if (totalBytes <= 0L) {
                         transferDialog.update(
-                            getString(R.string.contents_downloading_title),
+                            getString(R.string.settings_content_downloading_title),
                             profile.verName,
                             indeterminate = true
                         )
@@ -568,7 +568,7 @@ class ContentsFragment : Fragment() {
                         .toInt()
                         .coerceIn(0, ContentTransferDialog.PROGRESS_SCALE)
                     transferDialog.update(
-                        getString(R.string.contents_downloading_title),
+                        getString(R.string.settings_content_downloading_title),
                         profile.verName,
                         progress = progressUnits
                     )
@@ -584,14 +584,14 @@ class ContentsFragment : Fragment() {
             if (success) {
                 // Transition: show "Extracting..." before starting the install phase
                 transferDialog.update(
-                    getString(R.string.contents_extracting_title),
+                    getString(R.string.settings_content_extracting_title),
                     profile.verName,
                     indeterminate = true
                 )
                 installSelectedContent(
                     Uri.parse(output.absolutePath),
                     transferDialog,
-                    getString(R.string.contents_download_complete),
+                    getString(R.string.settings_content_download_complete),
                     remoteUrl
                 )
             } else if (isAdded) {

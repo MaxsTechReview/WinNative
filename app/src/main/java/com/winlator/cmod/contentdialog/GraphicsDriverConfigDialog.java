@@ -184,7 +184,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
 
     private void initializeDialog(View anchor, String graphicsDriver, TextView graphicsDriverVersionView) {
         setIcon(R.drawable.ic_drivers);
-        setTitle(anchor.getContext().getString(R.string.graphics_driver_configuration));
+        setTitle(anchor.getContext().getString(R.string.container_graphics_configuration));
 
         String graphicsDriverConfig = anchor.getTag() != null ? anchor.getTag().toString() : "";
 

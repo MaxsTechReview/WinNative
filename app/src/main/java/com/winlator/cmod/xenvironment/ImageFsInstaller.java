@@ -73,7 +73,7 @@ public abstract class ImageFsInstaller {
         SettingsConfig.resetEmulatorsVersion(activity);
 
         final DownloadProgressDialog dialog = new DownloadProgressDialog(activity);
-        dialog.show(R.string.installing_system_files);
+        dialog.show(R.string.setup_wizard_installing_system_files);
         Executors.newSingleThreadExecutor().execute(() -> {
             clearRootDir(rootDir);
             final byte compressionRatio = 22;
@@ -96,7 +96,7 @@ public abstract class ImageFsInstaller {
                 imageFs.createImgVersionFile(LATEST_VERSION);
                 resetContainerImgVersions(activity);
             }
-            else AppUtils.showToast(activity, R.string.unable_to_install_system_files);
+            else AppUtils.showToast(activity, R.string.setup_wizard_unable_to_install_system_files);
 
             dialog.closeOnUiThread();
         });
@@ -117,8 +117,8 @@ public abstract class ImageFsInstaller {
 
         // Show a simple progress dialog
         final android.app.ProgressDialog dialog = new android.app.ProgressDialog(activity);
-        dialog.setTitle(activity.getString(R.string.installing_system_files));
-        dialog.setMessage(activity.getString(R.string.please_wait));
+        dialog.setTitle(activity.getString(R.string.setup_wizard_installing_system_files));
+        dialog.setMessage(activity.getString(R.string.common_ui_please_wait));
         dialog.setProgressStyle(android.app.ProgressDialog.STYLE_HORIZONTAL);
         dialog.setMax(100);
         dialog.setCancelable(false);
@@ -155,7 +155,7 @@ public abstract class ImageFsInstaller {
                 imageFs.createImgVersionFile(LATEST_VERSION);
             } else {
                 activity.runOnUiThread(() ->
-                    android.widget.Toast.makeText(activity, R.string.unable_to_install_system_files, android.widget.Toast.LENGTH_LONG).show()
+                    android.widget.Toast.makeText(activity, R.string.setup_wizard_unable_to_install_system_files, android.widget.Toast.LENGTH_LONG).show()
                 );
             }
 

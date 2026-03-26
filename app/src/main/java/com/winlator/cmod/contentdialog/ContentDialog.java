@@ -215,7 +215,7 @@ public class ContentDialog extends Dialog {
         ContentDialog dialog = new ContentDialog(context);
 
         final EditText editText = dialog.findViewById(R.id.EditText);
-        editText.setHint(R.string.untitled);
+        editText.setHint(R.string.common_ui_untitled);
         editText.setImeOptions(editText.getImeOptions() | android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         if (defaultText != null) editText.setText(defaultText);
         editText.setVisibility(View.VISIBLE);

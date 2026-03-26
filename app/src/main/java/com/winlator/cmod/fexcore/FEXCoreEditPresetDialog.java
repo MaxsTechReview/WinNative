@@ -52,7 +52,7 @@ public class FEXCoreEditPresetDialog extends ContentDialog {
         if (preset != null) {
             etName.setText(preset.name);
         }
-        else etName.setText(context.getString(R.string.preset)+"-"+ FEXCorePresetManager.getNextPresetId(context));
+        else etName.setText(context.getString(R.string.container_presets_preset)+"-"+ FEXCorePresetManager.getNextPresetId(context));
 
         applyDarkThemeToEditText(etName);
 

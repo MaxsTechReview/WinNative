@@ -47,7 +47,7 @@ fun AuthWebViewDialog(
     customWebViewClient: WebViewClient? = null,
 ) {
     if (isVisible) {
-        val defaultTitle = stringResource(R.string.auth_webview_title)
+        val defaultTitle = stringResource(R.string.steam_login_auth_webview_title)
         var topBarTitle by rememberSaveable { mutableStateOf(defaultTitle) }
         val startingUrl by rememberSaveable(url) { mutableStateOf(url) }
         var webView: WebView? = remember { null }
@@ -83,7 +83,7 @@ fun AuthWebViewDialog(
                                         webViewState.clear()
                                         onDismissRequest()
                                     },
-                                    content = { Icon(imageVector = Icons.Default.Close, contentDescription = stringResource(R.string.close)) },
+                                    content = { Icon(imageVector = Icons.Default.Close, contentDescription = stringResource(R.string.common_ui_close)) },
                                 )
                             },
                         )

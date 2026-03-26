@@ -26,7 +26,7 @@
 
             <TextView
                 style="@style/OtherSettingsSectionLabel"
-                android:text="@string/containers" />
+                android:text="@string/common_ui_containers" />
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/RecyclerView"
@@ -43,7 +43,7 @@
                 android:fontFamily="@font/inter"
                 android:gravity="center"
                 android:padding="32dp"
-                android:text="@string/no_items_to_display"
+                android:text="@string/common_ui_no_items_to_display"
                 android:textColor="@color/settings_text_secondary"
                 android:textSize="14sp"
                 android:visibility="gone" />

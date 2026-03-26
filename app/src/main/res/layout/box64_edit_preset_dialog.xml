@@ -8,7 +8,7 @@
         style="@style/EditText"
         android:layout_width="300dp"
         android:id="@+id/ETName"
-        android:hint="@string/untitled" />
+        android:hint="@string/common_ui_untitled" />
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -31,6 +31,6 @@
             android:id="@+id/TVEnvironmentVariables"
             style="@style/FieldSetLabel"
             android:background="#ffffff"
-            android:text="@string/environment_variables" />
+            android:text="@string/container_config_env_vars" />
     </FrameLayout>
 </LinearLayout>

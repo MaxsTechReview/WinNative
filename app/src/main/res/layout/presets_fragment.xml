@@ -40,7 +40,7 @@
             android:gravity="center"
             android:paddingHorizontal="24dp"
             android:paddingBottom="16dp"
-            android:text="@string/no_items_to_display"
+            android:text="@string/common_ui_no_items_to_display"
             android:textColor="@color/settings_text_secondary"
             android:textSize="15sp"
             android:visibility="gone" />

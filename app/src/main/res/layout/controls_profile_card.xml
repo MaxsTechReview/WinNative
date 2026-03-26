@@ -60,7 +60,7 @@
         android:padding="8dp"
         android:src="@drawable/ic_input_controls"
         app:tint="@color/settings_icon_tint"
-        android:contentDescription="@string/controls_editor" />
+        android:contentDescription="@string/input_controls_editor_title" />
 
     <ImageButton
         android:id="@+id/BTAddProfile"
@@ -71,7 +71,7 @@
         android:padding="8dp"
         android:src="@drawable/ic_content_add"
         app:tint="@color/settings_icon_tint"
-        android:contentDescription="@string/add" />
+        android:contentDescription="@string/common_ui_add" />
 
     <ImageButton
         android:id="@+id/BTEditProfile"
@@ -82,7 +82,7 @@
         android:padding="8dp"
         android:src="@drawable/ic_controls_edit"
         app:tint="@color/settings_icon_tint"
-        android:contentDescription="@string/edit" />
+        android:contentDescription="@string/common_ui_edit" />
 
     <ImageButton
         android:id="@+id/BTDuplicateProfile"
@@ -93,7 +93,7 @@
         android:padding="8dp"
         android:src="@drawable/ic_controls_duplicate"
         app:tint="@color/settings_icon_tint"
-        android:contentDescription="@string/duplicate" />
+        android:contentDescription="@string/common_ui_duplicate" />
 
     <ImageButton
         android:id="@+id/BTRemoveProfile"
@@ -104,6 +104,6 @@
         android:padding="7dp"
         android:src="@drawable/ic_content_menu_remove"
         app:tint="@color/settings_icon_tint"
-        android:contentDescription="@string/remove" />
+        android:contentDescription="@string/common_ui_remove" />
 
 </LinearLayout>

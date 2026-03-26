@@ -21,7 +21,7 @@
 
             <TextView
                 style="@style/OtherSettingsFieldLabel"
-                android:text="@string/vkd3d_version" />
+                android:text="@string/container_wine_vkd3d_version" />
 
             <androidx.appcompat.widget.AppCompatSpinner
                 android:id="@+id/SVKD3DVersion"
@@ -33,7 +33,7 @@
             <TextView
                 style="@style/OtherSettingsFieldLabel"
                 android:layout_marginTop="10dp"
-                android:text="@string/vkd3d_feature_level" />
+                android:text="@string/container_wine_vkd3d_feature_level" />
 
             <androidx.appcompat.widget.AppCompatSpinner
                 android:id="@+id/SVKD3DFeatureLevel"
@@ -45,7 +45,7 @@
             <TextView
                 style="@style/OtherSettingsFieldLabel"
                 android:layout_marginTop="10dp"
-                android:text="@string/dxvk_version" />
+                android:text="@string/container_wine_dxvk_version" />
 
             <androidx.appcompat.widget.AppCompatSpinner
                 android:id="@+id/SDXVKVersion"
@@ -70,7 +70,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/inter"
-                    android:text="@string/enabled_async"
+                    android:text="@string/container_wine_enabled_async"
                     android:textColor="@color/settings_text_primary"
                     android:textSize="13sp" />
 
@@ -99,7 +99,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/inter"
-                    android:text="@string/enabled_async_cache"
+                    android:text="@string/container_wine_enabled_async_cache"
                     android:textColor="@color/settings_text_primary"
                     android:textSize="13sp" />
 
@@ -115,7 +115,7 @@
             <TextView
                 style="@style/OtherSettingsFieldLabel"
                 android:layout_marginTop="10dp"
-                android:text="@string/ddraw_wrapper" />
+                android:text="@string/container_wine_ddraw_wrapper" />
 
             <androidx.appcompat.widget.AppCompatSpinner
                 android:id="@+id/SDDRAWrapper"
@@ -127,7 +127,7 @@
             <TextView
                 style="@style/OtherSettingsFieldLabel"
                 android:layout_marginTop="10dp"
-                android:text="@string/frame_rate" />
+                android:text="@string/session_display_frame_rate" />
 
             <androidx.appcompat.widget.AppCompatSpinner
                 android:id="@+id/SFramerate"

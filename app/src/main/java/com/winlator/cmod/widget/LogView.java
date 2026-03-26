@@ -77,7 +77,7 @@ public class LogView extends View {
             if (lines.isEmpty()) {
                 paint.setTextSize(UnitUtils.dpToPx(20));
                 paint.setColor(0xffbdbdbd);
-                String text = getContext().getString(R.string.no_items_to_display);
+                String text = getContext().getString(R.string.common_ui_no_items_to_display);
                 float centerX = (width - paint.measureText(text)) * 0.5f;
                 float centerY = (height - paint.getFontSpacing()) * 0.5f - paint.ascent();
                 canvas.drawText(text, centerX, centerY, paint);

@@ -32,7 +32,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:fontFamily="@font/inter"
-            android:text="@string/gyroscope"
+            android:text="@string/session_gyroscope_title"
             android:textColor="@color/settings_text_primary"
             android:textSize="15sp"
             android:textStyle="bold" />
@@ -61,7 +61,7 @@
             android:layout_height="wrap_content"
             android:layout_marginEnd="12dp"
             android:fontFamily="@font/inter"
-            android:text="@string/mode"
+            android:text="@string/common_ui_mode"
             android:textColor="@color/settings_text_secondary"
             android:textSize="13sp" />
 
@@ -87,7 +87,7 @@
             android:layout_height="wrap_content"
             android:layout_marginEnd="12dp"
             android:fontFamily="@font/inter"
-            android:text="@string/gyro_activator_button"
+            android:text="@string/session_gyroscope_activator_button"
             android:textColor="@color/settings_text_secondary"
             android:textSize="13sp" />
 
@@ -122,7 +122,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:fontFamily="@font/inter"
-            android:text="@string/enable_right_stick_gyro"
+            android:text="@string/session_gyroscope_enable_right_stick"
             android:textColor="@color/settings_text_secondary"
             android:textSize="13sp" />
 
@@ -132,7 +132,7 @@
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
             android:fontFamily="@font/inter"
-            android:text="@string/experimental"
+            android:text="@string/common_ui_experimental"
             android:textColor="@color/settings_accent"
             android:textSize="11sp"
             android:textStyle="italic" />
@@ -187,7 +187,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:fontFamily="@font/inter"
-                android:text="@string/calibrate_gyroscope"
+                android:text="@string/session_gyroscope_calibrate"
                 android:textColor="@color/settings_text_secondary"
                 android:textSize="13sp" />
         </LinearLayout>
@@ -301,7 +301,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/inter"
-                    android:text="@string/invert_x_short"
+                    android:text="@string/session_gamepad_invert_x"
                     android:textColor="@color/settings_text_secondary"
                     android:textSize="13sp" />
 
@@ -327,7 +327,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/inter"
-                    android:text="@string/invert_y_short"
+                    android:text="@string/session_gamepad_invert_y"
                     android:textColor="@color/settings_text_secondary"
                     android:textSize="13sp" />
 
@@ -365,7 +365,7 @@
                 android:gravity="center"
                 android:minWidth="64dp"
                 android:paddingHorizontal="14dp"
-                android:text="@string/reset_stick"
+                android:text="@string/session_gyroscope_reset_stick"
                 android:textColor="@color/content_type_nav_text"
                 android:textSize="13sp"
                 android:textStyle="bold" />

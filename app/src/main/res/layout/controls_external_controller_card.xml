@@ -112,7 +112,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:fontFamily="@font/inter"
-                android:text="@string/control_bindings"
+                android:text="@string/session_gamepad_control_bindings"
                 android:textColor="@color/settings_text_secondary"
                 android:textSize="13sp" />
         </LinearLayout>
@@ -142,7 +142,7 @@
                 android:layout_marginBottom="8dp"
                 android:fontFamily="@font/inter"
                 android:gravity="center"
-                android:text="@string/press_any_button_on_your_controller"
+                android:text="@string/session_gamepad_press_any_button"
                 android:textColor="@color/settings_text_secondary"
                 android:textSize="13sp" />
         </LinearLayout>

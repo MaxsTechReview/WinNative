@@ -311,7 +311,7 @@ public class ContainerDetailFragment extends Fragment {
                     if (validIcon && path != null) {
                         openIconFileCallback.call(path);
                     } else {
-                        Toast.makeText(getContext(), R.string.select_valid_icon_file, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), R.string.common_ui_select_valid_icon_file, Toast.LENGTH_SHORT).show();
                     }
                 } else if (path != null && path.toLowerCase(Locale.ENGLISH).endsWith(".exe")) {
                     if (openFileCallback != null) {
@@ -322,7 +322,7 @@ public class ContainerDetailFragment extends Fragment {
                         openFileCallback.call(path);
                     }
                 } else {
-                    Toast.makeText(getContext(), R.string.select_valid_exe_file, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), R.string.common_ui_select_valid_exe_file, Toast.LENGTH_SHORT).show();
                 }
             }
             openFileCallback = null;
@@ -353,7 +353,7 @@ public class ContainerDetailFragment extends Fragment {
         if (activity instanceof AppCompatActivity) {
             androidx.appcompat.app.ActionBar actionBar = ((AppCompatActivity) activity).getSupportActionBar();
             if (actionBar != null) {
-                actionBar.setTitle(isEditMode() ? R.string.edit_container : R.string.new_container);
+                actionBar.setTitle(isEditMode() ? R.string.containers_list_edit : R.string.containers_list_new);
             }
         }
 
@@ -825,7 +825,7 @@ public class ContainerDetailFragment extends Fragment {
         } else if (isCreateShortcutMode()) {
             etName.setText(createShortcutForAppName);
         } else {
-            etName.setText(getString(R.string.container) + "-" + manager.getNextContainerId());
+            etName.setText(getString(R.string.common_ui_container) + "-" + manager.getNextContainerId());
         }
 
         llLaunchExe.setVisibility(showLaunchExeSelector ? View.VISIBLE : View.GONE);
@@ -850,7 +850,7 @@ public class ContainerDetailFragment extends Fragment {
                 selectedIconPath[0] = "";
                 updateSelectIconButton(btSelectIcon, selectedIconPath[0]);
                 updateRevertIconButton(btRevertIcon, selectedIconPath[0]);
-                Toast.makeText(getContext(), R.string.revert_icon, Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), R.string.common_ui_revert_icon, Toast.LENGTH_SHORT).show();
             });
 
             updateLaunchExeButton(btSelectExe, selectedExePath[0]);
@@ -922,7 +922,7 @@ public class ContainerDetailFragment extends Fragment {
                 () -> runIndicatorRefresh(refreshIndicatorsRef));
         Log.d(TAG, "onCreateView: step 7 - graphics driver spinner loaded");
 
-        view.findViewById(R.id.BTHelpDXWrapper).setOnClickListener((v) -> AppUtils.showHelpBox(context, v, R.string.dxwrapper_help_content));
+        view.findViewById(R.id.BTHelpDXWrapper).setOnClickListener((v) -> AppUtils.showHelpBox(context, v, R.string.container_wine_dxwrapper_help_content));
 
         Spinner sAudioDriver = view.findViewById(R.id.SAudioDriver);
         applyThemedAdapter(sAudioDriver, R.array.audio_driver_entries);
@@ -1047,7 +1047,7 @@ public class ContainerDetailFragment extends Fragment {
         );
 
         // Existing declarations of UI components and variables
-        final Runnable showInputWarning = () -> ContentDialog.alert(context, R.string.enable_xinput_and_dinput_same_time, null);
+        final Runnable showInputWarning = () -> ContentDialog.alert(context, R.string.container_config_xinput_dinput_warning, null);
         final CompoundButton cbEnableXInput = view.findViewById(R.id.CBEnableXInput);
         final CompoundButton cbEnableDInput = view.findViewById(R.id.CBEnableDInput);
         final CompoundButton cbExclusiveInput = view.findViewById(R.id.CBExclusiveInput);
@@ -1106,8 +1106,8 @@ public class ContainerDetailFragment extends Fragment {
             applyExclusiveInputUiState.run();
         }
 
-        btHelpXInput.setOnClickListener(v -> AppUtils.showHelpBox(context, v, R.string.help_xinput));
-        btHelpDInput.setOnClickListener(v -> AppUtils.showHelpBox(context, v, R.string.help_dinput));
+        btHelpXInput.setOnClickListener(v -> AppUtils.showHelpBox(context, v, R.string.container_config_help_xinput));
+        btHelpDInput.setOnClickListener(v -> AppUtils.showHelpBox(context, v, R.string.container_config_help_dinput));
 
         final CompoundButton cbSdl2Toggle = view.findViewById(R.id.CBSdl2Toggle);
         String envVarsValue = isPerGameSettingsMode()
@@ -1239,13 +1239,13 @@ public class ContainerDetailFragment extends Fragment {
                 if (selectedShortcutContainer == null) return;
 
                 ContentDialog dialog = new ContentDialog(context);
-                dialog.setTitle(R.string.reset_per_game_settings);
-                dialog.setMessage(R.string.reset_per_game_settings_message);
+                dialog.setTitle(R.string.shortcuts_properties_reset_per_game);
+                dialog.setMessage(R.string.shortcuts_properties_reset_per_game_message);
                 Container finalSelectedShortcutContainer = selectedShortcutContainer;
                 dialog.setOnConfirmCallback(() -> {
                     updateUIWithContainerSettings(view, finalSelectedShortcutContainer);
                     runIndicatorRefresh(refreshIndicatorsRef);
-                    Toast.makeText(context, R.string.per_game_settings_reset, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, R.string.shortcuts_properties_per_game_reset, Toast.LENGTH_SHORT).show();
                 });
                 dialog.show();
             });
@@ -1356,7 +1356,7 @@ public class ContainerDetailFragment extends Fragment {
                         );
                         customLibraryIconPath = persistShortcutLibraryIcon(requestedIconPath, iconStorageId);
                         if (customLibraryIconPath.isEmpty()) {
-                            Toast.makeText(context, R.string.select_valid_icon_file, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, R.string.common_ui_select_valid_icon_file, Toast.LENGTH_SHORT).show();
                             return;
                         }
                         selectedIconPath[0] = customLibraryIconPath;
@@ -1599,7 +1599,7 @@ public class ContainerDetailFragment extends Fragment {
                         }
                     } else {
                         data.put("name", "Container-" + manager.getNextContainerId());
-                        preloaderDialog.show(R.string.creating_container);
+                        preloaderDialog.show(R.string.containers_list_creating);
                         
                         File imageFsRoot = new File(context.getFilesDir(), "imagefs");
                         imageFs = ImageFs.find(imageFsRoot);
@@ -1612,7 +1612,7 @@ public class ContainerDetailFragment extends Fragment {
                                     AppUtils.showToast(context, "Error creating shortcut: " + ex.getMessage());
                                 }
                             } else {
-                                AppUtils.showToast(context, R.string.unable_to_install_system_files);
+                                AppUtils.showToast(context, R.string.setup_wizard_unable_to_install_system_files);
                             }
                             preloaderDialog.close();
                             if (getActivity() != null) {
@@ -1661,7 +1661,7 @@ public class ContainerDetailFragment extends Fragment {
                     data.put("midiSoundFont", midiSoundFont);
                     data.put("lc_all", lc_all);
 
-                    preloaderDialog.show(R.string.creating_container);
+                    preloaderDialog.show(R.string.containers_list_creating);
 
                     // Initialize ImageFs
                     File imageFsRoot = new File(context.getFilesDir(), "imagefs");
@@ -1673,7 +1673,7 @@ public class ContainerDetailFragment extends Fragment {
                             this.container = newContainer;
                             saveWineRegistryKeys(view);
                         } else {
-                            AppUtils.showToast(context, R.string.unable_to_install_system_files);
+                            AppUtils.showToast(context, R.string.setup_wizard_unable_to_install_system_files);
                         }
                         preloaderDialog.close();
                         if (getActivity() != null) {
@@ -1898,7 +1898,7 @@ public class ContainerDetailFragment extends Fragment {
         });
         sDesktopBackgroundType.setSelection(desktopTheme.backgroundType.ordinal());
 
-        List<String> mouseWarpOverrideList = Arrays.asList(context.getString(R.string.disable), context.getString(R.string.enable), context.getString(R.string.force));
+        List<String> mouseWarpOverrideList = Arrays.asList(context.getString(R.string.common_ui_disable), context.getString(R.string.common_ui_enable), context.getString(R.string.common_ui_force));
         Spinner sMouseWarpOverride = view.findViewById(R.id.SMouseWarpOverride);
         sMouseWarpOverride.setAdapter(createThemedAdapter(context, mouseWarpOverrideList));
         applyPopupBackground(sMouseWarpOverride);
@@ -2361,7 +2361,7 @@ public class ContainerDetailFragment extends Fragment {
         if (wineVersions.isEmpty()) {
             sWineVersion.setVisibility(View.GONE);
             TextView tvNoWine = new TextView(context);
-            tvNoWine.setText(R.string.download_in_components);
+            tvNoWine.setText(R.string.settings_content_download_in_components);
             tvNoWine.setTextColor(getResources().getColor(R.color.settings_text_secondary));
             tvNoWine.setTypeface(androidx.core.content.res.ResourcesCompat.getFont(context, R.font.inter));
             tvNoWine.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
@@ -3034,12 +3034,12 @@ public class ContainerDetailFragment extends Fragment {
 
     private void updateLaunchExeButton(TextView button, String fullPath) {
         if (button == null) return;
-        button.setText(fullPath == null || fullPath.isEmpty() ? getString(R.string.select_exe) : fullPath);
+        button.setText(fullPath == null || fullPath.isEmpty() ? getString(R.string.common_ui_select_exe) : fullPath);
     }
 
     private void updateSelectIconButton(TextView button, String fullPath) {
         if (button == null) return;
-        button.setText(fullPath == null || fullPath.isEmpty() ? getString(R.string.select_icon) : fullPath);
+        button.setText(fullPath == null || fullPath.isEmpty() ? getString(R.string.common_ui_select_icon) : fullPath);
     }
 
     private void updateRevertIconButton(View button, String selectedPath) {

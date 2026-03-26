@@ -5,7 +5,7 @@
         android:enabled="true"
         android:icon="@drawable/ic_settings"
         android:shortcutId="preferences"
-        android:shortcutShortLabel="@string/preferences_button_text"
+        android:shortcutShortLabel="@string/session_xserver_preferences_button_text"
         tools:ignore="UnusedAttribute">
         <intent
             android:action="android.intent.action.MAIN"

@@ -66,7 +66,7 @@ class AdrenotoolsFragment : Fragment() {
     private val driverPicker =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             uri?.let {
-                installDriverPackage(it, getString(R.string.driver_installed_success))
+                installDriverPackage(it, getString(R.string.settings_drivers_installed_success))
             }
         }
 
@@ -87,7 +87,7 @@ class AdrenotoolsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        (activity as? AppCompatActivity)?.supportActionBar?.setTitle(R.string.driver_manager)
+        (activity as? AppCompatActivity)?.supportActionBar?.setTitle(R.string.settings_drivers_manager)
 
         driverAdapter = DriverRowAdapter()
         binding.RecyclerView.apply {
@@ -125,11 +125,11 @@ class AdrenotoolsFragment : Fragment() {
     private fun buildRows(): List<DriverRow> {
         val rows = mutableListOf<DriverRow>()
         if (installedDrivers.isNotEmpty()) {
-            rows += DriverRow.Header(R.string.installed)
+            rows += DriverRow.Header(R.string.common_ui_installed)
             rows += installedDrivers.map { DriverRow.Installed(it) }
         }
 
-        rows += DriverRow.Header(R.string.github_repos)
+        rows += DriverRow.Header(R.string.settings_drivers_github_repos)
         githubSources.forEach { source ->
             val sourceReleases = releasesBySource[source.apiUrl].orEmpty()
             val isExpanded = expandedSourceApiUrl == source.apiUrl
@@ -140,9 +140,9 @@ class AdrenotoolsFragment : Fragment() {
                     url = source.repoUrl,
                     apiUrl = source.apiUrl,
                     status = when {
-                        isLoading -> getString(R.string.github_repo_loading_releases)
-                        sourceReleases.isNotEmpty() -> getString(R.string.github_repo_release_count, sourceReleases.size)
-                        else -> getString(R.string.github_repo_tap_to_load)
+                        isLoading -> getString(R.string.settings_drivers_repo_loading_releases)
+                        sourceReleases.isNotEmpty() -> getString(R.string.settings_drivers_repo_release_count, sourceReleases.size)
+                        else -> getString(R.string.settings_drivers_repo_tap_to_load)
                     },
                     expanded = isExpanded,
                     loading = isLoading
@@ -151,10 +151,10 @@ class AdrenotoolsFragment : Fragment() {
 
             if (isExpanded) {
                 if (sourceReleases.isEmpty() && !isLoading) {
-                    rows += DriverRow.Header(R.string.available)
-                    rows += DriverRow.Empty(getString(R.string.github_repo_no_release_assets))
+                    rows += DriverRow.Header(R.string.common_ui_available)
+                    rows += DriverRow.Empty(getString(R.string.settings_drivers_repo_no_release_assets))
                 } else if (sourceReleases.isNotEmpty()) {
-                    rows += DriverRow.Header(R.string.available)
+                    rows += DriverRow.Header(R.string.common_ui_available)
                     rows += sourceReleases.map { release ->
                         DriverRow.Release(
                             release = release,
@@ -215,7 +215,7 @@ class AdrenotoolsFragment : Fragment() {
             submitRows()
 
             if (releases.isEmpty()) {
-                AppUtils.showToast(requireContext(), R.string.github_repo_fetch_failed)
+                AppUtils.showToast(requireContext(), R.string.settings_drivers_repo_fetch_failed)
             }
         }
     }
@@ -252,7 +252,7 @@ class AdrenotoolsFragment : Fragment() {
                     add(
                         GithubRelease(
                             id = releaseObject.optLong("id"),
-                            title = releaseName.ifBlank { getString(R.string.unnamed) },
+                            title = releaseName.ifBlank { getString(R.string.common_ui_unnamed) },
                             subtitle = buildReleaseSubtitle(tagName, publishedAt, assets.size),
                             notes = releaseNotes,
                             assets = assets
@@ -310,7 +310,7 @@ class AdrenotoolsFragment : Fragment() {
 
     private fun formatBytes(bytes: Long): String {
         if (bytes <= 0L) {
-            return getString(R.string.github_repo_unknown_size)
+            return getString(R.string.settings_drivers_repo_unknown_size)
         }
 
         val units = listOf("B", "KB", "MB", "GB")
@@ -359,7 +359,7 @@ class AdrenotoolsFragment : Fragment() {
     private fun downloadReleaseAsset(asset: GithubAsset) {
         val transferDialog = ContentTransferDialog(requireActivity())
         transferDialog.show(
-            getString(R.string.contents_downloading_title),
+            getString(R.string.settings_content_downloading_title),
             asset.name
         )
 
@@ -369,7 +369,7 @@ class AdrenotoolsFragment : Fragment() {
                 Downloader.downloadFile(asset.downloadUrl, output) { downloadedBytes, totalBytes ->
                     if (totalBytes <= 0L) {
                         transferDialog.update(
-                            getString(R.string.contents_downloading_title),
+                            getString(R.string.settings_content_downloading_title),
                             asset.name,
                             indeterminate = true
                         )
@@ -380,7 +380,7 @@ class AdrenotoolsFragment : Fragment() {
                         .toInt()
                         .coerceIn(0, ContentTransferDialog.PROGRESS_SCALE)
                     transferDialog.update(
-                        getString(R.string.contents_downloading_title),
+                        getString(R.string.settings_content_downloading_title),
                         asset.name,
                         progress = progressUnits
                     )
@@ -396,11 +396,11 @@ class AdrenotoolsFragment : Fragment() {
             if (!success) {
                 output.delete()
                 transferDialog.dismiss()
-                AppUtils.showToast(requireContext(), R.string.github_repo_download_failed)
+                AppUtils.showToast(requireContext(), R.string.settings_drivers_repo_download_failed)
                 return@launch
             }
 
-            installDriverPackage(Uri.fromFile(output), getString(R.string.driver_installed_success), transferDialog) {
+            installDriverPackage(Uri.fromFile(output), getString(R.string.settings_drivers_installed_success), transferDialog) {
                 output.delete()
             }
         }
@@ -414,16 +414,16 @@ class AdrenotoolsFragment : Fragment() {
     ) {
         val transferDialog = existingDialog ?: ContentTransferDialog(requireActivity()).apply {
             show(
-                getString(R.string.install_drivers),
-                getString(R.string.contents_preparing_package),
+                getString(R.string.settings_drivers_install),
+                getString(R.string.settings_content_preparing_package),
                 indeterminate = true
             )
         }
 
         if (existingDialog != null) {
             existingDialog.update(
-                getString(R.string.install_drivers),
-                getString(R.string.contents_preparing_package),
+                getString(R.string.settings_drivers_install),
+                getString(R.string.settings_content_preparing_package),
                 progress = ContentTransferDialog.PROGRESS_SCALE
             )
         }
@@ -444,7 +444,7 @@ class AdrenotoolsFragment : Fragment() {
             onComplete?.invoke()
 
             if (installedDriverId.isBlank()) {
-                AppUtils.showToast(requireContext(), R.string.driver_install_failed)
+                AppUtils.showToast(requireContext(), R.string.settings_drivers_install_failed)
                 return@launch
             }
 
@@ -474,7 +474,7 @@ class AdrenotoolsFragment : Fragment() {
                 R.id.remove_driver -> {
                     ContentDialog.confirm(
                         requireContext(),
-                        R.string.do_you_want_to_remove_this_driver
+                        R.string.settings_drivers_confirm_remove
                     ) {
                         adrenotoolsManager.removeDriver(driver.id)
                         refreshInstalledDrivers()
@@ -538,7 +538,7 @@ class AdrenotoolsFragment : Fragment() {
                 itemBinding.IVIcon.setImageResource(R.drawable.ic_drivers)
                 itemBinding.TVVersionName.text = driver.name
                 itemBinding.TVVersionCode.text = driver.version.ifBlank {
-                    getString(R.string.github_repo_no_version)
+                    getString(R.string.settings_drivers_repo_no_version)
                 }
                 itemBinding.Progress.isVisible = false
                 itemBinding.BTDownload.isVisible = false

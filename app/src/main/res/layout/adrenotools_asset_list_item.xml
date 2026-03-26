@@ -44,7 +44,7 @@
         android:layout_height="32dp"
         android:layout_marginStart="8dp"
         android:background="@drawable/content_action_button_background"
-        android:contentDescription="@string/download"
+        android:contentDescription="@string/common_ui_download"
         android:padding="8dp"
         android:src="@drawable/ic_content_download"
         app:tint="@color/settings_icon_tint" />

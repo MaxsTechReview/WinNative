@@ -112,7 +112,7 @@ public class MidiManager {
         List<String> filesName = new ArrayList<>();
         List<File> sfFiles = getSF2Files(spinner.getContext());
 
-        filesName.add("-- " + context.getString(R.string.disabled) + " --");
+        filesName.add("-- " + context.getString(R.string.common_ui_disabled) + " --");
         filesName.add(DEFAULT_SF2_FILE);
         for (File file : sfFiles)
             filesName.add(file.getName());

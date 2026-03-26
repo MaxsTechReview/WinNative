@@ -6,6 +6,6 @@
     <item
         android:icon="@drawable/icon_action_bar_add"
         android:id="@+id/containers_menu_add"
-        android:title="@string/add"
+        android:title="@string/common_ui_add"
         app:showAsAction="ifRoom" />
 </menu>

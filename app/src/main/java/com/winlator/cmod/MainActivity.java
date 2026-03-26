@@ -366,7 +366,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             tvWebpage.setText(Html.fromHtml("<a href=\"https://www.winlator.org\">winlator.org</a>", Html.FROM_HTML_MODE_LEGACY));
             tvWebpage.setMovementMethod(LinkMovementMethod.getInstance());
 
-            ((TextView) dialog.findViewById(R.id.TVAppVersion)).setText(getString(R.string.version) + " " + pInfo.versionName);
+            ((TextView) dialog.findViewById(R.id.TVAppVersion)).setText(getString(R.string.common_ui_version) + " " + pInfo.versionName);
 
             String creditsAndThirdPartyAppsHTML = String.join("<br />",
                     "Winlator Cmod by coffincolors, me (<a href=\"https://github.com/coffincolors/winlator\">Fork</a>, <a href=\"https://github.com/Pipetto-crypto/winlator\">Fork</a>)",

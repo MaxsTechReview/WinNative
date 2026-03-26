@@ -122,7 +122,7 @@ class ScreenEffectDialog(private val activity: XServerDisplayActivity) {
 
     private fun loadProfileList(selectedName: String?) {
         val profiles = LinkedHashSet(preferences.getStringSet("screen_effect_profiles", LinkedHashSet()) ?: LinkedHashSet())
-        val items = mutableListOf("-- ${activity.getString(R.string.default_profile)} --")
+        val items = mutableListOf("-- ${activity.getString(R.string.session_effects_default_profile)} --")
         var selectedPosition = 0
         var position = 1
         for (profile in profiles) {
@@ -161,7 +161,7 @@ class ScreenEffectDialog(private val activity: XServerDisplayActivity) {
     }
 
     private fun promptAddProfile() {
-        ContentDialog.prompt(activity, R.string.do_you_want_to_add_a_new_profile, null) { name ->
+        ContentDialog.prompt(activity, R.string.session_effects_confirm_add_profile, null) { name ->
             addProfile(name)
         }
     }
@@ -177,11 +177,11 @@ class ScreenEffectDialog(private val activity: XServerDisplayActivity) {
     private fun promptDeleteProfile() {
         if (selectedProfileIndex.intValue > 0) {
             val selectedProfile = profileNames.value[selectedProfileIndex.intValue]
-            ContentDialog.confirm(activity, R.string.do_you_want_to_remove_this_profile) {
+            ContentDialog.confirm(activity, R.string.input_controls_editor_confirm_remove_profile) {
                 removeProfile(selectedProfile)
             }
         } else {
-            AppUtils.showToast(activity, R.string.no_profile_selected)
+            AppUtils.showToast(activity, R.string.input_controls_editor_no_profile_selected)
         }
     }
 

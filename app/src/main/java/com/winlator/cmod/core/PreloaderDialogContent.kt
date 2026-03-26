@@ -139,7 +139,7 @@ fun PreloaderDialogContent(state: PreloaderDialogState) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = stringResource(R.string.app_name),
+                text = stringResource(R.string.common_ui_app_name),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = InterFont,

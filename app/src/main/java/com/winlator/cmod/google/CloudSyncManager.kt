@@ -108,15 +108,15 @@ object CloudSyncManager {
         fun message(context: Context): String {
             return when {
                 restoredStores.isNotEmpty() && uploadedStores.isNotEmpty() ->
-                    context.getString(R.string.google_logins_restored_and_synced, restoredStores.union(uploadedStores).joinToString())
+                    context.getString(R.string.google_cloud_logins_restored_and_synced, restoredStores.union(uploadedStores).joinToString())
                 restoredStores.isNotEmpty() ->
-                    context.getString(R.string.google_logins_restored, restoredStores.joinToString())
+                    context.getString(R.string.google_cloud_logins_restored, restoredStores.joinToString())
                 uploadedStores.isNotEmpty() ->
-                    context.getString(R.string.google_logins_backed_up, uploadedStores.joinToString())
+                    context.getString(R.string.google_cloud_logins_backed_up, uploadedStores.joinToString())
                 cloudStores.isNotEmpty() ->
-                    context.getString(R.string.google_sync_ready)
+                    context.getString(R.string.google_cloud_sync_ready)
                 else ->
-                    context.getString(R.string.google_no_logins_to_sync)
+                    context.getString(R.string.google_cloud_no_logins_to_sync)
             }
         }
     }
@@ -133,7 +133,7 @@ object CloudSyncManager {
             } else {
                 Log.e(TAG, "Sign in failed: ${task.exception?.message}")
                 Timber.tag(TAG).e(task.exception, "Google Play Games sign-in failed")
-                callback(false, activity.getString(R.string.google_sign_in_failed))
+                callback(false, activity.getString(R.string.google_cloud_sign_in_failed))
             }
         }
     }
@@ -148,7 +148,7 @@ object CloudSyncManager {
             if (!awaitAuthenticatedSession(activity)) {
                 callback(
                     false,
-                    activity.getString(R.string.google_sign_in_finishing)
+                    activity.getString(R.string.google_cloud_sign_in_finishing)
                 )
                 return@launch
             }
@@ -158,11 +158,11 @@ object CloudSyncManager {
                 val state = readStateInternal(activity, authenticated = true)
                 when {
                     state.cloudStores.isNotEmpty() ->
-                        activity.getString(R.string.google_connected_restore_available, state.cloudStores.joinToString())
+                        activity.getString(R.string.google_cloud_connected_restore_available, state.cloudStores.joinToString())
                     state.localStores.isNotEmpty() ->
-                        activity.getString(R.string.google_connected_tap_backup, state.localStores.joinToString())
+                        activity.getString(R.string.google_cloud_connected_tap_backup, state.localStores.joinToString())
                     else ->
-                        activity.getString(R.string.google_connected_ready)
+                        activity.getString(R.string.google_cloud_connected_ready)
                 }
             }.getOrElse { error ->
                 rememberSyncError(activity, error)
@@ -179,7 +179,7 @@ object CloudSyncManager {
             .putBoolean(KEY_GOOGLE_SYNC_ENABLED, false)
             .apply()
         clearSyncError(activity)
-        callback(true, activity.getString(R.string.google_sync_disabled))
+        callback(true, activity.getString(R.string.google_cloud_sync_disabled))
     }
 
     fun isAuthenticated(activity: Activity, callback: (Boolean) -> Unit) {
@@ -211,7 +211,7 @@ object CloudSyncManager {
                     googleSignedIn = false,
                     localStores = collectLocalStoreNames(activity),
                     status = SyncStatus.NOT_SIGNED_IN,
-                    detail = activity.getString(R.string.google_sign_in_to_sync)
+                    detail = activity.getString(R.string.google_cloud_sign_in_to_sync)
                 )
             }
             val authenticated = isAuthenticatedBlocking(activity)
@@ -227,7 +227,7 @@ object CloudSyncManager {
                     googleSignedIn = false,
                     localStores = collectLocalStoreNames(activity),
                     status = SyncStatus.NOT_SIGNED_IN,
-                    detail = activity.getString(R.string.google_sign_in_to_sync)
+                    detail = activity.getString(R.string.google_cloud_sign_in_to_sync)
                 )
             }
             val authenticated = isAuthenticatedBlocking(activity)
@@ -239,11 +239,11 @@ object CloudSyncManager {
     suspend fun restoreStoreLogins(activity: Activity): String {
         return withContext(Dispatchers.IO) {
             if (!isGoogleSyncEnabled(activity)) {
-                return@withContext activity.getString(R.string.google_sign_in_first)
+                return@withContext activity.getString(R.string.google_cloud_sign_in_first)
             }
             if (!isAuthenticatedBlocking(activity)) {
                 Timber.tag(TAG).w("restoreStoreLogins aborted: Google Play Games not authenticated")
-                return@withContext activity.getString(R.string.google_sign_in_first)
+                return@withContext activity.getString(R.string.google_cloud_sign_in_first)
             }
 
             Log.i(TAG, "Starting manual store login restore")
@@ -272,7 +272,7 @@ object CloudSyncManager {
 
                 clearSyncError(activity)
                 if (summary.cloudStores.isEmpty()) {
-                    activity.getString(R.string.google_no_saved_logins_found)
+                    activity.getString(R.string.google_cloud_no_saved_logins_found)
                 } else {
                     summary.message(activity)
                 }
@@ -285,11 +285,11 @@ object CloudSyncManager {
     suspend fun backupStoreLogins(activity: Activity): String {
         return withContext(Dispatchers.IO) {
             if (!isGoogleSyncEnabled(activity)) {
-                return@withContext activity.getString(R.string.google_sign_in_first)
+                return@withContext activity.getString(R.string.google_cloud_sign_in_first)
             }
             if (!isAuthenticatedBlocking(activity)) {
                 Timber.tag(TAG).w("backupStoreLogins aborted: Google Play Games not authenticated")
-                return@withContext activity.getString(R.string.google_sign_in_first)
+                return@withContext activity.getString(R.string.google_cloud_sign_in_first)
             }
 
             Log.i(TAG, "Starting manual store login backup")
@@ -325,9 +325,9 @@ object CloudSyncManager {
                 if (summary.uploadedStores.isNotEmpty()) {
                     summary.message(activity)
                 } else if (summary.cloudStores.isNotEmpty()) {
-                    activity.getString(R.string.google_backup_already_matches)
+                    activity.getString(R.string.google_cloud_backup_already_matches)
                 } else {
-                    activity.getString(R.string.google_no_local_logins)
+                    activity.getString(R.string.google_cloud_no_local_logins)
                 }
             }.getOrElse { error ->
                 rememberSyncError(activity, error)
@@ -578,9 +578,9 @@ object CloudSyncManager {
                 localStores = localStores,
                 status = SyncStatus.NOT_SIGNED_IN,
                 detail = if (localStores.isEmpty()) {
-                    activity.getString(R.string.google_sign_in_to_sync)
+                    activity.getString(R.string.google_cloud_sign_in_to_sync)
                 } else {
-                    activity.getString(R.string.google_sign_in_to_backup, localStores.joinToString())
+                    activity.getString(R.string.google_cloud_sign_in_to_backup, localStores.joinToString())
                 }
             )
         }
@@ -598,19 +598,19 @@ object CloudSyncManager {
                 else -> SyncStatus.EMPTY
             }
             val detail = when (status) {
-                SyncStatus.EMPTY -> activity.getString(R.string.google_no_backed_up_logins)
+                SyncStatus.EMPTY -> activity.getString(R.string.google_cloud_no_backed_up_logins)
                 SyncStatus.BACKUP_PENDING -> when {
                     cloudStores.isNotEmpty() && localStores.isNotEmpty() && cloudStores != localStores ->
-                        activity.getString(R.string.google_local_cloud_differ)
+                        activity.getString(R.string.google_cloud_local_cloud_differ)
                     localStores.isNotEmpty() ->
-                        activity.getString(R.string.google_local_ready_to_backup, localStores.joinToString())
+                        activity.getString(R.string.google_cloud_local_ready_to_backup, localStores.joinToString())
                     else ->
-                        activity.getString(R.string.google_backup_ready)
+                        activity.getString(R.string.google_cloud_backup_ready)
                 }
-                SyncStatus.RESTORE_AVAILABLE -> activity.getString(R.string.google_restore_available, cloudStores.joinToString())
-                SyncStatus.SYNCED -> activity.getString(R.string.google_logins_synced)
-                SyncStatus.NOT_SIGNED_IN -> activity.getString(R.string.google_sign_in_to_sync)
-                SyncStatus.ERROR -> activity.getString(R.string.google_sync_problem)
+                SyncStatus.RESTORE_AVAILABLE -> activity.getString(R.string.google_cloud_restore_available, cloudStores.joinToString())
+                SyncStatus.SYNCED -> activity.getString(R.string.google_cloud_logins_synced)
+                SyncStatus.NOT_SIGNED_IN -> activity.getString(R.string.google_cloud_sign_in_to_sync)
+                SyncStatus.ERROR -> activity.getString(R.string.google_cloud_sync_problem)
             }
             StoreLoginSyncState(
                 googleSignedIn = true,
@@ -909,27 +909,27 @@ object CloudSyncManager {
         return when {
             apiStatusCode == CommonStatusCodes.SIGN_IN_REQUIRED ||
                 "sign_in_required" in normalized || "apiexception: 4" in normalized ->
-                context.getString(R.string.google_error_auth_needed)
+                context.getString(R.string.google_cloud_error_auth_needed)
             apiStatusCode == CommonStatusCodes.DEVELOPER_ERROR ||
                 "developer_error" in normalized ||
                 "statuscode=10" in normalized ->
-                context.getString(R.string.google_error_developer)
+                context.getString(R.string.google_cloud_error_developer)
             "sign-in check failed" in normalized ||
                 "cannot find the installed destination app" in normalized ||
                 "games service" in normalized ->
-                context.getString(R.string.google_error_build_rejected)
+                context.getString(R.string.google_cloud_error_build_rejected)
             apiStatusCode == CommonStatusCodes.NETWORK_ERROR ||
                 apiStatusCode == CommonStatusCodes.TIMEOUT ||
                 apiStatusCode == CommonStatusCodes.ERROR ||
                 "service_version_update_required" in normalized ||
                 "network" in normalized || "timeout" in normalized ->
-                context.getString(R.string.google_error_network)
+                context.getString(R.string.google_cloud_error_network)
             isMissingSnapshotError(error) ->
-                context.getString(R.string.google_error_no_snapshot)
+                context.getString(R.string.google_cloud_error_no_snapshot)
             rawMessage.isNotBlank() ->
-                context.getString(R.string.google_error_generic, rawMessage)
+                context.getString(R.string.google_cloud_error_generic, rawMessage)
             else ->
-                context.getString(R.string.google_error_before_open)
+                context.getString(R.string.google_cloud_error_before_open)
         }
     }
 

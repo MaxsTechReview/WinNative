@@ -88,7 +88,7 @@ fun InputControlsDialogContent(
                 modifier = Modifier.padding(bottom = 18.dp)
             ) {
                 Text(
-                    stringResource(R.string.input_controls),
+                    stringResource(R.string.common_ui_input_controls),
                     color = TextPrimary,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold
@@ -96,7 +96,7 @@ fun InputControlsDialogContent(
             }
 
             // Profile Selection section
-            SectionLabel(stringResource(R.string.profile_selection))
+            SectionLabel(stringResource(R.string.session_effects_profile_selection))
             Spacer(Modifier.height(10.dp))
 
             ProfileRow(
@@ -119,23 +119,23 @@ fun InputControlsDialogContent(
             Spacer(Modifier.height(16.dp))
 
             // Touchscreen Overlay section
-            SectionLabel(stringResource(R.string.touchscreen_overlay))
+            SectionLabel(stringResource(R.string.session_drawer_touchscreen_overlay))
             Spacer(Modifier.height(10.dp))
 
             OptionCheckbox(
-                label = stringResource(R.string.show_touchscreen_controls),
+                label = stringResource(R.string.session_drawer_show_touchscreen_controls),
                 checked = state.showTouchscreenControls,
                 onCheckedChange = onShowTouchscreenControlsChange
             )
             Spacer(Modifier.height(4.dp))
             OptionCheckbox(
-                label = stringResource(R.string.enable_touchscreen_timeout),
+                label = stringResource(R.string.settings_general_touchscreen_timeout),
                 checked = state.touchscreenTimeout,
                 onCheckedChange = onTouchscreenTimeoutChange
             )
             Spacer(Modifier.height(4.dp))
             OptionCheckbox(
-                label = stringResource(R.string.enable_touchscreen_haptics),
+                label = stringResource(R.string.settings_general_touchscreen_haptics),
                 checked = state.touchscreenHaptics,
                 onCheckedChange = onTouchscreenHapticsChange
             )
@@ -149,7 +149,7 @@ fun InputControlsDialogContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = onCancel) {
-                    Text(stringResource(R.string.cancel), color = TextSecondary, fontSize = 14.sp)
+                    Text(stringResource(R.string.common_ui_cancel), color = TextSecondary, fontSize = 14.sp)
                 }
                 Spacer(Modifier.width(12.dp))
                 Box(
@@ -161,7 +161,7 @@ fun InputControlsDialogContent(
                         .padding(horizontal = 20.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(stringResource(R.string.ok), color = Accent, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.common_ui_ok), color = Accent, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -187,7 +187,7 @@ private fun ProfileRow(
     onSettingsClick: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val disabledPlaceholder = stringResource(R.string.disabled_placeholder)
+    val disabledPlaceholder = stringResource(R.string.common_ui_disabled_placeholder)
     val selectedText = profileNames.getOrElse(selectedIndex) { disabledPlaceholder }
 
     if (expanded) {
@@ -206,7 +206,7 @@ private fun ProfileRow(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    stringResource(R.string.select_profile),
+                    stringResource(R.string.input_controls_editor_select_profile),
                     color = TextSecondary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,

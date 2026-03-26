@@ -13,7 +13,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/type" />
+            android:text="@string/input_controls_editor_type" />
 
         <Spinner
             style="@style/ComboBox"
@@ -30,7 +30,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/shape" />
+                android:text="@string/input_controls_editor_shape" />
 
             <Spinner
                 style="@style/ComboBox"
@@ -48,7 +48,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/scale"/>
+                android:text="@string/input_controls_editor_scale"/>
 
             <TextView
                 android:id="@+id/TVScale"
@@ -72,7 +72,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/range" />
+                android:text="@string/input_controls_editor_range" />
 
             <Spinner
                 style="@style/ComboBox"
@@ -83,7 +83,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/orientation" />
+                android:text="@string/session_display_orientation" />
 
             <RadioGroup
                 android:id="@+id/RGOrientation"
@@ -95,19 +95,19 @@
                     android:id="@+id/RBHorizontal"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/horizontal" />
+                    android:text="@string/session_display_horizontal" />
 
                 <RadioButton
                     android:id="@+id/RBVertical"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/vertical" />
+                    android:text="@string/session_display_vertical" />
             </RadioGroup>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/columns" />
+                android:text="@string/session_display_columns" />
 
             <com.winlator.cmod.widget.NumberPicker
                 android:id="@+id/NPColumns"
@@ -133,7 +133,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/binding_up" />
+                android:text="@string/input_controls_editor_binding_up" />
 
             <Spinner
                 style="@style/ComboBox"
@@ -144,7 +144,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/binding_right" />
+                android:text="@string/input_controls_editor_binding_right" />
 
             <Spinner
                 style="@style/ComboBox"
@@ -155,7 +155,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/binding_down" />
+                android:text="@string/input_controls_editor_binding_down" />
 
             <Spinner
                 style="@style/ComboBox"
@@ -166,7 +166,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/binding_left" />
+                android:text="@string/input_controls_editor_binding_left" />
 
             <Spinner
                 style="@style/ComboBox"
@@ -179,7 +179,7 @@
             android:id="@+id/CBToggleSwitch"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/toggle_switch" />
+            android:text="@string/input_controls_editor_toggle_switch" />
 
         <LinearLayout
             android:id="@+id/LLCustomTextIcon"
@@ -190,20 +190,20 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/custom_text" />
+                android:text="@string/common_ui_custom_text" />
 
             <EditText
                 style="@style/EditText"
                 android:id="@+id/ETCustomText"
                 android:maxLength="8"
                 android:layout_width="match_parent"
-                android:hint="@string/none"
+                android:hint="@string/common_ui_none"
                 android:inputType="textCapCharacters" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/icon" />
+                android:text="@string/common_ui_icon" />
 
             <HorizontalScrollView
                 android:layout_width="match_parent"

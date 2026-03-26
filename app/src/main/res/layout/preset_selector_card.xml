@@ -83,7 +83,7 @@
             android:layout_height="40dp"
             android:layout_marginStart="10dp"
             android:background="@drawable/content_action_button_background"
-            android:contentDescription="@string/new_preset"
+            android:contentDescription="@string/container_presets_new"
             android:padding="10dp"
             android:src="@drawable/ic_content_add"
             app:tint="@color/settings_icon_tint" />
@@ -94,7 +94,7 @@
             android:layout_height="40dp"
             android:layout_marginStart="8dp"
             android:background="@drawable/content_action_button_background"
-            android:contentDescription="@string/options"
+            android:contentDescription="@string/common_ui_options"
             android:padding="10dp"
             android:src="@drawable/ic_content_chevron"
             app:tint="@color/settings_icon_tint" />

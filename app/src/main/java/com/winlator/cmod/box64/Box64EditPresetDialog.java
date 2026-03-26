@@ -54,7 +54,7 @@ public class Box64EditPresetDialog extends ContentDialog {
         if (preset != null) {
             etName.setText(preset.name);
         }
-        else etName.setText(context.getString(R.string.preset)+"-"+ Box64PresetManager.getNextPresetId(context, prefix));
+        else etName.setText(context.getString(R.string.container_presets_preset)+"-"+ Box64PresetManager.getNextPresetId(context, prefix));
 
         applyDarkThemeToEditText(etName);
 

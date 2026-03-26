@@ -21,7 +21,7 @@ import java.util.List;
 public class ContentInfoDialog extends ContentDialog {
     public ContentInfoDialog(Context context, ContentProfile profile) {
         super(context, R.layout.content_info_dialog);
-        setTitle(R.string.content_info);
+        setTitle(R.string.settings_content_info);
 
         TextView tvType = findViewById(R.id.TVType);
         TextView tvVersion = findViewById(R.id.TVVersion);
@@ -35,8 +35,8 @@ public class ContentInfoDialog extends ContentDialog {
         View fileListSection = findViewById(R.id.LLFileListSection);
         RecyclerView recyclerView = findViewById(R.id.recyclerView);
 
-        if (tvCancel != null) tvCancel.setText(R.string.cancel);
-        if (tvConfirm != null) tvConfirm.setText(R.string.ok);
+        if (tvCancel != null) tvCancel.setText(R.string.common_ui_cancel);
+        if (tvConfirm != null) tvConfirm.setText(R.string.common_ui_ok);
 
         tvType.setText(profile.type.toString());
         tvVersion.setText(profile.verName);

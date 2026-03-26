@@ -26,17 +26,17 @@
                     style="@style/TableHeadBackground"
                     android:layout_width="0dp"
                     android:layout_weight="1"
-                    android:text="@string/process_name" />
+                    android:text="@string/session_task_process_name" />
 
                 <TextView
                     style="@style/TableHeadBackground"
                     android:layout_width="60dp"
-                    android:text="@string/pid" />
+                    android:text="@string/session_task_pid" />
 
                 <TextView
                     style="@style/TableHeadBackground"
                     android:layout_width="110dp"
-                    android:text="@string/memory" />
+                    android:text="@string/session_task_memory" />
 
                 <View
                     style="@style/TableHeadBackground"
@@ -64,7 +64,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:gravity="center"
-                    android:text="@string/no_items_to_display"
+                    android:text="@string/common_ui_no_items_to_display"
                     android:textColor="#DDDDDD"
                     android:visibility="gone" />
             </FrameLayout>

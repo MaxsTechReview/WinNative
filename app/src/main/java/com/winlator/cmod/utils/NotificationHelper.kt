@@ -80,7 +80,7 @@ class NotificationHelper @Inject constructor(private val context: Context) {
         val smallIconRes = R.drawable.ic_notification
 
         return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle(context.getString(R.string.app_name))
+            .setContentTitle(context.getString(R.string.common_ui_app_name))
             .setContentText(content)
             .setSmallIcon(smallIconRes)
             .setPriority(NotificationCompat.PRIORITY_MIN)

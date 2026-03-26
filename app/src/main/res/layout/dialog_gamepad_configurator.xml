@@ -20,7 +20,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/experimental"
+            android:text="@string/common_ui_experimental"
             android:textSize="18sp"
             android:textStyle="bold"
             android:paddingBottom="8dp" />
@@ -30,7 +30,7 @@
             android:id="@+id/spinner_profile"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:prompt="@string/default_profile" />
+            android:prompt="@string/session_effects_default_profile" />
 
         <!-- Profile Buttons -->
         <LinearLayout
@@ -44,13 +44,13 @@
                 android:id="@+id/btn_save_profile"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/save_profile" />
+                android:text="@string/session_gamepad_save_profile" />
 
             <Button
                 android:id="@+id/btn_load_profile"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/load_profile" />
+                android:text="@string/session_gamepad_load_profile" />
 
         </LinearLayout>
 
@@ -75,7 +75,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/button_a"
+                        android:text="@string/session_gamepad_button_a"
                         android:layout_weight="1" />
                     <Spinner
                         android:id="@+id/spinner_button_a"
@@ -91,49 +91,49 @@
             android:gravity="center_vertical"
             android:paddingTop="4dp"
             android:paddingBottom="4dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/button_b" android:layout_weight="1"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/session_gamepad_button_b" android:layout_weight="1"/>
             <Spinner android:id="@+id/spinner_button_b" android:layout_width="150dp" android:layout_height="wrap_content" android:spinnerMode="dialog" />
         </LinearLayout>
 
         <!-- Repeat for each button: X, Y, L1, R1, Select, Start, L2, R2, L3, R3 -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="4dp" android:paddingBottom="4dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/button_x" android:layout_weight="1"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/session_gamepad_button_x" android:layout_weight="1"/>
             <Spinner android:id="@+id/spinner_button_x" android:layout_width="150dp" android:layout_height="wrap_content" android:spinnerMode="dialog" />
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="4dp" android:paddingBottom="4dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/button_y" android:layout_weight="1"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/session_gamepad_button_y" android:layout_weight="1"/>
             <Spinner android:id="@+id/spinner_button_y" android:layout_width="150dp" android:layout_height="wrap_content" android:spinnerMode="dialog" />
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="4dp" android:paddingBottom="4dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/button_start" android:layout_weight="1"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/session_gamepad_button_start" android:layout_weight="1"/>
             <Spinner android:id="@+id/spinner_button_start" android:layout_width="150dp" android:layout_height="wrap_content" android:spinnerMode="dialog" />
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="4dp" android:paddingBottom="4dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/button_select" android:layout_weight="1"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/session_gamepad_button_select" android:layout_weight="1"/>
             <Spinner android:id="@+id/spinner_button_select" android:layout_width="150dp" android:layout_height="wrap_content" android:spinnerMode="dialog" />
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="4dp" android:paddingBottom="4dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/button_l1" android:layout_weight="1"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/session_gamepad_button_l1" android:layout_weight="1"/>
             <Spinner android:id="@+id/spinner_button_l1" android:layout_width="150dp" android:layout_height="wrap_content" android:spinnerMode="dialog" />
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="4dp" android:paddingBottom="4dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/button_r1" android:layout_weight="1"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/session_gamepad_button_r1" android:layout_weight="1"/>
             <Spinner android:id="@+id/spinner_button_r1" android:layout_width="150dp" android:layout_height="wrap_content" android:spinnerMode="dialog" />
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="4dp" android:paddingBottom="4dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/button_l2" android:layout_weight="1"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/session_gamepad_button_l2" android:layout_weight="1"/>
             <Spinner android:id="@+id/spinner_button_l2" android:layout_width="150dp" android:layout_height="wrap_content" android:spinnerMode="dialog" />
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="4dp" android:paddingBottom="4dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/button_r2" android:layout_weight="1"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/session_gamepad_button_r2" android:layout_weight="1"/>
             <Spinner android:id="@+id/spinner_button_r2" android:layout_width="150dp" android:layout_height="wrap_content" android:spinnerMode="dialog" />
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="4dp" android:paddingBottom="4dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/button_l3" android:layout_weight="1"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/session_gamepad_button_l3" android:layout_weight="1"/>
             <Spinner android:id="@+id/spinner_button_l3" android:layout_width="150dp" android:layout_height="wrap_content" android:spinnerMode="dialog" />
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="4dp" android:paddingBottom="4dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/button_r3" android:layout_weight="1"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/session_gamepad_button_r3" android:layout_weight="1"/>
             <Spinner android:id="@+id/spinner_button_r3" android:layout_width="150dp" android:layout_height="wrap_content" android:spinnerMode="dialog" />
         </LinearLayout>
 
@@ -172,13 +172,13 @@
                 android:id="@+id/btn_save"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/apply" />
+                android:text="@string/common_ui_apply" />
 
             <Button
                 android:id="@+id/btn_cancel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/cancel"
+                android:text="@string/common_ui_cancel"
                 android:layout_marginLeft="8dp" />
         </LinearLayout>-->
 

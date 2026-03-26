@@ -180,15 +180,15 @@ fun StoresScreen(
         SectionLabel("Download Settings", modifier = Modifier.padding(top = 8.dp))
 
         SettingsToggleCard(
-            title = stringResource(R.string.wifi_only_downloads),
-            subtitle = stringResource(R.string.wifi_only_downloads_subtitle),
+            title = stringResource(R.string.stores_accounts_wifi_only_downloads),
+            subtitle = stringResource(R.string.stores_accounts_wifi_only_downloads_subtitle),
             icon = Icons.Filled.Wifi,
             checked = state.wifiOnly,
             onCheckedChange = onWifiOnlyChanged,
         )
         SettingsToggleCard(
-            title = stringResource(R.string.shared_downloads_folder),
-            subtitle = stringResource(R.string.shared_downloads_subtitle),
+            title = stringResource(R.string.stores_accounts_shared_downloads_folder),
+            subtitle = stringResource(R.string.stores_accounts_shared_downloads_subtitle),
             icon = Icons.Filled.FolderShared,
             checked = state.sharedFolder,
             onCheckedChange = onSharedFolderChanged,
@@ -221,8 +221,8 @@ fun StoresScreen(
         SectionLabel("Steam", modifier = Modifier.padding(top = 8.dp))
 
         SettingsDropdownCard(
-            title = stringResource(R.string.download_speed),
-            subtitle = stringResource(R.string.download_speed_subtitle),
+            title = stringResource(R.string.stores_accounts_download_speed),
+            subtitle = stringResource(R.string.stores_accounts_download_speed_subtitle),
             icon = Icons.Filled.Speed,
             selectedValue = state.downloadSpeed,
             options = downloadSpeedOptions,
@@ -236,7 +236,7 @@ fun StoresScreen(
             "Steam CDN region for game downloads"
         }
         SettingsDropdownCard(
-            title = stringResource(R.string.download_server),
+            title = stringResource(R.string.stores_accounts_download_server),
             subtitle = serverSubtitle,
             icon = Icons.Filled.Public,
             selectedValue = state.downloadServer,
@@ -275,14 +275,14 @@ private fun SignOutConfirmDialog(storeName: String, onConfirm: () -> Unit, onDis
         ) {
             Column {
                 Text(
-                    text = stringResource(R.string.sign_out_confirm, storeName),
+                    text = stringResource(R.string.stores_accounts_sign_out_confirm, storeName),
                     color = TextPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = stringResource(R.string.sign_out_message),
+                    text = stringResource(R.string.stores_accounts_sign_out_message),
                     color = TextSecondary,
                     fontSize = 13.sp,
                 )
@@ -377,7 +377,7 @@ private fun StoreCard(
                 )
                 Spacer(Modifier.height(4.dp))
                 if (isComingSoon) {
-                    Text(text = stringResource(R.string.coming_soon), color = TextSecondary, fontSize = 12.sp)
+                    Text(text = stringResource(R.string.common_ui_coming_soon), color = TextSecondary, fontSize = 12.sp)
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(contentAlignment = Alignment.Center) {
@@ -402,7 +402,7 @@ private fun StoreCard(
                         }
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            text = if (isLoggedIn) stringResource(R.string.signed_in) else stringResource(R.string.google_status_not_signed_in),
+                            text = if (isLoggedIn) stringResource(R.string.common_ui_signed_in) else stringResource(R.string.google_cloud_status_not_signed_in),
                             color = if (isLoggedIn) StatusGreen else TextSecondary,
                             fontSize = 12.sp,
                         )
@@ -441,7 +441,7 @@ private fun ComingSoonBadge() {
             modifier = Modifier.size(10.dp),
         )
         Text(
-            text = stringResource(R.string.coming_soon).uppercase(),
+            text = stringResource(R.string.common_ui_coming_soon).uppercase(),
             color = TextSecondary,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
@@ -741,7 +741,7 @@ private fun BrowseButton(onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = stringResource(R.string.browse),
+            text = stringResource(R.string.common_ui_browse),
             color = Accent,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,

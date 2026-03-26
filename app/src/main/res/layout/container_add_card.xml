@@ -22,7 +22,7 @@
         android:layout_marginTop="8dp"
         android:fontFamily="@font/inter"
         android:gravity="center"
-        android:text="@string/new_container"
+        android:text="@string/containers_list_new"
         android:textColor="@color/settings_text_secondary"
         android:textSize="12sp"
         android:textStyle="bold" />

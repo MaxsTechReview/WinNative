@@ -731,7 +731,7 @@ class EpicService : Service() {
                         com.winlator.cmod.PluviaApp.events.emitJava(com.winlator.cmod.steam.events.AndroidEvent.DownloadPausedDueToConnectivity(appId))
                         activeDownloads.remove(appId)
                     }
-                    notificationHelper.notify(getString(R.string.download_paused_wifi))
+                    notificationHelper.notify(getString(R.string.downloads_queue_paused_wifi))
                 }
             }
         }

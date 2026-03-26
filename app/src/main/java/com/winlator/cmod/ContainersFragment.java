@@ -59,7 +59,7 @@ public class ContainersFragment extends Fragment {
             androidx.appcompat.app.ActionBar actionBar =
                     ((AppCompatActivity) getActivity()).getSupportActionBar();
             if (actionBar != null) {
-                actionBar.setTitle(R.string.containers);
+                actionBar.setTitle(R.string.common_ui_containers);
             }
         }
         manager = new ContainerManager(getContext());
@@ -94,7 +94,7 @@ public class ContainersFragment extends Fragment {
 
     private void openAddContainer() {
         if (!ImageFs.find(getContext()).isValid()) {
-            Toast.makeText(getContext(), R.string.system_image_not_installed, Toast.LENGTH_LONG).show();
+            Toast.makeText(getContext(), R.string.setup_wizard_system_image_not_installed, Toast.LENGTH_LONG).show();
             return;
         }
         FragmentManager fragmentManager = getParentFragmentManager();
@@ -227,8 +227,8 @@ public class ContainersFragment extends Fragment {
         }
 
         private void duplicateContainer(Container container) {
-            ContentDialog.confirm(getContext(), R.string.do_you_want_to_duplicate_this_container, () -> {
-                preloaderDialog.show(R.string.duplicating_container, false);
+            ContentDialog.confirm(getContext(), R.string.containers_list_confirm_duplicate, () -> {
+                preloaderDialog.show(R.string.containers_list_duplicating, false);
                 manager.duplicateContainerAsync(container, progress -> {
                     preloaderDialog.setProgress(progress);
                 }, () -> {
@@ -252,8 +252,8 @@ public class ContainersFragment extends Fragment {
                         duplicateContainer(container);
                         break;
                     case R.id.container_remove:
-                        ContentDialog.confirm(getContext(), R.string.do_you_want_to_remove_this_container, () -> {
-                            preloaderDialog.show(R.string.removing_container);
+                        ContentDialog.confirm(getContext(), R.string.containers_list_confirm_remove, () -> {
+                            preloaderDialog.show(R.string.containers_list_removing);
                             for (Shortcut shortcut : manager.loadShortcuts()) {
                                 if (shortcut.container == container)
                                     ShortcutsFragment.disableShortcutOnScreen(context, shortcut);

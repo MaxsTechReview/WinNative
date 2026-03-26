@@ -142,8 +142,8 @@
         <item>Ultralight</item>
     </string-array>
     <string-array name="dinput_mapper_type_entries">
-        <item>@string/dinput_legacy</item>
-        <item>@string/dinput_modern</item>
+        <item>@string/container_config_dinput_legacy</item>
+        <item>@string/container_config_dinput_modern</item>
     </string-array>
     <string-array name="desktop_theme_entries">
         <item>Light</item>

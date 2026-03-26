@@ -27,7 +27,7 @@
 
             <TextView
                 style="@style/OtherSettingsSectionLabel"
-                android:text="@string/refresh_rate" />
+                android:text="@string/settings_general_refresh_rate" />
 
             <LinearLayout
                 style="@style/OtherSettingsCard"
@@ -56,11 +56,11 @@
 
                         <TextView
                             style="@style/OtherSettingsCardTitle"
-                            android:text="@string/refresh_rate" />
+                            android:text="@string/settings_general_refresh_rate" />
 
                         <TextView
                             style="@style/OtherSettingsCardSummary"
-                            android:text="@string/settings_other_refresh_rate_summary" />
+                            android:text="@string/settings_general_refresh_rate_summary" />
                     </LinearLayout>
                 </LinearLayout>
 
@@ -87,7 +87,7 @@
 
             <TextView
                 style="@style/OtherSettingsSectionLabel"
-                android:text="@string/sound" />
+                android:text="@string/settings_audio_sound" />
 
             <LinearLayout
                 style="@style/OtherSettingsCard"
@@ -116,11 +116,11 @@
 
                         <TextView
                             style="@style/OtherSettingsCardTitle"
-                            android:text="@string/midi_sound_font" />
+                            android:text="@string/settings_audio_midi_sound_font" />
 
                         <TextView
                             style="@style/OtherSettingsCardSummary"
-                            android:text="@string/settings_other_sound_summary" />
+                            android:text="@string/settings_audio_summary" />
                     </LinearLayout>
                 </LinearLayout>
 
@@ -147,21 +147,21 @@
                     <ImageButton
                         android:id="@+id/BTInstallSF"
                         style="@style/OtherSettingsIconButton"
-                        android:contentDescription="@string/add"
+                        android:contentDescription="@string/common_ui_add"
                         android:src="@drawable/ic_content_add" />
 
                     <ImageButton
                         android:id="@+id/BTRemoveSF"
                         style="@style/OtherSettingsIconButton"
                         android:layout_marginStart="6dp"
-                        android:contentDescription="@string/remove"
+                        android:contentDescription="@string/common_ui_remove"
                         android:src="@drawable/ic_content_menu_remove" />
                 </LinearLayout>
             </LinearLayout>
 
             <TextView
                 style="@style/OtherSettingsSectionLabel"
-                android:text="@string/settings_other_paths_title" />
+                android:text="@string/settings_general_paths_title" />
 
             <LinearLayout
                 style="@style/OtherSettingsCard"
@@ -190,11 +190,11 @@
 
                         <TextView
                             style="@style/OtherSettingsCardTitle"
-                            android:text="@string/settings_other_paths_title" />
+                            android:text="@string/settings_general_paths_title" />
 
                         <TextView
                             style="@style/OtherSettingsCardSummary"
-                            android:text="@string/settings_other_paths_summary" />
+                            android:text="@string/settings_general_paths_summary" />
                     </LinearLayout>
                 </LinearLayout>
 
@@ -219,7 +219,7 @@
 
                         <TextView
                             style="@style/OtherSettingsFieldLabel"
-                            android:text="@string/settings_other_winlator_path_title" />
+                            android:text="@string/settings_general_winlator_path_title" />
 
                         <TextView
                             android:id="@+id/TVWinlatorPath"
@@ -236,7 +236,7 @@
                         android:id="@+id/BTChooseWinlatorPath"
                         style="@style/OtherSettingsInlineButton"
                         android:layout_marginStart="10dp"
-                        android:text="@string/settings_other_choose_path" />
+                        android:text="@string/settings_general_choose_path" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -260,7 +260,7 @@
 
                         <TextView
                             style="@style/OtherSettingsFieldLabel"
-                            android:text="@string/settings_other_shortcut_export_path_title" />
+                            android:text="@string/settings_general_shortcut_export_path_title" />
 
                         <TextView
                             android:id="@+id/TVShortcutExportPath"
@@ -277,13 +277,13 @@
                         android:id="@+id/BTChooseShortcutExportPath"
                         style="@style/OtherSettingsInlineButton"
                         android:layout_marginStart="10dp"
-                        android:text="@string/settings_other_choose_path" />
+                        android:text="@string/settings_general_choose_path" />
                 </LinearLayout>
             </LinearLayout>
 
             <TextView
                 style="@style/OtherSettingsSectionLabel"
-                android:text="@string/xserver" />
+                android:text="@string/session_xserver_title" />
 
             <LinearLayout
                 style="@style/OtherSettingsCard"
@@ -312,11 +312,11 @@
 
                         <TextView
                             style="@style/OtherSettingsCardTitle"
-                            android:text="@string/cursor_speed" />
+                            android:text="@string/settings_general_cursor_speed" />
 
                         <TextView
                             style="@style/OtherSettingsCardSummary"
-                            android:text="@string/settings_other_xserver_cursor_summary" />
+                            android:text="@string/settings_general_xserver_cursor_summary" />
                     </LinearLayout>
 
                     <TextView
@@ -367,11 +367,11 @@
 
                     <TextView
                         style="@style/OtherSettingsCardTitle"
-                        android:text="@string/use_dri3_extension" />
+                        android:text="@string/session_xserver_use_dri3_extension" />
 
                     <TextView
                         style="@style/OtherSettingsCardSummary"
-                        android:text="@string/use_dri3_description" />
+                        android:text="@string/session_xserver_use_dri3_description" />
                 </LinearLayout>
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
@@ -407,11 +407,11 @@
 
                     <TextView
                         style="@style/OtherSettingsCardTitle"
-                        android:text="@string/settings_other_cursor_lock_title" />
+                        android:text="@string/settings_general_cursor_lock_title" />
 
                     <TextView
                         style="@style/OtherSettingsCardSummary"
-                        android:text="@string/settings_other_cursor_lock_summary" />
+                        android:text="@string/settings_general_cursor_lock_summary" />
                 </LinearLayout>
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
@@ -447,11 +447,11 @@
 
                     <TextView
                         style="@style/OtherSettingsCardTitle"
-                        android:text="@string/settings_other_xinput_toggle_title" />
+                        android:text="@string/settings_general_xinput_toggle_title" />
 
                     <TextView
                         style="@style/OtherSettingsCardSummary"
-                        android:text="@string/settings_other_xinput_toggle_summary" />
+                        android:text="@string/settings_general_xinput_toggle_summary" />
                 </LinearLayout>
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
@@ -466,7 +466,7 @@
 
             <TextView
                 style="@style/OtherSettingsSectionLabel"
-                android:text="@string/components" />
+                android:text="@string/settings_content_components" />
 
             <LinearLayout
                 style="@style/OtherSettingsCard"
@@ -491,18 +491,18 @@
 
                     <TextView
                         style="@style/OtherSettingsCardTitle"
-                        android:text="@string/enable_file_provider" />
+                        android:text="@string/settings_general_enable_file_provider" />
 
                     <TextView
                         style="@style/OtherSettingsCardSummary"
-                        android:text="@string/settings_other_file_provider_summary" />
+                        android:text="@string/settings_general_file_provider_summary" />
                 </LinearLayout>
 
                 <ImageButton
                     android:id="@+id/BTHelpFileProvider"
                     style="@style/OtherSettingsIconButton"
                     android:layout_marginStart="8dp"
-                    android:contentDescription="@string/help_file_provider"
+                    android:contentDescription="@string/settings_general_help_file_provider"
                     android:src="@drawable/icon_help" />
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
@@ -538,11 +538,11 @@
 
                     <TextView
                         style="@style/OtherSettingsCardTitle"
-                        android:text="@string/open_with_android_browser" />
+                        android:text="@string/settings_general_open_with_android_browser" />
 
                     <TextView
                         style="@style/OtherSettingsCardSummary"
-                        android:text="@string/settings_other_open_browser_summary" />
+                        android:text="@string/settings_general_open_browser_summary" />
                 </LinearLayout>
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
@@ -578,11 +578,11 @@
 
                     <TextView
                         style="@style/OtherSettingsCardTitle"
-                        android:text="@string/share_android_clipboard" />
+                        android:text="@string/settings_general_share_android_clipboard" />
 
                     <TextView
                         style="@style/OtherSettingsCardSummary"
-                        android:text="@string/settings_other_clipboard_summary" />
+                        android:text="@string/settings_general_clipboard_summary" />
                 </LinearLayout>
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
@@ -597,7 +597,7 @@
 
             <TextView
                 style="@style/OtherSettingsSectionLabel"
-                android:text="@string/imagefs" />
+                android:text="@string/settings_general_imagefs" />
 
             <LinearLayout
                 style="@style/OtherSettingsCard"
@@ -627,11 +627,11 @@
 
                         <TextView
                             style="@style/OtherSettingsCardTitle"
-                            android:text="@string/reinstall_imagefs" />
+                            android:text="@string/settings_general_reinstall_imagefs" />
 
                         <TextView
                             style="@style/OtherSettingsCardSummary"
-                            android:text="@string/settings_other_imagefs_summary" />
+                            android:text="@string/settings_general_imagefs_summary" />
                     </LinearLayout>
                 </LinearLayout>
 
@@ -640,7 +640,7 @@
                     style="@style/OtherSettingsInlineButton"
                     android:layout_gravity="center_horizontal"
                     android:layout_marginTop="10dp"
-                    android:text="@string/reinstall_imagefs" />
+                    android:text="@string/settings_general_reinstall_imagefs" />
             </LinearLayout>
         </LinearLayout>
     </ScrollView>

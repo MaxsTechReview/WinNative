@@ -54,7 +54,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
-                        android:text="@string/general"
+                        android:text="@string/settings_general_title"
                         android:textColor="#B0BEC5"
                         android:textSize="14sp"
                         android:fontFamily="@font/inter"
@@ -83,7 +83,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
-                        android:text="@string/display"
+                        android:text="@string/session_display_title"
                         android:textColor="#B0BEC5"
                         android:textSize="14sp"
                         android:fontFamily="@font/inter"
@@ -112,7 +112,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
-                        android:text="@string/sound"
+                        android:text="@string/settings_audio_sound"
                         android:textColor="#B0BEC5"
                         android:textSize="14sp"
                         android:fontFamily="@font/inter"
@@ -141,7 +141,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
-                        android:text="@string/wine"
+                        android:text="@string/container_wine_title"
                         android:textColor="#B0BEC5"
                         android:textSize="14sp"
                         android:fontFamily="@font/inter"
@@ -170,7 +170,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
-                        android:text="@string/components"
+                        android:text="@string/settings_content_components"
                         android:textColor="#B0BEC5"
                         android:textSize="14sp"
                         android:fontFamily="@font/inter"
@@ -199,7 +199,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
-                        android:text="@string/variables"
+                        android:text="@string/container_config_variables"
                         android:textColor="#B0BEC5"
                         android:textSize="14sp"
                         android:fontFamily="@font/inter"
@@ -228,7 +228,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
-                        android:text="@string/input_controls"
+                        android:text="@string/common_ui_input_controls"
                         android:textColor="#B0BEC5"
                         android:textSize="14sp"
                         android:fontFamily="@font/inter"
@@ -257,7 +257,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
-                        android:text="@string/advanced"
+                        android:text="@string/common_ui_advanced"
                         android:textColor="#B0BEC5"
                         android:textSize="14sp"
                         android:fontFamily="@font/inter"
@@ -287,7 +287,7 @@
                 style="@style/ContentDialogButtonPositive"
                 android:layout_width="match_parent"
                 android:layout_height="38dp"
-                android:text="@string/ok" />
+                android:text="@string/common_ui_ok" />
         </LinearLayout>
     </LinearLayout>
 
@@ -326,7 +326,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/name" />
+                    android:text="@string/common_ui_name" />
 
                 <EditText
                     style="@style/EditText"
@@ -339,7 +339,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="@string/add_to_home_screen" />
+                    android:text="@string/shortcuts_list_add_to_home_screen" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -355,7 +355,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/screen_size" />
+                            android:text="@string/container_config_screen_size" />
 
                         <Spinner
                             style="@style/ComboBox"
@@ -379,7 +379,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/width" />
+                                android:text="@string/common_ui_width" />
                             <EditText
                                 style="@style/EditText"
                                 android:layout_width="78dp"
@@ -405,7 +405,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/height" />
+                                android:text="@string/common_ui_height" />
                             <EditText
                                 style="@style/EditText"
                                 android:layout_width="78dp"
@@ -419,7 +419,7 @@
                     android:id="@+id/TVRefreshRateLabel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/refresh_rate" />
+                    android:text="@string/settings_general_refresh_rate" />
 
                 <Spinner
                     style="@style/ComboBox"
@@ -438,7 +438,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/graphics_driver" />
+                    android:text="@string/container_graphics_driver" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -468,7 +468,7 @@
                         android:id="@+id/TVWrapperVersionLabel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/current_version_label"
+                        android:text="@string/common_ui_current_version_label"
                         android:textStyle="bold"
                         android:paddingRight="8dp" />
                     <TextView
@@ -486,7 +486,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/dxwrapper"
+                        android:text="@string/container_wine_dxwrapper"
                         android:paddingTop="8dp" />
                     <ImageView
                         android:id="@+id/BTHelpDXWrapper"
@@ -530,7 +530,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/audio_driver" />
+                    android:text="@string/container_config_audio_driver" />
                 <Spinner
                     style="@style/ComboBox"
                     android:layout_width="match_parent"
@@ -540,7 +540,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/midi_sound_font" />
+                    android:text="@string/settings_audio_midi_sound_font" />
                 <Spinner
                     style="@style/ComboBox"
                     android:layout_width="match_parent"
@@ -563,7 +563,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/emulator_64bit" />
+                        android:text="@string/container_config_emulator_64bit" />
                     <Spinner
                         style="@style/ComboBox"
                         android:layout_width="match_parent"
@@ -572,7 +572,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/dll_emulator" />
+                        android:text="@string/container_config_dll_emulator" />
                     <Spinner
                         style="@style/ComboBox"
                         android:layout_width="match_parent"
@@ -583,7 +583,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/lc_all" />
+                    android:text="@string/container_config_lc_all" />
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -627,7 +627,7 @@
                         <TextView
                             style="@style/FieldSetLabel"
                             android:background="#ffffff"
-                            android:text="@string/directx" />
+                            android:text="@string/container_wine_directx" />
                     </FrameLayout>
                     <FrameLayout
                         android:layout_width="match_parent"
@@ -639,7 +639,7 @@
                         <TextView
                             style="@style/FieldSetLabel"
                             android:background="#ffffff"
-                            android:text="@string/general" />
+                            android:text="@string/settings_general_title" />
                     </FrameLayout>
                 </LinearLayout>
             </LinearLayout>
@@ -663,7 +663,7 @@
                         android:id="@+id/TVEnvVarsLabel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/environment_variables" />
+                        android:text="@string/container_config_env_vars" />
 
                     <com.winlator.cmod.widget.EnvVarsView
                         android:id="@+id/EnvVarsView"
@@ -680,7 +680,7 @@
                         android:layout_width="160dp"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center_horizontal"
-                        android:text="@string/add" />
+                        android:text="@string/common_ui_add" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -700,7 +700,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/profile" />
+                            android:text="@string/common_ui_profile" />
                         <Spinner
                             style="@style/ComboBox"
                             android:id="@+id/SControlsProfile"
@@ -710,17 +710,17 @@
                             android:id="@+id/CBDisabledXInput"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/disable_xinput_for_shortcut" />
+                            android:text="@string/shortcuts_properties_disable_xinput" />
                         <CheckBox
                             android:id="@+id/CBTouchscreenMode"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/simulate_touch_screen" />
+                            android:text="@string/session_xserver_simulate_touch_screen" />
                     </LinearLayout>
                     <TextView
                         style="@style/FieldSetLabel"
                         android:background="#ffffff"
-                        android:text="@string/input_controls" />
+                        android:text="@string/common_ui_input_controls" />
                 </FrameLayout>
 
                 <FrameLayout
@@ -736,7 +736,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/directinput_mapper_type" />
+                                android:text="@string/container_config_directinput_mapper_type" />
                             <Spinner
                                 style="@style/ComboBox"
                                 android:id="@+id/SDInputType"
@@ -753,7 +753,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center"
-                                android:text="@string/enable_xinput_for_wine_game" />
+                                android:text="@string/container_config_enable_xinput" />
                             <ImageView
                                 android:id="@+id/BTXInputHelp"
                                 style="@style/HelpButton"
@@ -768,7 +768,7 @@
                                 android:id="@+id/CBEnableDInput"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/enable_dinput_for_wine_game" />
+                                android:text="@string/container_config_enable_dinput" />
                             <ImageView
                                 android:id="@+id/BTDInputHelp"
                                 style="@style/HelpButton"
@@ -778,7 +778,7 @@
                     <TextView
                         style="@style/FieldSetLabel"
                         android:background="#ffffff"
-                        android:text="@string/game_controller" />
+                        android:text="@string/session_gamepad_game_controller" />
                 </FrameLayout>
             </LinearLayout>
 
@@ -806,7 +806,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/box64_version" />
+                                android:text="@string/container_box64_version" />
                             <Spinner
                                 style="@style/ComboBox"
                                 android:id="@+id/SBox64Version"
@@ -816,7 +816,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/box64_preset" />
+                                android:text="@string/container_box64_preset" />
                             <Spinner
                                 style="@style/ComboBox"
                                 android:id="@+id/SBox64Preset"
@@ -825,7 +825,7 @@
                         <TextView
                             style="@style/FieldSetLabel"
                             android:background="#ffffff"
-                            android:text="@string/box64" />
+                            android:text="@string/container_box64_title" />
                     </FrameLayout>
 
                     <FrameLayout
@@ -837,7 +837,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/fexcore_version" />
+                                android:text="@string/container_fexcore_version" />
                             <Spinner
                                 style="@style/ComboBox"
                                 android:id="@+id/SFEXCoreVersion"
@@ -845,7 +845,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/fexcore_preset" />
+                                android:text="@string/container_fexcore_preset" />
                             <Spinner
                                 style="@style/ComboBox"
                                 android:id="@+id/SFEXCorePreset"
@@ -854,7 +854,7 @@
                         <TextView
                             style="@style/FieldSetLabel"
                             android:background="#ffffff"
-                            android:text="@string/fexcore_config" />
+                            android:text="@string/container_fexcore_config" />
                     </FrameLayout>
 
                     <FrameLayout
@@ -865,7 +865,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/startup_selection" />
+                                android:text="@string/container_config_startup_selection" />
                             <Spinner
                                 style="@style/ComboBox"
                                 android:layout_width="match_parent"
@@ -875,7 +875,7 @@
                         <TextView
                             android:id="@+id/TVSystem"
                             style="@style/FieldSetLabel"
-                            android:text="@string/system" />
+                            android:text="@string/common_ui_system" />
                     </FrameLayout>
 
                     <FrameLayout
@@ -886,7 +886,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/exec_arguments" />
+                                android:text="@string/shortcuts_properties_exec_arguments" />
                             <LinearLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -906,12 +906,12 @@
                                 android:id="@+id/CBFullscreenStretched"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/fullscreen_stretched" />
+                                android:text="@string/session_display_fullscreen_stretched" />
                         </LinearLayout>
                         <TextView
                             style="@style/FieldSetLabel"
                             android:background="#ffffff"
-                            android:text="@string/system" />
+                            android:text="@string/common_ui_system" />
                     </FrameLayout>
 
                     <FrameLayout
@@ -922,7 +922,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/vkbasalt_sharpness_effects" />
+                                android:text="@string/container_graphics_vkbasalt_sharpness_effects" />
                             <LinearLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -942,7 +942,7 @@
                                         android:layout_width="0dp"
                                         android:layout_height="wrap_content"
                                         android:layout_weight="1"
-                                        android:text="@string/vkbasalt_sharpness_level" />
+                                        android:text="@string/container_graphics_vkbasalt_sharpness_level" />
                                     <TextView
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
@@ -962,7 +962,7 @@
                                         android:layout_width="0dp"
                                         android:layout_height="wrap_content"
                                         android:layout_weight="1"
-                                        android:text="@string/vkbasalt_sharpness_denoise" />
+                                        android:text="@string/container_graphics_vkbasalt_sharpness_denoise" />
                                     <TextView
                                         android:layout_width="wrap_content"
                                         android:layout_gravity="end"
@@ -981,13 +981,13 @@
                         <TextView
                             style="@style/FieldSetLabel"
                             android:background="#ffffff"
-                            android:text="@string/vkbasalt" />
+                            android:text="@string/container_graphics_vkbasalt" />
                     </FrameLayout>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/processor_affinity"
+                        android:text="@string/container_config_processor_affinity"
                         android:layout_marginTop="8dp" />
 
                     <com.winlator.cmod.widget.CPUListView

@@ -21,7 +21,7 @@
 
             <TextView
                 style="@style/OtherSettingsFieldLabel"
-                android:text="@string/graphics_driver_vulkan_version" />
+                android:text="@string/container_graphics_vulkan_version" />
 
             <androidx.appcompat.widget.AppCompatSpinner
                 android:id="@+id/SGraphicsDriverVulkanVersion"
@@ -34,7 +34,7 @@
             <TextView
                 style="@style/OtherSettingsFieldLabel"
                 android:layout_marginTop="10dp"
-                android:text="@string/graphics_driver_version" />
+                android:text="@string/container_graphics_version" />
 
             <androidx.appcompat.widget.AppCompatSpinner
                 android:id="@+id/SGraphicsDriverVersion"
@@ -46,7 +46,7 @@
             <TextView
                 style="@style/OtherSettingsFieldLabel"
                 android:layout_marginTop="10dp"
-                android:text="@string/graphics_driver_available_extensions" />
+                android:text="@string/container_graphics_available_extensions" />
 
             <com.winlator.cmod.widget.MultiSelectionComboBox
                 android:id="@+id/MSCAvailableExtensions"
@@ -57,7 +57,7 @@
             <TextView
                 style="@style/OtherSettingsFieldLabel"
                 android:layout_marginTop="10dp"
-                android:text="@string/gpu_name" />
+                android:text="@string/container_wine_gpu_name" />
 
             <androidx.appcompat.widget.AppCompatSpinner
                 android:id="@+id/SGraphicsDriverGPUName"
@@ -69,7 +69,7 @@
             <TextView
                 style="@style/OtherSettingsFieldLabel"
                 android:layout_marginTop="10dp"
-                android:text="@string/graphics_driver_max_device_memory" />
+                android:text="@string/container_graphics_max_device_memory" />
 
             <androidx.appcompat.widget.AppCompatSpinner
                 android:id="@+id/SGraphicsDriverMaxDeviceMemory"
@@ -82,7 +82,7 @@
             <TextView
                 style="@style/OtherSettingsFieldLabel"
                 android:layout_marginTop="10dp"
-                android:text="@string/graphics_driver_present_modes" />
+                android:text="@string/container_graphics_present_modes" />
 
             <androidx.appcompat.widget.AppCompatSpinner
                 android:id="@+id/SGraphicsDriverPresentMode"
@@ -95,7 +95,7 @@
             <TextView
                 style="@style/OtherSettingsFieldLabel"
                 android:layout_marginTop="10dp"
-                android:text="@string/graphics_driver_resource_type" />
+                android:text="@string/container_graphics_resource_type" />
 
             <androidx.appcompat.widget.AppCompatSpinner
                 android:id="@+id/SGraphicsDriverResourceType"
@@ -108,7 +108,7 @@
             <TextView
                 style="@style/OtherSettingsFieldLabel"
                 android:layout_marginTop="10dp"
-                android:text="@string/graphics_driver_bcn_emulation" />
+                android:text="@string/container_graphics_bcn_emulation" />
 
             <androidx.appcompat.widget.AppCompatSpinner
                 android:id="@+id/SGraphicsDriverBCnEmulation"
@@ -121,7 +121,7 @@
             <TextView
                 style="@style/OtherSettingsFieldLabel"
                 android:layout_marginTop="10dp"
-                android:text="@string/graphics_driver_bcn_emulation_type" />
+                android:text="@string/container_graphics_bcn_emulation_type" />
 
             <androidx.appcompat.widget.AppCompatSpinner
                 android:id="@+id/SGraphicsDriverBCnEmulationType"
@@ -134,7 +134,7 @@
             <TextView
                 style="@style/OtherSettingsFieldLabel"
                 android:layout_marginTop="10dp"
-                android:text="@string/graphics_driver_bcn_emulation_cache" />
+                android:text="@string/container_graphics_bcn_emulation_cache" />
 
             <androidx.appcompat.widget.AppCompatSpinner
                 android:id="@+id/SGraphicsDriverBCnEmulationCache"
@@ -160,7 +160,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/inter"
-                    android:text="@string/graphics_driver_sync_frame"
+                    android:text="@string/container_graphics_sync_frame"
                     android:textColor="@color/settings_text_primary"
                     android:textSize="13sp" />
 
@@ -188,7 +188,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/inter"
-                    android:text="@string/graphics_driver_disable_present_wait"
+                    android:text="@string/container_graphics_disable_present_wait"
                     android:textColor="@color/settings_text_primary"
                     android:textSize="13sp" />
 

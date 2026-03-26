@@ -180,7 +180,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
         findViewById(R.id.BTAddToHomeScreen).setOnClickListener((v) -> {
             boolean requested = fragment.addShortcutToScreen(shortcut);
             if (!requested)
-                Toast.makeText(context, context.getString(R.string.library_failed_to_create_shortcut, shortcut.name), Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, context.getString(R.string.library_games_failed_to_create_shortcut, shortcut.name), Toast.LENGTH_SHORT).show();
         });
 
         final EditText etExecArgs = findViewById(R.id.ETExecArgs);
@@ -207,7 +207,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
         final View vDXWrapperConfig = findViewById(R.id.BTDXWrapperConfig);
         vDXWrapperConfig.setTag(getShortcutSettingValue("dxwrapperConfig", container.getDXWrapperConfig()));
 
-        findViewById(R.id.BTHelpDXWrapper).setOnClickListener((v) -> AppUtils.showHelpBox(context, v, R.string.dxwrapper_help_content));
+        findViewById(R.id.BTHelpDXWrapper).setOnClickListener((v) -> AppUtils.showHelpBox(context, v, R.string.container_wine_dxwrapper_help_content));
 
         final Spinner sAudioDriver = findViewById(R.id.SAudioDriver);
         AppUtils.setSpinnerSelectionFromIdentifier(sAudioDriver, getShortcutSettingValue("audioDriver", container.getAudioDriver()));
@@ -284,7 +284,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
         boolean fullscreenStretched = getShortcutSettingValue("fullscreenStretched", container.isFullscreenStretched() ? "1" : "0").equals("1");
         cbFullscreenStretched.setChecked(fullscreenStretched);
 
-        final Runnable showInputWarning = () -> ContentDialog.alert(context, R.string.enable_xinput_and_dinput_same_time, null);
+        final Runnable showInputWarning = () -> ContentDialog.alert(context, R.string.container_config_xinput_dinput_warning, null);
         final CheckBox cbEnableXInput = findViewById(R.id.CBEnableXInput);
         final CheckBox cbEnableDInput = findViewById(R.id.CBEnableDInput);
         final View llDInputType = findViewById(R.id.LLDinputMapperType);
@@ -304,8 +304,8 @@ public class ShortcutSettingsDialog extends ContentDialog {
             if (isChecked && cbEnableDInput.isChecked())
                 showInputWarning.run();
         });
-        btHelpXInput.setOnClickListener(v -> AppUtils.showHelpBox(context, v, R.string.help_xinput));
-        btHelpDInput.setOnClickListener(v -> AppUtils.showHelpBox(context, v, R.string.help_dinput));
+        btHelpXInput.setOnClickListener(v -> AppUtils.showHelpBox(context, v, R.string.container_config_help_xinput));
+        btHelpDInput.setOnClickListener(v -> AppUtils.showHelpBox(context, v, R.string.container_config_help_dinput));
         SDInputType.setSelection(((inputType & WinHandler.FLAG_DINPUT_MAPPER_STANDARD) == WinHandler.FLAG_DINPUT_MAPPER_STANDARD) ? 0 : 1);
         llDInputType.setVisibility(cbEnableDInput.isChecked()?View.VISIBLE:View.GONE);
 
@@ -870,7 +870,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
         final Context context = fragment.getContext();
         final ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
         ArrayList<String> values = new ArrayList<>();
-        values.add(context.getString(R.string.none));
+        values.add(context.getString(R.string.common_ui_none));
 
         int selectedPosition = 0;
         int selectedId = Integer.parseInt(selectedValue);
@@ -886,7 +886,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
 
     private void showInputWarning() {
         final Context context = fragment.getContext();
-        ContentDialog.alert(context, R.string.enable_xinput_and_dinput_same_time, null);
+        ContentDialog.alert(context, R.string.container_config_xinput_dinput_warning, null);
     }
 
     /**

@@ -130,18 +130,18 @@
                 <Button
                     android:id="@id/BTReset"
                     android:visibility="gone"
-                    android:text="@string/reset"
+                    android:text="@string/common_ui_reset"
                     style="@style/ContentDialogButtonNeutral" />
 
                 <Button
                     style="@style/ContentDialogButtonNeutral"
-                    android:text="@string/cancel"
+                    android:text="@string/common_ui_cancel"
                     android:id="@+id/BTCancel" />
 
                 <Button
                     style="@style/ContentDialogButtonPositive"
                     android:layout_marginStart="10dp"
-                    android:text="@string/ok"
+                    android:text="@string/common_ui_ok"
                     android:id="@+id/BTConfirm" />
             </LinearLayout>
         </LinearLayout>

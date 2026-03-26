@@ -494,9 +494,9 @@ class UnifiedActivity : ComponentActivity() {
     private data class TabDef(val label: String, val key: String)
 
     private fun buildTabs(aio: Boolean, storeVisible: Map<String, Boolean>): List<TabDef> {
-        val base = mutableListOf(TabDef(getString(R.string.library), "library"), TabDef(getString(R.string.downloads), "downloads"))
+        val base = mutableListOf(TabDef(getString(R.string.common_ui_library), "library"), TabDef(getString(R.string.common_ui_downloads), "downloads"))
         if (aio) {
-            base.add(TabDef(getString(R.string.store), "store"))
+            base.add(TabDef(getString(R.string.common_ui_store), "store"))
         } else {
             if (storeVisible["steam"] != false) base.add(TabDef("Steam", "steam"))
             if (storeVisible["epic"] != false) base.add(TabDef("Epic", "epic"))
@@ -594,9 +594,9 @@ class UnifiedActivity : ComponentActivity() {
                     scope.launch {
                         val authResult = EpicAuthManager.authenticateWithCode(context, code)
                         if (authResult.isSuccess) {
-                            android.widget.Toast.makeText(context, R.string.logged_in_epic, android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, R.string.stores_accounts_logged_in_epic, android.widget.Toast.LENGTH_SHORT).show()
                         } else {
-                            android.widget.Toast.makeText(context, getString(R.string.epic_login_failed, authResult.exceptionOrNull()?.message), android.widget.Toast.LENGTH_LONG).show()
+                            android.widget.Toast.makeText(context, getString(R.string.stores_accounts_epic_login_failed, authResult.exceptionOrNull()?.message), android.widget.Toast.LENGTH_LONG).show()
                         }
                     }
                 }
@@ -613,9 +613,9 @@ class UnifiedActivity : ComponentActivity() {
                         val authResult = GOGAuthManager.authenticateWithCode(context, code)
                         if (authResult.isSuccess) {
                             GOGService.start(context)
-                            android.widget.Toast.makeText(context, R.string.logged_in_gog, android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, R.string.stores_accounts_logged_in_gog, android.widget.Toast.LENGTH_SHORT).show()
                         } else {
-                            android.widget.Toast.makeText(context, getString(R.string.gog_login_failed, authResult.exceptionOrNull()?.message), android.widget.Toast.LENGTH_LONG).show()
+                            android.widget.Toast.makeText(context, getString(R.string.stores_accounts_gog_login_failed, authResult.exceptionOrNull()?.message), android.widget.Toast.LENGTH_LONG).show()
                         }
                     }
                 }
@@ -943,7 +943,7 @@ class UnifiedActivity : ComponentActivity() {
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = stringResource(R.string.exit_app_confirm),
+                            text = stringResource(R.string.common_ui_exit_app_confirm),
                             style = MaterialTheme.typography.titleLarge,
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold
@@ -960,7 +960,7 @@ class UnifiedActivity : ComponentActivity() {
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text(stringResource(R.string.cancel), fontWeight = FontWeight.Medium)
+                                Text(stringResource(R.string.common_ui_cancel), fontWeight = FontWeight.Medium)
                             }
                             // Exit button
                             Button(
@@ -973,7 +973,7 @@ class UnifiedActivity : ComponentActivity() {
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text(stringResource(R.string.exit), color = Color.White, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.common_ui_exit), color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -1495,7 +1495,7 @@ class UnifiedActivity : ComponentActivity() {
                 }
             } else if (anyLoggedIn) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    EmptyStateMessage(stringResource(R.string.no_games_installed))
+                    EmptyStateMessage(stringResource(R.string.library_games_no_games_installed))
                 }
             }
             return
@@ -1867,7 +1867,7 @@ class UnifiedActivity : ComponentActivity() {
     @Composable
     private fun UninstallConfirmation(
         message: String,
-        confirmLabel: String = stringResource(R.string.uninstall),
+        confirmLabel: String = stringResource(R.string.common_ui_uninstall),
         onConfirm: () -> Unit,
         onCancel: () -> Unit,
     ) {
@@ -1907,7 +1907,7 @@ class UnifiedActivity : ComponentActivity() {
                 }
                 Spacer(Modifier.width(8.dp))
                 TextButton(onClick = onCancel) {
-                    Text(stringResource(R.string.cancel), color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.common_ui_cancel), color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -2004,13 +2004,13 @@ class UnifiedActivity : ComponentActivity() {
                         
                         zos.close()
                         withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            android.widget.Toast.makeText(context, R.string.saves_exported, android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, R.string.saves_import_export_exported, android.widget.Toast.LENGTH_SHORT).show()
                             onDismissRequest()
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
                         withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            android.widget.Toast.makeText(context, getString(R.string.saves_exported_failed, e.message), android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, getString(R.string.saves_import_export_exported_failed, e.message), android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -2073,13 +2073,13 @@ class UnifiedActivity : ComponentActivity() {
                         }
                         zis.close()
                         withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            android.widget.Toast.makeText(context, R.string.saves_imported, android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, R.string.saves_import_export_imported, android.widget.Toast.LENGTH_SHORT).show()
                             onDismissRequest()
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
                         withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            android.widget.Toast.makeText(context, getString(R.string.saves_imported_failed, e.message), android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, getString(R.string.saves_import_export_imported_failed, e.message), android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -2094,7 +2094,7 @@ class UnifiedActivity : ComponentActivity() {
                 GameSettingsScreen.Menu -> {
                     val actions = listOf(
                         GameSettingsActionItem(
-                            title = stringResource(R.string.settings),
+                            title = stringResource(R.string.common_ui_settings),
                             icon = Icons.Default.Settings,
                             onClick = {
                                 val containerManager = ContainerManager(context)
@@ -2136,7 +2136,7 @@ class UnifiedActivity : ComponentActivity() {
                             },
                         ),
                         GameSettingsActionItem(
-                            title = stringResource(R.string.shortcut),
+                            title = stringResource(R.string.common_ui_shortcut),
                             icon = Icons.Default.Home,
                             onClick = {
                                 scope.launch {
@@ -2151,10 +2151,10 @@ class UnifiedActivity : ComponentActivity() {
                                         )
                                     }
                                     val message = if (created) {
-                                        context.getString(R.string.library_shortcut_created)
+                                        context.getString(R.string.library_games_shortcut_created)
                                     } else {
                                         context.getString(
-                                            R.string.library_failed_to_create_shortcut,
+                                            R.string.library_games_failed_to_create_shortcut,
                                             app.name,
                                         )
                                     }
@@ -2167,12 +2167,12 @@ class UnifiedActivity : ComponentActivity() {
                             },
                         ),
                         GameSettingsActionItem(
-                            title = stringResource(R.string.saves),
+                            title = stringResource(R.string.saves_import_export_title),
                             icon = Icons.Default.Save,
                             onClick = { currentTab = GameSettingsScreen.Saves },
                         ),
                         GameSettingsActionItem(
-                            title = if (isCustom) stringResource(R.string.remove) else stringResource(R.string.uninstall),
+                            title = if (isCustom) stringResource(R.string.common_ui_remove) else stringResource(R.string.common_ui_uninstall),
                             icon = Icons.Default.Delete,
                             accentColor = DangerRed,
                             onClick = { currentTab = GameSettingsScreen.Uninstall },
@@ -2186,7 +2186,7 @@ class UnifiedActivity : ComponentActivity() {
                     GameSettingsActionGrid(
                         actions = listOf(
                             GameSettingsActionItem(
-                                title = stringResource(R.string.export),
+                                title = stringResource(R.string.common_ui_export),
                                 icon = Icons.Default.Upload,
                                 onClick = {
                                     exportLauncher.launch(
@@ -2195,12 +2195,12 @@ class UnifiedActivity : ComponentActivity() {
                                 },
                             ),
                             GameSettingsActionItem(
-                                title = stringResource(R.string.import_label),
+                                title = stringResource(R.string.common_ui_import),
                                 icon = Icons.Default.Download,
                                 onClick = { importLauncher.launch(arrayOf("application/zip")) },
                             ),
                             GameSettingsActionItem(
-                                title = stringResource(R.string.back),
+                                title = stringResource(R.string.common_ui_back),
                                 icon = Icons.Default.ArrowBack,
                                 onClick = { currentTab = GameSettingsScreen.Menu },
                             ),
@@ -2210,9 +2210,9 @@ class UnifiedActivity : ComponentActivity() {
 
                 GameSettingsScreen.Uninstall -> {
                     UninstallConfirmation(
-                        message = if (isCustom) getString(R.string.remove_confirm, app.name)
-                            else getString(R.string.uninstall_confirm, app.name),
-                        confirmLabel = if (isCustom) stringResource(R.string.remove) else stringResource(R.string.uninstall),
+                        message = if (isCustom) getString(R.string.library_games_remove_confirm, app.name)
+                            else getString(R.string.library_games_uninstall_confirm, app.name),
+                        confirmLabel = if (isCustom) stringResource(R.string.common_ui_remove) else stringResource(R.string.common_ui_uninstall),
                         onConfirm = {
                             if (isCustom) {
                                 scope.launch(Dispatchers.IO) {
@@ -2225,7 +2225,7 @@ class UnifiedActivity : ComponentActivity() {
                                     java.io.File(context.filesDir, "custom_icons/${app.name.replace("/", "_")}.png").delete()
                                     PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(app.id))
                                     withContext(Dispatchers.Main) {
-                                        android.widget.Toast.makeText(context, getString(R.string.game_removed, app.name), android.widget.Toast.LENGTH_SHORT).show()
+                                        android.widget.Toast.makeText(context, getString(R.string.library_games_game_removed, app.name), android.widget.Toast.LENGTH_SHORT).show()
                                         onDismissRequest()
                                     }
                                 }
@@ -2233,15 +2233,15 @@ class UnifiedActivity : ComponentActivity() {
                                 scope.launch(Dispatchers.IO) {
                                     val result = EpicService.deleteGame(context, epicId)
                                     withContext(Dispatchers.Main) {
-                                        if (result.isSuccess) android.widget.Toast.makeText(context, getString(R.string.game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
-                                        else android.widget.Toast.makeText(context, getString(R.string.failed_to_uninstall_reason, result.exceptionOrNull()?.message ?: "Unknown error"), android.widget.Toast.LENGTH_LONG).show()
+                                        if (result.isSuccess) android.widget.Toast.makeText(context, getString(R.string.library_games_game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
+                                        else android.widget.Toast.makeText(context, getString(R.string.library_games_failed_to_uninstall_reason, result.exceptionOrNull()?.message ?: "Unknown error"), android.widget.Toast.LENGTH_LONG).show()
                                         onDismissRequest()
                                     }
                                 }
                             } else {
                                 SteamService.uninstallApp(app.id) { success ->
-                                    if (success) android.widget.Toast.makeText(context, getString(R.string.game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
-                                    else android.widget.Toast.makeText(context, getString(R.string.failed_to_uninstall), android.widget.Toast.LENGTH_SHORT).show()
+                                    if (success) android.widget.Toast.makeText(context, getString(R.string.library_games_game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
+                                    else android.widget.Toast.makeText(context, getString(R.string.library_games_failed_to_uninstall), android.widget.Toast.LENGTH_SHORT).show()
                                     onDismissRequest()
                                 }
                             }
@@ -2268,7 +2268,7 @@ class UnifiedActivity : ComponentActivity() {
                     GameSettingsActionGrid(
                         actions = listOf(
                             GameSettingsActionItem(
-                                title = stringResource(R.string.settings),
+                                title = stringResource(R.string.common_ui_settings),
                                 icon = Icons.Default.Settings,
                                 onClick = {
                                     val shortcut = ContainerManager(context).loadShortcuts().find {
@@ -2293,7 +2293,7 @@ class UnifiedActivity : ComponentActivity() {
                                 },
                             ),
                             GameSettingsActionItem(
-                                title = stringResource(R.string.shortcut),
+                                title = stringResource(R.string.common_ui_shortcut),
                                 icon = Icons.Default.Home,
                                 onClick = {
                                     scope.launch {
@@ -2302,10 +2302,10 @@ class UnifiedActivity : ComponentActivity() {
                                             addGogShortcutToHomeScreen(context, app, artworkUrl)
                                         }
                                         val message = if (created) {
-                                            context.getString(R.string.library_shortcut_created)
+                                            context.getString(R.string.library_games_shortcut_created)
                                         } else {
                                             context.getString(
-                                                R.string.library_failed_to_create_shortcut,
+                                                R.string.library_games_failed_to_create_shortcut,
                                                 app.title,
                                             )
                                         }
@@ -2318,12 +2318,12 @@ class UnifiedActivity : ComponentActivity() {
                                 },
                             ),
                             GameSettingsActionItem(
-                                title = stringResource(R.string.saves),
+                                title = stringResource(R.string.saves_import_export_title),
                                 icon = Icons.Default.Save,
                                 onClick = { currentTab = GameSettingsScreen.Saves },
                             ),
                             GameSettingsActionItem(
-                                title = stringResource(R.string.uninstall),
+                                title = stringResource(R.string.common_ui_uninstall),
                                 icon = Icons.Default.Delete,
                                 accentColor = DangerRed,
                                 onClick = { currentTab = GameSettingsScreen.Uninstall },
@@ -2336,7 +2336,7 @@ class UnifiedActivity : ComponentActivity() {
                     GameSettingsActionGrid(
                         actions = listOf(
                             GameSettingsActionItem(
-                                title = stringResource(R.string.sync),
+                                title = stringResource(R.string.common_ui_sync),
                                 icon = Icons.Default.Cloud,
                                 onClick = {
                                     scope.launch(Dispatchers.IO) {
@@ -2344,13 +2344,13 @@ class UnifiedActivity : ComponentActivity() {
                                     }
                                     android.widget.Toast.makeText(
                                         context,
-                                        getString(R.string.cloud_sync_started),
+                                        getString(R.string.google_cloud_sync_started),
                                         android.widget.Toast.LENGTH_SHORT,
                                     ).show()
                                 },
                             ),
                             GameSettingsActionItem(
-                                title = stringResource(R.string.back),
+                                title = stringResource(R.string.common_ui_back),
                                 icon = Icons.Default.ArrowBack,
                                 onClick = { currentTab = GameSettingsScreen.Menu },
                             ),
@@ -2360,7 +2360,7 @@ class UnifiedActivity : ComponentActivity() {
 
                 GameSettingsScreen.Uninstall -> {
                     UninstallConfirmation(
-                        message = getString(R.string.uninstall_confirm, app.title),
+                        message = getString(R.string.library_games_uninstall_confirm, app.title),
                         onConfirm = {
                             scope.launch(Dispatchers.IO) {
                                 GOGService.deleteGame(
@@ -2368,7 +2368,7 @@ class UnifiedActivity : ComponentActivity() {
                                     LibraryItem("GOG_${app.id}", app.title, com.winlator.cmod.steam.enums.GameSource.GOG),
                                 )
                                 withContext(Dispatchers.Main) {
-                                    android.widget.Toast.makeText(context, getString(R.string.game_uninstalled, app.title), android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(context, getString(R.string.library_games_game_uninstalled, app.title), android.widget.Toast.LENGTH_SHORT).show()
                                     onDismissRequest()
                                 }
                             }
@@ -2424,7 +2424,7 @@ class UnifiedActivity : ComponentActivity() {
 
         val subtitle = when {
             isGog -> gogGame!!.developer
-            isCustom -> stringResource(R.string.custom_game)
+            isCustom -> stringResource(R.string.library_games_custom_game)
             isEpic -> epicGame?.developer ?: ""
             else -> listOfNotNull(
                 app.developer.takeIf { it.isNotBlank() },
@@ -2526,12 +2526,12 @@ class UnifiedActivity : ComponentActivity() {
                         }
                         zos.close()
                         withContext(Dispatchers.Main) {
-                            android.widget.Toast.makeText(context, R.string.saves_exported, android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, R.string.saves_import_export_exported, android.widget.Toast.LENGTH_SHORT).show()
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
                         withContext(Dispatchers.Main) {
-                            android.widget.Toast.makeText(context, getString(R.string.saves_exported_failed, e.message), android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, getString(R.string.saves_import_export_exported_failed, e.message), android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -2580,12 +2580,12 @@ class UnifiedActivity : ComponentActivity() {
                         }
                         zis.close()
                         withContext(Dispatchers.Main) {
-                            android.widget.Toast.makeText(context, R.string.saves_imported, android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, R.string.saves_import_export_imported, android.widget.Toast.LENGTH_SHORT).show()
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
                         withContext(Dispatchers.Main) {
-                            android.widget.Toast.makeText(context, getString(R.string.saves_imported_failed, e.message), android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, getString(R.string.saves_import_export_imported_failed, e.message), android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -2699,13 +2699,13 @@ class UnifiedActivity : ComponentActivity() {
                                             ) {
                                                 if (installPath.isNotBlank()) {
                                                     DetailCard(
-                                                        label = stringResource(R.string.install_path),
+                                                        label = stringResource(R.string.library_games_install_path),
                                                         value = installPath,
                                                         modifier = Modifier.weight(1f).fillMaxHeight(),
                                                     )
                                                 }
                                                 if (installSizeText != null) {
-                                                    DetailCard(stringResource(R.string.size), installSizeText!!, modifier = Modifier.fillMaxHeight())
+                                                    DetailCard(stringResource(R.string.common_ui_size), installSizeText!!, modifier = Modifier.fillMaxHeight())
                                                 }
                                             }
                                         }
@@ -2716,7 +2716,7 @@ class UnifiedActivity : ComponentActivity() {
                                                 java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault())
                                                     .format(java.util.Date(app.releaseDate * 1000L))
                                             }
-                                            DetailCard(stringResource(R.string.release_date), releaseDateText)
+                                            DetailCard(stringResource(R.string.common_ui_release_date), releaseDateText)
                                         }
 
                                         // Playtime row — multiple stats side by side
@@ -2728,7 +2728,7 @@ class UnifiedActivity : ComponentActivity() {
                                             ) {
                                                 if (lastPlayed > 0L) {
                                                     val dateFormat = java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault())
-                                                    DetailCard(stringResource(R.string.last_played), dateFormat.format(java.util.Date(lastPlayed)), modifier = Modifier.weight(1f))
+                                                    DetailCard(stringResource(R.string.library_games_last_played), dateFormat.format(java.util.Date(lastPlayed)), modifier = Modifier.weight(1f))
                                                 }
                                                 if (totalPlaytime > 0L) {
                                                     val hours = totalPlaytime / 3_600_000L
@@ -2737,10 +2737,10 @@ class UnifiedActivity : ComponentActivity() {
                                                         hours > 0 -> "${hours}h ${minutes}m"
                                                         else -> "${minutes}m"
                                                     }
-                                                    DetailCard(stringResource(R.string.playtime), playtimeText, modifier = Modifier.weight(1f))
+                                                    DetailCard(stringResource(R.string.library_games_playtime), playtimeText, modifier = Modifier.weight(1f))
                                                 }
                                                 if (playCount > 0) {
-                                                    DetailCard(stringResource(R.string.plays), playCount.toString(), modifier = Modifier.weight(1f))
+                                                    DetailCard(stringResource(R.string.library_games_plays), playCount.toString(), modifier = Modifier.weight(1f))
                                                 }
                                             }
                                         }
@@ -2775,7 +2775,7 @@ class UnifiedActivity : ComponentActivity() {
                                         ) {
                                             CompactActionButton(
                                                 icon = Icons.Default.Settings,
-                                                label = stringResource(R.string.settings),
+                                                label = stringResource(R.string.common_ui_settings),
                                                 modifier = Modifier.weight(1f),
                                                 onClick = {
                                                     if (isGog) {
@@ -2830,7 +2830,7 @@ class UnifiedActivity : ComponentActivity() {
 
                                             CompactActionButton(
                                                 icon = Icons.Default.Home,
-                                                label = stringResource(R.string.shortcut),
+                                                label = stringResource(R.string.common_ui_shortcut),
                                                 modifier = Modifier.weight(1f),
                                                 onClick = {
                                                     scope.launch {
@@ -2842,8 +2842,8 @@ class UnifiedActivity : ComponentActivity() {
                                                                 addLibraryShortcutToHomeScreen(context, app, isCustom, isEpic, epicId, epicArtworkUrl)
                                                             }
                                                         }
-                                                        val message = if (created) context.getString(R.string.library_shortcut_created)
-                                                        else context.getString(R.string.library_failed_to_create_shortcut, app.name)
+                                                        val message = if (created) context.getString(R.string.library_games_shortcut_created)
+                                                        else context.getString(R.string.library_games_failed_to_create_shortcut, app.name)
                                                         android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
                                                     }
                                                 },
@@ -2856,14 +2856,14 @@ class UnifiedActivity : ComponentActivity() {
                                         ) {
                                             CompactActionButton(
                                                 icon = Icons.Default.Save,
-                                                label = stringResource(R.string.saves),
+                                                label = stringResource(R.string.saves_import_export_title),
                                                 modifier = Modifier.weight(1f),
                                                 onClick = { currentScreen = LibraryDetailScreen.Saves },
                                             )
 
                                             CompactActionButton(
                                                 icon = Icons.Default.Delete,
-                                                label = if (isCustom) stringResource(R.string.remove) else stringResource(R.string.uninstall),
+                                                label = if (isCustom) stringResource(R.string.common_ui_remove) else stringResource(R.string.common_ui_uninstall),
                                                 tint = DangerRed,
                                                 bgColor = DangerRed.copy(alpha = 0.12f),
                                                 modifier = Modifier.weight(1f),
@@ -2882,7 +2882,7 @@ class UnifiedActivity : ComponentActivity() {
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
                                     Text(
-                                        stringResource(R.string.save_management),
+                                        stringResource(R.string.library_games_save_management),
                                         style = MaterialTheme.typography.labelMedium,
                                         color = TextSecondary,
                                         fontWeight = FontWeight.Bold,
@@ -2893,24 +2893,24 @@ class UnifiedActivity : ComponentActivity() {
                                         GameSettingsActionGrid(
                                             actions = listOf(
                                                 GameSettingsActionItem(
-                                                    title = stringResource(R.string.sync),
+                                                    title = stringResource(R.string.common_ui_sync),
                                                     icon = Icons.Default.Cloud,
                                                     onClick = {
                                                         scope.launch(Dispatchers.IO) {
                                                             GOGService.syncCloudSaves(context, "GOG_${gogGame!!.id}", "auto")
                                                         }
-                                                        android.widget.Toast.makeText(context, getString(R.string.cloud_sync_started), android.widget.Toast.LENGTH_SHORT).show()
+                                                        android.widget.Toast.makeText(context, getString(R.string.google_cloud_sync_started), android.widget.Toast.LENGTH_SHORT).show()
                                                     },
                                                 ),
                                                 GameSettingsActionItem(
-                                                    title = stringResource(R.string.export),
+                                                    title = stringResource(R.string.common_ui_export),
                                                     icon = Icons.Default.Upload,
                                                     onClick = {
                                                         exportLauncher.launch("${app.name.replace(" ", "_").replace(":", "")}_Saves.zip")
                                                     },
                                                 ),
                                                 GameSettingsActionItem(
-                                                    title = stringResource(R.string.import_label),
+                                                    title = stringResource(R.string.common_ui_import),
                                                     icon = Icons.Default.Download,
                                                     onClick = { importLauncher.launch(arrayOf("application/zip")) },
                                                 ),
@@ -2920,14 +2920,14 @@ class UnifiedActivity : ComponentActivity() {
                                         GameSettingsActionGrid(
                                             actions = listOf(
                                                 GameSettingsActionItem(
-                                                    title = stringResource(R.string.export),
+                                                    title = stringResource(R.string.common_ui_export),
                                                     icon = Icons.Default.Upload,
                                                     onClick = {
                                                         exportLauncher.launch("${app.name.replace(" ", "_").replace(":", "")}_Saves.zip")
                                                     },
                                                 ),
                                                 GameSettingsActionItem(
-                                                    title = stringResource(R.string.import_label),
+                                                    title = stringResource(R.string.common_ui_import),
                                                     icon = Icons.Default.Download,
                                                     onClick = { importLauncher.launch(arrayOf("application/zip")) },
                                                 ),
@@ -2939,7 +2939,7 @@ class UnifiedActivity : ComponentActivity() {
                                     TextButton(onClick = { currentScreen = LibraryDetailScreen.Main }) {
                                         Icon(Icons.Default.ArrowBack, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
                                         Spacer(Modifier.width(6.dp))
-                                        Text(stringResource(R.string.back), color = TextSecondary)
+                                        Text(stringResource(R.string.common_ui_back), color = TextSecondary)
                                     }
                                 }
                             }
@@ -2952,7 +2952,7 @@ class UnifiedActivity : ComponentActivity() {
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
                                     Text(
-                                        stringResource(if (isCustom) R.string.remove_game else R.string.uninstall_game),
+                                        stringResource(if (isCustom) R.string.library_games_remove_game else R.string.library_games_uninstall_game),
                                         style = MaterialTheme.typography.labelMedium,
                                         color = TextSecondary,
                                         fontWeight = FontWeight.Bold,
@@ -2962,9 +2962,9 @@ class UnifiedActivity : ComponentActivity() {
                                     Spacer(Modifier.weight(1f))
 
                                     UninstallConfirmation(
-                                        message = if (isCustom) getString(R.string.remove_confirm, app.name)
-                                            else getString(R.string.uninstall_confirm, app.name),
-                                        confirmLabel = stringResource(if (isCustom) R.string.remove else R.string.uninstall),
+                                        message = if (isCustom) getString(R.string.library_games_remove_confirm, app.name)
+                                            else getString(R.string.library_games_uninstall_confirm, app.name),
+                                        confirmLabel = stringResource(if (isCustom) R.string.common_ui_remove else R.string.common_ui_uninstall),
                                         onConfirm = {
                                             if (isGog) {
                                                 scope.launch(Dispatchers.IO) {
@@ -2973,7 +2973,7 @@ class UnifiedActivity : ComponentActivity() {
                                                         LibraryItem("GOG_${gogGame!!.id}", gogGame.title, com.winlator.cmod.steam.enums.GameSource.GOG),
                                                     )
                                                     withContext(Dispatchers.Main) {
-                                                        android.widget.Toast.makeText(context, getString(R.string.game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
+                                                        android.widget.Toast.makeText(context, getString(R.string.library_games_game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
                                                         onDismissRequest()
                                                     }
                                                 }
@@ -2987,7 +2987,7 @@ class UnifiedActivity : ComponentActivity() {
                                                     java.io.File(context.filesDir, "custom_icons/${app.name.replace("/", "_")}.png").delete()
                                                     PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(app.id))
                                                     withContext(Dispatchers.Main) {
-                                                        android.widget.Toast.makeText(context, getString(R.string.game_removed, app.name), android.widget.Toast.LENGTH_SHORT).show()
+                                                        android.widget.Toast.makeText(context, getString(R.string.library_games_game_removed, app.name), android.widget.Toast.LENGTH_SHORT).show()
                                                         onDismissRequest()
                                                     }
                                                 }
@@ -2995,15 +2995,15 @@ class UnifiedActivity : ComponentActivity() {
                                                 scope.launch(Dispatchers.IO) {
                                                     val result = EpicService.deleteGame(context, epicId)
                                                     withContext(Dispatchers.Main) {
-                                                        if (result.isSuccess) android.widget.Toast.makeText(context, getString(R.string.game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
-                                                        else android.widget.Toast.makeText(context, getString(R.string.failed_to_uninstall_reason, result.exceptionOrNull()?.message ?: ""), android.widget.Toast.LENGTH_LONG).show()
+                                                        if (result.isSuccess) android.widget.Toast.makeText(context, getString(R.string.library_games_game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
+                                                        else android.widget.Toast.makeText(context, getString(R.string.library_games_failed_to_uninstall_reason, result.exceptionOrNull()?.message ?: ""), android.widget.Toast.LENGTH_LONG).show()
                                                         onDismissRequest()
                                                     }
                                                 }
                                             } else {
                                                 SteamService.uninstallApp(app.id) { success ->
-                                                    if (success) android.widget.Toast.makeText(context, getString(R.string.game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
-                                                    else android.widget.Toast.makeText(context, getString(R.string.failed_to_uninstall), android.widget.Toast.LENGTH_SHORT).show()
+                                                    if (success) android.widget.Toast.makeText(context, getString(R.string.library_games_game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
+                                                    else android.widget.Toast.makeText(context, getString(R.string.library_games_failed_to_uninstall), android.widget.Toast.LENGTH_SHORT).show()
                                                     onDismissRequest()
                                                 }
                                             }
@@ -3135,7 +3135,7 @@ class UnifiedActivity : ComponentActivity() {
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    stringResource(R.string.play),
+                    stringResource(R.string.library_games_play),
                     color = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
@@ -3213,7 +3213,7 @@ class UnifiedActivity : ComponentActivity() {
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        stringResource(R.string.download),
+                        stringResource(R.string.common_ui_download),
                         color = Color.White,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
@@ -3675,7 +3675,7 @@ class UnifiedActivity : ComponentActivity() {
                         Box(
                             Modifier.align(Alignment.BottomEnd).padding(4.dp).background(SurfaceDark.copy(alpha=0.7f), RoundedCornerShape(6.dp)).padding(3.dp)
                         ) {
-                            Text(stringResource(R.string.installed_badge), color = StatusOnline, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.library_games_installed_badge), color = StatusOnline, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -3726,7 +3726,7 @@ class UnifiedActivity : ComponentActivity() {
                         Box(
                             Modifier.align(Alignment.BottomEnd).padding(8.dp).background(SurfaceDark.copy(alpha=0.7f), RoundedCornerShape(8.dp)).padding(4.dp)
                         ) {
-                            Text(stringResource(R.string.installed_badge), color = StatusOnline, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.library_games_installed_badge), color = StatusOnline, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -3905,7 +3905,7 @@ class UnifiedActivity : ComponentActivity() {
 
         if (showDlcDialog && dlcApps.isNotEmpty()) {
             GameSettingsDialogFrame(
-                title = stringResource(R.string.dlcs),
+                title = stringResource(R.string.library_games_dlcs),
                 onDismissRequest = { showDlcDialog = false },
             ) {
                 Column(
@@ -3983,22 +3983,22 @@ class UnifiedActivity : ComponentActivity() {
                     CircularProgressIndicator(color = Accent)
                 } else if (installed) {
                     DetailCard(
-                        label = stringResource(R.string.install_path),
+                        label = stringResource(R.string.library_games_install_path),
                         value = app.installPath,
                     )
                     DetailCard(
-                        label = stringResource(R.string.status),
-                        value = stringResource(R.string.installed),
+                        label = stringResource(R.string.common_ui_status),
+                        value = stringResource(R.string.common_ui_installed),
                         valueColor = StatusOnline,
                     )
                 } else {
                     DetailCard(
-                        label = stringResource(R.string.install_path),
+                        label = stringResource(R.string.library_games_install_path),
                         value = installPathDisplay,
                     )
                     DetailCard(
-                        stringResource(R.string.download_slash_install),
-                        stringResource(R.string.download_install_available, StorageUtils.formatBinarySize(totalDownloadSize), StorageUtils.formatBinarySize(totalInstallSize), StorageUtils.formatBinarySize(availableBytes)),
+                        stringResource(R.string.library_games_download_slash_install),
+                        stringResource(R.string.library_games_download_install_available, StorageUtils.formatBinarySize(totalDownloadSize), StorageUtils.formatBinarySize(totalInstallSize), StorageUtils.formatBinarySize(availableBytes)),
                         valueColor = if (!isInstallEnabled) DangerRed else null,
                     )
                 }
@@ -4012,19 +4012,19 @@ class UnifiedActivity : ComponentActivity() {
                 if (app.cloudSaveEnabled) {
                     CompactActionButton(
                         icon = Icons.Default.CloudSync,
-                        label = stringResource(R.string.cloud_sync),
+                        label = stringResource(R.string.google_cloud_title),
                         onClick = {
                             scope.launch(Dispatchers.IO) {
                                 EpicCloudSavesManager.syncCloudSaves(context, app.id, "auto")
                             }
                             onDismissRequest()
-                            android.widget.Toast.makeText(context, context.getString(R.string.cloud_sync_started), android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, context.getString(R.string.google_cloud_sync_started), android.widget.Toast.LENGTH_SHORT).show()
                         },
                     )
                 }
                 CompactActionButton(
                     icon = Icons.Default.Delete,
-                    label = stringResource(R.string.uninstall),
+                    label = stringResource(R.string.common_ui_uninstall),
                     tint = DangerRed,
                     bgColor = DangerRed.copy(alpha = 0.12f),
                     onClick = {
@@ -4054,7 +4054,7 @@ class UnifiedActivity : ComponentActivity() {
                 ) {
                     CompactActionButton(
                         icon = Icons.Default.Folder,
-                        label = if (customPath != null) stringResource(R.string.custom) else if (defaultPathSet) stringResource(R.string.already_set) else stringResource(R.string.custom),
+                        label = if (customPath != null) stringResource(R.string.common_ui_custom) else if (defaultPathSet) stringResource(R.string.common_ui_already_set) else stringResource(R.string.common_ui_custom),
                         modifier = Modifier.weight(1f),
                         onClick = {
                             if (customPath == null && defaultPathSet) {
@@ -4067,7 +4067,7 @@ class UnifiedActivity : ComponentActivity() {
                     if (dlcApps.isNotEmpty()) {
                         CompactActionButton(
                             icon = Icons.Default.Extension,
-                            label = stringResource(R.string.dlcs),
+                            label = stringResource(R.string.library_games_dlcs),
                             modifier = Modifier.weight(1f),
                             onClick = { showDlcDialog = true },
                         )
@@ -4296,22 +4296,22 @@ class UnifiedActivity : ComponentActivity() {
             infoContent = {
                 if (installed) {
                     DetailCard(
-                        label = stringResource(R.string.install_path),
+                        label = stringResource(R.string.library_games_install_path),
                         value = app.installPath,
                     )
                     DetailCard(
-                        label = stringResource(R.string.status),
-                        value = stringResource(R.string.installed),
+                        label = stringResource(R.string.common_ui_status),
+                        value = stringResource(R.string.common_ui_installed),
                         valueColor = StatusOnline,
                     )
                 } else {
                     DetailCard(
-                        label = stringResource(R.string.install_path),
+                        label = stringResource(R.string.library_games_install_path),
                         value = installPathDisplay,
                     )
                     DetailCard(
-                        stringResource(R.string.download_slash_install),
-                        stringResource(R.string.download_install_available, StorageUtils.formatBinarySize(app.downloadSize), StorageUtils.formatBinarySize(app.installSize), StorageUtils.formatBinarySize(availableBytes)),
+                        stringResource(R.string.library_games_download_slash_install),
+                        stringResource(R.string.library_games_download_install_available, StorageUtils.formatBinarySize(app.downloadSize), StorageUtils.formatBinarySize(app.installSize), StorageUtils.formatBinarySize(availableBytes)),
                         valueColor = if (!isInstallEnabled) DangerRed else null,
                     )
                 }
@@ -4324,18 +4324,18 @@ class UnifiedActivity : ComponentActivity() {
                 })
                 CompactActionButton(
                     icon = Icons.Default.CloudSync,
-                    label = stringResource(R.string.cloud_sync),
+                    label = stringResource(R.string.google_cloud_title),
                     onClick = {
                         scope.launch(Dispatchers.IO) {
                             GOGService.syncCloudSaves(context, "GOG_${app.id}", "auto")
                         }
                         onDismissRequest()
-                        android.widget.Toast.makeText(context, context.getString(R.string.cloud_sync_started), android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, context.getString(R.string.google_cloud_sync_started), android.widget.Toast.LENGTH_SHORT).show()
                     },
                 )
                 CompactActionButton(
                     icon = Icons.Default.Delete,
-                    label = stringResource(R.string.uninstall),
+                    label = stringResource(R.string.common_ui_uninstall),
                     tint = DangerRed,
                     bgColor = DangerRed.copy(alpha = 0.12f),
                     onClick = {
@@ -4354,7 +4354,7 @@ class UnifiedActivity : ComponentActivity() {
                 )
                 CompactActionButton(
                     icon = Icons.Default.Folder,
-                    label = if (customPath != null) stringResource(R.string.custom) else if (defaultPathSet) stringResource(R.string.already_set) else stringResource(R.string.custom),
+                    label = if (customPath != null) stringResource(R.string.common_ui_custom) else if (defaultPathSet) stringResource(R.string.common_ui_already_set) else stringResource(R.string.common_ui_custom),
                     onClick = {
                         if (customPath == null && defaultPathSet) {
                             showCustomPathWarning = true
@@ -4648,12 +4648,12 @@ class UnifiedActivity : ComponentActivity() {
                 }
 
                 val pauseResumeLabel = if (selectedId == null) {
-                    if (allPausableDownloadsPaused) stringResource(R.string.resume_all) else stringResource(R.string.pause_all)
+                    if (allPausableDownloadsPaused) stringResource(R.string.downloads_queue_resume_all) else stringResource(R.string.downloads_queue_pause_all)
                 } else {
-                    if (isPaused) stringResource(R.string.resume) else stringResource(R.string.pause)
+                    if (isPaused) stringResource(R.string.session_drawer_resume) else stringResource(R.string.session_drawer_pause)
                 }
 
-                val cancelLabel = if (selectedId == null) getString(R.string.cancel_all) else getString(R.string.cancel)
+                val cancelLabel = if (selectedId == null) getString(R.string.downloads_queue_cancel_all) else getString(R.string.common_ui_cancel)
 
                 // Disable pause/resume for completed or cancelled downloads
                 val pauseResumeEnabled = if (selectedId != null) {
@@ -4774,7 +4774,7 @@ class UnifiedActivity : ComponentActivity() {
                     colors = ButtonDefaults.buttonColors(containerColor = SurfaceDark),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text(stringResource(R.string.clear), color = TextPrimary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(stringResource(R.string.downloads_queue_clear), color = TextPrimary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
 
@@ -4857,7 +4857,7 @@ class UnifiedActivity : ComponentActivity() {
             }
         }
 
-        val unknownGameLabel = stringResource(R.string.unknown_game)
+        val unknownGameLabel = stringResource(R.string.library_games_unknown_game)
         val displayName = if (isSteam) steamApp?.name else if (isEpic) epicGame?.title else if (isGog) gogGame?.title else unknownGameLabel
         val displayImage = if (isSteam) steamApp?.getHeaderImageUrl()
                            else if (isEpic) epicGame?.primaryImageUrl ?: epicGame?.iconUrl
@@ -4921,16 +4921,16 @@ class UnifiedActivity : ComponentActivity() {
                             val filePart = currentFile?.let { " [${it.take(10)}]" } ?: ""
                             "Downloading...$filePart"
                         }
-                        DownloadPhase.PAUSED -> stringResource(R.string.download_phase_paused)
+                        DownloadPhase.PAUSED -> stringResource(R.string.downloads_queue_phase_paused)
                         DownloadPhase.PREPARING -> "Preparing..."
                         DownloadPhase.VERIFYING -> {
                             val filePart = currentFile?.let { " [${it.take(10)}]" } ?: ""
                             "Verifying...$filePart"
                         }
                         DownloadPhase.PATCHING -> "Patching..."
-                        DownloadPhase.COMPLETE -> stringResource(R.string.download_phase_complete)
-                        DownloadPhase.CANCELLED -> stringResource(R.string.download_phase_cancelled)
-                        DownloadPhase.FAILED -> stringResource(R.string.download_phase_failed, if (statusMessage != null && statusMessage != "null") statusMessage!! else stringResource(R.string.unknown_error))
+                        DownloadPhase.COMPLETE -> stringResource(R.string.downloads_queue_phase_complete)
+                        DownloadPhase.CANCELLED -> stringResource(R.string.downloads_queue_phase_cancelled)
+                        DownloadPhase.FAILED -> stringResource(R.string.downloads_queue_phase_failed, if (statusMessage != null && statusMessage != "null") statusMessage!! else stringResource(R.string.common_ui_unknown_error))
                         else -> status.name.lowercase().replaceFirstChar { it.uppercase() }
                     }
 
@@ -4983,7 +4983,7 @@ class UnifiedActivity : ComponentActivity() {
             AlertDialog(
                 onDismissRequest = { showDeleteDialog = false },
                 containerColor = SurfaceDark,
-                title = { Text(stringResource(R.string.cancel_download), color = TextPrimary) },
+                title = { Text(stringResource(R.string.downloads_queue_cancel_download), color = TextPrimary) },
                 text = { Text("Cancel the download for ${gameName ?: "this game"} and delete all downloaded files?", color = TextSecondary) },
                 confirmButton = {
                     Button(
@@ -4993,7 +4993,7 @@ class UnifiedActivity : ComponentActivity() {
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF6B6B))
                     ) {
-                        Text(stringResource(R.string.cancel_download), color = Color.White)
+                        Text(stringResource(R.string.downloads_queue_cancel_download), color = Color.White)
                     }
                 },
                 dismissButton = {
@@ -5001,7 +5001,7 @@ class UnifiedActivity : ComponentActivity() {
                         onClick = { showDeleteDialog = false },
                         colors = ButtonDefaults.buttonColors(containerColor = CardDark)
                     ) {
-                        Text(stringResource(R.string.cancel), color = TextPrimary)
+                        Text(stringResource(R.string.common_ui_cancel), color = TextPrimary)
                     }
                 }
             )
@@ -5022,7 +5022,7 @@ class UnifiedActivity : ComponentActivity() {
                 Spacer(Modifier.height(16.dp))
                 Text("$storeName", style = MaterialTheme.typography.headlineSmall, color = TextPrimary, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
-                Text(stringResource(R.string.coming_soon), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                Text(stringResource(R.string.common_ui_coming_soon), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
                 Spacer(Modifier.height(24.dp))
                 Button(
                     onClick = { /* TODO: Wire sign-in flow */ },
@@ -5064,7 +5064,7 @@ class UnifiedActivity : ComponentActivity() {
 
         if (showDlcDialog && dlcApps.isNotEmpty()) {
             GameSettingsDialogFrame(
-                title = stringResource(R.string.dlcs),
+                title = stringResource(R.string.library_games_dlcs),
                 onDismissRequest = { showDlcDialog = false },
             ) {
                 Column(
@@ -5152,12 +5152,12 @@ class UnifiedActivity : ComponentActivity() {
                     CircularProgressIndicator(color = Accent)
                 } else {
                     DetailCard(
-                        label = stringResource(R.string.install_path),
+                        label = stringResource(R.string.library_games_install_path),
                         value = installPathDisplay,
                     )
                     DetailCard(
-                        stringResource(R.string.download_slash_install),
-                        stringResource(R.string.download_install_available, StorageUtils.formatBinarySize(totalDownloadSize), StorageUtils.formatBinarySize(totalInstallSize), StorageUtils.formatBinarySize(availableBytes)),
+                        stringResource(R.string.library_games_download_slash_install),
+                        stringResource(R.string.library_games_download_install_available, StorageUtils.formatBinarySize(totalDownloadSize), StorageUtils.formatBinarySize(totalInstallSize), StorageUtils.formatBinarySize(availableBytes)),
                         valueColor = if (!isInstallEnabled) DangerRed else null,
                     )
                 }
@@ -5180,7 +5180,7 @@ class UnifiedActivity : ComponentActivity() {
             ) {
                 CompactActionButton(
                     icon = Icons.Default.Folder,
-                    label = if (customPath != null) stringResource(R.string.custom) else if (defaultPathSet) stringResource(R.string.already_set) else stringResource(R.string.custom),
+                    label = if (customPath != null) stringResource(R.string.common_ui_custom) else if (defaultPathSet) stringResource(R.string.common_ui_already_set) else stringResource(R.string.common_ui_custom),
                     modifier = Modifier.weight(1f),
                     onClick = {
                         if (customPath == null && defaultPathSet) {
@@ -5193,7 +5193,7 @@ class UnifiedActivity : ComponentActivity() {
                 if (dlcApps.isNotEmpty()) {
                     CompactActionButton(
                         icon = Icons.Default.Extension,
-                        label = stringResource(R.string.dlcs),
+                        label = stringResource(R.string.library_games_dlcs),
                         modifier = Modifier.weight(1f),
                         onClick = { showDlcDialog = true },
                     )
@@ -5863,8 +5863,8 @@ class UnifiedActivity : ComponentActivity() {
 
     @Composable
     fun LoginRequiredScreen(storeName: String, onLoginClick: () -> Unit) {
-        val message = if (storeName == "Library") stringResource(R.string.sign_in_library_prompt) else stringResource(R.string.sign_in_store_prompt, storeName)
-        val buttonText = if (storeName == "Library") stringResource(R.string.manage_store_accounts) else stringResource(R.string.sign_into_store, storeName)
+        val message = if (storeName == "Library") stringResource(R.string.library_games_sign_in_prompt) else stringResource(R.string.stores_accounts_sign_in_store_prompt, storeName)
+        val buttonText = if (storeName == "Library") stringResource(R.string.stores_accounts_manage) else stringResource(R.string.stores_accounts_sign_into_store, storeName)
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
                 Icon(Icons.Default.Person, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(64.dp))
@@ -5943,7 +5943,7 @@ class UnifiedActivity : ComponentActivity() {
 
                             Column(Modifier.weight(1f)) {
                                 Text(
-                                    text = persona?.name ?: stringResource(R.string.not_signed_in),
+                                    text = persona?.name ?: stringResource(R.string.stores_accounts_not_signed_in),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = TextPrimary,
@@ -5951,9 +5951,9 @@ class UnifiedActivity : ComponentActivity() {
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 val statusLabel = when (currentState) {
-                                    EPersonaState.Online -> stringResource(R.string.status_online)
-                                    EPersonaState.Away -> stringResource(R.string.status_away)
-                                    else -> stringResource(R.string.status_offline)
+                                    EPersonaState.Online -> stringResource(R.string.stores_accounts_status_online)
+                                    EPersonaState.Away -> stringResource(R.string.stores_accounts_status_away)
+                                    else -> stringResource(R.string.stores_accounts_status_offline)
                                 }
                                 val statusColor = when (currentState) {
                                     EPersonaState.Online -> StatusOnline
@@ -5987,13 +5987,13 @@ class UnifiedActivity : ComponentActivity() {
                             Column(Modifier.padding(top = 12.dp)) {
                                 HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
                                 Spacer(Modifier.height(8.dp))
-                                Text(stringResource(R.string.status_header), style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                                Text(stringResource(R.string.stores_accounts_status_header), style = MaterialTheme.typography.labelSmall, color = TextSecondary)
                                 Spacer(Modifier.height(8.dp))
 
                                 listOf(
-                                    Triple(EPersonaState.Online, stringResource(R.string.status_online), StatusOnline),
-                                    Triple(EPersonaState.Away, stringResource(R.string.status_away), StatusAway),
-                                    Triple(EPersonaState.Invisible, stringResource(R.string.status_invisible), StatusOffline)
+                                    Triple(EPersonaState.Online, stringResource(R.string.stores_accounts_status_online), StatusOnline),
+                                    Triple(EPersonaState.Away, stringResource(R.string.stores_accounts_status_away), StatusAway),
+                                    Triple(EPersonaState.Invisible, stringResource(R.string.stores_accounts_status_invisible), StatusOffline)
                                 ).forEach { (state, label, color) ->
                                     val isSelected = currentState == state
                                     val rowBg by animateColorAsState(
@@ -6060,7 +6060,7 @@ class UnifiedActivity : ComponentActivity() {
                 Spacer(Modifier.height(20.dp))
 
                 // ── Layouts ──
-                Text(stringResource(R.string.layouts_header), color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp, modifier = Modifier.padding(bottom = 4.dp))
+                Text(stringResource(R.string.library_games_layouts_header), color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp, modifier = Modifier.padding(bottom = 4.dp))
                 Spacer(Modifier.height(8.dp))
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -6070,12 +6070,12 @@ class UnifiedActivity : ComponentActivity() {
                         modifier = Modifier.weight(1f)
                     ) { if (it) onLibraryLayoutSelected(LibraryLayoutMode.GRID_4) }
                     DrawerFilterButton(
-                        label = stringResource(R.string.layout_carousel),
+                        label = stringResource(R.string.library_games_layout_carousel),
                         checked = libraryLayoutMode == LibraryLayoutMode.CAROUSEL,
                         modifier = Modifier.weight(1f)
                     ) { if (it) onLibraryLayoutSelected(LibraryLayoutMode.CAROUSEL) }
                     DrawerFilterButton(
-                        label = stringResource(R.string.layout_list),
+                        label = stringResource(R.string.library_games_layout_list),
                         checked = libraryLayoutMode == LibraryLayoutMode.LIST,
                         modifier = Modifier.weight(1f)
                     ) { if (it) onLibraryLayoutSelected(LibraryLayoutMode.LIST) }
@@ -6084,10 +6084,10 @@ class UnifiedActivity : ComponentActivity() {
                 Spacer(Modifier.height(16.dp))
 
                 // ── Stores ──
-                Text(stringResource(R.string.stores_header), color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp, modifier = Modifier.padding(bottom = 4.dp))
+                Text(stringResource(R.string.stores_accounts_stores_header), color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp, modifier = Modifier.padding(bottom = 4.dp))
                 Spacer(Modifier.height(8.dp))
 
-                DrawerFilterButton(stringResource(R.string.aio_store_mode), aioMode, Modifier.fillMaxWidth()) { onAioToggle(it) }
+                DrawerFilterButton(stringResource(R.string.stores_accounts_aio_store_mode), aioMode, Modifier.fillMaxWidth()) { onAioToggle(it) }
                 Spacer(Modifier.height(8.dp))
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -6103,7 +6103,7 @@ class UnifiedActivity : ComponentActivity() {
                 Spacer(Modifier.height(16.dp))
 
                 // ── Content Types ──
-                Text(stringResource(R.string.content_types_header), color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp, modifier = Modifier.padding(bottom = 4.dp))
+                Text(stringResource(R.string.settings_content_types_header), color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp, modifier = Modifier.padding(bottom = 4.dp))
                 Spacer(Modifier.height(8.dp))
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -6267,16 +6267,16 @@ class UnifiedActivity : ComponentActivity() {
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, tint = Accent, modifier = Modifier.size(22.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.add_custom_game), style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.library_games_add_custom_game), style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.weight(1f))
                         TextButton(onClick = onDismiss, modifier = Modifier.height(34.dp)) {
-                            Text(stringResource(R.string.cancel), color = TextSecondary, fontSize = 12.sp)
+                            Text(stringResource(R.string.common_ui_cancel), color = TextSecondary, fontSize = 12.sp)
                         }
                         Spacer(Modifier.width(4.dp))
                         Button(
                             onClick = {
                                 if (selectedExePath == null || gameName.isBlank() || gameFolder == null) {
-                                    android.widget.Toast.makeText(context, context.getString(R.string.select_exe_provide_name), android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(context, context.getString(R.string.library_games_select_exe_provide_name), android.widget.Toast.LENGTH_SHORT).show()
                                     return@Button
                                 }
                                 isAdding = true
@@ -6298,7 +6298,7 @@ class UnifiedActivity : ComponentActivity() {
                             if (isAdding) {
                                 CircularProgressIndicator(color = Color.White, modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
                             } else {
-                                Text(stringResource(R.string.add), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text(stringResource(R.string.common_ui_add), fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                         }
                     }
@@ -6338,7 +6338,7 @@ class UnifiedActivity : ComponentActivity() {
                             OutlinedTextField(
                                 value = gameName,
                                 onValueChange = { gameName = it },
-                                label = { Text(stringResource(R.string.game_name), fontSize = 12.sp) },
+                                label = { Text(stringResource(R.string.library_games_game_name), fontSize = 12.sp) },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth().height(52.dp),
                                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = TextPrimary),
@@ -6566,14 +6566,14 @@ class UnifiedActivity : ComponentActivity() {
             ) {
                 Column(modifier = Modifier.padding(24.dp)) {
                     Text(
-                        text = stringResource(R.string.custom_download_path),
+                        text = stringResource(R.string.stores_accounts_custom_download_path),
                         style = MaterialTheme.typography.titleLarge,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        text = stringResource(R.string.custom_download_path_description),
+                        text = stringResource(R.string.stores_accounts_custom_download_path_description),
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextSecondary
                     )
@@ -6583,7 +6583,7 @@ class UnifiedActivity : ComponentActivity() {
                         horizontalArrangement = Arrangement.Center
                     ) {
                         TextButton(onClick = onDismiss) {
-                            Text(stringResource(R.string.close), color = TextSecondary)
+                            Text(stringResource(R.string.common_ui_close), color = TextSecondary)
                         }
                         Spacer(Modifier.width(8.dp))
                         Button(
@@ -6591,7 +6591,7 @@ class UnifiedActivity : ComponentActivity() {
                             colors = ButtonDefaults.buttonColors(containerColor = Accent),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text(stringResource(R.string.proceed))
+                            Text(stringResource(R.string.common_ui_proceed))
                         }
                     }
 

@@ -75,10 +75,10 @@ public class FEXCorePresetManager {
 
     public static ArrayList<FEXCorePreset> getPresets(Context context) {
         ArrayList<FEXCorePreset> presets = new ArrayList<>();
-        presets.add(new FEXCorePreset(FEXCorePreset.STABILITY, context.getString(R.string.stability)));
-        presets.add(new FEXCorePreset(FEXCorePreset.COMPATIBILITY, context.getString(R.string.compatibility)));
-        presets.add(new FEXCorePreset(FEXCorePreset.INTERMEDIATE, context.getString(R.string.intermediate)));
-        presets.add(new FEXCorePreset(FEXCorePreset.PERFORMANCE, context.getString(R.string.performance)));
+        presets.add(new FEXCorePreset(FEXCorePreset.STABILITY, context.getString(R.string.container_box64_stability)));
+        presets.add(new FEXCorePreset(FEXCorePreset.COMPATIBILITY, context.getString(R.string.container_box64_compatibility)));
+        presets.add(new FEXCorePreset(FEXCorePreset.INTERMEDIATE, context.getString(R.string.container_box64_intermediate)));
+        presets.add(new FEXCorePreset(FEXCorePreset.PERFORMANCE, context.getString(R.string.container_box64_performance)));
         for (String[] preset : customPresetsIterator(context)) presets.add(new FEXCorePreset(preset[0], preset[1]));
         return presets;
     }

@@ -77,7 +77,7 @@ public class ShortcutsFragment extends Fragment {
         manager = new ContainerManager(getContext());
         loadShortcutsList();
         if (getActivity() != null && ((AppCompatActivity)getActivity()).getSupportActionBar() != null) {
-            ((AppCompatActivity)getActivity()).getSupportActionBar().setTitle(R.string.shortcuts);
+            ((AppCompatActivity)getActivity()).getSupportActionBar().setTitle(R.string.common_ui_shortcuts);
         }
     }
 
@@ -179,11 +179,11 @@ public class ShortcutsFragment extends Fragment {
                         (new ShortcutSettingsDialog(ShortcutsFragment.this, shortcut)).show();
                     } catch (Throwable e) {
                         Log.e("ShortcutsFragment", "Error opening shortcut settings", e);
-                        Toast.makeText(getContext(), R.string.error_opening_shortcut_settings, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), R.string.shortcuts_list_error_opening_settings, Toast.LENGTH_SHORT).show();
                     }
                 }
                 else if (itemId == R.id.shortcut_remove) {
-                    ContentDialog.confirm(context, R.string.do_you_want_to_remove_this_shortcut, () -> {
+                    ContentDialog.confirm(context, R.string.shortcuts_list_confirm_remove, () -> {
                         boolean fileDeleted = shortcut.file.delete();
                         File lnkFile = new File(shortcut.file.getPath().substring(0, shortcut.file.getPath().lastIndexOf(".")) + ".lnk");
                         if (lnkFile.exists()) {
@@ -193,9 +193,9 @@ public class ShortcutsFragment extends Fragment {
                         if (fileDeleted) {
                             disableShortcutOnScreen(requireContext(), shortcut);
                             loadShortcutsList();
-                            Toast.makeText(context, R.string.shortcut_removed, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, R.string.shortcuts_list_removed, Toast.LENGTH_SHORT).show();
                         } else {
-                            Toast.makeText(context, R.string.shortcut_remove_failed, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, R.string.shortcuts_list_remove_failed, Toast.LENGTH_SHORT).show();
                         }
                     });
                 }
@@ -210,10 +210,10 @@ public class ShortcutsFragment extends Fragment {
                         public void onContainerSelected(Container selectedContainer) {
                             // Use the selected container to clone the shortcut
                             if (shortcut.cloneToContainer(selectedContainer)) {
-                                Toast.makeText(context, R.string.shortcut_cloned, Toast.LENGTH_SHORT).show();
+                                Toast.makeText(context, R.string.shortcuts_list_cloned, Toast.LENGTH_SHORT).show();
                                 loadShortcutsList(); // Reload the shortcuts to show the cloned one
                             } else {
-                                Toast.makeText(context, R.string.shortcut_clone_failed, Toast.LENGTH_SHORT).show();
+                                Toast.makeText(context, R.string.shortcuts_list_clone_failed, Toast.LENGTH_SHORT).show();
                             }
                         }
                     });
@@ -241,7 +241,7 @@ public class ShortcutsFragment extends Fragment {
         private void showContainerSelectionDialog(ArrayList<Container> containers, OnContainerSelectedListener listener) {
             // Create an AlertDialog to show the list of containers
             AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-            builder.setTitle(R.string.select_a_container);
+            builder.setTitle(R.string.shortcuts_list_select_a_container);
 
             // Create an array of container names to display
             String[] containerNames = new String[containers.size()];
@@ -284,7 +284,7 @@ public class ShortcutsFragment extends Fragment {
                 DocumentFile pickedDir = DocumentFile.fromTreeUri(getContext(), folderUri);
 
                 if (pickedDir == null || !pickedDir.canWrite()) {
-                    Toast.makeText(getContext(), R.string.cannot_write_folder, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), R.string.common_ui_cannot_write_folder, Toast.LENGTH_SHORT).show();
                     return;
                 }
 
@@ -294,7 +294,7 @@ public class ShortcutsFragment extends Fragment {
             }
 
             if (!shortcutsDir.exists() && !shortcutsDir.mkdirs()) {
-                Toast.makeText(getContext(), R.string.failed_create_directory, Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), R.string.common_ui_failed_create_directory, Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -334,9 +334,9 @@ public class ShortcutsFragment extends Fragment {
                 // Determine the toast message
                 String message;
                 if (fileExists) {
-                    message = getString(R.string.shortcut_updated_at, exportFile.getPath());
+                    message = getString(R.string.shortcuts_properties_updated_at, exportFile.getPath());
                 } else {
-                    message = getString(R.string.shortcut_exported_to, exportFile.getPath());
+                    message = getString(R.string.shortcuts_list_exported_to, exportFile.getPath());
                 }
 
                 // Show a toast message to the user
@@ -344,7 +344,7 @@ public class ShortcutsFragment extends Fragment {
 
             } catch (IOException e) {
                 Log.e("ShortcutsFragment", "Failed to export shortcut", e);
-                Toast.makeText(getContext(), R.string.failed_export_shortcut, Toast.LENGTH_LONG).show();
+                Toast.makeText(getContext(), R.string.shortcuts_list_failed_export, Toast.LENGTH_LONG).show();
             }
         }
 
@@ -367,19 +367,19 @@ public class ShortcutsFragment extends Fragment {
 
             // Create the properties dialog
             ContentDialog dialog = new ContentDialog(getContext(), R.layout.shortcut_properties_dialog);
-            dialog.setTitle(R.string.properties);
+            dialog.setTitle(R.string.common_ui_properties);
 
             TextView playCountTextView = dialog.findViewById(R.id.play_count);
             TextView playtimeTextView = dialog.findViewById(R.id.playtime);
 
-            playCountTextView.setText(getString(R.string.times_played_label) + playCount);
-            playtimeTextView.setText(getString(R.string.playtime_label) + playtimeFormatted);
+            playCountTextView.setText(getString(R.string.library_games_times_played_label) + playCount);
+            playtimeTextView.setText(getString(R.string.library_games_playtime_label) + playtimeFormatted);
 
             Button resetPropertiesButton = dialog.findViewById(R.id.reset_properties);
 
             resetPropertiesButton.setOnClickListener(v -> {
                 playtimePrefs.edit().remove(playtimeKey).remove(playCountKey).apply();
-                Toast.makeText(getContext(), R.string.properties_reset, Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), R.string.shortcuts_properties_properties_reset, Toast.LENGTH_SHORT).show();
                 dialog.dismiss();
             });
 
@@ -425,7 +425,7 @@ public class ShortcutsFragment extends Fragment {
         ShortcutManager shortcutManager = getSystemService(context, ShortcutManager.class);
         try {
             shortcutManager.disableShortcuts(Collections.singletonList(shortcut.getExtra("uuid")),
-                    context.getString(R.string.shortcut_not_available));
+                    context.getString(R.string.shortcuts_list_not_available));
         } catch (Exception e) {}
     }
 

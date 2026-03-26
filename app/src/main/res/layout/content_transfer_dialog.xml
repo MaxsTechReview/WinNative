@@ -27,7 +27,7 @@
             android:layout_height="wrap_content"
             android:fontFamily="@font/inter"
             android:letterSpacing="0.08"
-            android:text="@string/contents_downloading_title"
+            android:text="@string/settings_content_downloading_title"
             android:textAllCaps="true"
             android:textColor="@color/settings_text_secondary"
             android:textSize="11sp"

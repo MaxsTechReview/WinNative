@@ -40,14 +40,14 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
         super(activity, R.layout.task_manager_dialog);
         this.activity = activity;
         setCancelable(false);
-        setTitle(R.string.task_manager);
+        setTitle(R.string.session_task_title);
         setIcon(R.drawable.icon_task_manager);
 
         Button cancelButton = findViewById(R.id.BTCancel);
-        cancelButton.setText(R.string.new_task);
+        cancelButton.setText(R.string.session_task_new_task);
         cancelButton.setOnClickListener((v) -> {
             dismiss();
-            ContentDialog.prompt(activity, R.string.new_task, "taskmgr.exe", (command) -> activity.getWinHandler().exec(command));
+            ContentDialog.prompt(activity, R.string.session_task_new_task, "taskmgr.exe", (command) -> activity.getWinHandler().exec(command));
         });
 
         setOnDismissListener((dialog) -> {
@@ -91,7 +91,7 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
                 dismiss();
             }
             else if (itemId == R.id.process_end) {
-                ContentDialog.confirm(activity, R.string.do_you_want_to_end_this_process, () -> {
+                ContentDialog.confirm(activity, R.string.session_task_confirm_end_process, () -> {
                     winHandler.killProcess(processInfo.name);
                 });
             }
@@ -140,7 +140,7 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
         activity.runOnUiThread(() -> {
             synchronized (lock) {
                 final LinearLayout container = findViewById(R.id.LLProcessList);
-                setBottomBarText(activity.getString(R.string.processes)+": " + numProcesses);
+                setBottomBarText(activity.getString(R.string.session_task_processes)+": " + numProcesses);
 
                 if (numProcesses == 0) {
                     container.removeAllViews();
@@ -201,7 +201,7 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
         int avgClockSpeed = totalClockSpeed / clockSpeeds.length;
         TextView tvCPUTitle = findViewById(R.id.TVCPUTitle);
         byte cpuUsagePercent = (byte)(((float)avgClockSpeed / maxClockSpeed) * 100.0f);
-        tvCPUTitle.setText(activity.getString(R.string.cpu_usage_format, cpuUsagePercent));
+        tvCPUTitle.setText(activity.getString(R.string.session_task_cpu_usage_format, cpuUsagePercent));
     }
 
     private void updateMemoryInfoView() {
@@ -212,7 +212,7 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
         byte memUsagePercent = (byte)(((double)usedMem / memoryInfo.totalMem) * 100.0f);
 
         TextView tvMemoryTitle = findViewById(R.id.TVMemoryTitle);
-        tvMemoryTitle.setText(activity.getString(R.string.memory)+" ("+memUsagePercent+"%)");
+        tvMemoryTitle.setText(activity.getString(R.string.session_task_memory)+" ("+memUsagePercent+"%)");
 
         TextView tvMemoryInfo = findViewById(R.id.TVMemoryInfo);
         tvMemoryInfo.setText(StringUtils.formatBytes(usedMem, false)+"/"+StringUtils.formatBytes(memoryInfo.totalMem));

@@ -76,7 +76,7 @@ public class DXVKConfigDialog extends ContentDialog {
         super(anchor.getContext(), R.layout.dxvk_config_dialog);
         context = anchor.getContext();
         setIcon(R.drawable.icon_settings);
-        setTitle("DXVK "+context.getString(R.string.configuration));
+        setTitle("DXVK "+context.getString(R.string.container_config_title));
 
         final Spinner sDXVKVersion = findViewById(R.id.SDXVKVersion);
         final Spinner sVKD3DVersion = findViewById(R.id.SVKD3DVersion);

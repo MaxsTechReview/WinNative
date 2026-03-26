@@ -22,7 +22,7 @@
             android:layout_marginBottom="10dp"
             android:fontFamily="@font/inter"
             android:letterSpacing="0.02"
-            android:text="@string/driver_manager_header"
+            android:text="@string/settings_drivers_manager_header"
             android:textColor="@color/settings_text_primary"
             android:textSize="18sp"
             android:textStyle="bold" />
@@ -53,7 +53,7 @@
             android:gravity="center"
             android:paddingHorizontal="24dp"
             android:paddingBottom="76dp"
-            android:text="@string/no_items_to_display"
+            android:text="@string/common_ui_no_items_to_display"
             android:textColor="@color/settings_text_secondary"
             android:textSize="15sp"
             android:visibility="gone" />
@@ -67,7 +67,7 @@
         android:layout_marginEnd="76dp"
         android:layout_marginBottom="28dp"
         android:background="@drawable/content_fab_background"
-        android:contentDescription="@string/install_drivers"
+        android:contentDescription="@string/settings_drivers_install"
         android:elevation="6dp"
         android:padding="12dp"
         android:src="@drawable/ic_content_add"

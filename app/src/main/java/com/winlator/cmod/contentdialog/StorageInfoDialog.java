@@ -20,7 +20,7 @@ public class StorageInfoDialog extends ContentDialog {
     public StorageInfoDialog(@NonNull Activity activity, Container container) {
         super(activity, R.layout.container_storage_info_dialog);
 
-        setTitle(R.string.storage_info);
+        setTitle(R.string.container_config_storage_info);
         setIcon(R.drawable.icon_info);
 
         AtomicLong driveCSize = new AtomicLong();
@@ -78,7 +78,7 @@ public class StorageInfoDialog extends ContentDialog {
             onAddSize.call(size);
         });
 
-        ((TextView)findViewById(R.id.BTCancel)).setText(R.string.clear_cache);
+        ((TextView)findViewById(R.id.BTCancel)).setText(R.string.container_config_clear_cache);
         setOnCancelCallback(() -> {
             FileUtils.clear(cacheDir);
 

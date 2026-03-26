@@ -71,7 +71,7 @@ class PresetsFragment : Fragment() {
             }.onSuccess {
                 refreshRows(selectLatestPreset = true)
             }.onFailure {
-                AppUtils.showToast(requireContext(), R.string.unable_to_import_preset)
+                AppUtils.showToast(requireContext(), R.string.container_presets_unable_to_import)
             }
         }
 
@@ -102,7 +102,7 @@ class PresetsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        (activity as? AppCompatActivity)?.supportActionBar?.setTitle(R.string.presets)
+        (activity as? AppCompatActivity)?.supportActionBar?.setTitle(R.string.container_presets_title)
 
         presetAdapter = PresetRowAdapter()
         val gridLayoutManager = GridLayoutManager(requireContext(), GRID_SPAN_COUNT).apply {
@@ -250,10 +250,10 @@ class PresetsFragment : Fragment() {
                     editable = editable
                 )
             )
-            add(PresetRow.Header(R.string.environment_variables))
+            add(PresetRow.Header(R.string.container_config_env_vars))
 
             if (definitions.isEmpty()) {
-                add(PresetRow.Empty(getString(R.string.no_items_to_display)))
+                add(PresetRow.Empty(getString(R.string.common_ui_no_items_to_display)))
             } else {
                 definitions.forEach { definition ->
                     add(
@@ -335,7 +335,7 @@ class PresetsFragment : Fragment() {
 
     private fun summarizeDescription(fullDescription: String): String {
         if (fullDescription.isBlank()) {
-            return getString(R.string.no_description_available)
+            return getString(R.string.container_presets_no_description)
         }
 
         val plainText = HtmlCompat.fromHtml(
@@ -347,7 +347,7 @@ class PresetsFragment : Fragment() {
             .firstOrNull { it.isNotBlank() }
             .orEmpty()
 
-        return plainText.ifBlank { getString(R.string.no_description_available) }
+        return plainText.ifBlank { getString(R.string.container_presets_no_description) }
     }
 
     private fun loadPresets(category: PresetCategory): List<PresetOption> {
@@ -380,7 +380,7 @@ class PresetsFragment : Fragment() {
         val defaultName = buildDefaultPresetName(category)
         ContentDialog.prompt(
             requireContext(),
-            R.string.new_preset,
+            R.string.container_presets_new,
             defaultName
         ) { rawName ->
             val sanitizedName = sanitizePresetName(rawName)
@@ -401,13 +401,13 @@ class PresetsFragment : Fragment() {
     private fun renameCurrentPreset() {
         val currentPreset = currentPresetOption() ?: return
         if (!currentPreset.isCustom) {
-            AppUtils.showToast(requireContext(), R.string.cannot_rename_this_preset)
+            AppUtils.showToast(requireContext(), R.string.container_presets_cannot_rename)
             return
         }
 
         ContentDialog.prompt(
             requireContext(),
-            R.string.rename_preset,
+            R.string.container_presets_rename,
             currentPreset.name
         ) { rawName ->
             val sanitizedName = sanitizePresetName(rawName)
@@ -429,7 +429,7 @@ class PresetsFragment : Fragment() {
         val currentPreset = currentPresetOption() ?: return
         ContentDialog.confirm(
             requireContext(),
-            R.string.do_you_want_to_duplicate_this_preset
+            R.string.container_presets_confirm_duplicate
         ) {
             when (currentCategory) {
                 PresetCategory.BOX64 -> Box64PresetManager.duplicatePreset(
@@ -450,13 +450,13 @@ class PresetsFragment : Fragment() {
     private fun removeCurrentPreset() {
         val currentPreset = currentPresetOption() ?: return
         if (!currentPreset.isCustom) {
-            AppUtils.showToast(requireContext(), R.string.you_cannot_remove_this_preset)
+            AppUtils.showToast(requireContext(), R.string.container_presets_cannot_remove)
             return
         }
 
         ContentDialog.confirm(
             requireContext(),
-            R.string.do_you_want_to_remove_this_preset
+            R.string.container_presets_confirm_remove
         ) {
             when (currentCategory) {
                 PresetCategory.BOX64 -> Box64PresetManager.removePreset(
@@ -477,7 +477,7 @@ class PresetsFragment : Fragment() {
     private fun exportCurrentPreset() {
         val currentPreset = currentPresetOption() ?: return
         if (!currentPreset.isCustom) {
-            AppUtils.showToast(requireContext(), R.string.cannot_export_this_preset)
+            AppUtils.showToast(requireContext(), R.string.container_presets_cannot_export)
             return
         }
 
@@ -531,7 +531,7 @@ class PresetsFragment : Fragment() {
             PresetCategory.BOX64 -> Box64PresetManager.getNextPresetId(requireContext(), "box64")
             PresetCategory.FEXCORE -> FEXCorePresetManager.getNextPresetId(requireContext())
         }
-        return "${getString(R.string.preset)}-$nextId"
+        return "${getString(R.string.container_presets_preset)}-$nextId"
     }
 
     private fun buildDefaultValueMap(category: PresetCategory): LinkedHashMap<String, String> {
@@ -707,13 +707,13 @@ class PresetsFragment : Fragment() {
         fun bind(row: PresetRow.Selector) {
             bindCategoryTabs(row.category)
             itemBinding.TVPresetType.text = getString(
-                if (row.editable) R.string.custom_preset else R.string.built_in_preset
+                if (row.editable) R.string.container_presets_custom else R.string.container_presets_built_in
             )
             itemBinding.TVSelectorHint.text = getString(
                 if (row.editable) {
-                    R.string.preset_changes_auto_saved
+                    R.string.container_presets_changes_auto_saved
                 } else {
-                    R.string.preset_builtin_readonly_hint
+                    R.string.container_presets_builtin_readonly_hint
                 }
             )
 
@@ -933,14 +933,14 @@ class PresetsFragment : Fragment() {
         val helpKeyPrefix: String
     ) {
         BOX64(
-            labelRes = R.string.box64,
+            labelRes = R.string.container_box64_title,
             preferenceKey = "box64_preset",
             defaultPresetId = Box64Preset.COMPATIBILITY,
             assetFile = "box64_env_vars.json",
             helpKeyPrefix = "box64_env_var_help__"
         ),
         FEXCORE(
-            labelRes = R.string.fexcore_config,
+            labelRes = R.string.container_fexcore_config,
             preferenceKey = "fexcore_preset",
             defaultPresetId = FEXCorePreset.INTERMEDIATE,
             assetFile = "fexcore_env_vars.json",

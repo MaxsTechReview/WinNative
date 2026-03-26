@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <group android:checkableBehavior="single">
-        <item android:icon="@drawable/ic_other" android:id="@+id/main_menu_google" android:title="@string/google" />
-        <item android:icon="@drawable/ic_stores" android:id="@+id/main_menu_stores" android:title="@string/stores" />
-        <item android:icon="@drawable/ic_containers" android:id="@+id/main_menu_containers" android:title="@string/containers" />
-        <item android:icon="@drawable/ic_presets" android:id="@+id/main_menu_settings" android:title="@string/presets" />
-        <item android:icon="@drawable/ic_components" android:id="@+id/main_menu_contents" android:title="@string/components" />
-        <item android:icon="@drawable/ic_drivers" android:id="@+id/main_menu_adrenotools_gpu_drivers" android:title="@string/drivers" />
-        <item android:icon="@drawable/ic_input_controls" android:id="@+id/main_menu_input_controls" android:title="@string/input_controls" />
+        <item android:icon="@drawable/ic_other" android:id="@+id/main_menu_google" android:title="@string/google_cloud_google" />
+        <item android:icon="@drawable/ic_stores" android:id="@+id/main_menu_stores" android:title="@string/stores_accounts_title" />
+        <item android:icon="@drawable/ic_containers" android:id="@+id/main_menu_containers" android:title="@string/common_ui_containers" />
+        <item android:icon="@drawable/ic_presets" android:id="@+id/main_menu_settings" android:title="@string/container_presets_title" />
+        <item android:icon="@drawable/ic_components" android:id="@+id/main_menu_contents" android:title="@string/settings_content_components" />
+        <item android:icon="@drawable/ic_drivers" android:id="@+id/main_menu_adrenotools_gpu_drivers" android:title="@string/settings_drivers_title" />
+        <item android:icon="@drawable/ic_input_controls" android:id="@+id/main_menu_input_controls" android:title="@string/common_ui_input_controls" />
         <item android:icon="@drawable/icon_debug" android:id="@+id/main_menu_advanced" android:title="@string/settings_debug_title" />
-        <item android:icon="@drawable/ic_other" android:id="@+id/main_menu_other" android:title="@string/other" />
+        <item android:icon="@drawable/ic_other" android:id="@+id/main_menu_other" android:title="@string/common_ui_other" />
     </group>
     <!-- Hidden items used as internal navigation targets -->
     <group android:checkableBehavior="single" android:visible="false">
-        <item android:id="@+id/main_menu_about" android:title="@string/about" />
+        <item android:id="@+id/main_menu_about" android:title="@string/common_ui_about" />
     </group>
 </menu>

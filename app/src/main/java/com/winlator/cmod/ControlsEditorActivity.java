@@ -66,12 +66,12 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         switch (v.getId()) {
             case R.id.BTAddElement:
                 if (!inputControlsView.addElement()) {
-                    AppUtils.showToast(this, R.string.no_profile_selected);
+                    AppUtils.showToast(this, R.string.input_controls_editor_no_profile_selected);
                 }
                 break;
             case R.id.BTRemoveElement:
                 if (!inputControlsView.removeElement()) {
-                    AppUtils.showToast(this, R.string.no_control_element_selected);
+                    AppUtils.showToast(this, R.string.input_controls_editor_no_element_selected);
                 }
                 break;
             case R.id.BTElementSettings:
@@ -79,7 +79,7 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
                 if (selectedElement != null) {
                     showControlElementSettings(v);
                 }
-                else AppUtils.showToast(this, R.string.no_control_element_selected);
+                else AppUtils.showToast(this, R.string.input_controls_editor_no_element_selected);
                 break;
         }
     }
@@ -222,13 +222,13 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
 
         ControlElement.Type type = element.getType();
         if (type == ControlElement.Type.BUTTON) {
-            loadBindingSpinner(element, container, 0, R.string.binding);
+            loadBindingSpinner(element, container, 0, R.string.input_controls_editor_binding);
         }
         else if (type == ControlElement.Type.D_PAD || type == ControlElement.Type.STICK || type == ControlElement.Type.TRACKPAD) {
-            loadBindingSpinner(element, container, 0, R.string.binding_up);
-            loadBindingSpinner(element, container, 1, R.string.binding_right);
-            loadBindingSpinner(element, container, 2, R.string.binding_down);
-            loadBindingSpinner(element, container, 3, R.string.binding_left);
+            loadBindingSpinner(element, container, 0, R.string.input_controls_editor_binding_up);
+            loadBindingSpinner(element, container, 1, R.string.input_controls_editor_binding_right);
+            loadBindingSpinner(element, container, 2, R.string.input_controls_editor_binding_down);
+            loadBindingSpinner(element, container, 3, R.string.input_controls_editor_binding_left);
         }
     }
 

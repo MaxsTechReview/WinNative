@@ -37,6 +37,6 @@
         android:id="@+id/BTBrowse"
         style="@style/OtherSettingsInlineButton"
         android:layout_marginTop="8dp"
-        android:text="@string/browse" />
+        android:text="@string/common_ui_browse" />
 
 </LinearLayout>

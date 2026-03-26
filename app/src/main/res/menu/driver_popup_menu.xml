@@ -4,5 +4,5 @@
         android:id="@+id/remove_driver"
         android:icon="@drawable/ic_content_menu_remove"
         android:iconTint="@color/settings_danger"
-        android:title="@string/remove" />
+        android:title="@string/common_ui_remove" />
 </menu>

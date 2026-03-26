@@ -73,40 +73,40 @@ fun buildXServerDrawerState(
     val items = mutableListOf(
         XServerDrawerItem(
             itemId = R.id.main_menu_keyboard,
-            title = context.getString(R.string.keyboard),
-            subtitle = context.getString(R.string.drawer_keyboard_subtitle),
+            title = context.getString(R.string.session_drawer_keyboard),
+            subtitle = context.getString(R.string.session_drawer_keyboard_subtitle),
             iconRes = R.drawable.icon_keyboard,
         ),
         XServerDrawerItem(
             itemId = R.id.main_menu_input_controls,
-            title = context.getString(R.string.input_controls),
-            subtitle = context.getString(R.string.drawer_input_controls_subtitle),
+            title = context.getString(R.string.common_ui_input_controls),
+            subtitle = context.getString(R.string.session_drawer_input_controls_subtitle),
             iconRes = R.drawable.icon_input_controls,
         ),
         XServerDrawerItem(
             itemId = R.id.main_menu_relative_mouse_movement,
-            title = context.getString(R.string.relative_mouse_movement),
-            subtitle = if (relativeMouseEnabled) context.getString(R.string.enabled) else context.getString(R.string.disabled),
+            title = context.getString(R.string.session_drawer_relative_mouse_movement),
+            subtitle = if (relativeMouseEnabled) context.getString(R.string.common_ui_enabled) else context.getString(R.string.common_ui_disabled),
             iconRes = R.drawable.ic_input_kbd_mouse_move,
             active = relativeMouseEnabled,
         ),
         XServerDrawerItem(
             itemId = R.id.main_menu_disable_mouse,
-            title = context.getString(R.string.mouse_input),
-            subtitle = if (mouseDisabled) context.getString(R.string.disabled) else context.getString(R.string.enabled),
+            title = context.getString(R.string.session_drawer_mouse_input),
+            subtitle = if (mouseDisabled) context.getString(R.string.common_ui_disabled) else context.getString(R.string.common_ui_enabled),
             iconRes = R.drawable.ic_input_kbd_mouse,
             active = !mouseDisabled,
         ),
         XServerDrawerItem(
             itemId = R.id.main_menu_screen_effects,
-            title = context.getString(R.string.screen_effect),
-            subtitle = context.getString(R.string.drawer_screen_effects_subtitle),
+            title = context.getString(R.string.session_effects_title),
+            subtitle = context.getString(R.string.session_drawer_screen_effects_subtitle),
             iconRes = R.drawable.icon_screen_effect,
         ),
         XServerDrawerItem(
             itemId = R.id.main_menu_toggle_fullscreen,
-            title = context.getString(R.string.toggle_fullscreen),
-            subtitle = context.getString(R.string.drawer_fullscreen_subtitle),
+            title = context.getString(R.string.session_drawer_toggle_fullscreen),
+            subtitle = context.getString(R.string.session_drawer_fullscreen_subtitle),
             iconRes = R.drawable.icon_fullscreen,
         ),
         XServerDrawerItem(
@@ -118,21 +118,21 @@ fun buildXServerDrawerState(
         ),
         XServerDrawerItem(
             itemId = R.id.main_menu_pause,
-            title = if (paused) context.getString(R.string.resume) else context.getString(R.string.pause),
-            subtitle = if (paused) context.getString(R.string.wine_processes_paused) else context.getString(R.string.pause_all_wine_processes),
+            title = if (paused) context.getString(R.string.session_drawer_resume) else context.getString(R.string.session_drawer_pause),
+            subtitle = if (paused) context.getString(R.string.session_drawer_wine_processes_paused) else context.getString(R.string.session_drawer_pause_all_wine_processes),
             iconRes = if (paused) R.drawable.icon_play else R.drawable.icon_pause,
             active = paused,
         ),
         XServerDrawerItem(
             itemId = R.id.main_menu_pip_mode,
-            title = context.getString(R.string.picture_in_picture),
-            subtitle = context.getString(R.string.drawer_pip_subtitle),
+            title = context.getString(R.string.session_drawer_picture_in_picture),
+            subtitle = context.getString(R.string.session_drawer_pip_subtitle),
             iconRes = R.drawable.ic_picture_in_picture_alt,
         ),
         XServerDrawerItem(
             itemId = R.id.main_menu_task_manager,
-            title = context.getString(R.string.task_manager),
-            subtitle = context.getString(R.string.drawer_task_manager_subtitle),
+            title = context.getString(R.string.session_task_title),
+            subtitle = context.getString(R.string.session_drawer_task_manager_subtitle),
             iconRes = R.drawable.icon_task_manager,
         ),
     )
@@ -140,8 +140,8 @@ fun buildXServerDrawerState(
     if (showMagnifier) {
         items += XServerDrawerItem(
             itemId = R.id.main_menu_magnifier,
-            title = context.getString(R.string.magnifier),
-            subtitle = context.getString(R.string.drawer_magnifier_subtitle),
+            title = context.getString(R.string.session_drawer_magnifier),
+            subtitle = context.getString(R.string.session_drawer_magnifier_subtitle),
             iconRes = R.drawable.icon_magnifier,
         )
     }
@@ -149,16 +149,16 @@ fun buildXServerDrawerState(
     if (showLogs) {
         items += XServerDrawerItem(
             itemId = R.id.main_menu_logs,
-            title = context.getString(R.string.logs),
-            subtitle = context.getString(R.string.drawer_logs_subtitle),
+            title = context.getString(R.string.session_drawer_logs),
+            subtitle = context.getString(R.string.session_drawer_logs_subtitle),
             iconRes = R.drawable.icon_debug,
         )
     }
 
     items += XServerDrawerItem(
         itemId = R.id.main_menu_exit,
-        title = context.getString(R.string.exit),
-        subtitle = context.getString(R.string.drawer_exit_subtitle),
+        title = context.getString(R.string.common_ui_exit),
+        subtitle = context.getString(R.string.session_drawer_exit_subtitle),
         iconRes = R.drawable.icon_exit,
     )
 
@@ -286,7 +286,7 @@ private fun XServerDrawerRow(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = stringResource(R.string.on).uppercase(),
+                    text = stringResource(R.string.common_ui_on).uppercase(),
                     color = accent,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold

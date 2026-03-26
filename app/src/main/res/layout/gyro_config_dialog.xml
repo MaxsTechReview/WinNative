@@ -21,7 +21,7 @@
             android:id="@+id/TVGyroXSensitivity"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/x_sensitivity_format"
+            android:text="@string/session_gyroscope_x_sensitivity_format"
             android:layout_marginBottom="16dp" />
 
         <SeekBar
@@ -34,7 +34,7 @@
             android:id="@+id/TVGyroYSensitivity"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/y_sensitivity_format"
+            android:text="@string/session_gyroscope_y_sensitivity_format"
             android:layout_marginBottom="16dp" />
 
         <SeekBar
@@ -47,7 +47,7 @@
             android:id="@+id/TVGyroSmoothing"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/smoothing_format"
+            android:text="@string/session_gyroscope_smoothing_format"
             android:layout_marginBottom="16dp" />
 
         <SeekBar
@@ -60,21 +60,21 @@
             android:id="@+id/TVGyroDeadzone"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/deadzone_format"
+            android:text="@string/session_gyroscope_deadzone_format"
             android:layout_marginBottom="16dp" />
 
         <CheckBox
             android:id="@+id/CBInvertGyroX"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/invert_x"
+            android:text="@string/session_gyroscope_invert_x"
             android:layout_marginBottom="16dp" />
 
         <CheckBox
             android:id="@+id/CBInvertGyroY"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/invert_y"
+            android:text="@string/session_gyroscope_invert_y"
             android:layout_marginBottom="16dp" />
 
         <!-- Placeholder for the stick control with black background -->
@@ -90,7 +90,7 @@
             android:id="@+id/btnResetCenter"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/reset_stick_to_center"
+            android:text="@string/session_gyroscope_reset_stick_to_center"
             android:layout_gravity="center"
             android:layout_marginTop="16dp" />
 

@@ -359,7 +359,7 @@ class SteamService : Service(), IChallengeUrlChanged {
             if (PrefManager.downloadOnWifiOnly && !isWifiConnected) {
                 val svc = instance
                 if (svc != null) {
-                    svc.notificationHelper.notify(svc.getString(R.string.download_no_wifi))
+                    svc.notificationHelper.notify(svc.getString(R.string.downloads_queue_no_wifi))
                 } else {
                     Timber.w("checkWifiOrNotify: no SteamService instance to notify")
                 }
@@ -4507,7 +4507,7 @@ class SteamService : Service(), IChallengeUrlChanged {
                         PluviaApp.events.emit(AndroidEvent.DownloadPausedDueToConnectivity(appId))
                         removeDownloadJob(appId)
                     }
-                    notificationHelper.notify(getString(R.string.download_paused_wifi))
+                    notificationHelper.notify(getString(R.string.downloads_queue_paused_wifi))
                 }
             }
         }

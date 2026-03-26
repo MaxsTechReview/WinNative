@@ -61,7 +61,7 @@ class SetupWizardDriversDialogFragment : DialogFragment() {
         }
 
         val title = TextView(context).apply {
-            text = context.getString(R.string.driver_manager)
+            text = context.getString(R.string.settings_drivers_manager)
             setTextColor(Color.parseColor("#E6EDF3"))
             textSize = 18f
             typeface = android.graphics.Typeface.DEFAULT_BOLD

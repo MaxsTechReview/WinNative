@@ -74,7 +74,7 @@ public class EnvVarsView extends FrameLayout {
         addView(container);
 
         emptyTextView = new TextView(context);
-        emptyTextView.setText(R.string.no_items_to_display);
+        emptyTextView.setText(R.string.common_ui_no_items_to_display);
         emptyTextView.setTextColor(ContextCompat.getColor(context, R.color.settings_text_secondary));
         emptyTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         emptyTextView.setGravity(Gravity.CENTER);

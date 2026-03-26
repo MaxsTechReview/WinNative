@@ -101,7 +101,7 @@ fun GoogleScreen() {
             .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        SectionLabel(stringResource(R.string.google_services))
+        SectionLabel(stringResource(R.string.google_cloud_services))
 
         GoogleAccountCard(
             isLoggedIn = googleSignedIn,
@@ -128,7 +128,7 @@ fun GoogleScreen() {
             }
         )
 
-        SectionLabel(stringResource(R.string.google_store_logins), modifier = Modifier.padding(top = 8.dp))
+        SectionLabel(stringResource(R.string.google_cloud_store_logins), modifier = Modifier.padding(top = 8.dp))
 
         StoreLoginCard(
             state = syncState,
@@ -223,7 +223,7 @@ private fun GoogleAccountCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(R.string.google_play_games),
+                    text = stringResource(R.string.google_cloud_play_games),
                     color = TextPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold
@@ -250,9 +250,9 @@ private fun GoogleAccountCard(
                     Spacer(Modifier.width(6.dp))
                     Text(
                         text = when {
-                            busy -> stringResource(R.string.google_status_syncing)
-                            isLoggedIn -> stringResource(R.string.google_status_connected)
-                            else -> stringResource(R.string.google_status_not_signed_in)
+                            busy -> stringResource(R.string.google_cloud_status_syncing)
+                            isLoggedIn -> stringResource(R.string.google_cloud_status_connected)
+                            else -> stringResource(R.string.google_cloud_status_not_signed_in)
                         },
                         color = if (isLoggedIn) StatusGreen else TextSecondary,
                         fontSize = 12.sp
@@ -262,14 +262,14 @@ private fun GoogleAccountCard(
 
             if (!isLoggedIn) {
                 ActionButton(
-                    label = if (busy) stringResource(R.string.google_working) else stringResource(R.string.google_sign_in),
+                    label = if (busy) stringResource(R.string.google_cloud_working) else stringResource(R.string.google_cloud_sign_in),
                     textColor = Color(0xFF34A853),
                     enabled = !busy,
                     onClick = onSignIn
                 )
             } else {
                 ActionButton(
-                    label = if (busy) stringResource(R.string.google_working) else stringResource(R.string.google_disable_sync),
+                    label = if (busy) stringResource(R.string.google_cloud_working) else stringResource(R.string.google_cloud_disable_sync),
                     textColor = DangerRed,
                     enabled = !busy,
                     onClick = onSignOut
@@ -315,14 +315,14 @@ private fun StoreLoginCard(
                 Spacer(Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = stringResource(R.string.google_store_logins),
+                        text = stringResource(R.string.google_cloud_store_logins),
                         color = TextPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = if (busy) stringResource(R.string.google_store_login_sync_busy) else state.detail,
+                        text = if (busy) stringResource(R.string.google_cloud_store_login_sync_busy) else state.detail,
                         color = TextSecondary,
                         fontSize = 12.sp
                     )
@@ -341,10 +341,10 @@ private fun StoreLoginCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = when {
-                            state.status == CloudSyncManager.SyncStatus.ERROR -> stringResource(R.string.google_saved_games_unavailable)
+                            state.status == CloudSyncManager.SyncStatus.ERROR -> stringResource(R.string.google_cloud_saved_games_unavailable)
                             state.cloudStores.isNotEmpty() -> stringResource(R.string.google_cloud_snapshot_ready)
-                            state.localStores.isNotEmpty() -> stringResource(R.string.google_waiting_first_backup)
-                            else -> stringResource(R.string.google_no_store_logins_detected)
+                            state.localStores.isNotEmpty() -> stringResource(R.string.google_cloud_waiting_first_backup)
+                            else -> stringResource(R.string.google_cloud_no_store_logins_detected)
                         },
                         color = statusColor,
                         fontSize = 12.sp,
@@ -353,7 +353,7 @@ private fun StoreLoginCard(
                     if (lastSyncLabel != null) {
                         Spacer(Modifier.height(2.dp))
                         Text(
-                            text = stringResource(R.string.google_last_synced, lastSyncLabel),
+                            text = stringResource(R.string.google_cloud_last_synced, lastSyncLabel),
                             color = TextSecondary,
                             fontSize = 11.sp
                         )
@@ -362,14 +362,14 @@ private fun StoreLoginCard(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ActionButton(
-                        label = if (busy) stringResource(R.string.google_working) else stringResource(R.string.google_backup),
+                        label = if (busy) stringResource(R.string.google_cloud_working) else stringResource(R.string.google_cloud_backup),
                         textColor = WarningAmber,
                         icon = Icons.Filled.Upload,
                         enabled = !busy && state.googleSignedIn && state.localStores.isNotEmpty(),
                         onClick = onBackup
                     )
                     ActionButton(
-                        label = if (busy) stringResource(R.string.google_working) else stringResource(R.string.google_restore),
+                        label = if (busy) stringResource(R.string.google_cloud_working) else stringResource(R.string.google_cloud_restore),
                         textColor = Accent,
                         icon = Icons.Filled.Restore,
                         enabled = !busy && state.googleSignedIn && state.cloudStores.isNotEmpty(),

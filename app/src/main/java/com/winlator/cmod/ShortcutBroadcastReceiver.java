@@ -23,10 +23,10 @@ public class ShortcutBroadcastReceiver extends BroadcastReceiver {
             boolean isShortcutAdded = intent.getBooleanExtra("shortcut_added", false);
             if (isShortcutAdded) {
                 Log.d(LOG_TAG, "Shortcut added successfully!");
-                Toast.makeText(context, R.string.device_not_supported, Toast.LENGTH_SHORT).show(); // yeah. I'm at a loss here.
+                Toast.makeText(context, R.string.common_ui_device_not_supported, Toast.LENGTH_SHORT).show(); // yeah. I'm at a loss here.
             } else {
                 Log.d(LOG_TAG, "Shortcut addition failed.");
-                Toast.makeText(context, R.string.failed_add_shortcut, Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.shortcuts_list_failed_add, Toast.LENGTH_SHORT).show();
 
                 // Attempt to add the shortcut here if it failed
                 addShortcutToHomeScreen(context, intent);
@@ -57,7 +57,7 @@ public class ShortcutBroadcastReceiver extends BroadcastReceiver {
                     Log.d(LOG_TAG, "Pin shortcut requested with result: " + result);
 
                     if (result) {
-                        Toast.makeText(context, R.string.shortcut_added, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, R.string.shortcuts_list_added, Toast.LENGTH_SHORT).show();
                     } else {
                         Log.e(LOG_TAG, "Failed to add shortcut from BroadcastReceiver.");
                     }
@@ -73,10 +73,10 @@ public class ShortcutBroadcastReceiver extends BroadcastReceiver {
                 try {
                     context.sendBroadcast(addIntent);
                     Log.d(LOG_TAG, "Sent broadcast to install shortcut from BroadcastReceiver.");
-                    Toast.makeText(context, R.string.shortcut_added, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, R.string.shortcuts_list_added, Toast.LENGTH_SHORT).show();
                 } catch (Exception e) {
                     Log.e(LOG_TAG, "Error sending broadcast for installing shortcut: " + e.getMessage(), e);
-                    Toast.makeText(context, R.string.failed_add_shortcut, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, R.string.shortcuts_list_failed_add, Toast.LENGTH_SHORT).show();
                 }
             }
         } else {

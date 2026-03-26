@@ -9,7 +9,7 @@
         android:id="@+id/play_count"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/times_played_label"
+        android:text="@string/library_games_times_played_label"
         android:textSize="16sp"
         android:paddingBottom="8dp" />
 
@@ -17,7 +17,7 @@
         android:id="@+id/playtime"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/playtime_label"
+        android:text="@string/library_games_playtime_label"
         android:textSize="16sp"
         android:paddingBottom="8dp" />
 
@@ -25,7 +25,7 @@
         android:id="@+id/reset_properties"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/reset_properties"
+        android:text="@string/shortcuts_properties_reset"
         android:textSize="16sp"
         android:paddingBottom="8dp" />
 

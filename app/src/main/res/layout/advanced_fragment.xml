@@ -114,7 +114,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/inter"
-                        android:text="@string/advanced_wine_channels_title"
+                        android:text="@string/settings_debug_wine_channels_title"
                         android:textColor="@color/settings_text_primary"
                         android:textSize="13sp"
                         android:textStyle="bold" />
@@ -124,7 +124,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:fontFamily="@font/inter"
-                        android:text="@string/advanced_wine_channels_summary"
+                        android:text="@string/settings_debug_wine_channels_summary"
                         android:textColor="@color/settings_text_secondary"
                         android:textSize="12sp" />
 
@@ -341,7 +341,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/inter"
-                        android:text="@string/input_logs"
+                        android:text="@string/settings_debug_input_logs"
                         android:textColor="@color/settings_text_primary"
                         android:textSize="15sp"
                         android:textStyle="bold" />
@@ -351,7 +351,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:fontFamily="@font/inter"
-                        android:text="@string/input_logs_description"
+                        android:text="@string/settings_debug_input_logs_description"
                         android:textColor="@color/settings_text_secondary"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -396,7 +396,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/inter"
-                        android:text="@string/download_logs"
+                        android:text="@string/settings_debug_download_logs"
                         android:textColor="@color/settings_text_primary"
                         android:textSize="15sp"
                         android:textStyle="bold" />
@@ -406,7 +406,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:fontFamily="@font/inter"
-                        android:text="@string/download_logs_description"
+                        android:text="@string/settings_debug_download_logs_description"
                         android:textColor="@color/settings_text_secondary"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -427,7 +427,7 @@
                 android:layout_height="48dp"
                 android:layout_marginTop="8dp"
                 android:fontFamily="@font/inter"
-                android:text="@string/share_logs"
+                android:text="@string/settings_debug_share_logs"
                 android:textAllCaps="false"
                 android:textSize="14sp"
                 android:backgroundTint="@color/settings_accent" />
