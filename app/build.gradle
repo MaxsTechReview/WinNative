@@ -152,16 +152,6 @@ android {
 
 }
 
-tasks.register("cleanLegacyDebugApk", Delete) {
-    delete(layout.buildDirectory.file("outputs/apk/debug/app-debug.apk"))
-    delete(layout.buildDirectory.file("outputs/apk/debug/output-metadata.json"))
-}
-
-tasks.configureEach {
-    if (name == "assembleDebug") {
-        finalizedBy(tasks.named("cleanLegacyDebugApk"))
-    }
-}
 
 dependencies {
 

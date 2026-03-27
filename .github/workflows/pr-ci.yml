@@ -80,7 +80,7 @@ jobs:
           -keyalg RSA -keysize 2048 -validity 1 \
           -storepass dummypass -keypass dummypass \
           -dname "CN=CI, OU=CI, O=CI, L=CI, ST=CI, C=US"
-        ./gradlew :app:assembleDebug --build-cache --parallel -x lint
+        ./gradlew :app:assembleStandardDebug --build-cache --parallel -x lint
 
     - name: Decode keystore and build
       if: github.event_name == 'pull_request'
@@ -106,7 +106,7 @@ jobs:
             -storepass dummypass -keypass dummypass \
             -dname "CN=CI, OU=CI, O=CI, L=CI, ST=CI, C=US"
         fi
-        ./gradlew :app:assembleDebug --build-cache --parallel -x lint
+        ./gradlew :app:assembleStandardDebug --build-cache --parallel -x lint
 
     - name: Set short SHA
       if: github.event_name == 'pull_request'
@@ -118,7 +118,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: WinNative-debug-PR${{ github.event.pull_request.number }}-${{ steps.sha.outputs.short }}
-        path: app/build/outputs/apk/debug/app-debug.apk
+        path: app/build/outputs/apk/standard/debug/standard.apk
         retention-days: 7
         compression-level: 0
 

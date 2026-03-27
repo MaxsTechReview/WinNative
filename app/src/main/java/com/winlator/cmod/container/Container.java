@@ -80,7 +80,6 @@ public class Container {
     private boolean steamOfflineMode = false;
     private boolean unpackFiles = true;
 
-
     public static final String STEAM_TYPE_NORMAL = "normal";
     public static final String STEAM_TYPE_LIGHT = "light";
     public static final String STEAM_TYPE_ULTRALIGHT = "ultralight";
@@ -583,7 +582,6 @@ public class Container {
                     setUnpackFiles(data.getBoolean(key));
                     break;
                 case "moveSteamExe":
-                    // Legacy: always-on now, ignore saved value
                     break;
             }
         }
@@ -747,14 +745,6 @@ public class Container {
 
     public void setUnpackFiles(boolean unpackFiles) {
         this.unpackFiles = unpackFiles;
-    }
-
-    public boolean isMoveSteamExe() {
-        return true; // Always-on: Steam files are always copied to game directory
-    }
-
-    public void setMoveSteamExe(boolean moveSteamExe) {
-        // No-op: always-on now
     }
 
 }
