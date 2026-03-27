@@ -106,6 +106,7 @@ import com.winlator.cmod.winhandler.WinHandler;
 import com.winlator.cmod.xconnector.UnixSocketConfig;
 import com.winlator.cmod.xenvironment.ImageFs;
 import com.winlator.cmod.xenvironment.XEnvironment;
+import com.winlator.cmod.steam.SteamClientManager;
 import com.winlator.cmod.xenvironment.components.ALSAServerComponent;
 import com.winlator.cmod.xenvironment.components.GuestProgramLauncherComponent;
 import com.winlator.cmod.xenvironment.components.PulseAudioComponent;
@@ -1872,6 +1873,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                             // Steam client files and original game files are pristine.
                             MarkerUtils.INSTANCE.removeMarker(gameInstallPath, Marker.STEAM_DLL_REPLACED);
                             MarkerUtils.INSTANCE.removeMarker(gameInstallPath, Marker.STEAM_COLDCLIENT_USED);
+                            MarkerUtils.INSTANCE.removeMarker(gameInstallPath, Marker.STEAM_DRM_PATCHED);
 
                             // Purge known ColdClientLoader emulator footprints which could trigger Steam's anti-tamper
                             File steamDirFile = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam");
@@ -1942,55 +1944,50 @@ public class XServerDisplayActivity extends AppCompatActivity {
                                 Log.d("XServerDisplayActivity", "Legacy DRM: DLLs already replaced, refreshed steam_settings for appId=" + appId);
                             }
                         } else {
-                            // ── ColdClientLoader mode (default, online play) ──────────────────
-                            // FIX #9: Skip full re-setup if ColdClient was already configured and
-                            // the loader DLL is still in place.
-                            File steamclientLoaderExe = new File(container.getRootDir(),
-                                    ".wine/drive_c/Program Files (x86)/Steam/steamclient_loader_x64.exe");
-                            File stubDrm = new File(container.getRootDir(),
-                                    ".wine/drive_c/Program Files (x86)/Steam/extra_dlls/StubDRM64.dll");
-                            boolean coldClientAlreadyDone =
-                                    MarkerUtils.INSTANCE.hasMarker(gameInstallPath, Marker.STEAM_COLDCLIENT_USED)
-                                    && steamclientLoaderExe.exists()
-                                    && stubDrm.exists();
+                            // ── ColdClient launcher mode (default) ──────────
+                            // ColdClientLoader handles Steam emulation by loading Goldberg's
+                            // steamclient.dll/steamclient64.dll. The game's ORIGINAL steam_api.dll
+                            // must stay intact — ColdClientLoader routes its calls through the
+                            // emulated steamclient. Do NOT replace steam_api.dll here (that's
+                            // only for Legacy DRM mode which launches the game directly).
+                            //
+                            // Stage 1 (Steamless exe stripping) still runs in preUnpack after Wine is ready.
 
-                            if (!coldClientAlreadyDone) {
+                            // Restore original DLLs if previously replaced by Legacy DRM mode
+                            if (MarkerUtils.INSTANCE.hasMarker(gameInstallPath, Marker.STEAM_DLL_REPLACED)) {
+                                restoreSteamApiDlls(gameDir);
                                 MarkerUtils.INSTANCE.removeMarker(gameInstallPath, Marker.STEAM_DLL_REPLACED);
-                                MarkerUtils.INSTANCE.removeMarker(gameInstallPath, Marker.STEAM_DLL_RESTORED);
-                                // FIX #3: Backup steamclient DLLs before any extraction/modification
-                                SteamUtils.backupSteamclientFiles(this, appId);
+                                MarkerUtils.INSTANCE.removeMarker(gameInstallPath, Marker.STEAM_DRM_PATCHED);
+                                Log.d("XServerDisplayActivity", "Restored original steam_api DLLs for ColdClient mode");
                             }
 
-                            // 1. Restore the game's actual steam_api DLLs if previously replaced by stubs
-                            restoreSteamApiDlls(gameDir);
+                            // Backup steamclient DLLs before any modification
+                            SteamUtils.backupSteamclientFiles(this, appId);
 
-                            // FIX #5: Restore .original.exe if present (Steamless backup)
-                            SteamUtils.restoreOriginalExecutable(this, appId);
-
-                            // 2. Write steam_settings/ next to steamclient.dll in the Steam directory
+                            // ColdClient launcher setup (writes steam_settings in Steam dir + ColdClientLoader.ini)
                             File steamDir = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam");
                             steamDir.mkdirs();
                             SteamUtils.writeCompleteSettingsDir(steamDir, appId, language, isOfflineMode, forceDlc, useSteamInput, ticketBase64);
+                            SteamUtils.enrichSteamSettings(this, appId, new File(steamDir, "steam_settings"));
 
-                            // 3. Also write steam_settings next to any steam_api DLLs in the game dir
+                            // Write steam_settings next to the game's steam_api DLLs too
                             setupSteamSettingsForAllDirs(gameDir, appId, language, isOfflineMode, forceDlc, useSteamInput, ticketBase64);
+                            SteamUtils.enrichSteamSettings(this, appId,
+                                    new File(gameInstallPath, "steam_settings"));
 
-                            // 4. Generate steam_interfaces.txt from original DLLs for ColdClient
+                            // Generate steam_interfaces.txt from the original DLLs
                             generateSteamInterfacesForGame(gameDir);
 
-                            // 5. Write ColdClientLoader.ini with game exe path
+                            // Write ColdClientLoader.ini with game exe path
                             String gameExeWinPath = findGameExeWinPath(appId, gameDir);
                             if (gameExeWinPath != null) {
                                 writeColdClientIniForLaunch(appId, gameExeWinPath);
-                                Log.d("XServerDisplayActivity", "ColdClientLoader setup complete: exe=" + gameExeWinPath + " appId=" + appId);
+                                Log.d("XServerDisplayActivity", "ColdClient launcher configured for appId=" + appId);
                             } else {
-                                Log.w("XServerDisplayActivity", "Could not find game exe for ColdClientLoader, appId=" + appId);
+                                Log.w("XServerDisplayActivity", "Could not find game exe for ColdClient, appId=" + appId);
                             }
 
-                            // FIX #9: Mark ColdClient setup complete for this game
-                            if (!coldClientAlreadyDone) {
-                                MarkerUtils.INSTANCE.addMarker(gameInstallPath, Marker.STEAM_COLDCLIENT_USED);
-                            }
+                            MarkerUtils.INSTANCE.addMarker(gameInstallPath, Marker.STEAM_COLDCLIENT_USED);
                         }
 
                         // Common setup for both modes
@@ -3282,8 +3279,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     args = "/dir \"C:\\Program Files (x86)\\Steam\" \"steam.exe\" -silent -vgui -tcp -nobigpicture -nofriendsui -nochatui -nointro -applaunch " + appId;
                     Log.d("XServerDisplayActivity", "Real Steam launch via steam.exe for appId=" + appId);
                 } else if (!useLegacyDRM) {
-                    // ColdClient mode: ALWAYS launch through steamclient_loader_x64.exe
-                    // The ColdClientLoader.ini specifies the actual game exe path
+                    // ColdClient mode: launch through steamclient_loader_x64.exe
+                    // ColdClientLoader.ini specifies the actual game exe path
                     File nativeDir = com.winlator.cmod.core.WineUtils.getNativePath(imageFs, "C:\\Program Files (x86)\\Steam");
                     if (nativeDir != null && nativeDir.exists()) launcherComponent.setWorkingDir(nativeDir);
                     args = "/dir \"C:\\Program Files (x86)\\Steam\" \"steamclient_loader_x64.exe\"";
@@ -3329,15 +3326,15 @@ public class XServerDisplayActivity extends AppCompatActivity {
                         } else {
                             args = "\"C:\\Program Files (x86)\\Steam\\" + steamExePath + "\"" + steamExtraArgs;
                         }
-                        Log.d("XServerDisplayActivity", "Legacy DRM launch from Steam dir: " + args);
+                        Log.d("XServerDisplayActivity", "Direct launch from Steam dir: " + args);
                     } else {
                         args = "\"wfm.exe\"";
                     }
 
-                    // WINEPATH for Legacy DRM — point to the game directory within Steam structure
+                    // WINEPATH — point to the game directory within Steam structure
                     String steamGamePath = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\" + gameDirName;
                     envVars.put("WINEPATH", steamGamePath);
-                    Log.d("XServerDisplayActivity", "Set WINEPATH=" + steamGamePath + " for Legacy DRM appId=" + appId);
+                    Log.d("XServerDisplayActivity", "Set WINEPATH=" + steamGamePath + " for appId=" + appId);
                 }
             } else if (gameSource.equals("EPIC") || gameSource.equals("GOG")) {
                 String extraArgs = shortcut.getSettingExtra("execArgs", container.getExecArgs());
@@ -3945,7 +3942,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private void runPreGameSetup(GuestProgramLauncherComponent launcher,
                                   boolean needsUnpacking, boolean unpackFiles, boolean launchRealSteam) {
         // Step 1: Install Wine Mono if not already installed in this container
-        installMonoIfNeeded(launcher);
+        boolean monoReady = installMonoIfNeeded(launcher);
 
         // Step 2: Install redistributables for this game if not already done in this container
         installRedistributablesIfNeeded(launcher);
@@ -3959,6 +3956,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
             return;
         }
         if (needsUnpacking || unpackFiles) {
+            if (!monoReady) {
+                Log.w("XServerDisplayActivity", "Skipping Steamless — Mono not installed yet, will retry next launch");
+                return;
+            }
             runSteamlessOnExe(launcher);
         }
     }
@@ -3968,25 +3969,31 @@ public class XServerDisplayActivity extends AppCompatActivity {
      * Tracked via container extra "mono_installed" so each master container
      * only installs Mono once.
      */
-    private void installMonoIfNeeded(GuestProgramLauncherComponent launcher) {
+    private boolean installMonoIfNeeded(GuestProgramLauncherComponent launcher) {
         String monoInstalled = container.getExtra("mono_installed", "false");
         if ("true".equals(monoInstalled)) {
             Log.d("XServerDisplayActivity", "Mono already installed in container " + container.id + ", skipping");
-            return;
+            return true;
+        }
+
+        // Detect version from Wine build + download MSI if needed (one attempt per launch)
+        String monoWinePath = SteamClientManager.getMonoMsiWinePath(this);
+        if (monoWinePath == null) {
+            Log.w("XServerDisplayActivity", "Mono MSI not available (no internet?), will retry next launch");
+            return false;
         }
 
         try {
-            Log.d("XServerDisplayActivity", "Installing Wine Mono in container " + container.id + "...");
-            String monoCmd = "wine msiexec /i Z:\\opt\\mono-gecko-offline\\wine-mono-9.0.0-x86.msi && wineserver -k";
+            Log.d("XServerDisplayActivity", "Installing Wine Mono (" + monoWinePath + ") in container " + container.id + "...");
+            String monoCmd = "wine msiexec /i " + monoWinePath + " && wineserver -k";
             launcher.execShellCommand(monoCmd);
             container.putExtra("mono_installed", "true");
             container.saveData();
             Log.d("XServerDisplayActivity", "Mono installed in container " + container.id);
+            return true;
         } catch (Exception e) {
-            Log.w("XServerDisplayActivity", "Mono install failed (may already be installed)", e);
-            // Mark as installed anyway to avoid retrying on every launch
-            container.putExtra("mono_installed", "true");
-            container.saveData();
+            Log.w("XServerDisplayActivity", "Mono msiexec failed, will retry next launch", e);
+            return false;
         }
     }
 
@@ -4135,7 +4142,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 steamlessDir.mkdirs();
                 TarCompressorUtils.extract(
                         TarCompressorUtils.Type.ZSTD,
-                        this, "steamless.tzst", steamlessDir);
+                        this, "extras.tzst", imageFs.getRootDir());
                 Log.d("XServerDisplayActivity", "Extracted Steamless CLI to " + steamlessDir);
             } catch (Exception e) {
                 Log.e("XServerDisplayActivity", "Failed to extract Steamless", e);
@@ -4163,8 +4170,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
             com.winlator.cmod.core.FileUtils.writeString(batchFile,
                     "@echo off\r\nz:\\Steamless\\Steamless.CLI.exe \"" + windowsPath + "\"\r\n");
 
+            Log.d("XServerDisplayActivity", "Steamless: running on " + windowsPath + " (exe=" + executablePath + ")");
             String slCmd = "wine z:\\tmp\\steamless_wrapper.bat";
-            launcher.execShellCommand(slCmd);
+            String slOutput = launcher.execShellCommand(slCmd);
+            Log.d("XServerDisplayActivity", "Steamless Wine output: " + slOutput);
             batchFile.delete();
 
             // Handle file swap: .unpacked.exe -> exe, exe -> .original.exe
@@ -4172,6 +4181,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
             File exe = new File(gameInstallPath, unixPath);
             File unpackedExe = new File(gameInstallPath, unixPath + ".unpacked.exe");
             File originalExe = new File(gameInstallPath, unixPath + ".original.exe");
+
+            Log.d("XServerDisplayActivity", "Steamless: checking exe=" + exe.getAbsolutePath()
+                    + " exists=" + exe.exists() + " unpacked=" + unpackedExe.getAbsolutePath()
+                    + " exists=" + unpackedExe.exists());
 
             if (exe.exists() && unpackedExe.exists()) {
                 if (!originalExe.exists()) {
@@ -4181,16 +4194,17 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 java.nio.file.Files.copy(unpackedExe.toPath(), exe.toPath(),
                         java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 Log.d("XServerDisplayActivity", "Steamless: swapped exe with unpacked version");
-            } else {
-                Log.w("XServerDisplayActivity", "Steamless: exe or unpacked.exe not found after stripping");
-            }
 
-            // Kill wineserver and mark as no longer needing unpacking
-            launcher.execShellCommand("wineserver -k");
-            container.setNeedsUnpacking(false);
-            container.saveData();
+                // Only mark as done if unpacking actually succeeded
+                launcher.execShellCommand("wineserver -k");
+                container.setNeedsUnpacking(false);
+                container.saveData();
+            } else {
+                Log.w("XServerDisplayActivity", "Steamless: unpacking failed, will retry next launch");
+                launcher.execShellCommand("wineserver -k");
+            }
         } catch (Exception e) {
-            Log.e("XServerDisplayActivity", "Steamless execution failed", e);
+            Log.e("XServerDisplayActivity", "Steamless execution failed, will retry next launch", e);
         }
     }
 

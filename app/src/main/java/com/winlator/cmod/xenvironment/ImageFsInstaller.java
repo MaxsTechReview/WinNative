@@ -207,7 +207,18 @@ public abstract class ImageFsInstaller {
 
         chmodIfExists(new File(rootDir, "generate_interfaces_file.exe"));
         chmodIfExists(new File(rootDir, "Steamless/Steamless.CLI.exe"));
-        chmodIfExists(new File(rootDir, "opt/mono-gecko-offline/wine-mono-9.0.0-x86.msi"));
+        // chmod any Mono MSI that was bundled in extras.tzst
+        File monoDir = new File(rootDir, "opt/mono-gecko-offline");
+        if (monoDir.isDirectory()) {
+            File[] msiFiles = monoDir.listFiles();
+            if (msiFiles != null) {
+                for (File msi : msiFiles) {
+                    if (msi.getName().startsWith("wine-mono-") && msi.getName().endsWith("-x86.msi")) {
+                        chmodIfExists(msi);
+                    }
+                }
+            }
+        }
         chmodIfExists(new File(rootDir, "usr/lib/libredirect.so"));
         chmodIfExists(new File(rootDir, "usr/lib/libredirect-bionic.so"));
     }
@@ -232,6 +243,7 @@ public abstract class ImageFsInstaller {
                     MarkerUtils.INSTANCE.removeMarker(appDirPath, Marker.STEAM_DLL_REPLACED);
                     MarkerUtils.INSTANCE.removeMarker(appDirPath, Marker.STEAM_DLL_RESTORED);
                     MarkerUtils.INSTANCE.removeMarker(appDirPath, Marker.STEAM_COLDCLIENT_USED);
+                    MarkerUtils.INSTANCE.removeMarker(appDirPath, Marker.STEAM_DRM_PATCHED);
                     Log.i("ImageFsInstaller", "Cleared Steam markers for container " + container.getName() + " (ID: " + container.id + ")");
                 } catch (Exception e) {
                     Log.w("ImageFsInstaller", "Failed to clear markers for container ID " + container.id, e);
