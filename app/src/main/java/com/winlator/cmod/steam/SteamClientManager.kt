@@ -307,27 +307,30 @@ object SteamClientManager {
         val rootDir = ImageFs.find(context).rootDir
         val steamlessCli = File(rootDir, "Steamless/Steamless.CLI.exe")
         val generateInterfacesExe = File(rootDir, "generate_interfaces_file.exe")
-        val monoInstaller = File(rootDir, "opt/mono-gecko-offline/wine-mono-9.0.0-x86.msi")
 
-        if (steamlessCli.exists() && generateInterfacesExe.exists() && monoInstaller.exists()) {
-            return true
+        if (!steamlessCli.exists() || !generateInterfacesExe.exists()) {
+            try {
+                TarCompressorUtils.extract(
+                    TarCompressorUtils.Type.ZSTD,
+                    context,
+                    "extras.tzst",
+                    rootDir
+                )
+                chmodIfExists(generateInterfacesExe)
+                chmodIfExists(steamlessCli)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to extract Steamless support assets", e)
+                return false
+            }
         }
 
-        return try {
-            TarCompressorUtils.extract(
-                TarCompressorUtils.Type.ZSTD,
-                context,
-                "extras.tzst",
-                rootDir
-            )
-            chmodIfExists(generateInterfacesExe)
-            chmodIfExists(steamlessCli)
-            chmodIfExists(monoInstaller)
-            steamlessCli.exists() && generateInterfacesExe.exists() && monoInstaller.exists()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to extract Steamless support assets", e)
-            false
+        // Ensure the correct Mono MSI is available (downloads if needed)
+        val monoMsi = ensureMonoMsi(context)
+        if (monoMsi == null) {
+            Log.w(TAG, "Mono MSI not available; Steamless may fail if .NET is needed")
         }
+
+        return steamlessCli.exists() && generateInterfacesExe.exists()
     }
 
     @JvmStatic
@@ -374,6 +377,136 @@ object SteamClientManager {
         if (file.exists()) {
             FileUtils.chmod(file, 493)
         }
+    }
+
+    /**
+     * Detects the Mono version expected by the current Wine build by scanning
+     * mscoree.dll for the version string pattern (e.g. "9.3.0", "10.4.1").
+     * Returns null if the version cannot be determined.
+     */
+    @JvmStatic
+    fun detectRequiredMonoVersion(context: Context): String? {
+        val imageFs = ImageFs.find(context)
+        val winePath = imageFs.winePath ?: return null
+
+        // Try x86_64-windows first (64-bit Wine), then i386-windows (32-bit)
+        val candidates = listOf(
+            File(winePath, "lib/wine/x86_64-windows/mscoree.dll"),
+            File(winePath, "lib/wine/aarch64-windows/mscoree.dll"),
+            File(winePath, "lib/wine/i386-windows/mscoree.dll")
+        )
+
+        val mscoree = candidates.firstOrNull { it.exists() } ?: run {
+            Log.w(TAG, "mscoree.dll not found in Wine build at $winePath")
+            return null
+        }
+
+        return try {
+            // Read the DLL binary and search for version pattern "wine-mono-X.Y.Z"
+            val bytes = mscoree.readBytes()
+            val content = String(bytes, Charsets.ISO_8859_1)
+            val pattern = Regex("wine-mono-(\\d+\\.\\d+\\.\\d+)")
+            val match = pattern.find(content)
+            if (match != null) {
+                val version = match.groupValues[1]
+                Log.i(TAG, "Detected required Mono version: $version from ${mscoree.path}")
+                version
+            } else {
+                Log.w(TAG, "Could not find Mono version string in ${mscoree.path}")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading mscoree.dll", e)
+            null
+        }
+    }
+
+    /**
+     * Returns the path to the correct Mono MSI for the current Wine build.
+     * Downloads it from dl.winehq.org if not already present.
+     * Returns null if version detection fails or download fails.
+     */
+    @JvmStatic
+    fun ensureMonoMsi(context: Context): File? {
+        val version = detectRequiredMonoVersion(context)
+        if (version == null) {
+            Log.w(TAG, "Cannot detect Mono version, falling back to bundled MSI")
+            // Fall back to whatever MSI exists in the mono directory
+            val monoDir = File(ImageFs.find(context).rootDir, "opt/mono-gecko-offline")
+            val existing = monoDir.listFiles()?.firstOrNull {
+                it.name.startsWith("wine-mono-") && it.name.endsWith("-x86.msi")
+            }
+            return existing
+        }
+
+        val msiName = "wine-mono-$version-x86.msi"
+        val monoDir = File(ImageFs.find(context).rootDir, "opt/mono-gecko-offline")
+        monoDir.mkdirs()
+        val msiFile = File(monoDir, msiName)
+
+        if (msiFile.exists() && msiFile.length() > 0) {
+            Log.d(TAG, "Mono MSI already present: ${msiFile.path}")
+            chmodIfExists(msiFile)
+            return msiFile
+        }
+
+        // Clean up any old Mono MSIs
+        monoDir.listFiles()?.forEach { f ->
+            if (f.name.startsWith("wine-mono-") && f.name.endsWith("-x86.msi") && f.name != msiName) {
+                Log.i(TAG, "Removing outdated Mono MSI: ${f.name}")
+                f.delete()
+            }
+        }
+
+        // Download the correct version
+        val downloadUrl = "https://dl.winehq.org/wine/wine-mono/$version/$msiName"
+        Log.i(TAG, "Downloading Mono $version from $downloadUrl")
+
+        return try {
+            val tmpFile = File(monoDir, "$msiName.tmp")
+            val url = URL(downloadUrl)
+            val connection = url.openConnection() as HttpURLConnection
+            connection.connectTimeout = 30_000
+            connection.readTimeout = 60_000
+            connection.instanceFollowRedirects = true
+
+            if (connection.responseCode != 200) {
+                Log.e(TAG, "Failed to download Mono MSI: HTTP ${connection.responseCode}")
+                connection.disconnect()
+                return null
+            }
+
+            connection.inputStream.use { input ->
+                FileOutputStream(tmpFile).use { output ->
+                    input.copyTo(output, bufferSize = 65536)
+                }
+            }
+            connection.disconnect()
+
+            // Rename tmp to final
+            if (tmpFile.renameTo(msiFile)) {
+                chmodIfExists(msiFile)
+                Log.i(TAG, "Mono $version downloaded successfully (${msiFile.length()} bytes)")
+                msiFile
+            } else {
+                Log.e(TAG, "Failed to rename tmp file to $msiName")
+                tmpFile.delete()
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to download Mono $version", e)
+            null
+        }
+    }
+
+    /**
+     * Returns the Wine Z:\ path to the Mono MSI for use in msiexec commands.
+     * Ensures the correct version is downloaded first.
+     */
+    @JvmStatic
+    fun getMonoMsiWinePath(context: Context): String? {
+        val msiFile = ensureMonoMsi(context) ?: return null
+        return "Z:\\opt\\mono-gecko-offline\\${msiFile.name}"
     }
 
     /**

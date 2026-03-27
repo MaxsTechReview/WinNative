@@ -463,6 +463,7 @@ public class ContainerManager {
             container.putExtra("wincomponents", null);
             container.putExtra("desktopTheme", null);
             container.putExtra("startupSelection", null);
+            container.putExtra("mono_installed", null);
             container.saveData();
             return true;
         } finally {
