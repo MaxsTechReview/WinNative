@@ -223,8 +223,10 @@
     <string name="shortcuts_properties_force_dlc">Tving DLC</string>
     <string name="shortcuts_properties_force_dlc_description">Aktiver kun hvis DLC\'er ikke bliver fundet eller gemmedata med DLC ikke virker</string>
     <string name="shortcuts_properties_launch_steam_client_beta">Start Steam-klient (Beta)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Reducerer ydeevne og gør opstart langsommere\nTillader onlinespil og løser DRM- og controller-problemer\nIkke alle spil virker</string>
-    <string name="shortcuts_properties_steam_type">Steam-type</string>
+    <string name="shortcuts_properties_launch_steam_client_description">Starter den rigtige Steam-klient i Wine\nKræver en Steam-konto og kan reducere ydeevne\nIkke alle spil virker</string>
+    <string name="shortcuts_properties_steam_type">Steam-klient ydeevne</string>
+    <string name="steam_section_emulator">Steam-emulator (Goldberg)</string>
+    <string name="steam_section_real_client">Rigtig Steam-klient</string>
     <string name="shortcuts_properties_use_steam_input">Brug Steam Input</string>
     <string name="shortcuts_properties_steam_offline_mode">Steam offlinetilstand</string>
     <string name="shortcuts_properties_reset">Nulstil egenskaber</string>

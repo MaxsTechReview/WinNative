@@ -341,7 +341,6 @@ class SteamService : Service(), IChallengeUrlChanged {
         private fun downloadUrlsFor(fileName: String): List<String> {
             val alternate = when (fileName) {
                 "steam-token.tzst" -> "steam-token-r2.tzst"
-                "experimental-drm-20260116.tzst" -> "experimental-drm-20260116-r2.tzst"
                 else -> null
             }
             return if (alternate != null) {

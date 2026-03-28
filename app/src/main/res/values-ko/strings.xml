@@ -223,8 +223,10 @@
     <string name="shortcuts_properties_force_dlc">DLC 강제 적용</string>
     <string name="shortcuts_properties_force_dlc_description">DLC가 감지되지 않거나 DLC가 포함된 저장 데이터가 작동하지 않는 경우에만 활성화하세요</string>
     <string name="shortcuts_properties_launch_steam_client_beta">Steam 클라이언트 실행 (베타)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">성능이 저하되고 실행이 느려집니다\n온라인 플레이를 허용하고 DRM 및 컨트롤러 문제를 수정합니다\n모든 게임이 작동하지는 않습니다</string>
-    <string name="shortcuts_properties_steam_type">Steam 유형</string>
+    <string name="shortcuts_properties_launch_steam_client_description">Wine에서 실제 Steam 클라이언트를 실행합니다\nSteam 계정이 필요하며 성능이 저하될 수 있습니다\n모든 게임이 작동하지는 않습니다</string>
+    <string name="shortcuts_properties_steam_type">Steam 클라이언트 성능</string>
+    <string name="steam_section_emulator">Steam 에뮬레이터 (Goldberg)</string>
+    <string name="steam_section_real_client">실제 Steam 클라이언트</string>
     <string name="shortcuts_properties_use_steam_input">Steam 입력 사용</string>
     <string name="shortcuts_properties_steam_offline_mode">Steam 오프라인 모드</string>
     <string name="shortcuts_properties_reset">속성 초기화</string>

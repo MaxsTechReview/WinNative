@@ -419,9 +419,10 @@
                 android:orientation="vertical"
                 android:visibility="gone">
 
+                <!-- STEAM EMULATOR (GOLDBERG) -->
                 <TextView
                     style="@style/OtherSettingsSectionLabel"
-                    android:text="@string/stores_accounts_steam_integration_title" />
+                    android:text="@string/steam_section_emulator" />
 
                 <LinearLayout
                     style="@style/OtherSettingsCard"
@@ -447,37 +448,6 @@
                         android:background="@color/settings_outline" />
 
                     <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/CBLaunchRealSteam"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:background="@android:color/transparent"
-                        android:fontFamily="@font/inter"
-                        android:text="@string/shortcuts_properties_launch_steam_client_beta"
-                        android:textColor="@color/settings_text_primary"
-                        android:textSize="13sp"
-                        app:thumbTint="@color/settings_accent"
-                        app:trackTintMode="src_in" />
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:fontFamily="@font/inter"
-                        android:paddingStart="4dp"
-                        android:paddingEnd="4dp"
-                        android:text="@string/shortcuts_properties_launch_steam_client_description"
-                        android:textColor="@color/settings_text_secondary"
-                        android:textSize="11sp"
-                        android:lineSpacingMultiplier="1.2" />
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginTop="10dp"
-                        android:layout_marginBottom="10dp"
-                        android:background="@color/settings_outline" />
-
-                    <com.google.android.material.switchmaterial.SwitchMaterial
                         android:id="@+id/CBUseSteamInput"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -488,35 +458,6 @@
                         android:textSize="13sp"
                         app:thumbTint="@color/settings_accent"
                         app:trackTintMode="src_in" />
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginTop="10dp"
-                        android:layout_marginBottom="10dp"
-                        android:background="@color/settings_outline" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/content_asset_row_surface"
-                        android:orientation="vertical"
-                        android:paddingLeft="12dp"
-                        android:paddingTop="10dp"
-                        android:paddingRight="12dp"
-                        android:paddingBottom="10dp">
-
-                        <TextView
-                            style="@style/OtherSettingsFieldLabel"
-                            android:text="@string/shortcuts_properties_steam_type" />
-
-                        <Spinner
-                            android:id="@+id/SSteamType"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:entries="@array/steam_type_entries" />
-                    </LinearLayout>
 
                     <View
                         android:layout_width="match_parent"
@@ -598,6 +539,70 @@
                         android:textColor="@color/settings_text_secondary"
                         android:textSize="11sp"
                         android:lineSpacingMultiplier="1.2" />
+                </LinearLayout>
+
+                <!-- REAL STEAM CLIENT -->
+                <TextView
+                    style="@style/OtherSettingsSectionLabel"
+                    android:text="@string/steam_section_real_client" />
+
+                <LinearLayout
+                    style="@style/OtherSettingsCard"
+                    android:orientation="vertical">
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/CBLaunchRealSteam"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@android:color/transparent"
+                        android:fontFamily="@font/inter"
+                        android:text="@string/shortcuts_properties_launch_steam_client_beta"
+                        android:textColor="@color/settings_text_primary"
+                        android:textSize="13sp"
+                        app:thumbTint="@color/settings_accent"
+                        app:trackTintMode="src_in" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="@font/inter"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp"
+                        android:text="@string/shortcuts_properties_launch_steam_client_description"
+                        android:textColor="@color/settings_text_secondary"
+                        android:textSize="11sp"
+                        android:lineSpacingMultiplier="1.2" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="10dp"
+                        android:layout_marginBottom="10dp"
+                        android:background="@color/settings_outline" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/content_asset_row_surface"
+                        android:orientation="vertical"
+                        android:paddingLeft="12dp"
+                        android:paddingTop="10dp"
+                        android:paddingRight="12dp"
+                        android:paddingBottom="10dp">
+
+                        <TextView
+                            style="@style/OtherSettingsFieldLabel"
+                            android:text="@string/shortcuts_properties_steam_type" />
+
+                        <Spinner
+                            android:id="@+id/SSteamType"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:entries="@array/steam_type_entries" />
+
+                    </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
 

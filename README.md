@@ -18,11 +18,12 @@ Designed for enthusiasts and power users, WinNative provides a "plug-and-play" e
 
 ### Components & Drivers
 
-WinNative is built on the shoulders of giants and would not be possible without the following technoloiges:
+WinNative is built on the shoulders of giants and would not be possible without the following technologies:
 - **Translators:** Box86/Box64 by [ptitSeb](https://github.com/ptitSeb), FEX-Emu.
 - **Graphics:** DXVK, VKD3D, D8VK, and CNC DDraw.
 - **Kernel/Environment:** PRoot environment with custom `evshim` for low-latency input.
 - **Drivers:** Optimized Turnip drivers with specific fixes for UBWC v5/v6.
+- **Steam Emulation:** [Goldberg Steam Emulator (gbe_fork)](https://github.com/Detanup01/gbe_fork) by Detanup01, based on the original work by [Mr. Goldberg](https://gitlab.com/Mr_Goldberg/goldberg_emulator).
 
 ---
 
@@ -65,3 +66,4 @@ Please match existing code styles, and ensure any AI assisted code is thoroughly
 - **Winlator Bionic** by [Pipetto-crypto](https://github.com/Pipetto-crypto/winlator)
 - **Pluvia** features by the Pluvia/GameNative community.
 - **Mesa/Turnip** contributions by [Danylo](https://blogs.igalia.com/dpiliaiev/tags/mesa/) and the Mesa3D team.
+- **Goldberg Steam Emulator** by [Mr. Goldberg](https://gitlab.com/Mr_Goldberg/goldberg_emulator), maintained by [Detanup01](https://github.com/Detanup01/gbe_fork).

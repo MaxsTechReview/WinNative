@@ -223,8 +223,10 @@
     <string name="shortcuts_properties_force_dlc">強制 DLC</string>
     <string name="shortcuts_properties_force_dlc_description">僅在 DLC 未被偵測到或含 DLC 的存檔無法正常運作時啟用</string>
     <string name="shortcuts_properties_launch_steam_client_beta">啟動 Steam 用戶端（測試版）</string>
-    <string name="shortcuts_properties_launch_steam_client_description">降低效能並減慢啟動速度\n允許線上遊玩並修復 DRM 和控制器問題\n並非所有遊戲都適用</string>
-    <string name="shortcuts_properties_steam_type">Steam 類型</string>
+    <string name="shortcuts_properties_launch_steam_client_description">在 Wine 中啟動真實 Steam 客戶端\n需要 Steam 帳號，可能會降低效能\n並非所有遊戲都適用</string>
+    <string name="shortcuts_properties_steam_type">Steam 客戶端效能</string>
+    <string name="steam_section_emulator">Steam 模擬器 (Goldberg)</string>
+    <string name="steam_section_real_client">真實 Steam 客戶端</string>
     <string name="shortcuts_properties_use_steam_input">使用 Steam 輸入</string>
     <string name="shortcuts_properties_steam_offline_mode">Steam 離線模式</string>
     <string name="shortcuts_properties_reset">重設屬性</string>

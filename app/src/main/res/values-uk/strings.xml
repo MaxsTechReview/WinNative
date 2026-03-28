@@ -223,8 +223,10 @@
     <string name="shortcuts_properties_force_dlc">Примусово увімкнути DLC</string>
     <string name="shortcuts_properties_force_dlc_description">Увімкніть лише якщо DLC не виявлено або збереження з DLC не працюють</string>
     <string name="shortcuts_properties_launch_steam_client_beta">Запустити клієнт Steam (бета)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Знижує продуктивність і сповільнює запуск\nДозволяє онлайн-гру та виправляє проблеми з DRM і контролерами\nПрацює не з усіма іграми</string>
-    <string name="shortcuts_properties_steam_type">Тип Steam</string>
+    <string name="shortcuts_properties_launch_steam_client_description">Запускає справжній клієнт Steam у Wine\nПотрібен обліковий запис Steam, може знизити продуктивність\nПрацює не з усіма іграми</string>
+    <string name="shortcuts_properties_steam_type">Продуктивність клієнта Steam</string>
+    <string name="steam_section_emulator">Емулятор Steam (Goldberg)</string>
+    <string name="steam_section_real_client">Справжній клієнт Steam</string>
     <string name="shortcuts_properties_use_steam_input">Використовувати Steam Input</string>
     <string name="shortcuts_properties_steam_offline_mode">Офлайн-режим Steam</string>
     <string name="shortcuts_properties_reset">Скинути властивості</string>

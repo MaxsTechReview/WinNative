@@ -52,8 +52,8 @@ object SteamClientManager {
     fun isColdClientInstalled(context: Context): Boolean {
         val imageFs = ImageFs.find(context)
         val loaderExe = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/steamclient_loader_x64.exe")
-        val stubDrm = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/extra_dlls/StubDRM64.dll")
-        return loaderExe.exists() && loaderExe.length() > 0 && stubDrm.exists() && stubDrm.length() > 0
+        val extraDll = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/extra_dlls/steamclient_extra_x64.dll")
+        return loaderExe.exists() && loaderExe.length() > 0 && extraDll.exists() && extraDll.length() > 0
     }
 
     @JvmStatic
@@ -144,7 +144,6 @@ object SteamClientManager {
     private fun downloadUrlsFor(fileName: String): Array<String> {
         val alternate = when (fileName) {
             "steam-token.tzst" -> "steam-token-r2.tzst"
-            "experimental-drm-20260116.tzst" -> "experimental-drm-20260116-r2.tzst"
             else -> null
         }
         return if (alternate != null) {
@@ -233,10 +232,22 @@ object SteamClientManager {
     fun extractColdClientSupport(context: Context): Boolean {
         if (isColdClientInstalled(context)) return true
 
-        val expFile = File(context.filesDir, "experimental-drm-20260116.tzst")
-        if (!expFile.exists()) return false
-
         val imageFs = ImageFs.find(context)
+        val expFile = File(context.filesDir, "experimental-drm.tzst")
+        if (!expFile.exists()) {
+            try {
+                context.assets.open("experimental-drm.tzst").use { input ->
+                    FileOutputStream(expFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                Log.d(TAG, "Copied bundled experimental-drm.tzst to filesDir")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to copy bundled experimental-drm.tzst: ${e.message}")
+                return false
+            }
+        }
+
         return try {
             TarCompressorUtils.extract(
                 TarCompressorUtils.Type.ZSTD,
@@ -297,9 +308,6 @@ object SteamClientManager {
 
     @JvmStatic
     fun ensureColdClientSupportReady(context: Context): Boolean {
-        if (!ensureArchiveReady(context, "experimental-drm-20260116.tzst", "Failed to download Steam DRM support")) {
-            return false
-        }
         return extractColdClientSupport(context)
     }
 
