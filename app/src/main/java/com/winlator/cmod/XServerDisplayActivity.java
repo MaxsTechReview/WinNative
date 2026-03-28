@@ -2068,6 +2068,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
                                 MarkerUtils.INSTANCE.removeMarker(gameInstallPath, Marker.STEAM_DLL_REPLACED);
                                 MarkerUtils.INSTANCE.removeMarker(gameInstallPath, Marker.STEAM_DRM_PATCHED);
                                 Log.d("XServerDisplayActivity", "Restored original steam_api DLLs for ColdClient mode");
+                            } else {
+                                // Pre-marker fallback: DLLs were replaced before the marker system
+                                // existed. Detect by checking for .orig backups and restore them.
+                                restoreSteamApiDlls(gameDir);
                             }
 
                             // Backup steamclient DLLs before any modification
@@ -4079,26 +4083,44 @@ public class XServerDisplayActivity extends AppCompatActivity {
      * only installs Mono once.
      */
     private boolean installMonoIfNeeded(GuestProgramLauncherComponent launcher) {
-        String monoInstalled = container.getExtra("mono_installed", "false");
-        if ("true".equals(monoInstalled)) {
-            Log.d("XServerDisplayActivity", "Mono already installed in container " + container.id + ", skipping");
+        String winePath = wineInfo != null ? wineInfo.path : null;
+
+        // Detect the required Mono version for this container's Wine build
+        String requiredVersion = SteamClientManager.detectRequiredMonoVersion(this, winePath);
+        if (requiredVersion == null) {
+            Log.w("XServerDisplayActivity", "Could not detect required Mono version, skipping");
+            return false;
+        }
+
+        // Check if the correct version is already installed in this container
+        String installedVersion = container.getExtra("mono_version", null);
+        if (requiredVersion.equals(installedVersion)) {
+            Log.d("XServerDisplayActivity", "Mono v" + installedVersion + " already installed in container " + container.id + ", skipping");
             return true;
         }
 
-        // Detect version from Wine build + download MSI if needed (one attempt per launch)
-        String monoWinePath = SteamClientManager.getMonoMsiWinePath(this);
+        // Version mismatch or not installed — need to (re)install
+        if (installedVersion != null) {
+            Log.w("XServerDisplayActivity", "Mono version mismatch in container " + container.id
+                    + ": installed v" + installedVersion + " but need v" + requiredVersion + " — reinstalling");
+        }
+
+        // Ensure the correct MSI is downloaded
+        String monoWinePath = SteamClientManager.getMonoMsiWinePath(this, winePath);
         if (monoWinePath == null) {
             Log.w("XServerDisplayActivity", "Mono MSI not available (no internet?), will retry next launch");
             return false;
         }
 
         try {
-            Log.d("XServerDisplayActivity", "Installing Wine Mono (" + monoWinePath + ") in container " + container.id + "...");
+            Log.d("XServerDisplayActivity", "Installing Wine Mono v" + requiredVersion
+                    + " (" + monoWinePath + ") in container " + container.id + "...");
             String monoCmd = "wine msiexec /i " + monoWinePath + " && wineserver -k";
             launcher.execShellCommand(monoCmd);
             container.putExtra("mono_installed", "true");
+            container.putExtra("mono_version", requiredVersion);
             container.saveData();
-            Log.d("XServerDisplayActivity", "Mono installed in container " + container.id);
+            Log.d("XServerDisplayActivity", "Mono v" + requiredVersion + " installed in container " + container.id);
             return true;
         } catch (Exception e) {
             Log.w("XServerDisplayActivity", "Mono msiexec failed, will retry next launch", e);
@@ -4309,8 +4331,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 container.setNeedsUnpacking(false);
                 container.saveData();
             } else {
-                Log.w("XServerDisplayActivity", "Steamless: unpacking failed, will retry next launch");
+                Log.w("XServerDisplayActivity", "Steamless: unpacking failed, skipping for future launches");
                 launcher.execShellCommand("wineserver -k");
+                container.setNeedsUnpacking(false);
+                container.saveData();
             }
         } catch (Exception e) {
             Log.e("XServerDisplayActivity", "Steamless execution failed, will retry next launch", e);
