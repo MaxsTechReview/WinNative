@@ -43,6 +43,7 @@ class TouchpadView(
         private const val CLICK_DELAYED_TIME: Byte = 50
         private const val EFFECTIVE_TOUCH_DISTANCE: Byte = 20
         private const val UPDATE_FORM_DELAYED_TIME = 50
+        private const val LONG_PRESS_RIGHT_CLICK_MS = 500L
     }
 
     private val fingers = arrayOfNulls<Finger>(MAX_FINGERS.toInt())
@@ -63,6 +64,20 @@ class TouchpadView(
     private var mouseEnabled = true
     private var fourFingersTapCallback: Runnable? = null
     private val preferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
+    private val longPressHandler = Handler(Looper.getMainLooper())
+    private var longPressActive = false
+    private val longPressRunnable = Runnable {
+        if (numFingers.toInt() == 1 && fingers[0] != null && fingers[0]!!.travelDistance() < MAX_TAP_TRAVEL_DISTANCE) {
+            longPressActive = true
+            if (xServer.isRelativeMouseMovement) {
+                xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTDOWN, 0, 0, 0)
+                xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTUP, 0, 0, 0)
+            } else {
+                xServer.injectPointerButtonPress(Pointer.Button.BUTTON_RIGHT)
+                xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
+            }
+        }
+    }
 
     init {
         layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
@@ -214,7 +229,14 @@ class TouchpadView(
                 scrolling = false
                 fingers[pointerId] = Finger(event.getX(actionIndex), event.getY(actionIndex))
                 numFingers++
-                
+
+                if (pointerId == 0 && numFingers.toInt() == 1 && !simTouchScreen) {
+                    longPressActive = false
+                    longPressHandler.postDelayed(longPressRunnable, LONG_PRESS_RIGHT_CLICK_MS)
+                } else {
+                    longPressHandler.removeCallbacks(longPressRunnable)
+                }
+
                 if (simTouchScreen) {
                     val clickDelay = Runnable {
                         if (continueClick) {
@@ -264,14 +286,18 @@ class TouchpadView(
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
+                longPressHandler.removeCallbacks(longPressRunnable)
                 fingers[pointerId]?.let {
                     it.update(event.getX(actionIndex), event.getY(actionIndex))
-                    handleFingerUp(it)
+                    if (!longPressActive) handleFingerUp(it)
+                    longPressActive = false
                     fingers[pointerId] = null
                     numFingers--
                 }
             }
             MotionEvent.ACTION_CANCEL -> {
+                longPressHandler.removeCallbacks(longPressRunnable)
+                longPressActive = false
                 for (i in 0 until MAX_FINGERS.toInt()) fingers[i] = null
                 numFingers = 0
             }
@@ -401,6 +427,9 @@ class TouchpadView(
     }
 
     private fun handleFingerMove(finger1: Finger) {
+        if (finger1.travelDistance() >= MAX_TAP_TRAVEL_DISTANCE) {
+            longPressHandler.removeCallbacks(longPressRunnable)
+        }
         var skipPointerMove = false
         val finger2 = if (numFingers.toInt() == 2) findSecondFinger(finger1) else null
         
