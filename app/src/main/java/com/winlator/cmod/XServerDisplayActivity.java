@@ -4835,16 +4835,23 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (frameRating == null) return;
 
         if (property != null) {
-            if (property.nameAsString().contains("_MESA_DRV_ENGINE_NAME")) {
-                frameRatingWindowId = window.id;
-                runOnUiThread(() -> frameRating.setRenderer(property.toString()));
+            String propName = property.nameAsString();
+            boolean isRendererProp = propName.contains("_MESA_DRV_ENGINE_NAME") || propName.contains("_UTIL_LAYER");
+
+            if (isRendererProp) {
+                if (frameRatingWindowId == -1 || window.isApplicationWindow()) {
+                    frameRatingWindowId = window.id;
+                }
             }
             
             if (frameRatingWindowId == window.id) {
-                if (property.nameAsString().contains("_MESA_DRV_GPU_NAME")) {
+                if (isRendererProp) {
+                    runOnUiThread(() -> frameRating.setRenderer(property.toString()));
+                } else if (propName.contains("_MESA_DRV_GPU_NAME")) {
                     runOnUiThread(() -> frameRating.setGpuName(property.toString()));
                 }
-                if (property.nameAsString().contains("_MESA_DRV")) {
+                
+                if (propName.contains("_MESA_DRV") || propName.contains("_UTIL_LAYER")) {
                     frameRating.update();
                 }
             }
