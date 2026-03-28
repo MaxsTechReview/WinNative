@@ -100,6 +100,11 @@ class AdrenotoolsFragment : Fragment() {
             driverPicker.launch(arrayOf("*/*"))
         }
 
+        binding.BTAddSource.setOnClickListener {
+            showAddRepoDialog(null, -1)
+        }
+
+        loadRepos()
         refreshInstalledDrivers()
         submitRows()
     }
