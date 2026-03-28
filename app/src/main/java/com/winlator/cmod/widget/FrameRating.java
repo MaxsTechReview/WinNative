@@ -231,16 +231,19 @@ public class FrameRating extends LinearLayout implements Runnable {
                         this.dX = view.getX() - event.getRawX();
                         this.dY = view.getY() - event.getRawY();
                         view.bringToFront();
-                        break;
+                        return true;
                     case MotionEvent.ACTION_UP:
                     case MotionEvent.ACTION_CANCEL:
-                        this.activePointerId = -1;
-                        break;
+                        if (this.activePointerId != -1) {
+                            this.activePointerId = -1;
+                            return true;
+                        }
+                        return false;
                     case MotionEvent.ACTION_MOVE:
                         if (this.activePointerId != -1) {
                             view.setX(event.getRawX() + this.dX);
                             view.setY(event.getRawY() + this.dY);
-                            break;
+                            return true;
                         }
                         break;
                 }
