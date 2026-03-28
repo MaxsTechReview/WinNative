@@ -1990,7 +1990,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                                 "steamclient_loader_x64.exe", "steamclient_loader_x64.dll",
                                 "steamclient_loader_x86.dll", "steamclient_loader.exe", "steamclient_loader.dll",
                                 "ColdClientLoader.ini", "steam_interfaces.txt",
-                                "extra_dlls/StubDRM64.dll", "extra_dlls/StubDRM.dll"
+                                "extra_dlls/steamclient_extra_x32.dll", "extra_dlls/steamclient_extra_x64.dll"
                             };
                             for (String remnant : emulatorFootprints) {
                                 File remnantFile = new File(steamDirFile, remnant);
@@ -3392,12 +3392,16 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     args = "/dir \"C:\\Program Files (x86)\\Steam\" \"steam.exe\" -silent -vgui -tcp -nobigpicture -nofriendsui -nochatui -nointro -applaunch " + appId;
                     Log.d("XServerDisplayActivity", "Real Steam launch via steam.exe for appId=" + appId);
                 } else if (!useLegacyDRM) {
-                    // ColdClient mode: launch through steamclient_loader_x64.exe
-                    // ColdClientLoader.ini specifies the actual game exe path
+                    // ColdClient mode: pick loader matching game exe architecture
                     File nativeDir = com.winlator.cmod.core.WineUtils.getNativePath(imageFs, "C:\\Program Files (x86)\\Steam");
                     if (nativeDir != null && nativeDir.exists()) launcherComponent.setWorkingDir(nativeDir);
-                    args = "/dir \"C:\\Program Files (x86)\\Steam\" \"steamclient_loader_x64.exe\"";
-                    Log.d("XServerDisplayActivity", "ColdClient launch via steamclient_loader_x64.exe for appId=" + appId);
+                    String gameInstPath = SteamBridge.getAppDirPath(appId);
+                    String gameExe = findGameExeWinPath(appId, new File(gameInstPath));
+                    File gameExeFile = gameExe != null ? new File(gameInstPath, gameExe.replace("A:\\", "").replace("\\", "/")) : null;
+                    boolean use64BitLoader = gameExeFile == null || com.winlator.cmod.core.PEHelper.is64Bit(gameExeFile);
+                    String loaderExe = use64BitLoader ? "steamclient_loader_x64.exe" : "steamclient_loader_x32.exe";
+                    args = "/dir \"C:\\Program Files (x86)\\Steam\" \"" + loaderExe + "\"";
+                    Log.d("XServerDisplayActivity", "ColdClient launch via " + loaderExe + " for appId=" + appId);
                 } else {
                     // Legacy DRM mode: launch game exe from within Steam's directory structure
                     // using steamapps\common\<game> symlink, NOT from A: drive directly
@@ -3605,7 +3609,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     "SteamUI.dll",
                     "steam.signatures",
                     "steamclient_loader_x64.exe",
-                    "extra_dlls/StubDRM64.dll"
+                    "extra_dlls/steamclient_extra_x64.dll"
                 }
                 : new String[] {
                     "steam.exe",
@@ -3628,7 +3632,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             // The xuser symlink will direct files to the active container
             try {
                 File steamFile = new File(getFilesDir(), "steam.tzst");
-                File expFile = new File(getFilesDir(), "experimental-drm-20260116.tzst");
+                File expFile = new File(getFilesDir(), "experimental-drm.tzst");
                 if (steamFile.exists()) {
                     com.winlator.cmod.core.TarCompressorUtils.extract(
                             com.winlator.cmod.core.TarCompressorUtils.Type.ZSTD,

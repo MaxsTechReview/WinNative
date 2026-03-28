@@ -3218,6 +3218,7 @@ public class ContainerDetailFragment extends Fragment {
         if (shortcutPath == null || shortcutPath.isEmpty()) return "";
 
         if ("C:\\Program Files (x86)\\Steam\\steamclient_loader_x64.exe".equalsIgnoreCase(shortcutPath)
+                || "C:\\Program Files (x86)\\Steam\\steamclient_loader_x32.exe".equalsIgnoreCase(shortcutPath)
                 || "C:\\Program Files (x86)\\Steam\\steam.exe".equalsIgnoreCase(shortcutPath)) {
             return "";
         }

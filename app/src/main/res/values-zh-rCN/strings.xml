@@ -223,8 +223,10 @@
     <string name="shortcuts_properties_force_dlc">强制 DLC</string>
     <string name="shortcuts_properties_force_dlc_description">仅在 DLC 未被检测到或含 DLC 的存档无法正常工作时启用</string>
     <string name="shortcuts_properties_launch_steam_client_beta">启动 Steam 客户端（测试版）</string>
-    <string name="shortcuts_properties_launch_steam_client_description">降低性能并减慢启动速度\n允许在线游戏并修复 DRM 和手柄问题\n并非所有游戏都支持</string>
-    <string name="shortcuts_properties_steam_type">Steam 类型</string>
+    <string name="shortcuts_properties_launch_steam_client_description">在 Wine 中启动真实 Steam 客户端\n需要 Steam 账号，可能会降低性能\n并非所有游戏都支持</string>
+    <string name="shortcuts_properties_steam_type">Steam 客户端性能</string>
+    <string name="steam_section_emulator">Steam 模拟器 (Goldberg)</string>
+    <string name="steam_section_real_client">真实 Steam 客户端</string>
     <string name="shortcuts_properties_use_steam_input">使用 Steam 输入</string>
     <string name="shortcuts_properties_steam_offline_mode">Steam 离线模式</string>
     <string name="shortcuts_properties_reset">重置属性</string>

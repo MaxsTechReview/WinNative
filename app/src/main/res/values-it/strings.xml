@@ -223,8 +223,10 @@
     <string name="shortcuts_properties_force_dlc">Forza DLC</string>
     <string name="shortcuts_properties_force_dlc_description">Abilita solo se i DLC non vengono rilevati o i salvataggi con DLC non funzionano</string>
     <string name="shortcuts_properties_launch_steam_client_beta">Avvia client Steam (Beta)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Riduce le prestazioni e rallenta l\'avvio\nConsente il gioco online e risolve problemi di DRM e controller\nNon tutti i giochi funzionano</string>
-    <string name="shortcuts_properties_steam_type">Tipo Steam</string>
+    <string name="shortcuts_properties_launch_steam_client_description">Avvia il vero client Steam in Wine\nRichiede un account Steam e potrebbe ridurre le prestazioni\nNon tutti i giochi funzionano</string>
+    <string name="shortcuts_properties_steam_type">Prestazioni client Steam</string>
+    <string name="steam_section_emulator">Emulatore Steam (Goldberg)</string>
+    <string name="steam_section_real_client">Client Steam reale</string>
     <string name="shortcuts_properties_use_steam_input">Usa Steam Input</string>
     <string name="shortcuts_properties_steam_offline_mode">Modalità offline Steam</string>
     <string name="shortcuts_properties_reset">Ripristina proprietà</string>

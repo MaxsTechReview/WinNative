@@ -1020,6 +1020,9 @@ object SteamUtils {
                 if (isOffline) {
                     appendLine("offline=1")
                 }
+                appendLine()
+                appendLine("[main::stats]")
+                appendLine("allow_unknown_stats=1")
             }
             File(settingsDir, "configs.main.ini").writeText(mainIniContent)
 

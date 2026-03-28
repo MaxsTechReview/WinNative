@@ -223,8 +223,10 @@
     <string name="shortcuts_properties_force_dlc">Force DLC</string>
     <string name="shortcuts_properties_force_dlc_description">Only enable if DLCs are not detected or saves with DLC are not working</string>
     <string name="shortcuts_properties_launch_steam_client_beta">Launch Steam Client (Beta)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Reduces performance and slows down launch\nAllows online play and fixes DRM and controller issues\nNot all games work</string>
-    <string name="shortcuts_properties_steam_type">Steam Type</string>
+    <string name="shortcuts_properties_launch_steam_client_description">Launches the real Steam client in Wine\nRequires a Steam account and may reduce performance\nNot all games work</string>
+    <string name="shortcuts_properties_steam_type">Steam Client Performance</string>
+    <string name="steam_section_emulator">Steam Emulator (Goldberg)</string>
+    <string name="steam_section_real_client">Real Steam Client</string>
     <string name="shortcuts_properties_use_steam_input">Use Steam Input</string>
     <string name="shortcuts_properties_steam_offline_mode">Steam Offline Mode</string>
     <string name="shortcuts_properties_reset">Reset Properties</string>
