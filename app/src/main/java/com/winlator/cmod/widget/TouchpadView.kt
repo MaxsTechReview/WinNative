@@ -71,7 +71,7 @@ class TouchpadView(
         isFocusable = true
         isFocusableInTouchMode = false
         pointerIcon = PointerIcon.load(resources, R.drawable.hidden_pointer_arrow)
-        updateXform(AppUtils.getScreenWidth(), AppUtils.getScreenHeight(), xServer.screenInfo.width, xServer.screenInfo.height)
+        updateXform(AppUtils.getScreenWidth(), AppUtils.getScreenHeight(), xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
 
         setOnGenericMotionListener { _, event ->
             if (event.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS) {
@@ -82,8 +82,8 @@ class TouchpadView(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        updateXform(w, h, xServer.screenInfo.width, xServer.screenInfo.height)
-        resolutionScale = 1000.0f / Math.min(xServer.screenInfo.width, xServer.screenInfo.height)
+        updateXform(w, h, xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
+        resolutionScale = 1000.0f / Math.min(xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
     }
 
     private fun updateXform(outerWidth: Int, outerHeight: Int, innerWidth: Int, innerHeight: Int) {
@@ -552,7 +552,7 @@ class TouchpadView(
     
     fun toggleFullscreen() {
         Handler(Looper.getMainLooper()).postDelayed({
-            updateXform(width, height, xServer.screenInfo.width, xServer.screenInfo.height)
+            updateXform(width, height, xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
         }, UPDATE_FORM_DELAYED_TIME.toLong())
     }
 
