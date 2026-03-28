@@ -1794,7 +1794,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 frameRating.setVisibility(isFpsVisible ? View.GONE : View.VISIBLE);
                 if (container != null) {
                     container.setShowFPS(!isFpsVisible);
-                    containerManager.saveContainer(container);
+                    container.saveData();
                 }
                 renderDrawerMenu();
                 break;
