@@ -50,7 +50,7 @@ class AdrenotoolsFragment : Fragment() {
     private lateinit var adrenotoolsManager: AdrenotoolsManager
     private lateinit var driverAdapter: DriverRowAdapter
 
-    private val githubSources = listOf(
+    private var githubSources = mutableListOf(
         GithubSourceDefinition(
             name = GITHUB_REPO_NAME,
             repoUrl = GITHUB_REPO_URL,
