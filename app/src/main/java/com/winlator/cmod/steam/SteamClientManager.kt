@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.widget.Toast
+import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.core.FileUtils
 import com.winlator.cmod.core.TarCompressorUtils
 import com.winlator.cmod.xenvironment.ImageFs
@@ -382,31 +383,94 @@ object SteamClientManager {
     /**
      * Detects the Mono version expected by the current Wine build by scanning
      * mscoree.dll for the version string pattern (e.g. "9.3.0", "10.4.1").
+     *
+     * @param containerWinePath The Wine/Proton install path for the container's active build.
+     *                          If provided, this build is checked first before falling back to others.
      * Returns null if the version cannot be determined.
      */
     @JvmStatic
-    fun detectRequiredMonoVersion(context: Context): String? {
+    @JvmOverloads
+    fun detectRequiredMonoVersion(context: Context, containerWinePath: String? = null): String? {
         val imageFs = ImageFs.find(context)
-        val winePath = imageFs.winePath ?: return null
+        val contentsDir = File(context.filesDir, "contents")
 
-        // Try x86_64-windows first (64-bit Wine), then i386-windows (32-bit)
-        val candidates = listOf(
-            File(winePath, "lib/wine/x86_64-windows/mscoree.dll"),
-            File(winePath, "lib/wine/aarch64-windows/mscoree.dll"),
-            File(winePath, "lib/wine/i386-windows/mscoree.dll")
-        )
+        // Build candidate list, prioritizing the container's active Wine build
+        val candidates = mutableListOf<File>()
 
-        val mscoree = candidates.firstOrNull { it.exists() } ?: run {
-            Log.w(TAG, "mscoree.dll not found in Wine build at $winePath")
-            return null
+        // Priority 1: Container's own Wine/Proton build
+        if (containerWinePath != null) {
+            val wineDir = File(containerWinePath)
+            candidates.add(File(wineDir, "lib/wine/aarch64-windows/mscoree.dll"))
+            candidates.add(File(wineDir, "lib/wine/x86_64-windows/mscoree.dll"))
+            candidates.add(File(wineDir, "lib/wine/i386-windows/mscoree.dll"))
+            Log.d(TAG, "Mono detection: prioritizing container Wine path: $containerWinePath")
         }
 
+        // Priority 2: All installed Wine and Proton builds under files/contents/
+        for (typeDir in listOf(File(contentsDir, "Wine"), File(contentsDir, "Proton"))) {
+            typeDir.listFiles()?.forEach { buildDir ->
+                candidates.add(File(buildDir, "lib/wine/aarch64-windows/mscoree.dll"))
+                candidates.add(File(buildDir, "lib/wine/x86_64-windows/mscoree.dll"))
+                candidates.add(File(buildDir, "lib/wine/i386-windows/mscoree.dll"))
+            }
+        }
+
+        // Priority 3: Legacy fallback via imageFs.winePath (imagefs/opt/...)
+        val winePath = imageFs.winePath
+        if (winePath != null) {
+            candidates.add(File(winePath, "lib/wine/x86_64-windows/mscoree.dll"))
+            candidates.add(File(winePath, "lib/wine/aarch64-windows/mscoree.dll"))
+            candidates.add(File(winePath, "lib/wine/i386-windows/mscoree.dll"))
+        }
+
+        Log.d(TAG, "Mono detection: searching ${candidates.size} candidate mscoree.dll paths")
+        for (c in candidates) {
+            Log.d(TAG, "  candidate: ${c.path} (exists=${c.exists()})")
+        }
+
+        val mscoree = candidates.firstOrNull { it.exists() } ?: run {
+            Log.w(TAG, "mscoree.dll not found in any Wine/Proton build")
+            return null
+        }
+        Log.i(TAG, "Mono detection: using mscoree.dll at ${mscoree.path}")
+
+        return extractMonoVersionFromDll(mscoree)
+    }
+
+    /**
+     * Extracts the Mono version string from an mscoree.dll file.
+     */
+    private fun extractMonoVersionFromDll(mscoree: File): String? {
         return try {
-            // Read the DLL binary and search for version pattern "wine-mono-X.Y.Z"
             val bytes = mscoree.readBytes()
+
+            // Strategy 1: Search ISO-8859-1 for "wine-mono-X.Y.Z" (ASCII strings in DLL)
             val content = String(bytes, Charsets.ISO_8859_1)
             val pattern = Regex("wine-mono-(\\d+\\.\\d+\\.\\d+)")
-            val match = pattern.find(content)
+            var match = pattern.find(content)
+            if (match != null) {
+                Log.d(TAG, "Mono version found via ISO-8859-1 wine-mono pattern")
+            }
+
+            // Strategy 2: Search UTF-16LE for "wine-mono-X.Y.Z" (wide strings in DLL)
+            if (match == null) {
+                val content16 = String(bytes, Charsets.UTF_16LE)
+                match = pattern.find(content16)
+                if (match != null) {
+                    Log.d(TAG, "Mono version found via UTF-16LE wine-mono pattern")
+                }
+            }
+
+            // Strategy 3: Bare version after "found installed support package" marker
+            // The format varies: "%s\x00X.Y.Z" or "%s\n\x00X.Y.Z"
+            if (match == null) {
+                val barePattern = Regex("found installed support package %s[\\n\\r]*\\x00(\\d+\\.\\d+\\.\\d+)\\x00")
+                match = barePattern.find(content)
+                if (match != null) {
+                    Log.d(TAG, "Mono version found via bare version after 'support package' marker")
+                }
+            }
+
             if (match != null) {
                 val version = match.groupValues[1]
                 Log.i(TAG, "Detected required Mono version: $version from ${mscoree.path}")
@@ -427,16 +491,12 @@ object SteamClientManager {
      * Returns null if version detection fails or download fails.
      */
     @JvmStatic
-    fun ensureMonoMsi(context: Context): File? {
-        val version = detectRequiredMonoVersion(context)
+    @JvmOverloads
+    fun ensureMonoMsi(context: Context, containerWinePath: String? = null): File? {
+        val version = detectRequiredMonoVersion(context, containerWinePath)
         if (version == null) {
-            Log.w(TAG, "Cannot detect Mono version, falling back to bundled MSI")
-            // Fall back to whatever MSI exists in the mono directory
-            val monoDir = File(ImageFs.find(context).rootDir, "opt/mono-gecko-offline")
-            val existing = monoDir.listFiles()?.firstOrNull {
-                it.name.startsWith("wine-mono-") && it.name.endsWith("-x86.msi")
-            }
-            return existing
+            Log.w(TAG, "Cannot detect Mono version, skipping Mono install")
+            return null
         }
 
         val msiName = "wine-mono-$version-x86.msi"
@@ -444,18 +504,42 @@ object SteamClientManager {
         monoDir.mkdirs()
         val msiFile = File(monoDir, msiName)
 
-        if (msiFile.exists() && msiFile.length() > 0) {
-            Log.d(TAG, "Mono MSI already present: ${msiFile.path}")
-            chmodIfExists(msiFile)
-            return msiFile
+        Log.i(TAG, "Required Mono version: $version (expected MSI: $msiName)")
+
+        // Log what's currently in the mono directory
+        val existingFiles = monoDir.listFiles()
+        if (existingFiles.isNullOrEmpty()) {
+            Log.i(TAG, "Mono directory is empty, need to download $msiName")
+        } else {
+            Log.i(TAG, "Mono directory contents (${existingFiles.size} files):")
+            existingFiles.forEach { f -> Log.i(TAG, "  ${f.name} (${f.length()} bytes)") }
         }
 
-        // Clean up any old Mono MSIs
+        // Clean up leftover .tmp files and MSIs no longer used by any container
+        val containerManager = ContainerManager(context)
+        val usedVersions = mutableSetOf(version) // always keep the version we're about to install
+        for (c in containerManager.containers) {
+            val v = c.getExtra("mono_version", null)
+            if (v != null) usedVersions.add(v)
+        }
+        val monoMsiPattern = Regex("wine-mono-(\\d+\\.\\d+\\.\\d+)-x86\\.msi")
         monoDir.listFiles()?.forEach { f ->
-            if (f.name.startsWith("wine-mono-") && f.name.endsWith("-x86.msi") && f.name != msiName) {
-                Log.i(TAG, "Removing outdated Mono MSI: ${f.name}")
+            if (f.name.endsWith(".msi.tmp")) {
+                Log.i(TAG, "Removing leftover temp file: ${f.name}")
                 f.delete()
+            } else {
+                val msiMatch = monoMsiPattern.matchEntire(f.name)
+                if (msiMatch != null && msiMatch.groupValues[1] !in usedVersions) {
+                    Log.i(TAG, "Removing unused Mono MSI: ${f.name} (no container needs v${msiMatch.groupValues[1]})")
+                    f.delete()
+                }
             }
+        }
+
+        if (msiFile.exists() && msiFile.length() > 0) {
+            Log.i(TAG, "Mono MSI v$version already present and correct: ${msiFile.path} (${msiFile.length()} bytes)")
+            chmodIfExists(msiFile)
+            return msiFile
         }
 
         // Download the correct version
@@ -504,8 +588,9 @@ object SteamClientManager {
      * Ensures the correct version is downloaded first.
      */
     @JvmStatic
-    fun getMonoMsiWinePath(context: Context): String? {
-        val msiFile = ensureMonoMsi(context) ?: return null
+    @JvmOverloads
+    fun getMonoMsiWinePath(context: Context, containerWinePath: String? = null): String? {
+        val msiFile = ensureMonoMsi(context, containerWinePath) ?: return null
         return "Z:\\opt\\mono-gecko-offline\\${msiFile.name}"
     }
 
