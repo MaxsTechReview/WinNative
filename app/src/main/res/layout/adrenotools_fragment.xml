@@ -59,18 +59,36 @@
             android:visibility="gone" />
     </LinearLayout>
 
-    <ImageButton
-        android:id="@+id/BTInstallDriver"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_marginEnd="76dp"
         android:layout_marginBottom="28dp"
-        android:background="@drawable/content_fab_background"
-        android:contentDescription="@string/settings_drivers_install"
-        android:elevation="6dp"
-        android:padding="12dp"
-        android:src="@drawable/ic_content_add"
-        app:tint="@color/white" />
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/BTAddSource"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="16dp"
+            android:background="@drawable/content_fab_background"
+            android:contentDescription="Add Driver Source"
+            android:elevation="6dp"
+            android:padding="12dp"
+            android:src="@drawable/ic_content_linked"
+            app:tint="@color/white" />
+
+        <ImageButton
+            android:id="@+id/BTInstallDriver"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/content_fab_background"
+            android:contentDescription="@string/settings_drivers_install"
+            android:elevation="6dp"
+            android:padding="12dp"
+            android:src="@drawable/ic_content_add"
+            app:tint="@color/white" />
+    </LinearLayout>
 
 </FrameLayout>
