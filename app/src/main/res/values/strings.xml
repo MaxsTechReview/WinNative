@@ -497,6 +497,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
 
     <!-- Session > Drawer Menu -->
     <string name="session_drawer_keyboard">Keyboard</string>
+    <string name="session_drawer_fps_monitor">FPS Monitor</string>
+    <string name="session_drawer_fps_monitor_subtitle">Show real-time performance stats</string>
     <string name="session_drawer_toggle_fullscreen">Toggle Fullscreen</string>
     <string name="session_drawer_show_touchscreen_controls">Show Touchscreen Controls</string>
     <string name="session_drawer_magnifier">Magnifier</string>

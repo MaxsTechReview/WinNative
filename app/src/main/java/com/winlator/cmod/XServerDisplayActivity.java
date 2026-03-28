@@ -1757,6 +1757,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 this,
                 isRelativeMouseMovement,
                 isMouseDisabled,
+                frameRating != null && frameRating.getVisibility() == View.VISIBLE,
                 isPaused,
                 true,
                 enableLogsMenu,
@@ -1781,6 +1782,21 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 break;
             case R.id.main_menu_input_controls:
                 showInputControlsDialog();
+                break;
+            case R.id.main_menu_fps_monitor:
+                if (frameRating == null) {
+                    FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
+                    frameRating = new FrameRating(this, graphicsDriverConfig);
+                    frameRating.setVisibility(View.GONE);
+                    rootView.addView(frameRating);
+                }
+                boolean isFpsVisible = frameRating.getVisibility() == View.VISIBLE;
+                frameRating.setVisibility(isFpsVisible ? View.GONE : View.VISIBLE);
+                if (container != null) {
+                    container.setShowFPS(!isFpsVisible);
+                    containerManager.saveContainer(container);
+                }
+                renderDrawerMenu();
                 break;
             case R.id.main_menu_relative_mouse_movement:
                 isRelativeMouseMovement = !isRelativeMouseMovement;

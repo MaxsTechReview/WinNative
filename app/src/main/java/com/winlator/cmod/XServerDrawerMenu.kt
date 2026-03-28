@@ -63,6 +63,7 @@ fun buildXServerDrawerState(
     context: Context,
     relativeMouseEnabled: Boolean,
     mouseDisabled: Boolean,
+    fpsMonitorEnabled: Boolean,
     paused: Boolean,
     showMagnifier: Boolean,
     showLogs: Boolean,
@@ -82,6 +83,13 @@ fun buildXServerDrawerState(
             title = context.getString(R.string.common_ui_input_controls),
             subtitle = context.getString(R.string.session_drawer_input_controls_subtitle),
             iconRes = R.drawable.icon_input_controls,
+        ),
+        XServerDrawerItem(
+            itemId = R.id.main_menu_fps_monitor,
+            title = context.getString(R.string.session_drawer_fps_monitor),
+            subtitle = if (fpsMonitorEnabled) context.getString(R.string.common_ui_enabled) else context.getString(R.string.common_ui_disabled),
+            iconRes = R.drawable.icon_monitor,
+            active = fpsMonitorEnabled,
         ),
         XServerDrawerItem(
             itemId = R.id.main_menu_relative_mouse_movement,

@@ -10,6 +10,9 @@
             android:id="@+id/main_menu_input_controls"
             android:title="@string/common_ui_input_controls" />
         <item
+            android:id="@+id/main_menu_fps_monitor"
+            android:title="@string/session_drawer_fps_monitor" />
+        <item
             android:id="@+id/main_menu_relative_mouse_movement"
             android:title="@string/session_drawer_toggle_relative_mouse" />
         <item
