@@ -3405,7 +3405,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
         // instead of persisting to container.setDrives() + container.saveData()
         try {
             File dosdevices = new File(c.getRootDir(), ".wine/dosdevices");
-            dosdevices.mkdirs();
             File aLink = new File(dosdevices, "a:");
             if (aLink.exists()) {
                 aLink.delete();
