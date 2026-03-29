@@ -50,7 +50,7 @@ class AdrenotoolsFragment : Fragment() {
     private lateinit var adrenotoolsManager: AdrenotoolsManager
     private lateinit var driverAdapter: DriverRowAdapter
 
-    private val githubSources = listOf(
+    private var githubSources = mutableListOf(
         GithubSourceDefinition(
             name = GITHUB_REPO_NAME,
             repoUrl = GITHUB_REPO_URL,
@@ -100,6 +100,11 @@ class AdrenotoolsFragment : Fragment() {
             driverPicker.launch(arrayOf("*/*"))
         }
 
+        binding.BTAddSource.setOnClickListener {
+            showAddRepoDialog(null, -1)
+        }
+
+        loadRepos()
         refreshInstalledDrivers()
         submitRows()
     }
@@ -572,6 +577,14 @@ class AdrenotoolsFragment : Fragment() {
                 }
                 itemBinding.root.setOnClickListener(clickListener)
                 itemBinding.BTMenu.setOnClickListener(clickListener)
+
+                itemBinding.root.setOnLongClickListener {
+                    val index = githubSources.indexOfFirst { it.apiUrl == source.apiUrl }
+                    if (index != -1) {
+                        showRepoMenu(githubSources[index], index, itemBinding.root)
+                    }
+                    true
+                }
             }
 
             private fun updateMenuRotation(source: GithubSource, isSameSource: Boolean, previousExpanded: Boolean?) {
@@ -757,6 +770,143 @@ class AdrenotoolsFragment : Fragment() {
         val downloadUrl: String,
         val sizeLabel: String
     )
+
+    private fun loadRepos() {
+        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(requireContext())
+        val jsonStr = prefs.getString("custom_driver_repos", "") ?: ""
+        val newSources = mutableListOf<GithubSourceDefinition>()
+        
+        if (jsonStr.isEmpty()) {
+            newSources.add(GithubSourceDefinition(
+                name = GITHUB_REPO_NAME,
+                repoUrl = GITHUB_REPO_URL,
+                apiUrl = GITHUB_API_URL
+            ))
+        } else {
+            try {
+                val array = JSONArray(jsonStr)
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    newSources.add(GithubSourceDefinition(
+                        name = obj.optString("name", "Unknown Repo"),
+                        repoUrl = obj.optString("repoUrl", ""),
+                        apiUrl = obj.optString("apiUrl", "")
+                    ))
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        githubSources = newSources
+    }
+
+    private fun saveRepos() {
+        try {
+            val array = JSONArray()
+            for (source in githubSources) {
+                val obj = org.json.JSONObject()
+                obj.put("name", source.name)
+                obj.put("repoUrl", source.repoUrl)
+                obj.put("apiUrl", source.apiUrl)
+                array.put(obj)
+            }
+            androidx.preference.PreferenceManager.getDefaultSharedPreferences(requireContext())
+                .edit()
+                .putString("custom_driver_repos", array.toString())
+                .apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun showAddRepoDialog(repoToEdit: GithubSourceDefinition?, position: Int) {
+        val context = requireContext()
+        val builder = androidx.appcompat.app.AlertDialog.Builder(context)
+        builder.setTitle(if (repoToEdit == null) "Add Repository" else "Edit Repository")
+        
+        val inputName = android.widget.EditText(context).apply {
+            hint = "Name (e.g. Kimchi Turnip)"
+            if (repoToEdit != null) setText(repoToEdit.name)
+        }
+        val inputUrl = android.widget.EditText(context).apply {
+            hint = "GitHub API URL"
+            if (repoToEdit != null) setText(repoToEdit.apiUrl)
+        }
+        val layout = android.widget.LinearLayout(context).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(50, 30, 50, 30)
+            addView(inputName)
+            addView(inputUrl)
+        }
+        
+        builder.setView(layout)
+        builder.setPositiveButton(android.R.string.ok) { _, _ ->
+            val name = inputName.text.toString().trim()
+            var url = inputUrl.text.toString().trim()
+            
+            if (url.startsWith("https://github.com/") && !url.contains("api.github.com")) {
+                url = url.replace("https://github.com/", "https://api.github.com/repos/")
+                if (!url.endsWith("/releases")) {
+                    url = "$url/releases"
+                }
+            }
+            
+            if (name.isNotEmpty() && url.isNotEmpty()) {
+                val repoUrl = url.replace("api.github.com/repos", "github.com")
+                val newSource = GithubSourceDefinition(name, repoUrl, url)
+                if (repoToEdit == null) {
+                    githubSources.add(newSource)
+                } else {
+                    githubSources[position] = newSource
+                }
+                saveRepos()
+                submitRows()
+            }
+        }
+        builder.setNegativeButton(android.R.string.cancel, null)
+        builder.show()
+    }
+
+    private fun showRepoMenu(source: GithubSourceDefinition, position: Int, anchor: View) {
+        val popupContext = ContextThemeWrapper(requireContext(), R.style.ThemeOverlay_ContentPopupMenu)
+        val popupMenu = PopupMenu(
+            popupContext,
+            anchor,
+            Gravity.END,
+            0,
+            R.style.Widget_ContentPopupMenu
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            popupMenu.setForceShowIcon(true)
+        }
+
+        popupMenu.menu.add(0, 1, 0, "Edit")
+        popupMenu.menu.add(0, 2, 0, "Delete")
+
+        popupMenu.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                1 -> {
+                    showAddRepoDialog(source, position)
+                    true
+                }
+                2 -> {
+                    androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                        .setTitle("Remove Repository")
+                        .setMessage("Are you sure you want to remove this repository?")
+                        .setPositiveButton(android.R.string.ok) { _, _ ->
+                            githubSources.removeAt(position)
+                            saveRepos()
+                            submitRows()
+                        }
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .show()
+                    true
+                }
+                else -> false
+            }
+        }
+        popupMenu.show()
+    }
 
     companion object {
         private const val VIEW_TYPE_HEADER = 0
