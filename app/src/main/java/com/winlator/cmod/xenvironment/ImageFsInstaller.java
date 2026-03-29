@@ -202,31 +202,11 @@ public abstract class ImageFsInstaller {
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, "extras.tzst", rootDir);
         } catch (Exception e) {
             Log.w("ImageFsInstaller", "extras.tzst not found or failed to extract; Steamless assets may be missing");
-            return;
         }
-
-        chmodIfExists(new File(rootDir, "generate_interfaces_file.exe"));
-        chmodIfExists(new File(rootDir, "Steamless/Steamless.CLI.exe"));
-        // chmod any Mono MSI that was bundled in extras.tzst
-        File monoDir = new File(rootDir, "opt/mono-gecko-offline");
-        if (monoDir.isDirectory()) {
-            File[] msiFiles = monoDir.listFiles();
-            if (msiFiles != null) {
-                for (File msi : msiFiles) {
-                    if (msi.getName().startsWith("wine-mono-") && msi.getName().endsWith("-x86.msi")) {
-                        chmodIfExists(msi);
-                    }
-                }
-            }
-        }
-        chmodIfExists(new File(rootDir, "usr/lib/libredirect.so"));
-        chmodIfExists(new File(rootDir, "usr/lib/libredirect-bionic.so"));
     }
 
     private static void chmodIfExists(File file) {
-        if (file.exists()) {
-            FileUtils.chmod(file, 0755);
-        }
+        // Trust the tar permissions like the reference app
     }
 
     /**

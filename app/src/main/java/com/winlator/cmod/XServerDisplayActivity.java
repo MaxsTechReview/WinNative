@@ -1010,6 +1010,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 // Cancel any pending post-game update check since we're launching a new game
                 com.winlator.cmod.core.UpdateChecker.INSTANCE.cancelPostGameCheck();
 
+                setupWineSystemFiles();
+                extractGraphicsDriverFiles();
+
                 if (shortcut != null) {
                     CloudSyncHelper.forceDownloadOnContainerSwap(this, shortcut);
 
@@ -1057,8 +1060,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                         // else: saves are in sync — skip silently
                     }
                 }
-                setupWineSystemFiles();
-                extractGraphicsDriverFiles();
+
                 changeWineAudioDriver();
                 try {
                     setupXEnvironment();
@@ -3405,7 +3407,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
         // instead of persisting to container.setDrives() + container.saveData()
         try {
             File dosdevices = new File(c.getRootDir(), ".wine/dosdevices");
-            dosdevices.mkdirs();
             File aLink = new File(dosdevices, "a:");
             if (aLink.exists()) {
                 aLink.delete();

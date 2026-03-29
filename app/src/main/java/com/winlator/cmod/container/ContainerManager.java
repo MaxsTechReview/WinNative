@@ -93,25 +93,9 @@ public class ContainerManager {
 
 
     public void activateContainer(Container container) {
-        File containerDir = new File(homeDir, ImageFs.USER+"-"+container.id);
-        container.setRootDir(containerDir);
+        container.setRootDir(new File(homeDir, ImageFs.USER+"-"+container.id));
         File file = new File(homeDir, ImageFs.USER);
-        
-        // Make C: Drive read and writable for all users (for game modding, etc.)
-        try {
-            Runtime.getRuntime().exec(new String[]{"chmod", "-R", "0777", new File(containerDir, ".wine/drive_c").getAbsolutePath()});
-        } catch (Exception e) {}
-
-        // Replace the real "xuser" dir (from imagefs.txz) with a symlink to the active
-        // container. Migrate winhandler.exe/wfm.exe first since they aren't in container
-        // pattern archives. Only runs once — after that xuser is already a symlink.
-        if (file.exists() && !FileUtils.isSymlink(file)) {
-            Log.w("ContainerManager", "activateContainer: migrating essential files from " + file.getPath() + " to container " + container.id);
-            migrateEssentialFiles(file, containerDir);
-            FileUtils.delete(file);
-        } else {
-            file.delete();
-        }
+        file.delete();
         FileUtils.symlink("./"+ImageFs.USER+"-"+container.id, file.getPath());
     }
 
