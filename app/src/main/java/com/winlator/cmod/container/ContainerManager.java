@@ -98,7 +98,7 @@ public class ContainerManager {
         container.setRootDir(containerDir);
         File file = new File(homeDir, ImageFs.USER);
 
-        // Make C: Drive read and writable for all users (for game modding, etc.)
+        // Make C: Drive accessible — 0771 not 0777 to prevent other apps reading file contents
         try {
             Runtime.getRuntime().exec(new String[]{"chmod", "-R", "0771", new File(containerDir, ".wine/drive_c").getAbsolutePath()});
         } catch (Exception e) {}
