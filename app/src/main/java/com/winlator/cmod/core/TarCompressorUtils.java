@@ -182,8 +182,6 @@ public abstract class TarCompressorUtils {
                         }
                     }
                 }
-
-                FileUtils.chmod(file, 0771);
             }
             return true;
         }
@@ -282,8 +280,6 @@ public abstract class TarCompressorUtils {
                         }
                     }
                 }
-
-                FileUtils.chmod(file, 0771);
             }
             return true;
         } catch (IOException e) {

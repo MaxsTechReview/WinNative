@@ -33,6 +33,15 @@ public class ImageFs {
         wineprefix = rootDir + WINEPREFIX;
     }
 
+    public void updatePaths(File containerRootDir) {
+        if (containerRootDir != null && containerRootDir.exists()) {
+            home_path = containerRootDir.getAbsolutePath();
+            wineprefix = new File(containerRootDir, ".wine").getAbsolutePath();
+            cache_path = new File(containerRootDir, ".cache").getAbsolutePath();
+            config_path = new File(containerRootDir, ".config").getAbsolutePath();
+        }
+    }
+
     public static ImageFs find(Context context) {
         return new ImageFs(new File(context.getFilesDir(), "imagefs"));
     }
