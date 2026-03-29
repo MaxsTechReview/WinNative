@@ -1962,20 +1962,27 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private void setupWineSystemFiles() {
+        Log.d("ContainerLaunch", "=== setupWineSystemFiles START === container=" + container.id +
+                " wine=" + wineVersion + " arch=" + (wineInfo != null ? wineInfo.getArch() : "null") +
+                " rootDir=" + container.getRootDir().getAbsolutePath());
+
         ensureWinePrefixReady();
-        ensureWinePrefixEssentialFiles();
 
         String appVersion = String.valueOf(AppUtils.getVersionCode(this));
         String imgVersion = String.valueOf(imageFs.getVersion());
         boolean containerDataChanged = false;
 
         if (!container.getExtra("appVersion").equals(appVersion) || !container.getExtra("imgVersion").equals(imgVersion)) {
+            Log.d("ContainerLaunch", "Version mismatch, applying general patches (app=" + appVersion + " img=" + imgVersion + ")");
             applyGeneralPatches(container);
             container.putExtra("appVersion", appVersion);
             container.putExtra("imgVersion", imgVersion);
             firstTimeBoot = true; // force wincomponent DLLs re-extraction on app update
             containerDataChanged = true;
         }
+
+        // Check after applyGeneralPatches — container_pattern_common.tzst provides these files
+        ensureWinePrefixEssentialFiles();
 
         String dxwrapper = shortcut != null ? getShortcutSetting("dxwrapper", this.dxwrapper) : this.dxwrapper;
 
@@ -2242,6 +2249,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     "' dxwrapperExtra='" + container.getExtra("dxwrapper") + "'");
             container.saveData();
         }
+        Log.d("ContainerLaunch", "=== setupWineSystemFiles END === container=" + container.id + " firstTimeBoot=" + firstTimeBoot);
     }
 
     private void setupXEnvironment() throws PackageManager.NameNotFoundException {
@@ -2757,6 +2765,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
         String storedPrefixArch = container.getExtra("wineprefixArch");
         boolean archMismatch = !storedPrefixArch.isEmpty() && !storedPrefixArch.equalsIgnoreCase(wineInfo.getArch());
         boolean prefixNeedsUpdate = "t".equalsIgnoreCase(container.getExtra("wineprefixNeedsUpdate"));
+        Log.d("ContainerLaunch", "ensureWinePrefixReady: prefixInvalid=" + prefixInvalid +
+                " archMismatch=" + archMismatch + " storedArch=" + storedPrefixArch +
+                " targetArch=" + wineInfo.getArch() + " needsUpdate=" + prefixNeedsUpdate);
 
         if (!prefixInvalid && !archMismatch && !prefixNeedsUpdate) {
             if (storedPrefixArch.isEmpty()) {
@@ -2788,13 +2799,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
         File containerWindowsDir = new File(container.getRootDir(), ".wine/drive_c/windows");
         String[] essentialFiles = {"winhandler.exe", "wfm.exe"};
 
+        StringBuilder status = new StringBuilder("ensureWinePrefixEssentialFiles:");
         boolean anyMissing = false;
         for (String filename : essentialFiles) {
-            if (!new File(containerWindowsDir, filename).exists()) {
-                anyMissing = true;
-                break;
-            }
+            boolean exists = new File(containerWindowsDir, filename).exists();
+            status.append(" ").append(filename).append("=").append(exists);
+            if (!exists) anyMissing = true;
         }
+        Log.d("ContainerLaunch", status.toString());
 
         if (anyMissing) {
             // Try to find the files from another container that has them
@@ -2802,11 +2814,16 @@ public class XServerDisplayActivity extends AppCompatActivity {
             File[] homeDirs = homeDir.listFiles();
             File sourceWindowsDir = null;
             if (homeDirs != null) {
+                Log.d("ContainerLaunch", "Searching " + homeDirs.length + " dirs in home/ for essential files");
                 for (File dir : homeDirs) {
-                    if (!dir.isDirectory() || FileUtils.isSymlink(dir)) continue;
+                    if (!dir.isDirectory()) continue;
+                    // Skip the active xuser symlink and the current container itself
+                    if (dir.getName().equals(ImageFs.USER)) continue;
+                    if (dir.getAbsolutePath().equals(container.getRootDir().getAbsolutePath())) continue;
                     File candidate = new File(dir, ".wine/drive_c/windows");
                     if (new File(candidate, "winhandler.exe").exists()) {
                         sourceWindowsDir = candidate;
+                        Log.d("ContainerLaunch", "Found essential files source: " + dir.getName());
                         break;
                     }
                 }
@@ -2818,18 +2835,19 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     if (!dest.exists()) {
                         File source = new File(sourceWindowsDir, filename);
                         if (source.exists()) {
-                            Log.d("XServerDisplayActivity", "Copying missing " + filename + " from " + sourceWindowsDir.getParent() + " to container");
+                            Log.d("ContainerLaunch", "Copying " + filename + " from " + sourceWindowsDir.getParent());
                             FileUtils.copy(source, dest);
                         }
                     }
                 }
             } else {
-                // No source found — re-extract from imagefs to get the files
-                Log.w("XServerDisplayActivity", "Essential wine prefix files missing and no source container found, re-extracting container pattern");
+                // No other container has the files — extract from container_pattern_common.tzst
+                Log.w("ContainerLaunch", "No source container found, extracting from container_pattern_common.tzst");
+                containerWindowsDir.mkdirs();
                 TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this,
-                        "container_pattern.tzst", container.getRootDir(), onExtractFileListener);
+                        "container_pattern_common.tzst", imageFs.getRootDir(), onExtractFileListener);
                 for (String filename : essentialFiles) {
-                    Log.d("XServerDisplayActivity", filename + " exists after re-extraction: " + new File(containerWindowsDir, filename).exists());
+                    Log.d("ContainerLaunch", filename + " exists after extraction: " + new File(containerWindowsDir, filename).exists());
                 }
             }
         }

@@ -93,26 +93,30 @@ public class ContainerManager {
 
 
     public void activateContainer(Container container) {
+        Log.d("ContainerManager", "activateContainer: id=" + container.id);
         File containerDir = new File(homeDir, ImageFs.USER+"-"+container.id);
         container.setRootDir(containerDir);
         File file = new File(homeDir, ImageFs.USER);
-        
+
         // Make C: Drive read and writable for all users (for game modding, etc.)
         try {
-            Runtime.getRuntime().exec(new String[]{"chmod", "-R", "0777", new File(containerDir, ".wine/drive_c").getAbsolutePath()});
+            Runtime.getRuntime().exec(new String[]{"chmod", "-R", "0771", new File(containerDir, ".wine/drive_c").getAbsolutePath()});
         } catch (Exception e) {}
 
         // Replace the real "xuser" dir (from imagefs.txz) with a symlink to the active
         // container. Migrate winhandler.exe/wfm.exe first since they aren't in container
         // pattern archives. Only runs once — after that xuser is already a symlink.
         if (file.exists() && !FileUtils.isSymlink(file)) {
-            Log.w("ContainerManager", "activateContainer: migrating essential files from " + file.getPath() + " to container " + container.id);
+            Log.w("ContainerManager", "activateContainer: xuser is real dir, migrating essential files to container " + container.id);
             migrateEssentialFiles(file, containerDir);
-            FileUtils.delete(file);
+            boolean deleted = FileUtils.delete(file);
+            Log.d("ContainerManager", "activateContainer: real xuser dir delete=" + deleted);
         } else {
-            file.delete();
+            boolean deleted = file.delete();
+            Log.d("ContainerManager", "activateContainer: xuser symlink/missing delete=" + deleted + " existed=" + file.exists());
         }
         FileUtils.symlink("./"+ImageFs.USER+"-"+container.id, file.getPath());
+        Log.d("ContainerManager", "activateContainer: xuser symlink created, isSymlink=" + FileUtils.isSymlink(file) + " target=./" + ImageFs.USER + "-" + container.id);
     }
 
     private void migrateEssentialFiles(File sourceDir, File destDir) {

@@ -18,9 +18,12 @@ import java.util.Locale;
 
 public abstract class WineUtils {
     public static void createDosdevicesSymlinks(Container container) {
+        Log.d("ContainerLaunch", "createDosdevicesSymlinks: rootDir=" + container.getRootDir().getAbsolutePath() +
+                " drives=" + container.getDrives());
         File dosdevicesDir = new File(container.getRootDir(), ".wine/dosdevices");
         if (!dosdevicesDir.exists()) {
-            dosdevicesDir.mkdirs();
+            boolean created = dosdevicesDir.mkdirs();
+            Log.d("ContainerLaunch", "createDosdevicesSymlinks: created dosdevices dir=" + created);
         }
         String dosdevicesPath = dosdevicesDir.getPath();
         File[] files = dosdevicesDir.listFiles();
@@ -56,6 +59,7 @@ public abstract class WineUtils {
         }
 
         String gameDirectoryPath = null;
+        int driveCount = 0;
         for (String[] drive : container.drivesIterator()) {
             File linkTarget = new File(drive[1]);
             String path = linkTarget.getAbsolutePath();
@@ -65,6 +69,8 @@ public abstract class WineUtils {
                 FileUtils.chmod(linkTarget, 0771);
             }
             FileUtils.symlink(path, dosdevicesPath+"/"+drive[0].toLowerCase(Locale.ENGLISH)+":");
+            Log.d("ContainerLaunch", "createDosdevicesSymlinks: " + drive[0] + ": -> " + path);
+            driveCount++;
 
             // Always treat A: as the primary game directory so ColdClientLoader can
             // resolve steamapps\common\{gameName} to the A: drive for custom paths.
@@ -72,6 +78,7 @@ public abstract class WineUtils {
                 gameDirectoryPath = path;
             }
         }
+        Log.d("ContainerLaunch", "createDosdevicesSymlinks: created " + driveCount + " drive symlinks");
 
         // Create Steam directory structure and symlinks if we found the game directory on A:
         if (gameDirectoryPath != null) {
@@ -268,11 +275,10 @@ public abstract class WineUtils {
      * Note: dinput/dinput8 are NOT copied here — they use Wine builtins via builtin,native override.
      */
     private static void copyWineDllsToContainer(File rootDir, WineInfo wineInfo) {
-        boolean isArm64EC = wineInfo != null && wineInfo.isArm64EC();
-        File wineSystem32Dir = new File(rootDir, isArm64EC
-            ? "/opt/wine/lib/wine/aarch64-windows"
-            : "/opt/wine/lib/wine/x86_64-windows");
-        File wineSysWoW64Dir = new File(rootDir, "/opt/wine/lib/wine/i386-windows");
+        if (wineInfo == null || wineInfo.path == null || wineInfo.path.isEmpty()) return;
+        boolean isArm64EC = wineInfo.isArm64EC();
+        File wineSystem32Dir = new File(wineInfo.path + "/lib/wine/" + (isArm64EC ? "aarch64-windows" : "x86_64-windows"));
+        File wineSysWoW64Dir = new File(wineInfo.path + "/lib/wine/i386-windows");
         File containerSystem32Dir = new File(rootDir, ImageFs.WINEPREFIX+"/drive_c/windows/system32");
         File containerSysWoW64Dir = new File(rootDir, ImageFs.WINEPREFIX+"/drive_c/windows/syswow64");
 
