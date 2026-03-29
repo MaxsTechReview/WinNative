@@ -95,17 +95,23 @@ public class ControlElement {
         setBinding(Binding.NONE);
         scroller = null;
 
-        if (type == Type.D_PAD || type == Type.STICK) {
+        if (type == Type.STICK) {
             bindings[0] = Binding.KEY_W;
             bindings[1] = Binding.KEY_D;
             bindings[2] = Binding.KEY_S;
             bindings[3] = Binding.KEY_A;
         }
+        else if (type == Type.D_PAD) {
+            bindings[0] = Binding.GAMEPAD_DPAD_UP;
+            bindings[1] = Binding.GAMEPAD_DPAD_RIGHT;
+            bindings[2] = Binding.GAMEPAD_DPAD_DOWN;
+            bindings[3] = Binding.GAMEPAD_DPAD_LEFT;
+        }
         else if (type == Type.TRACKPAD) {
-            bindings[0] = Binding.MOUSE_MOVE_UP;
-            bindings[1] = Binding.MOUSE_MOVE_RIGHT;
-            bindings[2] = Binding.MOUSE_MOVE_DOWN;
-            bindings[3] = Binding.MOUSE_MOVE_LEFT;
+            bindings[0] = Binding.GAMEPAD_RIGHT_THUMB_UP;
+            bindings[1] = Binding.GAMEPAD_RIGHT_THUMB_RIGHT;
+            bindings[2] = Binding.GAMEPAD_RIGHT_THUMB_DOWN;
+            bindings[3] = Binding.GAMEPAD_RIGHT_THUMB_LEFT;
         }
         else if (type == Type.RANGE_BUTTON) {
             scroller = new RangeScroller(inputControlsView, this);
@@ -344,10 +350,15 @@ public class ControlElement {
         return text;
     }
 
+    private boolean isEngaged() {
+        return currentPointerId != -1 || (toggleSwitch && selected);
+    }
+
     public void draw(Canvas canvas) {
         int snappingSize = inputControlsView.getSnappingSize();
         Paint paint = inputControlsView.getPaint();
         int primaryColor = inputControlsView.getPrimaryColor();
+        int fillColor = ColorUtils.setAlphaComponent(primaryColor, 70);
 
         paint.setColor(selected ? inputControlsView.getSecondaryColor() : primaryColor);
         paint.setStyle(Paint.Style.STROKE);
@@ -359,6 +370,33 @@ public class ControlElement {
             case BUTTON: {
                 float cx = boundingBox.centerX();
                 float cy = boundingBox.centerY();
+
+                if (isEngaged()) {
+                    paint.setStyle(Paint.Style.FILL);
+                    paint.setColor(fillColor);
+                    switch (shape) {
+                        case CIRCLE:
+                            canvas.drawCircle(cx, cy, boundingBox.width() * 0.5f, paint);
+                            break;
+                        case RECT:
+                            canvas.drawRect(boundingBox, paint);
+                            break;
+                        case ROUND_RECT: {
+                            float r = boundingBox.height() * 0.5f;
+                            canvas.drawRoundRect(boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom, r, r, paint);
+                            break;
+                        }
+                        case SQUARE: {
+                            float r = snappingSize * 0.75f * scale;
+                            canvas.drawRoundRect(boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom, r, r, paint);
+                            break;
+                        }
+                    }
+                }
+
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setColor(selected ? inputControlsView.getSecondaryColor() : primaryColor);
+                paint.setStrokeWidth(strokeWidth);
 
                 switch (shape) {
                     case CIRCLE:
@@ -522,9 +560,10 @@ public class ControlElement {
                 float thumbstickX = getCurrentPosition().x;
                 float thumbstickY = getCurrentPosition().y;
 
-                short thumbRadius = (short) (snappingSize * 3.5f * scale); // Radius of the thumbstick
+                short thumbRadius = (short) (snappingSize * 3.5f * scale);
+                int engagedAlpha = isEngaged() ? 120 : 50;
                 paint.setStyle(Paint.Style.FILL);
-                paint.setColor(ColorUtils.setAlphaComponent(primaryColor, 50)); // Semi-transparent fill for thumbstick
+                paint.setColor(ColorUtils.setAlphaComponent(primaryColor, engagedAlpha));
                 canvas.drawCircle(thumbstickX, thumbstickY, thumbRadius, paint); // Draw thumbstick
 
                 // Draw the thumbstick border
@@ -604,10 +643,12 @@ public class ControlElement {
             if (type == Type.BUTTON) {
                 if (isKeepButtonPressedAfterMinTime()) touchTime = System.currentTimeMillis();
                 if (!toggleSwitch || !selected) inputControlsView.handleInputEvent(getBindingAt(0), true);
+                inputControlsView.invalidate();
                 return true;
             }
             else if (type == Type.RANGE_BUTTON) {
                 scroller.handleTouchDown(x, y);
+                inputControlsView.invalidate();
                 return true;
             }
             else {
@@ -622,6 +663,12 @@ public class ControlElement {
     }
 
     public boolean handleTouchMove(int pointerId, float x, float y) {
+        if (pointerId == currentPointerId && type == Type.BUTTON) {
+            if (!containsPoint(x, y)) {
+                handleTouchUp(pointerId);
+            }
+            return true;
+        }
         if (pointerId == currentPointerId && (type == Type.D_PAD || type == Type.STICK || type == Type.TRACKPAD)) {
             float deltaX, deltaY;
             Rect boundingBox = getBoundingBox();
@@ -691,22 +738,31 @@ public class ControlElement {
                 inputControlsView.invalidate();
             }
             else if (type == Type.TRACKPAD) {
-                final boolean[] states = {deltaY <= -TRACKPAD_MIN_SPEED, deltaX >= TRACKPAD_MIN_SPEED, deltaY >= TRACKPAD_MIN_SPEED, deltaX <= -TRACKPAD_MIN_SPEED};
-                int cursorDx = 0;
-                int cursorDy = 0;
-
-                for (byte i = 0; i < 4; i++) {
-                    float value = (i == 1 || i == 3 ? deltaX : deltaY);
-                    Binding binding = getBindingAt(i);
-                    if (binding.isGamepad()) {
-                        if (interpolator == null) interpolator = new CubicBezierInterpolator();
-                        if (Math.abs(value) > TRACKPAD_ACCELERATION_THRESHOLD) value *= STICK_SENSITIVITY;
-                        interpolator.set(0.075f, 0.95f, 0.45f, 0.95f);
-                        float interpolatedValue = interpolator.getInterpolation(Math.min(1.0f, Math.abs(value / TRACKPAD_MAX_SPEED)));
-                        inputControlsView.handleInputEvent(binding, true, Mathf.clamp(interpolatedValue * Mathf.sign(value), -1, 1));
+                Binding firstBinding = getBindingAt(0);
+                if (firstBinding.isGamepad()) {
+                    if (interpolator == null) interpolator = new CubicBezierInterpolator();
+                    interpolator.set(0.075f, 0.95f, 0.45f, 0.95f);
+                    float valueX = deltaX;
+                    float valueY = deltaY;
+                    if (Math.abs(valueX) > TRACKPAD_ACCELERATION_THRESHOLD) valueX *= STICK_SENSITIVITY;
+                    if (Math.abs(valueY) > TRACKPAD_ACCELERATION_THRESHOLD) valueY *= STICK_SENSITIVITY;
+                    float interpX = interpolator.getInterpolation(Math.min(1.0f, Math.abs(valueX / TRACKPAD_MAX_SPEED)));
+                    float interpY = interpolator.getInterpolation(Math.min(1.0f, Math.abs(valueY / TRACKPAD_MAX_SPEED)));
+                    float finalX = Mathf.clamp(Mathf.sign(valueX) * interpX, -1, 1);
+                    float finalY = Mathf.clamp(Mathf.sign(valueY) * interpY, -1, 1);
+                    inputControlsView.handleStickInput(firstBinding, finalX, finalY);
+                    for (byte i = 0; i < 4; i++) {
                         this.states[i] = true;
                     }
-                    else {
+                }
+                else {
+                    final boolean[] states = {deltaY <= -TRACKPAD_MIN_SPEED, deltaX >= TRACKPAD_MIN_SPEED, deltaY >= TRACKPAD_MIN_SPEED, deltaX <= -TRACKPAD_MIN_SPEED};
+                    int cursorDx = 0;
+                    int cursorDy = 0;
+
+                    for (byte i = 0; i < 4; i++) {
+                        float value = (i == 1 || i == 3 ? deltaX : deltaY);
+                        Binding binding = getBindingAt(i);
                         if (Math.abs(value) > TouchpadView.CURSOR_ACCELERATION_THRESHOLD) value *= TouchpadView.CURSOR_ACCELERATION;
                         if (binding == Binding.MOUSE_MOVE_LEFT || binding == Binding.MOUSE_MOVE_RIGHT) {
                             cursorDx = Mathf.roundPoint(value);
@@ -719,14 +775,14 @@ public class ControlElement {
                             this.states[i] = states[i];
                         }
                     }
-                }
 
-                if (cursorDx != 0 || cursorDy != 0)  {
-                    XServer xServer = inputControlsView.getXServer();
-                    if (xServer.isRelativeMouseMovement())
-                        xServer.getWinHandler().mouseEvent(MouseEventFlags.MOVE, cursorDx, cursorDy, 0);
-                    else
-                        inputControlsView.getXServer().injectPointerMoveDelta(cursorDx, cursorDy);
+                    if (cursorDx != 0 || cursorDy != 0)  {
+                        XServer xServer = inputControlsView.getXServer();
+                        if (xServer.isRelativeMouseMovement())
+                            xServer.getWinHandler().mouseEvent(MouseEventFlags.MOVE, cursorDx, cursorDy, 0);
+                        else
+                            inputControlsView.getXServer().injectPointerMoveDelta(cursorDx, cursorDy);
+                    }
                 }
             }
             else {
@@ -751,41 +807,54 @@ public class ControlElement {
     }
 
     public boolean handleTouchUp(int pointerId) {
-        if (pointerId == currentPointerId) {
-            if (type == Type.BUTTON) {
-                Binding binding = getBindingAt(0);
-                if (isKeepButtonPressedAfterMinTime() && touchTime != null) {
-                    selected = (System.currentTimeMillis() - (long)touchTime) > BUTTON_MIN_TIME_TO_KEEP_PRESSED;
-                    if (!selected) inputControlsView.handleInputEvent(binding, false);
-                    touchTime = null;
-                    inputControlsView.invalidate();
-                }
-                else if (!toggleSwitch || selected) inputControlsView.handleInputEvent(binding, false);
+        if (pointerId != currentPointerId) return false;
 
-                if (toggleSwitch) {
-                    selected = !selected;
+        if (type == Type.BUTTON) {
+            final Binding binding = getBindingAt(0);
+            if (isKeepButtonPressedAfterMinTime() && touchTime != null) {
+                long held = System.currentTimeMillis() - (long)touchTime;
+                long delay = Math.max(0L, BUTTON_MIN_TIME_TO_KEEP_PRESSED - held);
+                inputControlsView.postDelayed(() -> {
+                    inputControlsView.handleInputEvent(binding, false);
                     inputControlsView.invalidate();
-                }
+                }, delay);
+                touchTime = null;
             }
-            else if (type == Type.RANGE_BUTTON || type == Type.D_PAD || type == Type.STICK || type == Type.TRACKPAD) {
-                for (byte i = 0; i < states.length; i++) {
-                    if (states[i]) inputControlsView.handleInputEvent(getBindingAt(i), false);
-                    states[i] = false;
-                }
-
-                if (type == Type.RANGE_BUTTON) {
-                    scroller.handleTouchUp();
-                }
-                else if (type == Type.STICK) {
-                    inputControlsView.invalidate();
-                }
-
-                if (currentPosition != null) currentPosition = null;
+            else {
+                if (!toggleSwitch || selected) inputControlsView.handleInputEvent(binding, false);
+                if (toggleSwitch) selected = !selected;
             }
-            currentPointerId = -1;
-            return true;
+            inputControlsView.invalidate();
         }
-        return false;
+        else if (type == Type.RANGE_BUTTON || type == Type.D_PAD || type == Type.STICK || type == Type.TRACKPAD) {
+            for (byte i = 0; i < states.length; i++) {
+                if (states[i]) inputControlsView.handleInputEvent(getBindingAt(i), false);
+                states[i] = false;
+            }
+
+            if (type == Type.RANGE_BUTTON) {
+                scroller.handleTouchUp();
+            }
+            if (type == Type.STICK) {
+                Binding firstBinding = getBindingAt(0);
+                if (firstBinding.isGamepad()) {
+                    inputControlsView.handleStickInput(firstBinding, 0.0f, 0.0f);
+                }
+                currentPosition = null;
+            }
+            if (type == Type.TRACKPAD) {
+                Binding firstBinding = getBindingAt(0);
+                if (firstBinding.isGamepad()) {
+                    inputControlsView.handleStickInput(firstBinding, 0.0f, 0.0f);
+                }
+                currentPosition = null;
+            }
+
+            inputControlsView.invalidate();
+        }
+
+        currentPointerId = -1;
+        return true;
     }
 
     public PointF getCurrentPosition() {

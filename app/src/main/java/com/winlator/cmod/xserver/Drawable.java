@@ -16,6 +16,7 @@ public class Drawable extends XResource {
     public final Visual visual;
     private Texture texture = new Texture();
     private ByteBuffer data;
+    private boolean directScanout = false;
     private Runnable onDrawListener;
     private Callback<Drawable> onDestroyListener;
     public final Object renderLock = new Object();
@@ -59,6 +60,14 @@ public class Drawable extends XResource {
             throw new IllegalArgumentException("Attempting to set Drawable.data to null!");
         }
         this.data = data;
+    }
+
+    public void setDirectScanout(boolean value) {
+        this.directScanout = value;
+    }
+
+    public boolean isDirectScanout() {
+        return directScanout;
     }
 
     private short getStride() {
