@@ -2165,7 +2165,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             startupSelection = String.valueOf(container.getStartupSelection());
 
         if (!startupSelection.equals(container.getExtra("startupSelection"))) {
-            WineUtils.changeServicesStatus(container, Byte.parseByte(startupSelection) != Container.STARTUP_SELECTION_NORMAL);
+            WineUtils.changeServicesStatus(container, startupSelection);
             container.putExtra("startupSelection", startupSelection);
             containerDataChanged = true;
         }
