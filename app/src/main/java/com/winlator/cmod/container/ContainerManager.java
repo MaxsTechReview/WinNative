@@ -99,7 +99,7 @@ public class ContainerManager {
         
         // Make C: Drive read and writable for all users (for game modding, etc.)
         try {
-            Runtime.getRuntime().exec(new String[]{"chmod", "-R", "0777", new File(containerDir, ".wine/drive_c").getAbsolutePath()});
+            Runtime.getRuntime().exec(new String[]{"chmod", "-R", "0771", new File(containerDir, ".wine/drive_c").getAbsolutePath()});
         } catch (Exception e) {}
 
         // Replace the real "xuser" dir (from imagefs.txz) with a symlink to the active
@@ -124,9 +124,10 @@ public class ContainerManager {
             File source = new File(sourceDir, path);
             File dest = new File(destDir, path);
             if (source.exists() && !dest.exists()) {
-                dest.getParentFile().mkdirs();
-                FileUtils.copy(source, dest);
-                Log.d("ContainerManager", "Migrated " + path + " to container");
+                File parent = dest.getParentFile();
+                if (!parent.exists()) parent.mkdirs();
+                source.renameTo(dest);
+                Log.d("ContainerManager", "Migrated " + path + " to container via renameTo");
             }
         }
     }
