@@ -354,28 +354,27 @@ public abstract class WineUtils {
     }
 
     public static void setWinComponentRegistryKeys(File systemRegFile, String identifier, boolean useNative, Context context) {
+        WineRegistryEditor registryEditor;
         if (identifier.equals("directsound")) {
-            try (WineRegistryEditor registryEditor = new WineRegistryEditor(systemRegFile)) {
-                final String key64 = "Software\\Classes\\CLSID\\{083863F1-70DE-11D0-BD40-00A0C911CE86}\\Instance\\{E30629D1-27E5-11CE-875D-00608CB78066}";
-                final String key32 = "Software\\Classes\\Wow6432Node\\CLSID\\{083863F1-70DE-11D0-BD40-00A0C911CE86}\\Instance\\{E30629D1-27E5-11CE-875D-00608CB78066}";
-
+            registryEditor = new WineRegistryEditor(systemRegFile);
+            try {
                 if (useNative) {
-                    registryEditor.setStringValue(key32, "CLSID", "{E30629D1-27E5-11CE-875D-00608CB78066}");
-                    registryEditor.setHexValue(key32, "FilterData", "02000000000080000100000000000000307069330200000000000000010000000000000000000000307479330000000038000000480000006175647300001000800000aa00389b710100000000001000800000aa00389b71");
-                    registryEditor.setStringValue(key32, "FriendlyName", "Wave Audio Renderer");
-
-                    registryEditor.setStringValue(key64, "CLSID", "{E30629D1-27E5-11CE-875D-00608CB78066}");
-                    registryEditor.setHexValue(key64, "FilterData", "02000000000080000100000000000000307069330200000000000000010000000000000000000000307479330000000038000000480000006175647300001000800000aa00389b710100000000001000800000aa00389b71");
-                    registryEditor.setStringValue(key64, "FriendlyName", "Wave Audio Renderer");
+                    registryEditor.setStringValue("Software\\Classes\\Wow6432Node\\CLSID\\{083863F1-70DE-11D0-BD40-00A0C911CE86}\\Instance\\{E30629D1-27E5-11CE-875D-00608CB78066}", "CLSID", "{E30629D1-27E5-11CE-875D-00608CB78066}");
+                    registryEditor.setHexValue("Software\\Classes\\Wow6432Node\\CLSID\\{083863F1-70DE-11D0-BD40-00A0C911CE86}\\Instance\\{E30629D1-27E5-11CE-875D-00608CB78066}", "FilterData", "02000000000080000100000000000000307069330200000000000000010000000000000000000000307479330000000038000000480000006175647300001000800000aa00389b710100000000001000800000aa00389b71");
+                    registryEditor.setStringValue("Software\\Classes\\Wow6432Node\\CLSID\\{083863F1-70DE-11D0-BD40-00A0C911CE86}\\Instance\\{E30629D1-27E5-11CE-875D-00608CB78066}", "FriendlyName", "Wave Audio Renderer");
+                    registryEditor.setStringValue("Software\\Classes\\CLSID\\{083863F1-70DE-11D0-BD40-00A0C911CE86}\\Instance\\{E30629D1-27E5-11CE-875D-00608CB78066}", "CLSID", "{E30629D1-27E5-11CE-875D-00608CB78066}");
+                    registryEditor.setHexValue("Software\\Classes\\CLSID\\{083863F1-70DE-11D0-BD40-00A0C911CE86}\\Instance\\{E30629D1-27E5-11CE-875D-00608CB78066}", "FilterData", "02000000000080000100000000000000307069330200000000000000010000000000000000000000307479330000000038000000480000006175647300001000800000aa00389b710100000000001000800000aa00389b71");
+                    registryEditor.setStringValue("Software\\Classes\\CLSID\\{083863F1-70DE-11D0-BD40-00A0C911CE86}\\Instance\\{E30629D1-27E5-11CE-875D-00608CB78066}", "FriendlyName", "Wave Audio Renderer");
+                } else {
+                    registryEditor.removeKey("Software\\Classes\\Wow6432Node\\CLSID\\{083863F1-70DE-11D0-BD40-00A0C911CE86}\\Instance\\{E30629D1-27E5-11CE-875D-00608CB78066}");
+                    registryEditor.removeKey("Software\\Classes\\CLSID\\{083863F1-70DE-11D0-BD40-00A0C911CE86}\\Instance\\{E30629D1-27E5-11CE-875D-00608CB78066}");
                 }
-                else {
-                    registryEditor.removeKey(key32);
-                    registryEditor.removeKey(key64);
-                }
+                registryEditor.close();
+            } finally {
             }
-        }
-        else if (identifier.equals("xaudio")) {
-            try (WineRegistryEditor registryEditor = new WineRegistryEditor(systemRegFile)) {
+        } else if (identifier.equals("xaudio")) {
+            registryEditor = new WineRegistryEditor(systemRegFile);
+            try {
                 if (useNative) {
                     registryEditor.setStringValue("Software\\Classes\\Wow6432Node\\CLSID\\{074B110F-7F58-4743-AEA5-12F1B5074ED}\\InprocServer32", null, "C:\\windows\\syswow64\\xactengine3_5.dll");
                     registryEditor.setStringValue("Software\\Classes\\Wow6432Node\\CLSID\\{0977D092-2D95-4E43-8D42-9DDCC2545ED5}\\InprocServer32", null, "C:\\windows\\syswow64\\xactengine3_4.dll");
@@ -463,18 +462,34 @@ public abstract class WineUtils {
         }
     }
 
-    public static void changeServicesStatus(Container container, boolean onlyEssential) {
-        final String[] services = {"BITS:3", "Eventlog:2", "HTTP:3", "LanmanServer:3", "NDIS:2", "PlugPlay:2", "RpcSs:3", "scardsvr:3", "Schedule:3", "Spooler:3", "StiSvc:3", "TermService:3", "winebus:3", "winehid:3", "Winmgmt:3", "wuauserv:3"};
+    public static void changeServicesStatus(Container container, String startupSelection) {
+        String[] services = {"BITS:3", "Eventlog:2", "HTTP:3", "LanmanServer:3", "NDIS:2", "PlugPlay:2", "RpcSs:3", "scardsvr:3", "Schedule:3", "Spooler:3", "StiSvc:3", "TermService:3", "winebus:2", "winehid:2", "Winmgmt:3", "wuauserv:3"};
+        String[] aggressiveServices = {"BITS:3", "Eventlog:2", "FontCache:3", "FontCache3.0.0.0:3", "HTTP:3", "LanmanServer:3", "MSIServer:3", "NDIS:2", "nsiproxy:3", "PlugPlay:2", "RpcSs:3", "scardsvr:3", "Schedule:3", "SharedGpuResources:2", "Spooler:3", "StiSvc:3", "TermService:3", "TrkWks:3", "W32Time:3", "winebus:2", "winehid:2", "Winmgmt:3", "wuauserv:3"};
         File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
-
-        try (WineRegistryEditor registryEditor = new WineRegistryEditor(systemRegFile)) {
+        byte selection = 0;
+        try {
+            selection = Byte.parseByte(startupSelection);
+        } catch (NumberFormatException e) {
+        }
+        WineRegistryEditor registryEditor = new WineRegistryEditor(systemRegFile);
+        try {
             registryEditor.setCreateKeyIfNotExist(false);
-
-            for (String service : services) {
+            List<String> servicesList = Arrays.asList(services);
+            for (String service : aggressiveServices) {
                 String name = service.substring(0, service.indexOf(":"));
-                int value = onlyEssential ? 4 : Character.getNumericValue(service.charAt(service.length()-1));
-                registryEditor.setDwordValue("System\\CurrentControlSet\\Services\\"+name, "Start", value);
+                int value = Character.getNumericValue(service.charAt(service.length() - 1));
+                if (selection == 1) {
+                    if (servicesList.contains(service) && !name.equals("winebus") && !name.equals("winehid")) {
+                        value = 4;
+                    }
+                } else if (selection == 2 && !name.equals("winebus") && !name.equals("winehid")) {
+                    value = 4;
+                }
+                registryEditor.setDwordValue("System\\CurrentControlSet\\Services\\" + name, "Start", value);
+                registryEditor.setDwordValue("System\\ControlSet001\\Services\\" + name, "Start", value);
             }
+            registryEditor.close();
+        } finally {
         }
     }
 
