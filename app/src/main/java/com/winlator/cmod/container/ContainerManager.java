@@ -119,9 +119,10 @@ public class ContainerManager {
             File source = new File(sourceDir, path);
             File dest = new File(destDir, path);
             if (source.exists() && !dest.exists()) {
-                dest.getParentFile().mkdirs();
-                FileUtils.copy(source, dest);
-                Log.d("ContainerManager", "Migrated " + path + " to container");
+                File parent = dest.getParentFile();
+                if (!parent.exists()) parent.mkdirs();
+                source.renameTo(dest);
+                Log.d("ContainerManager", "Migrated " + path + " to container via renameTo");
             }
         }
     }
