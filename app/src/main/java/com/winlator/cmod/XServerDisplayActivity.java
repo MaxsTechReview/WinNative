@@ -661,7 +661,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
 
         containerManager.activateContainer(container);
-        imageFs.updatePaths(container.getRootDir());
 
         if (shortcutPath != null && !shortcutPath.isEmpty()) {
             shortcut = new Shortcut(container, new File(shortcutPath));
