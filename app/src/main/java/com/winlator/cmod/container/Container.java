@@ -72,13 +72,13 @@ public class Container {
     private String executablePath = "";
     private String execArgs = "";
     private boolean launchRealSteam;
-    private boolean useLegacyDRM;
+    private boolean useColdClient = true;
     private String steamType = DefaultVersion.STEAM_TYPE;
     private boolean allowSteamUpdates;
-    private boolean needsUnpacking = true;
+    private boolean needsUnpacking = false;
     private boolean forceDlc = false;
     private boolean steamOfflineMode = false;
-    private boolean unpackFiles = true;
+    private boolean unpackFiles = false;
 
     public static final String STEAM_TYPE_NORMAL = "normal";
     public static final String STEAM_TYPE_LIGHT = "light";
@@ -443,7 +443,7 @@ public class Container {
             data.put("midiSoundFont", midiSoundFont);
             data.put("lc_all", lc_all);
             data.put("launchRealSteam", launchRealSteam);
-            data.put("useLegacyDRM", useLegacyDRM);
+            data.put("useColdClient", useColdClient);
             data.put("steamType", steamType);
             data.put("allowSteamUpdates", allowSteamUpdates);
             data.put("needsUnpacking", needsUnpacking);
@@ -560,8 +560,12 @@ public class Container {
                 case "launchRealSteam" :
                     setLaunchRealSteam(data.getBoolean(key));
                     break;
+                case "useColdClient" :
+                    setUseColdClient(data.getBoolean(key));
+                    break;
                 case "useLegacyDRM" :
-                    setUseLegacyDRM(data.getBoolean(key));
+                    // Migrate: old useLegacyDRM=false meant ColdClient, now useColdClient=true means ColdClient
+                    setUseColdClient(!data.getBoolean(key));
                     break;
                 case "steamType" :
                     setSteamType(data.getString(key));
@@ -681,12 +685,12 @@ public class Container {
         this.launchRealSteam = launchRealSteam;
     }
 
-    public boolean isUseLegacyDRM() {
-        return useLegacyDRM;
+    public boolean isUseColdClient() {
+        return useColdClient;
     }
 
-    public void setUseLegacyDRM(boolean useLegacyDRM) {
-        this.useLegacyDRM = useLegacyDRM;
+    public void setUseColdClient(boolean useColdClient) {
+        this.useColdClient = useColdClient;
     }
 
     public String getSteamType() {

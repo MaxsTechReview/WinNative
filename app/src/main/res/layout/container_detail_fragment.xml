@@ -429,16 +429,26 @@
                     android:orientation="vertical">
 
                     <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/CBUseLegacyDRM"
+                        android:id="@+id/CBUseColdClient"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:background="@android:color/transparent"
                         android:fontFamily="@font/inter"
-                        android:text="@string/shortcuts_properties_use_legacy_drm"
+                        android:text="@string/shortcuts_properties_use_cold_client"
                         android:textColor="@color/settings_text_primary"
                         android:textSize="13sp"
                         app:thumbTint="@color/settings_accent"
                         app:trackTintMode="src_in" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="@font/inter"
+                        android:text="@string/shortcuts_properties_use_cold_client_description"
+                        android:textColor="@color/settings_text_secondary"
+                        android:textSize="11sp" />
 
                     <View
                         android:layout_width="match_parent"

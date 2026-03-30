@@ -217,9 +217,10 @@
     <string name="shortcuts_properties_disable_xinput">Wyłącz Xinput (dla wyłącznej kontroli M/KB)</string>
     <string name="shortcuts_properties_exclusive_input">Wyłączne wejście</string>
     <string name="shortcuts_properties_custom_game_settings">Własne ustawienia gry</string>
-    <string name="shortcuts_properties_use_legacy_drm">Użyj starszego DRM</string>
-    <string name="shortcuts_properties_unpack_files">Rozpakuj pliki</string>
-    <string name="shortcuts_properties_unpack_files_description">Używaj tylko w przypadku błędu \'Application Load Error 3:0000065432\'.</string>
+    <string name="shortcuts_properties_use_cold_client">Użyj ColdClient Launcher</string>
+    <string name="shortcuts_properties_use_cold_client_description">ColdClient to preferowany sposób obsługi emulacji Steam i DRM. Patchuje DRM w czasie działania bez modyfikowania plików gry.</string>
+    <string name="shortcuts_properties_unpack_files">Starsze DRM</string>
+    <string name="shortcuts_properties_unpack_files_description">Usuwa SteamStub DRM z exe na dysku. Włącz tylko jeśli gra nie uruchamia się bez tego. Patcher runtime ColdClient obsługuje większość gier automatycznie.</string>
     <string name="shortcuts_properties_force_dlc">Wymuś DLC</string>
     <string name="shortcuts_properties_force_dlc_description">Włącz tylko wtedy, gdy DLC nie są wykrywane lub zapisy z DLC nie działają</string>
     <string name="shortcuts_properties_launch_steam_client_beta">Uruchom klienta Steam (Beta)</string>

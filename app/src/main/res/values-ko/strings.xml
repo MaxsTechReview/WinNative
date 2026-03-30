@@ -217,9 +217,10 @@
     <string name="shortcuts_properties_disable_xinput">XInput 비활성화 (마우스/키보드 전용 제어)</string>
     <string name="shortcuts_properties_exclusive_input">전용 입력</string>
     <string name="shortcuts_properties_custom_game_settings">사용자 지정 게임 설정</string>
-    <string name="shortcuts_properties_use_legacy_drm">레거시 DRM 사용</string>
-    <string name="shortcuts_properties_unpack_files">파일 언팩</string>
-    <string name="shortcuts_properties_unpack_files_description">\'Application Load Error 3:0000065432\' 오류가 발생할 때만 사용하세요.</string>
+    <string name="shortcuts_properties_use_cold_client">ColdClient Launcher 사용</string>
+    <string name="shortcuts_properties_use_cold_client_description">ColdClient는 Steam 에뮬레이션과 DRM을 처리하는 권장 방식입니다. 게임 파일을 수정하지 않고 런타임에 DRM을 패치합니다.</string>
+    <string name="shortcuts_properties_unpack_files">레거시 DRM</string>
+    <string name="shortcuts_properties_unpack_files_description">디스크의 exe에서 SteamStub DRM을 제거합니다. 게임이 이 기능 없이 실행되지 않을 때만 활성화하세요. ColdClient의 런타임 패처가 대부분의 게임을 자동으로 처리합니다.</string>
     <string name="shortcuts_properties_force_dlc">DLC 강제 적용</string>
     <string name="shortcuts_properties_force_dlc_description">DLC가 감지되지 않거나 DLC가 포함된 저장 데이터가 작동하지 않는 경우에만 활성화하세요</string>
     <string name="shortcuts_properties_launch_steam_client_beta">Steam 클라이언트 실행 (베타)</string>

@@ -217,9 +217,10 @@
     <string name="shortcuts_properties_disable_xinput">停用 XInput（僅使用滑鼠/鍵盤控制）</string>
     <string name="shortcuts_properties_exclusive_input">獨佔輸入</string>
     <string name="shortcuts_properties_custom_game_settings">自訂遊戲設定</string>
-    <string name="shortcuts_properties_use_legacy_drm">使用舊版 DRM</string>
-    <string name="shortcuts_properties_unpack_files">解壓檔案</string>
-    <string name="shortcuts_properties_unpack_files_description">僅在您遇到「Application Load Error 3:0000065432」時使用。</string>
+    <string name="shortcuts_properties_use_cold_client">使用 ColdClient Launcher</string>
+    <string name="shortcuts_properties_use_cold_client_description">ColdClient 是處理 Steam 模擬和 DRM 的首選方式。它在執行時修補 DRM，無需修改遊戲檔案。</string>
+    <string name="shortcuts_properties_unpack_files">舊版 DRM</string>
+    <string name="shortcuts_properties_unpack_files_description">從磁碟上的 exe 中移除 SteamStub DRM。僅在遊戲無法正常啟動時啟用。ColdClient 的執行階段修補程式會自動處理大多數遊戲。</string>
     <string name="shortcuts_properties_force_dlc">強制 DLC</string>
     <string name="shortcuts_properties_force_dlc_description">僅在 DLC 未被偵測到或含 DLC 的存檔無法正常運作時啟用</string>
     <string name="shortcuts_properties_launch_steam_client_beta">啟動 Steam 用戶端（測試版）</string>

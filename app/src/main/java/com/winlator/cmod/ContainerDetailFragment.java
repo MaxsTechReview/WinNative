@@ -100,7 +100,7 @@ public class ContainerDetailFragment extends Fragment {
             "drives", "showFPS", "fullscreenStretched", "inputType", "disableXinput",
             "startupSelection", "box64Version", "box64Preset", "fexcoreVersion", "fexcorePreset",
             "desktopTheme", "midiSoundFont", "lc_all",
-            "launchRealSteam", "useLegacyDRM", "useSteamInput",
+            "launchRealSteam", "useColdClient", "useSteamInput",
             "steamType", "forceDlc", "steamOfflineMode", "unpackFiles",
             "execArgs"
     };
@@ -589,7 +589,7 @@ public class ContainerDetailFragment extends Fragment {
         if (valuesDiffer(snapshot.get("lc_all"), targetContainer.getLC_ALL())) return false;
         if (valuesDiffer(snapshot.get("execArgs"), targetContainer.getExecArgs())) return false;
         if ("STEAM".equals(gameSource)) {
-            if (valuesDiffer(snapshot.get("useLegacyDRM"), targetContainer.isUseLegacyDRM())) return false;
+            if (valuesDiffer(snapshot.get("useColdClient"), targetContainer.isUseColdClient())) return false;
             if (valuesDiffer(snapshot.get("launchRealSteam"), targetContainer.isLaunchRealSteam())) return false;
             if (valuesDiffer(snapshot.get("useSteamInput"), targetContainer.getExtra("useSteamInput", "0"))) return false;
             if (valuesDiffer(snapshot.get("steamType"), targetContainer.getSteamType())) return false;
@@ -663,7 +663,7 @@ public class ContainerDetailFragment extends Fragment {
 
         CompoundButton cbShowFPS = view.findViewById(R.id.CBShowFPS);
         CompoundButton cbFullscreenStretched = view.findViewById(R.id.CBFullscreenStretched);
-        CompoundButton cbUseLegacyDRM = view.findViewById(R.id.CBUseLegacyDRM);
+        CompoundButton cbUseColdClient = view.findViewById(R.id.CBUseColdClient);
         CompoundButton cbLaunchRealSteam = view.findViewById(R.id.CBLaunchRealSteam);
 
         CPUListView cpuListView = view.findViewById(R.id.CPUListView);
@@ -744,7 +744,7 @@ public class ContainerDetailFragment extends Fragment {
         snapshot.put("desktopTheme", getDesktopTheme(view));
         snapshot.put("midiSoundFont", midiSoundFont);
         snapshot.put("lc_all", etLC_ALL.getText().toString());
-        snapshot.put("useLegacyDRM", cbUseLegacyDRM != null && cbUseLegacyDRM.isChecked() ? "1" : "0");
+        snapshot.put("useColdClient", cbUseColdClient != null && cbUseColdClient.isChecked() ? "1" : "0");
         snapshot.put("launchRealSteam", cbLaunchRealSteam != null && cbLaunchRealSteam.isChecked() ? "1" : "0");
         CompoundButton cbUseSteamInput = view.findViewById(R.id.CBUseSteamInput);
         snapshot.put("useSteamInput", cbUseSteamInput != null && cbUseSteamInput.isChecked() ? "1" : "0");
@@ -994,16 +994,16 @@ public class ContainerDetailFragment extends Fragment {
         boolean showSteamSettings = "STEAM".equals(activeGameSource) && (isShortcutMode() || isCreateShortcutMode());
         final View llSteamSettings = view.findViewById(R.id.LLSteamSettings);
         llSteamSettings.setVisibility(showSteamSettings ? View.VISIBLE : View.GONE);
-        final CompoundButton cbUseLegacyDRM = view.findViewById(R.id.CBUseLegacyDRM);
+        final CompoundButton cbUseColdClient = view.findViewById(R.id.CBUseColdClient);
         final CompoundButton cbLaunchRealSteam = view.findViewById(R.id.CBLaunchRealSteam);
         final CompoundButton cbUseSteamInput = view.findViewById(R.id.CBUseSteamInput);
-        boolean defaultUseLegacyDRM = settingsContainer != null && settingsContainer.isUseLegacyDRM();
+        boolean defaultUseColdClient = settingsContainer != null && settingsContainer.isUseColdClient();
         boolean defaultLaunchRealSteam = settingsContainer != null && settingsContainer.isLaunchRealSteam();
         boolean defaultUseSteamInput = settingsContainer != null && "1".equals(settingsContainer.getExtra("useSteamInput", "0"));
-        cbUseLegacyDRM.setChecked(
+        cbUseColdClient.setChecked(
                 isPerGameSettingsMode() && isShortcutMode()
-                        ? getShortcutSettingEnabled("useLegacyDRM", defaultUseLegacyDRM)
-                        : defaultUseLegacyDRM
+                        ? getShortcutSettingEnabled("useColdClient", defaultUseColdClient)
+                        : defaultUseColdClient
         );
         cbLaunchRealSteam.setChecked(
                 isPerGameSettingsMode() && isShortcutMode()
@@ -1049,6 +1049,18 @@ public class ContainerDetailFragment extends Fragment {
                         ? getShortcutSettingEnabled("unpackFiles", defaultUnpackFiles)
                         : defaultUnpackFiles
         );
+
+        // Mutual exclusion: ColdClient and Legacy DRM cannot both be enabled
+        cbUseColdClient.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked && cbUnpackFiles.isChecked()) {
+                cbUnpackFiles.setChecked(false);
+            }
+        });
+        cbUnpackFiles.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked && cbUseColdClient.isChecked()) {
+                cbUseColdClient.setChecked(false);
+            }
+        });
 
         // Existing declarations of UI components and variables
         final Runnable showInputWarning = () -> ContentDialog.alert(context, R.string.container_config_xinput_dinput_warning, null);
@@ -1381,7 +1393,7 @@ public class ContainerDetailFragment extends Fragment {
                 // Capture missing properties
                 String midiSoundFont = (sMIDISoundFont.getSelectedItemPosition() <= 0 || sMIDISoundFont.getSelectedItem() == null) ? "" : sMIDISoundFont.getSelectedItem().toString();
                 String lc_all = etLC_ALL.getText().toString();
-                boolean useLegacyDRM = cbUseLegacyDRM.isChecked();
+                boolean useColdClient = cbUseColdClient.isChecked();
                 boolean launchRealSteam = cbLaunchRealSteam.isChecked();
                 boolean useSteamInput = cbUseSteamInput.isChecked();
                 String steamType = sSteamType.getSelectedItemPosition() == 2 ? Container.STEAM_TYPE_ULTRALIGHT
@@ -1498,7 +1510,7 @@ public class ContainerDetailFragment extends Fragment {
                         shortcut.putExtra("midiSoundFont", midiSoundFont);
                         shortcut.putExtra("lc_all", lc_all);
                         if ("STEAM".equals(gameSource)) {
-                            shortcut.putExtra("useLegacyDRM", useLegacyDRM ? "1" : "0");
+                            shortcut.putExtra("useColdClient", useColdClient ? "1" : "0");
                             shortcut.putExtra("launchRealSteam", launchRealSteam ? "1" : "0");
                             shortcut.putExtra("useSteamInput", useSteamInput ? "1" : "0");
                             shortcut.putExtra("steamType", steamType);
@@ -1506,7 +1518,7 @@ public class ContainerDetailFragment extends Fragment {
                             shortcut.putExtra("steamOfflineMode", steamOfflineMode ? "1" : "0");
                             shortcut.putExtra("unpackFiles", unpackFiles ? "1" : "0");
                         } else {
-                            shortcut.putExtra("useLegacyDRM", null);
+                            shortcut.putExtra("useColdClient", null);
                             shortcut.putExtra("launchRealSteam", null);
                             shortcut.putExtra("useSteamInput", null);
                             shortcut.putExtra("steamType", null);
@@ -1612,7 +1624,7 @@ public class ContainerDetailFragment extends Fragment {
                     data.put("desktopTheme", desktopTheme);
                     if (!execArgs.isEmpty()) data.put("execArgs", execArgs);
                     if ("STEAM".equals(createShortcutForSource)) {
-                        data.put("useLegacyDRM", useLegacyDRM ? "1" : "0");
+                        data.put("useColdClient", useColdClient ? "1" : "0");
                         data.put("launchRealSteam", launchRealSteam ? "1" : "0");
                         data.put("useSteamInput", useSteamInput ? "1" : "0");
                     }
@@ -2550,8 +2562,8 @@ public class ContainerDetailFragment extends Fragment {
         CompoundButton cbLaunchRealSteam = view.findViewById(R.id.CBLaunchRealSteam);
         if (cbLaunchRealSteam != null) cbLaunchRealSteam.setChecked(c.isLaunchRealSteam());
 
-        CompoundButton cbUseLegacyDRM = view.findViewById(R.id.CBUseLegacyDRM);
-        if (cbUseLegacyDRM != null) cbUseLegacyDRM.setChecked(c.isUseLegacyDRM());
+        CompoundButton cbUseColdClient = view.findViewById(R.id.CBUseColdClient);
+        if (cbUseColdClient != null) cbUseColdClient.setChecked(c.isUseColdClient());
 
         CompoundButton cbUseSteamInput = view.findViewById(R.id.CBUseSteamInput);
         if (cbUseSteamInput != null) cbUseSteamInput.setChecked("1".equals(c.getExtra("useSteamInput", "0")));
@@ -2750,7 +2762,7 @@ public class ContainerDetailFragment extends Fragment {
 
         attachRefreshOnClick(contentView.findViewById(R.id.CBShowFPS), refreshIndicators);
         attachRefreshOnClick(contentView.findViewById(R.id.CBFullscreenStretched), refreshIndicators);
-        attachRefreshOnClick(contentView.findViewById(R.id.CBUseLegacyDRM), refreshIndicators);
+        attachRefreshOnClick(contentView.findViewById(R.id.CBUseColdClient), refreshIndicators);
         attachRefreshOnClick(contentView.findViewById(R.id.CBLaunchRealSteam), refreshIndicators);
         attachRefreshOnClick(contentView.findViewById(R.id.CBUseSteamInput), refreshIndicators);
         attachRefreshOnClick(contentView.findViewById(R.id.CBForceDlc), refreshIndicators);
@@ -2956,7 +2968,7 @@ public class ContainerDetailFragment extends Fragment {
     }
 
     private void markSteamIndicators(View contentView, Container comparisonContainer) {
-        CompoundButton cbUseLegacyDRM = contentView.findViewById(R.id.CBUseLegacyDRM);
+        CompoundButton cbUseColdClient = contentView.findViewById(R.id.CBUseColdClient);
         CompoundButton cbLaunchRealSteam = contentView.findViewById(R.id.CBLaunchRealSteam);
         CompoundButton cbUseSteamInput = contentView.findViewById(R.id.CBUseSteamInput);
         Spinner sSteamType = contentView.findViewById(R.id.SSteamType);
@@ -2964,10 +2976,10 @@ public class ContainerDetailFragment extends Fragment {
         CompoundButton cbSteamOfflineMode = contentView.findViewById(R.id.CBSteamOfflineMode);
         CompoundButton cbUnpackFiles = contentView.findViewById(R.id.CBUnpackFiles);
 
-        if (cbUseLegacyDRM != null) {
-            trackLabel((TextView) cbUseLegacyDRM);
-            markIfChanged((TextView) cbUseLegacyDRM, cbUseLegacyDRM.isChecked() ? "1" : "0",
-                    comparisonContainer.isUseLegacyDRM() ? "1" : "0");
+        if (cbUseColdClient != null) {
+            trackLabel((TextView) cbUseColdClient);
+            markIfChanged((TextView) cbUseColdClient, cbUseColdClient.isChecked() ? "1" : "0",
+                    comparisonContainer.isUseColdClient() ? "1" : "0");
         }
         if (cbLaunchRealSteam != null) {
             trackLabel((TextView) cbLaunchRealSteam);
@@ -3422,7 +3434,7 @@ public class ContainerDetailFragment extends Fragment {
         appendShortcutOverrideIfNeeded(content, container, "desktopTheme", data.opt("desktopTheme"), container.getDesktopTheme(), hasOverrides);
         appendShortcutOverrideIfNeeded(content, container, "midiSoundFont", data.opt("midiSoundFont"), container.getMIDISoundFont(), hasOverrides);
         appendShortcutOverrideIfNeeded(content, container, "lc_all", data.opt("lc_all"), container.getLC_ALL(), hasOverrides);
-        appendShortcutOverrideIfNeeded(content, container, "useLegacyDRM", data.opt("useLegacyDRM"), container.isUseLegacyDRM(), hasOverrides);
+        appendShortcutOverrideIfNeeded(content, container, "useColdClient", data.opt("useColdClient"), container.isUseColdClient(), hasOverrides);
         appendShortcutOverrideIfNeeded(content, container, "launchRealSteam", data.opt("launchRealSteam"), container.isLaunchRealSteam(), hasOverrides);
         appendShortcutOverrideIfNeeded(content, container, "useSteamInput", data.opt("useSteamInput"), container.getExtra("useSteamInput", "0"), hasOverrides);
         appendShortcutOverrideIfNeeded(content, container, "steamType", data.opt("steamType"), container.getSteamType(), hasOverrides);

@@ -217,9 +217,10 @@
     <string name="shortcuts_properties_disable_xinput">Deaktiver XInput (For eksklusiv M/KB-styring)</string>
     <string name="shortcuts_properties_exclusive_input">Eksklusivt input</string>
     <string name="shortcuts_properties_custom_game_settings">Brugerdefinerede spilindstillinger</string>
-    <string name="shortcuts_properties_use_legacy_drm">Brug ældre DRM</string>
-    <string name="shortcuts_properties_unpack_files">Udpak filer</string>
-    <string name="shortcuts_properties_unpack_files_description">Brug kun hvis du får \'Application Load Error 3:0000065432\'.</string>
+    <string name="shortcuts_properties_use_cold_client">Brug ColdClient Launcher</string>
+    <string name="shortcuts_properties_use_cold_client_description">ColdClient er den foretrukne måde at håndtere Steam-emulering og DRM. Det patcher DRM under kørsel uden at ændre spilfiler.</string>
+    <string name="shortcuts_properties_unpack_files">Ældre DRM</string>
+    <string name="shortcuts_properties_unpack_files_description">Fjern SteamStub DRM fra exe-filen på disken. Aktivér kun hvis spillet ikke starter uden det. ColdClient\'s runtime-patcher håndterer de fleste spil automatisk.</string>
     <string name="shortcuts_properties_force_dlc">Tving DLC</string>
     <string name="shortcuts_properties_force_dlc_description">Aktiver kun hvis DLC\'er ikke bliver fundet eller gemmedata med DLC ikke virker</string>
     <string name="shortcuts_properties_launch_steam_client_beta">Start Steam-klient (Beta)</string>

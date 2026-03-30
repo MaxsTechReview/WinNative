@@ -217,9 +217,10 @@
     <string name="shortcuts_properties_disable_xinput">Disabilita Xinput (per controllo esclusivo M/T)</string>
     <string name="shortcuts_properties_exclusive_input">Input esclusivo</string>
     <string name="shortcuts_properties_custom_game_settings">Impostazioni di gioco personalizzate</string>
-    <string name="shortcuts_properties_use_legacy_drm">Usa DRM legacy</string>
-    <string name="shortcuts_properties_unpack_files">Decomprimi file</string>
-    <string name="shortcuts_properties_unpack_files_description">Usa solo se ottieni l\'errore \'Application Load Error 3:0000065432\'.</string>
+    <string name="shortcuts_properties_use_cold_client">Usa ColdClient Launcher</string>
+    <string name="shortcuts_properties_use_cold_client_description">ColdClient è il metodo preferito per gestire l'emulazione Steam e il DRM. Applica la patch al DRM in fase di esecuzione senza modificare i file di gioco.</string>
+    <string name="shortcuts_properties_unpack_files">DRM legacy</string>
+    <string name="shortcuts_properties_unpack_files_description">Rimuove il DRM SteamStub dall\'exe su disco. Attivare solo se il gioco non si avvia senza. Il patcher runtime di ColdClient gestisce la maggior parte dei giochi automaticamente.</string>
     <string name="shortcuts_properties_force_dlc">Forza DLC</string>
     <string name="shortcuts_properties_force_dlc_description">Abilita solo se i DLC non vengono rilevati o i salvataggi con DLC non funzionano</string>
     <string name="shortcuts_properties_launch_steam_client_beta">Avvia client Steam (Beta)</string>
