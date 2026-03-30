@@ -179,6 +179,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private InputControlsManager inputControlsManager;
     private ImageFs imageFs;
     private FrameRating frameRating = null;
+    private String lastRendererName = "OpenGL";
+    private String lastGpuName = null;
     private Runnable editInputControlsCallback;
     private Shortcut shortcut;
     private String graphicsDriver = Container.DEFAULT_GRAPHICS_DRIVER;
@@ -1851,6 +1853,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 if (frameRating == null) {
                     FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
                     frameRating = new FrameRating(this, graphicsDriverConfig);
+                    frameRating.setRenderer(lastRendererName);
+                    if (lastGpuName != null) frameRating.setGpuName(lastGpuName);
                     frameRating.setVisibility(View.GONE);
                     rootView.addView(frameRating);
                 }
@@ -2538,7 +2542,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         if (container != null && container.isShowFPS()) {
             frameRating = new FrameRating(this, graphicsDriverConfig);
-            frameRating.setVisibility(View.GONE);
+            frameRating.setRenderer(lastRendererName);
+            if (lastGpuName != null) frameRating.setGpuName(lastGpuName);
+            frameRating.setVisibility(View.VISIBLE);
             rootView.addView(frameRating);
         }
 
@@ -5078,36 +5084,41 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private void changeFrameRatingVisibility(Window window, Property property) {
-        if (frameRating == null) return;
-
         if (property != null) {
             String propName = property.nameAsString();
-            boolean isRendererProp = propName.contains("_MESA_DRV_ENGINE_NAME") || propName.contains("_UTIL_LAYER");
+            boolean isRendererProp = propName.contains("_MESA_DRV_ENGINE_NAME") || propName.contains("_UTIL_LAYER") || propName.contains("_MESA_DRV_RENDERER");
 
             if (isRendererProp) {
+                lastRendererName = property.toString();
                 if (frameRatingWindowId == -1 || window.isApplicationWindow()) {
                     frameRatingWindowId = window.id;
                 }
+            } else if (propName.contains("_MESA_DRV_GPU_NAME")) {
+                lastGpuName = property.toString();
             }
-            
-            if (frameRatingWindowId == window.id) {
-                if (isRendererProp) {
-                    runOnUiThread(() -> frameRating.setRenderer(property.toString()));
-                } else if (propName.contains("_MESA_DRV_GPU_NAME")) {
-                    runOnUiThread(() -> frameRating.setGpuName(property.toString()));
-                }
-                
-                if (propName.contains("_MESA_DRV") || propName.contains("_UTIL_LAYER")) {
-                    frameRating.update();
+
+            if (frameRating != null && frameRatingWindowId == window.id) {
+                if (container == null || container.isShowFPS()) {
+                    if (isRendererProp) {
+                        runOnUiThread(() -> frameRating.setRenderer(lastRendererName));
+                    } else if (propName.contains("_MESA_DRV_GPU_NAME")) {
+                        runOnUiThread(() -> frameRating.setGpuName(lastGpuName));
+                    }
+
+                    if (propName.contains("_MESA_DRV") || propName.contains("_UTIL_LAYER")) {
+                        frameRating.update();
+                    }
                 }
             }
         } else if (frameRatingWindowId == window.id) {
             frameRatingWindowId = -1;
             Log.d("XServerDisplayActivity", "Hiding hud for Window " + window.getName());
-            runOnUiThread(() -> {
-                frameRating.setVisibility(View.GONE);
-                frameRating.reset();
-            });
+            if (frameRating != null) {
+                runOnUiThread(() -> {
+                    frameRating.setVisibility(View.GONE);
+                    frameRating.reset();
+                });
+            }
         }
     }
 
