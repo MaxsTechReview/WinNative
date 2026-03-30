@@ -494,7 +494,8 @@
     <string name="session_xserver_native_rendering_disabled">軟體 WSI 備援</string>
     <string name="session_xserver_native_rendering_enabled_toast">原生渲染已啟用（下次啟動時生效）</string>
     <string name="session_xserver_native_rendering_disabled_toast">原生渲染已停用（下次啟動時生效）</string>
-    <string name="session_xserver_notification_description">Winlator XServer 訊息</string>
+    <string name="session_xserver_notification_description">WinNative XServer 訊息</string>
+    <string name="session_xserver_notification_content">WinNative 正在運行，請勿關閉或滑動移除此通知</string>
 
     <!-- Session > Drawer Menu -->
     <string name="session_drawer_keyboard">鍵盤</string>

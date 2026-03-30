@@ -494,7 +494,8 @@
     <string name="session_xserver_native_rendering_disabled">소프트웨어 WSI 폴백</string>
     <string name="session_xserver_native_rendering_enabled_toast">네이티브 렌더링 활성화됨 (다음 실행 시 적용)</string>
     <string name="session_xserver_native_rendering_disabled_toast">네이티브 렌더링 비활성화됨 (다음 실행 시 적용)</string>
-    <string name="session_xserver_notification_description">Winlator XServer 메시지</string>
+    <string name="session_xserver_notification_description">WinNative XServer 메시지</string>
+    <string name="session_xserver_notification_content">WinNative가 실행 중입니다. 이 알림을 종료하거나 스와이프하지 마세요</string>
 
     <!-- Session > Drawer Menu -->
     <string name="session_drawer_keyboard">키보드</string>

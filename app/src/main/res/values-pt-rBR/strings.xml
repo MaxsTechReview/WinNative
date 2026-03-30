@@ -494,7 +494,8 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="session_xserver_native_rendering_disabled">Fallback de WSI por software</string>
     <string name="session_xserver_native_rendering_enabled_toast">Renderizacao nativa ativada (tera efeito no proximo inicio)</string>
     <string name="session_xserver_native_rendering_disabled_toast">Renderizacao nativa desativada (tera efeito no proximo inicio)</string>
-    <string name="session_xserver_notification_description">Mensagens do XServer do Winlator</string>
+    <string name="session_xserver_notification_description">Mensagens do XServer do WinNative</string>
+    <string name="session_xserver_notification_content">WinNative está em execução, não feche ou deslize esta notificação</string>
 
     <!-- Session > Drawer Menu -->
     <string name="session_drawer_keyboard">Teclado</string>

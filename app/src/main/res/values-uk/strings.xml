@@ -494,7 +494,8 @@
     <string name="session_xserver_native_rendering_disabled">Програмний WSI-резерв</string>
     <string name="session_xserver_native_rendering_enabled_toast">Нативний рендеринг увімкнено (набуде чинності при наступному запуску)</string>
     <string name="session_xserver_native_rendering_disabled_toast">Нативний рендеринг вимкнено (набуде чинності при наступному запуску)</string>
-    <string name="session_xserver_notification_description">Повідомлення Winlator XServer</string>
+    <string name="session_xserver_notification_description">Повідомлення WinNative XServer</string>
+    <string name="session_xserver_notification_content">WinNative працює, не закривайте та не змахуйте це сповіщення</string>
 
     <!-- Session > Drawer Menu -->
     <string name="session_drawer_keyboard">Клавіатура</string>
