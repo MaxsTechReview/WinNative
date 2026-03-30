@@ -444,6 +444,7 @@ public class Container {
             data.put("lc_all", lc_all);
             data.put("launchRealSteam", launchRealSteam);
             data.put("useColdClient", useColdClient);
+            data.put("coldClientMigrated", true);
             data.put("steamType", steamType);
             data.put("allowSteamUpdates", allowSteamUpdates);
             data.put("needsUnpacking", needsUnpacking);
@@ -561,11 +562,14 @@ public class Container {
                     setLaunchRealSteam(data.getBoolean(key));
                     break;
                 case "useColdClient" :
-                    setUseColdClient(data.getBoolean(key));
+                    // Only respect explicit user choice if coldClientMigrated flag is set
+                    if (data.has("coldClientMigrated")) {
+                        setUseColdClient(data.getBoolean(key));
+                    }
+                    // Otherwise keep default true (migrating from old data)
                     break;
                 case "useLegacyDRM" :
-                    // Migrate: old useLegacyDRM=false meant ColdClient, now useColdClient=true means ColdClient
-                    setUseColdClient(!data.getBoolean(key));
+                    // Old field — always default to ColdClient on
                     break;
                 case "steamType" :
                     setSteamType(data.getString(key));
