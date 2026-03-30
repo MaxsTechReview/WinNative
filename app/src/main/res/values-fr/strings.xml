@@ -218,7 +218,7 @@
     <string name="shortcuts_properties_exclusive_input">Entrée exclusive</string>
     <string name="shortcuts_properties_custom_game_settings">Paramètres de jeu personnalisés</string>
     <string name="shortcuts_properties_use_cold_client">Utiliser ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">ColdClient est la méthode préférée pour gérer l'émulation Steam et le DRM. Il corrige le DRM au moment de l'exécution sans modifier les fichiers du jeu.</string>
+    <string name="shortcuts_properties_use_cold_client_description">ColdClient est la méthode préférée pour gérer l\'émulation Steam et le DRM. Il corrige le DRM au moment de l\'exécution sans modifier les fichiers du jeu.</string>
     <string name="shortcuts_properties_unpack_files">DRM hérité</string>
     <string name="shortcuts_properties_unpack_files_description">Supprime le DRM SteamStub de l\'exe sur le disque. À activer uniquement si le jeu ne se lance pas sans. Le patcheur runtime de ColdClient gère la plupart des jeux automatiquement.</string>
     <string name="shortcuts_properties_force_dlc">Forcer les DLC</string>
