@@ -13,6 +13,14 @@
         android:layout_height="match_parent" />
 
     <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/AchievementPopupView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="false"
+        android:focusable="false"
+        android:elevation="10dp" />
+
+    <androidx.compose.ui.platform.ComposeView
         android:id="@+id/NavigationComposeView"
         android:layout_width="336dp"
         android:layout_height="match_parent"

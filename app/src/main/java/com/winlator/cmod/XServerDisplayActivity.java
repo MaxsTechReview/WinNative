@@ -45,6 +45,9 @@ import androidx.core.app.NotificationManagerCompat;
 import androidx.compose.ui.platform.ComposeView;
 import androidx.core.view.GravityCompat;
 import com.winlator.cmod.steam.enums.Marker;
+import com.winlator.cmod.steam.ui.AchievementPopupKt;
+import com.winlator.cmod.steam.ui.AchievementPopupState;
+import com.winlator.cmod.steam.ui.AchievementWatcher;
 import com.winlator.cmod.steam.utils.MarkerUtils;
 import com.winlator.cmod.steam.utils.SteamUtils;
 
@@ -197,6 +200,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private OnExtractFileListener onExtractFileListener;
     private WinHandler winHandler;
     private WineRequestHandler wineRequestHandler;
+    private AchievementPopupState achievementPopupState;
+    private AchievementWatcher achievementWatcher;
     private float globalCursorSpeed = 1.0f;
     private MagnifierView magnifierView;
     private DebugDialog debugDialog;
@@ -1785,6 +1790,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (achievementWatcher != null) {
+            achievementWatcher.stop();
+        }
         // Schedule a deferred update check 10 s after game exit
         com.winlator.cmod.core.UpdateChecker.INSTANCE.schedulePostGameCheck(this);
         if (inputDeviceManager != null) {
@@ -2479,6 +2487,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
         // Start all environment components (XServer, Audio, etc.)
         environment.startEnvironmentComponents();
 
+        // Start the achievement popup watcher
+        setupAchievementWatcher();
+
         // Start the WinHandler
         winHandler.start();
 
@@ -2493,6 +2504,68 @@ public class XServerDisplayActivity extends AppCompatActivity {
         File scriptFile = new File(path);
         FileUtils.writeString(scriptFile, content);
         scriptFile.setExecutable(true);
+    }
+
+    private void setupAchievementWatcher() {
+        if (container == null || imageFs == null) return;
+
+        // Determine appId from shortcut (Steam games only)
+        int appId = 0;
+        if (shortcut != null && "STEAM".equals(shortcut.getExtra("game_source"))) {
+            String appIdStr = shortcut.getExtra("app_id");
+            if (appIdStr != null && !appIdStr.isEmpty()) {
+                try { appId = Integer.parseInt(appIdStr); } catch (NumberFormatException ignored) {}
+            }
+        }
+        if (appId == 0) return;
+
+        // Find GSE save directory
+        String winePrefix = ImageFs.WINEPREFIX;
+        File gseSaveDir = new File(imageFs.getRootDir(),
+                winePrefix + "/drive_c/users/xuser/AppData/Roaming/GSE Saves/" + appId);
+
+        if (!gseSaveDir.isDirectory()) {
+            // Try userdata path
+            int accountId = SteamUtils.INSTANCE.getSteam3AccountId();
+            if (accountId != 0) {
+                gseSaveDir = new File(imageFs.getRootDir(),
+                        winePrefix + "/drive_c/Program Files (x86)/Steam/userdata/" + accountId + "/" + appId);
+            }
+        }
+
+        if (!gseSaveDir.isDirectory()) {
+            // Directory doesn't exist yet — watch the parent so we catch it when the game creates it
+            gseSaveDir.mkdirs();
+        }
+
+        // Find steam_settings directory
+        File steamSettingsDir = null;
+        String appDirPath = SteamBridge.getAppDirPath(appId);
+        if (appDirPath != null) {
+            File dir = new File(appDirPath, "steam_settings");
+            if (dir.isDirectory()) steamSettingsDir = dir;
+        }
+        if (steamSettingsDir == null) {
+            File dir = new File(container.getRootDir(),
+                    ".wine/drive_c/Program Files (x86)/Steam/steam_settings");
+            if (dir.isDirectory()) steamSettingsDir = dir;
+        }
+
+        // Setup popup UI
+        achievementPopupState = new AchievementPopupState();
+        ComposeView achievementPopupView = findViewById(R.id.AchievementPopupView);
+        AchievementPopupKt.setupAchievementPopup(achievementPopupView, achievementPopupState);
+
+        // Create and start watcher
+        String language = container.getLanguage();
+        File finalGseSaveDir = gseSaveDir;
+        achievementWatcher = new AchievementWatcher(
+                finalGseSaveDir,
+                steamSettingsDir,
+                language,
+                notification -> runOnUiThread(() -> achievementPopupState.show(notification))
+        );
+        achievementWatcher.start();
     }
 
     private void setupUI() {

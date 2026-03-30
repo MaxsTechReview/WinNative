@@ -183,6 +183,8 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import `in`.dragonbra.javasteam.steam.handlers.steamuserstats.Stats
 import com.winlator.cmod.steam.statsgen.StatType
+import com.winlator.cmod.contents.Downloader
+import com.winlator.cmod.steam.statsgen.Achievement
 import com.winlator.cmod.steam.statsgen.StatsAchievementsGenerator
 import com.winlator.cmod.steam.statsgen.VdfParser
 
@@ -3618,8 +3620,37 @@ class SteamService : Service(), IChallengeUrlChanged {
                 }
                 File(configDirectory, "achievement_name_to_block.json").writeText(mappingJson.toString(), Charsets.UTF_8)
             }
+
+            // Download achievement icons from Steam CDN
+            downloadAchievementIcons(appId, configDirectory, result.achievements)
         }.onFailure { e ->
             Timber.w(e, "Failed to generate achievements for appId=$appId")
+        }
+
+        private fun downloadAchievementIcons(appId: Int, configDirectory: String, achievements: List<Achievement>) {
+            val imgDir = File(configDirectory, "img")
+            if (!imgDir.exists()) imgDir.mkdirs()
+
+            val cdnBase = "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/$appId"
+            val iconNames = mutableSetOf<String>()
+
+            for (ach in achievements) {
+                ach.icon?.takeIf { it.isNotEmpty() }?.let { iconNames.add(it) }
+                ach.iconGray?.takeIf { it.isNotEmpty() }?.let { iconNames.add(it) }
+                ach.icongray?.takeIf { it.isNotEmpty() }?.let { iconNames.add(it) }
+            }
+
+            for (iconName in iconNames) {
+                val destFile = File(imgDir, iconName)
+                if (destFile.exists()) continue
+                val url = "$cdnBase/$iconName.jpg"
+                try {
+                    Downloader.downloadFile(url, destFile, null)
+                } catch (e: Exception) {
+                    Timber.w(e, "Failed to download achievement icon: $iconName")
+                }
+            }
+            Timber.d("Downloaded ${iconNames.size} achievement icons for appId=$appId")
         }
 
         fun getGseSaveDirs(appId: Int): List<File> {
