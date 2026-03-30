@@ -167,7 +167,6 @@
     <string name="stores_accounts_status_invisible">Invisivel</string>
     <string name="stores_accounts_status_header">STATUS</string>
     <string name="stores_accounts_stores_header">LOJAS</string>
-    <string name="stores_accounts_aio_store_mode">Modo Loja Unificada</string>
     <string name="stores_accounts_sign_in_store_prompt">Por favor, entre para acessar a loja %1$s.</string>
     <string name="stores_accounts_manage">Gerenciar Contas das Lojas</string>
     <string name="stores_accounts_sign_into_store">Entrar em %1$s</string>

@@ -134,10 +134,6 @@ object PrefManager {
         get() = getLong("client_id", 0L)
         set(value) { setLong("client_id", value) }
 
-    var aioStoreMode: Boolean
-        get() = getBoolean("aio_store_mode", false)
-        set(value) { setBoolean("aio_store_mode", value) }
-
     var libraryLayoutMode: String
         get() = getString("library_layout_mode", "GRID_4")
         set(value) { setString("library_layout_mode", value) }

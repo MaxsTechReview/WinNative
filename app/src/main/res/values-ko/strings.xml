@@ -167,7 +167,6 @@
     <string name="stores_accounts_status_invisible">숨김</string>
     <string name="stores_accounts_status_header">상태</string>
     <string name="stores_accounts_stores_header">스토어</string>
-    <string name="stores_accounts_aio_store_mode">통합 스토어 모드</string>
     <string name="stores_accounts_sign_in_store_prompt">%1$s 스토어에 접근하려면 로그인하세요.</string>
     <string name="stores_accounts_manage">스토어 계정 관리</string>
     <string name="stores_accounts_sign_into_store">%1$s에 로그인</string>

@@ -167,7 +167,6 @@
     <string name="stores_accounts_status_invisible">Usynlig</string>
     <string name="stores_accounts_status_header">STATUS</string>
     <string name="stores_accounts_stores_header">BUTIKKER</string>
-    <string name="stores_accounts_aio_store_mode">AIO Butikstilstand</string>
     <string name="stores_accounts_sign_in_store_prompt">Log venligst ind for at få adgang til %1$s butikken.</string>
     <string name="stores_accounts_manage">Administrer butikskonti</string>
     <string name="stores_accounts_sign_into_store">Log ind på %1$s</string>

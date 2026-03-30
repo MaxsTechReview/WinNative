@@ -167,7 +167,6 @@
     <string name="stores_accounts_status_invisible">隱形</string>
     <string name="stores_accounts_status_header">狀態</string>
     <string name="stores_accounts_stores_header">商店</string>
-    <string name="stores_accounts_aio_store_mode">一站式商店模式</string>
     <string name="stores_accounts_sign_in_store_prompt">請登入以存取 %1$s 商店。</string>
     <string name="stores_accounts_manage">管理商店帳號</string>
     <string name="stores_accounts_sign_into_store">登入 %1$s</string>

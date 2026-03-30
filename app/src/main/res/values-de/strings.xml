@@ -167,7 +167,6 @@
     <string name="stores_accounts_status_invisible">Unsichtbar</string>
     <string name="stores_accounts_status_header">STATUS</string>
     <string name="stores_accounts_stores_header">STORES</string>
-    <string name="stores_accounts_aio_store_mode">AIO-Store-Modus</string>
     <string name="stores_accounts_sign_in_store_prompt">Bitte melde dich an, um auf den %1$s Store zuzugreifen.</string>
     <string name="stores_accounts_manage">Store-Konten verwalten</string>
     <string name="stores_accounts_sign_into_store">Bei %1$s anmelden</string>

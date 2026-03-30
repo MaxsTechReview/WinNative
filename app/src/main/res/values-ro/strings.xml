@@ -167,7 +167,6 @@
     <string name="stores_accounts_status_invisible">Invizibil</string>
     <string name="stores_accounts_status_header">STARE</string>
     <string name="stores_accounts_stores_header">MAGAZINE</string>
-    <string name="stores_accounts_aio_store_mode">Mod magazin AIO</string>
     <string name="stores_accounts_sign_in_store_prompt">Autentifica-te pentru a accesa magazinul %1$s.</string>
     <string name="stores_accounts_manage">Gestioneaza conturile de magazin</string>
     <string name="stores_accounts_sign_into_store">Autentificare in %1$s</string>

@@ -218,38 +218,59 @@ private fun AutoBackupCard(
     busy: Boolean,
     onToggle: (Boolean) -> Unit
 ) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .wrapContentHeight()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
             .clickable(enabled = !busy) { onToggle(!enabled) }
-            .padding(horizontal = 14.dp, vertical = 14.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconBox(icon = Icons.Filled.CloudSync, tint = if (enabled && googleSignedIn) StatusGreen else TextSecondary)
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(IconBoxBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.CloudSync,
+                    contentDescription = null,
+                    tint = if (enabled && googleSignedIn) StatusGreen else TextSecondary,
+                    modifier = Modifier.size(17.dp)
+                )
+            }
 
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(13.dp))
 
-            Text(
-                text = stringResource(R.string.google_cloud_auto_backup),
-                color = TextPrimary,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.weight(1f)
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.google_cloud_auto_backup),
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.google_cloud_auto_backup_summary),
+                    color = TextSecondary,
+                    fontSize = 11.sp
+                )
+            }
 
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(4.dp))
 
             Switch(
                 checked = enabled && googleSignedIn,
                 onCheckedChange = { onToggle(it) },
                 enabled = !busy,
+                modifier = Modifier.scale(0.78f),
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = StatusGreen,
                     checkedTrackColor = StatusGreen.copy(alpha = 0.3f),
@@ -258,15 +279,6 @@ private fun AutoBackupCard(
                 )
             )
         }
-
-        Spacer(Modifier.height(6.dp))
-
-        Text(
-            text = stringResource(R.string.google_cloud_auto_backup_summary),
-            color = TextSecondary,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(start = 52.dp)
-        )
     }
 }
 

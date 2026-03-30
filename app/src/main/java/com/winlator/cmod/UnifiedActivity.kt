@@ -504,23 +504,18 @@ class UnifiedActivity : ComponentActivity() {
     // Tab definitions
     private data class TabDef(val label: String, val key: String)
 
-    private fun buildTabs(aio: Boolean, storeVisible: Map<String, Boolean>): List<TabDef> {
+    private fun buildTabs(storeVisible: Map<String, Boolean>): List<TabDef> {
         val base = mutableListOf(TabDef(getString(R.string.common_ui_library), "library"), TabDef(getString(R.string.common_ui_downloads), "downloads"))
-        if (aio) {
-            base.add(TabDef(getString(R.string.common_ui_store), "store"))
-        } else {
-            if (storeVisible["steam"] != false) base.add(TabDef("Steam", "steam"))
-            if (storeVisible["epic"] != false) base.add(TabDef("Epic", "epic"))
-            if (storeVisible["gog"] != false) base.add(TabDef("GOG", "gog"))
-            if (storeVisible["amazon"] != false) base.add(TabDef("Amazon", "amazon"))
-        }
+        if (storeVisible["steam"] != false) base.add(TabDef("Steam", "steam"))
+        if (storeVisible["epic"] != false) base.add(TabDef("Epic", "epic"))
+        if (storeVisible["gog"] != false) base.add(TabDef("GOG", "gog"))
+        if (storeVisible["amazon"] != false) base.add(TabDef("Amazon", "amazon"))
         return base
     }
 
     // Main scaffold
     @Composable
     fun UnifiedHub() {
-        var aioMode by remember { mutableStateOf(PrefManager.aioStoreMode) }
         val storeVisible = remember { mutableStateMapOf("steam" to true, "epic" to true, "gog" to true, "amazon" to true) }
         var showAddCustomGame by remember { mutableStateOf(false) }
         var showExitDialog by remember { mutableStateOf(false) }
@@ -542,7 +537,7 @@ class UnifiedActivity : ComponentActivity() {
                     .getOrDefault(LibraryLayoutMode.GRID_4)
             )
         }
-        val tabs = remember(aioMode, storeVisible.toMap()) { buildTabs(aioMode, storeVisible) }
+        val tabs = remember(storeVisible.toMap()) { buildTabs(storeVisible) }
         var selectedIdx by rememberSaveable { mutableIntStateOf(0) }
         var selectedDownloadId by remember { mutableStateOf<String?>(null) }
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -781,8 +776,6 @@ class UnifiedActivity : ComponentActivity() {
                     persona = persona,
                     context = context,
                     scope = scope,
-                    aioMode = aioMode,
-                    onAioToggle = { aioMode = it; PrefManager.aioStoreMode = it },
                     storeVisible = storeVisible,
                     contentFilters = contentFilters,
                     libraryLayoutMode = libraryLayoutMode,
@@ -862,7 +855,7 @@ class UnifiedActivity : ComponentActivity() {
                         ) { animatedKey ->
                             when (animatedKey) {
                                 "downloads" -> DownloadsTab(selectedDownloadId, onSelectDownload = { selectedDownloadId = it })
-                                "steam", "store" -> SteamStoreTab(isLoggedIn, filteredSteamApps, searchQuery, libraryLayoutMode)
+                                "steam" -> SteamStoreTab(isLoggedIn, filteredSteamApps, searchQuery, libraryLayoutMode)
 
                                 "epic" -> EpicStoreTab(isEpicLoggedIn, searchQuery, libraryLayoutMode) {
                                     epicLoginLauncher.launch(Intent(this@UnifiedActivity, EpicOAuthActivity::class.java))
@@ -6136,8 +6129,6 @@ class UnifiedActivity : ComponentActivity() {
         persona: com.winlator.cmod.steam.data.SteamFriend?,
         context: android.content.Context,
         scope: kotlinx.coroutines.CoroutineScope,
-        aioMode: Boolean,
-        onAioToggle: (Boolean) -> Unit,
         storeVisible: SnapshotStateMap<String, Boolean>,
         contentFilters: SnapshotStateMap<String, Boolean>,
         libraryLayoutMode: LibraryLayoutMode,
@@ -6334,9 +6325,6 @@ class UnifiedActivity : ComponentActivity() {
 
                 // ── Stores ──
                 Text(stringResource(R.string.stores_accounts_stores_header), color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp, modifier = Modifier.padding(bottom = 4.dp))
-                Spacer(Modifier.height(8.dp))
-
-                DrawerFilterButton(stringResource(R.string.stores_accounts_aio_store_mode), aioMode, Modifier.fillMaxWidth()) { onAioToggle(it) }
                 Spacer(Modifier.height(8.dp))
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

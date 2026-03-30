@@ -167,7 +167,6 @@
     <string name="stores_accounts_status_invisible">Niewidoczny</string>
     <string name="stores_accounts_status_header">STATUS</string>
     <string name="stores_accounts_stores_header">SKLEPY</string>
-    <string name="stores_accounts_aio_store_mode">Tryb AIO sklepu</string>
     <string name="stores_accounts_sign_in_store_prompt">Zaloguj się, aby uzyskać dostęp do sklepu %1$s.</string>
     <string name="stores_accounts_manage">Zarządzaj kontami sklepów</string>
     <string name="stores_accounts_sign_into_store">Zaloguj się do %1$s</string>
