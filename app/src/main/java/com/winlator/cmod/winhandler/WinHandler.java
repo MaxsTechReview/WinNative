@@ -673,8 +673,8 @@ public class WinHandler {
         });
     }
 
-    private void queueGamepadStateForClients(final boolean enabled, final int gamepadId, final GamepadState stateSnapshot, final boolean remapDinputButtons, final boolean applyGyro) {
-        if (!initReceived || gamepadClients.isEmpty() || xinputDisabled) {
+    private void queueGamepadStateForClients(final boolean enabled, final int gamepadId, final GamepadState stateSnapshot, final boolean remapDinputButtons, final boolean applyGyro, final boolean allowWhenXInputDisabled) {
+        if (!initReceived || gamepadClients.isEmpty() || (xinputDisabled && !allowWhenXInputDisabled)) {
             return;
         }
 
@@ -693,6 +693,18 @@ public class WinHandler {
                 sendPacket(port);
             });
         }
+    }
+
+    private void clearMappedBuffer(MappedByteBuffer buffer) {
+        if (buffer == null) {
+            return;
+        }
+
+        buffer.position(0);
+        for (int i = 0; i < 64; i++) {
+            buffer.put((byte) 0);
+        }
+        buffer.position(0);
     }
 
     private int assignSlot(int deviceId) {
@@ -809,8 +821,8 @@ public class WinHandler {
         final boolean useVirtualGamepad = profile != null && profile.isVirtualGamepad()
                 && isTouchscreenControlsVisible();
         final boolean enabled = currentController != null || useVirtualGamepad;
-        final int gamepadId;
         final GamepadState stateSnapshot = new GamepadState();
+        final int gamepadId;
 
         if (enabled) {
             GamepadState state = useVirtualGamepad ? profile.getGamepadState() : currentController.state;
@@ -832,15 +844,13 @@ public class WinHandler {
                 writeStateToMappedBuffer(stateSnapshot, gamepadBuffer, true, 0);
             }
         } else {
-            gamepadId = 0;
             releaseSlot(OSC_DEVICE_ID);
-        }
-
-        if (!enabled) {
+            clearMappedBuffer(gamepadBuffer);
+            queueGamepadStateForClients(false, 0, stateSnapshot, false, false, true);
             return;
         }
 
-        queueGamepadStateForClients(true, gamepadId, stateSnapshot, useVirtualGamepad, true);
+        queueGamepadStateForClients(true, gamepadId, stateSnapshot, useVirtualGamepad, true, useVirtualGamepad);
     }
 
     public void sendGamepadState(ExternalController controller) {
@@ -874,7 +884,7 @@ public class WinHandler {
 
         GamepadState snapshot = new GamepadState();
         snapshot.copy(sourceState);
-        queueGamepadStateForClients(true, controller.getDeviceId(), snapshot, false, true);
+        queueGamepadStateForClients(true, controller.getDeviceId(), snapshot, false, true, false);
     }
 
     /**
