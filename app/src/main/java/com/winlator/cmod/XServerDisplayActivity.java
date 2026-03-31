@@ -5017,6 +5017,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
         return container;
     }
 
+    public boolean isArm64ECWine() {
+        return wineInfo != null && wineInfo.isArm64EC();
+    }
+
     public void setDXWrapper(String dxwrapper) {
         this.dxwrapper = dxwrapper;
     }

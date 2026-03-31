@@ -497,7 +497,7 @@ public class WinHandler {
                 boolean isXInput = receiveData.get() == 1;
                 boolean notify = receiveData.get() == 1;
                 final ControlsProfile profile = getActiveProfile();
-                boolean useVirtualGamepad = profile != null && profile.isVirtualGamepad();
+                boolean useVirtualGamepad = profile != null && profile.isVirtualGamepad() && shouldExposeVirtualGamepadToClients();
 
                 if (!useVirtualGamepad && (currentController == null || !currentController.isConnected())) {
                     currentController = ExternalController.getController(0);
@@ -563,7 +563,7 @@ public class WinHandler {
             case RequestCodes.GET_GAMEPAD_STATE: {
                 int gamepadId = receiveData.getInt();
                 final ControlsProfile profile = getActiveProfile();
-                boolean useVirtualGamepad = profile != null && profile.isVirtualGamepad();
+                boolean useVirtualGamepad = profile != null && profile.isVirtualGamepad() && shouldExposeVirtualGamepadToClients();
                 if (xinputDisabled && !useVirtualGamepad)
                     return;
                 final boolean enabled = currentController != null || useVirtualGamepad;
@@ -820,6 +820,7 @@ public class WinHandler {
         final ControlsProfile profile = getActiveProfile();
         final boolean useVirtualGamepad = profile != null && profile.isVirtualGamepad()
                 && isTouchscreenControlsVisible();
+        final boolean exposeVirtualGamepadToClients = useVirtualGamepad && shouldExposeVirtualGamepadToClients();
         final boolean enabled = currentController != null || useVirtualGamepad;
         final GamepadState stateSnapshot = new GamepadState();
         final int gamepadId;
@@ -850,7 +851,11 @@ public class WinHandler {
             return;
         }
 
-        queueGamepadStateForClients(true, gamepadId, stateSnapshot, useVirtualGamepad, true, useVirtualGamepad);
+        if (!useVirtualGamepad || exposeVirtualGamepadToClients) {
+            queueGamepadStateForClients(true, gamepadId, stateSnapshot, exposeVirtualGamepadToClients, true, exposeVirtualGamepadToClients);
+        } else {
+            queueGamepadStateForClients(false, 0, stateSnapshot, false, false, true);
+        }
     }
 
     public void sendGamepadState(ExternalController controller) {
@@ -979,9 +984,13 @@ public class WinHandler {
         writeStateToMappedBuffer(state, gamepadBuffer, true, 0);
     }
 
+    private boolean shouldExposeVirtualGamepadToClients() {
+        return activity == null || !activity.isArm64ECWine();
+    }
+
     private boolean useVirtualGamepad() {
         ControlsProfile profile = getActiveProfile();
-        return profile != null && profile.isVirtualGamepad();
+        return profile != null && profile.isVirtualGamepad() && shouldExposeVirtualGamepadToClients();
     }
 
     public void setXInputDisabled(boolean disabled) {
