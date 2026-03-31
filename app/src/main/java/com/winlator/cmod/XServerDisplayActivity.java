@@ -1859,9 +1859,12 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     rootView.addView(frameRating);
                 }
                 boolean isFpsVisible = frameRating.getVisibility() == View.VISIBLE;
-                frameRating.setVisibility(isFpsVisible ? View.GONE : View.VISIBLE);
+                boolean becomingVisible = !isFpsVisible;
+                frameRating.setVisibility(becomingVisible ? View.VISIBLE : View.GONE);
+                if (becomingVisible) syncFrameRatingWithExistingWindows();
+                
                 if (container != null) {
-                    container.setShowFPS(!isFpsVisible);
+                    container.setShowFPS(becomingVisible);
                     container.saveData();
                 }
                 renderDrawerMenu();
@@ -5118,6 +5121,27 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     frameRating.setVisibility(View.GONE);
                     frameRating.reset();
                 });
+            }
+        }
+    }
+
+    private void syncFrameRatingWithExistingWindows() {
+        if (xServer == null || frameRating == null) return;
+        for (Window window : xServer.windowManager.getWindows()) {
+            Property prop = window.getProperty(Atom.get("_MESA_DRV_RENDERER"));
+            if (prop == null) prop = window.getProperty(Atom.get("_MESA_DRV_ENGINE_NAME"));
+
+            if (prop != null) {
+                lastRendererName = prop.toString();
+                frameRatingWindowId = window.id;
+                runOnUiThread(() -> frameRating.setRenderer(lastRendererName));
+
+                Property gpuProp = window.getProperty(Atom.get("_MESA_DRV_GPU_NAME"));
+                if (gpuProp != null) {
+                    lastGpuName = gpuProp.toString();
+                    runOnUiThread(() -> frameRating.setGpuName(lastGpuName));
+                }
+                break;
             }
         }
     }
