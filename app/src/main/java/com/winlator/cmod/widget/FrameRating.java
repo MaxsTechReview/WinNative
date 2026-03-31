@@ -64,7 +64,6 @@ public class FrameRating extends LinearLayout implements Runnable {
     private int frameCount;
     private int gpuFailCount;
     private volatile int gpuLoad;
-    private final FrameLayout graphContainer;
     private FrametimeGraphView graphView;
     private boolean isNativeActive;
     private boolean isStatsRunning;
@@ -75,20 +74,20 @@ public class FrameRating extends LinearLayout implements Runnable {
     private volatile String ramText;
     private String rendererName;
     private String gpuName;
-    private final View sep0;
-    private final View sep1;
-    private final View sep2;
-    private final View sep3;
+    private final View sep0, sep1, sep2, sep3, sep4, sep5;
+    private final TextView tvRenderer;
+    private final TextView tvGpuLoad;
+    private final TextView tvCpu;
+    private final TextView tvRam;
+    private final TextView tvBat;
+    private final TextView tvTemp;
+    private final TextView tvFpsBig;
+    private final FrameLayout graphContainer;
     private Handler statsHandler;
     private Runnable statsRunnable;
     private HandlerThread statsThread;
     private Handler uiRefreshHandler;
     private Runnable uiRefreshRunnable;
-    private final TextView tvFpsBig;
-    private final TextView tvGpuLoad;
-    private final TextView tvHardwareStats;
-    private final TextView tvRenderer;
-    private final TextView tvWattsTemp;
 
     // ── GPU load caching (prevents N/A flickering from transient sysfs failures)
     private int lastGoodGpuLoad = -1;
@@ -159,14 +158,18 @@ public class FrameRating extends LinearLayout implements Runnable {
         View view = LayoutInflater.from(context).inflate(R.layout.frame_rating, this, true);
         this.tvRenderer = view.findViewById(R.id.TVRenderer);
         this.tvGpuLoad = view.findViewById(R.id.TVGpuLoad);
-        this.tvHardwareStats = view.findViewById(R.id.TVHardwareStats);
-        this.tvWattsTemp = view.findViewById(R.id.TVWattsTemp);
+        this.tvCpu = view.findViewById(R.id.TVCpu);
+        this.tvRam = view.findViewById(R.id.TVRam);
+        this.tvBat = view.findViewById(R.id.TVBat);
+        this.tvTemp = view.findViewById(R.id.TVTemp);
         this.tvFpsBig = view.findViewById(R.id.TVFpsBig);
         this.graphContainer = view.findViewById(R.id.FLGraphContainer);
         this.sep0 = view.findViewById(R.id.Sep0);
         this.sep1 = view.findViewById(R.id.Sep1);
         this.sep2 = view.findViewById(R.id.Sep2);
         this.sep3 = view.findViewById(R.id.Sep3);
+        this.sep4 = view.findViewById(R.id.Sep4);
+        this.sep5 = view.findViewById(R.id.Sep5);
         this.graphView = new FrametimeGraphView(context);
         if (this.graphContainer != null) {
             this.graphContainer.addView(this.graphView);
@@ -328,7 +331,7 @@ public class FrameRating extends LinearLayout implements Runnable {
 
     private void cycleDisplayMode() {
         displayMode = (displayMode + 1) % MODE_COUNT;
-        applyDisplayMode();
+        post(this::applyDisplayMode);
     }
 
     private void applyDisplayMode() {
@@ -337,13 +340,35 @@ public class FrameRating extends LinearLayout implements Runnable {
         switch (displayMode) {
             case 0: horizontal = true;  showBackdrop = false; break;
             case 1: horizontal = true;  showBackdrop = true;  break;
-            case 2: horizontal = false; showBackdrop = true;  break;
-            case 3: horizontal = false; showBackdrop = false; break;
+            case 2: horizontal = false; showBackdrop = false; break;
+            case 3: horizontal = false; showBackdrop = true;  break;
             default: horizontal = true; showBackdrop = false; break;
         }
         setOrientation(horizontal ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+        setGravity(horizontal ? android.view.Gravity.CENTER_VERTICAL : android.view.Gravity.START);
         setBackground(showBackdrop ? backdropDrawable : null);
         setPadding(showBackdrop ? 8 : 2, showBackdrop ? 6 : 2, showBackdrop ? 8 : 2, showBackdrop ? 6 : 2);
+
+        int graphW = (int)(50 * getResources().getDisplayMetrics().density);
+        int graphH = (int)(14 * getResources().getDisplayMetrics().density);
+
+        View[] views = {tvRenderer, sep0, tvGpuLoad, sep1, tvCpu, sep2, tvRam, sep3, tvBat, sep4, tvTemp, sep5, tvFpsBig, graphContainer};
+        for (View v : views) {
+            if (v != null) {
+                LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) v.getLayoutParams();
+                if (v == graphContainer) {
+                    lp.width = graphW;
+                    lp.height = graphH;
+                    lp.setMargins(horizontal ? 4 : 0, horizontal ? 0 : 4, 0, 0);
+                } else {
+                    lp.width = LayoutParams.WRAP_CONTENT;
+                    lp.height = LayoutParams.WRAP_CONTENT;
+                    lp.setMargins(0, 0, 0, 0);
+                }
+                v.setLayoutParams(lp);
+            }
+        }
+
         updateSeparators(horizontal);
         requestLayout();
     }
@@ -352,20 +377,23 @@ public class FrameRating extends LinearLayout implements Runnable {
         if (renderer == null) {
             return;
         }
-        if (renderer.contains("DXVK")) {
-            this.rendererName = "DXVK";
-        } else if (renderer.contains("VKD3D")) {
-            this.rendererName = "VKD3D";
-        } else if (renderer.contains("OpenGL")) {
-            this.rendererName = "OpenGL";
-        } else if (renderer.contains("Vulkan") || renderer.toLowerCase().contains("vulkan")) {
-            this.rendererName = "Vulkan";
-        } else if (renderer.contains("Turnip")) {
+        String r = renderer.toLowerCase();
+        if (r.contains("turnip")) {
             this.rendererName = "Turnip";
-        } else if (renderer.contains("VirGL")) {
+        } else if (r.contains("dxvk")) {
+            this.rendererName = "DXVK";
+        } else if (r.contains("vkd3d")) {
+            this.rendererName = "VKD3D";
+        } else if (r.contains("virgl")) {
             this.rendererName = "VirGL";
-        } else if (renderer.contains("llvmpipe")) {
+        } else if (r.contains("zink")) {
+            this.rendererName = "Zink";
+        } else if (r.contains("llvmpipe") || r.contains("software")) {
             this.rendererName = "Software";
+        } else if (r.contains("vulkan")) {
+            this.rendererName = "Vulkan";
+        } else if (r.contains("opengl")) {
+            this.rendererName = "OpenGL";
         } else {
             this.rendererName = renderer
                 .replaceAll("(?i).*Wrapper\\s*", "")
@@ -399,10 +427,15 @@ public class FrameRating extends LinearLayout implements Runnable {
 
     public void setGpuName(String name) {
         if (name != null && !name.isEmpty()) {
-            // Clean up property format "name = value"
+            // Clean up property format "name = value" and remove quotes
             String clean = name.contains("=") ? name.substring(name.indexOf("=") + 1).trim() : name;
-            // Remove quotes
             clean = clean.replace("\"", "").replace("'", "").trim();
+            
+            // Remove redundant "Wrapper(...)" or "Wrapper " prefix/suffix
+            clean = clean.replaceAll("(?i)Wrapper\\((.*)\\)", "$1")
+                        .replaceAll("(?i)Wrapper\\s*", "")
+                        .trim();
+
             if (!clean.isEmpty()) {
                 this.gpuName = clean;
                 post(this::updateRendererText);
@@ -448,13 +481,15 @@ public class FrameRating extends LinearLayout implements Runnable {
             if (pvr.exists()) {
                 this.gpuName = "PowerVR";
             }
+            if (this.gpuName != null) {
+                post(this::updateRendererText);
+            }
         } catch (Exception e) {
             Log.d(TAG, "Could not detect GPU from sysfs: " + e.getMessage());
         }
     }
 
     public void reset() {
-        setRenderer("OpenGL");
         this.frameCount = 0;
         this.lastTime = 0L;
     }
@@ -501,15 +536,13 @@ public class FrameRating extends LinearLayout implements Runnable {
                 break;
             case 3:
                 this.enableCpuRam = visible;
-                if (this.tvHardwareStats != null) {
-                    this.tvHardwareStats.setVisibility(v);
-                }
+                if (this.tvCpu != null) this.tvCpu.setVisibility(v);
+                if (this.tvRam != null) this.tvRam.setVisibility(v);
                 break;
             case 4:
                 this.enableBattTemp = visible;
-                if (this.tvWattsTemp != null) {
-                    this.tvWattsTemp.setVisibility(v);
-                }
+                if (this.tvBat != null) this.tvBat.setVisibility(v);
+                if (this.tvTemp != null) this.tvTemp.setVisibility(v);
                 break;
             case 5:
                 this.enableGraph = visible;
@@ -521,31 +554,27 @@ public class FrameRating extends LinearLayout implements Runnable {
         updateSeparators(getOrientation() == LinearLayout.HORIZONTAL);
     }
 
-    private void updateSeparators(boolean horizontal) {
+        private void updateSeparators(boolean horizontal) {
         if (!horizontal) {
-            if (this.sep0 != null) this.sep0.setVisibility(View.GONE);
-            if (this.sep1 != null) this.sep1.setVisibility(View.GONE);
-            if (this.sep2 != null) this.sep2.setVisibility(View.GONE);
-            if (this.sep3 != null) this.sep3.setVisibility(View.GONE);
+            View[] seps = {sep0, sep1, sep2, sep3, sep4, sep5};
+            for (View s : seps) if (s != null) s.setVisibility(View.GONE);
             return;
         }
-        boolean vRen = this.tvRenderer != null && this.tvRenderer.getVisibility() == View.VISIBLE;
-        boolean vGpu = this.tvGpuLoad != null && this.tvGpuLoad.getVisibility() == View.VISIBLE;
-        boolean vCpu = this.tvHardwareStats != null && this.tvHardwareStats.getVisibility() == View.VISIBLE;
-        boolean vBat = this.tvWattsTemp != null && this.tvWattsTemp.getVisibility() == View.VISIBLE;
-        boolean vFps = this.tvFpsBig != null && this.tvFpsBig.getVisibility() == View.VISIBLE;
-        if (this.sep0 != null) {
-            this.sep0.setVisibility((vRen && (vGpu || vCpu || vBat || vFps)) ? View.VISIBLE : View.GONE);
-        }
-        if (this.sep1 != null) {
-            this.sep1.setVisibility((vGpu && (vCpu || vBat || vFps)) ? View.VISIBLE : View.GONE);
-        }
-        if (this.sep2 != null) {
-            this.sep2.setVisibility((vCpu && (vBat || vFps)) ? View.VISIBLE : View.GONE);
-        }
-        if (this.sep3 != null) {
-            this.sep3.setVisibility((vBat && vFps) ? View.VISIBLE : View.GONE);
-        }
+
+        boolean vRen = tvRenderer != null && tvRenderer.getVisibility() == View.VISIBLE;
+        boolean vGpu = tvGpuLoad != null && tvGpuLoad.getVisibility() == View.VISIBLE;
+        boolean vCpu = tvCpu != null && tvCpu.getVisibility() == View.VISIBLE;
+        boolean vRam = tvRam != null && tvRam.getVisibility() == View.VISIBLE;
+        boolean vBat = tvBat != null && tvBat.getVisibility() == View.VISIBLE;
+        boolean vTmp = tvTemp != null && tvTemp.getVisibility() == View.VISIBLE;
+        boolean vFps = tvFpsBig != null && tvFpsBig.getVisibility() == View.VISIBLE;
+
+        if (sep0 != null) sep0.setVisibility(vRen && (vGpu || vCpu || vRam || vBat || vTmp || vFps) ? View.VISIBLE : View.GONE);
+        if (sep1 != null) sep1.setVisibility(vGpu && (vCpu || vRam || vBat || vTmp || vFps) ? View.VISIBLE : View.GONE);
+        if (sep2 != null) sep2.setVisibility(vCpu && (vRam || vBat || vTmp || vFps) ? View.VISIBLE : View.GONE);
+        if (sep3 != null) sep3.setVisibility(vRam && (vBat || vTmp || vFps) ? View.VISIBLE : View.GONE);
+        if (sep4 != null) sep4.setVisibility(vBat && (vTmp || vFps) ? View.VISIBLE : View.GONE);
+        if (sep5 != null) sep5.setVisibility(vTmp && vFps ? View.VISIBLE : View.GONE);
     }
 
     /**
@@ -728,41 +757,63 @@ public class FrameRating extends LinearLayout implements Runnable {
 
     @Override
     public void run() {
-        if (getVisibility() != View.VISIBLE) setVisibility(View.VISIBLE);
+        if (getVisibility() != View.VISIBLE) return;
+        
         if (this.enableGpu && this.tvGpuLoad != null) {
             SpannableStringBuilder b = new SpannableStringBuilder();
             append(b, "GPU ", this.C_GPU);
             append(b, this.gpuLoad >= 0 ? this.gpuLoad + "%" : "N/A", this.C_VALUE);
             this.tvGpuLoad.setText(b);
+            this.tvGpuLoad.setVisibility(View.VISIBLE);
+        } else if (this.tvGpuLoad != null) this.tvGpuLoad.setVisibility(View.GONE);
+
+        if (this.enableCpuRam) {
+            if (this.tvCpu != null) {
+                SpannableStringBuilder b = new SpannableStringBuilder();
+                append(b, "CPU ", this.C_CPU);
+                append(b, this.cpuPercent >= 0 ? this.cpuPercent + "%" : "N/A", this.C_VALUE);
+                this.tvCpu.setText(b);
+                this.tvCpu.setVisibility(View.VISIBLE);
+            }
+            if (this.tvRam != null) {
+                SpannableStringBuilder b = new SpannableStringBuilder();
+                append(b, "RAM ", this.C_RAM);
+                append(b, this.ramText, this.C_VALUE);
+                this.tvRam.setText(b);
+                this.tvRam.setVisibility(View.VISIBLE);
+            }
+        } else {
+            if (this.tvCpu != null) this.tvCpu.setVisibility(View.GONE);
+            if (this.tvRam != null) this.tvRam.setVisibility(View.GONE);
         }
-        if (this.enableCpuRam && this.tvHardwareStats != null) {
-            SpannableStringBuilder b1 = new SpannableStringBuilder();
-            append(b1, "CPU ", this.C_CPU);
-            append(b1, this.cpuPercent >= 0 ? this.cpuPercent + "% " : "N/A ", this.C_VALUE);
-            appendDiv(b1);
-            append(b1, "RAM ", this.C_RAM);
-            append(b1, this.ramText, this.C_VALUE);
-            this.tvHardwareStats.setText(b1);
+
+        if (this.enableBattTemp) {
+            if (this.tvBat != null) {
+                SpannableStringBuilder b = new SpannableStringBuilder();
+                append(b, "BAT ", this.C_BAT);
+                append(b, this.batteryWatts >= 0.0f ? String.format(Locale.US, "%.1fW", this.batteryWatts) : "N/A", this.C_VALUE);
+                this.tvBat.setText(b);
+                this.tvBat.setVisibility(View.VISIBLE);
+            }
+            if (this.tvTemp != null) {
+                SpannableStringBuilder b = new SpannableStringBuilder();
+                append(b, "TMP ", this.C_TEMP);
+                append(b, this.cpuTemp >= 0 ? this.cpuTemp + "°C" : "N/A", this.C_VALUE);
+                this.tvTemp.setText(b);
+                this.tvTemp.setVisibility(View.VISIBLE);
+            }
+        } else {
+            if (this.tvBat != null) this.tvBat.setVisibility(View.GONE);
+            if (this.tvTemp != null) this.tvTemp.setVisibility(View.GONE);
         }
-        if (this.enableBattTemp && this.tvWattsTemp != null) {
-            SpannableStringBuilder b2 = new SpannableStringBuilder();
-            append(b2, "BAT ", this.C_BAT);
-            append(b2, this.batteryWatts >= 0.0f ? String.format(Locale.US, "%.1fW ", this.batteryWatts) : "N/A ", this.C_VALUE);
-            appendDiv(b2);
-            append(b2, "TMP ", this.C_TEMP);
-            append(b2, this.cpuTemp >= 0 ? this.cpuTemp + "°C" : "N/A", this.C_VALUE);
-            this.tvWattsTemp.setText(b2);
-        }
+
         if (this.enableFps && this.tvFpsBig != null) {
             this.tvFpsBig.setText(String.format(Locale.US, "%.0f", this.lastFPS));
             this.tvFpsBig.setTextColor(this.C_FPS_OK);
-        }
-    }
-
-    private void appendDiv(SpannableStringBuilder b) {
-        int start = b.length();
-        b.append(" | ");
-        b.setSpan(new ForegroundColorSpan(this.C_DIVISOR), start, b.length(), 33);
+            this.tvFpsBig.setVisibility(View.VISIBLE);
+        } else if (this.tvFpsBig != null) this.tvFpsBig.setVisibility(View.GONE);
+        
+        if (getOrientation() == LinearLayout.HORIZONTAL) updateSeparators(true);
     }
 
     private void append(SpannableStringBuilder b, String t, int c) {

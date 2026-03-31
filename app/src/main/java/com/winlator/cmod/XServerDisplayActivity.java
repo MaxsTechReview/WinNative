@@ -113,6 +113,7 @@ import com.winlator.cmod.xenvironment.components.PulseAudioComponent;
 import com.winlator.cmod.xenvironment.components.SteamClientComponent;
 import com.winlator.cmod.xenvironment.components.SysVSharedMemoryComponent;
 import com.winlator.cmod.xenvironment.components.XServerComponent;
+import com.winlator.cmod.xserver.Atom;
 import com.winlator.cmod.xserver.Pointer;
 import com.winlator.cmod.xserver.Property;
 import com.winlator.cmod.xserver.ScreenInfo;
@@ -179,6 +180,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private InputControlsManager inputControlsManager;
     private ImageFs imageFs;
     private FrameRating frameRating = null;
+    private String lastRendererName = "OpenGL";
+    private String lastGpuName = null;
     private Runnable editInputControlsCallback;
     private Shortcut shortcut;
     private String graphicsDriver = Container.DEFAULT_GRAPHICS_DRIVER;
@@ -268,9 +271,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
     };
 
     private void createNotifcationChannel() {
-        String name = "Winlator";
+        String name = "WinNative";
         String description = getString(R.string.session_xserver_notification_description);
-        int importance = NotificationManager.IMPORTANCE_HIGH;
+        int importance = NotificationManager.IMPORTANCE_LOW;
         NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance);
         channel.setDescription(description);
         NotificationManager notificationManager = getSystemService(NotificationManager.class);
@@ -992,9 +995,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_stat_ab_gear_0011)
-                .setContentTitle("Winlator")
-                .setContentText("Winlator is running, do not kill or swipe this notification")
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setContentTitle("WinNative")
+                .setContentText(getString(R.string.session_xserver_notification_content))
+                .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(false);
 
@@ -1851,13 +1854,18 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 if (frameRating == null) {
                     FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
                     frameRating = new FrameRating(this, graphicsDriverConfig);
+                    frameRating.setRenderer(lastRendererName);
+                    if (lastGpuName != null) frameRating.setGpuName(lastGpuName);
                     frameRating.setVisibility(View.GONE);
                     rootView.addView(frameRating);
                 }
                 boolean isFpsVisible = frameRating.getVisibility() == View.VISIBLE;
-                frameRating.setVisibility(isFpsVisible ? View.GONE : View.VISIBLE);
+                boolean becomingVisible = !isFpsVisible;
+                frameRating.setVisibility(becomingVisible ? View.VISIBLE : View.GONE);
+                if (becomingVisible) syncFrameRatingWithExistingWindows();
+                
                 if (container != null) {
-                    container.setShowFPS(!isFpsVisible);
+                    container.setShowFPS(becomingVisible);
                     container.saveData();
                 }
                 renderDrawerMenu();
@@ -2538,7 +2546,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         if (container != null && container.isShowFPS()) {
             frameRating = new FrameRating(this, graphicsDriverConfig);
-            frameRating.setVisibility(View.GONE);
+            frameRating.setRenderer(lastRendererName);
+            if (lastGpuName != null) frameRating.setGpuName(lastGpuName);
+            frameRating.setVisibility(View.VISIBLE);
             rootView.addView(frameRating);
         }
 
@@ -3442,6 +3452,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private void mountADriveOnContainer(Container c, String gamePath) {
         // P4: Ephemeral approach — create/update the dosdevices symlink directly
         // instead of persisting to container.setDrives() + container.saveData()
+        if (gamePath == null || gamePath.isEmpty()) {
+            Log.e("XServerDisplayActivity", "mountADriveOnContainer: gamePath is null/empty, skipping");
+            return;
+        }
+        File gameDir = new File(gamePath);
+        if (!gameDir.exists()) {
+            Log.e("XServerDisplayActivity", "mountADriveOnContainer: gamePath does not exist: " + gamePath);
+        }
         try {
             File dosdevices = new File(c.getRootDir(), ".wine/dosdevices");
             dosdevices.mkdirs();
@@ -3449,8 +3467,12 @@ public class XServerDisplayActivity extends AppCompatActivity {
             if (aLink.exists()) {
                 aLink.delete();
             }
-            java.nio.file.Files.createSymbolicLink(aLink.toPath(), new File(gamePath).toPath());
-            Log.d("XServerDisplayActivity", "Ephemeral A: drive symlink: " + aLink + " -> " + gamePath);
+            java.nio.file.Files.createSymbolicLink(aLink.toPath(), gameDir.toPath());
+
+            // Verify the symlink was created and resolves correctly
+            boolean linkOk = java.nio.file.Files.isSymbolicLink(aLink.toPath());
+            Log.d("XServerDisplayActivity", "Ephemeral A: drive symlink: " + aLink + " -> " + gamePath
+                    + " (valid=" + linkOk + ", target_exists=" + gameDir.exists() + ")");
 
             // Also update in-memory drives for binding paths (but do NOT saveData)
             String currentDrives = c.getDrives() != null ? c.getDrives() : Container.DEFAULT_DRIVES;
@@ -3462,6 +3484,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             }
             sb.append("A:").append(gamePath);
             c.setDrives(sb.toString());
+            Log.d("XServerDisplayActivity", "In-memory drives updated with A: drive, total: " + sb);
             // NOTE: intentionally NOT calling c.saveData() — ephemeral per-launch only
         } catch (Exception e) {
             Log.e("XServerDisplayActivity", "Failed to create ephemeral A: drive symlink", e);
@@ -5069,36 +5092,62 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private void changeFrameRatingVisibility(Window window, Property property) {
-        if (frameRating == null) return;
-
         if (property != null) {
             String propName = property.nameAsString();
-            boolean isRendererProp = propName.contains("_MESA_DRV_ENGINE_NAME") || propName.contains("_UTIL_LAYER");
+            boolean isRendererProp = propName.contains("_MESA_DRV_ENGINE_NAME") || propName.contains("_UTIL_LAYER") || propName.contains("_MESA_DRV_RENDERER");
 
             if (isRendererProp) {
+                lastRendererName = property.toString();
                 if (frameRatingWindowId == -1 || window.isApplicationWindow()) {
                     frameRatingWindowId = window.id;
                 }
+            } else if (propName.contains("_MESA_DRV_GPU_NAME")) {
+                lastGpuName = property.toString();
             }
-            
-            if (frameRatingWindowId == window.id) {
-                if (isRendererProp) {
-                    runOnUiThread(() -> frameRating.setRenderer(property.toString()));
-                } else if (propName.contains("_MESA_DRV_GPU_NAME")) {
-                    runOnUiThread(() -> frameRating.setGpuName(property.toString()));
-                }
-                
-                if (propName.contains("_MESA_DRV") || propName.contains("_UTIL_LAYER")) {
-                    frameRating.update();
+
+            if (frameRating != null && frameRatingWindowId == window.id) {
+                if (container == null || container.isShowFPS()) {
+                    if (isRendererProp) {
+                        runOnUiThread(() -> frameRating.setRenderer(lastRendererName));
+                    } else if (propName.contains("_MESA_DRV_GPU_NAME")) {
+                        runOnUiThread(() -> frameRating.setGpuName(lastGpuName));
+                    }
+
+                    if (propName.contains("_MESA_DRV") || propName.contains("_UTIL_LAYER")) {
+                        frameRating.update();
+                    }
                 }
             }
         } else if (frameRatingWindowId == window.id) {
             frameRatingWindowId = -1;
             Log.d("XServerDisplayActivity", "Hiding hud for Window " + window.getName());
-            runOnUiThread(() -> {
-                frameRating.setVisibility(View.GONE);
-                frameRating.reset();
-            });
+            if (frameRating != null) {
+                runOnUiThread(() -> {
+                    frameRating.setVisibility(View.GONE);
+                    frameRating.reset();
+                });
+            }
+        }
+    }
+
+    private void syncFrameRatingWithExistingWindows() {
+        if (xServer == null || frameRating == null) return;
+        for (Window window : xServer.windowManager.getWindows()) {
+            Property prop = window.getProperty(Atom.getId("_MESA_DRV_RENDERER"));
+            if (prop == null) prop = window.getProperty(Atom.getId("_MESA_DRV_ENGINE_NAME"));
+
+            if (prop != null) {
+                lastRendererName = prop.toString();
+                frameRatingWindowId = window.id;
+                runOnUiThread(() -> frameRating.setRenderer(lastRendererName));
+
+                Property gpuProp = window.getProperty(Atom.getId("_MESA_DRV_GPU_NAME"));
+                if (gpuProp != null) {
+                    lastGpuName = gpuProp.toString();
+                    runOnUiThread(() -> frameRating.setGpuName(lastGpuName));
+                }
+                break;
+            }
         }
     }
 

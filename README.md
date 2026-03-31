@@ -10,20 +10,9 @@
 
 ## WinNative: A Community Built Windows Emulation App for Android
 
-**WinNative** is an advanced, high-performance Windows (x86_64) emulation environment for Android. It bridges the gap between desktop gaming and mobile mobility by unifying the best technologies from **Winlator Bionic** and **Pluvia**.
+**WinNative** is an advanced, high-performance Windows (x86_64) emulation environment for Android. It bridges the gap between desktop gaming and mobile by unifying the best technologies from **Winlator Bionic** and **Pluvia**.
 
-Designed for enthusiasts and power users, WinNative provides a "plug-and-play" experience with a console like interface, deep controller integration, and hardware-specific optimizations for modern Snapdragon devices.
-
----
-
-### Components & Drivers
-
-WinNative is built on the shoulders of giants and would not be possible without the following technologies:
-- **Translators:** Box86/Box64 by [ptitSeb](https://github.com/ptitSeb), FEX-Emu.
-- **Graphics:** DXVK, VKD3D, D8VK, and CNC DDraw.
-- **Kernel/Environment:** PRoot environment with custom `evshim` for low-latency input.
-- **Drivers:** Optimized Turnip drivers with specific fixes for UBWC v5/v6.
-- **Steam Emulation:** [Goldberg Steam Emulator (gbe_fork)](https://github.com/Detanup01/gbe_fork) by Detanup01, based on the original work by [Mr. Goldberg](https://gitlab.com/Mr_Goldberg/goldberg_emulator).
+Designed for enthusiasts and power users, WinNative delivers the full Winlator experience while making it easy to connect your Steam, Epic, GOG, and Amazon game libraries.
 
 ---
 
@@ -33,7 +22,7 @@ WinNative is built on the shoulders of giants and would not be possible without 
 2. **Variants:**
    - `Ludashi`: Best for Xiaomi/RedMagic (Performance Mode trigger).
    - `Vanilla`: Standard package name for side-loading with other forks.
-3. **Setup:** Launch the app, allow the ImageFS to install, and start adding your games or syncing with Steam.
+3. **Setup:** Launch the app, allow the ImageFS to install, and start adding your games manually or sync your library. 
 
 ---
 
@@ -54,9 +43,9 @@ WinNative is built on the shoulders of giants and would not be possible without 
 
 ### Contributing
 
-We welcome community contributions! Feel free to open a Pull Request for bug fixes, driver updates, UI improvements, or any other item. 
+We welcome community contributions! Feel free to open a pull request for bug fixes, driver updates, UI improvements, or anything else you'd like to add.
 
-Please match existing code styles, and ensure any AI assisted code is thoroughly reviewed and tested before submission.
+Please match the existing code style and ensure any AI-assisted code is thoroughly reviewed and tested before submission.
 
 ---
 
@@ -64,6 +53,6 @@ Please match existing code styles, and ensure any AI assisted code is thoroughly
 
 - **Original Winlator** by [brunodev85](https://github.com/brunodev85/winlator)
 - **Winlator Bionic** by [Pipetto-crypto](https://github.com/Pipetto-crypto/winlator)
-- **Pluvia** features by the Pluvia/GameNative community.
-- **Mesa/Turnip** contributions by [Danylo](https://blogs.igalia.com/dpiliaiev/tags/mesa/) and the Mesa3D team.
-- **Goldberg Steam Emulator** by [Mr. Goldberg](https://gitlab.com/Mr_Goldberg/goldberg_emulator), maintained by [Detanup01](https://github.com/Detanup01/gbe_fork).
+- **Pluvia** features by the [Pluvia](https://github.com/oxters168/Pluvia) / [GameNative](https://github.com/utkarshdalal/GameNative) community
+- **Mesa/Turnip** contributions by the [Mesa3D](https://www.mesa3d.org/) team
+- **Goldberg Steam Emulator** by [Mr. Goldberg](https://gitlab.com/Mr_Goldberg/goldberg_emulator), maintained by [Detanup01](https://github.com/Detanup01/gbe_fork)

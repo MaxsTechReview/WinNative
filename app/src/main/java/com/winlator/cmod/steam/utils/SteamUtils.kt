@@ -561,12 +561,17 @@ object SteamUtils {
             val container = com.winlator.cmod.steam.utils.ContainerUtils.getContainer(context, "STEAM_$steamAppId")
             val executablePath = container?.executablePath ?: ""
             val drives = container?.drives ?: ""
-            val driveIndex = drives.indexOf(appDirPath)
-            val drive = if (driveIndex > 1) {
-                drives[driveIndex - 2]
-            } else {
-                Timber.e("Could not locate game drive")
-                'D'
+
+            // Find the drive letter for the game directory using proper drives iterator
+            var drive = 'A' // default to A: drive
+            for (driveEntry in Container.drivesIterator(drives)) {
+                if (driveEntry[1] == appDirPath) {
+                    drive = driveEntry[0][0]
+                    break
+                }
+            }
+            if (drive == 'A' && !drives.contains("A:")) {
+                Timber.w("Could not locate game drive for appDirPath=$appDirPath in drives, defaulting to A:")
             }
             val executableFile = "$drive:\\${executablePath}"
 

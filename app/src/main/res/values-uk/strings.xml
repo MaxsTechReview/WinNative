@@ -167,7 +167,6 @@
     <string name="stores_accounts_status_invisible">Невидимий</string>
     <string name="stores_accounts_status_header">СТАТУС</string>
     <string name="stores_accounts_stores_header">МАГАЗИНИ</string>
-    <string name="stores_accounts_aio_store_mode">Режим єдиного магазину</string>
     <string name="stores_accounts_sign_in_store_prompt">Будь ласка, увійдіть для доступу до магазину %1$s.</string>
     <string name="stores_accounts_manage">Керування обліковими записами магазинів</string>
     <string name="stores_accounts_sign_into_store">Увійти до %1$s</string>
@@ -494,7 +493,8 @@
     <string name="session_xserver_native_rendering_disabled">Програмний WSI-резерв</string>
     <string name="session_xserver_native_rendering_enabled_toast">Нативний рендеринг увімкнено (набуде чинності при наступному запуску)</string>
     <string name="session_xserver_native_rendering_disabled_toast">Нативний рендеринг вимкнено (набуде чинності при наступному запуску)</string>
-    <string name="session_xserver_notification_description">Повідомлення Winlator XServer</string>
+    <string name="session_xserver_notification_description">Повідомлення WinNative XServer</string>
+    <string name="session_xserver_notification_content">WinNative працює, не закривайте та не змахуйте це сповіщення</string>
 
     <!-- Session > Drawer Menu -->
     <string name="session_drawer_keyboard">Клавіатура</string>

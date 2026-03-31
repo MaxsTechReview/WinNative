@@ -43,21 +43,22 @@ public abstract class WineUtils {
             packageStoragePath = "/data/data/" + packageName + "/storage";
         }
 
-        // Auto-fix containers missing D: and E: drives
+        // Auto-fix containers missing D: and E: drives.
+        // IMPORTANT: Only update in-memory drives — do NOT call container.saveData()
+        // because the drives string may contain an ephemeral A: mapping that must not
+        // be persisted (multiple games share the same container).
         String currentDrives = container.getDrives();
         if (currentDrives != null && (!currentDrives.contains("D:") || !currentDrives.contains("E:"))) {
-            Log.d("WineUtils", "Container missing D: or E: drives, adding them...");
-            StringBuilder missingDrives = new StringBuilder();
+            Log.d("WineUtils", "Container missing D: or E: drives, appending them...");
+            StringBuilder updatedDrives = new StringBuilder(currentDrives);
             if (!currentDrives.contains("D:")) {
-                missingDrives.append("D:").append(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS));
+                updatedDrives.append("D:").append(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS));
             }
             if (!currentDrives.contains("E:")) {
-                missingDrives.append("E:").append(packageStoragePath);
+                updatedDrives.append("E:").append(packageStoragePath);
             }
-            String updatedDrives = missingDrives.toString() + currentDrives;
-            container.setDrives(updatedDrives);
-            container.saveData();
-            Log.d("WineUtils", "Updated container drives to: " + updatedDrives);
+            container.setDrives(updatedDrives.toString());
+            Log.d("WineUtils", "Updated container drives (in-memory only) to: " + updatedDrives);
         }
 
         String gameDirectoryPath = null;

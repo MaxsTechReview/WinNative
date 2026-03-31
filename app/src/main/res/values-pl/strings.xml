@@ -167,7 +167,6 @@
     <string name="stores_accounts_status_invisible">Niewidoczny</string>
     <string name="stores_accounts_status_header">STATUS</string>
     <string name="stores_accounts_stores_header">SKLEPY</string>
-    <string name="stores_accounts_aio_store_mode">Tryb AIO sklepu</string>
     <string name="stores_accounts_sign_in_store_prompt">Zaloguj się, aby uzyskać dostęp do sklepu %1$s.</string>
     <string name="stores_accounts_manage">Zarządzaj kontami sklepów</string>
     <string name="stores_accounts_sign_into_store">Zaloguj się do %1$s</string>
@@ -494,7 +493,8 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="session_xserver_native_rendering_disabled">Programowy fallback WSI</string>
     <string name="session_xserver_native_rendering_enabled_toast">Renderowanie natywne włączone (zacznie działać po ponownym uruchomieniu)</string>
     <string name="session_xserver_native_rendering_disabled_toast">Renderowanie natywne wyłączone (zacznie działać po ponownym uruchomieniu)</string>
-    <string name="session_xserver_notification_description">Wiadomości Winlator XServer</string>
+    <string name="session_xserver_notification_description">Wiadomości WinNative XServer</string>
+    <string name="session_xserver_notification_content">WinNative jest uruchomiony, nie zamykaj ani nie usuwaj tego powiadomienia</string>
 
     <!-- Session > Drawer Menu -->
     <string name="session_drawer_keyboard">Klawiatura</string>

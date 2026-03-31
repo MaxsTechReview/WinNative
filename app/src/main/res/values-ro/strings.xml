@@ -167,7 +167,6 @@
     <string name="stores_accounts_status_invisible">Invizibil</string>
     <string name="stores_accounts_status_header">STARE</string>
     <string name="stores_accounts_stores_header">MAGAZINE</string>
-    <string name="stores_accounts_aio_store_mode">Mod magazin AIO</string>
     <string name="stores_accounts_sign_in_store_prompt">Autentifica-te pentru a accesa magazinul %1$s.</string>
     <string name="stores_accounts_manage">Gestioneaza conturile de magazin</string>
     <string name="stores_accounts_sign_into_store">Autentificare in %1$s</string>
@@ -494,7 +493,8 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="session_xserver_native_rendering_disabled">Alternativa software WSI</string>
     <string name="session_xserver_native_rendering_enabled_toast">Randarea nativa activata (intra in vigoare la urmatoarea lansare)</string>
     <string name="session_xserver_native_rendering_disabled_toast">Randarea nativa dezactivata (intra in vigoare la urmatoarea lansare)</string>
-    <string name="session_xserver_notification_description">Mesaje Winlator XServer</string>
+    <string name="session_xserver_notification_description">Mesaje WinNative XServer</string>
+    <string name="session_xserver_notification_content">WinNative rulează, nu închideți sau glisați această notificare</string>
 
     <!-- Session > Drawer Menu -->
     <string name="session_drawer_keyboard">Tastatura</string>
