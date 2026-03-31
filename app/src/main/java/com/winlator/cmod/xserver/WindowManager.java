@@ -61,6 +61,12 @@ public class WindowManager extends XResourceManager {
         return windows.get(id);
     }
 
+    public List<Window> getWindows() {
+        ArrayList<Window> list = new ArrayList<>();
+        for (int i = 0; i < windows.size(); i++) list.add(windows.valueAt(i));
+        return list;
+    }
+
     public Window findWindowWithProcessId(int processId) {
         for (int i = 0; i < windows.size(); i++) {
             Window window = windows.valueAt(i);

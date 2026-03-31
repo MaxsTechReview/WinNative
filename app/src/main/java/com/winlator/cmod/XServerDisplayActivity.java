@@ -113,6 +113,7 @@ import com.winlator.cmod.xenvironment.components.PulseAudioComponent;
 import com.winlator.cmod.xenvironment.components.SteamClientComponent;
 import com.winlator.cmod.xenvironment.components.SysVSharedMemoryComponent;
 import com.winlator.cmod.xenvironment.components.XServerComponent;
+import com.winlator.cmod.xserver.Atom;
 import com.winlator.cmod.xserver.Pointer;
 import com.winlator.cmod.xserver.Property;
 import com.winlator.cmod.xserver.ScreenInfo;
@@ -5128,15 +5129,15 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private void syncFrameRatingWithExistingWindows() {
         if (xServer == null || frameRating == null) return;
         for (Window window : xServer.windowManager.getWindows()) {
-            Property prop = window.getProperty(Atom.get("_MESA_DRV_RENDERER"));
-            if (prop == null) prop = window.getProperty(Atom.get("_MESA_DRV_ENGINE_NAME"));
+            Property prop = window.getProperty(Atom.getId("_MESA_DRV_RENDERER"));
+            if (prop == null) prop = window.getProperty(Atom.getId("_MESA_DRV_ENGINE_NAME"));
 
             if (prop != null) {
                 lastRendererName = prop.toString();
                 frameRatingWindowId = window.id;
                 runOnUiThread(() -> frameRating.setRenderer(lastRendererName));
 
-                Property gpuProp = window.getProperty(Atom.get("_MESA_DRV_GPU_NAME"));
+                Property gpuProp = window.getProperty(Atom.getId("_MESA_DRV_GPU_NAME"));
                 if (gpuProp != null) {
                     lastGpuName = gpuProp.toString();
                     runOnUiThread(() -> frameRating.setGpuName(lastGpuName));
