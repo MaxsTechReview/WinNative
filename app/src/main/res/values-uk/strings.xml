@@ -145,8 +145,6 @@
     <!-- Stores > Accounts -->
     <string name="stores_accounts_title">Магазини</string>
     <string name="stores_accounts_steam_integration_title">Steam</string>
-    <string name="stores_accounts_wifi_only_downloads">Завантаження лише через Wi-Fi</string>
-    <string name="stores_accounts_wifi_only_downloads_subtitle">Обмежити завантаження підключеннями Wi-Fi</string>
     <string name="stores_accounts_shared_downloads_folder">Спільна тека завантажень</string>
     <string name="stores_accounts_shared_downloads_subtitle">Використовувати одну теку для всіх магазинів</string>
     <string name="stores_accounts_download_speed">Швидкість завантаження</string>
@@ -172,8 +170,6 @@
     <string name="stores_accounts_sign_into_store">Увійти до %1$s</string>
 
     <!-- Downloads > Queue -->
-    <string name="downloads_queue_no_wifi">Не підключено до Wi-Fi/LAN</string>
-    <string name="downloads_queue_paused_wifi">Завантаження призупинено – очікування Wi-Fi/LAN</string>
     <string name="downloads_queue_cancel_all">Скасувати все</string>
     <string name="downloads_queue_preparing_download">Підготовка завантаження</string>
     <string name="downloads_queue_installing_package">Встановлення пакета</string>

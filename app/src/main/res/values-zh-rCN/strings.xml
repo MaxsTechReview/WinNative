@@ -145,8 +145,6 @@
     <!-- Stores > Accounts -->
     <string name="stores_accounts_title">商店</string>
     <string name="stores_accounts_steam_integration_title">Steam</string>
-    <string name="stores_accounts_wifi_only_downloads">仅 Wi-Fi 下载</string>
-    <string name="stores_accounts_wifi_only_downloads_subtitle">限制仅通过 Wi-Fi 连接下载</string>
     <string name="stores_accounts_shared_downloads_folder">共享下载文件夹</string>
     <string name="stores_accounts_shared_downloads_subtitle">所有商店使用同一个文件夹</string>
     <string name="stores_accounts_download_speed">下载速度</string>
@@ -172,8 +170,6 @@
     <string name="stores_accounts_sign_into_store">登录 %1$s</string>
 
     <!-- Downloads > Queue -->
-    <string name="downloads_queue_no_wifi">未连接到 Wi-Fi/LAN</string>
-    <string name="downloads_queue_paused_wifi">下载已暂停 – 等待 Wi-Fi/LAN 连接</string>
     <string name="downloads_queue_cancel_all">全部取消</string>
     <string name="downloads_queue_preparing_download">正在准备下载</string>
     <string name="downloads_queue_installing_package">正在安装包</string>

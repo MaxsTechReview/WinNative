@@ -145,8 +145,6 @@
     <!-- Stores > Accounts -->
     <string name="stores_accounts_title">스토어</string>
     <string name="stores_accounts_steam_integration_title">Steam</string>
-    <string name="stores_accounts_wifi_only_downloads">Wi-Fi 전용 다운로드</string>
-    <string name="stores_accounts_wifi_only_downloads_subtitle">다운로드를 Wi-Fi 연결로 제한</string>
     <string name="stores_accounts_shared_downloads_folder">공유 다운로드 폴더</string>
     <string name="stores_accounts_shared_downloads_subtitle">모든 스토어에 하나의 폴더 사용</string>
     <string name="stores_accounts_download_speed">다운로드 속도</string>
@@ -172,8 +170,6 @@
     <string name="stores_accounts_sign_into_store">%1$s에 로그인</string>
 
     <!-- Downloads > Queue -->
-    <string name="downloads_queue_no_wifi">Wi-Fi/LAN에 연결되지 않음</string>
-    <string name="downloads_queue_paused_wifi">다운로드 일시 중지 – Wi-Fi/LAN 대기 중</string>
     <string name="downloads_queue_cancel_all">모두 취소</string>
     <string name="downloads_queue_preparing_download">다운로드 준비 중</string>
     <string name="downloads_queue_installing_package">패키지 설치 중</string>

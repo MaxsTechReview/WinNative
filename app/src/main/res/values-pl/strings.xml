@@ -145,8 +145,6 @@
     <!-- Stores > Accounts -->
     <string name="stores_accounts_title">Sklepy</string>
     <string name="stores_accounts_steam_integration_title">Steam</string>
-    <string name="stores_accounts_wifi_only_downloads">Pobieranie tylko przez Wi-Fi</string>
-    <string name="stores_accounts_wifi_only_downloads_subtitle">Ogranicz pobieranie do połączeń Wi-Fi</string>
     <string name="stores_accounts_shared_downloads_folder">Wspólny folder pobierania</string>
     <string name="stores_accounts_shared_downloads_subtitle">Użyj jednego folderu dla wszystkich sklepów</string>
     <string name="stores_accounts_download_speed">Prędkość pobierania</string>
@@ -172,8 +170,6 @@
     <string name="stores_accounts_sign_into_store">Zaloguj się do %1$s</string>
 
     <!-- Downloads > Queue -->
-    <string name="downloads_queue_no_wifi">Brak połączenia z Wi-Fi/LAN</string>
-    <string name="downloads_queue_paused_wifi">Pobieranie wstrzymane – oczekiwanie na Wi-Fi/LAN</string>
     <string name="downloads_queue_cancel_all">Anuluj wszystko</string>
     <string name="downloads_queue_preparing_download">Przygotowywanie pobierania</string>
     <string name="downloads_queue_installing_package">Instalowanie pakietu</string>

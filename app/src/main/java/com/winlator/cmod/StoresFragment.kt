@@ -145,7 +145,6 @@ class StoresFragment : Fragment() {
                                 refresh()
                             }
                         },
-                        onWifiOnlyChanged    = { PrefManager.downloadOnWifiOnly = it; refresh() },
                         onSharedFolderChanged = { PrefManager.useSingleDownloadFolder = it; refresh() },
                         onDownloadSpeedChanged = { PrefManager.downloadSpeed = it; refresh() },
                         onDownloadServerChanged = { cellId ->
@@ -217,7 +216,6 @@ class StoresFragment : Fragment() {
             isSteamLoggedIn = SteamService.isLoggedIn,
             isEpicLoggedIn  = EpicAuthManager.isLoggedIn(ctx),
             isGogLoggedIn   = GOGAuthManager.isLoggedIn(ctx),
-            wifiOnly        = PrefManager.downloadOnWifiOnly,
             sharedFolder    = PrefManager.useSingleDownloadFolder,
             downloadSpeed   = PrefManager.downloadSpeed,
             downloadServer           = PrefManager.cellId,

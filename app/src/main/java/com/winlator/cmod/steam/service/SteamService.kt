@@ -3,10 +3,6 @@ package com.winlator.cmod.steam.service
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.os.IBinder
 import android.widget.Toast
 import androidx.room.withTransaction
@@ -276,10 +272,6 @@ class SteamService : Service(), IChallengeUrlChanged {
 
     private val appTokens: ConcurrentHashMap<Int, Long> = ConcurrentHashMap()
 
-    // Connectivity management for Wi-Fi-only downloads
-    private lateinit var connectivityManager: ConnectivityManager
-    private lateinit var networkCallback: ConnectivityManager.NetworkCallback
-
     // Add these as class properties
     private var picsGetProductInfoJob: Job? = null
     private var picsChangesCheckerJob: Job? = null
@@ -336,8 +328,6 @@ class SteamService : Service(), IChallengeUrlChanged {
             cachedAchievementsAppId = null
         }
 
-        val isWifiConnected: Boolean get() = NetworkMonitor.isWifiConnected.value
-
         private fun downloadUrlsFor(fileName: String): List<String> {
             val alternate = when (fileName) {
                 "steam-token.tzst" -> "steam-token-r2.tzst"
@@ -351,20 +341,6 @@ class SteamService : Service(), IChallengeUrlChanged {
             } else {
                 listOf("$COMPONENTS_BASE_URL/$fileName")
             }
-        }
-
-        /** @return true if download may proceed; false if blocked (notifies user) */
-        private fun checkWifiOrNotify(): Boolean {
-            if (PrefManager.downloadOnWifiOnly && !isWifiConnected) {
-                val svc = instance
-                if (svc != null) {
-                    svc.notificationHelper.notify(svc.getString(R.string.downloads_queue_no_wifi))
-                } else {
-                    Timber.w("checkWifiOrNotify: no SteamService instance to notify")
-                }
-                return false
-            }
-            return true
         }
 
         fun pauseAll() {
@@ -1822,10 +1798,7 @@ class SteamService : Service(), IChallengeUrlChanged {
             hasPersistedResumeRow: Boolean = false,
             customInstallPath: String? = null,
         ): DownloadInfo? {
-            if (!checkWifiOrNotify()) {
-                Timber.w("Download aborted: Wi-Fi only enabled but not connected to Wi-Fi")
-                return null
-            }
+
             val appInfo = getAppInfoOf(appId)
             if (appInfo == null) {
                 Timber.e("Download aborted: Could not find AppInfo for appId: $appId")
@@ -2227,10 +2200,7 @@ class SteamService : Service(), IChallengeUrlChanged {
                 }
             }
 
-            if (!checkWifiOrNotify()) {
-                Timber.w("Download aborted: Wi-Fi only enabled but not connected to Wi-Fi")
-                return null
-            }
+
 
             // Ensure the download directory exists
             try {
@@ -2583,11 +2553,6 @@ class SteamService : Service(), IChallengeUrlChanged {
                                     delay(1000L)
                                     client = instance?.steamClient
                                     waitAttempts++
-                                    
-                                    // If waiting too long, check network
-                                    if (waitAttempts % 5 == 0 && !isWifiConnected && PrefManager.downloadOnWifiOnly) {
-                                         di.updateStatusMessage("Waiting for Wi-Fi...")
-                                    }
                                 }
 
                                 if (client == null || !isConnected || !isLoggedIn) {
@@ -4555,28 +4520,6 @@ class SteamService : Service(), IChallengeUrlChanged {
 
         PluviaApp.events.on<AndroidEvent.EndProcess, Unit>(onEndProcess)
 
-        // pause downloads when WiFi/Ethernet is lost
-        connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        networkCallback = object : ConnectivityManager.NetworkCallback() {
-            override fun onLost(network: Network) {
-                // only pause if no WiFi/LAN remains (avoids false pause on multi-network)
-                if (PrefManager.downloadOnWifiOnly && !isWifiConnected) {
-                    for ((appId, info) in downloadJobs.entries.toList()) {
-                        Timber.d("Cancelling job")
-                        info.cancel()
-                        PluviaApp.events.emit(AndroidEvent.DownloadPausedDueToConnectivity(appId))
-                        removeDownloadJob(appId)
-                    }
-                    notificationHelper.notify(getString(R.string.downloads_queue_paused_wifi))
-                }
-            }
-        }
-        val networkRequest = NetworkRequest.Builder()
-            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-            .addTransportType(NetworkCapabilities.TRANSPORT_ETHERNET)
-            .build()
-        connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
-
         // To view log messages in android logcat properly
         LogManager.addListener(logger)
     }
@@ -4685,9 +4628,6 @@ class SteamService : Service(), IChallengeUrlChanged {
 
         stopForeground(STOP_FOREGROUND_REMOVE)
         notificationHelper.cancel()
-
-        // Unregister Wi-Fi connectivity callback
-        connectivityManager.unregisterNetworkCallback(networkCallback)
 
         scope.launch { stop() }
     }

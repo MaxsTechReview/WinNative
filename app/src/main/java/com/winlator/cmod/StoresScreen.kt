@@ -90,7 +90,6 @@ data class StoreState(
     val isSteamLoggedIn: Boolean = false,
     val isEpicLoggedIn: Boolean = false,
     val isGogLoggedIn: Boolean = false,
-    val wifiOnly: Boolean = true,
     val sharedFolder: Boolean = true,
     val downloadSpeed: Int = 24,
     val downloadServer: Int = 0,
@@ -120,7 +119,6 @@ fun StoresScreen(
     onEpicSignOut: () -> Unit,
     onGogSignIn: () -> Unit,
     onGogSignOut: () -> Unit,
-    onWifiOnlyChanged: (Boolean) -> Unit,
     onSharedFolderChanged: (Boolean) -> Unit,
     onDownloadSpeedChanged: (Int) -> Unit,
     onDownloadServerChanged: (Int) -> Unit,
@@ -179,13 +177,6 @@ fun StoresScreen(
 
         SectionLabel("Download Settings", modifier = Modifier.padding(top = 8.dp))
 
-        SettingsToggleCard(
-            title = stringResource(R.string.stores_accounts_wifi_only_downloads),
-            subtitle = stringResource(R.string.stores_accounts_wifi_only_downloads_subtitle),
-            icon = Icons.Filled.Wifi,
-            checked = state.wifiOnly,
-            onCheckedChange = onWifiOnlyChanged,
-        )
         SettingsToggleCard(
             title = stringResource(R.string.stores_accounts_shared_downloads_folder),
             subtitle = stringResource(R.string.stores_accounts_shared_downloads_subtitle),

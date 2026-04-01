@@ -145,8 +145,6 @@
     <!-- Stores > Accounts -->
     <string name="stores_accounts_title">Butikker</string>
     <string name="stores_accounts_steam_integration_title">Steam</string>
-    <string name="stores_accounts_wifi_only_downloads">Kun Wi-Fi downloads</string>
-    <string name="stores_accounts_wifi_only_downloads_subtitle">Begræns downloads til Wi-Fi-forbindelser</string>
     <string name="stores_accounts_shared_downloads_folder">Delt downloadmappe</string>
     <string name="stores_accounts_shared_downloads_subtitle">Brug en enkelt mappe på tværs af alle butikker</string>
     <string name="stores_accounts_download_speed">Downloadhastighed</string>
@@ -172,8 +170,6 @@
     <string name="stores_accounts_sign_into_store">Log ind på %1$s</string>
 
     <!-- Downloads > Queue -->
-    <string name="downloads_queue_no_wifi">Ikke forbundet til Wi-Fi/LAN</string>
-    <string name="downloads_queue_paused_wifi">Download sat på pause – venter på Wi-Fi/LAN</string>
     <string name="downloads_queue_cancel_all">Annuller alle</string>
     <string name="downloads_queue_preparing_download">Forbereder download</string>
     <string name="downloads_queue_installing_package">Installerer pakke</string>

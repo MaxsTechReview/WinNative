@@ -94,9 +94,6 @@ object PrefManager {
         get() = getBoolean("cell_id_manually_set", false)
         set(value) { setBoolean("cell_id_manually_set", value) }
 
-    var downloadOnWifiOnly: Boolean
-        get() = getBoolean("download_on_wifi_only", true)
-        set(value) { setBoolean("download_on_wifi_only", value) }
         
     var lastPICSChangeNumber: Int
         get() = getInt("last_pics_change_number", 0)

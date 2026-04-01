@@ -145,8 +145,6 @@
     <!-- Stores > Accounts -->
     <string name="stores_accounts_title">Stores</string>
     <string name="stores_accounts_steam_integration_title">Steam</string>
-    <string name="stores_accounts_wifi_only_downloads">Wi-Fi Only Downloads</string>
-    <string name="stores_accounts_wifi_only_downloads_subtitle">Restrict downloads to Wi-Fi connections</string>
     <string name="stores_accounts_shared_downloads_folder">Shared Downloads Folder</string>
     <string name="stores_accounts_shared_downloads_subtitle">Use a single folder across all stores</string>
     <string name="stores_accounts_download_speed">Download Speed</string>
@@ -172,8 +170,6 @@
     <string name="stores_accounts_sign_into_store">Sign into %1$s</string>
 
     <!-- Downloads > Queue -->
-    <string name="downloads_queue_no_wifi">Not connected to Wi-Fi/LAN</string>
-    <string name="downloads_queue_paused_wifi">Download paused – waiting for Wi-Fi/LAN</string>
     <string name="downloads_queue_cancel_all">Cancel All</string>
     <string name="downloads_queue_preparing_download">Preparing download</string>
     <string name="downloads_queue_installing_package">Installing package</string>
