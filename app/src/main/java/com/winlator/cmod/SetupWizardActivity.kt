@@ -1245,7 +1245,7 @@ class SetupWizardActivity : FragmentActivity() {
         )
 
         if (isArm64) {
-            container.setEmulator("fexcore")
+            container.setEmulator("wowbox64")
             container.setEmulator64("fexcore")
             container.setBox64Version(
                 installedBundle?.latestFor(ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64)
@@ -1283,6 +1283,8 @@ class SetupWizardActivity : FragmentActivity() {
                     )
             )
         }
+
+        container.putExtra("wineprefixArch", wineInfo.arch)
 
         container.saveData()
     }
