@@ -304,7 +304,7 @@
     <string name="container_config_xinput_dinput_warning">Some games may support both APIs. Enabling both XInput and DInput simultaneously in such games may cause control issues, as seen in titles like The Binding of Isaac and the Resident Evil series.</string>
     <string name="container_config_lc_all" translatable="false">LC_ALL</string>
     <string name="container_config_dll_emulator">32bit Emulator</string>
-    <string name="container_config_emulator_wine_hint">Emulator is determined by wine version. ARM64EC uses FEXCore, x86_64 uses Box64.</string>
+    <string name="container_config_emulator_wine_hint">ARM64EC containers can use FEXCore or Wowbox64. x86_64 containers use Box64.</string>
     <string name="container_config_label">Configuration</string>
     <string name="container_config_restart_required">Restart container for changes to take effect</string>
     <string name="container_config_renderer">Renderer</string>

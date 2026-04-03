@@ -6,6 +6,7 @@ import android.os.Parcelable;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.winlator.cmod.R;
 import com.winlator.cmod.contents.ContentProfile;
@@ -19,6 +20,9 @@ import java.util.regex.Pattern;
 public class WineInfo implements Parcelable {
     public static final WineInfo MAIN_WINE_VERSION = new WineInfo("proton","9.0", "x86_64");
     private static final Pattern pattern = Pattern.compile("^(wine|proton)\\-([0-9\\.]+)\\-?([0-9\\.]+)?\\-(x86|x86_64|arm64ec)$");
+    public static final String ARCH_X86 = "x86";
+    public static final String ARCH_X86_64 = "x86_64";
+    public static final String ARCH_ARM64EC = "arm64ec";
     public final String version;
     public final String type;
     public String subversion;
@@ -65,10 +69,54 @@ public class WineInfo implements Parcelable {
     }
 
     public boolean isWin64() {
-        return arch.equals("x86_64") || arch.equals("arm64ec");
+        return arch.equals(ARCH_X86_64) || arch.equals(ARCH_ARM64EC);
     }
 
-    public boolean isArm64EC() { return arch.equals("arm64ec"); }
+    public boolean isArm64EC() { return arch.equals(ARCH_ARM64EC); }
+
+    public static boolean isArm64ECArch(@Nullable String arch) {
+        return ARCH_ARM64EC.equalsIgnoreCase(arch != null ? arch : "");
+    }
+
+    public static String getDefaultEmulator(boolean isArm64EC, boolean is64BitSlot) {
+        if (!isArm64EC) return "Box64";
+        return is64BitSlot ? "FEXCore" : "Wowbox64";
+    }
+
+    public static String normalizeEmulatorSelection(boolean isArm64EC, @Nullable String emulator, boolean is64BitSlot) {
+        String normalized = emulator != null ? emulator.trim() : "";
+        if (isArm64EC) {
+            if ("fexcore".equalsIgnoreCase(normalized)) return "FEXCore";
+            if ("wowbox64".equalsIgnoreCase(normalized)) return "Wowbox64";
+            return getDefaultEmulator(true, is64BitSlot);
+        }
+        return "Box64";
+    }
+
+    private static boolean hasArm64ECHint(@Nullable String value) {
+        if (value == null || value.isEmpty()) return false;
+        String normalized = value.toLowerCase();
+        return normalized.contains("arm64ec") || normalized.contains("aarch64-windows");
+    }
+
+    private static String inferArch(@Nullable String identifier, @Nullable ContentProfile wineProfile, @Nullable File installDir) {
+        if (hasArm64ECHint(identifier)) return ARCH_ARM64EC;
+        if (wineProfile != null) {
+            if (hasArm64ECHint(wineProfile.verName) ||
+                    hasArm64ECHint(wineProfile.wineLibPath) ||
+                    hasArm64ECHint(wineProfile.wineBinPath) ||
+                    hasArm64ECHint(wineProfile.winePrefixPack) ||
+                    hasArm64ECHint(ContentsManager.getEntryName(wineProfile)) ||
+                    hasArm64ECHint(wineProfile.remoteUrl)) {
+                return ARCH_ARM64EC;
+            }
+        }
+        if (installDir != null) {
+            File arm64Dir = new File(installDir, "lib/wine/aarch64-windows");
+            if (arm64Dir.isDirectory()) return ARCH_ARM64EC;
+        }
+        return ARCH_X86_64;
+    }
 
     public String identifier() {
         if (type.equals("proton"))
@@ -135,11 +183,13 @@ public class WineInfo implements Parcelable {
             // Also try stripping the version code suffix for custom protons: "Proton-9.0-1" -> "proton-9.0"
             // and appending a default arch
             if (wineProfile != null) {
+                File installDir = ContentsManager.getInstallDir(context, wineProfile);
+                String inferredArch = inferArch(originalIdentifier, wineProfile, installDir);
                 String normalized;
                 if (wineProfile.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON) {
-                    normalized = "proton-" + wineProfile.verName + "-x86_64";
+                    normalized = "proton-" + wineProfile.verName + "-" + inferredArch;
                 } else if (wineProfile.type == ContentProfile.ContentType.CONTENT_TYPE_WINE) {
-                    normalized = "wine-" + wineProfile.verName + "-x86_64";
+                    normalized = "wine-" + wineProfile.verName + "-" + inferredArch;
                 } else {
                     normalized = originalIdentifier.toLowerCase();
                 }
@@ -171,14 +221,8 @@ public class WineInfo implements Parcelable {
             // Construct WineInfo directly from the profile metadata
             String type = wineProfile.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON ? "proton" : "wine";
             String version = wineProfile.verName;
-            String arch = "x86_64"; // Default for custom protons
-            
-            if ((wineProfile.wineLibPath != null && wineProfile.wineLibPath.toLowerCase().contains("arm64ec")) || 
-                (wineProfile.verName != null && wineProfile.verName.toLowerCase().contains("arm64ec"))) {
-                arch = "arm64ec";
-            }
-            
             path = ContentsManager.getInstallDir(context, wineProfile).getPath();
+            String arch = inferArch(originalIdentifier, wineProfile, new File(path));
             Log.d("WineInfo", "Constructed WineInfo from profile: type=" + type + " version=" + version + " arch=" + arch + " path=" + path);
             return new WineInfo(type, version, arch, path);
         }

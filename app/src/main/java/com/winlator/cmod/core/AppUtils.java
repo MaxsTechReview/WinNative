@@ -323,9 +323,10 @@ public abstract class AppUtils {
     }
 
     public static boolean setSpinnerSelectionFromIdentifier(Spinner spinner, String identifier) {
+        String targetIdentifier = StringUtils.parseIdentifier(identifier);
         spinner.setSelection(0, false);
         for (int i = 0; i < spinner.getCount(); i++) {
-            if (StringUtils.parseIdentifier(spinner.getItemAtPosition(i)).equals(identifier)) {
+            if (StringUtils.parseIdentifier(spinner.getItemAtPosition(i)).equals(targetIdentifier)) {
                 spinner.setSelection(i, false);
                 return true;
             }
