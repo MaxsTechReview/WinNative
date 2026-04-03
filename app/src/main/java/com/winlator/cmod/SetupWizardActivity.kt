@@ -812,7 +812,7 @@ class SetupWizardActivity : FragmentActivity() {
                     downloaded.delete()
                     if (profile == null) return@withContext null
 
-                    val container = ensureContainerForProfile(profile, spec.containerDisplayName(profile))
+                    val container = ensureContainerForProfile(profile)
                     spec.persistContainerId(this@SetupWizardActivity, container.id)
                     container
                 } catch (e: Exception) {
@@ -1034,24 +1034,19 @@ class SetupWizardActivity : FragmentActivity() {
         }.getOrDefault(emptyList())
     }
 
-    private fun ensureContainerForProfile(profile: ContentProfile, desiredName: String): Container {
+    private fun ensureContainerForProfile(profile: ContentProfile): Container {
+        val contentsManager = ContentsManager(this)
+        contentsManager.syncContents()
+        val resolvedWineVersion = ContentsManager.getEntryName(profile)
         val containerManager = ContainerManager(this)
-        containerManager.containers.firstOrNull { it.name == desiredName }?.let {
-            val resolvedWineVersion = ContentsManager.getEntryName(profile)
-            if (it.wineVersion != resolvedWineVersion) {
-                it.setWineVersion(resolvedWineVersion)
-                it.putExtra("wineprefixNeedsUpdate", "t")
-                it.saveData()
-            }
+        containerManager.getContainerByWineVersion(resolvedWineVersion)?.let {
             applyRecommendedContainerDefaults(it)
             return it
         }
 
-        val contentsManager = ContentsManager(this)
-        contentsManager.syncContents()
         val data = JSONObject().apply {
-            put("name", desiredName)
-            put("wineVersion", ContentsManager.getEntryName(profile))
+            put("name", buildRuntimeContainerName(this@SetupWizardActivity, contentsManager, profile))
+            put("wineVersion", resolvedWineVersion)
         }
 
         return requireNotNull(containerManager.createContainer(data, contentsManager)) {
@@ -1104,7 +1099,7 @@ class SetupWizardActivity : FragmentActivity() {
         )
 
         if (isArm64) {
-            container.setEmulator("fexcore")
+            container.setEmulator("wowbox64")
             container.setEmulator64("fexcore")
             container.setBox64Version(
                 resolvePreferredContentVersion(
@@ -1208,7 +1203,7 @@ class SetupWizardActivity : FragmentActivity() {
 
     private fun isPackageInstalled(manager: ContentsManager, spec: PackageSpec): Boolean {
         return manager.getProfiles(spec.type).orEmpty().any { profile ->
-            profile.isInstalled && profile.verName.contains(spec.nameHint, ignoreCase = true)
+            profile.isInstalled && profileMatchesVersionName(profile, spec.nameHint)
         }
     }
 
@@ -1246,7 +1241,7 @@ class SetupWizardActivity : FragmentActivity() {
         advancedInstalledSet.clear()
         advancedProfiles.forEach { spec ->
             val installed = manager.getProfiles(spec.type).orEmpty().any {
-                it.isInstalled && it.verName.equals(spec.verName, ignoreCase = true)
+                it.isInstalled && profileMatchesVersionName(it, spec.verName)
             }
             if (installed) advancedInstalledSet.add(spec.verName)
         }
@@ -1302,8 +1297,7 @@ class SetupWizardActivity : FragmentActivity() {
                     spec.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON) {
                     withContext(Dispatchers.IO) {
                         try {
-                            val displayName = runtimeDisplayLabel(profile)
-                            val container = ensureContainerForProfile(profile, displayName)
+                            val container = ensureContainerForProfile(profile)
                             // Persist container IDs for default settings page
                             if (profile.verName.contains("arm64ec", ignoreCase = true)) {
                                 saveDefaultArm64ContainerId(this@SetupWizardActivity, container.id)
@@ -2104,7 +2098,7 @@ private fun resolveJsonDownloadUrl(url: String): String {
     return "https://raw.githubusercontent.com/$ownerRepo/$branch/$filePath"
 }
 
-private fun runtimeDisplayLabel(profile: ContentProfile): String {
+fun runtimeDisplayLabel(profile: ContentProfile): String {
     val prefix = when (profile.type) {
         ContentProfile.ContentType.CONTENT_TYPE_WINE -> "Wine"
         ContentProfile.ContentType.CONTENT_TYPE_PROTON -> "Proton"

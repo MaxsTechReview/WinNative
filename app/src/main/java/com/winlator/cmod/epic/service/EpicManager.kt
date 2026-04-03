@@ -211,23 +211,11 @@ class EpicManager @Inject constructor(
                 return@withContext Result.success(0)
             }
 
-            // Get existing game IDs from database to avoid re-fetching
-            val existingCatalogIds = epicGameDao.getAllCatalogIds().toSet()
-            Timber.tag("Epic").d("Found ${existingCatalogIds.size} games already in database")
-
-            // Filter to only new games that need details fetched
-            val newGamesList = gamesList.filter { it.catalogItemId !in existingCatalogIds }
-            Timber.tag("Epic").d("${newGamesList.size} new games need details fetched")
-
-            if (newGamesList.isEmpty()) {
-                val detectedCount = detectAndUpdateExistingInstallations()
-                Timber.tag("Epic").d("No new Epic games. Detected $detectedCount existing installations")
-                return@withContext Result.success(detectedCount)
-            }
+            Timber.tag("Epic").d("Refreshing details for ${gamesList.size} Epic library entries")
 
             val epicGames = mutableListOf<EpicGame>()
             var processedCount = 0
-            for ((index, game) in newGamesList.withIndex()) {
+            for ((index, game) in gamesList.withIndex()) {
                 val result = fetchGameInfo(context, game)
 
                 if (result.isSuccess) {
@@ -241,10 +229,10 @@ class EpicManager @Inject constructor(
                     Timber.tag("Epic").w("Epic game ${game.appName} could not be fetched")
                 }
 
-                if ((index + 1) % REFRESH_BATCH_SIZE == 0 || index == newGamesList.lastIndex) {
+                if ((index + 1) % REFRESH_BATCH_SIZE == 0 || index == gamesList.lastIndex) {
                     if (epicGames.isNotEmpty()) {
                         epicGameDao.upsertPreservingInstallStatus(epicGames)
-                        Timber.tag("Epic").d("Batch inserted ${epicGames.size} games (processed ${index + 1}/${newGamesList.size})")
+                        Timber.tag("Epic").d("Batch upserted ${epicGames.size} games (processed ${index + 1}/${gamesList.size})")
                         epicGames.clear()
                     }
                 }
@@ -379,42 +367,48 @@ class EpicManager @Inject constructor(
 
                 // Process records and fetch game info for each
                 for (i in 0 until records.length()) {
-                    val record = records.getJSONObject(i)
+                    try {
+                        val record = records.getJSONObject(i)
 
-                    // Skip items without app name
-                    if (!record.has("appName")) {
-                        continue
-                    }
-
-                    val appName = record.getString("appName")
-                    val namespace = record.getString("namespace")
-                    val catalogItemId = record.getString("catalogItemId")
-                    val sandboxType = record.optString("sandboxType", "")
-                    val country = record.optString("country", "")
-                    val platformsArray = record.optJSONArray("platform")
-                    val platforms = buildList {
-                        if (platformsArray != null) {
-                            for (j in 0 until platformsArray.length()) {
-                                add(platformsArray.getString(j))
+                        val appName = record.optString("appName", "")
+                        val namespace = record.optString("namespace", "")
+                        val catalogItemId = record.optString("catalogItemId", "")
+                        val sandboxType = record.optString("sandboxType", "")
+                        val country = record.optString("country", "")
+                        val platformsArray = record.optJSONArray("platform")
+                        val platforms = buildList {
+                            if (platformsArray != null) {
+                                for (j in 0 until platformsArray.length()) {
+                                    add(platformsArray.optString(j))
+                                }
                             }
+                        }.filter { it.isNotBlank() }
+
+                        if (appName.isBlank() || namespace.isBlank() || catalogItemId.isBlank()) {
+                            Timber.tag("Epic").w("Skipping malformed Epic entitlement at index=$i")
+                            continue
                         }
-                    }
 
-                    // Skip UE assets, private sandboxes, and broken entries
-                    if (namespace == "ue" || sandboxType == "PRIVATE" || appName == "1") {
-                        Timber.tag("Epic").d("Skipping due to invalid app: $appName (namespace=$namespace, sandbox=$sandboxType)")
-                        continue
-                    }
+                        // Skip UE assets, private sandboxes, and clearly broken entries
+                        if (namespace == "ue" || sandboxType == "PRIVATE" || appName == "1") {
+                            Timber.tag("Epic").d("Skipping due to invalid app: $appName (namespace=$namespace, sandbox=$sandboxType)")
+                            continue
+                        }
 
-                    // Skip invalid platform (such as Android versions)
-                    if(platforms.isNotEmpty() && !platforms.contains("Win32") && !platforms.contains("Windows")){ 
-                        Timber.tag("Epic").d("Skipping due to invalid platform: $appName (namespace=$namespace, sandbox=$sandboxType)")
-                        continue
-                    }
+                        // Accept Windows/PC entitlements even when Epic uses variant platform tokens.
+                        val hasPcPlatform = platforms.any { platform ->
+                            val normalized = platform.lowercase()
+                            normalized.contains("win") || normalized.contains("pc")
+                        }
+                        if (platforms.isNotEmpty() && !hasPcPlatform) {
+                            Timber.tag("Epic").d("Skipping due to non-PC platform: $appName platforms=$platforms")
+                            continue
+                        }
 
-                    // Add the basic game to the gameList.
-                    val gameInfo = ParsedLibraryItem(appName, namespace, catalogItemId, sandboxType, country)
-                    gameList.add(gameInfo)
+                        gameList.add(ParsedLibraryItem(appName, namespace, catalogItemId, sandboxType, country))
+                    } catch (e: Exception) {
+                        Timber.tag("Epic").w(e, "Skipping malformed Epic entitlement at index=$i")
+                    }
                 }
                 // Get cursor for next page - stop if cursor is null or same as previous
                 val metadata = json.optJSONObject("responseMetadata")

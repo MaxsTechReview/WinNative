@@ -282,29 +282,19 @@ class ContentsFragment : Fragment() {
 
                     // Automatically create a container if it's Wine or Proton
                     if (profile.type == ContentProfile.ContentType.CONTENT_TYPE_WINE || profile.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON) {
-                        val containerManager = com.winlator.cmod.container.ContainerManager(requireContext())
-                        
-                        // Clean up the container name
-                        var desiredName = profile.verName
-                            .replace("winlator", "", ignoreCase = true)
-                            .replace("wine", "", ignoreCase = true)
-                            .replace(Regex("[^a-zA-Z0-9.\\-]"), " ")
-                            .trim()
-                            .replace(Regex("\\s+"), " ")
-                        
-                        if (desiredName.isEmpty()) desiredName = "Container"
-                        
-                        // Ensure unique name
-                        var uniqueName = desiredName
-                        var counter = 2
-                        while (containerManager.containers.any { it.name.equals(uniqueName, ignoreCase = true) }) {
-                            uniqueName = "$desiredName $counter"
-                            counter++
+                        val containerManager = ContainerManager(requireContext())
+                        val wineVersion = ContentsManager.getEntryName(profile)
+                        val existingContainer = containerManager.getContainerByWineVersion(wineVersion)
+                        if (existingContainer != null) {
+                            AppUtils.showToast(requireContext(), "Container ready: ${existingContainer.name}")
+                            return@runOnUiThread
                         }
+
+                        val uniqueName = buildRuntimeContainerName(requireContext(), manager, profile)
 
                         val data = org.json.JSONObject().apply {
                             put("name", uniqueName)
-                            put("wineVersion", ContentsManager.getEntryName(profile))
+                            put("wineVersion", wineVersion)
                         }
 
                         val preloaderDialog = com.winlator.cmod.core.PreloaderDialog(activity)

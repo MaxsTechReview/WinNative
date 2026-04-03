@@ -43,22 +43,15 @@ public abstract class WineUtils {
             packageStoragePath = "/data/data/" + packageName + "/storage";
         }
 
-        // Auto-fix containers missing D: and E: drives.
+        // Auto-fix containers to the current drive layout in-memory only.
         // IMPORTANT: Only update in-memory drives — do NOT call container.saveData()
         // because the drives string may contain an ephemeral A: mapping that must not
         // be persisted (multiple games share the same container).
         String currentDrives = container.getDrives();
-        if (currentDrives != null && (!currentDrives.contains("D:") || !currentDrives.contains("E:"))) {
-            Log.d("WineUtils", "Container missing D: or E: drives, appending them...");
-            StringBuilder updatedDrives = new StringBuilder(currentDrives);
-            if (!currentDrives.contains("D:")) {
-                updatedDrives.append("D:").append(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS));
-            }
-            if (!currentDrives.contains("E:")) {
-                updatedDrives.append("E:").append(packageStoragePath);
-            }
-            container.setDrives(updatedDrives.toString());
-            Log.d("WineUtils", "Updated container drives (in-memory only) to: " + updatedDrives);
+        String normalizedDrives = Container.normalizeDrives(currentDrives);
+        if (!normalizedDrives.equals(currentDrives)) {
+            container.setDrives(normalizedDrives);
+            Log.d("WineUtils", "Updated container drives (in-memory only) to: " + normalizedDrives);
         }
 
         String gameDirectoryPath = null;
@@ -66,6 +59,11 @@ public abstract class WineUtils {
         for (String[] drive : container.drivesIterator()) {
             File linkTarget = new File(drive[1]);
             String path = linkTarget.getAbsolutePath();
+            
+            if ("E".equalsIgnoreCase(drive[0]) && packageStoragePath.equals(path)) {
+                Log.d("ContainerLaunch", "createDosdevicesSymlinks: skipping legacy E: app storage mapping");
+                continue;
+            }
             boolean isAppStoragePath = path.endsWith(packageStorageSuffix) || path.endsWith(legacyPackageStorageSuffix);
             if (!linkTarget.isDirectory() && isAppStoragePath) {
                 linkTarget.mkdirs();

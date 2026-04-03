@@ -774,79 +774,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 }
             }
 
-            // Re-mount A: drive for Steam/Epic game shortcuts on the active container
+            // Only custom-installed shortcuts should remount A: to a game directory.
             String gameSource = shortcut.getExtra("game_source");
-            if ("STEAM".equals(gameSource)) {
-                String appIdStr = shortcut.getExtra("app_id");
-                if (!appIdStr.isEmpty()) {
-                    String gameInstallPath = SteamBridge.getAppDirPath(Integer.parseInt(appIdStr));
-                    if (new File(gameInstallPath).exists()) {
-                        mountADriveOnContainer(container, gameInstallPath);
-                        Log.d("XServerDisplayActivity", "Mounted A: drive to " + gameInstallPath + " on container " + container.id);
-                    }
-                }
-            } else if ("EPIC".equals(gameSource)) {
-                String gameInstallPath = shortcut.getExtra("game_install_path");
-                // Fallback: resolve install path from Epic service if missing from shortcut
-                if (gameInstallPath.isEmpty()) {
-                    String appIdStr = shortcut.getExtra("app_id");
-                    if (!appIdStr.isEmpty()) {
-                        try {
-                            com.winlator.cmod.epic.data.EpicGame epicGame = com.winlator.cmod.epic.service.EpicService.Companion.getEpicGameOf(Integer.parseInt(appIdStr));
-                            if (epicGame != null) {
-                                String resolved = epicGame.getInstallPath();
-                                if (resolved == null || resolved.isEmpty()) {
-                                    resolved = com.winlator.cmod.epic.service.EpicConstants.INSTANCE.getGameInstallPath(this, epicGame.getAppName());
-                                }
-                                if (resolved != null && !resolved.isEmpty()) {
-                                    gameInstallPath = resolved;
-                                    // Persist so future launches don't need this fallback
-                                    shortcut.putExtra("game_install_path", gameInstallPath);
-                                    shortcut.saveData();
-                                    Log.d("XServerDisplayActivity", "Resolved missing Epic install path from service: " + gameInstallPath);
-                                }
-                            }
-                        } catch (Exception e) {
-                            Log.e("XServerDisplayActivity", "Failed to resolve Epic install path from app_id", e);
-                        }
-                    }
-                }
-                if (!gameInstallPath.isEmpty() && new File(gameInstallPath).exists()) {
-                    mountADriveOnContainer(container, gameInstallPath);
-                    Log.d("XServerDisplayActivity", "Mounted A: drive to " + gameInstallPath + " on container " + container.id);
-                } else {
-                    Log.e("XServerDisplayActivity", "EPIC install path missing or invalid: '" + gameInstallPath + "'");
-                }
-            } else if ("GOG".equals(gameSource)) {
-                String gameInstallPath = shortcut.getExtra("game_install_path");
-                if (gameInstallPath.isEmpty()) {
-                    String gogId = shortcut.getExtra("gog_id");
-                    if (!gogId.isEmpty()) {
-                        try {
-                            com.winlator.cmod.gog.data.GOGGame gogGame = com.winlator.cmod.gog.service.GOGService.Companion.getGOGGameOf(gogId);
-                            if (gogGame != null) {
-                                String resolved = gogGame.getInstallPath();
-                                if (resolved == null || resolved.isEmpty()) {
-                                    resolved = com.winlator.cmod.gog.service.GOGConstants.INSTANCE.getGameInstallPath(gogGame.getTitle());
-                                }
-                                if (resolved != null && !resolved.isEmpty()) {
-                                    gameInstallPath = resolved;
-                                    shortcut.putExtra("game_install_path", gameInstallPath);
-                                    shortcut.saveData();
-                                }
-                            }
-                        } catch (Exception e) {
-                            Log.e("XServerDisplayActivity", "Failed to resolve GOG install path", e);
-                        }
-                    }
-                }
-                if (!gameInstallPath.isEmpty() && new File(gameInstallPath).exists()) {
-                    mountADriveOnContainer(container, gameInstallPath);
-                    Log.d("XServerDisplayActivity", "Mounted A: drive to " + gameInstallPath + " on container " + container.id);
-                } else {
-                    Log.e("XServerDisplayActivity", "GOG install path missing or invalid: '" + gameInstallPath + "'");
-                }
-            } else if ("CUSTOM".equals(gameSource)) {
+            if ("CUSTOM".equals(gameSource)) {
                 String customMountPath = resolveCustomMountPath(shortcut);
                 if (!customMountPath.isEmpty() && new File(customMountPath).isDirectory()) {
                     mountADriveOnContainer(container, customMountPath);
@@ -2434,12 +2364,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
                 String wineStartCmd = getWineStartCommand(guestProgramLauncherComponent);
                 String guestExecutable;
-            
-            // Use wine explorer for all containers - GuestProgramLauncherComponent handles
-            // the architecture difference (winePath for arm64ec, box64 for x86_64)
-            guestExecutable = "wine explorer /desktop=shell," + xServer.screenInfo + " " + wineStartCmd;
 
-            Log.d("XServerDisplayActivity", "=== GAME LAUNCH DEBUG ===");
+                // Use wine explorer for all containers - GuestProgramLauncherComponent handles
+                // the architecture difference (winePath for arm64ec, box64 for x86_64)
+                guestExecutable = "wine explorer /desktop=shell," + xServer.screenInfo + " " + wineStartCmd;            Log.d("XServerDisplayActivity", "=== GAME LAUNCH DEBUG ===");
             Log.d("XServerDisplayActivity", "Wine start command: " + wineStartCmd);
             Log.d("XServerDisplayActivity", "Full guest executable: " + guestExecutable);
             Log.d("XServerDisplayActivity", "Wine info: " + wineInfo.identifier() + " arch=" + wineInfo.getArch());
@@ -3731,11 +3659,11 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
                     if (gameInstallPath != null && !gameInstallPath.isEmpty()) {
                         File gameDir = new File(gameInstallPath);
-                        String detectedPath = findGameExeWinPath(0, gameDir);
-                        if (detectedPath != null && !detectedPath.isEmpty()) {
-                            path = detectedPath;
+                        File detectedExe = findGameExe(gameDir);
+                        if (detectedExe != null) {
+                            path = hostPathToWineZ(detectedExe.getAbsolutePath());
 
-                            String execLine = "Exec=wine \"" + detectedPath + "\"";
+                            String execLine = "Exec=wine \"" + path + "\"";
                             StringBuilder content = new StringBuilder();
                             boolean replaced = false;
                             for (String line : FileUtils.readLines(shortcut.file)) {
@@ -3754,9 +3682,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     }
                 }
                 
-                // Epic Games are always on A: drive. 
                 String filename = path;
-                String dir = "A:\\";
+                String dir = "Z:\\";
                 
                 if (path != null && path.contains("\\")) {
                     int lastBackslash = path.lastIndexOf("\\");
@@ -3802,11 +3729,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                             Log.d("XServerDisplayActivity", "Set native working dir for Custom process: " + nativeDir.getPath());
                         }
 
-                        if (wineInfo != null && wineInfo.isArm64EC()) {
-                            args = "\"" + path + "\"" + extraArgs;
-                        } else {
-                            args = "/dir \"" + dir + "\" \"" + file + "\"" + extraArgs;
-                        }
+                        args = "/dir " + StringUtils.escapeDOSPath(dir) + " \"" + file + "\"" + extraArgs;
                     } else {
                         args = "\"" + path + "\"" + extraArgs;
                     }
@@ -4125,6 +4048,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
 
         return null;
+    }
+
+    private String hostPathToWineZ(String hostPath) {
+        String normalized = new File(hostPath).getAbsolutePath().replace("/", "\\");
+        if (normalized.startsWith("\\")) {
+            return "Z:" + normalized;
+        }
+        return "Z:\\" + normalized;
     }
 
     /**

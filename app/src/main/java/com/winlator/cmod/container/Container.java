@@ -19,7 +19,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.util.LinkedHashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 public class Container {
     public static final String DEFAULT_ENV_VARS = "WRAPPER_MAX_IMAGE_COUNT=0 VKD3D_SHADER_MODEL=6_6 ZINK_DESCRIPTORS=lazy ZINK_DEBUG=compact MESA_SHADER_CACHE_DISABLE=false MESA_SHADER_CACHE_MAX_SIZE=512MB mesa_glthread=true WINEESYNC=1 TU_DEBUG=noconform,sysmem DXVK_HUD=0";
@@ -35,7 +37,7 @@ public class Container {
     public static final String DEFAULT_DDRAWRAPPER = "none";
     public static final String DEFAULT_WINCOMPONENTS = "direct3d=1,directsound=0,directmusic=0,directshow=0,directplay=0,xaudio=0,vcrun2010=1";
     public static final String FALLBACK_WINCOMPONENTS = "direct3d=1,directsound=1,directmusic=1,directshow=1,directplay=1,xaudio=1,vcrun2010=1";
-    public static final String DEFAULT_DRIVES = "F:"+Environment.getExternalStorageDirectory().getAbsolutePath()+"D:"+Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)+"E:/data/data/com.winnative.cmod/storage";
+    public static final String DEFAULT_DRIVES = "D:"+Environment.getExternalStorageDirectory().getAbsolutePath();
     public static final byte STARTUP_SELECTION_NORMAL = 0;
     public static final byte STARTUP_SELECTION_ESSENTIAL = 1;
     public static final byte STARTUP_SELECTION_AGGRESSIVE = 2;
@@ -199,7 +201,7 @@ public class Container {
     }
 
     public void setDrives(String drives) {
-        this.drives = drives;
+        this.drives = normalizeDrives(drives);
     }
 
     public String getLC_ALL() {
@@ -408,6 +410,41 @@ public class Container {
                 return item;
             }
         };
+    }
+
+    public static String normalizeDrives(String drives) {
+        if (drives == null || drives.isEmpty()) {
+            return DEFAULT_DRIVES;
+        }
+
+        String externalStorageRoot = Environment.getExternalStorageDirectory().getAbsolutePath();
+        String downloadsPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
+        LinkedHashMap<String, String> normalized = new LinkedHashMap<>();
+
+        for (String[] drive : drivesIterator(drives)) {
+            String letter = drive[0].toUpperCase();
+            String path = drive[1];
+
+            // Migrate legacy root mapping: D: pointed at Downloads and F: pointed at /.
+            if ("F".equals(letter)) {
+                continue;
+            }
+            if ("D".equals(letter) && downloadsPath.equals(path)) {
+                path = externalStorageRoot;
+            }
+
+            if (path != null && !path.isEmpty()) {
+                normalized.put(letter, path);
+            }
+        }
+
+        normalized.putIfAbsent("D", externalStorageRoot);
+
+        StringBuilder builder = new StringBuilder();
+        for (Map.Entry<String, String> entry : normalized.entrySet()) {
+            builder.append(entry.getKey()).append(':').append(entry.getValue());
+        }
+        return builder.length() > 0 ? builder.toString() : DEFAULT_DRIVES;
     }
 
     public void saveData() {

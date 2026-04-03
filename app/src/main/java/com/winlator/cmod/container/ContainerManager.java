@@ -25,6 +25,7 @@ import org.json.JSONObject;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Locale;
 import java.util.concurrent.Executors;
 
 public class ContainerManager {
@@ -98,10 +99,7 @@ public class ContainerManager {
         container.setRootDir(containerDir);
         File file = new File(homeDir, ImageFs.USER);
 
-        // Make C: Drive accessible — 0771 not 0777 to prevent other apps reading file contents
-        try {
-            Runtime.getRuntime().exec(new String[]{"chmod", "-R", "0771", new File(containerDir, ".wine/drive_c").getAbsolutePath()});
-        } catch (Exception e) {}
+        enforceContainerDriveCPermissions(containerDir);
 
         // Replace the real "xuser" dir (from imagefs.txz) with a symlink to the active
         // container. Migrate winhandler.exe/wfm.exe first since they aren't in container
@@ -180,6 +178,7 @@ public class ContainerManager {
             }
 
             data.put("id", id);
+            data.put("name", makeUniqueContainerName(data.optString("name", "Container-" + id)));
             if (!containerDir.mkdirs()) {
                 Log.e("ContainerManager", "createContainer: FAILED to create dir: " + containerDir.getAbsolutePath());
                 // Try creating parent dirs first
@@ -210,6 +209,7 @@ public class ContainerManager {
             Log.d("ContainerManager", "createContainer: container pattern extracted successfully");
             container.putExtra("wineprefixArch", WineInfo.fromIdentifier(context, contentsManager, wineVersion).getArch());
             container.putExtra("wineprefixNeedsUpdate", null);
+            enforceContainerDriveCPermissions(containerDir);
 
 //            // Extract the selected graphics driver files
 //            String driverVersion = container.getGraphicsDriverVersion();
@@ -256,7 +256,7 @@ public class ContainerManager {
 
         Container dstContainer = new Container(id, this);
         dstContainer.setRootDir(dstDir);
-        dstContainer.setName(srcContainer.getName() + " (" + context.getString(R.string.common_ui_copy) + ")");
+        dstContainer.setName(makeUniqueContainerName(srcContainer.getName() + " (" + context.getString(R.string.common_ui_copy) + ")"));
         dstContainer.setScreenSize(srcContainer.getScreenSize());
         dstContainer.setEnvVars(srcContainer.getEnvVars());
         dstContainer.setCPUList(srcContainer.getCPUList());
@@ -272,6 +272,7 @@ public class ContainerManager {
         dstContainer.setBox64Preset(srcContainer.getBox64Preset());
         dstContainer.setDesktopTheme(srcContainer.getDesktopTheme());
         dstContainer.setWineVersion(srcContainer.getWineVersion());
+        enforceContainerDriveCPermissions(dstDir);
         dstContainer.saveData();
 
         maxContainerId++;
@@ -312,6 +313,28 @@ public class ContainerManager {
 
     public int getNextContainerId() {
         return maxContainerId + 1;
+    }
+
+    public Container getContainerByWineVersion(String wineVersion) {
+        if (wineVersion == null || wineVersion.isEmpty()) return null;
+        for (Container container : containers) {
+            if (wineVersion.equalsIgnoreCase(container.getWineVersion())) {
+                return container;
+            }
+        }
+        return null;
+    }
+
+    public String makeUniqueContainerName(String desiredName) {
+        String baseName = sanitizeContainerName(desiredName);
+        String uniqueName = baseName;
+        int counter = 2;
+
+        while (hasConflictingContainerName(uniqueName)) {
+            uniqueName = baseName + " " + counter;
+            counter++;
+        }
+        return uniqueName;
     }
 
     public Container getContainerById(int id) {
@@ -475,6 +498,7 @@ public class ContainerManager {
             container.putExtra("startupSelection", null);
             container.putExtra("mono_installed", null);
             container.putExtra("mono_version", null);
+            enforceContainerDriveCPermissions(containerDir);
             container.saveData();
             return true;
         } finally {
@@ -495,6 +519,36 @@ public class ContainerManager {
     // Utility method to run on UI thread
     private void runOnUiThread(Runnable action) {
         new Handler(Looper.getMainLooper()).post(action);
+    }
+
+    private void enforceContainerDriveCPermissions(File containerDir) {
+        File driveCDir = new File(containerDir, ".wine/drive_c");
+        FileUtils.enforcePermissionsRecursive(driveCDir, 0771);
+    }
+
+    private boolean hasConflictingContainerName(String candidateName) {
+        String candidateKey = normalizeContainerName(candidateName);
+        for (Container container : containers) {
+            if (candidateKey.equals(normalizeContainerName(container.getName()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String sanitizeContainerName(String name) {
+        String sanitized = name != null ? name.trim() : "";
+        sanitized = sanitized.replaceAll("\\s+", " ");
+        return sanitized.isEmpty() ? "Container" : sanitized;
+    }
+
+    public static String normalizeContainerName(String name) {
+        String normalized = sanitizeContainerName(name)
+                .replaceAll("[^A-Za-z0-9]+", " ")
+                .trim()
+                .replaceAll("\\s+", " ")
+                .toLowerCase(Locale.ROOT);
+        return normalized;
     }
 
 

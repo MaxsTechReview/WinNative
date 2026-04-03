@@ -198,6 +198,53 @@ public class ContainerDetailFragment extends Fragment {
         applyPopupBackground(spinner);
     }
 
+    private static String getSpinnerSelectedIdentifier(Spinner spinner, String fallback) {
+        if (spinner == null || spinner.getSelectedItem() == null) return fallback;
+        return StringUtils.parseIdentifier(spinner.getSelectedItem());
+    }
+
+    private void configureEmulatorSpinners(View view, boolean isArm64EC, @Nullable String preferred32, @Nullable String preferred64) {
+        Spinner sEmulator = view.findViewById(R.id.SEmulator);
+        Spinner sEmulator64 = view.findViewById(R.id.SEmulator64);
+        if (sEmulator == null || sEmulator64 == null) return;
+
+        Context context = view.getContext();
+
+        java.util.List<String> emulator32Items = isArm64EC
+                ? java.util.Arrays.asList("FEXCore", "Wowbox64")
+                : java.util.Collections.singletonList("Box64");
+        java.util.List<String> emulator64Items = isArm64EC
+                ? java.util.Collections.singletonList("FEXCore")
+                : java.util.Collections.singletonList("Box64");
+
+        String selected32 = preferred32 != null ? preferred32 : getSpinnerSelectedIdentifier(sEmulator, Container.DEFAULT_EMULATOR);
+        String selected64 = preferred64 != null ? preferred64 : getSpinnerSelectedIdentifier(sEmulator64, Container.DEFAULT_EMULATOR64);
+
+        if (isArm64EC) {
+            if (!selected32.equalsIgnoreCase("fexcore") && !selected32.equalsIgnoreCase("wowbox64")) {
+                selected32 = Container.DEFAULT_EMULATOR;
+            }
+            if (!selected64.equalsIgnoreCase("fexcore")) {
+                selected64 = Container.DEFAULT_EMULATOR64;
+            }
+        } else {
+            selected32 = "Box64";
+            selected64 = "Box64";
+        }
+
+        sEmulator.setAdapter(createThemedAdapter(context, emulator32Items));
+        applyPopupBackground(sEmulator);
+        AppUtils.setSpinnerSelectionFromIdentifier(sEmulator, selected32);
+
+        sEmulator64.setAdapter(createThemedAdapter(context, emulator64Items));
+        applyPopupBackground(sEmulator64);
+        AppUtils.setSpinnerSelectionFromIdentifier(sEmulator64, selected64);
+
+        sEmulator.setEnabled(isArm64EC);
+        sEmulator64.setEnabled(isArm64EC);
+        updateEmulatorFrames(view, sEmulator, sEmulator64);
+    }
+
     public static void applyPopupBackground(Spinner spinner) {
         spinner.setPopupBackgroundResource(R.drawable.content_popup_menu_background);
     }
@@ -937,20 +984,22 @@ public class ContainerDetailFragment extends Fragment {
                 : (isEditMode() && container != null ? container.getAudioDriver() : Container.DEFAULT_AUDIO_DRIVER));
 
         final Spinner sEmulator = view.findViewById(R.id.SEmulator);
-        applyThemedAdapter(sEmulator, R.array.emulator_entries);
-        AppUtils.setSpinnerSelectionFromIdentifier(sEmulator, isPerGameSettingsMode()
+        final Spinner sEmulator64 = view.findViewById(R.id.SEmulator64);
+        String preferredEmulator32 = isPerGameSettingsMode()
                 ? (isShortcutMode()
                     ? getShortcutSettingValue("emulator", settingsContainer != null ? settingsContainer.getEmulator() : Container.DEFAULT_EMULATOR)
                     : (settingsContainer != null ? settingsContainer.getEmulator() : Container.DEFAULT_EMULATOR))
-                : (isEditMode() && container != null ? container.getEmulator() : Container.DEFAULT_EMULATOR));
-
-        final Spinner sEmulator64 = view.findViewById(R.id.SEmulator64);
-        applyThemedAdapter(sEmulator64, R.array.emulator_entries);
-        AppUtils.setSpinnerSelectionFromIdentifier(sEmulator64, isPerGameSettingsMode()
+                : (isEditMode() && container != null ? container.getEmulator() : Container.DEFAULT_EMULATOR);
+        String preferredEmulator64 = isPerGameSettingsMode()
                 ? (isShortcutMode()
                     ? getShortcutSettingValue("emulator64", settingsContainer != null ? settingsContainer.getEmulator64() : Container.DEFAULT_EMULATOR64)
                     : (settingsContainer != null ? settingsContainer.getEmulator64() : Container.DEFAULT_EMULATOR64))
-                : (isEditMode() && container != null ? container.getEmulator64() : Container.DEFAULT_EMULATOR64));
+                : (isEditMode() && container != null ? container.getEmulator64() : Container.DEFAULT_EMULATOR64);
+        String selectedWineVersion = settingsContainer != null ? settingsContainer.getWineVersion() : WineInfo.MAIN_WINE_VERSION.identifier();
+        configureEmulatorSpinners(view,
+                WineInfo.fromIdentifier(context, contentsManager, selectedWineVersion).isArm64EC(),
+                preferredEmulator32,
+                preferredEmulator64);
 
         final View box64Frame = view.findViewById(R.id.box64Frame);
         final View fexcoreFrame = view.findViewById(R.id.fexcoreFrame);
@@ -2386,26 +2435,21 @@ public class ContainerDetailFragment extends Fragment {
                 
                 WineInfo wineInfo = WineInfo.fromIdentifier(context, contentsManager, selectedWineStr);
                 
-                sEmulator.setEnabled(false);
-                sEmulator64.setEnabled(false);
-                
-                if (wineInfo.isArm64EC()) {
-                    fexcoreFL.setVisibility(View.VISIBLE);
-                    // Arm64EC: 64-bit uses FEXCore, 32-bit uses Wowbox64
-                    sEmulator.setSelection(2); // Wowbox64 for 32-bit
-                    sEmulator64.setSelection(0); // FEXCore for 64-bit
-                    Log.d(TAG, "Arm64EC wine selected: FEXCore for 64-bit, Wowbox64 for 32-bit");
+                String preferredEmulator32;
+                String preferredEmulator64;
+                if (isPerGameSettingsMode() && selectedContainer != null && (!isShortcutMode() || shortcut == null || shortcut.usesContainerDefaults())) {
+                    preferredEmulator32 = selectedContainer.getEmulator();
+                    preferredEmulator64 = selectedContainer.getEmulator64();
+                } else if (isShortcutMode() && shortcut != null && !shortcut.usesContainerDefaults()) {
+                    preferredEmulator32 = shortcut.getExtra("emulator", container != null ? container.getEmulator() : Container.DEFAULT_EMULATOR);
+                    preferredEmulator64 = shortcut.getExtra("emulator64", container != null ? container.getEmulator64() : Container.DEFAULT_EMULATOR64);
+                } else {
+                    preferredEmulator32 = getSpinnerSelectedIdentifier(sEmulator, Container.DEFAULT_EMULATOR);
+                    preferredEmulator64 = getSpinnerSelectedIdentifier(sEmulator64, Container.DEFAULT_EMULATOR64);
                 }
-                else {
-                    fexcoreFL.setVisibility(View.GONE);
-                    // x86_64 containers MUST use Box64
-                    sEmulator.setSelection(1); // Box64
-                    sEmulator64.setSelection(1); // Box64
-                    Log.d(TAG, "x86_64 wine selected: forcing Box64 for both emulators");
-                }
-                
-                // Trigger the emulator frames update
-                updateEmulatorFrames(view, sEmulator, sEmulator64);
+
+                fexcoreFL.setVisibility(wineInfo.isArm64EC() ? View.VISIBLE : View.GONE);
+                configureEmulatorSpinners(view, wineInfo.isArm64EC(), preferredEmulator32, preferredEmulator64);
                 Container box64Container = selectedContainer != null ? selectedContainer : container;
                 loadBox64VersionSpinner(context, box64Container, contentsManager, sBox64Version, wineInfo.isArm64EC());
                 // Re-apply shortcut's box64Version override if in shortcut mode
@@ -2547,11 +2591,10 @@ public class ContainerDetailFragment extends Fragment {
         if (sFEXCorePreset != null) AppUtils.setSpinnerSelectionFromIdentifier(sFEXCorePreset, c.getFEXCorePreset());
 
         Spinner sEmulator = view.findViewById(R.id.SEmulator);
-        if (sEmulator != null) AppUtils.setSpinnerSelectionFromIdentifier(sEmulator, c.getEmulator());
-
-        Spinner sEmulator64 = view.findViewById(R.id.SEmulator64);
-        if (sEmulator64 != null) AppUtils.setSpinnerSelectionFromIdentifier(sEmulator64, c.getEmulator64());
-        if (sEmulator != null && sEmulator64 != null) updateEmulatorFrames(view, sEmulator, sEmulator64);
+        configureEmulatorSpinners(view,
+                WineInfo.fromIdentifier(getContext(), contentsManager, c.getWineVersion()).isArm64EC(),
+                c.getEmulator(),
+                c.getEmulator64());
 
         CompoundButton cbShowFPS = view.findViewById(R.id.CBShowFPS);
         if (cbShowFPS != null) cbShowFPS.setChecked(c.isShowFPS());
@@ -3330,7 +3373,7 @@ public class ContainerDetailFragment extends Fragment {
         String normalizedExePath = absoluteExePath;
         String winPath;
 
-        if (!normalizedBaseDir.isEmpty() && (normalizedExePath.equals(normalizedBaseDir) || normalizedExePath.startsWith(normalizedBaseDir + File.separator))) {
+        if ("CUSTOM".equals(gameSource) && !normalizedBaseDir.isEmpty() && (normalizedExePath.equals(normalizedBaseDir) || normalizedExePath.startsWith(normalizedBaseDir + File.separator))) {
             String relativePath = FileUtils.toRelativePath(normalizedBaseDir, normalizedExePath).replace("/", "\\");
             while (relativePath.startsWith("\\")) relativePath = relativePath.substring(1);
             winPath = "A:\\" + relativePath;

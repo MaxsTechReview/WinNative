@@ -485,3 +485,92 @@ int open(const char *path, int flags, ...) {
   va_end(ap);
   return real_open(path, flags, mode);
 }
+
+/* Android 11+ FUSE NOEXEC bypass for Wine */
+#include <sys/vfs.h>
+#include <sys/statvfs.h>
+
+#ifndef ST_NOEXEC
+#define ST_NOEXEC 8
+#endif
+
+__attribute__((visibility("default")))
+int statfs(const char *path, struct statfs *buf) {
+    int (*orig)(const char*, struct statfs*) = dlsym(RTLD_NEXT, "statfs");
+    int res = orig(path, buf);
+    if (res == 0) {
+        buf->f_type = 0xEF53; /* fake EXT4_SUPER_MAGIC */
+    }
+    return res;
+}
+
+__attribute__((visibility("default")))
+int statfs64(const char *path, struct statfs64 *buf) {
+    int (*orig)(const char*, struct statfs64*) = dlsym(RTLD_NEXT, "statfs64");
+    int res = orig(path, buf);
+    if (res == 0) {
+        buf->f_type = 0xEF53; /* fake EXT4_SUPER_MAGIC */
+    }
+    return res;
+}
+
+__attribute__((visibility("default")))
+int statvfs(const char *path, struct statvfs *buf) {
+    int (*orig)(const char*, struct statvfs*) = dlsym(RTLD_NEXT, "statvfs");
+    int res = orig(path, buf);
+    if (res == 0) {
+        buf->f_flag &= ~ST_NOEXEC;
+    }
+    return res;
+}
+
+__attribute__((visibility("default")))
+int statvfs64(const char *path, struct statvfs64 *buf) {
+    int (*orig)(const char*, struct statvfs64*) = dlsym(RTLD_NEXT, "statvfs64");
+    int res = orig(path, buf);
+    if (res == 0) {
+        buf->f_flag &= ~ST_NOEXEC;
+    }
+    return res;
+}
+
+__attribute__((visibility("default")))
+int fstatfs(int fd, struct statfs *buf) {
+    int (*orig)(int, struct statfs*) = dlsym(RTLD_NEXT, "fstatfs");
+    int res = orig(fd, buf);
+    if (res == 0) {
+        buf->f_type = 0xEF53; /* fake EXT4_SUPER_MAGIC */
+    }
+    return res;
+}
+
+__attribute__((visibility("default")))
+int fstatfs64(int fd, struct statfs64 *buf) {
+    int (*orig)(int, struct statfs64*) = dlsym(RTLD_NEXT, "fstatfs64");
+    int res = orig(fd, buf);
+    if (res == 0) {
+        buf->f_type = 0xEF53; /* fake EXT4_SUPER_MAGIC */
+    }
+    return res;
+}
+
+__attribute__((visibility("default")))
+int fstatvfs(int fd, struct statvfs *buf) {
+    int (*orig)(int, struct statvfs*) = dlsym(RTLD_NEXT, "fstatvfs");
+    int res = orig(fd, buf);
+    if (res == 0) {
+        buf->f_flag &= ~ST_NOEXEC;
+    }
+    return res;
+}
+
+__attribute__((visibility("default")))
+int fstatvfs64(int fd, struct statvfs64 *buf) {
+    int (*orig)(int, struct statvfs64*) = dlsym(RTLD_NEXT, "fstatvfs64");
+    int res = orig(fd, buf);
+    if (res == 0) {
+        buf->f_flag &= ~ST_NOEXEC;
+    }
+    return res;
+}
+
