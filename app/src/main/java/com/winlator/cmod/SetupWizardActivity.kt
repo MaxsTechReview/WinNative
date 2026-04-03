@@ -76,6 +76,7 @@ import com.winlator.cmod.contents.ContentsManager
 import com.winlator.cmod.contents.Downloader
 import com.winlator.cmod.core.DefaultVersion
 import com.winlator.cmod.core.FileUtils
+import com.winlator.cmod.core.GPUInformation
 import com.winlator.cmod.core.OnExtractFileListener
 import com.winlator.cmod.core.TarCompressorUtils
 import com.winlator.cmod.core.TarCompressorUtils.Type
@@ -94,7 +95,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.BufferedReader
 import java.io.File
+import java.io.FileReader
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
 
@@ -113,7 +116,7 @@ class SetupWizardActivity : FragmentActivity() {
         private const val KEY_LAST_CONTENT_PREFIX = "last_content_"
         private const val KEY_DEFAULT_JSON_CACHE = "default_json_cache"
         private const val DEFAULT_JSON_URL =
-            "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/blob/main/default.json"
+            "https://github.com/MaxsTechReview/Components/blob/main/default.json"
 
         @JvmStatic
         fun isSetupComplete(context: Context): Boolean {
@@ -299,6 +302,34 @@ class SetupWizardActivity : FragmentActivity() {
         val remoteUrl: String
     )
 
+    private data class AutoDriverSpec(
+        val label: String,
+        val url: String
+    )
+
+    private data class InstalledSetupBundle(
+        val installedContentIds: MutableMap<ContentProfile.ContentType, MutableList<String>> = mutableMapOf(),
+        var driverId: String? = null
+    ) {
+        fun addProfile(profile: ContentProfile) {
+            installedContentIds.getOrPut(profile.type) { mutableListOf() }
+                .add(contentVersionIdentifier(profile))
+        }
+
+        fun latestFor(
+            type: ContentProfile.ContentType,
+            includePattern: Regex? = null,
+            excludePattern: Regex? = null
+        ): String? {
+            return installedContentIds[type]
+                .orEmpty()
+                .lastOrNull { version ->
+                    (includePattern == null || includePattern.containsMatchIn(version)) &&
+                        (excludePattern == null || !excludePattern.containsMatchIn(version))
+                }
+        }
+    }
+
     private data class TransferState(
         val title: String,
         val detail: String,
@@ -392,6 +423,8 @@ class SetupWizardActivity : FragmentActivity() {
     private val imageFsProgress = mutableIntStateOf(0)
     private val imageFsDone = mutableStateOf(false)
     private val recommendedComponentsDone = mutableStateOf(false)
+    private val oneClickSetupDone = mutableStateOf(false)
+    private val oneClickSetupRunning = mutableStateOf(false)
     private val driversVisited = mutableStateOf(false)
     private val x86ProtonDone = mutableStateOf(false)
     private val arm64ProtonDone = mutableStateOf(false)
@@ -559,6 +592,8 @@ class SetupWizardActivity : FragmentActivity() {
 
         x86ProtonDone.value = x86Container != null
         arm64ProtonDone.value = armContainer != null
+        oneClickSetupDone.value =
+            recommendedComponentsDone.value && x86ProtonDone.value && arm64ProtonDone.value
         defaultX86ContainerName.value = x86Container?.name ?: ""
         defaultArmContainerName.value = armContainer?.name ?: ""
 
@@ -826,6 +861,63 @@ class SetupWizardActivity : FragmentActivity() {
         }
     }
 
+    private fun runOneClickSetup() {
+        if (transferState.value != null || oneClickSetupRunning.value || oneClickSetupDone.value) return
+
+        lifecycleScope.launch {
+            wizardError.value = null
+            oneClickSetupRunning.value = true
+            val success = withContext(Dispatchers.IO) {
+                try {
+                    val installedBundle = InstalledSetupBundle()
+                    val componentSpecs = resolveRecommendedComponentSpecs()
+                    componentSpecs.forEachIndexed { index, spec ->
+                        val profile = downloadAndInstallPackage(spec, index, componentSpecs.size)
+                        if (profile == null) return@withContext false
+                        installedBundle.addProfile(profile)
+                    }
+                    prefs(this@SetupWizardActivity).edit()
+                        .putBoolean(KEY_RECOMMENDED_COMPONENTS_DONE, true)
+                        .apply()
+
+                    runCatching { autoInstallRecommendedDriverIfNeeded() }
+                        .onSuccess { driverId ->
+                            if (driverId.isNotBlank()) {
+                                installedBundle.driverId = driverId
+                            }
+                        }
+                        .onFailure { e ->
+                            wizardError.value = "Driver auto-install skipped: ${e.message}"
+                        }
+
+                    val x86Container = installRecommendedRuntimeInternal(x86ProtonSpec)
+                        ?: return@withContext false
+                    val arm64Container = installRecommendedRuntimeInternal(arm64ProtonSpec)
+                        ?: return@withContext false
+
+                    applyRecommendedContainerDefaults(x86Container, installedBundle)
+                    applyRecommendedContainerDefaults(arm64Container, installedBundle)
+                    prefs(this@SetupWizardActivity).edit()
+                        .putBoolean(KEY_DEFAULT_X86_SETTINGS_DONE, true)
+                        .putBoolean(KEY_DEFAULT_ARM64_SETTINGS_DONE, true)
+                        .apply()
+                    true
+                } catch (e: Exception) {
+                    wizardError.value = "1 Click Setup failed: ${e.message}"
+                    false
+                } finally {
+                    transferState.value = null
+                }
+            }
+
+            oneClickSetupRunning.value = false
+            refreshWizardState()
+            if (success) {
+                pageIndex.intValue = 2
+            }
+        }
+    }
+
     private suspend fun downloadAndInstallPackage(
         spec: PackageSpec,
         index: Int,
@@ -859,14 +951,49 @@ class SetupWizardActivity : FragmentActivity() {
         return profile
     }
 
+    private suspend fun installRecommendedRuntimeInternal(spec: RuntimeSpec): Container? {
+        val resolvedSpec = resolveRecommendedRuntimeSpec(spec)
+        transferState.value = TransferState(
+            title = spec.label,
+            detail = getString(R.string.downloads_queue_preparing_download),
+            currentIndex = 0,
+            total = 2
+        )
+
+        val downloaded = downloadFileToCache(
+            label = spec.label,
+            url = resolvedSpec.url,
+            currentIndex = 1,
+            total = 2
+        ) ?: return null
+
+        transferState.value = TransferState(
+            title = spec.label,
+            detail = getString(R.string.downloads_queue_installing_package),
+            currentIndex = 2,
+            total = 2,
+            progress = null
+        )
+
+        val profile = installDownloadedPackage(downloaded, resolvedSpec.url)
+        downloaded.delete()
+        if (profile == null) return null
+
+        val container = ensureContainerForProfile(profile, spec.containerDisplayName(profile))
+        spec.persistContainerId(this@SetupWizardActivity, container.id)
+        return container
+    }
+
     private suspend fun downloadFileToCache(
         label: String,
         url: String,
         currentIndex: Int,
-        total: Int
+        total: Int,
+        extension: String = ".wcp"
     ): File? = withContext(Dispatchers.IO) {
         val sanitized = label.lowercase().replace(Regex("[^a-z0-9]+"), "_")
-        val output = File(cacheDir, "wizard_${System.currentTimeMillis()}_$sanitized.wcp")
+        val resolvedUrl = resolveJsonDownloadUrl(url)
+        val output = File(cacheDir, "wizard_${System.currentTimeMillis()}_$sanitized$extension")
         val listener = Downloader.DownloadListener { downloadedBytes, totalBytes ->
             transferState.value = TransferState(
                 title = transferState.value?.title ?: label,
@@ -880,7 +1007,7 @@ class SetupWizardActivity : FragmentActivity() {
                 }
             )
         }
-        val success = Downloader.downloadFileWinNativeFirst(url, output, listener)
+        val success = Downloader.downloadFileWinNativeFirst(resolvedUrl, output, listener)
         if (success) output else null
     }
 
@@ -1061,11 +1188,37 @@ class SetupWizardActivity : FragmentActivity() {
         }
     }
 
-    private fun applyRecommendedContainerDefaults(container: Container) {
+    private fun applyRecommendedContainerDefaults(
+        container: Container,
+        installedBundle: InstalledSetupBundle? = null
+    ) {
         val contentsManager = ContentsManager(this)
         contentsManager.syncContents()
         val wineInfo = WineInfo.fromIdentifier(this, contentsManager, container.wineVersion)
         val isArm64 = wineInfo.isArm64EC
+        val driverVersion = installedBundle?.driverId ?: resolvePreferredDriverVersion()
+        val dxvkVersion = installedBundle?.latestFor(
+            ContentProfile.ContentType.CONTENT_TYPE_DXVK,
+            includePattern = if (isArm64) Regex("arm64ec", RegexOption.IGNORE_CASE) else null,
+            excludePattern = if (isArm64) null else Regex("arm64ec", RegexOption.IGNORE_CASE)
+        ) ?: resolvePreferredContentVersion(
+            contentsManager,
+            ContentProfile.ContentType.CONTENT_TYPE_DXVK,
+            DefaultVersion.DXVK,
+            if (isArm64) Regex("arm64ec", RegexOption.IGNORE_CASE) else null,
+            if (isArm64) null else Regex("arm64ec", RegexOption.IGNORE_CASE)
+        )
+        val vkd3dVersion = installedBundle?.latestFor(
+            ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
+            includePattern = if (isArm64) Regex("arm64ec", RegexOption.IGNORE_CASE) else null,
+            excludePattern = if (isArm64) null else Regex("arm64ec", RegexOption.IGNORE_CASE)
+        ) ?: resolvePreferredContentVersion(
+            contentsManager,
+            ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
+            DefaultVersion.VKD3D,
+            if (isArm64) Regex("arm64ec", RegexOption.IGNORE_CASE) else null,
+            if (isArm64) null else Regex("arm64ec", RegexOption.IGNORE_CASE)
+        )
 
         container.setGraphicsDriver(Container.DEFAULT_GRAPHICS_DRIVER)
         container.setGraphicsDriverConfig(
@@ -1073,7 +1226,7 @@ class SetupWizardActivity : FragmentActivity() {
                 Container.DEFAULT_GRAPHICSDRIVERCONFIG,
                 ';',
                 "version",
-                resolvePreferredDriverVersion()
+                driverVersion
             )
         )
         container.setDXWrapper(Container.DEFAULT_DXWRAPPER)
@@ -1083,23 +1236,11 @@ class SetupWizardActivity : FragmentActivity() {
                     Container.DEFAULT_DXWRAPPERCONFIG,
                     ',',
                     "version",
-                    resolvePreferredContentVersion(
-                        contentsManager,
-                        ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-                        DefaultVersion.DXVK,
-                        if (isArm64) Regex("arm64ec", RegexOption.IGNORE_CASE) else null,
-                        if (isArm64) null else Regex("arm64ec", RegexOption.IGNORE_CASE)
-                    )
+                    dxvkVersion
                 ),
                 ',',
                 "vkd3dVersion",
-                resolvePreferredContentVersion(
-                    contentsManager,
-                    ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
-                    DefaultVersion.VKD3D,
-                    if (isArm64) Regex("arm64ec", RegexOption.IGNORE_CASE) else null,
-                    if (isArm64) null else Regex("arm64ec", RegexOption.IGNORE_CASE)
-                )
+                vkd3dVersion
             )
         )
 
@@ -1107,35 +1248,39 @@ class SetupWizardActivity : FragmentActivity() {
             container.setEmulator("fexcore")
             container.setEmulator64("fexcore")
             container.setBox64Version(
-                resolvePreferredContentVersion(
-                    contentsManager,
-                    ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64,
-                    DefaultVersion.WOWBOX64
-                )
+                installedBundle?.latestFor(ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64)
+                    ?: resolvePreferredContentVersion(
+                        contentsManager,
+                        ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64,
+                        DefaultVersion.WOWBOX64
+                    )
             )
             container.setFEXCoreVersion(
-                resolvePreferredContentVersion(
-                    contentsManager,
-                    ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
-                    DefaultVersion.FEXCORE
-                )
+                installedBundle?.latestFor(ContentProfile.ContentType.CONTENT_TYPE_FEXCORE)
+                    ?: resolvePreferredContentVersion(
+                        contentsManager,
+                        ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
+                        DefaultVersion.FEXCORE
+                    )
             )
         } else {
             container.setEmulator("box64")
             container.setEmulator64("box64")
             container.setBox64Version(
-                resolvePreferredContentVersion(
-                    contentsManager,
-                    ContentProfile.ContentType.CONTENT_TYPE_BOX64,
-                    DefaultVersion.BOX64
-                )
+                installedBundle?.latestFor(ContentProfile.ContentType.CONTENT_TYPE_BOX64)
+                    ?: resolvePreferredContentVersion(
+                        contentsManager,
+                        ContentProfile.ContentType.CONTENT_TYPE_BOX64,
+                        DefaultVersion.BOX64
+                    )
             )
             container.setFEXCoreVersion(
-                resolvePreferredContentVersion(
-                    contentsManager,
-                    ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
-                    DefaultVersion.FEXCORE
-                )
+                installedBundle?.latestFor(ContentProfile.ContentType.CONTENT_TYPE_FEXCORE)
+                    ?: resolvePreferredContentVersion(
+                        contentsManager,
+                        ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
+                        DefaultVersion.FEXCORE
+                    )
             )
         }
 
@@ -1158,6 +1303,89 @@ class SetupWizardActivity : FragmentActivity() {
         } catch (_: Throwable) {
             DefaultVersion.WRAPPER
         }
+    }
+
+    private fun resolveAutoDriverSpec(): AutoDriverSpec? {
+        val adrenoModel = detectAdrenoModel()
+
+        return when {
+            adrenoModel == 840 || adrenoModel == 830 -> AutoDriverSpec(
+                label = "Turnip MTR v3.2.2-p Axxx",
+                url = "https://github.com/maxjivi05/Components/blob/main/Drivers/Turnip_MTR_v3.2.2-p_Axxx.zip"
+            )
+            adrenoModel != null && adrenoModel in 700..799 -> AutoDriverSpec(
+                label = "Turnip v26.0.0 R7",
+                url = "https://github.com/K11MCH1/AdrenoToolsDrivers/releases/download/v26.0.0-rc07/Turnip_v26.0.0_R7.zip"
+            )
+            else -> null
+        }
+    }
+
+    private fun detectAdrenoModel(): Int? {
+        val candidates = listOf(
+            File("/sys/class/kgsl/kgsl-3d0/gpu_model"),
+            File("/sys/kernel/gpu/gpu_model")
+        )
+
+        candidates.forEach { file ->
+            runCatching {
+                if (file.exists() && file.canRead()) {
+                    BufferedReader(FileReader(file)).use { reader ->
+                        Regex("(\\d{3})").find(reader.readLine().orEmpty())
+                            ?.groupValues
+                            ?.getOrNull(1)
+                            ?.toIntOrNull()
+                    }
+                } else {
+                    null
+                }
+            }.getOrNull()?.let { return it }
+        }
+
+        val renderer = runCatching { GPUInformation.getRenderer(null, this) }.getOrDefault("")
+        return Regex("adreno\\s*(\\d+)", RegexOption.IGNORE_CASE)
+            .find(renderer)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.toIntOrNull()
+    }
+
+    private suspend fun autoInstallRecommendedDriverIfNeeded(): String {
+        val driverSpec = resolveAutoDriverSpec() ?: return ""
+        transferState.value = TransferState(
+            title = driverSpec.label,
+            detail = getString(R.string.downloads_queue_preparing_download),
+            currentIndex = 0,
+            total = 2
+        )
+
+        val downloaded = downloadFileToCache(
+            label = driverSpec.label,
+            url = driverSpec.url,
+            currentIndex = 1,
+            total = 2,
+            extension = ".zip"
+        ) ?: throw IllegalStateException("unable to download ${driverSpec.label}")
+
+        transferState.value = TransferState(
+            title = driverSpec.label,
+            detail = getString(R.string.setup_wizard_installing),
+            currentIndex = 2,
+            total = 2,
+            progress = null
+        )
+
+        val driverId = runCatching {
+            AdrenotoolsManager(this@SetupWizardActivity).installDriver(Uri.fromFile(downloaded))
+        }.getOrDefault("")
+        downloaded.delete()
+
+        if (driverId.isBlank()) {
+            throw IllegalStateException("unable to install ${driverSpec.label}")
+        }
+
+        recordInstalledDriver(this, driverId)
+        return driverId
     }
 
     private fun resolvePreferredContentVersion(
@@ -1355,26 +1583,16 @@ class SetupWizardActivity : FragmentActivity() {
     @Composable
     private fun SetupWizardScreen() {
         val page by pageIndex
-        val advanced = isAdvancedMode.value
         val scrollState = rememberScrollState()
-        val totalPages = if (advanced) 4 else 5
-        val pageTitle = when {
-            page == 0 -> stringResource(R.string.setup_wizard_required_access)
-            advanced && page == 1 -> stringResource(R.string.setup_wizard_select_components)
-            advanced && page == 2 -> stringResource(R.string.setup_wizard_default_settings)
-            advanced && page == 3 -> stringResource(R.string.stores_accounts_title)
-            !advanced && page == 1 -> stringResource(R.string.setup_wizard_recommended_components)
-            !advanced && page == 2 -> stringResource(R.string.setup_wizard_recommended_wine_proton)
-            !advanced && page == 3 -> stringResource(R.string.setup_wizard_default_settings)
-            else -> stringResource(R.string.stores_accounts_title)
+        val totalPages = 3
+        val pageTitle = when (page) {
+            0 -> stringResource(R.string.setup_wizard_required_access)
+            1 -> "Choose Setup"
+            else -> "Store Sign-in"
         }
-        val canGoNext = when {
-            page == 0 -> storageGranted.value && imageFsDone.value
-            page == 1 && !advanced -> recommendedComponentsDone.value && driversVisited.value
-            page == 1 && advanced -> true // Advanced components: always allow Next
-            page == 2 && !advanced -> x86ProtonDone.value && arm64ProtonDone.value
-            page == 2 && advanced -> true // Default settings in advanced: optional
-            page == 3 && !advanced -> defaultX86SettingsDone.value && defaultArmSettingsDone.value
+        val canGoNext = when (page) {
+            0 -> storageGranted.value && imageFsDone.value
+            1 -> oneClickSetupDone.value
             else -> true
         }
         val lastPage = totalPages - 1
@@ -1398,7 +1616,7 @@ class SetupWizardActivity : FragmentActivity() {
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Text(
-                            text = stringResource(if (advanced) R.string.setup_wizard_advanced_setup else R.string.setup_wizard_title),
+                            text = stringResource(R.string.setup_wizard_title),
                             color = Color(0xFFE6EDF3),
                             fontFamily = SyncopateFont,
                             fontSize = 18.sp,
@@ -1438,21 +1656,10 @@ class SetupWizardActivity : FragmentActivity() {
                         .verticalScroll(scrollState)
                         .widthIn(max = 720.dp)
                 ) {
-                    if (advanced) {
-                        when (page) {
-                            0 -> PagePermissions()
-                            1 -> PageAdvancedComponents()
-                            2 -> PageDefaultSettings()
-                            3 -> PageStores()
-                        }
-                    } else {
-                        when (page) {
-                            0 -> PagePermissions()
-                            1 -> PageComponents()
-                            2 -> PageWineAndProton()
-                            3 -> PageDefaultSettings()
-                            4 -> PageStores()
-                        }
+                    when (page) {
+                        0 -> PagePermissions()
+                        1 -> PageSetupChoice()
+                        2 -> PageStores()
                     }
 
                     wizardError.value?.let { message ->
@@ -1471,34 +1678,18 @@ class SetupWizardActivity : FragmentActivity() {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    if (page == 1 && !advanced) {
-                        OutlinedButton(
-                            onClick = { enterAdvancedMode() },
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = Color(0xFFE6EDF3)
-                            )
-                        ) {
-                            Text(stringResource(R.string.setup_wizard_advanced_user), fontFamily = InterFont)
-                        }
-                    } else {
-                        OutlinedButton(
-                            onClick = {
-                                if (page > 0) pageIndex.intValue -= 1
-                                else if (advanced) {
-                                    isAdvancedMode.value = false
-                                    pageIndex.intValue = 1
-                                }
-                            },
-                            enabled = page > 0 || advanced,
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = Color(0xFFE6EDF3),
-                                disabledContentColor = Color(0xFF6E7681)
-                            )
-                        ) {
-                            Text(stringResource(R.string.common_ui_back), fontFamily = InterFont)
-                        }
+                    OutlinedButton(
+                        onClick = {
+                            if (page > 0) pageIndex.intValue -= 1
+                        },
+                        enabled = page > 0,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color(0xFFE6EDF3),
+                            disabledContentColor = Color(0xFF6E7681)
+                        )
+                    ) {
+                        Text(stringResource(R.string.common_ui_back), fontFamily = InterFont)
                     }
 
                     if (page < lastPage) {
@@ -1530,6 +1721,42 @@ class SetupWizardActivity : FragmentActivity() {
                 TransferDialog(transfer)
             }
         }
+    }
+
+    @Composable
+    private fun PageSetupChoice() {
+        Text(
+            text = "Choose between a full automatic setup or jumping straight into the library.",
+            color = Color(0xFF8B949E),
+            fontFamily = InterFont,
+            fontSize = 13.sp
+        )
+        Spacer(Modifier.height(18.dp))
+
+        WizardActionCard(
+            title = "1 Click Setup",
+            subtitle = "Downloads and Installs Recommended Components.",
+            completed = oneClickSetupDone.value,
+            buttonLabel = when {
+                oneClickSetupDone.value -> stringResource(R.string.setup_wizard_ready)
+                oneClickSetupRunning.value -> stringResource(R.string.setup_wizard_installing)
+                else -> "Start"
+            },
+            onClick = { runOneClickSetup() },
+            enabled = transferState.value == null && !oneClickSetupRunning.value
+        )
+        Spacer(Modifier.height(12.dp))
+        WizardActionCard(
+            title = stringResource(R.string.setup_wizard_advanced_user),
+            subtitle = "Skips Setup.",
+            completed = false,
+            buttonLabel = "Open Library",
+            onClick = {
+                markSetupComplete(this)
+                launchApp()
+            },
+            enabled = transferState.value == null && !oneClickSetupRunning.value
+        )
     }
 
     @Composable
@@ -1897,7 +2124,7 @@ class SetupWizardActivity : FragmentActivity() {
         )
         Spacer(Modifier.height(12.dp))
         StoreActionCard(
-            name = "Amazon Games",
+            name = "Amazon",
             signedIn = false,
             accent = Color(0xFFFF9900),
             onClick = {},

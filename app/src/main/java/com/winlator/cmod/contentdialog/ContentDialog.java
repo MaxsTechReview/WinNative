@@ -12,6 +12,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.InputDevice;
 import android.view.KeyEvent;
+import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -116,6 +118,27 @@ public class ContentDialog extends Dialog {
     public void dismiss() {
         AppUtils.hideKeyboard(contentView);
         super.dismiss();
+    }
+
+    protected void requestTextInputFocus(EditText editText) {
+        if (editText == null) return;
+        editText.setFocusable(true);
+        editText.setFocusableInTouchMode(true);
+        editText.setCursorVisible(true);
+        editText.setClickable(true);
+        editText.setLongClickable(true);
+        if (getWindow() != null) {
+            getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE
+                    | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        }
+        setOnShowListener(dialog -> editText.post(() -> {
+            editText.requestFocus();
+            editText.setSelection(editText.getText().length());
+            InputMethodManager imm = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT);
+            }
+        }));
     }
 
     public View getInflatedLayout() {
@@ -231,6 +254,7 @@ public class ContentDialog extends Dialog {
         editText.setImeOptions(editText.getImeOptions() | android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         if (defaultText != null) editText.setText(defaultText);
         editText.setVisibility(View.VISIBLE);
+        dialog.requestTextInputFocus(editText);
 
         dialog.setTitle(titleResId);
         dialog.setOnConfirmCallback(() -> {
@@ -238,7 +262,6 @@ public class ContentDialog extends Dialog {
             if (!text.isEmpty()) callback.call(text);
         });
 
-        dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         dialog.show();
     }
 

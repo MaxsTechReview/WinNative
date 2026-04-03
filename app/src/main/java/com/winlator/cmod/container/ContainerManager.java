@@ -9,6 +9,7 @@ import com.winlator.cmod.R;
 import com.winlator.cmod.contents.ContentProfile;
 import com.winlator.cmod.contents.ContentsManager;
 import com.winlator.cmod.core.Callback;
+import com.winlator.cmod.core.DefaultVersion;
 import com.winlator.cmod.core.FileUtils;
 import com.winlator.cmod.core.MSLink;
 import com.winlator.cmod.core.OnExtractFileListener;
@@ -201,6 +202,7 @@ public class ContainerManager {
             String wineVersion = data.getString("wineVersion");
             Log.d("ContainerManager", "createContainer: wineVersion=" + wineVersion);
             container.setWineVersion(wineVersion);
+            normalizeContainerArchitectureSettings(container, WineInfo.fromIdentifier(context, contentsManager, wineVersion), false);
 
             if (!extractContainerPatternFile(container, container.getWineVersion(), contentsManager, containerDir, null)) {
                 Log.e("ContainerManager", "createContainer: extractContainerPatternFile FAILED for wineVersion=" + container.getWineVersion());
@@ -421,12 +423,70 @@ public class ContainerManager {
             }
             catch (JSONException e) {
                 Log.e("ContainerManager", "extractContainerPatternFile: extractCommonDlls failed", e);
-                // Don't fail the whole extraction just because of common DLLs — container is still usable
-                Log.w("ContainerManager", "extractContainerPatternFile: continuing despite extractCommonDlls failure");
+                if (wineInfo.isArm64EC()) {
+                    Log.e("ContainerManager", "extractContainerPatternFile: ARM64EC prefix missing required DLL supplementation");
+                    result = false;
+                } else {
+                    // Don't fail the whole extraction just because of common DLLs — container is still usable
+                    Log.w("ContainerManager", "extractContainerPatternFile: continuing despite extractCommonDlls failure");
+                }
             }
         }
    
         return result;
+    }
+
+    public boolean normalizeContainerArchitectureSettings(Container container, WineInfo wineInfo, boolean persist) {
+        if (container == null || wineInfo == null) return false;
+
+        boolean isArm64EC = wineInfo.isArm64EC();
+        boolean changed = false;
+
+        String normalizedEmulator = WineInfo.normalizeEmulatorSelection(isArm64EC, container.getEmulator(), false);
+        if (!normalizedEmulator.equalsIgnoreCase(container.getEmulator())) {
+            container.setEmulator(normalizedEmulator);
+            changed = true;
+        }
+
+        String normalizedEmulator64 = WineInfo.normalizeEmulatorSelection(isArm64EC, container.getEmulator64(), true);
+        if (!normalizedEmulator64.equalsIgnoreCase(container.getEmulator64())) {
+            container.setEmulator64(normalizedEmulator64);
+            changed = true;
+        }
+
+        if (isArm64EC) {
+            if (container.getBox64Version() == null || container.getBox64Version().isEmpty()) {
+                container.setBox64Version(DefaultVersion.WOWBOX64);
+                changed = true;
+            }
+            if (container.getFEXCoreVersion() == null || container.getFEXCoreVersion().isEmpty()) {
+                container.setFEXCoreVersion(DefaultVersion.FEXCORE);
+                changed = true;
+            }
+        } else if (container.getBox64Version() == null || container.getBox64Version().isEmpty()) {
+            container.setBox64Version(DefaultVersion.BOX64);
+            changed = true;
+        }
+
+        String storedPrefixArch = container.getExtra("wineprefixArch");
+        if (storedPrefixArch.isEmpty()) {
+            File prefixDir = container.getRootDir() != null ? new File(container.getRootDir(), ".wine") : null;
+            if (isArm64EC && prefixDir != null && prefixDir.isDirectory()) {
+                container.putExtra("wineprefixNeedsUpdate", "t");
+            } else {
+                container.putExtra("wineprefixArch", wineInfo.getArch());
+            }
+            changed = true;
+        } else if (!storedPrefixArch.equalsIgnoreCase(wineInfo.getArch())
+                && !"t".equalsIgnoreCase(container.getExtra("wineprefixNeedsUpdate"))) {
+            container.putExtra("wineprefixNeedsUpdate", "t");
+            changed = true;
+        }
+
+        if (changed && persist) {
+            container.saveData();
+        }
+        return changed;
     }
 
     public boolean repairContainerWinePrefix(Container container, String wineVersion, ContentsManager contentsManager, OnExtractFileListener onExtractFileListener) {
@@ -465,6 +525,7 @@ public class ContainerManager {
             }
 
             WineInfo wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersion);
+            normalizeContainerArchitectureSettings(container, wineInfo, false);
             container.putExtra("wineprefixArch", wineInfo.getArch());
             container.putExtra("wineprefixNeedsUpdate", null);
             container.putExtra("appVersion", null);

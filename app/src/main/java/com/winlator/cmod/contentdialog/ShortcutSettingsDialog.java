@@ -1030,14 +1030,26 @@ public class ShortcutSettingsDialog extends ContentDialog {
         WineInfo wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersionStr);
         if (wineInfo.isArm64EC()) {
             fexcoreFL.setVisibility(View.VISIBLE);
-            sEmulator.setSelection(2); // Wowbox64 for 32-bit
-            sEmulator64.setSelection(0); // FEXCore for 64-bit
-            sEmulator.setEnabled(false);
-            sEmulator64.setEnabled(false);
+            ContainerDetailFragment.updateEmulatorSpinnerOptions(
+                    context,
+                    sEmulator,
+                    true,
+                    false,
+                    getShortcutSettingValue("emulator", shortcut.container.getEmulator())
+            );
+            ContainerDetailFragment.updateEmulatorSpinnerOptions(
+                    context,
+                    sEmulator64,
+                    true,
+                    true,
+                    getShortcutSettingValue("emulator64", shortcut.container.getEmulator64())
+            );
+            sEmulator.setEnabled(true);
+            sEmulator64.setEnabled(true);
         } else {
             fexcoreFL.setVisibility(View.GONE);
-            sEmulator.setSelection(1);
-            sEmulator64.setSelection(1);
+            ContainerDetailFragment.updateEmulatorSpinnerOptions(context, sEmulator, false, false, "Box64");
+            ContainerDetailFragment.updateEmulatorSpinnerOptions(context, sEmulator64, false, true, "Box64");
             sEmulator.setEnabled(false);
             sEmulator64.setEnabled(false);
         }

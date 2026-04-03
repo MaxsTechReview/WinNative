@@ -902,6 +902,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
             startupSelection = String.valueOf(container.getStartupSelection());
         }
 
+        normalizeRuntimeSelectionsForCurrentWine();
+
         // Normalize at runtime only. Do not persist here to avoid silently overwriting
         // the version selected in container/shortcut settings on every launch.
         String preNormalizedDxwrapperConfig = dxwrapperConfig;
@@ -2893,6 +2895,60 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     private boolean isArm64ComponentVersion(String version) {
         return version != null && version.toLowerCase().contains("arm64ec");
+    }
+
+    private void normalizeRuntimeSelectionsForCurrentWine() {
+        if (container == null || wineInfo == null) return;
+
+        containerManager.normalizeContainerArchitectureSettings(container, wineInfo, true);
+
+        if (shortcut == null || shortcut.usesContainerDefaults()) return;
+
+        org.json.JSONObject shortcutExtras = shortcut.getExtraData();
+        boolean changed = false;
+        if (shortcutExtras != null && shortcutExtras.has("emulator")) {
+            String normalizedEmulator = WineInfo.normalizeEmulatorSelection(
+                    wineInfo.isArm64EC(),
+                    shortcut.getExtra("emulator", container.getEmulator()),
+                    false
+            );
+            if (!normalizedEmulator.equalsIgnoreCase(shortcut.getExtra("emulator", container.getEmulator()))) {
+                shortcut.putExtra("emulator", normalizedEmulator);
+                changed = true;
+            }
+        }
+
+        if (shortcutExtras != null && shortcutExtras.has("emulator64")) {
+            String normalizedEmulator64 = WineInfo.normalizeEmulatorSelection(
+                    wineInfo.isArm64EC(),
+                    shortcut.getExtra("emulator64", container.getEmulator64()),
+                    true
+            );
+            if (!normalizedEmulator64.equalsIgnoreCase(shortcut.getExtra("emulator64", container.getEmulator64()))) {
+                shortcut.putExtra("emulator64", normalizedEmulator64);
+                changed = true;
+            }
+        }
+
+        if (wineInfo.isArm64EC() && shortcutExtras != null && shortcutExtras.has("fexcoreVersion")) {
+            String normalizedFexcoreVersion = shortcut.getExtra("fexcoreVersion", container.getFEXCoreVersion());
+            if (normalizedFexcoreVersion.isEmpty()) {
+                shortcut.putExtra("fexcoreVersion", container.getFEXCoreVersion());
+                changed = true;
+            }
+        }
+
+        if (wineInfo.isArm64EC() && shortcutExtras != null && shortcutExtras.has("box64Version")) {
+            String normalizedWowbox64Version = shortcut.getExtra("box64Version", container.getBox64Version());
+            if (normalizedWowbox64Version.isEmpty()) {
+                shortcut.putExtra("box64Version", container.getBox64Version());
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            shortcut.saveData();
+        }
     }
 
     private void ensureWinePrefixReady() {

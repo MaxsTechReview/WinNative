@@ -292,7 +292,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         String fexcoreVersion = container.getFEXCoreVersion();
 
         // Null-safe fallback to defaults (handles legacy containers without these fields)
-        if (wowbox64Version == null || wowbox64Version.isEmpty()) wowbox64Version = DefaultVersion.BOX64;
+        if (wowbox64Version == null || wowbox64Version.isEmpty()) wowbox64Version = DefaultVersion.WOWBOX64;
         if (fexcoreVersion == null || fexcoreVersion.isEmpty()) fexcoreVersion = DefaultVersion.FEXCORE;
 
         if (shortcut != null) {
@@ -727,25 +727,30 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
         mergeExternalEnvVars(envVars, ld_preload, devInputDir.getAbsolutePath());
 
-        String emulator = container.getEmulator();
-        String emulator64 = container.getEmulator64();
-        if (shortcut != null) {
-            emulator = shortcut.getExtra("emulator", container.getEmulator());
-            emulator64 = shortcut.getExtra("emulator64", container.getEmulator64());
+        String normalizedContainerEmulator = WineInfo.normalizeEmulatorSelection(wineInfo.isArm64EC(), container.getEmulator(), false);
+        String normalizedContainerEmulator64 = WineInfo.normalizeEmulatorSelection(wineInfo.isArm64EC(), container.getEmulator64(), true);
+        boolean normalizedContainerState = false;
+        if (!normalizedContainerEmulator.equalsIgnoreCase(container.getEmulator())) {
+            container.setEmulator(normalizedContainerEmulator);
+            normalizedContainerState = true;
+        }
+        if (!normalizedContainerEmulator64.equalsIgnoreCase(container.getEmulator64())) {
+            container.setEmulator64(normalizedContainerEmulator64);
+            normalizedContainerState = true;
+        }
+        if (normalizedContainerState) {
+            container.saveData();
         }
 
-        // Force correct emulator based on architecture
-        if (wineInfo.isArm64EC()) {
-            // Arm64EC MUST use FEXCore
-            emulator = "FEXCore";
-            emulator64 = "FEXCore";
-            Log.d("GuestProgramLauncherComponent", "Arm64EC detected: forcing FEXCore for both emulators");
-        } else {
-            // x86_64 MUST use Box64
-            emulator = "Box64";
-            emulator64 = "Box64";
-            Log.d("GuestProgramLauncherComponent", "x86_64 detected: forcing Box64 for both emulators");
+        String emulator = normalizedContainerEmulator;
+        String emulator64 = normalizedContainerEmulator64;
+        if (shortcut != null) {
+            emulator = shortcut.getExtra("emulator", normalizedContainerEmulator);
+            emulator64 = shortcut.getExtra("emulator64", normalizedContainerEmulator64);
         }
+
+        emulator = WineInfo.normalizeEmulatorSelection(wineInfo.isArm64EC(), emulator, false);
+        emulator64 = WineInfo.normalizeEmulatorSelection(wineInfo.isArm64EC(), emulator64, true);
 
         Log.d("GuestProgramLauncherComponent", "=== EMULATOR SELECTION ===");
         Log.d("GuestProgramLauncherComponent", "Wine arch: " + wineInfo.getArch() + " isArm64EC: " + wineInfo.isArm64EC());
@@ -794,10 +799,11 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         } else {
             if (wineInfo.isArm64EC()) {
                 command = winePath + "/" + guestExecutable;
-                if ("fexcore".equalsIgnoreCase(selectedEmulator))
-                    envVars.put("HODLL", "libwow64fex.dll");
-                else
+                if ("fexcore".equalsIgnoreCase(selectedEmulator)) {
+                    envVars.put("HODLL", is64Bit ? "libarm64ecfex.dll" : "libwow64fex.dll");
+                } else {
                     envVars.put("HODLL", "wowbox64.dll");
+                }
             } else {
                 command = imageFs.getBinDir() + "/box64 " + guestExecutable;
             }

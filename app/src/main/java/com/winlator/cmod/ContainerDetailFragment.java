@@ -202,6 +202,23 @@ public class ContainerDetailFragment extends Fragment {
         spinner.setPopupBackgroundResource(R.drawable.content_popup_menu_background);
     }
 
+    public static List<String> getEmulatorEntriesForWine(boolean isArm64EC) {
+        if (isArm64EC) {
+            return new ArrayList<>(Arrays.asList("FEXCore", "Wowbox64"));
+        }
+        return new ArrayList<>(Arrays.asList("Box64"));
+    }
+
+    public static void updateEmulatorSpinnerOptions(Context context, Spinner spinner, boolean isArm64EC, boolean is64BitSlot, @Nullable String requestedValue) {
+        List<String> entries = getEmulatorEntriesForWine(isArm64EC);
+        spinner.setAdapter(createThemedAdapter(context, entries));
+        applyPopupBackground(spinner);
+        AppUtils.setSpinnerSelectionFromIdentifier(
+                spinner,
+                WineInfo.normalizeEmulatorSelection(isArm64EC, requestedValue, is64BitSlot)
+        );
+    }
+
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -2386,22 +2403,27 @@ public class ContainerDetailFragment extends Fragment {
                 
                 WineInfo wineInfo = WineInfo.fromIdentifier(context, contentsManager, selectedWineStr);
                 
-                sEmulator.setEnabled(false);
-                sEmulator64.setEnabled(false);
-                
                 if (wineInfo.isArm64EC()) {
                     fexcoreFL.setVisibility(View.VISIBLE);
-                    // Arm64EC: 64-bit uses FEXCore, 32-bit uses Wowbox64
-                    sEmulator.setSelection(2); // Wowbox64 for 32-bit
-                    sEmulator64.setSelection(0); // FEXCore for 64-bit
-                    Log.d(TAG, "Arm64EC wine selected: FEXCore for 64-bit, Wowbox64 for 32-bit");
+                    String requestedEmulator = selectedContainer != null ? selectedContainer.getEmulator() : container != null ? container.getEmulator() : null;
+                    String requestedEmulator64 = selectedContainer != null ? selectedContainer.getEmulator64() : container != null ? container.getEmulator64() : null;
+                    if (isShortcutMode() && shortcut != null && !shortcut.usesContainerDefaults()) {
+                        requestedEmulator = shortcut.getExtra("emulator", requestedEmulator);
+                        requestedEmulator64 = shortcut.getExtra("emulator64", requestedEmulator64);
+                    }
+                    updateEmulatorSpinnerOptions(context, sEmulator, true, false, requestedEmulator);
+                    updateEmulatorSpinnerOptions(context, sEmulator64, true, true, requestedEmulator64);
+                    sEmulator.setEnabled(true);
+                    sEmulator64.setEnabled(true);
+                    Log.d(TAG, "Arm64EC wine selected: enabling FEXCore/Wowbox64 emulator choices");
                 }
                 else {
                     fexcoreFL.setVisibility(View.GONE);
-                    // x86_64 containers MUST use Box64
-                    sEmulator.setSelection(1); // Box64
-                    sEmulator64.setSelection(1); // Box64
-                    Log.d(TAG, "x86_64 wine selected: forcing Box64 for both emulators");
+                    updateEmulatorSpinnerOptions(context, sEmulator, false, false, "Box64");
+                    updateEmulatorSpinnerOptions(context, sEmulator64, false, true, "Box64");
+                    sEmulator.setEnabled(false);
+                    sEmulator64.setEnabled(false);
+                    Log.d(TAG, "x86_64 wine selected: keeping Box64 for both emulators");
                 }
                 
                 // Trigger the emulator frames update
