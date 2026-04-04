@@ -24,12 +24,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -38,12 +37,16 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,6 +58,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.googlefonts.Font
@@ -68,6 +72,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.preference.PreferenceManager
 import com.winlator.cmod.container.Container
 import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.contents.AdrenotoolsManager
@@ -115,6 +120,8 @@ class SetupWizardActivity : FragmentActivity() {
         private const val KEY_LAST_DRIVER_ID = "last_driver_id"
         private const val KEY_LAST_CONTENT_PREFIX = "last_content_"
         private const val KEY_DEFAULT_JSON_CACHE = "default_json_cache"
+        private const val KEY_CONTENTS_JSON_CACHE = "contents_json_cache"
+        private const val KEY_ONE_CLICK_INSTALL_DONE = "one_click_install_done"
         private const val DEFAULT_JSON_URL =
             "https://github.com/MaxsTechReview/Components/blob/main/default.json"
 
@@ -435,12 +442,17 @@ class SetupWizardActivity : FragmentActivity() {
     private val wizardError = mutableStateOf<String?>(null)
     private val transferState = mutableStateOf<TransferState?>(null)
     private val storeLoginState = mutableStateOf(StoreLoginState())
+    private val oneClickCatalog = mutableStateListOf<RemotePackageSpec>()
+    private val selectedOneClickKeys = mutableStateListOf<String>()
+    private val recommendedOneClickKeys = mutableStateListOf<String>()
+    private val oneClickChooserOpen = mutableStateOf(false)
     private val advancedProfiles = mutableStateListOf<RemotePackageSpec>()
     private val advancedInstalledSet = mutableStateListOf<String>()
     private val advancedContainerNames = mutableStateListOf<String>()
 
     private var pendingContainerSettingsType: String? = null
     private var recommendedPackageRefreshInFlight = false
+    private var oneClickSelectionCustomized = false
 
     private val manageStorageLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -564,6 +576,7 @@ class SetupWizardActivity : FragmentActivity() {
         if (notificationsEnabled) notifDenied.value = false
         refreshWizardState()
         refreshRecommendedPackageCache()
+        refreshOneClickCatalog()
     }
 
     private fun refreshWizardState() {
@@ -581,6 +594,7 @@ class SetupWizardActivity : FragmentActivity() {
         if (recommendedComponentsDone.value) {
             preferences.edit().putBoolean(KEY_RECOMMENDED_COMPONENTS_DONE, true).apply()
         }
+        oneClickSetupDone.value = preferences.getBoolean(KEY_ONE_CLICK_INSTALL_DONE, false)
 
         driversVisited.value = preferences.getBoolean(KEY_DRIVERS_VISITED, false)
 
@@ -592,8 +606,6 @@ class SetupWizardActivity : FragmentActivity() {
 
         x86ProtonDone.value = x86Container != null
         arm64ProtonDone.value = armContainer != null
-        oneClickSetupDone.value =
-            recommendedComponentsDone.value && x86ProtonDone.value && arm64ProtonDone.value
         defaultX86ContainerName.value = x86Container?.name ?: ""
         defaultArmContainerName.value = armContainer?.name ?: ""
 
@@ -861,20 +873,58 @@ class SetupWizardActivity : FragmentActivity() {
         }
     }
 
-    private fun runOneClickSetup() {
-        if (transferState.value != null || oneClickSetupRunning.value || oneClickSetupDone.value) return
+    private fun runOneClickInstall() {
+        if (transferState.value != null || oneClickSetupRunning.value) return
 
         lifecycleScope.launch {
             wizardError.value = null
             oneClickSetupRunning.value = true
             val success = withContext(Dispatchers.IO) {
                 try {
+                    val latestCatalog = fetchAllAvailablePackages()
+                    val latestDefaults = fetchRecommendedPackages()
+                    withContext(Dispatchers.Main) {
+                        updateOneClickCatalog(latestCatalog, latestDefaults)
+                    }
+
+                    val selectedKeys = selectedOneClickKeys.toSet()
+                    val selectedSpecs = latestCatalog
+                        .filter { remotePackageKey(it) in selectedKeys }
+                        .sortedWith(
+                            compareBy<RemotePackageSpec> {
+                                when (it.type) {
+                                    ContentProfile.ContentType.CONTENT_TYPE_WINE,
+                                    ContentProfile.ContentType.CONTENT_TYPE_PROTON -> 1
+                                    else -> 0
+                                }
+                            }.thenBy { it.type.toString() }.thenBy { it.verName.lowercase() }
+                        )
+                    if (selectedSpecs.isEmpty()) {
+                        wizardError.value = "Select at least one component to install."
+                        return@withContext false
+                    }
+
                     val installedBundle = InstalledSetupBundle()
-                    val componentSpecs = resolveRecommendedComponentSpecs()
-                    componentSpecs.forEachIndexed { index, spec ->
-                        val profile = downloadAndInstallPackage(spec, index, componentSpecs.size)
+                    val runtimeProfiles = mutableListOf<Pair<RemotePackageSpec, ContentProfile>>()
+
+                    selectedSpecs.forEachIndexed { index, spec ->
+                        val profile = downloadAndInstallPackage(
+                            spec = PackageSpec(
+                                label = spec.verName,
+                                type = spec.type,
+                                url = spec.remoteUrl,
+                                nameHint = spec.verName
+                            ),
+                            index = index,
+                            total = selectedSpecs.size
+                        )
                         if (profile == null) return@withContext false
                         installedBundle.addProfile(profile)
+                        if (profile.type == ContentProfile.ContentType.CONTENT_TYPE_WINE ||
+                            profile.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON
+                        ) {
+                            runtimeProfiles += spec to profile
+                        }
                     }
                     prefs(this@SetupWizardActivity).edit()
                         .putBoolean(KEY_RECOMMENDED_COMPONENTS_DONE, true)
@@ -890,20 +940,43 @@ class SetupWizardActivity : FragmentActivity() {
                             wizardError.value = "Driver auto-install skipped: ${e.message}"
                         }
 
-                    val x86Container = installRecommendedRuntimeInternal(x86ProtonSpec)
-                        ?: return@withContext false
-                    val arm64Container = installRecommendedRuntimeInternal(arm64ProtonSpec)
-                        ?: return@withContext false
+                    val latestDefaultKeys = latestDefaults.map(::remotePackageKey).toSet()
+                    var selectedDefaultX86 = false
+                    var selectedDefaultArm64 = false
 
-                    applyRecommendedContainerDefaults(x86Container, installedBundle)
-                    applyRecommendedContainerDefaults(arm64Container, installedBundle)
+                    runtimeProfiles.forEach { (spec, profile) ->
+                        val container = ensureContainerForProfile(profile)
+                        applyRecommendedContainerDefaults(container, installedBundle)
+
+                        val wineInfo = WineInfo.fromIdentifier(
+                            this@SetupWizardActivity,
+                            ContentsManager(this@SetupWizardActivity).also { it.syncContents() },
+                            container.wineVersion
+                        )
+                        val isArm64 = wineInfo.isArm64EC
+                        val isDefaultRuntime = remotePackageKey(spec) in latestDefaultKeys
+
+                        if (isArm64) {
+                            if (isDefaultRuntime || !selectedDefaultArm64) {
+                                saveDefaultArm64ContainerId(this@SetupWizardActivity, container.id)
+                                selectedDefaultArm64 = true
+                            }
+                        } else {
+                            if (isDefaultRuntime || !selectedDefaultX86) {
+                                saveDefaultX86ContainerId(this@SetupWizardActivity, container.id)
+                                selectedDefaultX86 = true
+                            }
+                        }
+                    }
+
                     prefs(this@SetupWizardActivity).edit()
-                        .putBoolean(KEY_DEFAULT_X86_SETTINGS_DONE, true)
-                        .putBoolean(KEY_DEFAULT_ARM64_SETTINGS_DONE, true)
+                        .putBoolean(KEY_ONE_CLICK_INSTALL_DONE, true)
+                        .putBoolean(KEY_DEFAULT_X86_SETTINGS_DONE, x86ProtonDone.value || selectedDefaultX86)
+                        .putBoolean(KEY_DEFAULT_ARM64_SETTINGS_DONE, arm64ProtonDone.value || selectedDefaultArm64)
                         .apply()
                     true
                 } catch (e: Exception) {
-                    wizardError.value = "1 Click Setup failed: ${e.message}"
+                    wizardError.value = "1 Click Install failed: ${e.message}"
                     false
                 } finally {
                     transferState.value = null
@@ -913,7 +986,8 @@ class SetupWizardActivity : FragmentActivity() {
             oneClickSetupRunning.value = false
             refreshWizardState()
             if (success) {
-                pageIndex.intValue = 2
+                markSetupComplete(this@SetupWizardActivity)
+                launchApp()
             }
         }
     }
@@ -979,7 +1053,7 @@ class SetupWizardActivity : FragmentActivity() {
         downloaded.delete()
         if (profile == null) return null
 
-        val container = ensureContainerForProfile(profile, spec.containerDisplayName(profile))
+        val container = ensureContainerForProfile(profile)
         spec.persistContainerId(this@SetupWizardActivity, container.id)
         return container
     }
@@ -1098,12 +1172,8 @@ class SetupWizardActivity : FragmentActivity() {
     }
 
     private fun fetchRecommendedPackages(): List<RemotePackageSpec> {
-        val json = Downloader.downloadString(resolveJsonDownloadUrl(DEFAULT_JSON_URL))
-        if (!json.isNullOrBlank()) {
-            prefs(this).edit().putString(KEY_DEFAULT_JSON_CACHE, json).apply()
-            return parseRecommendedPackages(json)
-        }
-        return getCachedRecommendedPackages()
+        val json = fetchJsonWithCache(DEFAULT_JSON_URL, KEY_DEFAULT_JSON_CACHE)
+        return parseRecommendedPackages(json)
     }
 
     private fun refreshRecommendedPackageCache() {
@@ -1125,6 +1195,96 @@ class SetupWizardActivity : FragmentActivity() {
     private fun getCachedRecommendedPackages(): List<RemotePackageSpec> {
         val cachedJson = prefs(this).getString(KEY_DEFAULT_JSON_CACHE, null)
         return parseRecommendedPackages(cachedJson)
+    }
+
+    private fun fetchAllAvailablePackages(): List<RemotePackageSpec> {
+        val json = fetchJsonWithCache(resolveContentsJsonUrl(), KEY_CONTENTS_JSON_CACHE)
+        return parseRecommendedPackages(json)
+            .distinctBy(::remotePackageKey)
+    }
+
+    private fun resolveContentsJsonUrl(): String {
+        val preferences = PreferenceManager.getDefaultSharedPreferences(this)
+        return preferences.getString("downloadable_contents_url", ContentsManager.REMOTE_PROFILES)
+            ?: ContentsManager.REMOTE_PROFILES
+    }
+
+    private fun fetchJsonWithCache(url: String, cacheKey: String): String? {
+        val resolvedUrl = resolveJsonDownloadUrl(url)
+        val candidates = buildList {
+            add(resolvedUrl)
+            alternateContentsJsonUrl(resolvedUrl)?.let(::add)
+        }.distinct()
+
+        candidates.forEach { candidate ->
+            val json = Downloader.downloadString(candidate)
+            if (!json.isNullOrBlank() && !json.trimStart().startsWith("404")) {
+                prefs(this).edit().putString(cacheKey, json).apply()
+                return json
+            }
+        }
+
+        return prefs(this).getString(cacheKey, null)
+    }
+
+    private fun alternateContentsJsonUrl(url: String): String? {
+        return when {
+            url.endsWith("/content.json", ignoreCase = true) ->
+                url.removeSuffix("content.json") + "contents.json"
+            url.endsWith("/contents.json", ignoreCase = true) ->
+                url.removeSuffix("contents.json") + "content.json"
+            else -> null
+        }
+    }
+
+    private fun refreshOneClickCatalog() {
+        lifecycleScope.launch {
+            val catalog = withContext(Dispatchers.IO) { fetchAllAvailablePackages() }
+            val defaults = withContext(Dispatchers.IO) { fetchRecommendedPackages() }
+            updateOneClickCatalog(catalog, defaults)
+        }
+    }
+
+    private fun updateOneClickCatalog(
+        catalog: List<RemotePackageSpec>,
+        defaults: List<RemotePackageSpec>
+    ) {
+        oneClickCatalog.clear()
+        oneClickCatalog.addAll(
+            catalog.sortedWith(
+                compareBy<RemotePackageSpec> { it.type.toString() }
+                    .thenBy { it.verName.lowercase() }
+            )
+        )
+
+        recommendedOneClickKeys.clear()
+        recommendedOneClickKeys.addAll(defaults.map(::remotePackageKey).distinct())
+
+        if (!oneClickSelectionCustomized || selectedOneClickKeys.isEmpty()) {
+            selectedOneClickKeys.clear()
+            selectedOneClickKeys.addAll(
+                oneClickCatalog.map(::remotePackageKey).filter { it in recommendedOneClickKeys }
+            )
+        } else {
+            val availableKeys = oneClickCatalog.map(::remotePackageKey).toSet()
+            val retainedSelection = selectedOneClickKeys.filter { it in availableKeys }
+            selectedOneClickKeys.clear()
+            selectedOneClickKeys.addAll(retainedSelection)
+        }
+    }
+
+    private fun setOneClickItemSelected(spec: RemotePackageSpec, selected: Boolean) {
+        val key = remotePackageKey(spec)
+        if (selected) {
+            if (key !in selectedOneClickKeys) selectedOneClickKeys.add(key)
+        } else {
+            selectedOneClickKeys.remove(key)
+        }
+        oneClickSelectionCustomized = true
+    }
+
+    private fun remotePackageKey(spec: RemotePackageSpec): String {
+        return "${spec.type}|${normalizeVersionToken(spec.verName)}|${spec.remoteUrl}"
     }
 
     private fun getCachedRecommendedComponentSpecs(): List<PackageSpec> {
@@ -1722,7 +1882,7 @@ class SetupWizardActivity : FragmentActivity() {
     @Composable
     private fun PageSetupChoice() {
         Text(
-            text = "Choose between a full automatic setup or jumping straight into the library.",
+            text = "Step 2 replaces the old Recommended Components and Drivers actions with one automatic install flow or a direct skip to Library.",
             color = Color(0xFF8B949E),
             fontFamily = InterFont,
             fontSize = 13.sp
@@ -1730,16 +1890,37 @@ class SetupWizardActivity : FragmentActivity() {
         Spacer(Modifier.height(18.dp))
 
         WizardActionCard(
-            title = "1 Click Setup",
-            subtitle = "Downloads and Installs Recommended Components.",
-            completed = oneClickSetupDone.value,
-            buttonLabel = when {
-                oneClickSetupDone.value -> stringResource(R.string.setup_wizard_ready)
-                oneClickSetupRunning.value -> stringResource(R.string.setup_wizard_installing)
-                else -> "Start"
+            title = "1 Click Install",
+            subtitle = if (oneClickSetupDone.value) {
+                "Install finished. You can change the selection and run it again."
+            } else if (selectedOneClickKeys.isEmpty()) {
+                "Choose components with the gear, then install everything selected."
+            } else {
+                "${selectedOneClickKeys.size} selected from the live remote catalog."
             },
-            onClick = { runOneClickSetup() },
-            enabled = transferState.value == null && !oneClickSetupRunning.value
+            completed = false,
+            buttonLabel = when {
+                oneClickSetupRunning.value -> stringResource(R.string.setup_wizard_installing)
+                else -> "Install"
+            },
+            onClick = { runOneClickInstall() },
+            enabled = transferState.value == null && !oneClickSetupRunning.value && selectedOneClickKeys.isNotEmpty(),
+            trailingContent = {
+                IconButton(
+                    onClick = {
+                        oneClickChooserOpen.value = true
+                        refreshOneClickCatalog()
+                    },
+                    enabled = transferState.value == null && !oneClickSetupRunning.value
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.icon_settings),
+                        contentDescription = "Configure 1 Click Install",
+                        tint = Color(0xFFE6EDF3),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         )
         Spacer(Modifier.height(12.dp))
         WizardActionCard(
@@ -1752,6 +1933,115 @@ class SetupWizardActivity : FragmentActivity() {
                 launchApp()
             },
             enabled = transferState.value == null && !oneClickSetupRunning.value
+        )
+
+        if (oneClickChooserOpen.value) {
+            OneClickChooserDialog()
+        }
+    }
+
+    @Composable
+    private fun OneClickChooserDialog() {
+        val scrollState = rememberScrollState()
+        val availableKeys = oneClickCatalog.map(::remotePackageKey).toSet()
+
+        AlertDialog(
+            onDismissRequest = { oneClickChooserOpen.value = false },
+            confirmButton = {
+                TextButton(onClick = { oneClickChooserOpen.value = false }) {
+                    Text("Done", color = Color(0xFF57CBDE), fontFamily = InterFont)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        oneClickSelectionCustomized = false
+                        selectedOneClickKeys.clear()
+                        selectedOneClickKeys.addAll(
+                            oneClickCatalog.map(::remotePackageKey).filter { it in recommendedOneClickKeys }
+                        )
+                    }
+                ) {
+                    Text("Reset", color = Color(0xFF8B949E), fontFamily = InterFont)
+                }
+            },
+            title = {
+                Text(
+                    text = "1 Click Install",
+                    fontFamily = InterFont,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFE6EDF3)
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Live remote list from contents. Latest defaults are preselected when available.",
+                        fontFamily = InterFont,
+                        color = Color(0xFF8B949E),
+                        fontSize = 13.sp
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    if (oneClickCatalog.isEmpty()) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color(0xFF57CBDE),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 420.dp)
+                                .verticalScroll(scrollState)
+                        ) {
+                            oneClickCatalog.forEach { spec ->
+                                val key = remotePackageKey(spec)
+                                val checked = key in selectedOneClickKeys
+                                val recommended = key in recommendedOneClickKeys
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { setOneClickItemSelected(spec, !checked) }
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Checkbox(
+                                        checked = checked,
+                                        onCheckedChange = { setOneClickItemSelected(spec, it) }
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = spec.verName,
+                                            color = Color(0xFFE6EDF3),
+                                            fontFamily = InterFont,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (recommended) FontWeight.SemiBold else FontWeight.Normal
+                                        )
+                                        Text(
+                                            text = if (recommended) "${spec.type} • recommended" else spec.type.toString(),
+                                            color = if (recommended) Color(0xFF3FB950) else Color(0xFF8B949E),
+                                            fontFamily = InterFont,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (selectedOneClickKeys.any { it !in availableKeys }) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "Some previously selected entries are no longer available in the latest remote list.",
+                            color = Color(0xFFFF7B72),
+                            fontFamily = InterFont,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            },
+            containerColor = Color(0xFF161B22),
+            shape = RoundedCornerShape(18.dp)
         )
     }
 
@@ -2136,7 +2426,8 @@ class SetupWizardActivity : FragmentActivity() {
         completed: Boolean,
         buttonLabel: String,
         onClick: () -> Unit,
-        enabled: Boolean = true
+        enabled: Boolean = true,
+        trailingContent: (@Composable () -> Unit)? = null
     ) {
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -2167,6 +2458,8 @@ class SetupWizardActivity : FragmentActivity() {
                         fontSize = 12.sp
                     )
                 }
+
+                trailingContent?.invoke()
 
                 Button(
                     onClick = onClick,
@@ -2333,10 +2626,15 @@ fun runtimeDisplayLabel(profile: ContentProfile): String {
         ContentProfile.ContentType.CONTENT_TYPE_PROTON -> "Proton"
         else -> profile.type.toString()
     }
-    val version = Regex("(?i)(?:wine|proton)-([0-9]+(?:\\.[0-9]+)?)")
-        .find(profile.verName)
-        ?.groupValues
-        ?.getOrNull(1)
-        ?: profile.verName
+    val version = runtimeVersionLabel(profile)
     return "$prefix $version"
+}
+
+private fun normalizeVersionToken(value: String?): String {
+    return value
+        ?.trim()
+        ?.replace(Regex("[^A-Za-z0-9]+"), " ")
+        ?.replace(Regex("\\s+"), " ")
+        ?.lowercase()
+        ?: ""
 }

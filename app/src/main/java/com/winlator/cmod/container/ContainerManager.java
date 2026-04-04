@@ -9,6 +9,7 @@ import com.winlator.cmod.R;
 import com.winlator.cmod.contents.ContentProfile;
 import com.winlator.cmod.contents.ContentsManager;
 import com.winlator.cmod.core.Callback;
+import com.winlator.cmod.core.DefaultVersion;
 import com.winlator.cmod.core.FileUtils;
 import com.winlator.cmod.core.MSLink;
 import com.winlator.cmod.core.OnExtractFileListener;
@@ -342,6 +343,31 @@ public class ContainerManager {
         return null;
     }
 
+    public void normalizeContainerArchitectureSettings(Container container, WineInfo wineInfo, boolean persist) {
+        if (container == null || wineInfo == null) return;
+
+        boolean isArm64EC = wineInfo.isArm64EC();
+        container.setEmulator(WineInfo.normalizeEmulatorSelection(isArm64EC, container.getEmulator(), false));
+        container.setEmulator64(WineInfo.normalizeEmulatorSelection(isArm64EC, container.getEmulator64(), true));
+        container.putExtra("wineprefixArch", wineInfo.getArch());
+
+        if (isArm64EC) {
+            String box64Version = container.getBox64Version();
+            if (box64Version == null || box64Version.isEmpty() || DefaultVersion.BOX64.equalsIgnoreCase(box64Version)) {
+                container.setBox64Version(DefaultVersion.WOWBOX64);
+            }
+        } else {
+            String box64Version = container.getBox64Version();
+            if (box64Version == null || box64Version.isEmpty() || DefaultVersion.WOWBOX64.equalsIgnoreCase(box64Version)) {
+                container.setBox64Version(DefaultVersion.BOX64);
+            }
+        }
+
+        if (persist) {
+            container.saveData();
+        }
+    }
+
     private void extractCommonDlls(WineInfo wineInfo, String srcName, String dstName, File containerDir, OnExtractFileListener onExtractFileListener) throws JSONException {
         File srcDir = new File(wineInfo.path + "/lib/wine/" + srcName);
 
@@ -363,6 +389,31 @@ public class ContainerManager {
             FileUtils.copy(file, dstFile);
             }
         }
+    }
+
+    private boolean extractPrefixPackCandidates(File installDir, String preferredPrefixPackName, File containerDir) {
+        if (installDir == null || !installDir.exists()) return false;
+
+        ArrayList<String> candidates = new ArrayList<>();
+        if (preferredPrefixPackName != null && !preferredPrefixPackName.isEmpty()) {
+            candidates.add(preferredPrefixPackName);
+        }
+        if (!candidates.contains("prefixPack.tzst")) candidates.add("prefixPack.tzst");
+        if (!candidates.contains("prefixPack.txz")) candidates.add("prefixPack.txz");
+
+        for (String candidate : candidates) {
+            File prefixPackFile = new File(installDir, candidate);
+            Log.d("ContainerManager", "extractContainerPatternFile: trying prefix pack candidate: " + prefixPackFile.getAbsolutePath() + " exists=" + prefixPackFile.exists());
+            if (!prefixPackFile.exists()) continue;
+
+            boolean result = prefixPackFile.getName().endsWith(".tzst")
+                    ? TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, prefixPackFile, containerDir)
+                    : TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, prefixPackFile, containerDir);
+            Log.d("ContainerManager", "extractContainerPatternFile: prefix pack candidate result=" + result);
+            if (result) return true;
+        }
+
+        return false;
     }
 
     public boolean extractContainerPatternFile(Container container, String wineVersion, ContentsManager contentsManager, File containerDir, OnExtractFileListener onExtractFileListener) {
@@ -387,42 +438,13 @@ public class ContainerManager {
                 // for custom installed protons, unlike wineInfo.path which may fall back to default
                 File profileInstallDir = ContentsManager.getInstallDir(context, profile);
                 Log.d("ContainerManager", "extractContainerPatternFile: profileInstallDir=" + profileInstallDir.getAbsolutePath() + " exists=" + profileInstallDir.exists());
-
-                File containerPatternFile;
-                if (profile.winePrefixPack != null && !profile.winePrefixPack.isEmpty()) {
-                    containerPatternFile = new File(profileInstallDir, profile.winePrefixPack);
-                } else {
-                    containerPatternFile = new File(profileInstallDir, "prefixPack.txz");
-                }
-                Log.d("ContainerManager", "extractContainerPatternFile: trying profile prefix pack: " + containerPatternFile.getAbsolutePath() + " exists=" + containerPatternFile.exists());
-
-                if (containerPatternFile.exists()) {
-                    if (containerPatternFile.getName().endsWith(".tzst")) {
-                        result = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, containerPatternFile, containerDir);
-                    } else {
-                        result = TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, containerPatternFile, containerDir);
-                    }
-                    Log.d("ContainerManager", "extractContainerPatternFile: profile prefix pack extraction result=" + result);
-                }
+                result = extractPrefixPackCandidates(profileInstallDir, profile.winePrefixPack, containerDir);
             }
 
             // Also try from wineInfo.path as a secondary fallback (for bundled non-asset protons)
             if (!result && wineInfo != null && wineInfo.path != null && !wineInfo.path.isEmpty()) {
-                File wineInfoPrefixPack;
-                if (profile != null && profile.winePrefixPack != null && !profile.winePrefixPack.isEmpty()) {
-                    wineInfoPrefixPack = new File(wineInfo.path, profile.winePrefixPack);
-                } else {
-                    wineInfoPrefixPack = new File(wineInfo.path, "prefixPack.txz");
-                }
-                Log.d("ContainerManager", "extractContainerPatternFile: trying wineInfo.path fallback: " + wineInfoPrefixPack.getAbsolutePath() + " exists=" + wineInfoPrefixPack.exists());
-                if (wineInfoPrefixPack.exists()) {
-                    if (wineInfoPrefixPack.getName().endsWith(".tzst")) {
-                        result = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, wineInfoPrefixPack, containerDir);
-                    } else {
-                        result = TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, wineInfoPrefixPack, containerDir);
-                    }
-                    Log.d("ContainerManager", "extractContainerPatternFile: wineInfo.path fallback extraction result=" + result);
-                }
+                String preferredPrefixPackName = profile != null ? profile.winePrefixPack : null;
+                result = extractPrefixPackCandidates(new File(wineInfo.path), preferredPrefixPackName, containerDir);
             }
         }
 

@@ -203,6 +203,35 @@ public class ContainerDetailFragment extends Fragment {
         return StringUtils.parseIdentifier(spinner.getSelectedItem());
     }
 
+    public static void updateEmulatorSpinnerOptions(
+            Context context,
+            Spinner spinner,
+            boolean isArm64EC,
+            boolean is64BitSlot,
+            @Nullable String preferredValue
+    ) {
+        if (spinner == null) return;
+
+        java.util.List<String> items;
+        if (isArm64EC) {
+            items = is64BitSlot
+                    ? java.util.Collections.singletonList("FEXCore")
+                    : java.util.Arrays.asList("FEXCore", "Wowbox64");
+        } else {
+            items = java.util.Collections.singletonList("Box64");
+        }
+
+        String selectedValue = WineInfo.normalizeEmulatorSelection(
+                isArm64EC,
+                preferredValue,
+                is64BitSlot
+        );
+
+        spinner.setAdapter(createThemedAdapter(context, items));
+        applyPopupBackground(spinner);
+        AppUtils.setSpinnerSelectionFromIdentifier(spinner, selectedValue);
+    }
+
     private void configureEmulatorSpinners(View view, boolean isArm64EC, @Nullable String preferred32, @Nullable String preferred64) {
         Spinner sEmulator = view.findViewById(R.id.SEmulator);
         Spinner sEmulator64 = view.findViewById(R.id.SEmulator64);
@@ -210,35 +239,11 @@ public class ContainerDetailFragment extends Fragment {
 
         Context context = view.getContext();
 
-        java.util.List<String> emulator32Items = isArm64EC
-                ? java.util.Arrays.asList("FEXCore", "Wowbox64")
-                : java.util.Collections.singletonList("Box64");
-        java.util.List<String> emulator64Items = isArm64EC
-                ? java.util.Collections.singletonList("FEXCore")
-                : java.util.Collections.singletonList("Box64");
-
         String selected32 = preferred32 != null ? preferred32 : getSpinnerSelectedIdentifier(sEmulator, Container.DEFAULT_EMULATOR);
         String selected64 = preferred64 != null ? preferred64 : getSpinnerSelectedIdentifier(sEmulator64, Container.DEFAULT_EMULATOR64);
 
-        if (isArm64EC) {
-            if (!selected32.equalsIgnoreCase("fexcore") && !selected32.equalsIgnoreCase("wowbox64")) {
-                selected32 = Container.DEFAULT_EMULATOR;
-            }
-            if (!selected64.equalsIgnoreCase("fexcore")) {
-                selected64 = Container.DEFAULT_EMULATOR64;
-            }
-        } else {
-            selected32 = "Box64";
-            selected64 = "Box64";
-        }
-
-        sEmulator.setAdapter(createThemedAdapter(context, emulator32Items));
-        applyPopupBackground(sEmulator);
-        AppUtils.setSpinnerSelectionFromIdentifier(sEmulator, selected32);
-
-        sEmulator64.setAdapter(createThemedAdapter(context, emulator64Items));
-        applyPopupBackground(sEmulator64);
-        AppUtils.setSpinnerSelectionFromIdentifier(sEmulator64, selected64);
+        updateEmulatorSpinnerOptions(context, sEmulator, isArm64EC, false, selected32);
+        updateEmulatorSpinnerOptions(context, sEmulator64, isArm64EC, true, selected64);
 
         sEmulator.setEnabled(isArm64EC);
         sEmulator64.setEnabled(isArm64EC);
