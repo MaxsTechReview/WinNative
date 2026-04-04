@@ -99,9 +99,10 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
     public void onDrawFrame(GL10 gl) {
         if (cpuSaverMode) {
             drawFrameOptimized();
-            return;
+        } else {
+            drawFrame();
         }
-        drawFrame();
+        xServer.windowManager.triggerOnFramePresented(null);
     }
 
     public void drawFrame() {

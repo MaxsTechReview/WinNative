@@ -439,10 +439,10 @@ public class FrameRating extends LinearLayout implements Runnable {
         String r = renderer.toLowerCase();
         if (r.contains("turnip")) {
             this.rendererName = "Turnip";
-        } else if (r.contains("dxvk")) {
-            this.rendererName = "DXVK";
         } else if (r.contains("vkd3d")) {
             this.rendererName = "VKD3D";
+        } else if (r.contains("dxvk")) {
+            this.rendererName = "DXVK";
         } else if (r.contains("virgl")) {
             this.rendererName = "VirGL";
         } else if (r.contains("zink")) {
@@ -499,6 +499,9 @@ public class FrameRating extends LinearLayout implements Runnable {
                 this.gpuName = clean;
                 post(this::updateRendererText);
             }
+        } else {
+            this.gpuName = null;
+            detectGpuNameFromSysfs();
         }
     }
 
@@ -551,6 +554,10 @@ public class FrameRating extends LinearLayout implements Runnable {
     public void reset() {
         this.frameCount = 0;
         this.lastTime = 0L;
+        this.lastFrameNano = 0L;
+        this.lastFPS = 0.0f;
+        this.currentMs = 0.0f;
+        post(this);
     }
 
     public void setGpuLoad(int load) {
@@ -823,6 +830,13 @@ public class FrameRating extends LinearLayout implements Runnable {
     @Override
     public void run() {
         if (getVisibility() != View.VISIBLE) return;
+
+        // Watchdog: reset FPS if no frames arrived for > 1.5s
+        long nowNano = System.nanoTime();
+        if (this.lastFrameNano > 0 && nowNano - this.lastFrameNano > 1500000000L) {
+            this.lastFPS = 0.0f;
+            this.currentMs = 0.0f;
+        }
         
         if (this.enableGpu && this.tvGpuLoad != null) {
             SpannableStringBuilder b = new SpannableStringBuilder();
