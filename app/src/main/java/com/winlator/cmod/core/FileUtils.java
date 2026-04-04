@@ -425,7 +425,20 @@ public abstract class FileUtils {
         String displayName = null;
 
         try {
-            if (DocumentsContract.isDocumentUri(context, uri)) {
+            if (DocumentsContract.isTreeUri(uri)) {
+                String treeDocId = DocumentsContract.getTreeDocumentId(uri);
+                String[] split = treeDocId.split(":", 2);
+                String volume = split[0];
+                String path = split.length > 1 ? split[1] : "";
+
+                if ("primary".equalsIgnoreCase(volume)) {
+                    filePath = Environment.getExternalStorageDirectory() + (path.isEmpty() ? "" : "/" + path);
+                } else if (split.length == 2) {
+                    filePath = "/storage/" + volume + (path.isEmpty() ? "" : "/" + path);
+                }
+            }
+
+            if (filePath == null && DocumentsContract.isDocumentUri(context, uri)) {
                 String docId = DocumentsContract.getDocumentId(uri);
                 String[] split = docId.split(":", 2);
                 String volume = split[0];

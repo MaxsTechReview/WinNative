@@ -122,43 +122,6 @@ public class DXVKConfigDialog extends ContentDialog {
             }
         });
 
-        sVKD3DVersion.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                Object selectedItem = sVKD3DVersion.getSelectedItem();
-                String selectedVersion = selectedItem != null ? selectedItem.toString() : "None";
-                String currentDXVKVersion = config.get("version");
-
-                if (!selectedVersion.equals("None")) {
-                    ArrayList<String> filteredVersions = new ArrayList<>();
-
-                    for (int i = 0; i < dxvkVersions.size(); i++) {
-                        Integer major = tryGetMajor(dxvkVersions.get(i));
-                        if (major == null || major >= 2) {
-                            filteredVersions.add(dxvkVersions.get(i));
-                        }
-                    }
-
-                    AppUtils.setupThemedSpinner(sDXVKVersion, context, filteredVersions);
-
-                    Integer curMajor = tryGetMajor(currentDXVKVersion);
-                    AppUtils.setSpinnerSelectionFromIdentifier(
-                            sDXVKVersion,
-                            (curMajor != null && curMajor >= 2) ? currentDXVKVersion : DefaultVersion.DXVK
-                    );
-                    updateConfigVisibility(getDXVKType(sDXVKVersion.getSelectedItemPosition()));
-                }
-                else {
-                    loadDxvkVersionSpinner(contentsManager, sDXVKVersion, isARM64EC);
-                    AppUtils.setSpinnerSelectionFromIdentifier(sDXVKVersion, config.get("version"));
-                }
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-            }
-        });
-
         setOnConfirmCallback(() -> {
             config.put("version", sDXVKVersion.getSelectedItem() != null ? sDXVKVersion.getSelectedItem().toString() : DefaultVersion.DXVK);
             config.put("framerate", sFramerate.getSelectedItem() != null ? StringUtils.parseNumber(sFramerate.getSelectedItem()) : "0");
@@ -201,28 +164,8 @@ public class DXVKConfigDialog extends ContentDialog {
     }
 
     private void setDXVKSpinner(Spinner sDXVKVersion, KeyValueSet config, ContentsManager contentsManager, boolean isARM64EC) {
-        String selectedVersion = config.get("vkd3dVersion");
         String currentDXVKVersion = config.get("version");
-        if (!selectedVersion.equals("None")) {
-            ArrayList<String> filteredVersions = new ArrayList<>();
-
-            for (int i = 0; i < dxvkVersions.size(); i++) {
-                Integer major = tryGetMajor(dxvkVersions.get(i));
-                if (major == null || major >= 2) {
-                    filteredVersions.add(dxvkVersions.get(i));
-                }
-            }
-
-            AppUtils.setupThemedSpinner(sDXVKVersion, context, filteredVersions);
-
-            Integer curMajor = tryGetMajor(currentDXVKVersion);
-            AppUtils.setSpinnerSelectionFromIdentifier(
-                    sDXVKVersion,
-                    (curMajor != null && curMajor >= 2) ? currentDXVKVersion : DefaultVersion.DXVK
-            );
-        }
-        else
-            AppUtils.setSpinnerSelectionFromIdentifier(sDXVKVersion, currentDXVKVersion);
+        AppUtils.setSpinnerSelectionFromIdentifier(sDXVKVersion, currentDXVKVersion);
     }
 
     public static KeyValueSet parseConfig(Object config) {

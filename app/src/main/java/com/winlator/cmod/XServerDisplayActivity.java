@@ -78,6 +78,7 @@ import com.winlator.cmod.core.RefreshRateUtils;
 import com.winlator.cmod.core.StringUtils;
 import com.winlator.cmod.core.TarCompressorUtils;
 import com.winlator.cmod.core.WineInfo;
+import com.winlator.cmod.core.WineUtils;
 import com.winlator.cmod.core.WineRegistryEditor;
 import com.winlator.cmod.core.WineRequestHandler;
 import com.winlator.cmod.core.WineStartMenuCreator;
@@ -774,14 +775,13 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 }
             }
 
-            // Only custom-installed shortcuts should remount A: to a game directory.
+            // Custom-imported games should launch from the container's normal drive mapping
+            // (typically D:) instead of forcing an A: remount.
             String gameSource = shortcut.getExtra("game_source");
             if ("CUSTOM".equals(gameSource)) {
+                removeCustomADriveMapping(container);
                 String customMountPath = resolveCustomMountPath(shortcut);
                 if (!customMountPath.isEmpty() && new File(customMountPath).isDirectory()) {
-                    mountADriveOnContainer(container, customMountPath);
-                    Log.d("XServerDisplayActivity", "Mounted A: drive to custom game folder '" + customMountPath + "' on container " + container.id);
-
                     if (shortcut.getExtra("custom_game_folder").isEmpty() || shortcut.getExtra("game_install_path").isEmpty()) {
                         if (shortcut.getExtra("custom_game_folder").isEmpty()) {
                             shortcut.putExtra("custom_game_folder", customMountPath);
@@ -1122,6 +1122,27 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (!inferredFromCustomExe.isEmpty()) return inferredFromCustomExe;
 
         return "";
+    }
+
+    private void removeCustomADriveMapping(@NonNull Container targetContainer) {
+        String drives = targetContainer.getDrives();
+        if (drives == null || drives.isEmpty()) return;
+
+        StringBuilder filtered = new StringBuilder();
+        boolean removed = false;
+        for (String[] drive : Container.drivesIterator(drives)) {
+            if ("A".equalsIgnoreCase(drive[0])) {
+                removed = true;
+                continue;
+            }
+            filtered.append(drive[0]).append(':').append(drive[1]);
+        }
+
+        if (!removed) return;
+
+        targetContainer.setDrives(filtered.toString());
+        targetContainer.saveData();
+        Log.d("XServerDisplayActivity", "Removed stale A: drive mapping for custom launch. drives=" + targetContainer.getDrives());
     }
 
     private String inferCustomMountPathFromExe(String shortcutWinPath, String hostExePath) {
@@ -3769,6 +3790,16 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 // Custom shortcut
                 String extraArgs = shortcut.getSettingExtra("execArgs", container.getExecArgs());
                 extraArgs = (extraArgs != null && !extraArgs.isEmpty()) ? " " + extraArgs : "";
+                if ("CUSTOM".equals(gameSource)) {
+                    String directCustomPath = resolveCustomExecutableWinePath(shortcut);
+                    if (!directCustomPath.isEmpty()) {
+                        if (!directCustomPath.equals(path)) {
+                            Log.d("XServerDisplayActivity", "Resolved custom shortcut to direct launch path: " + directCustomPath +
+                                    " (previous=" + path + ")");
+                        }
+                        path = directCustomPath;
+                    }
+                }
 
                 if (path != null && (path.startsWith("explorer") || path.contains(" /desktop"))) {
                     return path + extraArgs;
@@ -4112,6 +4143,28 @@ public class XServerDisplayActivity extends AppCompatActivity {
             return "Z:" + normalized;
         }
         return "Z:\\" + normalized;
+    }
+
+    private String resolveCustomExecutableWinePath(@NonNull Shortcut shortcut) {
+        String absoluteCustomExePath = resolveCustomExecutableAbsolutePath(shortcut);
+        if (absoluteCustomExePath.isEmpty()) return "";
+        return WineUtils.hostPathToRootWinePath(container, absoluteCustomExePath);
+    }
+
+    private String resolveCustomExecutableAbsolutePath(@NonNull Shortcut shortcut) {
+        String[] candidatePaths = new String[] {
+                shortcut.getExtra("launch_exe_path"),
+                shortcut.getExtra("custom_exe")
+        };
+
+        for (String candidatePath : candidatePaths) {
+            if (candidatePath == null || candidatePath.isEmpty()) continue;
+            File candidateFile = new File(candidatePath);
+            if (!candidateFile.isFile()) continue;
+            return candidateFile.getAbsolutePath();
+        }
+
+        return "";
     }
 
     /**

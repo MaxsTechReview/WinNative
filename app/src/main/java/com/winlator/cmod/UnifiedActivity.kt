@@ -6081,8 +6081,13 @@ class UnifiedActivity : ComponentActivity() {
         return if (normalized.startsWith("\\")) "Z:$normalized" else "Z:\\$normalized"
     }
 
-    private fun buildWineExecFromAbsolutePath(hostPath: String): String {
-        return "wine \"${toWineZPath(hostPath)}\""
+    private fun buildWineExecFromAbsolutePath(hostPath: String, container: com.winlator.cmod.container.Container? = null): String {
+        val winePath = if (container != null) {
+            com.winlator.cmod.core.WineUtils.hostPathToRootWinePath(container, hostPath)
+        } else {
+            toWineZPath(hostPath)
+        }
+        return "wine \"$winePath\""
     }
 
     // Launch custom game by shortcut name
@@ -6118,12 +6123,6 @@ class UnifiedActivity : ComponentActivity() {
             shortcut.saveData()
         }
 
-        // Ensure A: drive is mounted to the game folder
-        val gameFolder = shortcut.getExtra("custom_game_folder", "")
-        if (gameFolder.isNotEmpty()) {
-            mountADrive(shortcut.container, gameFolder)
-            shortcut.container.saveData()
-        }
         val intent = Intent(context, XServerDisplayActivity::class.java)
         intent.putExtra("container_id", shortcut.container.id)
         intent.putExtra("shortcut_path", shortcut.file.path)
@@ -6687,7 +6686,7 @@ class UnifiedActivity : ComponentActivity() {
                                 Icon(Icons.Default.Folder, contentDescription = null, tint = StatusOnline.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text("Game Folder (A: drive)", color = TextSecondary, fontSize = 10.sp)
+                                    Text("Game Folder (container-mapped path)", color = TextSecondary, fontSize = 10.sp)
                                     Text(
                                         gameFolder ?: "Auto-detected",
                                         color = if (gameFolder != null) TextPrimary else TextSecondary,
@@ -6827,18 +6826,7 @@ class UnifiedActivity : ComponentActivity() {
             return
         }
 
-        // Mount the game folder as A: drive
-        mountADrive(container, gameFolderPath)
-
-        // Build the relative exe path from gameFolder
-        val exeFile = java.io.File(exePath)
-        val gameFolderFile = java.io.File(gameFolderPath)
-        val dosPath = try {
-            exeFile.relativeTo(gameFolderFile).path.replace("/", "\\\\")
-        } catch (_: Exception) {
-            exeFile.name
-        }
-        val execCmd = "wine \"A:\\\\$dosPath\""
+        val execCmd = buildWineExecFromAbsolutePath(exePath, container)
 
         // Write .desktop shortcut
         val desktopDir = container.getDesktopDir()

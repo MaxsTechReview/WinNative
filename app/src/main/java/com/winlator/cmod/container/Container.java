@@ -28,7 +28,7 @@ public class Container {
     public static final String DEFAULT_SCREEN_SIZE = "1280x720";
     public static final String DEFAULT_GRAPHICS_DRIVER = "wrapper";
     public static final String DEFAULT_AUDIO_DRIVER = "alsa";
-    public static final String DEFAULT_EMULATOR = "FEXCore";
+    public static final String DEFAULT_EMULATOR = "Wowbox64";
     public static final String DEFAULT_EMULATOR64 = "FEXCore";
     public static final String DEFAULT_DXWRAPPER = "dxvk+vkd3d";
     public static final String DEFAULT_DXWRAPPERCONFIG = "version=" + DefaultVersion.DXVK + ",framerate=0,async=0,asyncCache=0" + ",vkd3dVersion=" + DefaultVersion.VKD3D + ",vkd3dLevel=12_1" + ",ddrawrapper=" + Container.DEFAULT_DDRAWRAPPER + ",csmt=3" + ",gpuName=NVIDIA GeForce GTX 480" + ",videoMemorySize=2048" + ",strict_shader_math=1" + ",OffscreenRenderingMode=fbo" + ",renderer=gl";
@@ -37,7 +37,8 @@ public class Container {
     public static final String DEFAULT_DDRAWRAPPER = "none";
     public static final String DEFAULT_WINCOMPONENTS = "direct3d=1,directsound=0,directmusic=0,directshow=0,directplay=0,xaudio=0,vcrun2010=1";
     public static final String FALLBACK_WINCOMPONENTS = "direct3d=1,directsound=1,directmusic=1,directshow=1,directplay=1,xaudio=1,vcrun2010=1";
-    public static final String DEFAULT_DRIVES = "D:"+Environment.getExternalStorageDirectory().getAbsolutePath();
+    public static final String DEFAULT_DRIVES = "D:"+Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath()+
+            "F:"+Environment.getExternalStorageDirectory().getAbsolutePath();
     public static final byte STARTUP_SELECTION_NORMAL = 0;
     public static final byte STARTUP_SELECTION_ESSENTIAL = 1;
     public static final byte STARTUP_SELECTION_AGGRESSIVE = 2;
@@ -417,20 +418,18 @@ public class Container {
             return DEFAULT_DRIVES;
         }
 
-        String externalStorageRoot = Environment.getExternalStorageDirectory().getAbsolutePath();
         String downloadsPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
+        String externalStorageRoot = Environment.getExternalStorageDirectory().getAbsolutePath();
         LinkedHashMap<String, String> normalized = new LinkedHashMap<>();
 
         for (String[] drive : drivesIterator(drives)) {
             String letter = drive[0].toUpperCase();
             String path = drive[1];
 
-            // Migrate legacy root mapping: D: pointed at Downloads and F: pointed at /.
-            if ("F".equals(letter)) {
-                continue;
-            }
-            if ("D".equals(letter) && downloadsPath.equals(path)) {
-                path = externalStorageRoot;
+            // Restore the legacy/public-facing layout:
+            // D: -> Downloads, F: -> shared storage root.
+            if ("D".equals(letter) && externalStorageRoot.equals(path)) {
+                path = downloadsPath;
             }
 
             if (path != null && !path.isEmpty()) {
@@ -438,7 +437,8 @@ public class Container {
             }
         }
 
-        normalized.putIfAbsent("D", externalStorageRoot);
+        normalized.putIfAbsent("D", downloadsPath);
+        normalized.putIfAbsent("F", externalStorageRoot);
 
         StringBuilder builder = new StringBuilder();
         for (Map.Entry<String, String> entry : normalized.entrySet()) {

@@ -62,6 +62,7 @@ import com.winlator.cmod.core.KeyValueSet;
 import com.winlator.cmod.core.PreloaderDialog;
 import com.winlator.cmod.core.StringUtils;
 import com.winlator.cmod.core.WineInfo;
+import com.winlator.cmod.core.WineUtils;
 import com.winlator.cmod.core.WineRegistryEditor;
 import com.winlator.cmod.core.WineThemeManager;
 import com.winlator.cmod.fexcore.FEXCoreManager;
@@ -239,14 +240,18 @@ public class ContainerDetailFragment extends Fragment {
 
         Context context = view.getContext();
 
-        String selected32 = preferred32 != null ? preferred32 : getSpinnerSelectedIdentifier(sEmulator, Container.DEFAULT_EMULATOR);
-        String selected64 = preferred64 != null ? preferred64 : getSpinnerSelectedIdentifier(sEmulator64, Container.DEFAULT_EMULATOR64);
+        String selected32 = preferred32 != null
+                ? preferred32
+                : getSpinnerSelectedIdentifier(sEmulator, WineInfo.getDefaultEmulator(isArm64EC, false));
+        String selected64 = preferred64 != null
+                ? preferred64
+                : getSpinnerSelectedIdentifier(sEmulator64, WineInfo.getDefaultEmulator(isArm64EC, true));
 
         updateEmulatorSpinnerOptions(context, sEmulator, isArm64EC, false, selected32);
         updateEmulatorSpinnerOptions(context, sEmulator64, isArm64EC, true, selected64);
 
-        sEmulator.setEnabled(isArm64EC);
-        sEmulator64.setEnabled(isArm64EC);
+        sEmulator.setEnabled(true);
+        sEmulator64.setEnabled(true);
         updateEmulatorFrames(view, sEmulator, sEmulator64);
     }
 
@@ -384,6 +389,12 @@ public class ContainerDetailFragment extends Fragment {
             if (data != null) {
                 Uri uri = data.getData();
                 Log.d(TAG, "URI obtained in onActivityResult: " + uri.toString());
+                try {
+                    int takeFlags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                    requireContext().getContentResolver().takePersistableUriPermission(uri, takeFlags);
+                } catch (SecurityException e) {
+                    Log.w(TAG, "Unable to persist directory permission for " + uri, e);
+                }
                 String path = FileUtils.getFilePathFromUri(getContext(), uri);
                 Log.d(TAG, "File path in onActivityResult: " + path);
                 if (path != null) {
@@ -3298,6 +3309,18 @@ public class ContainerDetailFragment extends Fragment {
             return hostPath;
         }
 
+        if (shortcutPath.matches("^[A-Za-z]:\\\\.*")) {
+            Container targetContainer = shortcut != null ? shortcut.container : getInitialPerGameContainer();
+            if (targetContainer != null) {
+                String driveLetter = shortcutPath.substring(0, 1);
+                String relativePath = shortcutPath.substring(3).replace("\\", File.separator);
+                for (String[] drive : targetContainer.drivesIterator()) {
+                    if (drive.length < 2 || !driveLetter.equalsIgnoreCase(drive[0])) continue;
+                    return new File(drive[1], relativePath).getAbsolutePath();
+                }
+            }
+        }
+
         return "";
     }
 
@@ -3373,17 +3396,13 @@ public class ContainerDetailFragment extends Fragment {
 
         File exeFile = new File(selectedExePath);
         String absoluteExePath = exeFile.getAbsolutePath();
-        String baseDir = resolveBaseGameDirectory(gameSource, appId, gogId, shortcut, absoluteExePath);
-        String normalizedBaseDir = baseDir.isEmpty() ? "" : StringUtils.removeEndSlash(new File(baseDir).getAbsolutePath());
-        String normalizedExePath = absoluteExePath;
         String winPath;
 
-        if ("CUSTOM".equals(gameSource) && !normalizedBaseDir.isEmpty() && (normalizedExePath.equals(normalizedBaseDir) || normalizedExePath.startsWith(normalizedBaseDir + File.separator))) {
-            String relativePath = FileUtils.toRelativePath(normalizedBaseDir, normalizedExePath).replace("/", "\\");
-            while (relativePath.startsWith("\\")) relativePath = relativePath.substring(1);
-            winPath = "A:\\" + relativePath;
+        if ("CUSTOM".equals(gameSource)) {
+            Container targetContainer = shortcut != null ? shortcut.container : getInitialPerGameContainer();
+            winPath = WineUtils.hostPathToRootWinePath(targetContainer, absoluteExePath);
         } else {
-            String hostPath = normalizedExePath.replace("/", "\\");
+            String hostPath = absoluteExePath.replace("/", "\\");
             if (!hostPath.startsWith("\\")) hostPath = "\\" + hostPath;
             winPath = "Z:" + hostPath;
         }

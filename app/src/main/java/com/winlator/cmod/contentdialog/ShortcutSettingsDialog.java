@@ -1044,15 +1044,25 @@ public class ShortcutSettingsDialog extends ContentDialog {
                     true,
                     getShortcutSettingValue("emulator64", shortcut.container.getEmulator64())
             );
-            sEmulator.setEnabled(true);
-            sEmulator64.setEnabled(true);
         } else {
             fexcoreFL.setVisibility(View.GONE);
-            ContainerDetailFragment.updateEmulatorSpinnerOptions(context, sEmulator, false, false, "Box64");
-            ContainerDetailFragment.updateEmulatorSpinnerOptions(context, sEmulator64, false, true, "Box64");
-            sEmulator.setEnabled(false);
-            sEmulator64.setEnabled(false);
+            ContainerDetailFragment.updateEmulatorSpinnerOptions(
+                    context,
+                    sEmulator,
+                    false,
+                    false,
+                    WineInfo.getDefaultEmulator(false, false)
+            );
+            ContainerDetailFragment.updateEmulatorSpinnerOptions(
+                    context,
+                    sEmulator64,
+                    false,
+                    true,
+                    WineInfo.getDefaultEmulator(false, true)
+            );
         }
+        sEmulator.setEnabled(true);
+        sEmulator64.setEnabled(true);
 
         setupDXWrapperSpinner(sDXWrapper, vDXWrapperConfig, wineInfo.isArm64EC(), onChange);
         loadBox64VersionSpinner(context, contentsManager, sBox64Version, wineInfo.isArm64EC());
