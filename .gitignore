@@ -45,3 +45,4 @@ app/schemas/
 *.jks
 *.keystore
 signing.properties
+/References/
