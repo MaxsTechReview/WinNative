@@ -2049,7 +2049,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
             containerDataChanged = true;
         }
 
-        // Check after applyGeneralPatches — container_pattern_common.tzst provides these files
         ensureWinePrefixEssentialFiles();
 
         String dxwrapper = shortcut != null ? getShortcutSetting("dxwrapper", this.dxwrapper) : this.dxwrapper;
@@ -2906,15 +2905,19 @@ public class XServerDisplayActivity extends AppCompatActivity {
         File containerDir = container.getRootDir();
         boolean prefixInvalid = !WineUtils.isPrefixValid(containerDir);
         String storedPrefixArch = container.getExtra("wineprefixArch");
+        String storedSeedLayout = container.getExtra("wineprefixSeedLayout");
         boolean archMismatch = !storedPrefixArch.isEmpty() && !storedPrefixArch.equalsIgnoreCase(wineInfo.getArch());
+        boolean seedLayoutMismatch = !ContainerManager.WINEPREFIX_SEED_LAYOUT_VERSION.equals(storedSeedLayout);
         boolean prefixNeedsUpdate = "t".equalsIgnoreCase(container.getExtra("wineprefixNeedsUpdate"));
         Log.d("ContainerLaunch", "ensureWinePrefixReady: prefixInvalid=" + prefixInvalid +
                 " archMismatch=" + archMismatch + " storedArch=" + storedPrefixArch +
-                " targetArch=" + wineInfo.getArch() + " needsUpdate=" + prefixNeedsUpdate);
+                " targetArch=" + wineInfo.getArch() + " seedLayout=" + storedSeedLayout +
+                " seedLayoutMismatch=" + seedLayoutMismatch + " needsUpdate=" + prefixNeedsUpdate);
 
-        if (!prefixInvalid && !archMismatch && !prefixNeedsUpdate) {
-            if (storedPrefixArch.isEmpty()) {
+        if (!prefixInvalid && !archMismatch && !seedLayoutMismatch && !prefixNeedsUpdate) {
+            if (storedPrefixArch.isEmpty() || storedSeedLayout.isEmpty()) {
                 container.putExtra("wineprefixArch", wineInfo.getArch());
+                container.putExtra("wineprefixSeedLayout", ContainerManager.WINEPREFIX_SEED_LAYOUT_VERSION);
                 container.putExtra("wineprefixNeedsUpdate", null);
                 container.saveData();
             }
@@ -2924,6 +2927,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         Log.w("XServerDisplayActivity", "Repairing Wine prefix for container " + container.id +
                 " invalid=" + prefixInvalid +
                 " archMismatch=" + archMismatch +
+                " seedLayoutMismatch=" + seedLayoutMismatch +
                 " storedArch=" + storedPrefixArch +
                 " targetArch=" + wineInfo.getArch() +
                 " needsUpdate=" + prefixNeedsUpdate);
@@ -2952,46 +2956,12 @@ public class XServerDisplayActivity extends AppCompatActivity {
         Log.d("ContainerLaunch", status.toString());
 
         if (anyMissing) {
-            // Try to find the files from another container that has them
-            File homeDir = new File(imageFs.getRootDir(), "home");
-            File[] homeDirs = homeDir.listFiles();
-            File sourceWindowsDir = null;
-            if (homeDirs != null) {
-                Log.d("ContainerLaunch", "Searching " + homeDirs.length + " dirs in home/ for essential files");
-                for (File dir : homeDirs) {
-                    if (!dir.isDirectory()) continue;
-                    // Skip the active xuser symlink and the current container itself
-                    if (dir.getName().equals(ImageFs.USER)) continue;
-                    if (dir.getAbsolutePath().equals(container.getRootDir().getAbsolutePath())) continue;
-                    File candidate = new File(dir, ".wine/drive_c/windows");
-                    if (new File(candidate, "winhandler.exe").exists()) {
-                        sourceWindowsDir = candidate;
-                        Log.d("ContainerLaunch", "Found essential files source: " + dir.getName());
-                        break;
-                    }
-                }
-            }
-
-            if (sourceWindowsDir != null) {
-                for (String filename : essentialFiles) {
-                    File dest = new File(containerWindowsDir, filename);
-                    if (!dest.exists()) {
-                        File source = new File(sourceWindowsDir, filename);
-                        if (source.exists()) {
-                            Log.d("ContainerLaunch", "Copying " + filename + " from " + sourceWindowsDir.getParent());
-                            FileUtils.copy(source, dest);
-                        }
-                    }
-                }
-            } else {
-                // No other container has the files — extract from container_pattern_common.tzst
-                Log.w("ContainerLaunch", "No source container found, extracting from container_pattern_common.tzst");
-                containerWindowsDir.mkdirs();
-                TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this,
-                        "container_pattern_common.tzst", imageFs.getRootDir(), onExtractFileListener);
-                for (String filename : essentialFiles) {
-                    Log.d("ContainerLaunch", filename + " exists after extraction: " + new File(containerWindowsDir, filename).exists());
-                }
+            Log.w("ContainerLaunch", "Essential launch files missing, restoring from container_pattern_common.tzst");
+            containerWindowsDir.mkdirs();
+            TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this,
+                    "container_pattern_common.tzst", imageFs.getRootDir(), onExtractFileListener);
+            for (String filename : essentialFiles) {
+                Log.d("ContainerLaunch", filename + " exists after extraction: " + new File(containerWindowsDir, filename).exists());
             }
         }
     }

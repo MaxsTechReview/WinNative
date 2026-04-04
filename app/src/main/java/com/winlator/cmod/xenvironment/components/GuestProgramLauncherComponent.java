@@ -755,25 +755,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         Log.d("GuestProgramLauncherComponent", "Emulator (32-bit): " + emulator);
         Log.d("GuestProgramLauncherComponent", "Emulator (64-bit): " + emulator64);
 
-        boolean is64Bit = true;
-
-        // Find the actual .exe file to check architecture
-        File exeFile = resolveLaunchExecutableFile(imageFs);
-        if (exeFile != null) {
-            Log.d("GuestProgramLauncherComponent", "Detected executable for arch check: " + exeFile.getAbsolutePath());
-        }
-
-        // Determine which emulator to use for HODLL based on guest executable architecture
-        String selectedEmulator = emulator;
-        if (wineInfo.isArm64EC()) {
-            is64Bit = (exeFile != null && com.winlator.cmod.core.PEHelper.is64Bit(exeFile)) || 
-                             (guestExecutable != null && guestExecutable.contains("steamclient_loader_x64.exe"));
-            
-            if (is64Bit) {
-                selectedEmulator = emulator64;
-            }
-        }
-
         // Construct the command without Box64 to the Wine executable
         String command = "";
         String overriddenCommand = envVars.get("GUEST_PROGRAM_LAUNCHER_COMMAND");
@@ -785,7 +766,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         } else {
             if (wineInfo.isArm64EC()) {
                 command = winePath + "/" + guestExecutable;
-                if ("fexcore".equalsIgnoreCase(selectedEmulator))
+                if ("fexcore".equalsIgnoreCase(emulator))
                     envVars.put("HODLL", "libwow64fex.dll");
                 else
                     envVars.put("HODLL", "wowbox64.dll");

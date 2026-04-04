@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Locale;
 
 public abstract class WineUtils {
+
     public static String hostPathToRootWinePath(@Nullable Container container, @Nullable String hostPath) {
         if (hostPath == null || hostPath.isEmpty()) return "";
 
@@ -92,13 +93,8 @@ public abstract class WineUtils {
     }
 
     public static void createDosdevicesSymlinks(Container container) {
-        Log.d("ContainerLaunch", "createDosdevicesSymlinks: rootDir=" + container.getRootDir().getAbsolutePath() +
-                " drives=" + container.getDrives());
         File dosdevicesDir = new File(container.getRootDir(), ".wine/dosdevices");
-        if (!dosdevicesDir.exists()) {
-            boolean created = dosdevicesDir.mkdirs();
-            Log.d("ContainerLaunch", "createDosdevicesSymlinks: created dosdevices dir=" + created);
-        }
+        if (!dosdevicesDir.exists()) dosdevicesDir.mkdirs();
         String dosdevicesPath = dosdevicesDir.getPath();
         File[] files = dosdevicesDir.listFiles();
         if (files != null) for (File file : files) if (file.getName().matches("[a-z]:")) file.delete();
@@ -115,47 +111,16 @@ public abstract class WineUtils {
             packageStoragePath = "/data/data/" + packageName + "/storage";
         }
 
-        // Auto-fix containers to the current drive layout in-memory only.
-        // IMPORTANT: Only update in-memory drives — do NOT call container.saveData()
-        // because the drives string may contain an ephemeral A: mapping that must not
-        // be persisted (multiple games share the same container).
-        String currentDrives = container.getDrives();
-        String normalizedDrives = Container.normalizeDrives(currentDrives);
-        if (!normalizedDrives.equals(currentDrives)) {
-            container.setDrives(normalizedDrives);
-            Log.d("WineUtils", "Updated container drives (in-memory only) to: " + normalizedDrives);
-        }
-
-        String gameDirectoryPath = null;
-        int driveCount = 0;
         for (String[] drive : container.drivesIterator()) {
             File linkTarget = new File(drive[1]);
             String path = linkTarget.getAbsolutePath();
-            
-            if ("E".equalsIgnoreCase(drive[0]) && packageStoragePath.equals(path)) {
-                Log.d("ContainerLaunch", "createDosdevicesSymlinks: skipping legacy E: app storage mapping");
-                continue;
-            }
+
             boolean isAppStoragePath = path.endsWith(packageStorageSuffix) || path.endsWith(legacyPackageStorageSuffix);
             if (!linkTarget.isDirectory() && isAppStoragePath) {
                 linkTarget.mkdirs();
                 FileUtils.chmod(linkTarget, 0771);
             }
             FileUtils.symlink(path, dosdevicesPath+"/"+drive[0].toLowerCase(Locale.ENGLISH)+":");
-            Log.d("ContainerLaunch", "createDosdevicesSymlinks: " + drive[0] + ": -> " + path);
-            driveCount++;
-
-            // Always treat A: as the primary game directory so ColdClientLoader can
-            // resolve steamapps\common\{gameName} to the A: drive for custom paths.
-            if (drive[0].equals("A")) {
-                gameDirectoryPath = path;
-            }
-        }
-        Log.d("ContainerLaunch", "createDosdevicesSymlinks: created " + driveCount + " drive symlinks");
-
-        // Create Steam directory structure and symlinks if we found the game directory on A:
-        if (gameDirectoryPath != null) {
-            ensureSteamappsCommonSymlink(container, gameDirectoryPath);
         }
     }
 
@@ -302,7 +267,6 @@ public abstract class WineUtils {
             registryEditor.setStringValue("Software\\Classes\\.reg", null, "REGfile");
             registryEditor.setStringValue("Software\\Classes\\.reg", "Content Type", "application/reg");
             registryEditor.setStringValue("Software\\Classes\\REGfile\\Shell\\Open\\command", null, "C:\\windows\\regedit.exe /C \"%1\"");
-
             registryEditor.setStringValue("Software\\Classes\\dllfile\\DefaultIcon", null, "shell32.dll,-154");
             registryEditor.setStringValue("Software\\Classes\\lnkfile\\DefaultIcon", null, "shell32.dll,-30");
             registryEditor.setStringValue("Software\\Classes\\inifile\\DefaultIcon", null, "shell32.dll,-151");
@@ -336,44 +300,6 @@ public abstract class WineUtils {
                 registryEditor.setStringValue(dllOverridesKey, "opengl32", "native,builtin");
             }
             setWindowMetrics(registryEditor);
-        }
-
-        // Copy critical DLLs from wine installation to container
-        copyWineDllsToContainer(rootDir, wineInfo);
-    }
-
-    /**
-     * Copies critical DLLs from the wine installation to the container's system32/syswow64.
-     * This ensures games can find user32.dll, shell32.dll, etc.
-     * Note: dinput/dinput8 are NOT copied here — they use Wine builtins via builtin,native override.
-     */
-    private static void copyWineDllsToContainer(File rootDir, WineInfo wineInfo) {
-        if (wineInfo == null || wineInfo.path == null || wineInfo.path.isEmpty()) return;
-        boolean isArm64EC = wineInfo.isArm64EC();
-        File wineSystem32Dir = new File(wineInfo.path + "/lib/wine/" + (isArm64EC ? "aarch64-windows" : "x86_64-windows"));
-        File wineSysWoW64Dir = new File(wineInfo.path + "/lib/wine/i386-windows");
-        File containerSystem32Dir = new File(rootDir, ImageFs.WINEPREFIX+"/drive_c/windows/system32");
-        File containerSysWoW64Dir = new File(rootDir, ImageFs.WINEPREFIX+"/drive_c/windows/syswow64");
-
-        final String[] dlnames = {
-            "user32.dll", "shell32.dll",
-            "winemenubuilder.exe", "explorer.exe"
-        };
-
-        boolean win64 = wineInfo != null && wineInfo.isWin64();
-        for (String dlname : dlnames) {
-            File src32 = new File(wineSysWoW64Dir, dlname);
-            File dst32 = new File(win64 ? containerSysWoW64Dir : containerSystem32Dir, dlname);
-            if (src32.exists()) {
-                FileUtils.copy(src32, dst32);
-            }
-            if (win64) {
-                File src64 = new File(wineSystem32Dir, dlname);
-                File dst64 = new File(containerSystem32Dir, dlname);
-                if (src64.exists()) {
-                    FileUtils.copy(src64, dst64);
-                }
-            }
         }
     }
 
