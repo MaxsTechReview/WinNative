@@ -230,7 +230,9 @@ public abstract class ProcessHelper {
         String[] values = cpuList.split(",");
         int affinityMask = 0;
         for (String value : values) {
-            byte index = Byte.parseByte(value);
+            String v = value.trim().replaceAll("[^0-9]", "");
+            if (v.isEmpty()) continue;
+            byte index = Byte.parseByte(v);
             affinityMask |= (int)Math.pow(2, index);
         }
         return affinityMask;

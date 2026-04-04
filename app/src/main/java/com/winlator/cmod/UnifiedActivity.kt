@@ -1,5 +1,6 @@
 package com.winlator.cmod
 
+import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -125,6 +126,7 @@ import com.winlator.cmod.utils.PeIconExtractor
 import com.winlator.cmod.service.DownloadService
 import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.container.Shortcut
+import com.winlator.cmod.contentdialog.ShortcutSettingsComposeDialog
 import com.winlator.cmod.steam.events.EventDispatcher
 import com.winlator.cmod.steam.events.AndroidEvent
 import dagger.hilt.android.AndroidEntryPoint
@@ -2105,15 +2107,7 @@ class UnifiedActivity : ComponentActivity() {
                                 val containerManager = ContainerManager(context)
                                 val existingShortcut = findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
                                 if (existingShortcut != null) {
-                                    val intent = Intent(context, MainActivity::class.java)
-                                    intent.putExtra("edit_shortcut_path", existingShortcut.file.absolutePath)
-                                    intent.putExtra("return_to_unified", true)
-                                    val opts = ActivityOptionsCompat.makeCustomAnimation(
-                                        context,
-                                        R.anim.settings_enter,
-                                        R.anim.settings_exit,
-                                    )
-                                    context.startActivity(intent, opts.toBundle())
+                                    ShortcutSettingsComposeDialog(this@UnifiedActivity, existingShortcut).show()
                                 } else if (isEpic) {
                                     val intent = Intent(context, MainActivity::class.java)
                                     intent.putExtra("create_shortcut_for_epic_id", epicId)
@@ -2351,21 +2345,21 @@ class UnifiedActivity : ComponentActivity() {
                                     val shortcut = ContainerManager(context).loadShortcuts().find {
                                         it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == app.id
                                     }
-                                    val intent = Intent(context, MainActivity::class.java)
                                     if (shortcut != null) {
-                                        intent.putExtra("edit_shortcut_path", shortcut.file.absolutePath)
+                                        ShortcutSettingsComposeDialog(this@UnifiedActivity, shortcut).show()
                                     } else {
+                                        val intent = Intent(context, MainActivity::class.java)
                                         intent.putExtra("create_shortcut_for_gog_id", app.id)
                                         intent.putExtra("create_shortcut_for_app_id", gogPseudoId(app.id))
                                         intent.putExtra("create_shortcut_for_app_name", app.title)
+                                        intent.putExtra("return_to_unified", true)
+                                        val opts = ActivityOptionsCompat.makeCustomAnimation(
+                                            context,
+                                            R.anim.settings_enter,
+                                            R.anim.settings_exit,
+                                        )
+                                        context.startActivity(intent, opts.toBundle())
                                     }
-                                    intent.putExtra("return_to_unified", true)
-                                    val opts = ActivityOptionsCompat.makeCustomAnimation(
-                                        context,
-                                        R.anim.settings_enter,
-                                        R.anim.settings_exit,
-                                    )
-                                    context.startActivity(intent, opts.toBundle())
                                     onDismissRequest()
                                 },
                             ),
@@ -2904,44 +2898,25 @@ class UnifiedActivity : ComponentActivity() {
                                                 label = stringResource(R.string.common_ui_settings),
                                                 modifier = Modifier.weight(1f),
                                                 onClick = {
-                                                    if (isGog) {
-                                                        val shortcut = ContainerManager(context).loadShortcuts().find {
+                                                    val containerManager = ContainerManager(context)
+                                                    val existingShortcut: com.winlator.cmod.container.Shortcut? = if (isGog) {
+                                                        containerManager.loadShortcuts().find {
                                                             it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == gogGame!!.id
                                                         }
+                                                    } else {
+                                                        findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
+                                                    }
+                                                    if (existingShortcut != null) {
+                                                        ShortcutSettingsComposeDialog(this@UnifiedActivity, existingShortcut).show()
+                                                    } else {
                                                         val intent = Intent(context, MainActivity::class.java)
-                                                        if (shortcut != null) {
-                                                            intent.putExtra("edit_shortcut_path", shortcut.file.absolutePath)
-                                                        } else {
+                                                        if (isGog) {
                                                             intent.putExtra("create_shortcut_for_gog_id", gogGame!!.id)
                                                             intent.putExtra("create_shortcut_for_app_id", gogPseudoId(gogGame.id))
                                                             intent.putExtra("create_shortcut_for_app_name", app.name)
-                                                        }
-                                                        intent.putExtra("return_to_unified", true)
-                                                        val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
-                                                        context.startActivity(intent, opts.toBundle())
-                                                    } else if (isCustom || isEpic) {
-                                                        val containerManager = ContainerManager(context)
-                                                        val existingShortcut = findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
-                                                        if (existingShortcut != null) {
-                                                            val intent = Intent(context, MainActivity::class.java)
-                                                            intent.putExtra("edit_shortcut_path", existingShortcut.file.absolutePath)
-                                                            intent.putExtra("return_to_unified", true)
-                                                            val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
-                                                            context.startActivity(intent, opts.toBundle())
                                                         } else if (isEpic) {
-                                                            val intent = Intent(context, MainActivity::class.java)
                                                             intent.putExtra("create_shortcut_for_epic_id", epicId)
                                                             intent.putExtra("create_shortcut_for_app_name", app.name)
-                                                            intent.putExtra("return_to_unified", true)
-                                                            val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
-                                                            context.startActivity(intent, opts.toBundle())
-                                                        }
-                                                    } else {
-                                                        val containerManager = ContainerManager(context)
-                                                        val existingShortcut = findLibraryShortcutForGame(containerManager, app, false, false, 0)
-                                                        val intent = Intent(context, MainActivity::class.java)
-                                                        if (existingShortcut != null) {
-                                                            intent.putExtra("edit_shortcut_path", existingShortcut.file.absolutePath)
                                                         } else {
                                                             intent.putExtra("create_shortcut_for_app_id", app.id)
                                                             intent.putExtra("create_shortcut_for_app_name", app.name)

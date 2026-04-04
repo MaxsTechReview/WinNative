@@ -48,7 +48,6 @@ import com.winlator.cmod.contentdialog.AddEnvVarDialog;
 import com.winlator.cmod.contentdialog.ContentDialog;
 import com.winlator.cmod.contentdialog.DXVKConfigDialog;
 import com.winlator.cmod.contentdialog.GraphicsDriverConfigDialog;
-import com.winlator.cmod.contentdialog.ShortcutSettingsDialog;
 import com.winlator.cmod.contentdialog.WineD3DConfigDialog;
 import com.winlator.cmod.contents.ContentProfile;
 import com.winlator.cmod.contents.ContentsManager;
@@ -2218,29 +2217,6 @@ public class ContainerDetailFragment extends Fragment {
             parent.addView(itemView);
 
         }
-    }
-
-    public static void createWinComponentsTabFromShortcut(ShortcutSettingsDialog dialog, View view, String wincomponents) {
-        Context context = dialog.getContext();
-        LayoutInflater inflater = LayoutInflater.from(context);
-        ViewGroup tabView = view.findViewById(R.id.LLTabWinComponents);
-        ViewGroup directxSectionView = tabView.findViewById(R.id.LLWinComponentsDirectX);
-        ViewGroup generalSectionView = tabView.findViewById(R.id.LLWinComponentsGeneral);
-
-        for (String[] wincomponent : new KeyValueSet(wincomponents)) {
-            ViewGroup parent = wincomponent[0].startsWith("direct") ? directxSectionView : generalSectionView;
-            View itemView = inflater.inflate(R.layout.wincomponent_list_item, parent, false);
-            ((TextView) itemView.findViewById(R.id.TextView)).setText(StringUtils.getString(context, wincomponent[0]));
-            Spinner spinner = itemView.findViewById(R.id.Spinner);
-            applyThemedAdapter(spinner, R.array.wincomponent_entries);
-            spinner.setSelection(Integer.parseInt(wincomponent[1]), false);
-            spinner.setTag(wincomponent[0]);
-
-            parent.addView(itemView);
-        }
-
-        // Notify that the views are ready
-        dialog.onWinComponentsViewsAdded();
     }
 
     private EnvVarsView createEnvVarsTab(final View view) {

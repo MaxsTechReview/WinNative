@@ -3,6 +3,7 @@
 package com.winlator.cmod
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -623,10 +624,10 @@ private fun SettingsDropdownCard(
                 DropdownMenu(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
-                    modifier = Modifier
-                        .widthIn(max = 220.dp)
-                        .background(Color(0xFF1C1C2E))
-                        .border(1.dp, CardBorder, RoundedCornerShape(8.dp)),
+                    shape = RoundedCornerShape(8.dp),
+                    containerColor = Color(0xFF1C1C2E),
+                    border = BorderStroke(1.dp, CardBorder),
+                    modifier = Modifier.widthIn(max = 220.dp),
                 ) {
                     Column(
                         modifier = Modifier
