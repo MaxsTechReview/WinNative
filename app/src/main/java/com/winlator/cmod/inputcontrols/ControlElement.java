@@ -653,7 +653,10 @@ public class ControlElement {
             currentPointerId = pointerId;
             if (type == Type.BUTTON) {
                 if (isKeepButtonPressedAfterMinTime()) touchTime = System.currentTimeMillis();
-                if (!toggleSwitch || !selected) inputControlsView.handleInputEvent(getBindingAt(0), true);
+                if (!toggleSwitch || !selected) {
+                    inputControlsView.handleInputEvent(getBindingAt(0), true);
+                    inputControlsView.handleInputEvent(getBindingAt(1), true);
+                }
                 inputControlsView.invalidate();
                 return true;
             }
@@ -822,17 +825,22 @@ public class ControlElement {
 
         if (type == Type.BUTTON) {
             final Binding binding = getBindingAt(0);
+            final Binding bindingSecondary = getBindingAt(1);
             if (isKeepButtonPressedAfterMinTime() && touchTime != null) {
                 long held = System.currentTimeMillis() - (long)touchTime;
                 long delay = Math.max(0L, BUTTON_MIN_TIME_TO_KEEP_PRESSED - held);
                 inputControlsView.postDelayed(() -> {
                     inputControlsView.handleInputEvent(binding, false);
+                    inputControlsView.handleInputEvent(bindingSecondary, false);
                     inputControlsView.invalidate();
                 }, delay);
                 touchTime = null;
             }
             else {
-                if (!toggleSwitch || selected) inputControlsView.handleInputEvent(binding, false);
+                if (!toggleSwitch || selected) {
+                    inputControlsView.handleInputEvent(binding, false);
+                    inputControlsView.handleInputEvent(bindingSecondary, false);
+                }
                 if (toggleSwitch) selected = !selected;
             }
             inputControlsView.invalidate();
