@@ -23,7 +23,6 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import com.winlator.cmod.ContainerDetailFragment
 import com.winlator.cmod.OtherSettingsFragment
 import com.winlator.cmod.R
 import com.winlator.cmod.SetupWizardActivity
@@ -1141,6 +1140,26 @@ class ShortcutSettingsComposeDialog private constructor(
             shortcut.putExtra(
                 EXTRA_USE_CONTAINER_DEFAULTS,
                 if (hasContainerOverride) "0" else "1"
+            )
+
+            Log.d(
+                TAG,
+                "Saving shortcut name='${shortcut.name}' path='${shortcut.path}'" +
+                    " usesContainerDefaults=${if (hasContainerOverride) "0" else "1"}" +
+                    " box64Preset='${shortcut.getExtra("box64Preset")}'" +
+                    " fexcorePreset='${shortcut.getExtra("fexcorePreset")}'" +
+                    " wineVersion='${shortcut.getExtra("wineVersion")}'" +
+                    " graphicsDriver='${shortcut.getExtra("graphicsDriver")}'" +
+                    " graphicsDriverConfig='${shortcut.getExtra("graphicsDriverConfig")}'" +
+                    " dxwrapper='${shortcut.getExtra("dxwrapper")}'" +
+                    " dxwrapperConfig='${shortcut.getExtra("dxwrapperConfig")}'" +
+                    " audioDriver='${shortcut.getExtra("audioDriver")}'" +
+                    " emulator='${shortcut.getExtra("emulator")}'" +
+                    " screenSize='${shortcut.getExtra("screenSize")}'" +
+                    " startupSelection='${shortcut.getExtra("startupSelection")}'" +
+                    " envVars='${shortcut.getExtra("envVars")}'" +
+                    " cpuList='${shortcut.getExtra("cpuList")}'" +
+                    " cpuListWoW64='${shortcut.getExtra("cpuListWoW64")}'"
             )
 
             // Container change

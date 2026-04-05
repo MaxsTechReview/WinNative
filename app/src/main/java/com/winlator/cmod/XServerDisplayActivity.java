@@ -694,13 +694,32 @@ public class XServerDisplayActivity extends AppCompatActivity {
             }
         }
 
-        taskAffinityMask = (short) ProcessHelper.getAffinityMask(container.getCPUList(true));
-        taskAffinityMaskWoW64 = (short) ProcessHelper.getAffinityMask(container.getCPUListWoW64(true));
+        String containerCpuList = container.getCPUList(true);
+        String containerCpuListWoW64 = container.getCPUListWoW64(true);
+        String effectiveCpuList = containerCpuList;
+        String effectiveCpuListWoW64 = containerCpuListWoW64;
+        taskAffinityMask = (short) ProcessHelper.getAffinityMask(containerCpuList);
+        taskAffinityMaskWoW64 = (short) ProcessHelper.getAffinityMask(containerCpuListWoW64);
 
+        String rawShortcutCpuList = "";
+        String rawShortcutCpuListWoW64 = "";
         if (shortcut != null) {
-            taskAffinityMask = (short) ProcessHelper.getAffinityMask(getShortcutSetting("cpuList", container.getCPUList(true)));
-            taskAffinityMaskWoW64 = (short) ProcessHelper.getAffinityMask(getShortcutSetting("cpuListWoW64", container.getCPUListWoW64(true)));
+            boolean cpuShortcutUsesDefaults = shortcutUsesContainerDefaults();
+            rawShortcutCpuList = cpuShortcutUsesDefaults ? "" : shortcut.getExtra("cpuList");
+            rawShortcutCpuListWoW64 = cpuShortcutUsesDefaults ? "" : shortcut.getExtra("cpuListWoW64");
+            effectiveCpuList = getShortcutSetting("cpuList", containerCpuList);
+            effectiveCpuListWoW64 = getShortcutSetting("cpuListWoW64", containerCpuListWoW64);
+            taskAffinityMask = (short) ProcessHelper.getAffinityMask(effectiveCpuList);
+            taskAffinityMaskWoW64 = (short) ProcessHelper.getAffinityMask(effectiveCpuListWoW64);
         }
+        Log.d("XServerDisplayActivity", "CPUList source=shortcutOrContainer shortcutRaw='" +
+                rawShortcutCpuList + "' container='" + containerCpuList +
+                "' effective='" + effectiveCpuList + "' affinityMask=0x" +
+                Integer.toHexString(taskAffinityMask & 0xFFFF));
+        Log.d("XServerDisplayActivity", "CPUListWoW64 source=shortcutOrContainer shortcutRaw='" +
+                rawShortcutCpuListWoW64 + "' container='" + containerCpuListWoW64 +
+                "' effective='" + effectiveCpuListWoW64 + "' affinityMask=0x" +
+                Integer.toHexString(taskAffinityMaskWoW64 & 0xFFFF));
 
         // Determine the class name for the startup workarounds
         String wmClass = shortcut != null ? shortcut.getExtra("wmClass", "") : "";
@@ -708,15 +727,20 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         firstTimeBoot = container.getExtra("appVersion").isEmpty();
 
-        wineVersion = container.getWineVersion();
+        String containerWineVersion = container.getWineVersion();
+        wineVersion = containerWineVersion;
         // Override wine version from per-game shortcut settings if available
+        String rawShortcutWineVersion = "";
         if (shortcut != null) {
             String shortcutWineVersion = getShortcutWineVersionOverride();
+            rawShortcutWineVersion = shortcutWineVersion != null ? shortcutWineVersion : "";
             if (shortcutWineVersion != null && !shortcutWineVersion.isEmpty()) {
-                Log.d("XServerDisplayActivity", "Overriding wine version from shortcut: " + shortcutWineVersion);
                 wineVersion = shortcutWineVersion;
             }
         }
+        Log.d("XServerDisplayActivity", "WineVersion source=shortcutOrContainer shortcutRaw='" +
+                rawShortcutWineVersion + "' container='" + containerWineVersion +
+                "' effective='" + wineVersion + "'");
         if (!ensureRequestedWineVersionInstalled()) {
             return;
         }
@@ -760,12 +784,16 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     Log.d("XServerDisplayActivity", "Container overridden to ID: " + newContainerId);
 
                     // RE-EVALUATE wineVersion and wineInfo after container override!
-                    wineVersion = container.getWineVersion();
+                    String reevalContainerWineVersion = container.getWineVersion();
+                    wineVersion = reevalContainerWineVersion;
                     String shortcutWineVersion = getShortcutWineVersionOverride();
+                    String reevalRawShortcutWineVersion = shortcutWineVersion != null ? shortcutWineVersion : "";
                     if (shortcutWineVersion != null && !shortcutWineVersion.isEmpty()) {
-                        Log.d("XServerDisplayActivity", "Overriding wine version from shortcut: " + shortcutWineVersion);
                         wineVersion = shortcutWineVersion;
                     }
+                    Log.d("XServerDisplayActivity", "WineVersion (post container-override) source=shortcutOrContainer shortcutRaw='" +
+                            reevalRawShortcutWineVersion + "' container='" + reevalContainerWineVersion +
+                            "' effective='" + wineVersion + "'");
                     if (!ensureRequestedWineVersionInstalled()) {
                         return;
                     }
@@ -869,31 +897,75 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 }
             }
 
+            boolean shortcutUsesDefaults = shortcutUsesContainerDefaults();
+            String rawShortcutGraphicsDriver = shortcutUsesDefaults ? "" : shortcut.getExtra("graphicsDriver");
+            String rawShortcutGraphicsDriverConfig = shortcutUsesDefaults ? "" : shortcut.getExtra("graphicsDriverConfig");
+            String rawShortcutAudioDriver = shortcutUsesDefaults ? "" : shortcut.getExtra("audioDriver");
+            String rawShortcutEmulator = shortcutUsesDefaults ? "" : shortcut.getExtra("emulator");
+            String rawShortcutDxwrapper = shortcutUsesDefaults ? "" : shortcut.getExtra("dxwrapper");
+
             graphicsDriver = getShortcutSetting("graphicsDriver", container.getGraphicsDriver());
             graphicsDriverConfig = getShortcutSetting("graphicsDriverConfig", container.getGraphicsDriverConfig());
             audioDriver = getShortcutSetting("audioDriver", container.getAudioDriver());
             emulator = getShortcutSetting("emulator", container.getEmulator());
             dxwrapper = getShortcutSetting("dxwrapper", container.getDXWrapper());
-            String rawShortcutDxwrapperConfig = shortcutUsesContainerDefaults() ? "" : shortcut.getExtra("dxwrapperConfig");
+            String rawShortcutDxwrapperConfig = shortcutUsesDefaults ? "" : shortcut.getExtra("dxwrapperConfig");
             dxwrapperConfig = getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig());
+
+            Log.d("XServerDisplayActivity", "GraphicsDriver source=shortcutOrContainer shortcutRaw='" +
+                    rawShortcutGraphicsDriver + "' container='" + container.getGraphicsDriver() +
+                    "' effective='" + graphicsDriver + "'");
+            Log.d("XServerDisplayActivity", "GraphicsDriverConfig source=shortcutOrContainer shortcutRaw='" +
+                    rawShortcutGraphicsDriverConfig + "' container='" + container.getGraphicsDriverConfig() +
+                    "' effective='" + graphicsDriverConfig + "'");
+            Log.d("XServerDisplayActivity", "AudioDriver source=shortcutOrContainer shortcutRaw='" +
+                    rawShortcutAudioDriver + "' container='" + container.getAudioDriver() +
+                    "' effective='" + audioDriver + "'");
+            Log.d("XServerDisplayActivity", "Emulator source=shortcutOrContainer shortcutRaw='" +
+                    rawShortcutEmulator + "' container='" + container.getEmulator() +
+                    "' effective='" + emulator + "'");
+            Log.d("XServerDisplayActivity", "DXWrapper (version) source=shortcutOrContainer shortcutRaw='" +
+                    rawShortcutDxwrapper + "' container='" + container.getDXWrapper() +
+                    "' effective='" + dxwrapper + "'");
             Log.d("XServerDisplayActivity", "DXVK launch config source=shortcutOrContainer shortcutRaw='" +
                     rawShortcutDxwrapperConfig + "' container='" + container.getDXWrapperConfig() +
                     "' effective='" + dxwrapperConfig + "'");
+            String rawShortcutScreenSize = shortcutUsesDefaults ? "" : shortcut.getExtra("screenSize");
+            String rawShortcutLcAll = shortcutUsesDefaults ? "" : shortcut.getExtra("lc_all");
+            String rawShortcutMidiSoundFont = shortcutUsesDefaults ? "" : shortcut.getExtra("midiSoundFont");
+            String rawShortcutStartupSelection = shortcutUsesDefaults ? "" : shortcut.getExtra("startupSelection");
+
             screenSize = getShortcutSetting("screenSize", container.getScreenSize());
             lc_all = getShortcutSetting("lc_all", container.getLC_ALL());
             midiSoundFont = getShortcutSetting("midiSoundFont", container.getMIDISoundFont());
-            String inputType = shortcutUsesContainerDefaults() ? "" : shortcut.getExtra("inputType");
+
+            Log.d("XServerDisplayActivity", "ScreenSize source=shortcutOrContainer shortcutRaw='" +
+                    rawShortcutScreenSize + "' container='" + container.getScreenSize() +
+                    "' effective='" + screenSize + "'");
+            Log.d("XServerDisplayActivity", "LC_ALL source=shortcutOrContainer shortcutRaw='" +
+                    rawShortcutLcAll + "' container='" + container.getLC_ALL() +
+                    "' effective='" + lc_all + "'");
+            Log.d("XServerDisplayActivity", "MIDISoundFont source=shortcutOrContainer shortcutRaw='" +
+                    rawShortcutMidiSoundFont + "' container='" + container.getMIDISoundFont() +
+                    "' effective='" + midiSoundFont + "'");
+
+            String inputType = shortcutUsesDefaults ? "" : shortcut.getExtra("inputType");
             if (!inputType.isEmpty()) winHandler.setInputType((byte)Integer.parseInt(inputType));
             String xinputDisabledString = getShortcutSetting("disableXinput", "false");
             xinputDisabledFromShortcut = parseBoolean(xinputDisabledString);
             // Pass the value to WinHandler
             winHandler.setXInputDisabled(xinputDisabledFromShortcut);
             Log.d("XServerDisplayActivity", "XInput Disabled from Shortcut: " + xinputDisabledFromShortcut);
-            
+
             startupSelection = getShortcutSetting("startupSelection", String.valueOf(container.getStartupSelection()));
+            Log.d("XServerDisplayActivity", "StartupSelection source=shortcutOrContainer shortcutRaw='" +
+                    rawShortcutStartupSelection + "' container='" + container.getStartupSelection() +
+                    "' effective='" + startupSelection + "'");
             // Per-game refresh rate override is read in getRefreshRateOverride()
         } else {
             startupSelection = String.valueOf(container.getStartupSelection());
+            Log.d("XServerDisplayActivity", "StartupSelection source=container (no shortcut) effective='" +
+                    startupSelection + "'");
         }
 
         // Normalize at runtime only. Do not persist here to avoid silently overwriting
@@ -905,6 +977,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         this.graphicsDriverConfig = GraphicsDriverConfigDialog.parseGraphicsDriverConfig(graphicsDriverConfig);
         this.dxwrapperConfig = DXVKConfigDialog.parseConfig(dxwrapperConfig);
+        Log.d("XServerDisplayActivity", "VKD3D version (from effective dxwrapperConfig)='" +
+                this.dxwrapperConfig.get("vkd3dVersion") + "' dxvkVersion='" +
+                this.dxwrapperConfig.get("version") + "' ddrawrapper='" +
+                this.dxwrapperConfig.get("ddrawrapper") + "'");
         applyPreferredRefreshRate();
 
         if (!wineInfo.isWin64()) {
@@ -2452,7 +2528,15 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
             guestProgramLauncherComponent.setGuestExecutable(guestExecutable);
 
-            envVars.putAll(shortcut != null ? getShortcutSetting("envVars", container.getEnvVars()) : container.getEnvVars());
+            String rawShortcutEnvVars = (shortcut != null && !shortcutUsesContainerDefaults())
+                    ? shortcut.getExtra("envVars") : "";
+            String effectiveCustomEnvVars = shortcut != null
+                    ? getShortcutSetting("envVars", container.getEnvVars())
+                    : container.getEnvVars();
+            Log.d("XServerDisplayActivity", "Custom envVars source=shortcutOrContainer shortcutRaw='" +
+                    rawShortcutEnvVars + "' container='" + container.getEnvVars() +
+                    "' effective='" + effectiveCustomEnvVars + "'");
+            envVars.putAll(effectiveCustomEnvVars);
 
             if (!envVars.has("WINEESYNC")) {
                 envVars.put("WINEESYNC", "1");
@@ -2466,17 +2550,25 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
             guestProgramLauncherComponent.setBindingPaths(bindingPaths.toArray(new String[0]));
 
-            guestProgramLauncherComponent.setBox64Preset(
-                    shortcut != null
-                            ? getShortcutSetting("box64Preset", container.getBox64Preset())
-                            : container.getBox64Preset()
-            );
+            String rawShortcutBox64Preset = (shortcut != null && !shortcutUsesContainerDefaults())
+                    ? shortcut.getExtra("box64Preset") : "";
+            String effectiveBox64Preset = shortcut != null
+                    ? getShortcutSetting("box64Preset", container.getBox64Preset())
+                    : container.getBox64Preset();
+            Log.d("XServerDisplayActivity", "Box64 preset source=shortcutOrContainer shortcutRaw='" +
+                    rawShortcutBox64Preset + "' container='" + container.getBox64Preset() +
+                    "' effective='" + effectiveBox64Preset + "'");
+            guestProgramLauncherComponent.setBox64Preset(effectiveBox64Preset);
 
-            guestProgramLauncherComponent.setFEXCorePreset(
-                    shortcut != null
-                            ? getShortcutSetting("fexcorePreset", container.getFEXCorePreset())
-                            : container.getFEXCorePreset()
-            );
+            String rawShortcutFEXCorePreset = (shortcut != null && !shortcutUsesContainerDefaults())
+                    ? shortcut.getExtra("fexcorePreset") : "";
+            String effectiveFEXCorePreset = shortcut != null
+                    ? getShortcutSetting("fexcorePreset", container.getFEXCorePreset())
+                    : container.getFEXCorePreset();
+            Log.d("XServerDisplayActivity", "FEXCore preset source=shortcutOrContainer shortcutRaw='" +
+                    rawShortcutFEXCorePreset + "' container='" + container.getFEXCorePreset() +
+                    "' effective='" + effectiveFEXCorePreset + "'");
+            guestProgramLauncherComponent.setFEXCorePreset(effectiveFEXCorePreset);
 
                 // P2: Wire preUnpack callback for Mono, redistributables, and Steamless DRM
                 // This runs after box64/Wine is ready but before the game exe launches.

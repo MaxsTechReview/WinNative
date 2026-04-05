@@ -29,6 +29,8 @@ import java.util.Iterator;
 import java.util.Locale;
 
 public abstract class Box64PresetManager {
+    private static final String TAG = "Box64PresetManager";
+
     public static EnvVars getEnvVars(String prefix, Context context, String id) {
         String ucPrefix = prefix.toUpperCase(Locale.ENGLISH);
         EnvVars envVars = new EnvVars();
@@ -107,6 +109,8 @@ public abstract class Box64PresetManager {
             }
         }
 
+        Log.d(TAG, "getEnvVars resolved prefix='" + prefix + "' presetId='" + id +
+                "' -> envVars='" + envVars.toString() + "'");
         return envVars;
     }
 

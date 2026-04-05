@@ -22,13 +22,13 @@ import androidx.appcompat.widget.PopupMenu;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentManager;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.winlator.cmod.container.Container;
 import com.winlator.cmod.container.ContainerManager;
 import com.winlator.cmod.container.Shortcut;
+import com.winlator.cmod.contentdialog.ContainerSettingsComposeDialog;
 import com.winlator.cmod.contentdialog.ContentDialog;
 import com.winlator.cmod.contentdialog.StorageInfoDialog;
 import com.winlator.cmod.core.PreloaderDialog;
@@ -99,12 +99,7 @@ public class ContainersFragment extends Fragment {
             Toast.makeText(getContext(), R.string.setup_wizard_system_image_not_installed, Toast.LENGTH_LONG).show();
             return;
         }
-        FragmentManager fragmentManager = getParentFragmentManager();
-        fragmentManager.beginTransaction()
-                .setCustomAnimations(R.anim.settings_enter, R.anim.settings_exit, R.anim.settings_enter, R.anim.settings_exit)
-                .addToBackStack(null)
-                .replace(R.id.FLFragmentContainer, new ContainerDetailFragment())
-                .commit();
+        new ContainerSettingsComposeDialog(requireActivity(), null, this::loadContainersList).show();
     }
 
     private void loadContainersList() {
@@ -292,12 +287,8 @@ public class ContainersFragment extends Fragment {
         }
 
         private void editContainer(Container container) {
-            FragmentManager fragmentManager = getParentFragmentManager();
-            fragmentManager.beginTransaction()
-                    .setCustomAnimations(R.anim.settings_enter, R.anim.settings_exit, R.anim.settings_enter, R.anim.settings_exit)
-                    .addToBackStack(null)
-                    .replace(R.id.FLFragmentContainer, new ContainerDetailFragment(container.id))
-                    .commit();
+            new ContainerSettingsComposeDialog(requireActivity(), container,
+                    ContainersFragment.this::loadContainersList).show();
         }
 
         private void duplicateContainer(Container container) {
