@@ -123,6 +123,15 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
                 setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
             }
+            // Centralize cleanup so back-button dismissal follows the same
+            // path as Save/Cancel and still fires onFinished (important for
+            // the setup wizard launcher that blocks on MainActivity finishing).
+            setOnDismissListener {
+                AppUtils.hideKeyboard(activity)
+                directoryPickerLauncher?.unregister()
+                wallpaperPickerLauncher?.unregister()
+                onFinished?.run()
+            }
         }
 
         state.isContainerEditMode.value = true
@@ -163,7 +172,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
             override fun onDismiss() {
                 dismiss()
-                onFinished?.run()
             }
 
             override fun onGraphicsDriverConfig() {}
@@ -648,7 +656,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.saveData()
             saveMouseWarpOverride(c)
             dismiss()
-            onFinished?.run()
         } else {
             try {
                 val data = JSONObject()
@@ -691,7 +698,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                     }
                     preloaderDialog.close()
                     dismiss()
-                    onFinished?.run()
                 }
             } catch (e: Throwable) {
                 Log.e(TAG, "Error creating container", e)
@@ -1281,9 +1287,9 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     }
 
     fun dismiss() {
-        AppUtils.hideKeyboard(activity)
-        directoryPickerLauncher?.unregister()
-        wallpaperPickerLauncher?.unregister()
+        // Cleanup (launcher unregister, keyboard hide, onFinished) runs in
+        // the Dialog.OnDismissListener so back-button dismissal takes the
+        // same path as Save/Cancel.
         dialog.dismiss()
     }
 
