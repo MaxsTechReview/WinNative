@@ -23,7 +23,6 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import com.winlator.cmod.ContainerDetailFragment
 import com.winlator.cmod.OtherSettingsFragment
 import com.winlator.cmod.R
 import com.winlator.cmod.SetupWizardActivity

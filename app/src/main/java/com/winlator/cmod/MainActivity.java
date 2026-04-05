@@ -131,16 +131,18 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private void handleIntent(Intent intent) {
         if (intent == null) return;
 
-        View sidebar = findViewById(R.id.LLSidebar);
-        boolean hideSidebar = intent.hasExtra("edit_container_id");
-
-        if (sidebar != null) {
-            sidebar.setVisibility(hideSidebar ? View.GONE : View.VISIBLE);
-        }
-
         int editContainerId = intent.getIntExtra("edit_container_id", 0);
         if (editContainerId > 0) {
-            show(new ContainerDetailFragment(editContainerId));
+            // Show the containers list first so we land on a sensible screen
+            // after the dialog dismisses, then open the Compose dialog.
+            onNavigationItemSelected(navigationView.getMenu().findItem(R.id.main_menu_containers));
+            navigationView.setCheckedItem(R.id.main_menu_containers);
+
+            com.winlator.cmod.container.ContainerManager cm = new com.winlator.cmod.container.ContainerManager(this);
+            com.winlator.cmod.container.Container container = cm.getContainerById(editContainerId);
+            if (container != null) {
+                new com.winlator.cmod.contentdialog.ContainerSettingsComposeDialog(this, container).show();
+            }
             return;
         }
 

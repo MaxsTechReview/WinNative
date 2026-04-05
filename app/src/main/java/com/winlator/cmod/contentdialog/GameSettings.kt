@@ -120,12 +120,19 @@ private val WarningAmber = Color(0xFFFFB74D)
 data class WinComponentItem(val key: String, val label: String, val selectedIndex: Int)
 data class EnvVarItem(val key: String, val value: String)
 data class ExtraArgGroup(val header: String, val args: List<String>)
+data class DriveItem(val letter: String, val path: String)
 
 // ---------------------------------------------------------------------------
 // State holder
 // ---------------------------------------------------------------------------
 class GameSettingsStateHolder {
     val currentSection = mutableIntStateOf(0)
+
+    // True when editing a Container directly; hides shortcut-only fields
+    // and exposes wine version / mouse warp / drives / desktop background.
+    val isContainerEditMode = mutableStateOf(false)
+    // Wine version dropdown is editable only when creating a new container.
+    val wineVersionEditable = mutableStateOf(false)
 
     // General
     val name = mutableStateOf("")
@@ -223,6 +230,20 @@ class GameSettingsStateHolder {
     val desktopThemeEntries = mutableStateOf<List<String>>(emptyList())
     val selectedDesktopTheme = mutableIntStateOf(0)
 
+    // Container-only fields. MouseWarpOverride is stored in .wine/user.reg.
+    val wineVersionEntries = mutableStateOf<List<String>>(emptyList())
+    val selectedWineVersion = mutableIntStateOf(0)
+    val mouseWarpOverrideEntries = mutableStateOf<List<String>>(emptyList())
+    val selectedMouseWarpOverride = mutableIntStateOf(0)
+    val desktopBackgroundTypeEntries = mutableStateOf<List<String>>(emptyList())
+    val selectedDesktopBackgroundType = mutableIntStateOf(0)
+    val desktopBackgroundColor = mutableStateOf("#0277bd")
+    val desktopWallpaperSelected = mutableStateOf(false)
+    val drivesList = mutableStateOf<List<DriveItem>>(emptyList())
+    // Exclusive Input is a global SharedPreferences flag ("xinput_toggle"),
+    // not per-container — tracked here so InputSection can reuse its layout.
+    val containerExclusiveInput = mutableStateOf(false)
+
     // Steam (visible only for Steam games)
     val isSteamGame = mutableStateOf(false)
     val useColdClient = mutableStateOf(false)
@@ -306,6 +327,11 @@ interface GameSettingsCallbacks {
     fun onDxvkVkd3dVersionChanged(versionIndex: Int) {}
     fun onContainerChanged(containerIndex: Int) {}
     fun onEmulatorChanged() {}
+    fun onWineVersionChanged(versionIndex: Int) {}
+    fun onAddDrive() {}
+    fun onRemoveDrive(index: Int) {}
+    fun onPickDrivePath(index: Int) {}
+    fun onPickWallpaper() {}
 }
 
 // ---------------------------------------------------------------------------
@@ -496,7 +522,7 @@ private fun SectionContent(
                 SEC_GENERAL -> GeneralSection(state, callbacks)
                 SEC_STEAM -> SteamSection(state)
                 SEC_DISPLAY -> DisplaySection(state, callbacks)
-                SEC_WINE -> WineSection(state)
+                SEC_WINE -> WineSection(state, callbacks)
                 SEC_COMPONENTS -> ComponentsSection(state, callbacks)
                 SEC_VARIABLES -> VariablesSection(state, callbacks)
                 SEC_INPUT -> InputSection(state)
@@ -783,6 +809,7 @@ private fun GeneralSection(
     state: GameSettingsStateHolder,
     callbacks: GameSettingsCallbacks
 ) {
+    val isContainer = state.isContainerEditMode.value
 
     SettingGroup {
         // Name
@@ -792,34 +819,34 @@ private fun GeneralSection(
             onValueChange = { state.name.value = it }
         )
 
-        // Select EXE
-        Spacer(Modifier.height(14.dp))
-        Text(
-            stringResource(R.string.common_ui_select_exe),
-            color = TextSecondary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium
-        )
-        Spacer(Modifier.height(4.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .border(1.dp, InputBorder, RoundedCornerShape(10.dp))
-                .background(InputSurface)
-                .clickable { callbacks.onSelectExe() }
-                .padding(horizontal = 14.dp, vertical = 12.dp)
-        ) {
+        if (!isContainer) {
+            Spacer(Modifier.height(14.dp))
             Text(
-                text = state.launchExePath.value.ifEmpty { stringResource(R.string.common_ui_select_exe) },
-                color = if (state.launchExePath.value.isEmpty()) TextDim else TextPrimary,
-                fontSize = 13.sp,
-                maxLines = 1
+                stringResource(R.string.common_ui_select_exe),
+                color = TextSecondary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
             )
+            Spacer(Modifier.height(4.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(1.dp, InputBorder, RoundedCornerShape(10.dp))
+                    .background(InputSurface)
+                    .clickable { callbacks.onSelectExe() }
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    text = state.launchExePath.value.ifEmpty { stringResource(R.string.common_ui_select_exe) },
+                    color = if (state.launchExePath.value.isEmpty()) TextDim else TextPrimary,
+                    fontSize = 13.sp,
+                    maxLines = 1
+                )
+            }
         }
 
-        // Container selection
-        if (state.containerEntries.value.isNotEmpty()) {
+        if (!isContainer && state.containerEntries.value.isNotEmpty()) {
             Spacer(Modifier.height(14.dp))
             SettingDropdown(
                 label = stringResource(R.string.shortcuts_list_select_a_container),
@@ -832,31 +859,45 @@ private fun GeneralSection(
             )
         }
 
-        Spacer(Modifier.height(14.dp))
+        if (isContainer && state.wineVersionEntries.value.isNotEmpty()) {
+            Spacer(Modifier.height(14.dp))
+            SettingDropdown(
+                label = stringResource(R.string.container_wine_version),
+                entries = state.wineVersionEntries.value,
+                selectedIndex = state.selectedWineVersion.intValue,
+                onSelected = {
+                    state.selectedWineVersion.intValue = it
+                    callbacks.onWineVersionChanged(it)
+                },
+                enabled = state.wineVersionEditable.value
+            )
+        }
 
-        // Add to Home Screen
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .background(AccentBlue.copy(alpha = 0.08f))
-                .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
-                .clickable { callbacks.onAddToHomeScreen() }
-                .padding(horizontal = 16.dp, vertical = 10.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Filled.Home,
-                    contentDescription = null,
-                    tint = AccentBlue,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    stringResource(R.string.shortcuts_list_add_to_home_screen),
-                    color = AccentBlue,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
+        if (!isContainer) {
+            Spacer(Modifier.height(14.dp))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(AccentBlue.copy(alpha = 0.08f))
+                    .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                    .clickable { callbacks.onAddToHomeScreen() }
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.Home,
+                        contentDescription = null,
+                        tint = AccentBlue,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        stringResource(R.string.shortcuts_list_add_to_home_screen),
+                        color = AccentBlue,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
     }
@@ -898,15 +939,15 @@ private fun GeneralSection(
             }
         }
 
-        Spacer(Modifier.height(14.dp))
-
-        // Refresh Rate
-        SettingDropdown(
-            label = stringResource(R.string.settings_general_refresh_rate),
-            entries = state.refreshRateEntries.value,
-            selectedIndex = state.selectedRefreshRate.intValue,
-            onSelected = { state.selectedRefreshRate.intValue = it }
-        )
+        if (!isContainer) {
+            Spacer(Modifier.height(14.dp))
+            SettingDropdown(
+                label = stringResource(R.string.settings_general_refresh_rate),
+                entries = state.refreshRateEntries.value,
+                selectedIndex = state.selectedRefreshRate.intValue,
+                onSelected = { state.selectedRefreshRate.intValue = it }
+            )
+        }
     }
 
     Spacer(Modifier.height(16.dp))
@@ -1704,7 +1745,11 @@ private fun SteamSection(state: GameSettingsStateHolder) {
 // Section 3: Wine
 // ===================================================================
 @Composable
-private fun WineSection(state: GameSettingsStateHolder) {
+private fun WineSection(
+    state: GameSettingsStateHolder,
+    callbacks: GameSettingsCallbacks
+) {
+    val isContainer = state.isContainerEditMode.value
 
     SettingGroup {
         // LC_ALL with locale picker. Emulator selection lives in Advanced.
@@ -1773,6 +1818,91 @@ private fun WineSection(state: GameSettingsStateHolder) {
                 selectedIndex = state.selectedDesktopTheme.intValue,
                 onSelected = { state.selectedDesktopTheme.intValue = it }
             )
+
+            if (isContainer && state.desktopBackgroundTypeEntries.value.isNotEmpty()) {
+                Spacer(Modifier.height(14.dp))
+                SettingDropdown(
+                    label = stringResource(R.string.settings_general_background),
+                    entries = state.desktopBackgroundTypeEntries.value,
+                    selectedIndex = state.selectedDesktopBackgroundType.intValue,
+                    onSelected = { state.selectedDesktopBackgroundType.intValue = it }
+                )
+
+                val typeEntries = state.desktopBackgroundTypeEntries.value
+                val selectedType = typeEntries.getOrNull(state.selectedDesktopBackgroundType.intValue)
+                    ?.lowercase() ?: ""
+                when (selectedType) {
+                    "color" -> {
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            Box(Modifier.weight(1f)) {
+                                SettingTextField(
+                                    label = "Color (hex)",
+                                    value = state.desktopBackgroundColor.value,
+                                    onValueChange = { state.desktopBackgroundColor.value = it }
+                                )
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            val previewColor = remember(state.desktopBackgroundColor.value) {
+                                runCatching {
+                                    Color(android.graphics.Color.parseColor(state.desktopBackgroundColor.value))
+                                }.getOrDefault(Color(0xFF0277BD))
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(previewColor)
+                                    .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
+                            )
+                        }
+                    }
+                    "image" -> {
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .border(1.dp, InputBorder, RoundedCornerShape(10.dp))
+                                .background(InputSurface)
+                                .clickable { callbacks.onPickWallpaper() }
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                if (state.desktopWallpaperSelected.value) "Wallpaper selected"
+                                else "Select wallpaper",
+                                color = if (state.desktopWallpaperSelected.value) TextPrimary else TextSecondary,
+                                fontSize = 12.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (state.desktopWallpaperSelected.value) {
+                                Icon(
+                                    Icons.Filled.Check,
+                                    contentDescription = null,
+                                    tint = AccentBlue,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (isContainer && state.mouseWarpOverrideEntries.value.isNotEmpty()) {
+        Spacer(Modifier.height(12.dp))
+        SettingGroup {
+            SettingDropdown(
+                label = stringResource(R.string.container_wine_mouse_warp_override),
+                entries = state.mouseWarpOverrideEntries.value,
+                selectedIndex = state.selectedMouseWarpOverride.intValue,
+                onSelected = { state.selectedMouseWarpOverride.intValue = it }
+            )
         }
     }
 }
@@ -1834,10 +1964,15 @@ private fun VariablesSection(
     state: GameSettingsStateHolder,
     callbacks: GameSettingsCallbacks
 ) {
+    val isContainer = state.isContainerEditMode.value
     var isAdding by remember { mutableStateOf(false) }
     var addText by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
 
+    if (isContainer) {
+        SubsectionLabel(stringResource(R.string.container_config_variables))
+        Spacer(Modifier.height(8.dp))
+    }
 
     SettingGroup {
         if (state.envVars.value.isEmpty() && !isAdding) {
@@ -2002,6 +2137,114 @@ private fun VariablesSection(
             }
         }
     }
+
+    if (isContainer) {
+        Spacer(Modifier.height(20.dp))
+        SubsectionLabel(stringResource(R.string.container_config_drives))
+        Spacer(Modifier.height(8.dp))
+        SettingGroup {
+            val drives = state.drivesList.value
+            if (drives.isEmpty()) {
+                Text(
+                    stringResource(R.string.common_ui_none),
+                    color = TextDim,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            } else {
+                drives.forEachIndexed { index, drive ->
+                    if (index > 0) {
+                        Spacer(Modifier.height(2.dp))
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
+                        Spacer(Modifier.height(2.dp))
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(width = 38.dp, height = 32.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(AccentBlue.copy(alpha = 0.1f))
+                                .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(6.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "${drive.letter}:",
+                                color = AccentBlue,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(InputSurface)
+                                .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
+                                .clickable { callbacks.onPickDrivePath(index) }
+                                .padding(horizontal = 12.dp, vertical = 10.dp)
+                        ) {
+                            Text(
+                                drive.path.ifEmpty { "Select a folder" },
+                                color = if (drive.path.isEmpty()) TextDim else TextPrimary,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(DangerRed.copy(alpha = 0.1f))
+                                .clickable { callbacks.onRemoveDrive(index) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = null,
+                                tint = DangerRed,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(AccentBlue.copy(alpha = 0.08f))
+                    .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                    .clickable { callbacks.onAddDrive() }
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.Add,
+                        contentDescription = null,
+                        tint = AccentBlue,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        stringResource(R.string.common_ui_add),
+                        color = AccentBlue,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+    }
 }
 
 // ===================================================================
@@ -2009,27 +2252,37 @@ private fun VariablesSection(
 // ===================================================================
 @Composable
 private fun InputSection(state: GameSettingsStateHolder) {
+    val isContainer = state.isContainerEditMode.value
 
     // Input Controls group
     SubsectionLabel(stringResource(R.string.common_ui_input_controls))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
-        SettingDropdown(
-            label = stringResource(R.string.common_ui_profile),
-            entries = state.controlsProfileEntries.value,
-            selectedIndex = state.selectedControlsProfile.intValue,
-            onSelected = { state.selectedControlsProfile.intValue = it }
-        )
+        if (!isContainer) {
+            SettingDropdown(
+                label = stringResource(R.string.common_ui_profile),
+                entries = state.controlsProfileEntries.value,
+                selectedIndex = state.selectedControlsProfile.intValue,
+                onSelected = { state.selectedControlsProfile.intValue = it }
+            )
 
-        Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(12.dp))
+        }
 
         // Exclusive Input — when off, XInput + DInput are both forced on and locked below.
+        // Container mode backs it with the global "xinput_toggle" pref.
+        val exclusiveChecked = if (isContainer) state.containerExclusiveInput.value
+        else state.disableXInput.value
         SettingCheckbox(
             label = stringResource(R.string.shortcuts_properties_exclusive_input),
-            checked = state.disableXInput.value,
-            onCheckedChange = {
-                state.disableXInput.value = it
-                if (!it) {
+            checked = exclusiveChecked,
+            onCheckedChange = { enabled ->
+                if (isContainer) {
+                    state.containerExclusiveInput.value = enabled
+                } else {
+                    state.disableXInput.value = enabled
+                }
+                if (!enabled) {
                     state.enableXInput.value = true
                     state.enableDInput.value = true
                 }
@@ -2044,13 +2297,15 @@ private fun InputSection(state: GameSettingsStateHolder) {
             onCheckedChange = { state.sdl2Compatibility.value = it }
         )
 
-        Spacer(Modifier.height(4.dp))
+        if (!isContainer) {
+            Spacer(Modifier.height(4.dp))
 
-        SettingCheckbox(
-            label = stringResource(R.string.session_xserver_simulate_touch_screen),
-            checked = state.simTouchScreen.value,
-            onCheckedChange = { state.simTouchScreen.value = it }
-        )
+            SettingCheckbox(
+                label = stringResource(R.string.session_xserver_simulate_touch_screen),
+                checked = state.simTouchScreen.value,
+                onCheckedChange = { state.simTouchScreen.value = it }
+            )
+        }
     }
 
     Spacer(Modifier.height(16.dp))
@@ -2071,7 +2326,8 @@ private fun InputSection(state: GameSettingsStateHolder) {
         }
 
         // Enable XInput with help — only toggleable when Exclusive Input is on.
-        val inputApisLocked = !state.disableXInput.value
+        val inputApisLocked = if (isContainer) !state.containerExclusiveInput.value
+        else !state.disableXInput.value
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
