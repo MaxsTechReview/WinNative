@@ -1,5 +1,6 @@
 package com.winlator.cmod
 
+import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -125,6 +126,7 @@ import com.winlator.cmod.utils.PeIconExtractor
 import com.winlator.cmod.service.DownloadService
 import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.container.Shortcut
+import com.winlator.cmod.contentdialog.ShortcutSettingsComposeDialog
 import com.winlator.cmod.steam.events.EventDispatcher
 import com.winlator.cmod.steam.events.AndroidEvent
 import dagger.hilt.android.AndroidEntryPoint
@@ -204,6 +206,16 @@ class UnifiedActivity : ComponentActivity() {
     
     // Trigger to refresh library when activity resumes from another container
     var libraryRefreshSignal by mutableIntStateOf(0)
+
+    // Freezes the library/store card chasing borders while any full-screen
+    // dialog is open, so the ~120 Hz animation cost isn't paid for content
+    // the user can't see or interact with.
+    private val chasingBordersPaused = mutableStateOf(false)
+
+    // LibraryCarousel is always composed (kept alive behind an alpha(0f) when
+    // another tab is active). This flag lets GameCapsule skip its animation
+    // while the library is invisible.
+    private val libraryTabActive = mutableStateOf(true)
 
     val rightStickScrollState = kotlinx.coroutines.flow.MutableStateFlow(0f)
     val leftStickScrollState = kotlinx.coroutines.flow.MutableStateFlow(0f)
@@ -827,6 +839,8 @@ class UnifiedActivity : ComponentActivity() {
 
                 Box(Modifier.padding(padding).fillMaxSize().background(BgDark)) {
                     val key = tabs.getOrNull(selectedIdx)?.key ?: "library"
+
+                    LaunchedEffect(key) { libraryTabActive.value = (key == "library") }
 
                     // Keep Library tab always composed so its state survives tab switches
                     Box(Modifier.fillMaxSize().let {
@@ -1513,6 +1527,15 @@ class UnifiedActivity : ComponentActivity() {
         val carouselState = rememberLazyListState()
         val activity = LocalContext.current as? UnifiedActivity
 
+        // Pause chasing borders on library cards while any dialog is open.
+        LaunchedEffect(selectedAppForSettings, selectedGogGameForSettings, detailApp) {
+            chasingBordersPaused.value =
+                selectedAppForSettings != null || selectedGogGameForSettings != null || detailApp != null
+        }
+        DisposableEffect(Unit) {
+            onDispose { chasingBordersPaused.value = false }
+        }
+
         LaunchedEffect(layoutMode) {
             currentLibraryLayoutMode = layoutMode
         }
@@ -2103,39 +2126,17 @@ class UnifiedActivity : ComponentActivity() {
                             icon = Icons.Default.Settings,
                             onClick = {
                                 val containerManager = ContainerManager(context)
-                                val existingShortcut = findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
-                                if (existingShortcut != null) {
-                                    val intent = Intent(context, MainActivity::class.java)
-                                    intent.putExtra("edit_shortcut_path", existingShortcut.file.absolutePath)
-                                    intent.putExtra("return_to_unified", true)
-                                    val opts = ActivityOptionsCompat.makeCustomAnimation(
-                                        context,
-                                        R.anim.settings_enter,
-                                        R.anim.settings_exit,
+                                val shortcut = findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
+                                    ?: if (isCustom) null else ShortcutSettingsComposeDialog.createLibraryShortcut(
+                                        context = context,
+                                        containerManager = containerManager,
+                                        source = if (isEpic) "EPIC" else "STEAM",
+                                        appId = if (isEpic) epicId else app.id,
+                                        gogId = null,
+                                        appName = app.name,
                                     )
-                                    context.startActivity(intent, opts.toBundle())
-                                } else if (isEpic) {
-                                    val intent = Intent(context, MainActivity::class.java)
-                                    intent.putExtra("create_shortcut_for_epic_id", epicId)
-                                    intent.putExtra("create_shortcut_for_app_name", app.name)
-                                    intent.putExtra("return_to_unified", true)
-                                    val opts = ActivityOptionsCompat.makeCustomAnimation(
-                                        context,
-                                        R.anim.settings_enter,
-                                        R.anim.settings_exit,
-                                    )
-                                    context.startActivity(intent, opts.toBundle())
-                                } else if (!isCustom) {
-                                    val intent = Intent(context, MainActivity::class.java)
-                                    intent.putExtra("create_shortcut_for_app_id", app.id)
-                                    intent.putExtra("create_shortcut_for_app_name", app.name)
-                                    intent.putExtra("return_to_unified", true)
-                                    val opts = ActivityOptionsCompat.makeCustomAnimation(
-                                        context,
-                                        R.anim.settings_enter,
-                                        R.anim.settings_exit,
-                                    )
-                                    context.startActivity(intent, opts.toBundle())
+                                if (shortcut != null) {
+                                    ShortcutSettingsComposeDialog(this@UnifiedActivity, shortcut).show()
                                 }
                                 onDismissRequest()
                             },
@@ -2348,24 +2349,20 @@ class UnifiedActivity : ComponentActivity() {
                                 title = stringResource(R.string.common_ui_settings),
                                 icon = Icons.Default.Settings,
                                 onClick = {
-                                    val shortcut = ContainerManager(context).loadShortcuts().find {
+                                    val containerManager = ContainerManager(context)
+                                    val shortcut = containerManager.loadShortcuts().find {
                                         it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == app.id
-                                    }
-                                    val intent = Intent(context, MainActivity::class.java)
-                                    if (shortcut != null) {
-                                        intent.putExtra("edit_shortcut_path", shortcut.file.absolutePath)
-                                    } else {
-                                        intent.putExtra("create_shortcut_for_gog_id", app.id)
-                                        intent.putExtra("create_shortcut_for_app_id", gogPseudoId(app.id))
-                                        intent.putExtra("create_shortcut_for_app_name", app.title)
-                                    }
-                                    intent.putExtra("return_to_unified", true)
-                                    val opts = ActivityOptionsCompat.makeCustomAnimation(
-                                        context,
-                                        R.anim.settings_enter,
-                                        R.anim.settings_exit,
+                                    } ?: ShortcutSettingsComposeDialog.createLibraryShortcut(
+                                        context = context,
+                                        containerManager = containerManager,
+                                        source = "GOG",
+                                        appId = gogPseudoId(app.id),
+                                        gogId = app.id,
+                                        appName = app.title,
                                     )
-                                    context.startActivity(intent, opts.toBundle())
+                                    if (shortcut != null) {
+                                        ShortcutSettingsComposeDialog(this@UnifiedActivity, shortcut).show()
+                                    }
                                     onDismissRequest()
                                 },
                             ),
@@ -2904,53 +2901,33 @@ class UnifiedActivity : ComponentActivity() {
                                                 label = stringResource(R.string.common_ui_settings),
                                                 modifier = Modifier.weight(1f),
                                                 onClick = {
-                                                    if (isGog) {
-                                                        val shortcut = ContainerManager(context).loadShortcuts().find {
+                                                    val containerManager = ContainerManager(context)
+                                                    val shortcut: com.winlator.cmod.container.Shortcut? = when {
+                                                        isGog -> containerManager.loadShortcuts().find {
                                                             it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == gogGame!!.id
-                                                        }
-                                                        val intent = Intent(context, MainActivity::class.java)
-                                                        if (shortcut != null) {
-                                                            intent.putExtra("edit_shortcut_path", shortcut.file.absolutePath)
-                                                        } else {
-                                                            intent.putExtra("create_shortcut_for_gog_id", gogGame!!.id)
-                                                            intent.putExtra("create_shortcut_for_app_id", gogPseudoId(gogGame.id))
-                                                            intent.putExtra("create_shortcut_for_app_name", app.name)
-                                                        }
-                                                        intent.putExtra("return_to_unified", true)
-                                                        val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
-                                                        context.startActivity(intent, opts.toBundle())
-                                                    } else if (isCustom || isEpic) {
-                                                        val containerManager = ContainerManager(context)
-                                                        val existingShortcut = findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
-                                                        if (existingShortcut != null) {
-                                                            val intent = Intent(context, MainActivity::class.java)
-                                                            intent.putExtra("edit_shortcut_path", existingShortcut.file.absolutePath)
-                                                            intent.putExtra("return_to_unified", true)
-                                                            val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
-                                                            context.startActivity(intent, opts.toBundle())
-                                                        } else if (isEpic) {
-                                                            val intent = Intent(context, MainActivity::class.java)
-                                                            intent.putExtra("create_shortcut_for_epic_id", epicId)
-                                                            intent.putExtra("create_shortcut_for_app_name", app.name)
-                                                            intent.putExtra("return_to_unified", true)
-                                                            val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
-                                                            context.startActivity(intent, opts.toBundle())
-                                                        }
-                                                    } else {
-                                                        val containerManager = ContainerManager(context)
-                                                        val existingShortcut = findLibraryShortcutForGame(containerManager, app, false, false, 0)
-                                                        val intent = Intent(context, MainActivity::class.java)
-                                                        if (existingShortcut != null) {
-                                                            intent.putExtra("edit_shortcut_path", existingShortcut.file.absolutePath)
-                                                        } else {
-                                                            intent.putExtra("create_shortcut_for_app_id", app.id)
-                                                            intent.putExtra("create_shortcut_for_app_name", app.name)
-                                                        }
-                                                        intent.putExtra("return_to_unified", true)
-                                                        val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
-                                                        context.startActivity(intent, opts.toBundle())
+                                                        } ?: ShortcutSettingsComposeDialog.createLibraryShortcut(
+                                                            context = context,
+                                                            containerManager = containerManager,
+                                                            source = "GOG",
+                                                            appId = gogPseudoId(gogGame!!.id),
+                                                            gogId = gogGame.id,
+                                                            appName = app.name,
+                                                        )
+                                                        isCustom -> findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
+                                                        else -> findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
+                                                            ?: ShortcutSettingsComposeDialog.createLibraryShortcut(
+                                                                context = context,
+                                                                containerManager = containerManager,
+                                                                source = if (isEpic) "EPIC" else "STEAM",
+                                                                appId = if (isEpic) epicId else app.id,
+                                                                gogId = null,
+                                                                appName = app.name,
+                                                            )
                                                     }
-                                                    onDismissRequest()
+                                                    if (shortcut != null) {
+                                                        // Layer the settings dialog on top; keep the detail dialog open underneath.
+                                                        ShortcutSettingsComposeDialog(this@UnifiedActivity, shortcut).show()
+                                                    }
                                                 },
                                             )
 
@@ -3661,7 +3638,11 @@ class UnifiedActivity : ComponentActivity() {
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
                     .border(1.dp, if (isControllerActive) CardBorder else Color.Transparent, RoundedCornerShape(14.dp))
-                    .chasingBorder(isFocused = isFocused, cornerRadius = 14.dp)
+                    .chasingBorder(
+                        isFocused = isFocused,
+                        paused = chasingBordersPaused.value || !libraryTabActive.value,
+                        cornerRadius = 14.dp
+                    )
                     .background(CardDark, RoundedCornerShape(14.dp))
                     .focusable()
                     .then(clickModifier)
@@ -3720,7 +3701,11 @@ class UnifiedActivity : ComponentActivity() {
                 modifier = modifier
                     .fillMaxWidth()
                     .border(1.dp, CardDark, RoundedCornerShape(12.dp))
-                    .chasingBorder(isFocused = isFocused, cornerRadius = 12.dp)
+                    .chasingBorder(
+                        isFocused = isFocused,
+                        paused = chasingBordersPaused.value || !libraryTabActive.value,
+                        cornerRadius = 12.dp
+                    )
                     .background(CardDark, RoundedCornerShape(12.dp))
                     .focusable()
                     .then(clickModifier)
@@ -3867,7 +3852,7 @@ class UnifiedActivity : ComponentActivity() {
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
                     .border(1.dp, borderColor, RoundedCornerShape(14.dp))
-                    .chasingBorder(isFocused = effectiveFocus, cornerRadius = 14.dp)
+                    .chasingBorder(isFocused = effectiveFocus, paused = chasingBordersPaused.value, cornerRadius = 14.dp)
                     .background(CardDark, RoundedCornerShape(14.dp))
                     .onFocusChanged { isFocused = it.isFocused }
                     .focusable()
@@ -3919,7 +3904,7 @@ class UnifiedActivity : ComponentActivity() {
                 modifier = Modifier
                     .fillMaxSize()
                     .border(1.dp, borderColor, RoundedCornerShape(16.dp))
-                    .chasingBorder(isFocused = effectiveFocus, cornerRadius = 16.dp)
+                    .chasingBorder(isFocused = effectiveFocus, paused = chasingBordersPaused.value, cornerRadius = 16.dp)
                     .background(CardDark, RoundedCornerShape(16.dp))
                     .onFocusChanged { isFocused = it.isFocused }
                     .focusable()
@@ -4423,7 +4408,7 @@ class UnifiedActivity : ComponentActivity() {
                             else Modifier
                         )
                         .border(1.dp, gogBorderColor, RoundedCornerShape(16.dp))
-                        .chasingBorder(isFocused = isItemFocused, cornerRadius = 16.dp)
+                        .chasingBorder(isFocused = isItemFocused, paused = chasingBordersPaused.value, cornerRadius = 16.dp)
                         .background(CardDark, RoundedCornerShape(16.dp))
                         .clickable { selectedGameId.value = app.id }
                 ) {
@@ -4698,7 +4683,7 @@ class UnifiedActivity : ComponentActivity() {
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
                     .border(1.dp, borderColor, RoundedCornerShape(14.dp))
-                    .chasingBorder(isFocused = effectiveFocus, cornerRadius = 14.dp)
+                    .chasingBorder(isFocused = effectiveFocus, paused = chasingBordersPaused.value, cornerRadius = 14.dp)
                     .background(CardDark, RoundedCornerShape(14.dp))
                     .onFocusChanged { isFocused = it.isFocused }
                     .focusable()
@@ -4770,7 +4755,7 @@ class UnifiedActivity : ComponentActivity() {
                 modifier = Modifier
                     .fillMaxSize()
                     .border(1.dp, borderColor, RoundedCornerShape(16.dp))
-                    .chasingBorder(isFocused = effectiveFocus, cornerRadius = 16.dp)
+                    .chasingBorder(isFocused = effectiveFocus, paused = chasingBordersPaused.value, cornerRadius = 16.dp)
                     .background(CardDark, RoundedCornerShape(16.dp))
                     .onFocusChanged { isFocused = it.isFocused }
                     .focusable()

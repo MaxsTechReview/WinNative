@@ -36,6 +36,7 @@
     <string name="common_ui_force">Force</string>
     <string name="common_ui_version">Version</string>
     <string name="common_ui_advanced">Advanced</string>
+    <string name="common_ui_graphics">Graphics</string>
     <string name="common_ui_system">System</string>
     <string name="common_ui_width">Width</string>
     <string name="common_ui_height">Height</string>
@@ -228,6 +229,7 @@
     <string name="shortcuts_properties_launch_steam_client_beta">Launch Steam Client (Beta)</string>
     <string name="shortcuts_properties_launch_steam_client_description">Launches the real Steam client in Wine\nRequires a Steam account and may reduce performance\nNot all games work</string>
     <string name="shortcuts_properties_steam_type">Steam Client Performance</string>
+    <string name="steam_section_title">Steam</string>
     <string name="steam_section_emulator">Steam Emulator (Goldberg)</string>
     <string name="steam_section_real_client">Real Steam Client</string>
     <string name="shortcuts_properties_use_steam_input">Use Steam Input</string>
@@ -314,6 +316,7 @@
     <string name="container_config_tab">Config</string>
     <string name="container_config_av_tab">A/V</string>
     <string name="container_config_emulator_64bit">64bit Emulator</string>
+    <string name="container_config_emulator_section">Emulator</string>
     <string name="container_config_sdl2_compatibility">Enable SDL2 Compatibility</string>
 
     <!-- Container > Wine and DirectX -->
@@ -449,11 +452,6 @@
     <string name="container_graphics_bcn_emulation">BCn Emulation</string>
     <string name="container_graphics_bcn_emulation_type">BCn Emulation Type</string>
     <string name="container_graphics_bcn_emulation_cache">BCn Emulation Cache</string>
-    <string name="container_graphics_vkbasalt">vkBasalt</string>
-    <string name="container_graphics_vkbasalt_sharpness_effects">Sharpness Effect</string>
-    <string name="container_graphics_vkbasalt_sharpness_level">Sharpness Level</string>
-    <string name="container_graphics_vkbasalt_sharpness_denoise">Sharpeness Denoise</string>
-
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Do you want to duplicate this preset?</string>
     <string name="container_presets_confirm_remove">Do you want to remove this preset?</string>

@@ -41,7 +41,7 @@ import com.winlator.cmod.container.Container;
 import com.winlator.cmod.container.ContainerManager;
 import com.winlator.cmod.container.Shortcut;
 import com.winlator.cmod.contentdialog.ContentDialog;
-import com.winlator.cmod.contentdialog.ShortcutSettingsDialog;
+import com.winlator.cmod.contentdialog.ShortcutSettingsComposeDialog;
 import com.winlator.cmod.contents.ContentsManager;
 import com.winlator.cmod.core.FileUtils;
 
@@ -167,16 +167,9 @@ public class ShortcutsFragment extends Fragment {
             listItemMenu.inflate(R.menu.shortcut_popup_menu);
             listItemMenu.setOnMenuItemClickListener((menuItem) -> {
                 int itemId = menuItem.getItemId();
-                if (itemId == R.id.shortcut_game_settings) {
-                    getParentFragmentManager().beginTransaction()
-                            .setCustomAnimations(R.anim.settings_enter, R.anim.settings_exit, R.anim.settings_enter, R.anim.settings_exit)
-                            .addToBackStack(null)
-                            .replace(R.id.FLFragmentContainer, new ContainerDetailFragment(shortcut))
-                            .commit();
-                }
-                else if (itemId == R.id.shortcut_settings) {
+                if (itemId == R.id.shortcut_settings) {
                     try {
-                        (new ShortcutSettingsDialog(ShortcutsFragment.this, shortcut)).show();
+                        (new ShortcutSettingsComposeDialog(ShortcutsFragment.this, shortcut)).show();
                     } catch (Throwable e) {
                         Log.e("ShortcutsFragment", "Error opening shortcut settings", e);
                         Toast.makeText(getContext(), R.string.shortcuts_list_error_opening_settings, Toast.LENGTH_SHORT).show();

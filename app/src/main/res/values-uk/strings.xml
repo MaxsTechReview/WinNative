@@ -442,11 +442,6 @@
     <string name="container_graphics_bcn_emulation">Емуляція BCn</string>
     <string name="container_graphics_bcn_emulation_type">Тип емуляції BCn</string>
     <string name="container_graphics_bcn_emulation_cache">Кеш емуляції BCn</string>
-    <string name="container_graphics_vkbasalt">vkBasalt</string>
-    <string name="container_graphics_vkbasalt_sharpness_effects">Ефект різкості</string>
-    <string name="container_graphics_vkbasalt_sharpness_level">Рівень різкості</string>
-    <string name="container_graphics_vkbasalt_sharpness_denoise">Придушення шуму різкості</string>
-
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Ви хочете дублювати цей пресет?</string>
     <string name="container_presets_confirm_remove">Ви хочете видалити цей пресет?</string>

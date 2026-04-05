@@ -442,11 +442,6 @@
     <string name="container_graphics_bcn_emulation">BCn-Emulation</string>
     <string name="container_graphics_bcn_emulation_type">BCn-Emulationstyp</string>
     <string name="container_graphics_bcn_emulation_cache">BCn-Emulations-Cache</string>
-    <string name="container_graphics_vkbasalt">vkBasalt</string>
-    <string name="container_graphics_vkbasalt_sharpness_effects">Schärfeeffekt</string>
-    <string name="container_graphics_vkbasalt_sharpness_level">Schärfestufe</string>
-    <string name="container_graphics_vkbasalt_sharpness_denoise">Schärfe-Entrauschen</string>
-
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Möchtest du diese Voreinstellung duplizieren?</string>
     <string name="container_presets_confirm_remove">Möchtest du diese Voreinstellung entfernen?</string>

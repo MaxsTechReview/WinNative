@@ -442,11 +442,6 @@
     <string name="container_graphics_bcn_emulation">Emulación BCn</string>
     <string name="container_graphics_bcn_emulation_type">Tipo de emulación BCn</string>
     <string name="container_graphics_bcn_emulation_cache">Caché de emulación BCn</string>
-    <string name="container_graphics_vkbasalt">vkBasalt</string>
-    <string name="container_graphics_vkbasalt_sharpness_effects">Efecto de nitidez</string>
-    <string name="container_graphics_vkbasalt_sharpness_level">Nivel de nitidez</string>
-    <string name="container_graphics_vkbasalt_sharpness_denoise">Reducción de ruido de nitidez</string>
-
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">¿Deseas duplicar este preset?</string>
     <string name="container_presets_confirm_remove">¿Deseas eliminar este preset?</string>

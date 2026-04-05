@@ -442,11 +442,6 @@
     <string name="container_graphics_bcn_emulation">Émulation BCn</string>
     <string name="container_graphics_bcn_emulation_type">Type d\'émulation BCn</string>
     <string name="container_graphics_bcn_emulation_cache">Cache d\'émulation BCn</string>
-    <string name="container_graphics_vkbasalt">vkBasalt</string>
-    <string name="container_graphics_vkbasalt_sharpness_effects">Effet de netteté</string>
-    <string name="container_graphics_vkbasalt_sharpness_level">Niveau de netteté</string>
-    <string name="container_graphics_vkbasalt_sharpness_denoise">Débruitage de la netteté</string>
-
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Voulez-vous dupliquer ce préréglage ?</string>
     <string name="container_presets_confirm_remove">Voulez-vous supprimer ce préréglage ?</string>

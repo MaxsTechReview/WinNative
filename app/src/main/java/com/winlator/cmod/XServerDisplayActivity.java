@@ -17,6 +17,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -216,7 +217,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private MidiHandler midiHandler;
     private String midiSoundFont = "";
     private String lc_all = "";
-    private String vkbasaltConfig = "";
     PreloaderDialog preloaderDialog = null;
     private Runnable configChangedCallback = null;
     private boolean isPaused = false;
@@ -888,12 +888,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
             xinputDisabledFromShortcut = parseBoolean(xinputDisabledString);
             // Pass the value to WinHandler
             winHandler.setXInputDisabled(xinputDisabledFromShortcut);
-            String sharpnessEffect = shortcut.getExtra("sharpnessEffect", "None");
-            if (!sharpnessEffect.equals("None")) {
-                double sharpnessLevel = Double.parseDouble(shortcut.getExtra("sharpnessLevel", "100"));
-                double sharpnessDenoise = Double.parseDouble(shortcut.getExtra("sharpnessDenoise", "100"));
-                vkbasaltConfig = "effects=" + sharpnessEffect.toLowerCase() + ";" + "casSharpness=" + sharpnessLevel / 100 + ";" + "dlsSharpness=" + sharpnessLevel / 100  + ";" + "dlsDenoise=" + sharpnessDenoise / 100 + ";" + "enableOnLaunch=True";
-            }
             Log.d("XServerDisplayActivity", "XInput Disabled from Shortcut: " + xinputDisabledFromShortcut);
             
             startupSelection = getShortcutSetting("startupSelection", String.valueOf(container.getStartupSelection()));
@@ -947,8 +941,13 @@ public class XServerDisplayActivity extends AppCompatActivity {
             @Override
             public void onFramePresented(Window window) {
                 if (frameRating != null && frameRating.getVisibility() == View.VISIBLE) {
-                    // Count frames from any window presentation
-                    frameRating.update();
+                    if (frameRatingWindowId != -1) {
+                        if (window != null && window.id == frameRatingWindowId) {
+                            frameRating.update();
+                        }
+                    } else if (window == null) {
+                        frameRating.update();
+                    }
                 }
             }
            
@@ -1970,6 +1969,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     syncFrameRatingWithExistingWindows();
                     applyHUDSettings();
                 }
+                updateHUDRenderMode();
                 
                 if (container != null) {
                     container.setShowFPS(becomingVisible);
@@ -3315,10 +3315,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
         String bcnEmulationCache = graphicsDriverConfig.get("bcnEmulationCache");
         envVars.put("WRAPPER_USE_BCN_CACHE", bcnEmulationCache);
 
-        if (!vkbasaltConfig.isEmpty()) {
-            envVars.put("ENABLE_VKBASALT", "1");
-            envVars.put("VKBASALT_CONFIG", vkbasaltConfig);
-        }
     }
 
     @Override
@@ -5221,35 +5217,76 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     }
                 }
             }
-        } else if (frameRatingWindowId == window.id) {
-            frameRatingWindowId = -1;
-            Log.d("XServerDisplayActivity", "Hiding hud for Window " + window.getName());
-            if (frameRating != null) {
-                runOnUiThread(() -> {
-                    frameRating.setVisibility(View.GONE);
-                    frameRating.reset();
-                });
+        } else {
+            // If window is being destroyed, sync/reset regardless of which window it was
+            syncFrameRatingWithExistingWindows();
+            if (frameRatingWindowId == -1 && (container == null || !container.isShowFPS())) {
+                Log.d("XServerDisplayActivity", "Hiding hud as no renderer windows remain.");
+                if (frameRating != null) {
+                    runOnUiThread(() -> {
+                        frameRating.setVisibility(View.GONE);
+                        frameRating.reset();
+                    });
+                }
             }
         }
     }
 
     private void syncFrameRatingWithExistingWindows() {
         if (xServer == null || frameRating == null) return;
+        Window bestWindow = null;
+        String bestRenderer = null;
+        String bestGpu = null;
+
         for (Window window : xServer.windowManager.getWindows()) {
+            if (window.id == xServer.windowManager.rootWindow.id) continue;
+
             Property prop = window.getProperty(Atom.getId("_MESA_DRV_RENDERER"));
             if (prop == null) prop = window.getProperty(Atom.getId("_MESA_DRV_ENGINE_NAME"));
+            if (prop == null) prop = window.getProperty(Atom.getId("_UTIL_LAYER"));
 
             if (prop != null) {
-                lastRendererName = prop.toString();
-                frameRatingWindowId = window.id;
-                runOnUiThread(() -> frameRating.setRenderer(lastRendererName));
-
-                Property gpuProp = window.getProperty(Atom.getId("_MESA_DRV_GPU_NAME"));
-                if (gpuProp != null) {
-                    lastGpuName = gpuProp.toString();
-                    runOnUiThread(() -> frameRating.setGpuName(lastGpuName));
+                boolean isApp = window.isApplicationWindow();
+                boolean isMapped = window.attributes.isMapped();
+                
+                if (bestWindow == null || 
+                   (isApp && !bestWindow.isApplicationWindow()) ||
+                   (isMapped && !bestWindow.attributes.isMapped() && (isApp || !bestWindow.isApplicationWindow()))) {
+                    bestWindow = window;
+                    bestRenderer = prop.toString();
+                    Property gpuProp = window.getProperty(Atom.getId("_MESA_DRV_GPU_NAME"));
+                    bestGpu = gpuProp != null ? gpuProp.toString() : null;
                 }
-                break;
+                
+                if (isApp && isMapped) break;
+            }
+        }
+
+        if (bestWindow != null) {
+            lastRendererName = bestRenderer;
+            lastGpuName = bestGpu;
+            frameRatingWindowId = bestWindow.id;
+        } else {
+            lastRendererName = "OpenGL";
+            lastGpuName = null;
+            frameRatingWindowId = -1;
+        }
+
+        runOnUiThread(() -> {
+            frameRating.setRenderer(lastRendererName);
+            frameRating.setGpuName(lastGpuName);
+            updateHUDRenderMode();
+        });
+    }
+
+    private void updateHUDRenderMode() {
+        if (xServerView != null && frameRating != null) {
+            boolean showFPS = frameRating.getVisibility() == View.VISIBLE;
+            int mode = (showFPS && frameRatingWindowId == -1) ?
+                        GLSurfaceView.RENDERMODE_CONTINUOUSLY :
+                        GLSurfaceView.RENDERMODE_WHEN_DIRTY;
+            if (xServerView.getRenderMode() != mode) {
+                xServerView.setRenderMode(mode);
             }
         }
     }
