@@ -3,6 +3,8 @@ package com.winlator.cmod.core;
 import android.content.Context;
 import android.util.Log;
 
+import androidx.annotation.Nullable;
+
 import java.io.IOException;
 import java.nio.file.Files;
 
@@ -19,14 +21,80 @@ import java.util.List;
 import java.util.Locale;
 
 public abstract class WineUtils {
-    public static void createDosdevicesSymlinks(Container container) {
-        Log.d("ContainerLaunch", "createDosdevicesSymlinks: rootDir=" + container.getRootDir().getAbsolutePath() +
-                " drives=" + container.getDrives());
-        File dosdevicesDir = new File(container.getRootDir(), ".wine/dosdevices");
-        if (!dosdevicesDir.exists()) {
-            boolean created = dosdevicesDir.mkdirs();
-            Log.d("ContainerLaunch", "createDosdevicesSymlinks: created dosdevices dir=" + created);
+
+    public static String hostPathToRootWinePath(@Nullable Container container, @Nullable String hostPath) {
+        if (hostPath == null || hostPath.isEmpty()) return "";
+
+        String normalizedHostPath = new File(hostPath).getAbsolutePath();
+        String drives = container != null && container.getDrives() != null
+                ? container.getDrives()
+                : Container.DEFAULT_DRIVES;
+
+        String rootDrive = null;
+        String rootDrivePath = null;
+        for (String[] drive : Container.drivesIterator(drives)) {
+            if (drive.length < 2) continue;
+            if (!"F".equalsIgnoreCase(drive[0])) continue;
+            rootDrive = drive[0];
+            rootDrivePath = new File(drive[1]).getAbsolutePath();
+            break;
         }
+
+        if (rootDrive != null && rootDrivePath != null && pathStartsWith(normalizedHostPath, rootDrivePath)) {
+            String relativePath = normalizedHostPath.substring(rootDrivePath.length()).replace("/", "\\");
+            while (relativePath.startsWith("\\")) relativePath = relativePath.substring(1);
+            if (relativePath.isEmpty()) return rootDrive + ":\\";
+            return rootDrive + ":\\" + relativePath;
+        }
+
+        return hostPathToMappedWinePath(container, hostPath);
+    }
+
+    public static String hostPathToMappedWinePath(@Nullable Container container, @Nullable String hostPath) {
+        if (hostPath == null || hostPath.isEmpty()) return "";
+
+        String normalizedHostPath = new File(hostPath).getAbsolutePath();
+        String bestDriveLetter = null;
+        String bestDriveRoot = null;
+
+        String drives = container != null && container.getDrives() != null
+                ? container.getDrives()
+                : Container.DEFAULT_DRIVES;
+
+        for (String[] drive : Container.drivesIterator(drives)) {
+            if (drive.length < 2) continue;
+            String driveLetter = drive[0];
+            if ("A".equalsIgnoreCase(driveLetter)) continue;
+            String driveRoot = new File(drive[1]).getAbsolutePath();
+            if (!pathStartsWith(normalizedHostPath, driveRoot)) continue;
+
+            if (bestDriveRoot == null || driveRoot.length() > bestDriveRoot.length()) {
+                bestDriveLetter = driveLetter;
+                bestDriveRoot = driveRoot;
+            }
+        }
+
+        if (bestDriveLetter != null && bestDriveRoot != null) {
+            String relativePath = normalizedHostPath.substring(bestDriveRoot.length()).replace("/", "\\");
+            while (relativePath.startsWith("\\")) relativePath = relativePath.substring(1);
+            if (relativePath.isEmpty()) return bestDriveLetter + ":\\";
+            return bestDriveLetter + ":\\" + relativePath;
+        }
+
+        String windowsPath = normalizedHostPath.replace("/", "\\");
+        if (!windowsPath.startsWith("\\")) windowsPath = "\\" + windowsPath;
+        return "Z:" + windowsPath;
+    }
+
+    private static boolean pathStartsWith(String path, String basePath) {
+        if (path.equals(basePath)) return true;
+        if (basePath.endsWith(File.separator)) return path.startsWith(basePath);
+        return path.startsWith(basePath + File.separator);
+    }
+
+    public static void createDosdevicesSymlinks(Container container) {
+        File dosdevicesDir = new File(container.getRootDir(), ".wine/dosdevices");
+        if (!dosdevicesDir.exists()) dosdevicesDir.mkdirs();
         String dosdevicesPath = dosdevicesDir.getPath();
         File[] files = dosdevicesDir.listFiles();
         if (files != null) for (File file : files) if (file.getName().matches("[a-z]:")) file.delete();
@@ -43,49 +111,16 @@ public abstract class WineUtils {
             packageStoragePath = "/data/data/" + packageName + "/storage";
         }
 
-        // Auto-fix containers missing D: and E: drives.
-        // IMPORTANT: Only update in-memory drives — do NOT call container.saveData()
-        // because the drives string may contain an ephemeral A: mapping that must not
-        // be persisted (multiple games share the same container).
-        String currentDrives = container.getDrives();
-        if (currentDrives != null && (!currentDrives.contains("D:") || !currentDrives.contains("E:"))) {
-            Log.d("WineUtils", "Container missing D: or E: drives, appending them...");
-            StringBuilder updatedDrives = new StringBuilder(currentDrives);
-            if (!currentDrives.contains("D:")) {
-                updatedDrives.append("D:").append(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS));
-            }
-            if (!currentDrives.contains("E:")) {
-                updatedDrives.append("E:").append(packageStoragePath);
-            }
-            container.setDrives(updatedDrives.toString());
-            Log.d("WineUtils", "Updated container drives (in-memory only) to: " + updatedDrives);
-        }
-
-        String gameDirectoryPath = null;
-        int driveCount = 0;
         for (String[] drive : container.drivesIterator()) {
             File linkTarget = new File(drive[1]);
             String path = linkTarget.getAbsolutePath();
+
             boolean isAppStoragePath = path.endsWith(packageStorageSuffix) || path.endsWith(legacyPackageStorageSuffix);
             if (!linkTarget.isDirectory() && isAppStoragePath) {
                 linkTarget.mkdirs();
                 FileUtils.chmod(linkTarget, 0771);
             }
             FileUtils.symlink(path, dosdevicesPath+"/"+drive[0].toLowerCase(Locale.ENGLISH)+":");
-            Log.d("ContainerLaunch", "createDosdevicesSymlinks: " + drive[0] + ": -> " + path);
-            driveCount++;
-
-            // Always treat A: as the primary game directory so ColdClientLoader can
-            // resolve steamapps\common\{gameName} to the A: drive for custom paths.
-            if (drive[0].equals("A")) {
-                gameDirectoryPath = path;
-            }
-        }
-        Log.d("ContainerLaunch", "createDosdevicesSymlinks: created " + driveCount + " drive symlinks");
-
-        // Create Steam directory structure and symlinks if we found the game directory on A:
-        if (gameDirectoryPath != null) {
-            ensureSteamappsCommonSymlink(container, gameDirectoryPath);
         }
     }
 
@@ -232,7 +267,6 @@ public abstract class WineUtils {
             registryEditor.setStringValue("Software\\Classes\\.reg", null, "REGfile");
             registryEditor.setStringValue("Software\\Classes\\.reg", "Content Type", "application/reg");
             registryEditor.setStringValue("Software\\Classes\\REGfile\\Shell\\Open\\command", null, "C:\\windows\\regedit.exe /C \"%1\"");
-
             registryEditor.setStringValue("Software\\Classes\\dllfile\\DefaultIcon", null, "shell32.dll,-154");
             registryEditor.setStringValue("Software\\Classes\\lnkfile\\DefaultIcon", null, "shell32.dll,-30");
             registryEditor.setStringValue("Software\\Classes\\inifile\\DefaultIcon", null, "shell32.dll,-151");
@@ -266,44 +300,6 @@ public abstract class WineUtils {
                 registryEditor.setStringValue(dllOverridesKey, "opengl32", "native,builtin");
             }
             setWindowMetrics(registryEditor);
-        }
-
-        // Copy critical DLLs from wine installation to container
-        copyWineDllsToContainer(rootDir, wineInfo);
-    }
-
-    /**
-     * Copies critical DLLs from the wine installation to the container's system32/syswow64.
-     * This ensures games can find user32.dll, shell32.dll, etc.
-     * Note: dinput/dinput8 are NOT copied here — they use Wine builtins via builtin,native override.
-     */
-    private static void copyWineDllsToContainer(File rootDir, WineInfo wineInfo) {
-        if (wineInfo == null || wineInfo.path == null || wineInfo.path.isEmpty()) return;
-        boolean isArm64EC = wineInfo.isArm64EC();
-        File wineSystem32Dir = new File(wineInfo.path + "/lib/wine/" + (isArm64EC ? "aarch64-windows" : "x86_64-windows"));
-        File wineSysWoW64Dir = new File(wineInfo.path + "/lib/wine/i386-windows");
-        File containerSystem32Dir = new File(rootDir, ImageFs.WINEPREFIX+"/drive_c/windows/system32");
-        File containerSysWoW64Dir = new File(rootDir, ImageFs.WINEPREFIX+"/drive_c/windows/syswow64");
-
-        final String[] dlnames = {
-            "user32.dll", "shell32.dll",
-            "winemenubuilder.exe", "explorer.exe"
-        };
-
-        boolean win64 = wineInfo != null && wineInfo.isWin64();
-        for (String dlname : dlnames) {
-            File src32 = new File(wineSysWoW64Dir, dlname);
-            File dst32 = new File(win64 ? containerSysWoW64Dir : containerSystem32Dir, dlname);
-            if (src32.exists()) {
-                FileUtils.copy(src32, dst32);
-            }
-            if (win64) {
-                File src64 = new File(wineSystem32Dir, dlname);
-                File dst64 = new File(containerSystem32Dir, dlname);
-                if (src64.exists()) {
-                    FileUtils.copy(src64, dst64);
-                }
-            }
         }
     }
 
@@ -533,6 +529,12 @@ public abstract class WineUtils {
 
             if (drive.equals("c")) {
                 return new File(imageFs.getRootDir(), ImageFs.WINEPREFIX + "/drive_c/" + relPath);
+            } else if (drive.equals("z")) {
+                // Z: may point at absolute Android host paths such as Z:\storage\emulated\0\...
+                // Resolve those directly so child process working dirs are not anchored under imagefs.
+                if (relPath.startsWith("storage/") || relPath.startsWith("sdcard/") || relPath.startsWith("mnt/")) {
+                    return new File(File.separator + relPath);
+                }
             } else {
                 File dosdevices = new File(imageFs.getRootDir(), ImageFs.WINEPREFIX + "/dosdevices");
                 File link = new File(dosdevices, drive + ":");

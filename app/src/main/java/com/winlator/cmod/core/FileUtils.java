@@ -360,6 +360,20 @@ public abstract class FileUtils {
         catch (ErrnoException e) {}
     }
 
+    public static void enforcePermissionsRecursive(File file, int mode) {
+        if (file == null || !file.exists()) return;
+
+        chmod(file, mode);
+        if (!file.isDirectory() || isSymlink(file)) return;
+
+        File[] children = file.listFiles();
+        if (children == null) return;
+
+        for (File child : children) {
+            enforcePermissionsRecursive(child, mode);
+        }
+    }
+
     public static File createTempFile(File parent, String prefix) {
         File tempFile = null;
         boolean exists = true;
@@ -408,24 +422,58 @@ public abstract class FileUtils {
         }
 
         String filePath = null;
+        String displayName = null;
 
         try {
-            if (DocumentsContract.isDocumentUri(context, uri)) {
-                String docId = DocumentsContract.getDocumentId(uri);
-                String[] split = docId.split(":", 2);
+            if (DocumentsContract.isTreeUri(uri)) {
+                String treeDocId = DocumentsContract.getTreeDocumentId(uri);
+                String[] split = treeDocId.split(":", 2);
                 String volume = split[0];
                 String path = split.length > 1 ? split[1] : "";
 
                 if ("primary".equalsIgnoreCase(volume)) {
                     filePath = Environment.getExternalStorageDirectory() + (path.isEmpty() ? "" : "/" + path);
-                } else if (docId.startsWith("raw:")) {
+                } else if (split.length == 2) {
+                    filePath = "/storage/" + volume + (path.isEmpty() ? "" : "/" + path);
+                }
+            }
+
+            if (filePath == null && DocumentsContract.isDocumentUri(context, uri)) {
+                String docId = DocumentsContract.getDocumentId(uri);
+                String[] split = docId.split(":", 2);
+                String volume = split[0];
+                String path = split.length > 1 ? split[1] : "";
+
+                if (docId.startsWith("raw:")) {
                     filePath = docId.substring(4);
+                } else if ("primary".equalsIgnoreCase(volume)) {
+                    filePath = Environment.getExternalStorageDirectory() + (path.isEmpty() ? "" : "/" + path);
+                } else if (docId.startsWith("msf:") || docId.matches("^\\d+$")) {
+                    filePath = queryContentResolverForPath(context, uri);
+                    if (filePath == null) {
+                        if (displayName == null) {
+                            displayName = getUriFileName(context, uri);
+                        }
+                    }
+                    if (filePath == null && displayName != null) {
+                        File downloadsFile = new File(
+                                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                                displayName
+                        );
+                        if (downloadsFile.exists()) {
+                            filePath = downloadsFile.getAbsolutePath();
+                        }
+                    }
                 } else if (split.length == 2) {
                     filePath = "/storage/" + volume + (path.isEmpty() ? "" : "/" + path);
                 }
             }
         } catch (Exception e) {
             Log.w(TAG, "Document URI resolution failed for: " + uri, e);
+        }
+
+        if (filePath == null) {
+            filePath = queryContentResolverForPath(context, uri);
         }
 
         if (filePath == null) {
@@ -436,6 +484,37 @@ public abstract class FileUtils {
             filePath = uri.getPath();
         }
 
+        if (filePath == null) {
+            String rawPath = uri.getPath();
+            if (rawPath != null) {
+                String rawPrefix = "/document/raw:";
+                if (rawPath.startsWith(rawPrefix)) {
+                    filePath = rawPath.substring(rawPrefix.length());
+                } else {
+                    String primaryPrefix = "/document/primary:";
+                    if (rawPath.startsWith(primaryPrefix)) {
+                        filePath = Environment.getExternalStorageDirectory() + "/" + rawPath.substring(primaryPrefix.length());
+                    } else if (rawPath.startsWith("/storage/") || rawPath.startsWith("/data/")) {
+                        filePath = rawPath;
+                    }
+                }
+            }
+        }
+
+        if (filePath == null && displayName == null) {
+            displayName = getUriFileName(context, uri);
+        }
+
+        if (filePath == null && displayName != null) {
+            File downloadsFile = new File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                    displayName
+            );
+            if (downloadsFile.exists()) {
+                filePath = downloadsFile.getAbsolutePath();
+            }
+        }
+
         if (filePath != null) {
             if (URI_PATH_CACHE.size() >= URI_PATH_CACHE_LIMIT) {
                 URI_PATH_CACHE.clear();
@@ -444,6 +523,26 @@ public abstract class FileUtils {
         }
 
         return filePath;
+    }
+
+    private static String queryContentResolverForPath(Context context, Uri uri) {
+        try (Cursor cursor = context.getContentResolver().query(
+                uri,
+                new String[]{"_data"},
+                null,
+                null,
+                null
+        )) {
+            if (cursor == null || !cursor.moveToFirst()) return null;
+            int idx = cursor.getColumnIndex("_data");
+            if (idx < 0) return null;
+            String resolved = cursor.getString(idx);
+            if (resolved == null || resolved.isEmpty()) return null;
+            return resolved;
+        } catch (Exception e) {
+            Log.d(TAG, "ContentResolver path query failed for URI: " + uri, e);
+            return null;
+        }
     }
 
 
@@ -610,13 +709,15 @@ public abstract class FileUtils {
     }
     public static String getUriFileName(Context context, Uri uri) {
         String fileName = null;
-        Cursor cursor = context.getContentResolver().query(uri, null, null, null, null);
-
-        if (cursor != null && cursor.moveToFirst()) {
-            int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
-            if (nameIndex != -1)
-                fileName = cursor.getString(nameIndex);
-            cursor.close();
+        try (Cursor cursor = context.getContentResolver().query(uri, null, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (nameIndex != -1) {
+                    fileName = cursor.getString(nameIndex);
+                }
+            }
+        } catch (Exception e) {
+            Log.d(TAG, "Failed to query display name for URI: " + uri, e);
         }
 
         return fileName;

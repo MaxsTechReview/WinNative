@@ -183,8 +183,8 @@ public class ExternalController {
     private void processJoystickInput(MotionEvent event, int historyPos) {
         state.thumbLX = getCenteredAxis(event, MotionEvent.AXIS_X, historyPos);
         state.thumbLY = getCenteredAxis(event, MotionEvent.AXIS_Y, historyPos);
-        state.thumbRX = getCenteredAxis(event, MotionEvent.AXIS_Z, historyPos);
-        state.thumbRY = getCenteredAxis(event, MotionEvent.AXIS_RZ, historyPos);
+        state.thumbRX = getAxisValueWithFallback(event, MotionEvent.AXIS_Z, MotionEvent.AXIS_RX, historyPos);
+        state.thumbRY = getAxisValueWithFallback(event, MotionEvent.AXIS_RZ, MotionEvent.AXIS_RY, historyPos);
 
         if (historyPos == -1) {
             float axisX = getCenteredAxis(event, MotionEvent.AXIS_HAT_X, historyPos);
@@ -202,10 +202,10 @@ public class ExternalController {
                 : event.getAxisValue(MotionEvent.AXIS_LTRIGGER);
         float r = event.getAxisValue(MotionEvent.AXIS_RTRIGGER) == 0f ? event.getAxisValue(MotionEvent.AXIS_GAS)
                 : event.getAxisValue(MotionEvent.AXIS_RTRIGGER);
-        state.triggerL = l;
-        state.triggerR = r;
-        state.setPressed(IDX_BUTTON_L2, l == 1.0f);
-        state.setPressed(IDX_BUTTON_R2, r == 1.0f);
+        state.triggerL = Math.max(0.0f, l);
+        state.triggerR = Math.max(0.0f, r);
+        state.setPressed(IDX_BUTTON_L2, state.triggerL > 0.5f);
+        state.setPressed(IDX_BUTTON_R2, state.triggerR > 0.5f);
     }
 
     public boolean isXboxController() {
@@ -388,21 +388,19 @@ public class ExternalController {
 
     public boolean updateStateFromKeyEvent(KeyEvent event) {
         boolean pressed = event.getAction() == KeyEvent.ACTION_DOWN;
-        int keyCode = event.getKeyCode();
+        int keyCode = normalizeGameControllerKeyCode(event.getKeyCode());
         int buttonIdx = getButtonIdxByKeyCode(keyCode);
         if (buttonIdx != -1) {
             if (buttonIdx == IDX_BUTTON_L2) {
-                if (triggerType == TRIGGER_IS_BUTTON) {
+                state.setPressed(buttonIdx, pressed);
+                if (triggerType != TRIGGER_IS_AXIS || !pressed || state.triggerL <= 0.0f) {
                     state.triggerL = pressed ? 1.0f : 0f;
-                    state.setPressed(buttonIdx, pressed);
-                } else
-                    return true;
+                }
             } else if (buttonIdx == IDX_BUTTON_R2) {
-                if (triggerType == TRIGGER_IS_BUTTON) {
+                state.setPressed(buttonIdx, pressed);
+                if (triggerType != TRIGGER_IS_AXIS || !pressed || state.triggerR <= 0.0f) {
                     state.triggerR = pressed ? 1.0f : 0f;
-                    state.setPressed(buttonIdx, pressed);
-                } else
-                    return true;
+                }
             } else {
                 state.setPressed(buttonIdx, pressed);
             }
@@ -545,6 +543,14 @@ public class ExternalController {
         return 0.0f;
     }
 
+    private float getAxisValueWithFallback(MotionEvent event, int primaryAxis, int fallbackAxis, int historyPos) {
+        float primary = getCenteredAxis(event, primaryAxis, historyPos);
+        if (primary != 0.0f) {
+            return primary;
+        }
+        return getCenteredAxis(event, fallbackAxis, historyPos);
+    }
+
     public static boolean isJoystickDevice(MotionEvent event) {
         return (event.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
                 && event.getAction() == MotionEvent.ACTION_MOVE;
@@ -554,11 +560,17 @@ public class ExternalController {
         switch (keyCode) {
             case KeyEvent.KEYCODE_BUTTON_A:
                 return IDX_BUTTON_A;
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_NUMPAD_ENTER:
+                return IDX_BUTTON_A;
             case KeyEvent.KEYCODE_BUTTON_B:
+            case KeyEvent.KEYCODE_BACK:
                 return IDX_BUTTON_B;
             case KeyEvent.KEYCODE_BUTTON_X:
                 return IDX_BUTTON_X;
             case KeyEvent.KEYCODE_BUTTON_Y:
+            case KeyEvent.KEYCODE_SPACE:
                 return IDX_BUTTON_Y;
             case KeyEvent.KEYCODE_BUTTON_L1:
                 return IDX_BUTTON_L1;
@@ -576,8 +588,38 @@ public class ExternalController {
                 return IDX_BUTTON_L2;
             case KeyEvent.KEYCODE_BUTTON_R2:
                 return IDX_BUTTON_R2;
+            case KeyEvent.KEYCODE_BUTTON_MODE:
+                return GamepadState.BUTTON_GUIDE;
             default:
                 return -1;
+        }
+    }
+
+    public static boolean isAliasGameControllerKey(int keyCode) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_BACK:
+            case KeyEvent.KEYCODE_SPACE:
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_NUMPAD_ENTER:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public static int normalizeGameControllerKeyCode(int keyCode) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_BACK:
+                return KeyEvent.KEYCODE_BUTTON_B;
+            case KeyEvent.KEYCODE_SPACE:
+                return KeyEvent.KEYCODE_BUTTON_Y;
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_NUMPAD_ENTER:
+                return KeyEvent.KEYCODE_BUTTON_A;
+            default:
+                return keyCode;
         }
     }
 

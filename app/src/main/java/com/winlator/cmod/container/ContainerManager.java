@@ -9,6 +9,7 @@ import com.winlator.cmod.R;
 import com.winlator.cmod.contents.ContentProfile;
 import com.winlator.cmod.contents.ContentsManager;
 import com.winlator.cmod.core.Callback;
+import com.winlator.cmod.core.DefaultVersion;
 import com.winlator.cmod.core.FileUtils;
 import com.winlator.cmod.core.MSLink;
 import com.winlator.cmod.core.OnExtractFileListener;
@@ -25,9 +26,11 @@ import org.json.JSONObject;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Locale;
 import java.util.concurrent.Executors;
 
 public class ContainerManager {
+    public static final String WINEPREFIX_SEED_LAYOUT_VERSION = "ludashi-pattern-v1";
     private final ArrayList<Container> containers = new ArrayList<>();
     private int maxContainerId = 0;
     private final File homeDir;
@@ -56,6 +59,8 @@ public class ContainerManager {
     private void loadContainers() {
         containers.clear();
         maxContainerId = 0;
+        ContentsManager contentsManager = new ContentsManager(context);
+        contentsManager.syncContents();
 
         File[] files = homeDir.listFiles();
         if (files != null) {
@@ -75,6 +80,13 @@ public class ContainerManager {
                             }
                             JSONObject data = new JSONObject(configStr);
                             container.loadData(data);
+                            WineInfo wineInfo = WineInfo.fromIdentifier(context, contentsManager, container.getWineVersion());
+                            boolean changed = normalizeContainerArchitectureSettings(container, wineInfo, false);
+                            if (changed) {
+                                Log.d("ContainerManager", "loadContainers: repaired architecture settings for container " + container.id +
+                                        " wine=" + container.getWineVersion() + " arch=" + wineInfo.getArch());
+                                container.saveData();
+                            }
                             containers.add(container);
                             maxContainerId = Math.max(maxContainerId, container.id);
                         } catch (Exception e) {
@@ -98,17 +110,13 @@ public class ContainerManager {
         container.setRootDir(containerDir);
         File file = new File(homeDir, ImageFs.USER);
 
-        // Make C: Drive accessible — 0771 not 0777 to prevent other apps reading file contents
-        try {
-            Runtime.getRuntime().exec(new String[]{"chmod", "-R", "0771", new File(containerDir, ".wine/drive_c").getAbsolutePath()});
-        } catch (Exception e) {}
+        enforceContainerDriveCPermissions(containerDir);
 
         // Replace the real "xuser" dir (from imagefs.txz) with a symlink to the active
-        // container. Migrate winhandler.exe/wfm.exe first since they aren't in container
-        // pattern archives. Only runs once — after that xuser is already a symlink.
+        // container. Shared guest tools such as wfm.exe/winhandler.exe are restored from
+        // container_pattern_common.tzst, not borrowed from another container.
         if (file.exists() && !FileUtils.isSymlink(file)) {
-            Log.w("ContainerManager", "activateContainer: xuser is real dir, migrating essential files to container " + container.id);
-            migrateEssentialFiles(file, containerDir);
+            Log.w("ContainerManager", "activateContainer: xuser is real dir, replacing it with a symlink for container " + container.id);
             boolean deleted = FileUtils.delete(file);
             Log.d("ContainerManager", "activateContainer: real xuser dir delete=" + deleted);
         } else {
@@ -117,22 +125,6 @@ public class ContainerManager {
         }
         FileUtils.symlink("./"+ImageFs.USER+"-"+container.id, file.getPath());
         Log.d("ContainerManager", "activateContainer: xuser symlink created, isSymlink=" + FileUtils.isSymlink(file) + " target=./" + ImageFs.USER + "-" + container.id);
-    }
-
-    private void migrateEssentialFiles(File sourceDir, File destDir) {
-        String[] essentialPaths = {
-            ".wine/drive_c/windows/winhandler.exe",
-            ".wine/drive_c/windows/wfm.exe"
-        };
-        for (String path : essentialPaths) {
-            File source = new File(sourceDir, path);
-            File dest = new File(destDir, path);
-            if (source.exists() && !dest.exists()) {
-                dest.getParentFile().mkdirs();
-                FileUtils.copy(source, dest);
-                Log.d("ContainerManager", "Migrated " + path + " to container");
-            }
-        }
     }
 
     public void createContainerAsync(final JSONObject data, ContentsManager contentsManager, Callback<Container> callback) {
@@ -180,6 +172,7 @@ public class ContainerManager {
             }
 
             data.put("id", id);
+            data.put("name", makeUniqueContainerName(data.optString("name", "Container-" + id)));
             if (!containerDir.mkdirs()) {
                 Log.e("ContainerManager", "createContainer: FAILED to create dir: " + containerDir.getAbsolutePath());
                 // Try creating parent dirs first
@@ -201,6 +194,11 @@ public class ContainerManager {
             String wineVersion = data.getString("wineVersion");
             Log.d("ContainerManager", "createContainer: wineVersion=" + wineVersion);
             container.setWineVersion(wineVersion);
+            normalizeContainerArchitectureSettings(
+                    container,
+                    WineInfo.fromIdentifier(context, contentsManager, wineVersion),
+                    false
+            );
 
             if (!extractContainerPatternFile(container, container.getWineVersion(), contentsManager, containerDir, null)) {
                 Log.e("ContainerManager", "createContainer: extractContainerPatternFile FAILED for wineVersion=" + container.getWineVersion());
@@ -210,6 +208,8 @@ public class ContainerManager {
             Log.d("ContainerManager", "createContainer: container pattern extracted successfully");
             container.putExtra("wineprefixArch", WineInfo.fromIdentifier(context, contentsManager, wineVersion).getArch());
             container.putExtra("wineprefixNeedsUpdate", null);
+            container.putExtra("wineprefixSeedLayout", WINEPREFIX_SEED_LAYOUT_VERSION);
+            enforceContainerDriveCPermissions(containerDir);
 
 //            // Extract the selected graphics driver files
 //            String driverVersion = container.getGraphicsDriverVersion();
@@ -256,7 +256,7 @@ public class ContainerManager {
 
         Container dstContainer = new Container(id, this);
         dstContainer.setRootDir(dstDir);
-        dstContainer.setName(srcContainer.getName() + " (" + context.getString(R.string.common_ui_copy) + ")");
+        dstContainer.setName(makeUniqueContainerName(srcContainer.getName() + " (" + context.getString(R.string.common_ui_copy) + ")"));
         dstContainer.setScreenSize(srcContainer.getScreenSize());
         dstContainer.setEnvVars(srcContainer.getEnvVars());
         dstContainer.setCPUList(srcContainer.getCPUList());
@@ -269,9 +269,15 @@ public class ContainerManager {
         dstContainer.setDrives(srcContainer.getDrives());
         dstContainer.setShowFPS(srcContainer.isShowFPS());
         dstContainer.setStartupSelection(srcContainer.getStartupSelection());
+        dstContainer.setEmulator(srcContainer.getEmulator());
+        dstContainer.setEmulator64(srcContainer.getEmulator64());
+        dstContainer.setBox64Version(srcContainer.getBox64Version());
+        dstContainer.setFEXCoreVersion(srcContainer.getFEXCoreVersion());
+        dstContainer.setFEXCorePreset(srcContainer.getFEXCorePreset());
         dstContainer.setBox64Preset(srcContainer.getBox64Preset());
         dstContainer.setDesktopTheme(srcContainer.getDesktopTheme());
         dstContainer.setWineVersion(srcContainer.getWineVersion());
+        enforceContainerDriveCPermissions(dstDir);
         dstContainer.saveData();
 
         maxContainerId++;
@@ -314,14 +320,90 @@ public class ContainerManager {
         return maxContainerId + 1;
     }
 
+    public Container getContainerByWineVersion(String wineVersion) {
+        if (wineVersion == null || wineVersion.isEmpty()) return null;
+        for (Container container : containers) {
+            if (wineVersion.equalsIgnoreCase(container.getWineVersion())) {
+                return container;
+            }
+        }
+        return null;
+    }
+
+    public String makeUniqueContainerName(String desiredName) {
+        String baseName = sanitizeContainerName(desiredName);
+        String uniqueName = baseName;
+        int counter = 2;
+
+        while (hasConflictingContainerName(uniqueName)) {
+            uniqueName = baseName + " " + counter;
+            counter++;
+        }
+        return uniqueName;
+    }
+
     public Container getContainerById(int id) {
         for (Container container : containers) if (container.id == id) return container;
         return null;
     }
 
+    public boolean normalizeContainerArchitectureSettings(Container container, WineInfo wineInfo, boolean persist) {
+        if (container == null || wineInfo == null) return false;
+
+        boolean isArm64EC = wineInfo.isArm64EC();
+        boolean changed = false;
+
+        String normalizedEmulator = WineInfo.normalizeEmulatorSelection(isArm64EC, container.getEmulator(), false);
+        if (!normalizedEmulator.equalsIgnoreCase(container.getEmulator())) {
+            container.setEmulator(normalizedEmulator);
+            changed = true;
+        }
+
+        String normalizedEmulator64 = WineInfo.normalizeEmulatorSelection(isArm64EC, container.getEmulator64(), true);
+        if (!normalizedEmulator64.equalsIgnoreCase(container.getEmulator64())) {
+            container.setEmulator64(normalizedEmulator64);
+            changed = true;
+        }
+
+        String currentArch = container.getExtra("wineprefixArch", "");
+        if (!wineInfo.getArch().equalsIgnoreCase(currentArch)) {
+            container.putExtra("wineprefixArch", wineInfo.getArch());
+            changed = true;
+        }
+
+        String seedLayout = container.getExtra("wineprefixSeedLayout", "");
+        if (!WINEPREFIX_SEED_LAYOUT_VERSION.equals(seedLayout)) {
+            container.putExtra("wineprefixSeedLayout", WINEPREFIX_SEED_LAYOUT_VERSION);
+            changed = true;
+        }
+
+        if (isArm64EC) {
+            String box64Version = container.getBox64Version();
+            if (box64Version == null || box64Version.isEmpty() || DefaultVersion.BOX64.equalsIgnoreCase(box64Version)) {
+                container.setBox64Version(DefaultVersion.WOWBOX64);
+                changed = true;
+            }
+            String fexcoreVersion = container.getFEXCoreVersion();
+            if (fexcoreVersion == null || fexcoreVersion.isEmpty()) {
+                container.setFEXCoreVersion(DefaultVersion.FEXCORE);
+                changed = true;
+            }
+        } else {
+            String box64Version = container.getBox64Version();
+            if (box64Version == null || box64Version.isEmpty() || DefaultVersion.WOWBOX64.equalsIgnoreCase(box64Version)) {
+                container.setBox64Version(DefaultVersion.BOX64);
+                changed = true;
+            }
+        }
+
+        if (persist && changed) {
+            container.saveData();
+        }
+        return changed;
+    }
+
     private void extractCommonDlls(WineInfo wineInfo, String srcName, String dstName, File containerDir, OnExtractFileListener onExtractFileListener) throws JSONException {
         File srcDir = new File(wineInfo.path + "/lib/wine/" + srcName);
-
         File[] srcfiles = srcDir.listFiles(file -> file.isFile());
 
         if (srcfiles != null) {
@@ -343,71 +425,12 @@ public class ContainerManager {
     }
 
     public boolean extractContainerPatternFile(Container container, String wineVersion, ContentsManager contentsManager, File containerDir, OnExtractFileListener onExtractFileListener) {
-        Log.d("ContainerManager", "extractContainerPatternFile: wineVersion=" + wineVersion + " containerDir=" + containerDir.getAbsolutePath());
         WineInfo wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersion);
-        Log.d("ContainerManager", "extractContainerPatternFile: wineInfo=" + wineInfo + " path=" + (wineInfo != null ? wineInfo.path : "null"));
-
-        // Step 1: Try to extract the versioned container pattern from bundled assets
-        // e.g. "proton-9.0-x86_64_container_pattern.tzst"
         String containerPattern = wineVersion + "_container_pattern.tzst";
-        Log.d("ContainerManager", "extractContainerPatternFile: trying asset: " + containerPattern);
         boolean result = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, containerPattern, containerDir, onExtractFileListener);
-        Log.d("ContainerManager", "extractContainerPatternFile: asset extraction result=" + result);
-
-        // Step 2: If asset extraction failed, look for the prefix pack from the installed custom proton
         if (!result) {
-            ContentProfile profile = contentsManager.getProfileByEntryName(wineVersion);
-            Log.d("ContainerManager", "extractContainerPatternFile: profile lookup for '" + wineVersion + "' => " + (profile != null ? profile.verName : "null"));
-
-            if (profile != null) {
-                // Use the ContentsManager's install dir directly — this is always correct
-                // for custom installed protons, unlike wineInfo.path which may fall back to default
-                File profileInstallDir = ContentsManager.getInstallDir(context, profile);
-                Log.d("ContainerManager", "extractContainerPatternFile: profileInstallDir=" + profileInstallDir.getAbsolutePath() + " exists=" + profileInstallDir.exists());
-
-                File containerPatternFile;
-                if (profile.winePrefixPack != null && !profile.winePrefixPack.isEmpty()) {
-                    containerPatternFile = new File(profileInstallDir, profile.winePrefixPack);
-                } else {
-                    containerPatternFile = new File(profileInstallDir, "prefixPack.txz");
-                }
-                Log.d("ContainerManager", "extractContainerPatternFile: trying profile prefix pack: " + containerPatternFile.getAbsolutePath() + " exists=" + containerPatternFile.exists());
-
-                if (containerPatternFile.exists()) {
-                    if (containerPatternFile.getName().endsWith(".tzst")) {
-                        result = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, containerPatternFile, containerDir);
-                    } else {
-                        result = TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, containerPatternFile, containerDir);
-                    }
-                    Log.d("ContainerManager", "extractContainerPatternFile: profile prefix pack extraction result=" + result);
-                }
-            }
-
-            // Also try from wineInfo.path as a secondary fallback (for bundled non-asset protons)
-            if (!result && wineInfo != null && wineInfo.path != null && !wineInfo.path.isEmpty()) {
-                File wineInfoPrefixPack;
-                if (profile != null && profile.winePrefixPack != null && !profile.winePrefixPack.isEmpty()) {
-                    wineInfoPrefixPack = new File(wineInfo.path, profile.winePrefixPack);
-                } else {
-                    wineInfoPrefixPack = new File(wineInfo.path, "prefixPack.txz");
-                }
-                Log.d("ContainerManager", "extractContainerPatternFile: trying wineInfo.path fallback: " + wineInfoPrefixPack.getAbsolutePath() + " exists=" + wineInfoPrefixPack.exists());
-                if (wineInfoPrefixPack.exists()) {
-                    if (wineInfoPrefixPack.getName().endsWith(".tzst")) {
-                        result = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, wineInfoPrefixPack, containerDir);
-                    } else {
-                        result = TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, wineInfoPrefixPack, containerDir);
-                    }
-                    Log.d("ContainerManager", "extractContainerPatternFile: wineInfo.path fallback extraction result=" + result);
-                }
-            }
-        }
-
-        // Step 3: If we still don't have a container pattern, use the common one as last resort
-        if (!result) {
-            Log.d("ContainerManager", "extractContainerPatternFile: all pattern sources failed, trying container_pattern_common.tzst as last resort");
-            result = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, "container_pattern_common.tzst", containerDir, onExtractFileListener);
-            Log.d("ContainerManager", "extractContainerPatternFile: common pattern extraction result=" + result);
+            File containerPatternFile = new File(wineInfo.path + "/prefixPack.txz");
+            result = TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, containerPatternFile, containerDir);
         }
 
         if (result) {
@@ -467,6 +490,7 @@ public class ContainerManager {
             WineInfo wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersion);
             container.putExtra("wineprefixArch", wineInfo.getArch());
             container.putExtra("wineprefixNeedsUpdate", null);
+            container.putExtra("wineprefixSeedLayout", WINEPREFIX_SEED_LAYOUT_VERSION);
             container.putExtra("appVersion", null);
             container.putExtra("imgVersion", null);
             container.putExtra("dxwrapper", null);
@@ -475,6 +499,7 @@ public class ContainerManager {
             container.putExtra("startupSelection", null);
             container.putExtra("mono_installed", null);
             container.putExtra("mono_version", null);
+            enforceContainerDriveCPermissions(containerDir);
             container.saveData();
             return true;
         } finally {
@@ -495,6 +520,36 @@ public class ContainerManager {
     // Utility method to run on UI thread
     private void runOnUiThread(Runnable action) {
         new Handler(Looper.getMainLooper()).post(action);
+    }
+
+    private void enforceContainerDriveCPermissions(File containerDir) {
+        File driveCDir = new File(containerDir, ".wine/drive_c");
+        FileUtils.enforcePermissionsRecursive(driveCDir, 0771);
+    }
+
+    private boolean hasConflictingContainerName(String candidateName) {
+        String candidateKey = normalizeContainerName(candidateName);
+        for (Container container : containers) {
+            if (candidateKey.equals(normalizeContainerName(container.getName()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String sanitizeContainerName(String name) {
+        String sanitized = name != null ? name.trim() : "";
+        sanitized = sanitized.replaceAll("\\s+", " ");
+        return sanitized.isEmpty() ? "Container" : sanitized;
+    }
+
+    public static String normalizeContainerName(String name) {
+        String normalized = sanitizeContainerName(name)
+                .replaceAll("[^A-Za-z0-9]+", " ")
+                .trim()
+                .replaceAll("\\s+", " ")
+                .toLowerCase(Locale.ROOT);
+        return normalized;
     }
 
 

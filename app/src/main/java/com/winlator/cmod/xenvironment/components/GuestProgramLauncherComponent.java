@@ -649,14 +649,17 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
         File devInputDir = new File(imageFs.getRootDir(), "dev/input");
         devInputDir.mkdirs();
-        File event0 = new File(devInputDir, "event0");
-        if (!event0.exists()) {
-            try {
-                event0.createNewFile();
-            } catch (Exception e) {
+        for (int i = 0; i < 4; i++) {
+            File eventNode = new File(devInputDir, "event" + i);
+            if (!eventNode.exists()) {
+                try {
+                    eventNode.createNewFile();
+                } catch (Exception ignored) {
+                }
             }
         }
         envVars.put("FAKE_EVDEV_DIR", devInputDir.getAbsolutePath());
+        envVars.put("FAKE_EVDEV_VIBRATION", "1");
 
         if (enableEvshim) {
             // Create libSDL symlink if necessary for evshim to intercept correctly
@@ -734,58 +737,26 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
             emulator64 = shortcut.getExtra("emulator64", container.getEmulator64());
         }
 
-        // Normalize slots to the runtime components that actually exist:
-        // x86_64 → Box64 binary + wowbox64.dll; ARM64EC → libwow64fex.dll + (FEX or wowbox64).
+        // Enforce architecture-specific valid choices.
         if (wineInfo.isArm64EC()) {
-            emulator64 = "FEXCore";
-            // Legacy shortcuts may have "box64" saved for 32-bit; fall back.
-            if (!"fexcore".equalsIgnoreCase(emulator) && !"wowbox64".equalsIgnoreCase(emulator)) {
-                emulator = "FEXCore";
+            if (!emulator.equalsIgnoreCase("fexcore") && !emulator.equalsIgnoreCase("wowbox64")) {
+                emulator = WineInfo.getDefaultEmulator(true, false);
             }
-            Log.d("GuestProgramLauncherComponent",
-                    "Arm64EC detected: emulator64=FEXCore, emulator(32-bit)=" + emulator);
+            if (!emulator64.equalsIgnoreCase("fexcore")) {
+                emulator64 = WineInfo.getDefaultEmulator(true, true);
+            }
+            Log.d("GuestProgramLauncherComponent", "Arm64EC detected: honoring configured 32-bit emulator and restricting 64-bit to FEXCore");
         } else {
+            // x86_64 MUST use Box64
+            emulator = "Box64";
             emulator64 = "Box64";
-            emulator = "Wowbox64";
-            Log.d("GuestProgramLauncherComponent",
-                    "x86_64 detected: emulator64=Box64, emulator(32-bit)=Wowbox64");
+            Log.d("GuestProgramLauncherComponent", "x86_64 detected: forcing Box64 for both emulators");
         }
 
         Log.d("GuestProgramLauncherComponent", "=== EMULATOR SELECTION ===");
         Log.d("GuestProgramLauncherComponent", "Wine arch: " + wineInfo.getArch() + " isArm64EC: " + wineInfo.isArm64EC());
         Log.d("GuestProgramLauncherComponent", "Emulator (32-bit): " + emulator);
         Log.d("GuestProgramLauncherComponent", "Emulator (64-bit): " + emulator64);
-
-        boolean is64Bit = true;
-
-        // Find the actual .exe file to check architecture
-        File exeFile = null;
-        String winPath = null;
-        if (guestExecutable.contains("\"")) {
-            int start = guestExecutable.indexOf("\"") + 1;
-            int end = guestExecutable.indexOf("\"", start);
-            if (start > 0 && end > start) winPath = guestExecutable.substring(start, end);
-        } else {
-            // If not quoted, take the first part before any space
-            int spaceIndex = guestExecutable.indexOf(" ");
-            winPath = spaceIndex != -1 ? guestExecutable.substring(0, spaceIndex) : guestExecutable;
-        }
-
-        if (winPath != null && winPath.toLowerCase().endsWith(".exe")) {
-            exeFile = com.winlator.cmod.core.WineUtils.getNativePath(imageFs, winPath);
-            if (exeFile != null) Log.d("GuestProgramLauncherComponent", "Detected executable for arch check: " + exeFile.getAbsolutePath());
-        }
-
-        // Determine which emulator to use for HODLL based on guest executable architecture
-        String selectedEmulator = emulator;
-        if (wineInfo.isArm64EC()) {
-            is64Bit = (exeFile != null && com.winlator.cmod.core.PEHelper.is64Bit(exeFile)) || 
-                             (guestExecutable != null && guestExecutable.contains("steamclient_loader_x64.exe"));
-            
-            if (is64Bit) {
-                selectedEmulator = emulator64;
-            }
-        }
 
         // Construct the command without Box64 to the Wine executable
         String command = "";
@@ -798,7 +769,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         } else {
             if (wineInfo.isArm64EC()) {
                 command = winePath + "/" + guestExecutable;
-                if ("fexcore".equalsIgnoreCase(selectedEmulator))
+                if ("fexcore".equalsIgnoreCase(emulator))
                     envVars.put("HODLL", "libwow64fex.dll");
                 else
                     envVars.put("HODLL", "wowbox64.dll");
@@ -816,10 +787,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         Log.d("GuestProgramLauncherComponent", "=== FINAL LAUNCH COMMAND ===");
         Log.d("GuestProgramLauncherComponent", "Command: " + command);
         Log.d("GuestProgramLauncherComponent", "Working dir: " + (workingDir != null ? workingDir.getAbsolutePath() : rootDir.getAbsolutePath()));
-        Log.d("GuestProgramLauncherComponent", "=== FINAL ENVIRONMENT (" + envVars.toStringArray().length + " vars) ===");
-        for (String kv : envVars.toStringArray()) {
-            Log.d("GuestProgramLauncherComponent", "env " + kv);
-        }
 
         return ProcessHelper.exec(command, envVars.toStringArray(), workingDir != null ? workingDir : rootDir, (status) -> {
             synchronized (lock) {
@@ -855,6 +822,49 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         synchronized (lock) {
             if (pid != -1) ProcessHelper.resumeProcess(pid);
         }
+    }
+
+    private File resolveLaunchExecutableFile(ImageFs imageFs) {
+        if (guestExecutable == null || guestExecutable.isEmpty()) return null;
+
+        ArrayList<String> quotedParts = new ArrayList<>();
+        int cursor = 0;
+        while (cursor < guestExecutable.length()) {
+            int start = guestExecutable.indexOf('"', cursor);
+            if (start < 0) break;
+            int end = guestExecutable.indexOf('"', start + 1);
+            if (end < 0) break;
+            quotedParts.add(guestExecutable.substring(start + 1, end));
+            cursor = end + 1;
+        }
+
+        for (int i = quotedParts.size() - 1; i >= 0; i--) {
+            String candidate = quotedParts.get(i);
+            if (candidate.toLowerCase().endsWith(".exe")) {
+                if (candidate.contains(":\\") || candidate.contains(":/")) {
+                    return com.winlator.cmod.core.WineUtils.getNativePath(imageFs, candidate);
+                }
+                if (workingDir != null) {
+                    File file = new File(workingDir, candidate);
+                    if (file.exists()) return file;
+                }
+            }
+        }
+
+        String[] parts = guestExecutable.split(" ");
+        for (String part : parts) {
+            String candidate = part.replace("\"", "").trim();
+            if (!candidate.toLowerCase().endsWith(".exe")) continue;
+            if (candidate.contains(":\\") || candidate.contains(":/")) {
+                return com.winlator.cmod.core.WineUtils.getNativePath(imageFs, candidate);
+            }
+            if (workingDir != null) {
+                File file = new File(workingDir, candidate);
+                if (file.exists()) return file;
+            }
+        }
+
+        return null;
     }
 
     private String resolveWineBinary(String wineBinDir, boolean prefer64BitWine) {

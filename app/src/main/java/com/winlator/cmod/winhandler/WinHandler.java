@@ -2,8 +2,13 @@ package com.winlator.cmod.winhandler;
 
 import static com.winlator.cmod.inputcontrols.ExternalController.TRIGGER_IS_AXIS;
 
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.hardware.input.InputManager;
+import android.net.LocalServerSocket;
+import android.net.LocalSocket;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.util.Log;
 import android.view.InputDevice;
 import android.view.KeyEvent;
@@ -47,13 +52,14 @@ import java.util.concurrent.TimeUnit;
 import com.winlator.cmod.inputcontrols.ControllerManager;
 
 public class WinHandler {
+    private static final String TAG = "WinHandler";
     private static final short SERVER_PORT = 7947;
     private static final short CLIENT_PORT = 7946;
     public static final byte FLAG_DINPUT_MAPPER_STANDARD = 0x01;
     public static final byte FLAG_DINPUT_MAPPER_XINPUT = 0x02;
     public static final byte FLAG_INPUT_TYPE_XINPUT = 0x04;
     public static final byte FLAG_INPUT_TYPE_DINPUT = 0x08;
-    public static final byte DEFAULT_INPUT_TYPE = FLAG_INPUT_TYPE_XINPUT;
+    public static final byte DEFAULT_INPUT_TYPE = FLAG_DINPUT_MAPPER_STANDARD | FLAG_INPUT_TYPE_XINPUT | FLAG_INPUT_TYPE_DINPUT;
     public static final byte INPUT_TYPE_MIXED = 2;
     private static final int OSC_DEVICE_ID = -1;
     private DatagramSocket socket;
@@ -97,6 +103,9 @@ public class WinHandler {
     private ControllerManager controllerManager;
     private final InputManager inputManager;
     private final InputManager.InputDeviceListener inputDeviceListener;
+    private LocalServerSocket vibrationServer;
+    private volatile boolean vibrationRunning = false;
+    private final boolean[] vibrationEnabledSlots = new boolean[MAX_PLAYERS];
 
     // Gyro related variables
     private float gyroX = 0;
@@ -202,24 +211,41 @@ public class WinHandler {
         this.inputDeviceListener = new InputManager.InputDeviceListener() {
             @Override
             public void onInputDeviceAdded(int deviceId) {
+                InputDevice device = inputManager != null ? inputManager.getInputDevice(deviceId) : null;
+                if (device != null && ExternalController.isGameController(device)) {
+                    Log.d(TAG, "InputDevice added: id=" + deviceId
+                            + " name=" + device.getName()
+                            + " sources=0x" + Integer.toHexString(device.getSources()));
+                }
             }
 
             @Override
             public void onInputDeviceRemoved(int deviceId) {
+                Log.d(TAG, "InputDevice removed: id=" + deviceId);
                 releaseSlot(deviceId);
                 if (currentController != null && currentController.getDeviceId() == deviceId) {
+                    Log.d(TAG, "Current controller removed: id=" + deviceId);
                     currentController = null;
                 }
             }
 
             @Override
             public void onInputDeviceChanged(int deviceId) {
+                InputDevice device = inputManager != null ? inputManager.getInputDevice(deviceId) : null;
+                if (device != null && ExternalController.isGameController(device)) {
+                    Log.d(TAG, "InputDevice changed: id=" + deviceId
+                            + " name=" + device.getName()
+                            + " sources=0x" + Integer.toHexString(device.getSources()));
+                }
             }
         };
         if (inputManager != null) {
             inputManager.registerInputDeviceListener(inputDeviceListener, null);
         }
         preferences = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+        for (int i = 0; i < MAX_PLAYERS; i++) {
+            vibrationEnabledSlots[i] = preferences.getBoolean("vibration_slot_" + i, true);
+        }
         this.controllerManager = ControllerManager.getInstance();
     }
 
@@ -729,6 +755,7 @@ public class WinHandler {
     public void setFakeInputPath(String fakeInputPath) {
         if (fakeInputPath != null && !fakeInputPath.isEmpty()) {
             this.fakeInputBasePath = fakeInputPath;
+            startVibrationListener();
         }
     }
 
@@ -745,6 +772,97 @@ public class WinHandler {
         deviceToSlot.clear();
         usedSlots.clear();
         controllers.clear();
+        vibrationRunning = false;
+        if (vibrationServer != null) {
+            try {
+                vibrationServer.close();
+            } catch (IOException ignored) {
+            }
+            vibrationServer = null;
+        }
+    }
+
+    public void startVibrationListener() {
+        if (vibrationRunning) {
+            return;
+        }
+        vibrationRunning = true;
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            try {
+                vibrationServer = new LocalServerSocket("winlator_vibration");
+                Log.d(TAG, "Vibration listener started on abstract socket: winlator_vibration");
+
+                while (vibrationRunning) {
+                    LocalSocket client = vibrationServer.accept();
+                    try {
+                        java.io.InputStream is = client.getInputStream();
+                        byte[] buf = new byte[8];
+                        int read = is.read(buf);
+                        if (read == 8) {
+                            int strong = (buf[0] & 0xFF) | ((buf[1] & 0xFF) << 8);
+                            int weak = (buf[2] & 0xFF) | ((buf[3] & 0xFF) << 8);
+                            int durationMs = (buf[4] & 0xFF) | ((buf[5] & 0xFF) << 8);
+                            int slot = (buf[6] & 0xFF) | ((buf[7] & 0xFF) << 8);
+                            triggerVibration(strong, weak, durationMs, slot);
+                        }
+                    } catch (IOException e) {
+                        Log.e(TAG, "Vibration client error", e);
+                    } finally {
+                        try {
+                            client.close();
+                        } catch (IOException ignored) {
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                if (vibrationRunning) {
+                    Log.e(TAG, "Vibration listener error", e);
+                }
+            }
+        });
+    }
+
+    private void triggerVibration(int strong, int weak, int durationMs, int slot) {
+        if (slot < 0 || slot >= MAX_PLAYERS || !vibrationEnabledSlots[slot]) {
+            return;
+        }
+
+        Integer deviceId = null;
+        for (Map.Entry<Integer, Integer> entry : deviceToSlot.entrySet()) {
+            if (entry.getValue() == slot) {
+                deviceId = entry.getKey();
+                break;
+            }
+        }
+
+        Vibrator vibrator = null;
+        if (deviceId != null && deviceId == OSC_DEVICE_ID) {
+            vibrator = (Vibrator) activity.getSystemService(Context.VIBRATOR_SERVICE);
+        } else if (deviceId != null) {
+            InputDevice device = InputDevice.getDevice(deviceId);
+            if (device != null) {
+                vibrator = device.getVibrator();
+            }
+        }
+
+        if (vibrator == null || !vibrator.hasVibrator()) {
+            return;
+        }
+
+        if (strong > 0 || weak > 0) {
+            int intensity = Math.max(strong, weak);
+            int amplitude = Math.min(255, Math.max(1, (int) ((intensity / 65535.0f) * 255)));
+            int duration = Math.max(1, durationMs);
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createOneShot(duration, amplitude));
+            } else {
+                vibrator.vibrate(duration);
+            }
+        } else {
+            vibrator.cancel();
+        }
     }
 
     private void prepareController(ExternalController controller) {
@@ -787,12 +905,16 @@ public class WinHandler {
         if (profileController != null) {
             prepareController(profileController);
             controllers.put(deviceId, profileController);
+            Log.d(TAG, "getController: using profile controller for deviceId=" + deviceId
+                    + " name=" + profileController.getName());
             return profileController;
         }
 
         ExternalController controller = controllers.get(deviceId);
         if (controller != null) {
             prepareController(controller);
+            Log.d(TAG, "getController: reusing cached controller for deviceId=" + deviceId
+                    + " name=" + controller.getName());
             return controller;
         }
 
@@ -800,13 +922,20 @@ public class WinHandler {
         if (controller != null) {
             prepareController(controller);
             controllers.put(deviceId, controller);
+            Log.d(TAG, "getController: created controller for deviceId=" + deviceId
+                    + " name=" + controller.getName()
+                    + " bindings=" + controller.getControllerBindingCount());
+        } else {
+            Log.d(TAG, "getController: no controller available for deviceId=" + deviceId);
         }
         return controller;
     }
 
     public void sendGamepadState() {
         final ControlsProfile profile = getActiveProfile();
-        final boolean useVirtualGamepad = profile != null && profile.isVirtualGamepad()
+        final boolean useVirtualGamepad = currentController == null
+                && profile != null
+                && profile.isVirtualGamepad()
                 && isTouchscreenControlsVisible();
         final boolean enabled = currentController != null || useVirtualGamepad;
         final int gamepadId;
@@ -837,14 +966,27 @@ public class WinHandler {
         }
 
         if (!enabled) {
+            Log.d(TAG, "sendGamepadState: skipped, no enabled controller/profile");
             return;
         }
 
+        Log.d(TAG, "sendGamepadState: enabled=" + enabled
+                + " useVirtual=" + useVirtualGamepad
+                + " gamepadId=" + gamepadId
+                + " currentController=" + (currentController != null ? currentController.getName() : "null")
+                + " lx=" + stateSnapshot.thumbLX
+                + " ly=" + stateSnapshot.thumbLY
+                + " rx=" + stateSnapshot.thumbRX
+                + " ry=" + stateSnapshot.thumbRY
+                + " ltrig=" + stateSnapshot.triggerL
+                + " rtrig=" + stateSnapshot.triggerR
+                + " buttons=0x" + Integer.toHexString(stateSnapshot.buttons & 0xffff));
         queueGamepadStateForClients(true, gamepadId, stateSnapshot, useVirtualGamepad, true);
     }
 
     public void sendGamepadState(ExternalController controller) {
         if (controller == null) {
+            Log.d(TAG, "sendGamepadState(controller): controller null");
             return;
         }
 
@@ -857,6 +999,9 @@ public class WinHandler {
         }
 
         currentController = controller;
+        Log.d(TAG, "sendGamepadState(controller): deviceId=" + controller.getDeviceId()
+                + " name=" + controller.getName()
+                + " bindings=" + controller.getControllerBindingCount());
 
         GamepadState sourceState = controller.state;
         if (controller.getControllerBindingCount() > 0) {
@@ -874,6 +1019,13 @@ public class WinHandler {
 
         GamepadState snapshot = new GamepadState();
         snapshot.copy(sourceState);
+        Log.d(TAG, "sendGamepadState(controller): state lx=" + snapshot.thumbLX
+                + " ly=" + snapshot.thumbLY
+                + " rx=" + snapshot.thumbRX
+                + " ry=" + snapshot.thumbRY
+                + " ltrig=" + snapshot.triggerL
+                + " rtrig=" + snapshot.triggerR
+                + " buttons=0x" + Integer.toHexString(snapshot.buttons & 0xffff));
         queueGamepadStateForClients(true, controller.getDeviceId(), snapshot, false, true);
     }
 
@@ -992,6 +1144,12 @@ public class WinHandler {
     public boolean onGenericMotionEvent(MotionEvent event) {
         boolean handled = false;
 
+        if (ExternalController.isGameController(event.getDevice())) {
+            Log.d(TAG, "onGenericMotionEvent: deviceId=" + event.getDeviceId()
+                    + " source=0x" + Integer.toHexString(event.getSource())
+                    + " action=" + event.getActionMasked());
+        }
+
         if ((event.getSource() & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD ||
                 (event.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) {
             if (currentController == null || currentController.getDeviceId() != event.getDeviceId()) {
@@ -999,6 +1157,8 @@ public class WinHandler {
                 if (newController != null) {
                     currentController = newController;
                     currentController.setTriggerType(triggerType);
+                    Log.d(TAG, "onGenericMotionEvent: selected controller deviceId=" + event.getDeviceId()
+                            + " name=" + currentController.getName());
                 }
             }
         }
@@ -1006,6 +1166,7 @@ public class WinHandler {
         if (currentController != null && currentController.getDeviceId() == event.getDeviceId()) {
             handled = currentController.updateStateFromMotionEvent(event);
             if (handled) {
+                Log.d(TAG, "onGenericMotionEvent: handled by controller deviceId=" + event.getDeviceId());
                 if (!hasProfileBindings(event.getDeviceId())) {
                     sendGamepadState(currentController);
                 }
@@ -1046,6 +1207,13 @@ public class WinHandler {
     public boolean onKeyEvent(KeyEvent event) {
         boolean handled = false;
 
+        if (ExternalController.isGameController(event.getDevice())) {
+            Log.d(TAG, "onKeyEvent: deviceId=" + event.getDeviceId()
+                    + " action=" + event.getAction()
+                    + " keyCode=" + event.getKeyCode()
+                    + " repeat=" + event.getRepeatCount());
+        }
+
         if (event.getKeyCode() == gyroTriggerButton) {
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 if (isToggleMode) {
@@ -1071,6 +1239,8 @@ public class WinHandler {
             if (newController != null) {
                 currentController = newController;
                 currentController.setTriggerType(triggerType);
+                Log.d(TAG, "onKeyEvent: selected controller deviceId=" + event.getDeviceId()
+                        + " name=" + currentController.getName());
             }
         }
 
@@ -1084,6 +1254,8 @@ public class WinHandler {
             }
 
             if (handled) {
+                Log.d(TAG, "onKeyEvent: handled keyCode=" + event.getKeyCode()
+                        + " deviceId=" + event.getDeviceId());
                 sendGamepadState(currentController);
                 writeStateToMappedBuffer(currentController.state, gamepadBuffer, true, 0);
             }
@@ -1096,6 +1268,13 @@ public class WinHandler {
     }
 
     public void setInputType(byte inputType) {
+        // Default to the broadest stable compatibility surface: many games only
+        // bind once they see both XInput and DirectInput enumerations.
+        if ((inputType & FLAG_INPUT_TYPE_XINPUT) == FLAG_INPUT_TYPE_XINPUT) {
+            inputType |= FLAG_INPUT_TYPE_DINPUT;
+            inputType |= FLAG_DINPUT_MAPPER_STANDARD;
+            inputType &= (byte) ~FLAG_DINPUT_MAPPER_XINPUT;
+        }
         if ((inputType & FLAG_INPUT_TYPE_DINPUT) == FLAG_INPUT_TYPE_DINPUT &&
                 (inputType & (FLAG_DINPUT_MAPPER_STANDARD | FLAG_DINPUT_MAPPER_XINPUT)) == 0) {
             inputType |= FLAG_DINPUT_MAPPER_STANDARD;
