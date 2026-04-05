@@ -877,8 +877,20 @@ public class XServerDisplayActivity extends AppCompatActivity {
             winHandler.setXInputDisabled(xinputDisabledFromShortcut);
             String sharpnessEffect = shortcut.getExtra("sharpnessEffect", "None");
             if (!sharpnessEffect.equals("None")) {
-                double sharpnessLevel = Double.parseDouble(shortcut.getExtra("sharpnessLevel", "100"));
-                double sharpnessDenoise = Double.parseDouble(shortcut.getExtra("sharpnessDenoise", "100"));
+                double sharpnessLevel = 100.0;
+                double sharpnessDenoise = 100.0;
+                String sharpnessLevelRaw = shortcut.getExtra("sharpnessLevel", "100");
+                String sharpnessDenoiseRaw = shortcut.getExtra("sharpnessDenoise", "100");
+                try {
+                    sharpnessLevel = Double.parseDouble(sharpnessLevelRaw.replace(',', '.'));
+                } catch (NumberFormatException e) {
+                    Log.w("XServerDisplayActivity", "Invalid sharpnessLevel '" + sharpnessLevelRaw + "', using default 100", e);
+                }
+                try {
+                    sharpnessDenoise = Double.parseDouble(sharpnessDenoiseRaw.replace(',', '.'));
+                } catch (NumberFormatException e) {
+                    Log.w("XServerDisplayActivity", "Invalid sharpnessDenoise '" + sharpnessDenoiseRaw + "', using default 100", e);
+                }
                 vkbasaltConfig = "effects=" + sharpnessEffect.toLowerCase() + ";" + "casSharpness=" + sharpnessLevel / 100 + ";" + "dlsSharpness=" + sharpnessLevel / 100  + ";" + "dlsDenoise=" + sharpnessDenoise / 100 + ";" + "enableOnLaunch=True";
             }
             Log.d("XServerDisplayActivity", "XInput Disabled from Shortcut: " + xinputDisabledFromShortcut);
