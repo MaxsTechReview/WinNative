@@ -824,49 +824,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         }
     }
 
-    private File resolveLaunchExecutableFile(ImageFs imageFs) {
-        if (guestExecutable == null || guestExecutable.isEmpty()) return null;
-
-        ArrayList<String> quotedParts = new ArrayList<>();
-        int cursor = 0;
-        while (cursor < guestExecutable.length()) {
-            int start = guestExecutable.indexOf('"', cursor);
-            if (start < 0) break;
-            int end = guestExecutable.indexOf('"', start + 1);
-            if (end < 0) break;
-            quotedParts.add(guestExecutable.substring(start + 1, end));
-            cursor = end + 1;
-        }
-
-        for (int i = quotedParts.size() - 1; i >= 0; i--) {
-            String candidate = quotedParts.get(i);
-            if (candidate.toLowerCase().endsWith(".exe")) {
-                if (candidate.contains(":\\") || candidate.contains(":/")) {
-                    return com.winlator.cmod.core.WineUtils.getNativePath(imageFs, candidate);
-                }
-                if (workingDir != null) {
-                    File file = new File(workingDir, candidate);
-                    if (file.exists()) return file;
-                }
-            }
-        }
-
-        String[] parts = guestExecutable.split(" ");
-        for (String part : parts) {
-            String candidate = part.replace("\"", "").trim();
-            if (!candidate.toLowerCase().endsWith(".exe")) continue;
-            if (candidate.contains(":\\") || candidate.contains(":/")) {
-                return com.winlator.cmod.core.WineUtils.getNativePath(imageFs, candidate);
-            }
-            if (workingDir != null) {
-                File file = new File(workingDir, candidate);
-                if (file.exists()) return file;
-            }
-        }
-
-        return null;
-    }
-
     private String resolveWineBinary(String wineBinDir, boolean prefer64BitWine) {
         File preferredBinary = new File(wineBinDir, prefer64BitWine ? "wine64" : "wine");
         if (preferredBinary.exists()) return preferredBinary.getAbsolutePath();
