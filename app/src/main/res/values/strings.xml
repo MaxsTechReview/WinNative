@@ -247,6 +247,7 @@
     <string name="input_controls_editor_shape">Shape</string>
     <string name="input_controls_editor_type">Type</string>
     <string name="input_controls_editor_binding">Binding</string>
+    <string name="binding_secondary">Secondary binding</string>
     <string name="input_controls_editor_binding_up">Binding Up</string>
     <string name="input_controls_editor_binding_right">Binding Right</string>
     <string name="input_controls_editor_binding_down">Binding Down</string>

@@ -302,6 +302,7 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         ControlElement.Type type = element.getType();
         if (type == ControlElement.Type.BUTTON) {
             loadBindingSpinner(element, container, 0, R.string.input_controls_editor_binding);
+            loadBindingSpinner(element, container, 1, R.string.binding_secondary);
         }
         else if (type == ControlElement.Type.D_PAD || type == ControlElement.Type.STICK || type == ControlElement.Type.TRACKPAD) {
             loadBindingSpinner(element, container, 0, R.string.input_controls_editor_binding_up);
