@@ -167,14 +167,7 @@ public class ShortcutsFragment extends Fragment {
             listItemMenu.inflate(R.menu.shortcut_popup_menu);
             listItemMenu.setOnMenuItemClickListener((menuItem) -> {
                 int itemId = menuItem.getItemId();
-                if (itemId == R.id.shortcut_game_settings) {
-                    getParentFragmentManager().beginTransaction()
-                            .setCustomAnimations(R.anim.settings_enter, R.anim.settings_exit, R.anim.settings_enter, R.anim.settings_exit)
-                            .addToBackStack(null)
-                            .replace(R.id.FLFragmentContainer, new ContainerDetailFragment(shortcut))
-                            .commit();
-                }
-                else if (itemId == R.id.shortcut_settings) {
+                if (itemId == R.id.shortcut_settings) {
                     try {
                         (new ShortcutSettingsComposeDialog(ShortcutsFragment.this, shortcut)).show();
                     } catch (Throwable e) {

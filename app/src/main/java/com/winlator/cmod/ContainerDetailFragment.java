@@ -133,27 +133,6 @@ public class ContainerDetailFragment extends Fragment {
         this.containerId = containerId;
     }
 
-    public ContainerDetailFragment(int containerId, int createShortcutForAppId, String createShortcutForAppName) {
-        this(containerId, createShortcutForAppId, createShortcutForAppName, "STEAM");
-    }
-
-    public ContainerDetailFragment(int containerId, int createShortcutForAppId, String createShortcutForAppName, String source) {
-        this(containerId, createShortcutForAppId, createShortcutForAppName, source, "");
-    }
-
-    public ContainerDetailFragment(int containerId, int createShortcutForAppId, String createShortcutForAppName, String source, String gogId) {
-        this.containerId = containerId;
-        this.createShortcutForAppId = createShortcutForAppId;
-        this.createShortcutForAppName = createShortcutForAppName;
-        this.createShortcutForSource = source != null ? source : "STEAM";
-        this.createShortcutForGogId = gogId != null ? gogId : "";
-    }
-
-    public ContainerDetailFragment(Shortcut shortcut) {
-        this.shortcut = shortcut;
-        this.containerId = shortcut != null && shortcut.container != null ? shortcut.container.id : 0;
-    }
-
     private static final String[] SDL2_ENV_VARS = {
             "SDL_JOYSTICK_WGI=0",
             "SDL_XINPUT_ENABLED=1",

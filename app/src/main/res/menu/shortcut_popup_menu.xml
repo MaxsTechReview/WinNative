@@ -1,6 +1,5 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:id="@+id/shortcut_game_settings" android:title="@string/shortcuts_properties_custom_game_settings" android:icon="@drawable/icon_popup_menu_settings" android:iconTint="@color/colorAccent" />
-    <item android:id="@+id/shortcut_settings" android:title="@string/container_presets_title" android:icon="@drawable/icon_popup_menu_settings" android:iconTint="@color/colorAccent" />
+    <item android:id="@+id/shortcut_settings" android:title="@string/shortcuts_properties_custom_game_settings" android:icon="@drawable/icon_popup_menu_settings" android:iconTint="@color/colorAccent" />
     <item android:id="@+id/shortcut_add_to_home_screen" android:title="@string/shortcuts_list_add_to_home_screen" android:icon="@drawable/icon_shortcut" android:iconTint="@color/colorAccent" />
     <item android:id="@+id/shortcut_remove" android:title="@string/common_ui_remove" android:icon="@drawable/icon_popup_menu_remove" android:iconTint="@color/colorAccent" />
     <item android:id="@+id/shortcut_export" android:title="@string/common_ui_export" android:icon="@android:drawable/ic_menu_share" android:iconTint="@color/colorAccent" />

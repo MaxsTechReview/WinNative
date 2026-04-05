@@ -442,11 +442,6 @@
     <string name="container_graphics_bcn_emulation">BCn 模擬</string>
     <string name="container_graphics_bcn_emulation_type">BCn 模擬類型</string>
     <string name="container_graphics_bcn_emulation_cache">BCn 模擬快取</string>
-    <string name="container_graphics_vkbasalt">vkBasalt</string>
-    <string name="container_graphics_vkbasalt_sharpness_effects">銳化效果</string>
-    <string name="container_graphics_vkbasalt_sharpness_level">銳化等級</string>
-    <string name="container_graphics_vkbasalt_sharpness_denoise">銳化降噪</string>
-
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">您要複製此預設嗎？</string>
     <string name="container_presets_confirm_remove">您要移除此預設嗎？</string>

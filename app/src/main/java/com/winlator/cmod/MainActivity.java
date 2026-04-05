@@ -43,7 +43,6 @@ import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.ImageUtils;
 import com.winlator.cmod.core.PreloaderDialog;
 import com.winlator.cmod.container.ContainerManager;
-import com.winlator.cmod.container.Shortcut;
 import com.winlator.cmod.core.WineThemeManager;
 import com.winlator.cmod.google.GoogleFragment;
 import com.winlator.cmod.xenvironment.ImageFsInstaller;
@@ -131,88 +130,17 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     private void handleIntent(Intent intent) {
         if (intent == null) return;
-        
+
         View sidebar = findViewById(R.id.LLSidebar);
-        boolean hideSidebar = intent.hasExtra("edit_shortcut_path") || 
-                            intent.hasExtra("edit_container_id") ||
-                            intent.hasExtra("create_shortcut_for_app_id") || 
-                            intent.hasExtra("create_shortcut_for_epic_id") ||
-                            intent.hasExtra("create_shortcut_for_gog_id") ||
-                            intent.hasExtra("create_shortcut_for_app_name");
+        boolean hideSidebar = intent.hasExtra("edit_container_id");
 
         if (sidebar != null) {
             sidebar.setVisibility(hideSidebar ? View.GONE : View.VISIBLE);
         }
 
-        String editShortcutPath = intent.getStringExtra("edit_shortcut_path");
-        if (editShortcutPath != null) {
-            File shortcutFile = new File(editShortcutPath);
-            for (Shortcut shortcut : containerManager.loadShortcuts()) {
-                if (shortcut.file.getPath().equals(shortcutFile.getPath())) {
-                    show(new ContainerDetailFragment(shortcut));
-                    return;
-                }
-            }
-        }
-
         int editContainerId = intent.getIntExtra("edit_container_id", 0);
         if (editContainerId > 0) {
             show(new ContainerDetailFragment(editContainerId));
-            return;
-        }
-
-        int createShortcutForAppId = intent.getIntExtra("create_shortcut_for_app_id", 0);
-        int createShortcutForEpicId = intent.getIntExtra("create_shortcut_for_epic_id", 0);
-        String createShortcutForGogId = intent.getStringExtra("create_shortcut_for_gog_id");
-
-        if (createShortcutForAppId > 0 || createShortcutForEpicId > 0 || (createShortcutForGogId != null && !createShortcutForGogId.isEmpty())) {
-            String createShortcutForAppName = intent.getStringExtra("create_shortcut_for_app_name");
-            boolean isGogShortcutRequest = createShortcutForGogId != null && !createShortcutForGogId.isEmpty();
-            int targetAppId = isGogShortcutRequest ? createShortcutForAppId : (createShortcutForAppId > 0 ? createShortcutForAppId : createShortcutForEpicId);
-            String targetSource = isGogShortcutRequest ? "GOG" : (createShortcutForAppId > 0 ? "STEAM" : "EPIC");
-
-            // Search for an existing shortcut with this app_id so we can edit it
-            // instead of creating a new one each time
-            Shortcut existingShortcut = null;
-            for (Shortcut s : containerManager.loadShortcuts()) {
-                String sourceExtra = s.getExtra("game_source", "STEAM");
-                if (!sourceExtra.equals(targetSource)) {
-                    continue;
-                }
-
-                if ("GOG".equals(targetSource)) {
-                    String gogIdExtra = s.getExtra("gog_id");
-                    if (createShortcutForGogId.equals(gogIdExtra)) {
-                        existingShortcut = s;
-                        break;
-                    }
-                    continue;
-                }
-
-                String appIdExtra = s.getExtra("app_id");
-                if (appIdExtra != null && !appIdExtra.isEmpty()) {
-                    try {
-                        if (Integer.parseInt(appIdExtra) == targetAppId) {
-                            existingShortcut = s;
-                            break;
-                        }
-                    } catch (NumberFormatException ignored) {}
-                }
-            }
-            
-            if (existingShortcut != null) {
-                // Found existing shortcut — open in edit mode so saved settings are loaded
-                show(new ContainerDetailFragment(existingShortcut));
-            } else {
-                // No existing shortcut — open in create-new mode
-                if (isGogShortcutRequest) {
-                    show(new ContainerDetailFragment(0, targetAppId, createShortcutForAppName, "GOG", createShortcutForGogId));
-                } else if (createShortcutForAppId > 0) {
-                    show(new ContainerDetailFragment(0, createShortcutForAppId, createShortcutForAppName));
-                } else if (createShortcutForEpicId > 0) {
-                    show(new ContainerDetailFragment(0, createShortcutForEpicId, createShortcutForAppName, "EPIC"));
-                }
-            }
             return;
         }
 

@@ -442,11 +442,6 @@
     <string name="container_graphics_bcn_emulation">Emulare BCn</string>
     <string name="container_graphics_bcn_emulation_type">Tip emulare BCn</string>
     <string name="container_graphics_bcn_emulation_cache">Cache emulare BCn</string>
-    <string name="container_graphics_vkbasalt">vkBasalt</string>
-    <string name="container_graphics_vkbasalt_sharpness_effects">Efect de claritate</string>
-    <string name="container_graphics_vkbasalt_sharpness_level">Nivel de claritate</string>
-    <string name="container_graphics_vkbasalt_sharpness_denoise">Reducere zgomot claritate</string>
-
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Doresti sa duplici acest preset?</string>
     <string name="container_presets_confirm_remove">Doresti sa elimini acest preset?</string>

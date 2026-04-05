@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
  */
 fun Modifier.chasingBorder(
     isFocused: Boolean = true,
+    paused: Boolean = false,
     cornerRadius: Dp = 8.dp,
     borderWidth: Dp = 4.dp,
     animationDurationMs: Int = 5000
@@ -38,7 +39,7 @@ fun Modifier.chasingBorder(
     val borderWidthPx = borderWidth.value * density
 
     val infiniteTransition = rememberInfiniteTransition(label = "chasingBorder")
-    val rotationDegrees by infiniteTransition.animateFloat(
+    val animatedRotation by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
@@ -47,6 +48,9 @@ fun Modifier.chasingBorder(
         ),
         label = "borderRotation"
     )
+    // When paused, skip the animated state read so Compose stops invalidating
+    // the draw scope — the border renders once and stays static until resumed.
+    val rotationDegrees = if (paused) 0f else animatedRotation
 
     val gradientColors = remember {
         intArrayOf(

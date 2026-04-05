@@ -442,11 +442,6 @@
     <string name="container_graphics_bcn_emulation">BCn-emulering</string>
     <string name="container_graphics_bcn_emulation_type">BCn-emuleringstype</string>
     <string name="container_graphics_bcn_emulation_cache">BCn-emuleringscache</string>
-    <string name="container_graphics_vkbasalt">vkBasalt</string>
-    <string name="container_graphics_vkbasalt_sharpness_effects">Skarphedseffekt</string>
-    <string name="container_graphics_vkbasalt_sharpness_level">Skarphedsniveau</string>
-    <string name="container_graphics_vkbasalt_sharpness_denoise">Skarphedsstøjreduktion</string>
-
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Vil du duplikere denne forudindstilling?</string>
     <string name="container_presets_confirm_remove">Vil du fjerne denne forudindstilling?</string>

@@ -442,11 +442,6 @@
     <string name="container_graphics_bcn_emulation">Emulacja BCn</string>
     <string name="container_graphics_bcn_emulation_type">Typ emulacji BCn</string>
     <string name="container_graphics_bcn_emulation_cache">Pamięć podręczna emulacji BCn</string>
-    <string name="container_graphics_vkbasalt">vkBasalt</string>
-    <string name="container_graphics_vkbasalt_sharpness_effects">Efekt wyostrzania</string>
-    <string name="container_graphics_vkbasalt_sharpness_level">Poziom wyostrzania</string>
-    <string name="container_graphics_vkbasalt_sharpness_denoise">Odszumianie wyostrzania</string>
-
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Czy chcesz zduplikować ten preset?</string>
     <string name="container_presets_confirm_remove">Czy chcesz usunąć ten preset?</string>

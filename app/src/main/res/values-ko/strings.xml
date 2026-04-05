@@ -442,11 +442,6 @@
     <string name="container_graphics_bcn_emulation">BCn 에뮬레이션</string>
     <string name="container_graphics_bcn_emulation_type">BCn 에뮬레이션 유형</string>
     <string name="container_graphics_bcn_emulation_cache">BCn 에뮬레이션 캐시</string>
-    <string name="container_graphics_vkbasalt">vkBasalt</string>
-    <string name="container_graphics_vkbasalt_sharpness_effects">선명도 효과</string>
-    <string name="container_graphics_vkbasalt_sharpness_level">선명도 수준</string>
-    <string name="container_graphics_vkbasalt_sharpness_denoise">선명도 노이즈 제거</string>
-
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">이 프리셋을 복제하시겠습니까?</string>
     <string name="container_presets_confirm_remove">이 프리셋을 제거하시겠습니까?</string>

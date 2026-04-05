@@ -734,17 +734,21 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
             emulator64 = shortcut.getExtra("emulator64", container.getEmulator64());
         }
 
-        // Force correct emulator based on architecture
+        // Normalize slots to the runtime components that actually exist:
+        // x86_64 → Box64 binary + wowbox64.dll; ARM64EC → libwow64fex.dll + (FEX or wowbox64).
         if (wineInfo.isArm64EC()) {
-            // Arm64EC MUST use FEXCore
-            emulator = "FEXCore";
             emulator64 = "FEXCore";
-            Log.d("GuestProgramLauncherComponent", "Arm64EC detected: forcing FEXCore for both emulators");
+            // Legacy shortcuts may have "box64" saved for 32-bit; fall back.
+            if (!"fexcore".equalsIgnoreCase(emulator) && !"wowbox64".equalsIgnoreCase(emulator)) {
+                emulator = "FEXCore";
+            }
+            Log.d("GuestProgramLauncherComponent",
+                    "Arm64EC detected: emulator64=FEXCore, emulator(32-bit)=" + emulator);
         } else {
-            // x86_64 MUST use Box64
-            emulator = "Box64";
             emulator64 = "Box64";
-            Log.d("GuestProgramLauncherComponent", "x86_64 detected: forcing Box64 for both emulators");
+            emulator = "Wowbox64";
+            Log.d("GuestProgramLauncherComponent",
+                    "x86_64 detected: emulator64=Box64, emulator(32-bit)=Wowbox64");
         }
 
         Log.d("GuestProgramLauncherComponent", "=== EMULATOR SELECTION ===");

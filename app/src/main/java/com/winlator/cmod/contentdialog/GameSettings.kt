@@ -48,7 +48,6 @@ import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -85,6 +84,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -96,7 +96,7 @@ import kotlin.math.roundToInt
 // Black / gray color scheme
 // ---------------------------------------------------------------------------
 private val BgDeep = Color(0xFF0F0F12)
-private val SidebarBg = Color(0xFF0C0C12)
+private val SidebarBg = Color(0xFF0F0F12)
 private val ContentBg = Color(0xFF0F0F12)
 private val CardSurface = Color(0xFF14141E)
 private val CardBorder = Color(0xFF21212E)
@@ -124,7 +124,7 @@ data class ExtraArgGroup(val header: String, val args: List<String>)
 // ---------------------------------------------------------------------------
 // State holder
 // ---------------------------------------------------------------------------
-class ShortcutSettingsStateHolder {
+class GameSettingsStateHolder {
     val currentSection = mutableIntStateOf(0)
 
     // General
@@ -208,10 +208,15 @@ class ShortcutSettingsStateHolder {
     val midiSoundFontEntries = mutableStateOf<List<String>>(emptyList())
     val selectedMidiSoundFont = mutableIntStateOf(0)
 
-    // Wine
+    // Wine — emulator32/64Entries are wine-arch-filtered views of emulatorEntries
+    // used by the 32/64-bit dropdowns; selectedEmulator indexes into
+    // emulator32Entries, selectedEmulator64 into emulator64Entries.
     val emulatorEntries = mutableStateOf<List<String>>(emptyList())
+    val emulator32Entries = mutableStateOf<List<String>>(emptyList())
+    val emulator64Entries = mutableStateOf<List<String>>(emptyList())
     val selectedEmulator = mutableIntStateOf(0)
     val selectedEmulator64 = mutableIntStateOf(0)
+    val wineVersionDisplay = mutableStateOf("")
     val emulatorsEnabled = mutableStateOf(true)
     val lcAll = mutableStateOf("")
     val localeOptions = mutableStateOf<List<String>>(emptyList())
@@ -242,6 +247,7 @@ class ShortcutSettingsStateHolder {
     val selectedControlsProfile = mutableIntStateOf(0)
     val disableXInput = mutableStateOf(false)
     val simTouchScreen = mutableStateOf(false)
+    val sdl2Compatibility = mutableStateOf(false)
     val enableXInput = mutableStateOf(false)
     val enableDInput = mutableStateOf(false)
     val dInputMapperTypeEntries = mutableStateOf<List<String>>(emptyList())
@@ -267,12 +273,6 @@ class ShortcutSettingsStateHolder {
     val execArgs = mutableStateOf("")
     val fullscreenStretched = mutableStateOf(false)
 
-    // Advanced - Sharpness
-    val sharpnessEffectEntries = mutableStateOf<List<String>>(emptyList())
-    val selectedSharpnessEffect = mutableIntStateOf(0)
-    val sharpnessLevel = mutableIntStateOf(100)
-    val sharpnessDenoise = mutableIntStateOf(100)
-
     // Advanced - CPU
     val cpuCount = mutableIntStateOf(Runtime.getRuntime().availableProcessors())
     val cpuChecked = mutableStateOf<List<Boolean>>(
@@ -292,7 +292,7 @@ class ShortcutSettingsStateHolder {
 // ---------------------------------------------------------------------------
 // Callbacks
 // ---------------------------------------------------------------------------
-interface ShortcutSettingsCallbacks {
+interface GameSettingsCallbacks {
     fun onConfirm()
     fun onDismiss()
     fun onGraphicsDriverConfig()
@@ -349,7 +349,6 @@ private data class SidebarSection(
 private const val SEC_GENERAL = 0
 private const val SEC_STEAM = 1
 private const val SEC_DISPLAY = 2
-private const val SEC_AUDIO = 3
 private const val SEC_WINE = 4
 private const val SEC_COMPONENTS = 5
 private const val SEC_VARIABLES = 6
@@ -360,13 +359,12 @@ private fun buildSections(isSteam: Boolean): List<Pair<Int, SidebarSection>> {
     val list = mutableListOf<Pair<Int, SidebarSection>>()
     list += SEC_GENERAL to SidebarSection(Icons.Outlined.Tune, R.string.settings_general_title)
     if (isSteam) list += SEC_STEAM to SidebarSection(Icons.Outlined.Science, R.string.steam_section_title)
-    list += SEC_DISPLAY to SidebarSection(Icons.Outlined.Monitor, R.string.session_display_title)
-    list += SEC_AUDIO to SidebarSection(Icons.Outlined.VolumeUp, R.string.settings_audio_sound)
+    list += SEC_DISPLAY to SidebarSection(Icons.Outlined.Monitor, R.string.common_ui_graphics)
+    list += SEC_ADVANCED to SidebarSection(Icons.Outlined.Settings, R.string.common_ui_advanced)
+    list += SEC_INPUT to SidebarSection(Icons.Outlined.SportsEsports, R.string.common_ui_input_controls)
+    list += SEC_VARIABLES to SidebarSection(Icons.Outlined.Code, R.string.container_config_variables)
     list += SEC_WINE to SidebarSection(Icons.Outlined.Science, R.string.container_wine_title)
     list += SEC_COMPONENTS to SidebarSection(Icons.Outlined.Extension, R.string.settings_content_components)
-    list += SEC_VARIABLES to SidebarSection(Icons.Outlined.Code, R.string.container_config_variables)
-    list += SEC_INPUT to SidebarSection(Icons.Outlined.SportsEsports, R.string.common_ui_input_controls)
-    list += SEC_ADVANCED to SidebarSection(Icons.Outlined.Settings, R.string.common_ui_advanced)
     return list
 }
 
@@ -374,9 +372,9 @@ private fun buildSections(isSteam: Boolean): List<Pair<Int, SidebarSection>> {
 // Main Content Composable
 // ===================================================================
 @Composable
-fun ShortcutSettingsContent(
-    state: ShortcutSettingsStateHolder,
-    callbacks: ShortcutSettingsCallbacks
+fun GameSettingsContent(
+    state: GameSettingsStateHolder,
+    callbacks: GameSettingsCallbacks
 ) {
     val isSteam by state.isSteamGame
     val sections = remember(isSteam) { buildSections(isSteam) }
@@ -386,20 +384,19 @@ fun ShortcutSettingsContent(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 12.dp, vertical = 16.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(BgDeep)
     ) {
-        val isCompact = maxWidth < 600.dp
+        val isCompact = maxWidth < 720.dp
 
         if (isCompact) {
-            // Compact layout: top nav bar + content + bottom action bar
+            // Compact layout: top title+action bar + content + bottom section picker
             Column(modifier = Modifier.fillMaxSize()) {
-                // Top section picker - scrollable row of chips
-                CompactTopBar(
-                    sections = sections,
-                    currentIndex = selectedIdx,
-                    onSectionSelected = { state.currentSection.intValue = it }
+                // Top action bar: title on left, Cancel/Save on right
+                CompactBottomBar(
+                    title = state.name.value,
+                    onSave = { callbacks.onConfirm() },
+                    onCancel = { callbacks.onDismiss() }
                 )
 
                 Box(
@@ -420,16 +417,18 @@ fun ShortcutSettingsContent(
                     Modifier.fillMaxWidth().height(1.dp).background(DividerColor)
                 )
 
-                // Bottom action bar
-                CompactBottomBar(
-                    onSave = { callbacks.onConfirm() },
-                    onCancel = { callbacks.onDismiss() }
+                // Bottom section picker - scrollable row of chips
+                CompactTopBar(
+                    sections = sections,
+                    currentIndex = selectedIdx,
+                    onSectionSelected = { state.currentSection.intValue = it }
                 )
             }
         } else {
             // Wide layout: sidebar + content
             Row(modifier = Modifier.fillMaxSize()) {
                 Sidebar(
+                    title = state.name.value,
                     sections = sections.map { it.second },
                     currentIndex = selectedIdx,
                     onSectionSelected = { state.currentSection.intValue = it },
@@ -463,8 +462,8 @@ fun ShortcutSettingsContent(
 @Composable
 private fun SectionContent(
     sectionId: Int,
-    state: ShortcutSettingsStateHolder,
-    callbacks: ShortcutSettingsCallbacks,
+    state: GameSettingsStateHolder,
+    callbacks: GameSettingsCallbacks,
     isCompact: Boolean
 ) {
     AnimatedContent(
@@ -497,12 +496,11 @@ private fun SectionContent(
                 SEC_GENERAL -> GeneralSection(state, callbacks)
                 SEC_STEAM -> SteamSection(state)
                 SEC_DISPLAY -> DisplaySection(state, callbacks)
-                SEC_AUDIO -> AudioSection(state)
-                SEC_WINE -> WineSection(state, callbacks)
+                SEC_WINE -> WineSection(state)
                 SEC_COMPONENTS -> ComponentsSection(state, callbacks)
                 SEC_VARIABLES -> VariablesSection(state, callbacks)
                 SEC_INPUT -> InputSection(state)
-                SEC_ADVANCED -> AdvancedSection(state)
+                SEC_ADVANCED -> AdvancedSection(state, callbacks)
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -564,6 +562,7 @@ private fun CompactTopBar(
 
 @Composable
 private fun CompactBottomBar(
+    title: String,
     onSave: () -> Unit,
     onCancel: () -> Unit
 ) {
@@ -572,31 +571,50 @@ private fun CompactBottomBar(
             .fillMaxWidth()
             .background(SidebarBg)
             .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // Game title on the left — matches the Sidebar header text format
+        if (title.isNotBlank()) {
+            Text(
+                text = title,
+                color = TextPrimary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.2.sp,
+                lineHeight = 15.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+        } else {
+            Spacer(Modifier.weight(1f))
+        }
+
+        // Smaller right-aligned Cancel / Save buttons
         Box(
             modifier = Modifier
-                .weight(1f)
-                .height(38.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                .height(28.dp)
+                .clip(RoundedCornerShape(7.dp))
+                .border(1.dp, CardBorder, RoundedCornerShape(7.dp))
                 .background(CardSurface)
-                .clickable { onCancel() },
+                .clickable { onCancel() }
+                .padding(horizontal = 14.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(stringResource(R.string.common_ui_cancel), color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.common_ui_cancel), color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
         }
         Box(
             modifier = Modifier
-                .weight(1f)
-                .height(38.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .border(1.dp, AccentBlue.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                .height(28.dp)
+                .clip(RoundedCornerShape(7.dp))
+                .border(1.dp, AccentBlue.copy(alpha = 0.5f), RoundedCornerShape(7.dp))
                 .background(AccentBlue.copy(alpha = 0.1f))
-                .clickable { onSave() },
+                .clickable { onSave() }
+                .padding(horizontal = 14.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(stringResource(R.string.common_ui_save), color = AccentBlue, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.common_ui_save), color = AccentBlue, fontSize = 11.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -606,6 +624,7 @@ private fun CompactBottomBar(
 // ===================================================================
 @Composable
 private fun Sidebar(
+    title: String,
     sections: List<SidebarSection>,
     currentIndex: Int,
     onSectionSelected: (Int) -> Unit,
@@ -616,8 +635,34 @@ private fun Sidebar(
     Column(
         modifier = modifier
             .background(SidebarBg)
-            .padding(top = 20.dp, bottom = 16.dp)
+            .padding(top = 18.dp, bottom = 16.dp)
     ) {
+        // Header: shortcut/game title being edited
+        if (title.isNotBlank()) {
+            Text(
+                text = title,
+                color = TextPrimary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.2.sp,
+                lineHeight = 15.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 12.dp)
+            )
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(DividerColor)
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+
         // Sidebar items
         Column(
             modifier = Modifier
@@ -636,6 +681,16 @@ private fun Sidebar(
             }
         }
 
+        // Divider above the action buttons (matches the one under the title)
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(DividerColor)
+        )
+        Spacer(Modifier.height(10.dp))
+
         // Cancel + Save buttons
         Row(
             modifier = Modifier
@@ -646,7 +701,7 @@ private fun Sidebar(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(38.dp)
+                    .height(32.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
                     .background(CardSurface)
@@ -656,14 +711,14 @@ private fun Sidebar(
                 Text(
                     stringResource(R.string.common_ui_cancel),
                     color = TextSecondary,
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
             }
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(38.dp)
+                    .height(32.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .border(1.dp, AccentBlue.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
                     .background(AccentBlue.copy(alpha = 0.1f))
@@ -673,7 +728,7 @@ private fun Sidebar(
                 Text(
                     stringResource(R.string.common_ui_save),
                     color = AccentBlue,
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -725,8 +780,8 @@ private fun SidebarItem(
 // ===================================================================
 @Composable
 private fun GeneralSection(
-    state: ShortcutSettingsStateHolder,
-    callbacks: ShortcutSettingsCallbacks
+    state: GameSettingsStateHolder,
+    callbacks: GameSettingsCallbacks
 ) {
 
     SettingGroup {
@@ -853,6 +908,27 @@ private fun GeneralSection(
             onSelected = { state.selectedRefreshRate.intValue = it }
         )
     }
+
+    Spacer(Modifier.height(16.dp))
+
+    // Sound
+    SettingGroup {
+        SettingDropdown(
+            label = stringResource(R.string.container_config_audio_driver),
+            entries = state.audioDriverEntries.value,
+            selectedIndex = state.selectedAudioDriver.intValue,
+            onSelected = { state.selectedAudioDriver.intValue = it }
+        )
+
+        Spacer(Modifier.height(14.dp))
+
+        SettingDropdown(
+            label = stringResource(R.string.settings_audio_midi_sound_font),
+            entries = state.midiSoundFontEntries.value,
+            selectedIndex = state.selectedMidiSoundFont.intValue,
+            onSelected = { state.selectedMidiSoundFont.intValue = it }
+        )
+    }
 }
 
 // ===================================================================
@@ -860,8 +936,8 @@ private fun GeneralSection(
 // ===================================================================
 @Composable
 private fun DisplaySection(
-    state: ShortcutSettingsStateHolder,
-    callbacks: ShortcutSettingsCallbacks
+    state: GameSettingsStateHolder,
+    callbacks: GameSettingsCallbacks
 ) {
 
     SettingGroup {
@@ -918,8 +994,8 @@ private fun DisplaySection(
 // ===================================================================
 @Composable
 private fun GraphicsDriverConfigCard(
-    state: ShortcutSettingsStateHolder,
-    callbacks: ShortcutSettingsCallbacks
+    state: GameSettingsStateHolder,
+    callbacks: GameSettingsCallbacks
 ) {
     val expanded by state.gfxConfigExpanded
 
@@ -1103,7 +1179,7 @@ private fun GraphicsDriverConfigCard(
 // Extensions multi-select
 // ===================================================================
 @Composable
-private fun ExtensionsMultiSelect(state: ShortcutSettingsStateHolder) {
+private fun ExtensionsMultiSelect(state: GameSettingsStateHolder) {
     val extensions = state.gfxAvailableExtensions.value
     val blacklisted = state.gfxBlacklistedExtensions.value
     var showDialog by remember { mutableStateOf(false) }
@@ -1280,8 +1356,8 @@ private fun ExtensionsPickerDialog(
 // ===================================================================
 @Composable
 private fun DXVKConfigCard(
-    state: ShortcutSettingsStateHolder,
-    callbacks: ShortcutSettingsCallbacks
+    state: GameSettingsStateHolder,
+    callbacks: GameSettingsCallbacks
 ) {
     val expanded by state.dxvkConfigExpanded
 
@@ -1419,7 +1495,7 @@ private fun DXVKConfigCard(
 // WineD3D Configuration Card
 // ===================================================================
 @Composable
-private fun WineD3DConfigCard(state: ShortcutSettingsStateHolder) {
+private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
     val expanded by state.wined3dConfigExpanded
 
     Column(
@@ -1533,7 +1609,7 @@ private fun WineD3DConfigCard(state: ShortcutSettingsStateHolder) {
 // Section: Steam (conditional)
 // ===================================================================
 @Composable
-private fun SteamSection(state: ShortcutSettingsStateHolder) {
+private fun SteamSection(state: GameSettingsStateHolder) {
 
     SubsectionLabel(stringResource(R.string.steam_section_emulator))
     Spacer(Modifier.height(8.dp))
@@ -1625,64 +1701,13 @@ private fun SteamSection(state: ShortcutSettingsStateHolder) {
 }
 
 // ===================================================================
-// Section 2: Audio
-// ===================================================================
-@Composable
-private fun AudioSection(state: ShortcutSettingsStateHolder) {
-
-    SettingGroup {
-        SettingDropdown(
-            label = stringResource(R.string.container_config_audio_driver),
-            entries = state.audioDriverEntries.value,
-            selectedIndex = state.selectedAudioDriver.intValue,
-            onSelected = { state.selectedAudioDriver.intValue = it }
-        )
-
-        Spacer(Modifier.height(14.dp))
-
-        SettingDropdown(
-            label = stringResource(R.string.settings_audio_midi_sound_font),
-            entries = state.midiSoundFontEntries.value,
-            selectedIndex = state.selectedMidiSoundFont.intValue,
-            onSelected = { state.selectedMidiSoundFont.intValue = it }
-        )
-    }
-}
-
-// ===================================================================
 // Section 3: Wine
 // ===================================================================
 @Composable
-private fun WineSection(state: ShortcutSettingsStateHolder, callbacks: ShortcutSettingsCallbacks) {
+private fun WineSection(state: GameSettingsStateHolder) {
 
     SettingGroup {
-        // 64-bit Emulator
-        SettingDropdown(
-            label = stringResource(R.string.container_config_emulator_64bit),
-            entries = state.emulatorEntries.value,
-            selectedIndex = state.selectedEmulator64.intValue,
-            onSelected = {
-                state.selectedEmulator64.intValue = it
-                callbacks.onEmulatorChanged()
-            }
-        )
-
-        Spacer(Modifier.height(14.dp))
-
-        // DLL Emulator (32-bit)
-        SettingDropdown(
-            label = stringResource(R.string.container_config_dll_emulator),
-            entries = state.emulatorEntries.value,
-            selectedIndex = state.selectedEmulator.intValue,
-            onSelected = {
-                state.selectedEmulator.intValue = it
-                callbacks.onEmulatorChanged()
-            }
-        )
-
-        Spacer(Modifier.height(14.dp))
-
-        // LC_ALL with locale picker
+        // LC_ALL with locale picker. Emulator selection lives in Advanced.
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top
@@ -1757,8 +1782,8 @@ private fun WineSection(state: ShortcutSettingsStateHolder, callbacks: ShortcutS
 // ===================================================================
 @Composable
 private fun ComponentsSection(
-    state: ShortcutSettingsStateHolder,
-    callbacks: ShortcutSettingsCallbacks
+    state: GameSettingsStateHolder,
+    callbacks: GameSettingsCallbacks
 ) {
 
     // DirectX components
@@ -1806,8 +1831,8 @@ private fun ComponentsSection(
 // ===================================================================
 @Composable
 private fun VariablesSection(
-    state: ShortcutSettingsStateHolder,
-    callbacks: ShortcutSettingsCallbacks
+    state: GameSettingsStateHolder,
+    callbacks: GameSettingsCallbacks
 ) {
     var isAdding by remember { mutableStateOf(false) }
     var addText by remember { mutableStateOf("") }
@@ -1983,7 +2008,7 @@ private fun VariablesSection(
 // Section 6: Input
 // ===================================================================
 @Composable
-private fun InputSection(state: ShortcutSettingsStateHolder) {
+private fun InputSection(state: GameSettingsStateHolder) {
 
     // Input Controls group
     SubsectionLabel(stringResource(R.string.common_ui_input_controls))
@@ -1998,10 +2023,25 @@ private fun InputSection(state: ShortcutSettingsStateHolder) {
 
         Spacer(Modifier.height(12.dp))
 
+        // Exclusive Input — when off, XInput + DInput are both forced on and locked below.
         SettingCheckbox(
-            label = stringResource(R.string.shortcuts_properties_disable_xinput),
+            label = stringResource(R.string.shortcuts_properties_exclusive_input),
             checked = state.disableXInput.value,
-            onCheckedChange = { state.disableXInput.value = it }
+            onCheckedChange = {
+                state.disableXInput.value = it
+                if (!it) {
+                    state.enableXInput.value = true
+                    state.enableDInput.value = true
+                }
+            }
+        )
+
+        Spacer(Modifier.height(4.dp))
+
+        SettingCheckbox(
+            label = stringResource(R.string.container_config_sdl2_compatibility),
+            checked = state.sdl2Compatibility.value,
+            onCheckedChange = { state.sdl2Compatibility.value = it }
         )
 
         Spacer(Modifier.height(4.dp))
@@ -2030,7 +2070,8 @@ private fun InputSection(state: ShortcutSettingsStateHolder) {
             Spacer(Modifier.height(12.dp))
         }
 
-        // Enable XInput with help
+        // Enable XInput with help — only toggleable when Exclusive Input is on.
+        val inputApisLocked = !state.disableXInput.value
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -2039,7 +2080,8 @@ private fun InputSection(state: ShortcutSettingsStateHolder) {
                 SettingCheckbox(
                     label = stringResource(R.string.container_config_enable_xinput),
                     checked = state.enableXInput.value,
-                    onCheckedChange = { state.enableXInput.value = it }
+                    onCheckedChange = { state.enableXInput.value = it },
+                    enabled = !inputApisLocked
                 )
             }
             var showXInputHelp by remember { mutableStateOf(false) }
@@ -2090,7 +2132,8 @@ private fun InputSection(state: ShortcutSettingsStateHolder) {
                 SettingCheckbox(
                     label = stringResource(R.string.container_config_enable_dinput),
                     checked = state.enableDInput.value,
-                    onCheckedChange = { state.enableDInput.value = it }
+                    onCheckedChange = { state.enableDInput.value = it },
+                    enabled = !inputApisLocked
                 )
             }
             var showDInputHelp by remember { mutableStateOf(false) }
@@ -2157,53 +2200,111 @@ private fun InputSection(state: ShortcutSettingsStateHolder) {
 // ===================================================================
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AdvancedSection(state: ShortcutSettingsStateHolder) {
+private fun AdvancedSection(
+    state: GameSettingsStateHolder,
+    callbacks: GameSettingsCallbacks
+) {
 
-    // Box64
-    val box64Enabled = state.showBox64Frame.value
-    SubsectionLabel(stringResource(R.string.container_box64_title))
+    // Wine / Proton version (read-only)
+    val wineVersionDisplay = state.wineVersionDisplay.value
+    if (wineVersionDisplay.isNotEmpty()) {
+        SubsectionLabel(stringResource(R.string.container_wine_version))
+        Spacer(Modifier.height(8.dp))
+        SettingGroup {
+            Text(
+                text = wineVersionDisplay,
+                color = TextPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+    }
+
+    // Emulator selection (mirrors the Wine tab dropdowns)
+    SubsectionLabel(stringResource(R.string.container_config_emulator_section))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
         SettingDropdown(
-            label = stringResource(R.string.container_box64_version),
-            entries = state.box64VersionEntries.value,
-            selectedIndex = state.selectedBox64Version.intValue,
-            onSelected = { state.selectedBox64Version.intValue = it },
-            enabled = box64Enabled
+            label = stringResource(R.string.container_config_emulator_64bit),
+            entries = state.emulator64Entries.value,
+            selectedIndex = state.selectedEmulator64.intValue,
+            onSelected = {
+                state.selectedEmulator64.intValue = it
+                callbacks.onEmulatorChanged()
+            },
+            enabled = state.emulator64Entries.value.size > 1
         )
         Spacer(Modifier.height(14.dp))
         SettingDropdown(
-            label = stringResource(R.string.container_box64_preset),
-            entries = state.box64PresetEntries.value,
-            selectedIndex = state.selectedBox64Preset.intValue,
-            onSelected = { state.selectedBox64Preset.intValue = it },
-            enabled = box64Enabled
+            label = stringResource(R.string.container_config_dll_emulator),
+            entries = state.emulator32Entries.value,
+            selectedIndex = state.selectedEmulator.intValue,
+            onSelected = {
+                state.selectedEmulator.intValue = it
+                callbacks.onEmulatorChanged()
+            },
+            enabled = state.emulator32Entries.value.size > 1
         )
     }
     Spacer(Modifier.height(16.dp))
 
-    // FEXCore
-    val fexcoreEnabled = state.showFexcoreFrame.value
-    SubsectionLabel(stringResource(R.string.container_fexcore_config))
-    Spacer(Modifier.height(8.dp))
-    SettingGroup {
-        SettingDropdown(
-            label = stringResource(R.string.container_fexcore_version),
-            entries = state.fexcoreVersionEntries.value,
-            selectedIndex = state.selectedFexcoreVersion.intValue,
-            onSelected = { state.selectedFexcoreVersion.intValue = it },
-            enabled = fexcoreEnabled
-        )
-        Spacer(Modifier.height(14.dp))
-        SettingDropdown(
-            label = stringResource(R.string.container_fexcore_preset),
-            entries = state.fexcorePresetEntries.value,
-            selectedIndex = state.selectedFexcorePreset.intValue,
-            onSelected = { state.selectedFexcorePreset.intValue = it },
-            enabled = fexcoreEnabled
-        )
+    // FEXCore — hidden when FEXCore isn't explicitly in either slot.
+    if (state.showFexcoreFrame.value) {
+        val fexcoreUsage = emulatorUsageLabel(state, setOf("fexcore"))
+        EmulatorSectionHeader(stringResource(R.string.container_fexcore_config), fexcoreUsage)
+        Spacer(Modifier.height(8.dp))
+        SettingGroup {
+            SettingDropdown(
+                label = stringResource(R.string.container_fexcore_version),
+                entries = state.fexcoreVersionEntries.value,
+                selectedIndex = state.selectedFexcoreVersion.intValue,
+                onSelected = { state.selectedFexcoreVersion.intValue = it }
+            )
+            Spacer(Modifier.height(14.dp))
+            SettingDropdown(
+                label = stringResource(R.string.container_fexcore_preset),
+                entries = state.fexcorePresetEntries.value,
+                selectedIndex = state.selectedFexcorePreset.intValue,
+                onSelected = { state.selectedFexcorePreset.intValue = it }
+            )
+        }
+        Spacer(Modifier.height(16.dp))
     }
-    Spacer(Modifier.height(16.dp))
+
+    // Box64 / Wowbox64 — title switches between Box64/Wowbox64/both based on selection.
+    if (state.showBox64Frame.value) {
+        val box64Usage = emulatorUsageLabel(state, setOf("box64", "wowbox64"))
+        val box64Id32 = state.emulator32Entries.value
+            .getOrNull(state.selectedEmulator.intValue)?.lowercase() ?: ""
+        val box64Id64 = state.emulator64Entries.value
+            .getOrNull(state.selectedEmulator64.intValue)?.lowercase() ?: ""
+        val usesPlainBox64 = box64Id32 == "box64" || box64Id64 == "box64"
+        val usesWowbox64 = box64Id32 == "wowbox64" || box64Id64 == "wowbox64"
+        val box64Title = when {
+            usesPlainBox64 && usesWowbox64 -> "Box64 / Wowbox64"
+            usesWowbox64 -> "Wowbox64"
+            else -> stringResource(R.string.container_box64_title)
+        }
+        EmulatorSectionHeader(box64Title, box64Usage)
+        Spacer(Modifier.height(8.dp))
+        SettingGroup {
+            SettingDropdown(
+                label = stringResource(R.string.container_box64_version),
+                entries = state.box64VersionEntries.value,
+                selectedIndex = state.selectedBox64Version.intValue,
+                onSelected = { state.selectedBox64Version.intValue = it }
+            )
+            Spacer(Modifier.height(14.dp))
+            SettingDropdown(
+                label = stringResource(R.string.container_box64_preset),
+                entries = state.box64PresetEntries.value,
+                selectedIndex = state.selectedBox64Preset.intValue,
+                onSelected = { state.selectedBox64Preset.intValue = it }
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+    }
 
     // System
     SubsectionLabel(stringResource(R.string.common_ui_system))
@@ -2246,38 +2347,6 @@ private fun AdvancedSection(state: ShortcutSettingsStateHolder) {
             label = stringResource(R.string.session_display_fullscreen_stretched),
             checked = state.fullscreenStretched.value,
             onCheckedChange = { state.fullscreenStretched.value = it }
-        )
-    }
-
-    Spacer(Modifier.height(16.dp))
-
-    // VKBasalt
-    SubsectionLabel(stringResource(R.string.container_graphics_vkbasalt))
-    Spacer(Modifier.height(8.dp))
-    SettingGroup {
-        SettingDropdown(
-            label = stringResource(R.string.container_graphics_vkbasalt_sharpness_effects),
-            entries = state.sharpnessEffectEntries.value,
-            selectedIndex = state.selectedSharpnessEffect.intValue,
-            onSelected = { state.selectedSharpnessEffect.intValue = it }
-        )
-
-        Spacer(Modifier.height(14.dp))
-
-        SettingSlider(
-            label = stringResource(R.string.container_graphics_vkbasalt_sharpness_level),
-            value = state.sharpnessLevel.intValue,
-            range = 0..100,
-            onValueChange = { state.sharpnessLevel.intValue = it }
-        )
-
-        Spacer(Modifier.height(14.dp))
-
-        SettingSlider(
-            label = stringResource(R.string.container_graphics_vkbasalt_sharpness_denoise),
-            value = state.sharpnessDenoise.intValue,
-            range = 0..100,
-            onValueChange = { state.sharpnessDenoise.intValue = it }
         )
     }
 
@@ -2492,6 +2561,59 @@ private fun SubsectionLabel(text: String) {
     )
 }
 
+// Returns the architecture badge for the slots currently using one of [ids].
+private fun emulatorUsageLabel(
+    state: GameSettingsStateHolder,
+    ids: Set<String>
+): String? {
+    val entries32 = state.emulator32Entries.value
+    val entries64 = state.emulator64Entries.value
+    val id32 = entries32.getOrNull(state.selectedEmulator.intValue)?.lowercase() ?: ""
+    val id64 = entries64.getOrNull(state.selectedEmulator64.intValue)?.lowercase() ?: ""
+    val used32 = id32 in ids
+    val used64 = id64 in ids
+    return when {
+        used32 && used64 -> "64-BIT & 32-BIT"
+        used64 -> "64-BIT"
+        used32 -> "32-BIT"
+        else -> null
+    }
+}
+
+@Composable
+private fun EmulatorSectionHeader(title: String, usage: String?) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            color = TextSecondary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 0.8.sp
+        )
+        if (usage != null) {
+            Spacer(Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(AccentBlue.copy(alpha = 0.15f))
+                    .border(1.dp, AccentBlue.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = usage,
+                    color = AccentBlue,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 0.5.sp
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun SettingGroup(
     content: @Composable () -> Unit
@@ -2626,19 +2748,23 @@ private fun SettingTextField(
 private fun SettingCheckbox(
     label: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true
 ) {
+    val alpha = if (enabled) 1f else 0.4f
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .alpha(alpha)
             .clip(RoundedCornerShape(8.dp))
-            .clickable { onCheckedChange(!checked) }
+            .then(if (enabled) Modifier.clickable { onCheckedChange(!checked) } else Modifier)
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Checkbox(
             checked = checked,
-            onCheckedChange = onCheckedChange,
+            onCheckedChange = if (enabled) onCheckedChange else null,
+            enabled = enabled,
             modifier = Modifier.size(22.dp),
             colors = CheckboxDefaults.colors(
                 checkedColor = AccentBlue,

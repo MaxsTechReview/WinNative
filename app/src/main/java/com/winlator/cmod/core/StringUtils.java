@@ -42,6 +42,8 @@ public class StringUtils {
         try {
             resName = resName.toLowerCase(Locale.ENGLISH);
             int resID = context.getResources().getIdentifier(resName, "string", context.getPackageName());
+            // getString(0) logs "Invalid resource ID 0x00000000" before throwing.
+            if (resID == 0) return null;
             return context.getString(resID);
         }
         catch (Exception e) {

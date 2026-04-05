@@ -252,14 +252,4 @@
         <item>glibc</item>
         <item>bionic</item>
     </string-array>
-    <string-array name="vkbasalt_sharpness_entries">
-        <item>Brak</item>
-        <item>CAS</item>
-        <item>DLS</item>
-    </string-array>
-    <string-array name="vkbasalt_sharpness_labels">
-        <item>Brak</item>
-        <item>CAS — Czysty i naturalny</item>
-        <item>DLS — Ekstra ostry, bardziej intensywny</item>
-    </string-array>
 </resources>

@@ -216,7 +216,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private MidiHandler midiHandler;
     private String midiSoundFont = "";
     private String lc_all = "";
-    private String vkbasaltConfig = "";
     PreloaderDialog preloaderDialog = null;
     private Runnable configChangedCallback = null;
     private boolean isPaused = false;
@@ -888,12 +887,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
             xinputDisabledFromShortcut = parseBoolean(xinputDisabledString);
             // Pass the value to WinHandler
             winHandler.setXInputDisabled(xinputDisabledFromShortcut);
-            String sharpnessEffect = shortcut.getExtra("sharpnessEffect", "None");
-            if (!sharpnessEffect.equals("None")) {
-                double sharpnessLevel = Double.parseDouble(shortcut.getExtra("sharpnessLevel", "100"));
-                double sharpnessDenoise = Double.parseDouble(shortcut.getExtra("sharpnessDenoise", "100"));
-                vkbasaltConfig = "effects=" + sharpnessEffect.toLowerCase() + ";" + "casSharpness=" + sharpnessLevel / 100 + ";" + "dlsSharpness=" + sharpnessLevel / 100  + ";" + "dlsDenoise=" + sharpnessDenoise / 100 + ";" + "enableOnLaunch=True";
-            }
             Log.d("XServerDisplayActivity", "XInput Disabled from Shortcut: " + xinputDisabledFromShortcut);
             
             startupSelection = getShortcutSetting("startupSelection", String.valueOf(container.getStartupSelection()));
@@ -3315,10 +3308,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
         String bcnEmulationCache = graphicsDriverConfig.get("bcnEmulationCache");
         envVars.put("WRAPPER_USE_BCN_CACHE", bcnEmulationCache);
 
-        if (!vkbasaltConfig.isEmpty()) {
-            envVars.put("ENABLE_VKBASALT", "1");
-            envVars.put("VKBASALT_CONFIG", vkbasaltConfig);
-        }
     }
 
     @Override
