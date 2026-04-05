@@ -133,15 +133,21 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         int editContainerId = intent.getIntExtra("edit_container_id", 0);
         if (editContainerId > 0) {
-            // Show the containers list first so we land on a sensible screen
-            // after the dialog dismisses, then open the Compose dialog.
+            // Land on the containers list so dismissing the dialog leaves the
+            // user on a sensible screen, then open the Compose dialog on top.
             onNavigationItemSelected(navigationView.getMenu().findItem(R.id.main_menu_containers));
             navigationView.setCheckedItem(R.id.main_menu_containers);
 
             com.winlator.cmod.container.ContainerManager cm = new com.winlator.cmod.container.ContainerManager(this);
             com.winlator.cmod.container.Container container = cm.getContainerById(editContainerId);
             if (container != null) {
-                new com.winlator.cmod.contentdialog.ContainerSettingsComposeDialog(this, container).show();
+                // When launched from SetupWizardActivity's containerSettingsLauncher,
+                // the caller blocks on MainActivity finishing. Finish ourselves
+                // when the dialog dismisses so the wizard's result callback fires.
+                new com.winlator.cmod.contentdialog.ContainerSettingsComposeDialog(
+                        this, container, this::finish).show();
+            } else {
+                finish();
             }
             return;
         }
