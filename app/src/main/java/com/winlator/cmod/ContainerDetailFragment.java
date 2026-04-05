@@ -764,6 +764,14 @@ public class ContainerDetailFragment extends Fragment {
                     container.setExecArgs(execArgs);
                     Log.d(TAG, "Persist container.saveData containerId=" + container.id +
                             " finalDxwrapperConfig='" + container.getDXWrapperConfig() + "'");
+                    Log.d(TAG, "Saving container settings containerId=" + container.id +
+                            " box64Preset='" + box64Preset + "' fexcorePreset='" + fexcorePreset +
+                            "' box64Version='" + box64Version + "' fexcoreVersion='" + fexcoreVersion +
+                            "' graphicsDriver='" + graphicsDriver + "' dxwrapper='" + dxwrapper +
+                            "' audioDriver='" + audioDriver + "' emulator='" + emulator +
+                            "' screenSize='" + screenSize + "' startupSelection=" + startupSelection +
+                            " envVars='" + envVars + "' cpuList='" + cpuList +
+                            "' cpuListWoW64='" + cpuListWoW64 + "'");
                     container.saveData();
                     if (cbExclusiveInput != null) {
                         preferences.edit().putBoolean("xinput_toggle", cbExclusiveInput.isChecked()).apply();
@@ -810,6 +818,16 @@ public class ContainerDetailFragment extends Fragment {
                     data.put("wineVersion", selectedWineStr);
                     data.put("midiSoundFont", midiSoundFont);
                     data.put("lc_all", lc_all);
+
+                    Log.d(TAG, "Creating new container with settings name='" + name +
+                            "' wineVersion='" + selectedWineStr + "' box64Preset='" + box64Preset +
+                            "' fexcorePreset='" + fexcorePreset + "' box64Version='" + box64Version +
+                            "' fexcoreVersion='" + fexcoreVersion + "' graphicsDriver='" + graphicsDriver +
+                            "' dxwrapper='" + dxwrapper + "' dxwrapperConfig='" + dxwrapperConfig +
+                            "' audioDriver='" + audioDriver + "' emulator='" + emulator +
+                            "' screenSize='" + screenSize + "' startupSelection=" + startupSelection +
+                            " envVars='" + envVars + "' cpuList='" + cpuList +
+                            "' cpuListWoW64='" + cpuListWoW64 + "'");
 
                     preloaderDialog.show(R.string.containers_list_creating);
 

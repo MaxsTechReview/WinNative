@@ -816,6 +816,10 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         Log.d("GuestProgramLauncherComponent", "=== FINAL LAUNCH COMMAND ===");
         Log.d("GuestProgramLauncherComponent", "Command: " + command);
         Log.d("GuestProgramLauncherComponent", "Working dir: " + (workingDir != null ? workingDir.getAbsolutePath() : rootDir.getAbsolutePath()));
+        Log.d("GuestProgramLauncherComponent", "=== FINAL ENVIRONMENT (" + envVars.toStringArray().length + " vars) ===");
+        for (String kv : envVars.toStringArray()) {
+            Log.d("GuestProgramLauncherComponent", "env " + kv);
+        }
 
         return ProcessHelper.exec(command, envVars.toStringArray(), workingDir != null ? workingDir : rootDir, (status) -> {
             synchronized (lock) {

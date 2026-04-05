@@ -3,6 +3,7 @@ package com.winlator.cmod.fexcore;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.util.Log;
 import android.widget.Spinner;
 import android.widget.SpinnerAdapter;
 
@@ -26,6 +27,8 @@ import java.util.Iterator;
 import java.util.Locale;
 
 public class FEXCorePresetManager {
+    private static final String TAG = "FEXCorePresetManager";
+
     public static EnvVars getEnvVars(Context context, String id) {
         EnvVars envVars = new EnvVars();
 
@@ -70,6 +73,7 @@ public class FEXCorePresetManager {
             }
         }
 
+        Log.d(TAG, "getEnvVars resolved presetId='" + id + "' -> envVars='" + envVars.toString() + "'");
         return envVars;
     }
 
