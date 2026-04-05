@@ -5,6 +5,8 @@ import static com.winlator.cmod.core.AppUtils.showToast;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.GameManager;
+import android.app.GameState;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -17,6 +19,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -330,7 +333,16 @@ public class XServerDisplayActivity extends AppCompatActivity {
      */
     private int getRefreshRateOverride() {
         int perGameRate = getPerGameRefreshRateOverride();
-        return perGameRate > 0 ? perGameRate : getGlobalRefreshRateOverride();
+        int globalRate = getGlobalRefreshRateOverride();
+        int effectiveRate = perGameRate > 0 ? perGameRate : globalRate;
+        Log.d("XServerDisplayActivity", "getRefreshRateOverride perGame="
+                + RefreshRateUtils.describeRefreshRateOverride(perGameRate)
+                + " global="
+                + RefreshRateUtils.describeRefreshRateOverride(globalRate)
+                + " effective="
+                + RefreshRateUtils.describeRefreshRateOverride(effectiveRate)
+                + " shortcutLoaded=" + (shortcut != null));
+        return effectiveRate;
     }
 
     private int getPerGameRefreshRateOverride() {
@@ -339,8 +351,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private int getGlobalRefreshRateOverride() {
-        if (preferences == null) return 0;
-        return Math.max(0, preferences.getInt("refresh_rate_override", 0));
+        return RefreshRateUtils.getSavedGlobalRefreshRateOverride(this);
     }
 
     private boolean hasPerGameDxvkFrameRateOverride() {
@@ -355,6 +366,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     /**
      * Per-game settings always win over the global refresh rate when determining DXVK frame limit.
+     * A refresh rate of 0 means "Max" and must not inject a DXVK frame cap.
      */
     private int getDxvkFrameRateOverride() {
         int perGameRate = getPerGameRefreshRateOverride();
@@ -369,7 +381,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (globalRate > 0) {
             return globalRate;
         }
-        return RefreshRateUtils.getMaxSupportedRefreshRate(this);
+        return 0;
     }
 
     private int parsePositiveInt(String value) {
@@ -399,13 +411,45 @@ public class XServerDisplayActivity extends AppCompatActivity {
         Runnable applyRefresh = () -> {
             if (isFinishing() || isDestroyed()) return;
 
-            RefreshRateUtils.applyPreferredRefreshRate(this, getRefreshRateOverride());
+            int requestedHz = getRefreshRateOverride();
+            RefreshRateUtils.applyPreferredRefreshRate(this, requestedHz, true);
+            if (xServerView != null) {
+                float resolvedRefreshRate = RefreshRateUtils.resolvePreferredRefreshRate(this, requestedHz);
+                Log.d("XServerDisplayActivity", "applyPreferredRefreshRate viewRate="
+                        + resolvedRefreshRate
+                        + " request="
+                        + RefreshRateUtils.describeRefreshRateOverride(requestedHz));
+                xServerView.setPreferredFrameRateCompat(resolvedRefreshRate);
+            }
         };
 
         if (Looper.myLooper() == Looper.getMainLooper()) {
             applyRefresh.run();
         } else {
             runOnUiThread(applyRefresh);
+        }
+    }
+
+    private void reassertPreferredRefreshRateAfterTransition() {
+        Handler mainHandler = new Handler(Looper.getMainLooper());
+        mainHandler.postDelayed(this::applyPreferredRefreshRate, 250);
+        mainHandler.postDelayed(this::applyPreferredRefreshRate, 1000);
+    }
+
+    private void applyAndroidGameState(boolean loading, int mode) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            return;
+        }
+
+        try {
+            GameManager gameManager = getSystemService(GameManager.class);
+            if (gameManager == null) {
+                return;
+            }
+            gameManager.setGameState(new GameState(loading, mode));
+            Log.d("XServerDisplayActivity", "Applied Android GameState loading=" + loading + " mode=" + mode);
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Failed to apply Android GameState", e);
         }
     }
 
@@ -892,14 +936,28 @@ public class XServerDisplayActivity extends AppCompatActivity {
             @Override
             public void onFramePresented(Window window) {
                 if (frameRating != null && frameRating.getVisibility() == View.VISIBLE) {
-                    // Count frames from any window presentation
-                    frameRating.update();
+                    if (window != null && window.id == frameRatingWindowId) {
+                        frameRating.update();
+                    }
                 }
             }
            
             @Override
             public void onMapWindow(Window window) {
                 assignTaskAffinity(window);
+                updateActiveRenderMode();
+                if (frameRating != null && frameRating.getVisibility() == View.VISIBLE && window.isApplicationWindow()) {
+                    syncFrameRatingWithExistingWindows();
+                }
+            }
+
+            @Override
+            public void onUnmapWindow(Window window) {
+                updateActiveRenderMode();
+                if (frameRating != null && frameRating.getVisibility() == View.VISIBLE
+                        && (window.id == frameRatingWindowId || window.isApplicationWindow())) {
+                    syncFrameRatingWithExistingWindows();
+                }
             }
 
             @Override
@@ -909,6 +967,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
             @Override
             public void onDestroyWindow(Window window) {
+                updateActiveRenderMode();
                 changeFrameRatingVisibility(window, null);
             }
         });
@@ -1290,6 +1349,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
     public void onResume() {
         super.onResume();
         applyPreferredRefreshRate();
+        reassertPreferredRefreshRateAfterTransition();
+        applyAndroidGameState(false, GameState.MODE_GAMEPLAY_UNINTERRUPTIBLE);
         boolean gyroEnabled = preferences.getBoolean("gyro_enabled", true);
 
         if (gyroEnabled) {
@@ -1309,6 +1370,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     @Override
     public void onPause() {
         super.onPause();
+        applyAndroidGameState(false, GameState.MODE_NONE);
         boolean gyroEnabled = preferences.getBoolean("gyro_enabled", true);
 
         if (gyroEnabled) {
@@ -1777,6 +1839,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        applyAndroidGameState(false, GameState.MODE_NONE);
         super.onDestroy();
         // Schedule a deferred update check 10 s after game exit
         com.winlator.cmod.core.UpdateChecker.INSTANCE.schedulePostGameCheck(this);
@@ -1936,6 +1999,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     syncFrameRatingWithExistingWindows();
                     applyHUDSettings();
                 }
+                updateHUDRenderMode();
                 
                 if (container != null) {
                     container.setShowFPS(becomingVisible);
@@ -2017,6 +2081,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
+
+        if (hasFocus) {
+            reassertPreferredRefreshRateAfterTransition();
+        }
 
         if (hasFocus && cursorLock) {
             touchpadView.requestPointerCapture();
@@ -5281,42 +5349,114 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     } else if (propName.contains("_MESA_DRV_GPU_NAME")) {
                         runOnUiThread(() -> frameRating.setGpuName(lastGpuName));
                     }
-
-                    if (propName.contains("_MESA_DRV") || propName.contains("_UTIL_LAYER")) {
-                        frameRating.update();
-                    }
                 }
             }
-        } else if (frameRatingWindowId == window.id) {
-            frameRatingWindowId = -1;
-            Log.d("XServerDisplayActivity", "Hiding hud for Window " + window.getName());
-            if (frameRating != null) {
-                runOnUiThread(() -> {
-                    frameRating.setVisibility(View.GONE);
-                    frameRating.reset();
-                });
+        } else {
+            syncFrameRatingWithExistingWindows();
+            if (frameRatingWindowId == -1 && (container == null || !container.isShowFPS())) {
+                Log.d("XServerDisplayActivity", "Hiding hud as no renderer windows remain.");
+                if (frameRating != null) {
+                    runOnUiThread(() -> {
+                        frameRating.setVisibility(View.GONE);
+                        frameRating.reset();
+                    });
+                }
             }
         }
     }
 
     private void syncFrameRatingWithExistingWindows() {
         if (xServer == null || frameRating == null) return;
+        Window bestWindow = null;
+        String bestRenderer = null;
+        String bestGpu = null;
+
         for (Window window : xServer.windowManager.getWindows()) {
+            if (window.id == xServer.windowManager.rootWindow.id) continue;
+
             Property prop = window.getProperty(Atom.getId("_MESA_DRV_RENDERER"));
             if (prop == null) prop = window.getProperty(Atom.getId("_MESA_DRV_ENGINE_NAME"));
+            if (prop == null) prop = window.getProperty(Atom.getId("_UTIL_LAYER"));
 
             if (prop != null) {
-                lastRendererName = prop.toString();
-                frameRatingWindowId = window.id;
-                runOnUiThread(() -> frameRating.setRenderer(lastRendererName));
+                boolean isApp = window.isApplicationWindow();
+                boolean isMapped = window.attributes.isMapped();
 
-                Property gpuProp = window.getProperty(Atom.getId("_MESA_DRV_GPU_NAME"));
-                if (gpuProp != null) {
-                    lastGpuName = gpuProp.toString();
-                    runOnUiThread(() -> frameRating.setGpuName(lastGpuName));
+                if (bestWindow == null
+                        || (isApp && !bestWindow.isApplicationWindow())
+                        || (isMapped && !bestWindow.attributes.isMapped()
+                        && (isApp || !bestWindow.isApplicationWindow()))) {
+                    bestWindow = window;
+                    bestRenderer = prop.toString();
+                    Property gpuProp = window.getProperty(Atom.getId("_MESA_DRV_GPU_NAME"));
+                    bestGpu = gpuProp != null ? gpuProp.toString() : null;
                 }
-                break;
+
+                if (isApp && isMapped) break;
             }
+        }
+
+        if (bestWindow != null) {
+            lastRendererName = bestRenderer;
+            lastGpuName = bestGpu;
+            frameRatingWindowId = bestWindow.id;
+        } else {
+            lastRendererName = "OpenGL";
+            lastGpuName = null;
+            frameRatingWindowId = -1;
+        }
+
+        runOnUiThread(() -> {
+            frameRating.setRenderer(lastRendererName);
+            frameRating.setGpuName(lastGpuName);
+            updateHUDRenderMode();
+        });
+    }
+
+    private boolean hasMappedApplicationWindow() {
+        if (xServer == null) {
+            return false;
+        }
+
+        for (Window window : xServer.windowManager.getWindows()) {
+            if (window == null || window.id == xServer.windowManager.rootWindow.id) continue;
+            if (window.isApplicationWindow()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void updateActiveRenderMode() {
+        if (xServerView == null) {
+            return;
+        }
+
+        Runnable applyMode = () -> {
+            if (isFinishing() || isDestroyed() || xServerView == null) return;
+
+            boolean activeGameWindow = hasMappedApplicationWindow();
+            boolean keepContinuousForHud = frameRating != null
+                    && frameRating.getVisibility() == View.VISIBLE
+                    && frameRatingWindowId == -1;
+            int mode = (activeGameWindow || keepContinuousForHud)
+                    ? GLSurfaceView.RENDERMODE_CONTINUOUSLY
+                    : GLSurfaceView.RENDERMODE_WHEN_DIRTY;
+            if (xServerView.getRenderMode() != mode) {
+                xServerView.setRenderMode(mode);
+            }
+        };
+
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            applyMode.run();
+        } else {
+            runOnUiThread(applyMode);
+        }
+    }
+
+    private void updateHUDRenderMode() {
+        if (xServerView != null && frameRating != null) {
+            updateActiveRenderMode();
         }
     }
 

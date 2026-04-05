@@ -3,8 +3,11 @@ package com.winlator.cmod.core;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.util.Log;
 import android.view.Display;
+import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 
 import androidx.annotation.Nullable;
@@ -23,6 +26,10 @@ public final class RefreshRateUtils {
     public static int getSavedGlobalRefreshRateOverride(Context context) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         return Math.max(0, prefs.getInt("refresh_rate_override", 0));
+    }
+
+    public static String describeRefreshRateOverride(int requestedHz) {
+        return requestedHz > 0 ? requestedHz + " Hz" : "Max";
     }
 
     public static List<Integer> getSupportedRefreshRates(Activity activity) {
@@ -168,17 +175,70 @@ public final class RefreshRateUtils {
     }
 
     public static void applyPreferredRefreshRate(Activity activity, int requestedHz) {
+        applyPreferredRefreshRate(activity, requestedHz, false);
+    }
+
+    public static void applyPreferredRefreshRate(Activity activity, int requestedHz, boolean preferHighCategoryForMax) {
         if (activity.isFinishing() || activity.isDestroyed()) return;
 
         WindowManager.LayoutParams params = activity.getWindow().getAttributes();
         int modeId = resolvePreferredDisplayModeId(activity, requestedHz);
         float refreshRate = resolvePreferredRefreshRate(activity, requestedHz);
-        params.preferredDisplayModeId = modeId;
-        params.preferredRefreshRate = refreshRate;
+        if (requestedHz > 0) {
+            // For fixed rates, prefer the scheduler hint rather than pinning a specific mode id.
+            params.preferredDisplayModeId = 0;
+            params.preferredRefreshRate = refreshRate;
+        } else {
+            // For "Max", prefer the highest supported display mode and avoid issuing a competing
+            // exact-rate vote on the window itself.
+            params.preferredDisplayModeId = modeId;
+            params.preferredRefreshRate = 0f;
+        }
         activity.getWindow().setAttributes(params);
+        applyWindowFrameRatePolicy(activity, requestedHz, refreshRate, preferHighCategoryForMax);
         Log.d(TAG, activity.getClass().getSimpleName()
                 + " applyPreferredRefreshRate requestedHz=" + requestedHz
-                + " modeId=" + modeId
-                + " refreshRate=" + refreshRate);
+                + " modeId=" + params.preferredDisplayModeId
+                + " refreshRate=" + params.preferredRefreshRate
+                + " resolvedRefreshRate=" + refreshRate
+                + " preferHighCategoryForMax=" + preferHighCategoryForMax);
+    }
+
+    private static void applyWindowFrameRatePolicy(Activity activity, int requestedHz, float resolvedRefreshRate, boolean preferHighCategoryForMax) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            // When an explicit rate is selected, disable Android 15 touch-boost so touches and
+            // transitions do not keep forcing the window back to the device's max refresh rate.
+            activity.getWindow().setFrameRateBoostOnTouchEnabled(requestedHz <= 0);
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            return;
+        }
+
+        View decorView = activity.getWindow().getDecorView();
+        if (decorView == null) {
+            return;
+        }
+
+        float targetRate;
+        if (requestedHz > 0) {
+            targetRate = requestedHz;
+        } else if (preferHighCategoryForMax) {
+            targetRate = View.REQUESTED_FRAME_RATE_CATEGORY_HIGH;
+        } else {
+            targetRate = View.REQUESTED_FRAME_RATE_CATEGORY_DEFAULT;
+        }
+        applyRequestedFrameRateRecursive(decorView, targetRate);
+    }
+
+    private static void applyRequestedFrameRateRecursive(View view, float requestedRate) {
+        view.setRequestedFrameRate(requestedRate);
+
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                applyRequestedFrameRateRecursive(group.getChildAt(i), requestedRate);
+            }
+        }
     }
 }
