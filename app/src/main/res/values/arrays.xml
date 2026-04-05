@@ -2,7 +2,7 @@
 <resources>
     <string-array name="screen_size_entries">
         <item>Custom</item>
-        <item>690x360 (16:9)</item>
+        <item>640x360 (16:9)</item>
         <item>780x360 (19.5:9)</item>
         <item>640x480 (4:3)</item>
         <item>800x600 (4:3)</item>
