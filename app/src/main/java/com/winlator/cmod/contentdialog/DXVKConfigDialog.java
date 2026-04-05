@@ -235,6 +235,8 @@ public class DXVKConfigDialog extends ContentDialog {
     }
 
     public static void setEnvVars(Context context, KeyValueSet config, EnvVars envVars, int refreshRateOverride) {
+        envVars.remove("DXVK_FRAME_RATE");
+        envVars.remove("DXVK_CONFIG");
         String content = "";
 
         // Refresh rate override takes precedence over per-container DXVK framerate

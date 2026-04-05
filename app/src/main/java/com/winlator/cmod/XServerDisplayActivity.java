@@ -412,7 +412,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             if (isFinishing() || isDestroyed()) return;
 
             int requestedHz = getRefreshRateOverride();
-            RefreshRateUtils.applyPreferredRefreshRate(this, requestedHz, true);
+            RefreshRateUtils.applyPreferredRefreshRate(this, requestedHz);
             if (xServerView != null) {
                 float resolvedRefreshRate = RefreshRateUtils.resolvePreferredRefreshRate(this, requestedHz);
                 Log.d("XServerDisplayActivity", "applyPreferredRefreshRate viewRate="
@@ -2437,6 +2437,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private void setupXEnvironment() throws PackageManager.NameNotFoundException {
 
         // Set environment variables
+        envVars.clear();
         envVars.put("LC_ALL", lc_all);
         envVars.put("WINEPREFIX", imageFs.wineprefix);
 
