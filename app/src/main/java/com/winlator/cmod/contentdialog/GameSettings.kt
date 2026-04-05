@@ -89,6 +89,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
+import com.winlator.cmod.widget.EnvVarsView
 import com.winlator.cmod.widget.chasingBorder
 import kotlin.math.roundToInt
 
@@ -1959,6 +1960,9 @@ private fun ComponentsSection(
 // ===================================================================
 // Section 5: Variables
 // ===================================================================
+private fun findKnownEnvVar(name: String): Array<String>? =
+    EnvVarsView.knownEnvVars.firstOrNull { it[0] == name }
+
 @Composable
 private fun VariablesSection(
     state: GameSettingsStateHolder,
@@ -1966,8 +1970,8 @@ private fun VariablesSection(
 ) {
     val isContainer = state.isContainerEditMode.value
     var isAdding by remember { mutableStateOf(false) }
-    var addText by remember { mutableStateOf("") }
-    val focusRequester = remember { FocusRequester() }
+    var newName by remember { mutableStateOf("") }
+    var newValue by remember { mutableStateOf("") }
 
     if (isContainer) {
         SubsectionLabel(stringResource(R.string.container_config_variables))
@@ -1994,36 +1998,28 @@ private fun VariablesSection(
                     )
                     Spacer(Modifier.height(2.dp))
                 }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "${envVar.key}=${envVar.value}",
-                        color = TextPrimary,
-                        fontSize = 13.sp,
-                        modifier = Modifier.weight(1f),
-                        maxLines = 1
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(DangerRed.copy(alpha = 0.1f))
-                            .clickable { callbacks.onRemoveEnvVar(index) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Filled.Close,
-                            contentDescription = null,
-                            tint = DangerRed,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
+                EnvVarRow(
+                    name = envVar.key,
+                    value = envVar.value,
+                    excludeOtherNames = state.envVars.value
+                        .filterIndexed { i, _ -> i != index }
+                        .map { it.key }
+                        .toSet(),
+                    onNameChange = { newKey ->
+                        if (newKey.isNotEmpty() &&
+                            state.envVars.value.none { it.key == newKey }) {
+                            val list = state.envVars.value.toMutableList()
+                            list[index] = EnvVarItem(newKey, "")
+                            state.envVars.value = list
+                        }
+                    },
+                    onValueChange = { v ->
+                        val list = state.envVars.value.toMutableList()
+                        list[index] = EnvVarItem(envVar.key, v)
+                        state.envVars.value = list
+                    },
+                    onRemove = { callbacks.onRemoveEnvVar(index) }
+                )
             }
         }
 
@@ -2034,74 +2030,53 @@ private fun VariablesSection(
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
                 Spacer(Modifier.height(8.dp))
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                BasicTextField(
-                    value = addText,
-                    onValueChange = { addText = it },
-                    textStyle = TextStyle(color = TextPrimary, fontSize = 13.sp),
-                    cursorBrush = SolidColor(AccentBlue),
-                    singleLine = true,
-                    modifier = Modifier
-                        .weight(1f)
-                        .focusRequester(focusRequester),
-                    decorationBox = { innerTextField ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(InputSurface)
-                                .border(1.dp, AccentBlue.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-                                .padding(horizontal = 12.dp, vertical = 10.dp)
-                        ) {
-                            if (addText.isEmpty()) {
-                                Text("KEY=VALUE", color = TextDim, fontSize = 13.sp)
-                            }
-                            innerTextField()
-                        }
+            EnvVarRow(
+                name = newName,
+                value = newValue,
+                excludeOtherNames = state.envVars.value.map { it.key }.toSet(),
+                onNameChange = { newName = it; newValue = "" },
+                onValueChange = { newValue = it },
+                onRemove = null,
+                trailing = {
+                    Spacer(Modifier.width(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(AccentBlue.copy(alpha = 0.15f))
+                            .clickable {
+                                val key = newName.trim()
+                                if (key.isNotEmpty() &&
+                                    state.envVars.value.none { it.key == key }) {
+                                    val list = state.envVars.value.toMutableList()
+                                    list.add(EnvVarItem(key, newValue.trim()))
+                                    state.envVars.value = list
+                                }
+                                newName = ""
+                                newValue = ""
+                                isAdding = false
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.Check, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(16.dp))
                     }
-                )
-                Spacer(Modifier.width(8.dp))
-                // Confirm
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(AccentBlue.copy(alpha = 0.15f))
-                        .clickable {
-                            val input = addText.trim()
-                            if (input.contains("=")) {
-                                val parts = input.split("=", limit = 2)
-                                val currentVars = state.envVars.value.toMutableList()
-                                currentVars.add(EnvVarItem(parts[0].trim(), parts[1].trim()))
-                                state.envVars.value = currentVars
-                            }
-                            addText = ""
-                            isAdding = false
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Filled.Check, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(DangerRed.copy(alpha = 0.1f))
+                            .clickable {
+                                newName = ""
+                                newValue = ""
+                                isAdding = false
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.Close, contentDescription = null, tint = DangerRed, modifier = Modifier.size(16.dp))
+                    }
                 }
-                Spacer(Modifier.width(4.dp))
-                // Cancel
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(DangerRed.copy(alpha = 0.1f))
-                        .clickable {
-                            addText = ""
-                            isAdding = false
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Filled.Close, contentDescription = null, tint = DangerRed, modifier = Modifier.size(16.dp))
-                }
-            }
-            LaunchedEffect(Unit) { focusRequester.requestFocus() }
+            )
         }
 
         Spacer(Modifier.height(12.dp))
@@ -2114,7 +2089,8 @@ private fun VariablesSection(
                     .background(AccentBlue.copy(alpha = 0.08f))
                     .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
                     .clickable {
-                        addText = ""
+                        newName = ""
+                        newValue = ""
                         isAdding = true
                     }
                     .padding(horizontal = 16.dp, vertical = 10.dp)
@@ -2245,6 +2221,322 @@ private fun VariablesSection(
             }
         }
     }
+}
+
+// ===================================================================
+// Env Var row: name dropdown + type-aware value editor
+// ===================================================================
+@Composable
+private fun EnvVarRow(
+    name: String,
+    value: String,
+    excludeOtherNames: Set<String>,
+    onNameChange: (String) -> Unit,
+    onValueChange: (String) -> Unit,
+    onRemove: (() -> Unit)?,
+    trailing: (@Composable () -> Unit)? = null
+) {
+    var nameMenuExpanded by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Name dropdown
+        Box(modifier = Modifier.weight(1.6f)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(InputSurface)
+                    .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                    .clickable { nameMenuExpanded = true }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (name.isEmpty()) stringResource(R.string.container_config_new_env_var) else name,
+                        color = if (name.isEmpty()) TextDim else TextPrimary,
+                        fontSize = 13.sp,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Icon(
+                        Icons.Filled.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+            DropdownMenu(
+                expanded = nameMenuExpanded,
+                onDismissRequest = { nameMenuExpanded = false },
+                shape = RoundedCornerShape(8.dp),
+                containerColor = CardSurface,
+                modifier = Modifier
+                    .height(360.dp)
+                    .width(260.dp)
+            ) {
+                EnvVarsView.knownEnvVars.forEach { known ->
+                    val knownName = known[0]
+                    val disabled = knownName != name && knownName in excludeOtherNames
+                    DropdownMenuItem(
+                        enabled = !disabled,
+                        text = {
+                            Text(
+                                knownName,
+                                color = if (disabled) TextDim else TextPrimary,
+                                fontSize = 13.sp
+                            )
+                        },
+                        onClick = {
+                            onNameChange(knownName)
+                            nameMenuExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        // Value editor (type-aware)
+        Box(modifier = Modifier.weight(1f)) {
+            EnvVarValueEditor(
+                name = name,
+                value = value,
+                onValueChange = onValueChange
+            )
+        }
+        if (onRemove != null) {
+            Spacer(Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(DangerRed.copy(alpha = 0.1f))
+                    .clickable { onRemove() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Filled.Close,
+                    contentDescription = null,
+                    tint = DangerRed,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+        if (trailing != null) trailing()
+    }
+}
+
+@Composable
+private fun EnvVarValueEditor(
+    name: String,
+    value: String,
+    onValueChange: (String) -> Unit
+) {
+    val known = findKnownEnvVar(name)
+    val type = known?.getOrNull(1) ?: "TEXT"
+    when (type) {
+        "CHECKBOX" -> {
+            val off = known!![2]
+            val on = known[3]
+            val isOn = value == on || value == "1" || value == "true"
+            EnvValueDropdown(
+                current = if (isOn) on else off,
+                options = listOf(off, on),
+                onSelected = onValueChange
+            )
+        }
+        "SELECT" -> {
+            val options = known!!.drop(2)
+            EnvValueDropdown(
+                current = if (value.isEmpty()) options.firstOrNull() ?: "" else value,
+                options = options,
+                onSelected = onValueChange
+            )
+        }
+        "SELECT_MULTIPLE" -> {
+            val options = known!!.drop(2)
+            EnvValueMultiDropdown(
+                current = value,
+                options = options,
+                onChanged = onValueChange
+            )
+        }
+        "NUMBER" -> EnvValueTextField(value, onValueChange, numeric = true)
+        else -> EnvValueTextField(value, onValueChange, numeric = false)
+    }
+}
+
+@Composable
+private fun EnvValueDropdown(
+    current: String,
+    options: List<String>,
+    onSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(InputSurface)
+                .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                .clickable { expanded = true }
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    current,
+                    color = TextPrimary,
+                    fontSize = 13.sp,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Icon(
+                    Icons.Filled.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = TextSecondary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = RoundedCornerShape(8.dp),
+            containerColor = CardSurface,
+            modifier = Modifier.width(220.dp)
+        ) {
+            options.forEach { opt ->
+                DropdownMenuItem(
+                    text = {
+                        Text(opt, color = TextPrimary, fontSize = 13.sp)
+                    },
+                    onClick = {
+                        onSelected(opt)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EnvValueMultiDropdown(
+    current: String,
+    options: List<String>,
+    onChanged: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedSet = remember(current) {
+        current.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toMutableSet()
+    }
+    Box {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(InputSurface)
+                .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                .clickable { expanded = true }
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (selectedSet.isEmpty()) "—" else selectedSet.joinToString(","),
+                    color = if (selectedSet.isEmpty()) TextDim else TextPrimary,
+                    fontSize = 13.sp,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Icon(
+                    Icons.Filled.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = TextSecondary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = RoundedCornerShape(8.dp),
+            containerColor = CardSurface,
+            modifier = Modifier
+                .height(320.dp)
+                .width(260.dp)
+        ) {
+            options.forEach { opt ->
+                val checked = opt in selectedSet
+                DropdownMenuItem(
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = checked,
+                                onCheckedChange = null,
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = AccentBlue,
+                                    uncheckedColor = TextSecondary,
+                                    checkmarkColor = Color.White
+                                )
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(opt, color = TextPrimary, fontSize = 13.sp)
+                        }
+                    },
+                    onClick = {
+                        if (checked) selectedSet.remove(opt) else selectedSet.add(opt)
+                        onChanged(selectedSet.joinToString(","))
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EnvValueTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    numeric: Boolean
+) {
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        textStyle = TextStyle(color = TextPrimary, fontSize = 13.sp),
+        cursorBrush = SolidColor(AccentBlue),
+        singleLine = true,
+        keyboardOptions = if (numeric)
+            KeyboardOptions(keyboardType = KeyboardType.Number)
+        else KeyboardOptions.Default,
+        modifier = Modifier.fillMaxWidth(),
+        decorationBox = { innerTextField ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(InputSurface)
+                    .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            ) {
+                if (value.isEmpty()) {
+                    Text("value", color = TextDim, fontSize = 13.sp)
+                }
+                innerTextField()
+            }
+        }
+    )
 }
 
 // ===================================================================
