@@ -60,6 +60,7 @@ data class XServerDrawerItem(
 data class XServerDrawerState(
     val items: List<XServerDrawerItem>,
     val hudTransparency: Float = 1.0f,
+    val hudScale: Float = 1.0f,
     val hudElements: BooleanArray = booleanArrayOf(true, true, true, true, true, true),
     val dualSeriesBatteryEnabled: Boolean = false,
 )
@@ -68,6 +69,7 @@ interface XServerDrawerActionListener {
     fun onActionSelected(itemId: Int)
     fun onHUDElementToggled(index: Int, enabled: Boolean)
     fun onHUDTransparencyChanged(transparency: Float)
+    fun onHUDScaleChanged(scale: Float)
     fun onDualSeriesBatteryChanged(enabled: Boolean)
 }
 
@@ -83,6 +85,7 @@ fun buildXServerDrawerState(
     nativeRenderingTitle: String,
     nativeRenderingSubtitle: String,
     hudTransparency: Float = 1.0f,
+    hudScale: Float = 1.0f,
     hudElements: BooleanArray = booleanArrayOf(true, true, true, true, true, true),
     dualSeriesBatteryEnabled: Boolean = false,
 ): XServerDrawerState {
@@ -185,7 +188,7 @@ fun buildXServerDrawerState(
         iconRes = R.drawable.icon_exit,
     )
 
-    return XServerDrawerState(items, hudTransparency, hudElements, dualSeriesBatteryEnabled)
+    return XServerDrawerState(items, hudTransparency, hudScale, hudElements, dualSeriesBatteryEnabled)
 }
 
 fun setupXServerDrawerComposeView(
@@ -270,6 +273,32 @@ private fun XServerHUDSettingsExpanded(
                 value = state.hudTransparency,
                 onValueChange = { listener.onHUDTransparencyChanged(it) },
                 valueRange = 0.1f..1f,
+                modifier = Modifier.weight(1f),
+                colors = SliderDefaults.colors(
+                    thumbColor = accent,
+                    activeTrackColor = accent,
+                    inactiveTrackColor = accent.copy(alpha = 0.24f)
+                )
+            )
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        // Scale Slider
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Scale ${(state.hudScale * 100).toInt()}%",
+                color = textSecondary,
+                fontSize = 11.sp,
+                modifier = Modifier.width(70.dp)
+            )
+            Slider(
+                value = state.hudScale,
+                onValueChange = { listener.onHUDScaleChanged(it) },
+                valueRange = 0.5f..2.0f,
                 modifier = Modifier.weight(1f),
                 colors = SliderDefaults.colors(
                     thumbColor = accent,

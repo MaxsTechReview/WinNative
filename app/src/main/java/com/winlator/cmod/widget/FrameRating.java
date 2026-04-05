@@ -44,6 +44,9 @@ public class FrameRating extends LinearLayout implements Runnable {
     public static final String PREF_HUD_POS_Y = "hud_position_y";
     public static final String PREF_HUD_HAS_POSITION = "hud_has_position";
     public static final String PREF_HUD_DUAL_SERIES_BATTERY = "hud_dual_series_battery";
+    public static final String PREF_HUD_SCALE = "hud_scale";
+    public static final String PREF_HUD_ALPHA = "hud_alpha";
+    public static final String PREF_HUD_ELEMENTS = "hud_elements";
     private final int C_BAT;
     private final int C_CPU;
     private final int C_DIVISOR;
@@ -150,7 +153,6 @@ public class FrameRating extends LinearLayout implements Runnable {
         this.battFailCount = 0;
         this.lastGoodGpuLoad = -1;
         this.lastGoodGpuTime = 0;
-        this.isNativeActive = false;
         this.isStatsRunning = false;
         this.C_VALUE = Color.parseColor("#FFFFFF");
         this.C_CPU = Color.parseColor("#FFAB91");
@@ -162,6 +164,7 @@ public class FrameRating extends LinearLayout implements Runnable {
         this.C_DIVISOR = Color.parseColor("#616161");
         this.context = context;
         this.preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        this.isNativeActive = this.preferences.getBoolean("use_dri3", true);
         this.batteryManager = (BatteryManager) context.getSystemService(Context.BATTERY_SERVICE);
         setOrientation(LinearLayout.HORIZONTAL);
         setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -437,12 +440,12 @@ public class FrameRating extends LinearLayout implements Runnable {
             return;
         }
         String r = renderer.toLowerCase();
-        if (r.contains("turnip")) {
-            this.rendererName = "Turnip";
-        } else if (r.contains("vkd3d")) {
+        if (r.contains("vkd3d")) {
             this.rendererName = "VKD3D";
         } else if (r.contains("dxvk")) {
             this.rendererName = "DXVK";
+        } else if (r.contains("turnip")) {
+            this.rendererName = "Turnip";
         } else if (r.contains("virgl")) {
             this.rendererName = "VirGL";
         } else if (r.contains("zink")) {
@@ -477,7 +480,7 @@ public class FrameRating extends LinearLayout implements Runnable {
 
     private void updateRendererText() {
         if (this.tvRenderer != null) {
-            String text = (this.isNativeActive ? "+" : "") + this.rendererName;
+            String text = this.rendererName + (this.isNativeActive ? "+" : "");
             this.tvRenderer.setText(text);
             this.tvRenderer.setVisibility(this.enableRenderer ? View.VISIBLE : View.GONE);
             updateSeparators(getOrientation() == LinearLayout.HORIZONTAL);
@@ -570,18 +573,21 @@ public class FrameRating extends LinearLayout implements Runnable {
         requestLayout();
     }
 
-    public void setHudScale(float scale) {
-        setScaleX(scale);
-        setScaleY(scale);
-    }
-
     public void setHudAlpha(float alpha) {
         setAlpha(alpha);
     }
 
-    public void setDualSeriesBattery(boolean enabled) {
-        this.dualSeriesBattery = enabled;
-        this.preferences.edit().putBoolean(PREF_HUD_DUAL_SERIES_BATTERY, enabled).apply();
+    public void setHudScale(float scale) {
+        setScaleX(scale);
+        setScaleY(scale);
+        setPivotX(0);
+        setPivotY(0);
+        this.preferences.edit().putFloat(PREF_HUD_SCALE, scale).apply();
+    }
+
+    public void setDualSeriesBattery(boolean dualSeriesBattery) {
+        this.dualSeriesBattery = dualSeriesBattery;
+        this.preferences.edit().putBoolean(PREF_HUD_DUAL_SERIES_BATTERY, dualSeriesBattery).apply();
         post(this);
     }
 

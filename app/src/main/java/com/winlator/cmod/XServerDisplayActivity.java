@@ -224,6 +224,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private boolean isNativeRenderingEnabled = true;
 
     private float hudTransparency = 1.0f;
+    private float hudScale = 1.0f;
     private boolean[] hudElements = new boolean[]{true, true, true, true, true, true};
     private boolean dualSeriesBattery = false;
 
@@ -1931,6 +1932,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 getString(R.string.session_xserver_native_rendering),
                 getString(isNativeRenderingEnabled ? R.string.session_xserver_native_rendering_enabled : R.string.session_xserver_native_rendering_disabled),
                 hudTransparency,
+                hudScale,
                 hudElements,
                 dualSeriesBattery
         );
@@ -1961,6 +1963,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     }
 
                     @Override
+                    public void onHUDScaleChanged(float scale) {
+                        hudScale = scale;
+                        if (frameRating != null) frameRating.setHudScale(scale);
+                        saveHUDSettings();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
                     public void onDualSeriesBatteryChanged(boolean enabled) {
                         dualSeriesBattery = enabled;
                         preferences.edit().putBoolean(FrameRating.PREF_HUD_DUAL_SERIES_BATTERY, enabled).apply();
@@ -1978,6 +1988,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             try {
                 JSONObject obj = new JSONObject(json);
                 hudTransparency = (float) obj.optDouble("transparency", 1.0);
+                hudScale = (float) obj.optDouble("scale", 1.0);
                 hudElements[0] = obj.optBoolean("showFPS", true);
                 hudElements[1] = obj.optBoolean("showRenderer", true);
                 hudElements[2] = obj.optBoolean("showGPU", true);
@@ -1995,6 +2006,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         try {
             JSONObject obj = new JSONObject();
             obj.put("transparency", hudTransparency);
+            obj.put("scale", hudScale);
             obj.put("showFPS", hudElements[0]);
             obj.put("showRenderer", hudElements[1]);
             obj.put("showGPU", hudElements[2]);
@@ -2011,7 +2023,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private void applyHUDSettings() {
         if (frameRating != null) {
             frameRating.setHudAlpha(hudTransparency);
+            frameRating.setHudScale(hudScale);
             frameRating.setDualSeriesBattery(dualSeriesBattery);
+            frameRating.setIsNative(isNativeRenderingEnabled);
             for (int i = 0; i < hudElements.length; i++) {
                 frameRating.toggleElement(i, hudElements[i]);
             }
@@ -2111,6 +2125,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             case R.id.main_menu_native_rendering:
                 isNativeRenderingEnabled = !isNativeRenderingEnabled;
                 preferences.edit().putBoolean("use_dri3", isNativeRenderingEnabled).apply();
+                if (frameRating != null) frameRating.setIsNative(isNativeRenderingEnabled);
                 renderDrawerMenu();
                 showToast(this, getString(isNativeRenderingEnabled
                     ? R.string.session_xserver_native_rendering_enabled_toast
@@ -2748,6 +2763,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
             frameRating.setRenderer(lastRendererName);
             if (lastGpuName != null) frameRating.setGpuName(lastGpuName);
             frameRating.setVisibility(View.VISIBLE);
+            applyHUDSettings();
+            updateHUDRenderMode();
             rootView.addView(frameRating);
         }
 
@@ -5287,23 +5304,13 @@ public class XServerDisplayActivity extends AppCompatActivity {
             String propName = property.nameAsString();
             boolean isRendererProp = propName.contains("_MESA_DRV_ENGINE_NAME") || propName.contains("_UTIL_LAYER") || propName.contains("_MESA_DRV_RENDERER");
 
-            if (isRendererProp) {
-                lastRendererName = property.toString();
-                if (frameRatingWindowId == -1 || window.isApplicationWindow()) {
-                    frameRatingWindowId = window.id;
-                }
-            } else if (propName.contains("_MESA_DRV_GPU_NAME")) {
-                lastGpuName = property.toString();
+            if (isRendererProp || propName.contains("_MESA_DRV_GPU_NAME")) {
+                syncFrameRatingWithExistingWindows();
+                return;
             }
 
             if (frameRating != null && frameRatingWindowId == window.id) {
                 if (container == null || container.isShowFPS()) {
-                    if (isRendererProp) {
-                        runOnUiThread(() -> frameRating.setRenderer(lastRendererName));
-                    } else if (propName.contains("_MESA_DRV_GPU_NAME")) {
-                        runOnUiThread(() -> frameRating.setGpuName(lastGpuName));
-                    }
-
                     if (propName.contains("_MESA_DRV") || propName.contains("_UTIL_LAYER")) {
                         frameRating.update();
                     }
@@ -5333,8 +5340,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
         for (Window window : xServer.windowManager.getWindows()) {
             if (window.id == xServer.windowManager.rootWindow.id) continue;
 
-            Property prop = window.getProperty(Atom.getId("_MESA_DRV_RENDERER"));
-            if (prop == null) prop = window.getProperty(Atom.getId("_MESA_DRV_ENGINE_NAME"));
+            Property prop = window.getProperty(Atom.getId("_MESA_DRV_ENGINE_NAME"));
+            if (prop == null) prop = window.getProperty(Atom.getId("_MESA_DRV_RENDERER"));
             if (prop == null) prop = window.getProperty(Atom.getId("_UTIL_LAYER"));
 
             if (prop != null) {
