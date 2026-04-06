@@ -315,6 +315,8 @@
         <item>Wowbox64</item>
     </string-array>
     <string-array name="wine_entries">
+        <item>proton-9.0-x86_64</item>
+        <item>proton-9.0-arm64ec</item>
     </string-array>
 <string-array name="bionic_graphics_driver_entries">
         <item>Wrapper</item>

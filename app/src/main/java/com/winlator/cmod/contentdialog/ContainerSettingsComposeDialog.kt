@@ -847,7 +847,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 listOfNotNull(entryById("fexcore"), entryById("wowbox64"))
         } else {
             state.emulator64Entries.value = listOfNotNull(entryById("box64"))
-            state.emulator32Entries.value = listOfNotNull(entryById("wowbox64"))
+            state.emulator32Entries.value = listOfNotNull(entryById("box64"))
         }
 
         val new32 = state.emulator32Entries.value

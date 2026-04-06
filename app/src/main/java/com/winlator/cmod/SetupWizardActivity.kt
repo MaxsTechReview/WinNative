@@ -381,9 +381,9 @@ class SetupWizardActivity : FragmentActivity() {
     private val x86ProtonSpec = RuntimeSpec(
         label = "Recommended x86-64",
         archToken = "x86_64",
-        fallbackType = ContentProfile.ContentType.CONTENT_TYPE_WINE,
-        fallbackUrl = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Wine/wine-9.20-x86_64.wcp",
-        fallbackNameHint = "wine-9.20-x86_64",
+        fallbackType = ContentProfile.ContentType.CONTENT_TYPE_PROTON,
+        fallbackUrl = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/GameNative/GN-02.28-proton-10.0-4-x86_64.wcp",
+        fallbackNameHint = "GN-02.28-proton-10.0-4-x86_64",
         containerDisplayName = { profile ->
             "${runtimeDisplayLabel(profile)} x86-64"
         },
@@ -839,7 +839,10 @@ class SetupWizardActivity : FragmentActivity() {
     }
 
     private fun resolveRecommendedRuntimeSpec(spec: RuntimeSpec): PackageSpec {
-        val resolved = fetchRecommendedPackages().firstOrNull {
+        val packages = fetchRecommendedPackages()
+        val resolved = packages.firstOrNull {
+            it.type == spec.fallbackType && it.verName.contains(spec.archToken, ignoreCase = true)
+        } ?: packages.firstOrNull {
             (it.type == ContentProfile.ContentType.CONTENT_TYPE_WINE ||
                 it.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON) &&
                 it.verName.contains(spec.archToken, ignoreCase = true)
