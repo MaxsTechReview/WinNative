@@ -26,6 +26,19 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
+// Git based versioning
+def gitVersionName = {
+    def tag = "git describe --tags --abbrev=0".execute().text.trim()
+    if (tag.isEmpty()) return "0.1.0-prealpha"
+    return tag.startsWith("v") ? tag.substring(1) : tag
+}.call()
+
+def gitVersionCode = {
+    def count = "git tag -l v*".execute().text.trim()
+    if (count.isEmpty()) return 1
+    return count.split("\n").length
+}.call()
+
 android {
     namespace 'com.winlator.cmod'
     compileSdk 35
@@ -35,8 +48,8 @@ android {
         applicationId "com.winnative.cmod"
         minSdkVersion 26
         targetSdkVersion 28
-        versionCode 21
-        versionName "7.1.4x-cmod"
+        versionCode gitVersionCode
+        versionName gitVersionName
 
         externalNativeBuild {
             cmake {
