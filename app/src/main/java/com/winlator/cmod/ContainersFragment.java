@@ -103,6 +103,7 @@ public class ContainersFragment extends Fragment {
     }
 
     private void loadContainersList() {
+        manager = new ContainerManager(getContext());
         ArrayList<Container> containers = manager.getContainers();
         recyclerView.setAdapter(new ContainersAdapter(containers));
         emptyTextView.setVisibility(containers.isEmpty() ? View.VISIBLE : View.GONE);

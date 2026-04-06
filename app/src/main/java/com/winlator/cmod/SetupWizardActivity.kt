@@ -999,7 +999,7 @@ class SetupWizardActivity : FragmentActivity() {
         )
 
         if (isArm64) {
-            container.setEmulator("fexcore")
+            container.setEmulator("wowbox64")
             container.setEmulator64("fexcore")
             container.setBox64Version(
                 resolvePreferredContentVersion(
@@ -2292,7 +2292,11 @@ class SetupWizardActivity : FragmentActivity() {
     private fun RuntimeContainerCard(profile: ContentProfile) {
         val entryName = ContentsManager.getEntryName(profile)
         val displayName = runtimeDisplayLabel(profile)
-        val isArm64 = profile.verName.contains("arm64ec", ignoreCase = true)
+        val contentsManager = remember { ContentsManager(this@SetupWizardActivity) }
+        val isArm64 = remember(entryName) {
+            contentsManager.syncContents()
+            WineInfo.fromIdentifier(this@SetupWizardActivity, contentsManager, entryName).isArm64EC
+        }
         val archLabel = if (isArm64) "ARM64EC" else "x86-64"
 
         val containerManager = remember { ContainerManager(this@SetupWizardActivity) }

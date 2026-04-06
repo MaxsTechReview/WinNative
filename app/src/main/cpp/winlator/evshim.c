@@ -67,6 +67,10 @@ static int g_spinwait_enabled = 0;
 #define MAX_GAMEPADS 4
 #define GAMEPAD_MEM_SIZE 64
 
+#define XBOX360_VENDOR_ID 0x045e
+#define XBOX360_PRODUCT_ID 0x028e
+#define XBOX360_NAME "Microsoft X-Box 360 pad"
+
 /* Adaptive polling intervals */
 #define POLL_FAST_NS 500000L  /* 0.5ms = 2000Hz during active input */
 #define POLL_SLOW_NS 4000000L /* 4ms = 250Hz during idle */
@@ -301,12 +305,11 @@ static void try_attach_controller(int idx) {
   d.naxes = 6;
   d.nbuttons = 15;
   d.nhats = 1;
+  d.vendor_id = XBOX360_VENDOR_ID;
+  d.product_id = XBOX360_PRODUCT_ID;
   d.Rumble = &OnRumble;
   d.userdata = (void *)(intptr_t)idx;
-
-  char name[64];
-  snprintf(name, sizeof name, "Virtual Gamepad P%d", idx + 1);
-  d.name = strdup(name);
+  d.name = strdup(XBOX360_NAME);
 
   int vjoy_id = p_SDL_JoystickAttachVirtualEx(&d);
   if (vjoy_id < 0) {
@@ -431,12 +434,11 @@ __attribute__((constructor)) static void initialize_all_pads(void) {
     d.naxes = 6;
     d.nbuttons = 15;
     d.nhats = 1;
+    d.vendor_id = XBOX360_VENDOR_ID;
+    d.product_id = XBOX360_PRODUCT_ID;
     d.Rumble = &OnRumble;
     d.userdata = (void *)(intptr_t)i;
-
-    char name[64];
-    snprintf(name, sizeof name, "Virtual Gamepad P%d", i + 1);
-    d.name = strdup(name);
+    d.name = strdup(XBOX360_NAME);
 
     vjoy_ids[i] = p_SDL_JoystickAttachVirtualEx(&d);
     if (vjoy_ids[i] < 0) {

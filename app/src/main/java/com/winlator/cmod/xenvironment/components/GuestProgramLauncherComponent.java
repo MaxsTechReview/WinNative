@@ -779,12 +779,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         // Determine which emulator to use for HODLL based on guest executable architecture
         String selectedEmulator = emulator;
         if (wineInfo.isArm64EC()) {
-            is64Bit = (exeFile != null && com.winlator.cmod.core.PEHelper.is64Bit(exeFile)) || 
-                             (guestExecutable != null && guestExecutable.contains("steamclient_loader_x64.exe"));
-            
-            if (is64Bit) {
-                selectedEmulator = emulator64;
-            }
+            selectedEmulator = emulator;
         }
 
         // Construct the command without Box64 to the Wine executable

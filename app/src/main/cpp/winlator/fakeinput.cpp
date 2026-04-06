@@ -25,8 +25,18 @@
 #include <sys/syscall.h>
 #include <sys/sysmacros.h>
 #include <linux/input.h>
+#include <linux/joystick.h>
 
 #define EXPORT __attribute__((visibility("default"))) extern "C"
+
+static constexpr uint16_t XBOX360_VENDOR_ID = 0x045e;
+static constexpr uint16_t XBOX360_PRODUCT_ID = 0x028e;
+static constexpr uint16_t XBOX360_VERSION = 0x0114;
+static constexpr const char *XBOX360_NAME = "Microsoft X-Box 360 pad";
+static constexpr const char *XBOX360_PHYS = "usb-fakeinput/input0";
+static constexpr const char *XBOX360_UNIQ = "000000000001";
+static constexpr uint8_t XBOX360_AXIS_COUNT = 8;
+static constexpr uint8_t XBOX360_BUTTON_COUNT = 11;
 
 std::unordered_map<int, const char *> controller_map;
 static bool initialized = false;
@@ -282,18 +292,22 @@ EXPORT int ioctl(int fd, int op, ...) {
         struct input_id id;
         memset(&id, 0, sizeof(id));
         id.bustype = 0x03;
-        id.vendor = 0x1234 + event_number;
-        id.product = 0x5678 + event_number;
-        id.version = 0x0110;
+        id.vendor = XBOX360_VENDOR_ID;
+        id.product = XBOX360_PRODUCT_ID;
+        id.version = XBOX360_VERSION;
         memcpy(argp, (void *)&id, sizeof(id));
         return 0;
     } else if (type == 0x45 && number == 0x6) {
         Logger::log("Hooking ioctl EVIOCGNAME for event %s\n", event);
-        char *name;
-
-        asprintf(&name, "Generic HID Gamepad %d", event_number);
-
-        strcpy((char *)argp, name);
+        snprintf((char *)argp, _IOC_SIZE(op), "%s", XBOX360_NAME);
+        return 0;
+    } else if (type == 0x45 && number == 0x7) {
+        Logger::log("Hooking ioctl EVIOCGPHYS for event %s\n", event);
+        snprintf((char *)argp, _IOC_SIZE(op), "%s", XBOX360_PHYS);
+        return 0;
+    } else if (type == 0x45 && number == 0x8) {
+        Logger::log("Hooking ioctl EVIOCGUNIQ for event %s\n", event);
+        snprintf((char *)argp, _IOC_SIZE(op), "%s", XBOX360_UNIQ);
         return 0;
     } else if (type == 0x45 && number == 0x9) {
         Logger::log("Hooking ioctl EVIOCGPROP for event %s\n", event);
@@ -380,9 +394,20 @@ EXPORT int ioctl(int fd, int op, ...) {
         return 0;
     } else if (type == 0x6A && number == 0x13) {
         Logger::log("Hooking ioctl JSIOCGNAME(len) for event %s\n", event);
-        char *name;
-        asprintf(&name, "Generic HID Gamepad %d", event_number);
-        strcpy((char *)argp, name);
+        snprintf((char *)argp, _IOC_SIZE(op), "%s", XBOX360_NAME);
+        return 0;
+    } else if (type == 0x6A && number == 0x11) {
+        Logger::log("Hooking ioctl JSIOCGAXES for event %s\n", event);
+        *reinterpret_cast<uint8_t *>(argp) = XBOX360_AXIS_COUNT;
+        return 0;
+    } else if (type == 0x6A && number == 0x12) {
+        Logger::log("Hooking ioctl JSIOCGBUTTONS for event %s\n", event);
+        *reinterpret_cast<uint8_t *>(argp) = XBOX360_BUTTON_COUNT;
+        return 0;
+    } else if (type == 0x6A && number == 0x01) {
+        Logger::log("Hooking ioctl JSIOCGVERSION for event %s\n", event);
+        int version = JS_VERSION;
+        memcpy(argp, &version, sizeof(version));
         return 0;
     } else {
         Logger::log("Unhandled evdev ioctl, type %d number %d\n", type, number);

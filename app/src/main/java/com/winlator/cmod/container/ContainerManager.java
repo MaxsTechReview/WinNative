@@ -25,9 +25,11 @@ import org.json.JSONObject;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Locale;
 import java.util.concurrent.Executors;
 
 public class ContainerManager {
+    public static final String WINEPREFIX_SEED_LAYOUT_VERSION = "ludashi-pattern-v1";
     private final ArrayList<Container> containers = new ArrayList<>();
     private int maxContainerId = 0;
     private final File homeDir;
@@ -56,6 +58,8 @@ public class ContainerManager {
     private void loadContainers() {
         containers.clear();
         maxContainerId = 0;
+        ContentsManager contentsManager = new ContentsManager(context);
+        contentsManager.syncContents();
 
         File[] files = homeDir.listFiles();
         if (files != null) {
@@ -75,6 +79,13 @@ public class ContainerManager {
                             }
                             JSONObject data = new JSONObject(configStr);
                             container.loadData(data);
+                            WineInfo wineInfo = WineInfo.fromIdentifier(context, contentsManager, container.getWineVersion());
+                            boolean changed = normalizeContainerArchitectureSettings(container, wineInfo, false);
+                            if (changed) {
+                                Log.d("ContainerManager", "loadContainers: repaired architecture settings for container " + container.id +
+                                        " wine=" + container.getWineVersion() + " arch=" + wineInfo.getArch());
+                                container.saveData();
+                            }
                             containers.add(container);
                             maxContainerId = Math.max(maxContainerId, container.id);
                         } catch (Exception e) {
@@ -98,17 +109,10 @@ public class ContainerManager {
         container.setRootDir(containerDir);
         File file = new File(homeDir, ImageFs.USER);
 
-        // Make C: Drive accessible — 0771 not 0777 to prevent other apps reading file contents
-        try {
-            Runtime.getRuntime().exec(new String[]{"chmod", "-R", "0771", new File(containerDir, ".wine/drive_c").getAbsolutePath()});
-        } catch (Exception e) {}
+        enforceContainerDriveCPermissions(containerDir);
 
-        // Replace the real "xuser" dir (from imagefs.txz) with a symlink to the active
-        // container. Migrate winhandler.exe/wfm.exe first since they aren't in container
-        // pattern archives. Only runs once — after that xuser is already a symlink.
         if (file.exists() && !FileUtils.isSymlink(file)) {
-            Log.w("ContainerManager", "activateContainer: xuser is real dir, migrating essential files to container " + container.id);
-            migrateEssentialFiles(file, containerDir);
+            Log.w("ContainerManager", "activateContainer: xuser is real dir, replacing it with a symlink for container " + container.id);
             boolean deleted = FileUtils.delete(file);
             Log.d("ContainerManager", "activateContainer: real xuser dir delete=" + deleted);
         } else {
@@ -117,22 +121,6 @@ public class ContainerManager {
         }
         FileUtils.symlink("./"+ImageFs.USER+"-"+container.id, file.getPath());
         Log.d("ContainerManager", "activateContainer: xuser symlink created, isSymlink=" + FileUtils.isSymlink(file) + " target=./" + ImageFs.USER + "-" + container.id);
-    }
-
-    private void migrateEssentialFiles(File sourceDir, File destDir) {
-        String[] essentialPaths = {
-            ".wine/drive_c/windows/winhandler.exe",
-            ".wine/drive_c/windows/wfm.exe"
-        };
-        for (String path : essentialPaths) {
-            File source = new File(sourceDir, path);
-            File dest = new File(destDir, path);
-            if (source.exists() && !dest.exists()) {
-                dest.getParentFile().mkdirs();
-                FileUtils.copy(source, dest);
-                Log.d("ContainerManager", "Migrated " + path + " to container");
-            }
-        }
     }
 
     public void createContainerAsync(final JSONObject data, ContentsManager contentsManager, Callback<Container> callback) {
@@ -180,6 +168,7 @@ public class ContainerManager {
             }
 
             data.put("id", id);
+            data.put("name", makeUniqueContainerName(data.optString("name", "Container-" + id)));
             if (!containerDir.mkdirs()) {
                 Log.e("ContainerManager", "createContainer: FAILED to create dir: " + containerDir.getAbsolutePath());
                 // Try creating parent dirs first
@@ -201,7 +190,11 @@ public class ContainerManager {
             String wineVersion = data.getString("wineVersion");
             Log.d("ContainerManager", "createContainer: wineVersion=" + wineVersion);
             container.setWineVersion(wineVersion);
-            normalizeContainerArchitectureSettings(container, WineInfo.fromIdentifier(context, contentsManager, wineVersion));
+            normalizeContainerArchitectureSettings(
+                    container,
+                    WineInfo.fromIdentifier(context, contentsManager, wineVersion),
+                    false
+            );
 
             if (!extractContainerPatternFile(container, container.getWineVersion(), contentsManager, containerDir, null)) {
                 Log.e("ContainerManager", "createContainer: extractContainerPatternFile FAILED for wineVersion=" + container.getWineVersion());
@@ -211,6 +204,8 @@ public class ContainerManager {
             Log.d("ContainerManager", "createContainer: container pattern extracted successfully");
             container.putExtra("wineprefixArch", WineInfo.fromIdentifier(context, contentsManager, wineVersion).getArch());
             container.putExtra("wineprefixNeedsUpdate", null);
+            container.putExtra("wineprefixSeedLayout", WINEPREFIX_SEED_LAYOUT_VERSION);
+            enforceContainerDriveCPermissions(containerDir);
 
 //            // Extract the selected graphics driver files
 //            String driverVersion = container.getGraphicsDriverVersion();
@@ -229,20 +224,30 @@ public class ContainerManager {
         return null;
     }
 
-    private void normalizeContainerArchitectureSettings(Container container, WineInfo wineInfo) {
-        if (container == null || wineInfo == null) return;
+    private boolean normalizeContainerArchitectureSettings(Container container, WineInfo wineInfo, boolean preserveExisting32BitSlot) {
+        if (container == null || wineInfo == null) return false;
 
-        if (wineInfo.isArm64EC()) {
-            container.setEmulator64("FEXCore");
+        String expected32 = WineInfo.getDefaultEmulator(wineInfo.isArm64EC(), false);
+        String expected64 = WineInfo.getDefaultEmulator(wineInfo.isArm64EC(), true);
 
-            String emulator = container.getEmulator();
-            if (!"fexcore".equalsIgnoreCase(emulator) && !"wowbox64".equalsIgnoreCase(emulator)) {
-                container.setEmulator("FEXCore");
-            }
-        } else {
-            container.setEmulator("Box64");
-            container.setEmulator64("Box64");
+        String current32 = container.getEmulator();
+        String current64 = container.getEmulator64();
+
+        String normalized32 = preserveExisting32BitSlot && current32 != null && !current32.trim().isEmpty()
+                ? WineInfo.normalizeEmulatorSelection(wineInfo.isArm64EC(), current32, false)
+                : expected32;
+        String normalized64 = WineInfo.normalizeEmulatorSelection(wineInfo.isArm64EC(), current64, true);
+
+        boolean changed = false;
+        if (!normalized32.equalsIgnoreCase(current32 != null ? current32 : "")) {
+            container.setEmulator(normalized32);
+            changed = true;
         }
+        if (!normalized64.equalsIgnoreCase(current64 != null ? current64 : "")) {
+            container.setEmulator64(normalized64);
+            changed = true;
+        }
+        return changed;
     }
 
 
@@ -273,7 +278,7 @@ public class ContainerManager {
 
         Container dstContainer = new Container(id, this);
         dstContainer.setRootDir(dstDir);
-        dstContainer.setName(srcContainer.getName() + " (" + context.getString(R.string.common_ui_copy) + ")");
+        dstContainer.setName(makeUniqueContainerName(srcContainer.getName() + " (" + context.getString(R.string.common_ui_copy) + ")"));
         dstContainer.setScreenSize(srcContainer.getScreenSize());
         dstContainer.setEnvVars(srcContainer.getEnvVars());
         dstContainer.setCPUList(srcContainer.getCPUList());
@@ -286,9 +291,15 @@ public class ContainerManager {
         dstContainer.setDrives(srcContainer.getDrives());
         dstContainer.setShowFPS(srcContainer.isShowFPS());
         dstContainer.setStartupSelection(srcContainer.getStartupSelection());
+        dstContainer.setEmulator(srcContainer.getEmulator());
+        dstContainer.setEmulator64(srcContainer.getEmulator64());
+        dstContainer.setBox64Version(srcContainer.getBox64Version());
+        dstContainer.setFEXCoreVersion(srcContainer.getFEXCoreVersion());
+        dstContainer.setFEXCorePreset(srcContainer.getFEXCorePreset());
         dstContainer.setBox64Preset(srcContainer.getBox64Preset());
         dstContainer.setDesktopTheme(srcContainer.getDesktopTheme());
         dstContainer.setWineVersion(srcContainer.getWineVersion());
+        enforceContainerDriveCPermissions(dstDir);
         dstContainer.saveData();
 
         maxContainerId++;
@@ -329,6 +340,51 @@ public class ContainerManager {
 
     public int getNextContainerId() {
         return maxContainerId + 1;
+    }
+
+    public Container getContainerByWineVersion(String wineVersion) {
+        if (wineVersion == null || wineVersion.isEmpty()) return null;
+        for (Container container : containers) {
+            if (wineVersion.equalsIgnoreCase(container.getWineVersion())) {
+                return container;
+            }
+        }
+        return null;
+    }
+
+    public String makeUniqueContainerName(String desiredName) {
+        String baseName = sanitizeContainerName(desiredName);
+        String uniqueName = baseName;
+        int counter = 2;
+
+        while (hasConflictingContainerName(uniqueName)) {
+            uniqueName = baseName + " " + counter;
+            counter++;
+        }
+
+        return uniqueName;
+    }
+
+    private boolean hasConflictingContainerName(String candidate) {
+        String normalizedCandidate = candidate.toLowerCase(Locale.ROOT);
+        for (Container container : containers) {
+            if (container.getName() != null &&
+                    container.getName().trim().toLowerCase(Locale.ROOT).equals(normalizedCandidate)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String sanitizeContainerName(String desiredName) {
+        String trimmed = desiredName != null ? desiredName.trim() : "";
+        return trimmed.isEmpty() ? "Container-" + getNextContainerId() : trimmed;
+    }
+
+    private void enforceContainerDriveCPermissions(File containerDir) {
+        try {
+            Runtime.getRuntime().exec(new String[]{"chmod", "-R", "0771", new File(containerDir, ".wine/drive_c").getAbsolutePath()});
+        } catch (Exception ignored) {}
     }
 
     public Container getContainerById(int id) {
