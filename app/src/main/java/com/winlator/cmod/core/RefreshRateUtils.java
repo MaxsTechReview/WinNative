@@ -25,6 +25,10 @@ public final class RefreshRateUtils {
         return Math.max(0, prefs.getInt("refresh_rate_override", 0));
     }
 
+    public static String describeRefreshRateOverride(int requestedHz) {
+        return requestedHz > 0 ? requestedHz + " Hz" : "Max";
+    }
+
     public static List<Integer> getSupportedRefreshRates(Activity activity) {
         TreeSet<Integer> rates = new TreeSet<>();
         for (Display.Mode mode : activity.getWindowManager().getDefaultDisplay().getSupportedModes()) {
@@ -168,6 +172,10 @@ public final class RefreshRateUtils {
     }
 
     public static void applyPreferredRefreshRate(Activity activity, int requestedHz) {
+        applyPreferredRefreshRate(activity, requestedHz, false);
+    }
+
+    public static void applyPreferredRefreshRate(Activity activity, int requestedHz, boolean preferHighCategoryForMax) {
         if (activity.isFinishing() || activity.isDestroyed()) return;
 
         WindowManager.LayoutParams params = activity.getWindow().getAttributes();
@@ -179,6 +187,7 @@ public final class RefreshRateUtils {
         Log.d(TAG, activity.getClass().getSimpleName()
                 + " applyPreferredRefreshRate requestedHz=" + requestedHz
                 + " modeId=" + modeId
-                + " refreshRate=" + refreshRate);
+                + " refreshRate=" + refreshRate
+                + " preferHighCategoryForMax=" + preferHighCategoryForMax);
     }
 }

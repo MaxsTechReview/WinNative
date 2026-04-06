@@ -82,6 +82,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusTarget
+import com.winlator.cmod.core.RefreshRateUtils
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -371,6 +372,7 @@ class UnifiedActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        RefreshRateUtils.applyPreferredRefreshRate(this)
         // Ensure all store services are running when returning from a game or other activity
         if (GOGService.hasStoredCredentials(this) && !GOGService.isRunning) {
             GOGService.start(this)
@@ -470,6 +472,7 @@ class UnifiedActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        RefreshRateUtils.applyPreferredRefreshRate(this)
         db = PluviaDatabase.getInstance(this)
         EpicAuthManager.updateLoginStatus(this)
         GOGAuthManager.updateLoginStatus(this)

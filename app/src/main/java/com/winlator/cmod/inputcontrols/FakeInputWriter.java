@@ -3,8 +3,8 @@ package com.winlator.cmod.inputcontrols;
 import android.util.Log;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
@@ -12,17 +12,20 @@ import java.nio.channels.FileChannel;
 public class FakeInputWriter {
     private static final String TAG = "FakeInputWriter";
     private static final int EVENT_SIZE = 24;
-    private static final int MAX_EVENTS_PER_UPDATE = 20;
+    private static final int MAX_EVENTS_PER_UPDATE = 20; // Buttons + axes + sync
     private static final int BUFFER_SIZE = EVENT_SIZE * MAX_EVENTS_PER_UPDATE;
 
+    // Event types
     public static final short EV_SYN = 0x00;
     public static final short EV_KEY = 0x01;
     public static final short EV_ABS = 0x03;
     public static final short EV_MSC = 0x04;
 
+    // Event codes
     public static final short MSC_SCAN = 0x04;
     public static final short SYN_REPORT = 0x00;
 
+    // Xbox 360 controller button codes
     public static final short BTN_A = 0x130;
     public static final short BTN_B = 0x131;
     public static final short BTN_X = 0x133;
@@ -34,6 +37,7 @@ public class FakeInputWriter {
     public static final short BTN_THUMBL = 0x13D;
     public static final short BTN_THUMBR = 0x13E;
 
+    // Absolute axis codes
     public static final short ABS_X = 0x00;
     public static final short ABS_Y = 0x01;
     public static final short ABS_RX = 0x03;
@@ -43,6 +47,7 @@ public class FakeInputWriter {
     public static final short ABS_GAS = 0x09;
     public static final short ABS_BRAKE = 0x0A;
 
+    // Button mapping
     private static final short[] BUTTON_MAP = {
             BTN_A, BTN_B, BTN_X, BTN_Y, BTN_TL, BTN_TR,
             BTN_SELECT, BTN_START, BTN_THUMBL, BTN_THUMBR
@@ -56,14 +61,9 @@ public class FakeInputWriter {
     private volatile boolean destroyed = false;
 
     private final boolean[] prevButtonStates = new boolean[12];
-    private int prevThumbLX;
-    private int prevThumbLY;
-    private int prevThumbRX;
-    private int prevThumbRY;
-    private int prevTriggerL;
-    private int prevTriggerR;
-    private int prevHatX;
-    private int prevHatY;
+    private int prevThumbLX, prevThumbLY, prevThumbRX, prevThumbRY;
+    private int prevTriggerL, prevTriggerR;
+    private int prevHatX, prevHatY;
     private boolean hasChanges = false;
 
     public FakeInputWriter(String fakeInputPath, int slot) {
@@ -218,7 +218,7 @@ public class FakeInputWriter {
         hasChanges = false;
 
         for (int i = 0; i < 10; i++) {
-            writeButton(i, state.isPressed((byte) i));
+            writeButton(i, state.isPressed(i));
         }
 
         int lx = (int) (state.thumbLX * 32767);
