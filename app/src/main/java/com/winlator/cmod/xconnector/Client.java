@@ -35,6 +35,17 @@ public class Client {
         return outputStream;
     }
 
+    public void releaseIOStreams() {
+        if (inputStream != null) {
+            inputStream.release();
+            inputStream = null;
+        }
+        if (outputStream != null) {
+            outputStream.release();
+            outputStream = null;
+        }
+    }
+
     public Object getTag() {
         return tag;
     }
@@ -48,6 +59,7 @@ public class Client {
             ByteBuffer data = ByteBuffer.allocateDirect(8);
             data.asLongBuffer().put(1);
             (new ClientSocket(shutdownFd)).write(data);
+            XInputStream.freeDirectBuffer(data);
         }
         catch (IOException e) {}
     }

@@ -27,7 +27,7 @@ class PluviaApp : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
-        
+
         // Initialize Play Games Services SDK (v2)
         PlayGamesSdk.initialize(this)
 

@@ -241,14 +241,11 @@ public abstract class Box64PresetManager {
                 if (!presetFile.getParentFile().exists())
                     presetFile.getParentFile().mkdirs();
 
-                try {
-                    FileOutputStream fos = new FileOutputStream(presetFile);
-                    PrintWriter pw = new PrintWriter(fos);
+                try (FileOutputStream fos = new FileOutputStream(presetFile);
+                     PrintWriter pw = new PrintWriter(fos)) {
                     pw.write("ID:" + preset[0] + "\n");
                     pw.write("Name:" + preset[1] + "\n");
                     pw.write("EnvVars:" + preset[2] + "\n");
-                    pw.close();
-                    fos.close();
                 } catch (IOException e) {
                 }
                 break;

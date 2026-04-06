@@ -19,6 +19,9 @@ import jp.kshoji.javax.sound.midi.ShortMessage;
 public class MidiHandler {
     private static final String TAG = "MidiHandler";
     private DatagramSocket socket;
+
+    public DatagramSocket getSocket() { return socket; }
+
     private boolean running = false;
     private static final short SERVER_PORT = 7942;
     private static final short CLIENT_PORT = 7941;

@@ -28,6 +28,13 @@ public class ClientSocket {
         return hasAncillaryFds() ? ancillaryFds.poll() : -1;
     }
 
+    public void closeAncillaryFds() {
+        while (!ancillaryFds.isEmpty()) {
+            int ancillaryFd = ancillaryFds.poll();
+            if (ancillaryFd >= 0) XConnectorEpoll.closeFd(ancillaryFd);
+        }
+    }
+
     @Keep
     public void addAncillaryFd(int ancillaryFd) {
         ancillaryFds.add(ancillaryFd);

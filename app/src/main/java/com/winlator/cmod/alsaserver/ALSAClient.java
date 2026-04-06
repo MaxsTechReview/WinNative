@@ -28,16 +28,23 @@ public class ALSAClient {
         System.loadLibrary("winlator");
     }
 
-    public void release() {
+    public synchronized void release() {
+        playing = false;
         if (sharedBuffer != null) {
             SysVSharedMemory.unmapSHMSegment(sharedBuffer, sharedBuffer.capacity());
             sharedBuffer = null;
         }
 
-        stop(streamPtr);
-        close(streamPtr);
-        playing = false;
+        long ptr = streamPtr;
         streamPtr = 0;
+        if (ptr != 0) {
+            try {
+                stop(ptr);
+            } catch (Exception ignored) {}
+            try {
+                close(ptr);
+            } catch (Exception ignored) {}
+        }
     }
 
     public void prepare() {
@@ -76,7 +83,7 @@ public class ALSAClient {
         if (streamPtr > 0) flush(streamPtr);
     }
 
-    public void writeDataToStream(ByteBuffer data) {
+    public synchronized void writeDataToStream(ByteBuffer data) {
         if (dataType == DataType.S16LE || dataType == DataType.FLOATLE) {
             data.order(ByteOrder.LITTLE_ENDIAN);
         }
@@ -84,7 +91,7 @@ public class ALSAClient {
             data.order(ByteOrder.BIG_ENDIAN);
         }
 
-        if (playing) {
+        if (playing && streamPtr != 0) {
             int numFrames = data.limit() / frameBytes;
             int framesWritten = write(streamPtr, data, numFrames);
             if (framesWritten > 0) position += framesWritten;
