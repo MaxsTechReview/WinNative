@@ -6186,18 +6186,47 @@ class UnifiedActivity : ComponentActivity() {
     fun LoginRequiredScreen(storeName: String, onLoginClick: () -> Unit) {
         val message = if (storeName == "Library") stringResource(R.string.library_games_sign_in_prompt) else stringResource(R.string.stores_accounts_sign_in_store_prompt, storeName)
         val buttonText = if (storeName == "Library") stringResource(R.string.stores_accounts_manage) else stringResource(R.string.stores_accounts_sign_into_store, storeName)
+
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
-                Icon(Icons.Default.Person, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(64.dp))
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(horizontal = 48.dp)
+            ) {
+                Icon(
+                    Icons.Default.Person,
+                    contentDescription = null,
+                    tint = TextSecondary.copy(alpha = 0.5f),
+                    modifier = Modifier.size(48.dp)
+                )
                 Spacer(Modifier.height(16.dp))
-                Text(message, color = TextPrimary, style = MaterialTheme.typography.titleMedium, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                Spacer(Modifier.height(24.dp))
-                Button(
-                    onClick = onLoginClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = Accent),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.height(48.dp).fillMaxWidth(0.7f)
-                ) { Text(buttonText, fontWeight = FontWeight.Bold) }
+                Text(
+                    message,
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    lineHeight = 20.sp
+                )
+                Spacer(Modifier.height(20.dp))
+                val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                val isPressed by interactionSource.collectIsPressedAsState()
+                val btnScale by animateFloatAsState(
+                    targetValue = if (isPressed) 0.95f else 1f,
+                    animationSpec = tween(100), label = "btnScale"
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .graphicsLayer { scaleX = btnScale; scaleY = btnScale }
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            onClick = onLoginClick
+                        )
+                        .border(1.dp, Accent.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                ) {
+                    Text(buttonText, color = Accent, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                }
             }
         }
     }
