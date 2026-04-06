@@ -73,6 +73,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
@@ -6593,10 +6596,14 @@ class UnifiedActivity : ComponentActivity() {
             contract = ActivityResultContracts.OpenDocumentTree()
         ) { uri -> uri?.let { gameFolder = getPathFromTreeUri(it) } }
 
+        val defaultDensity = LocalDensity.current
         Dialog(
             onDismissRequest = onDismiss,
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
+            CompositionLocalProvider(
+                LocalDensity provides Density(defaultDensity.density, fontScale = 1f)
+            ) {
             Surface(
                 modifier = Modifier
                     .widthIn(max = 360.dp)
@@ -6604,16 +6611,16 @@ class UnifiedActivity : ComponentActivity() {
                 shape = RoundedCornerShape(20.dp),
                 color = Color(0xFF0D1117)
             ) {
-                Column(Modifier.padding(20.dp)) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                     // Title
                     Text(
                         stringResource(R.string.library_games_add_custom_game),
-                        style = MaterialTheme.typography.titleSmall,
                         color = TextPrimary,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(10.dp))
 
                     // Scrollable content area
                     Column(
@@ -6631,32 +6638,32 @@ class UnifiedActivity : ComponentActivity() {
                                     if (!ensureAllFilesAccessForImports(context)) return@clickable
                                     exePickerLauncher.launch(arrayOf("application/octet-stream", "application/x-msdos-program", "application/x-msdownload", "*/*"))
                                 }
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = Accent, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(10.dp))
+                            Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(8.dp))
                             Text(
                                 if (selectedExePath == null) "Select Executable (.exe)" else java.io.File(selectedExePath!!).name,
                                 color = if (selectedExePath == null) TextSecondary else TextPrimary,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 13.sp
+                                maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp
                             )
                         }
 
                         if (selectedExePath != null) {
                             Spacer(Modifier.height(4.dp))
-                            Text(selectedExePath!!, color = TextSecondary.copy(alpha = 0.6f), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(selectedExePath!!, color = TextSecondary.copy(alpha = 0.6f), fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
 
-                            Spacer(Modifier.height(10.dp))
+                            Spacer(Modifier.height(8.dp))
 
                             // Game name text field — compact
                             OutlinedTextField(
                                 value = gameName,
                                 onValueChange = { gameName = it },
-                                label = { Text(stringResource(R.string.library_games_game_name), fontSize = 12.sp) },
+                                label = { Text(stringResource(R.string.library_games_game_name), fontSize = 11.sp) },
                                 singleLine = true,
-                                modifier = Modifier.fillMaxWidth().height(52.dp),
-                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = TextPrimary),
+                                modifier = Modifier.fillMaxWidth(),
+                                textStyle = MaterialTheme.typography.bodySmall.copy(color = TextPrimary),
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = Accent,
                                     unfocusedBorderColor = TextSecondary.copy(alpha = 0.3f),
@@ -6669,25 +6676,25 @@ class UnifiedActivity : ComponentActivity() {
                                 shape = RoundedCornerShape(10.dp)
                             )
 
-                            Spacer(Modifier.height(10.dp))
+                            Spacer(Modifier.height(8.dp))
 
                             // Game folder — single compact row
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(RoundedCornerShape(10.dp))
                                     .background(Color.White.copy(alpha = 0.05f))
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Outlined.Folder, contentDescription = null, tint = StatusOnline.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
+                                Icon(Icons.Outlined.Folder, contentDescription = null, tint = StatusOnline.copy(alpha = 0.7f), modifier = Modifier.size(14.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text("Game Folder (A: drive)", color = TextSecondary, fontSize = 10.sp)
+                                    Text("Game Folder (A: drive)", color = TextSecondary, fontSize = 9.sp)
                                     Text(
                                         gameFolder ?: "Auto-detected",
                                         color = if (gameFolder != null) TextPrimary else TextSecondary,
-                                        fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+                                        fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
                                     )
                                 }
                                 IconButton(onClick = {
@@ -6700,7 +6707,7 @@ class UnifiedActivity : ComponentActivity() {
                         }
                     }
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(12.dp))
 
                     // Action buttons
                     Row(
@@ -6712,10 +6719,10 @@ class UnifiedActivity : ComponentActivity() {
                             shape = RoundedCornerShape(10.dp),
                             border = androidx.compose.foundation.BorderStroke(1.dp, TextSecondary.copy(alpha = 0.3f)),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
-                            modifier = Modifier.height(36.dp).widthIn(min = 80.dp)
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                            modifier = Modifier.height(34.dp).widthIn(min = 72.dp)
                         ) {
-                            Text(stringResource(R.string.common_ui_cancel), fontSize = 13.sp)
+                            Text(stringResource(R.string.common_ui_cancel), fontSize = 12.sp)
                         }
                         Spacer(Modifier.width(8.dp))
                         val addEnabled = selectedExePath != null && gameName.isNotBlank() && gameFolder != null && !isAdding
@@ -6739,17 +6746,18 @@ class UnifiedActivity : ComponentActivity() {
                             shape = RoundedCornerShape(10.dp),
                             border = androidx.compose.foundation.BorderStroke(1.dp, if (addEnabled) Accent.copy(alpha = 0.5f) else TextSecondary.copy(alpha = 0.2f)),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Accent),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
-                            modifier = Modifier.height(36.dp).widthIn(min = 80.dp)
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                            modifier = Modifier.height(34.dp).widthIn(min = 72.dp)
                         ) {
                             if (isAdding) {
-                                CircularProgressIndicator(color = Accent, modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                                CircularProgressIndicator(color = Accent, modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
                             } else {
-                                Text(stringResource(R.string.common_ui_add), fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                                Text(stringResource(R.string.common_ui_add), fontWeight = FontWeight.Medium, fontSize = 12.sp)
                             }
                         }
                     }
                 }
+            }
             }
         }
     }
