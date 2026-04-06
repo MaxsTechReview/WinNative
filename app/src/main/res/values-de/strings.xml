@@ -810,6 +810,14 @@ Installierter Pfad:
     <string name="setup_wizard_ready">Bereit</string>
     <string name="setup_wizard_download_and_create">Herunterladen + Erstellen</string>
     <string name="setup_wizard_configured">Konfiguriert</string>
+    <string name="setup_wizard_downloading">%1$s wird heruntergeladen</string>
+    <string name="setup_wizard_installing_package">%1$s wird installiert</string>
+    <string name="setup_wizard_no_runtime_installed">Noch keine Wine- oder Proton-Pakete installiert.</string>
+    <string name="setup_wizard_no_runtime_hint">Installieren Sie ein Wine- oder Proton-Paket im vorherigen Schritt, oder überspringen Sie dies vorerst.</string>
+    <string name="setup_wizard_recommended_label">Empfohlen</string>
+    <string name="setup_wizard_install_all_recommended">Alle empfohlenen installieren</string>
+    <string name="setup_wizard_create_container">Container erstellen</string>
+    <string name="setup_wizard_creating_container">Wird erstellt\u2026</string>
 
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Autorisierung</string>

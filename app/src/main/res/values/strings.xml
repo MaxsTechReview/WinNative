@@ -806,6 +806,7 @@ Installed path:
     <string name="setup_wizard_loading_components">Loading components\u2026</string>
     <string name="setup_wizard_no_components_available">No components available for this category.</string>
     <string name="setup_wizard_default_settings">Default Settings</string>
+    <string name="setup_wizard_containers">Container Setup</string>
     <string name="setup_wizard_containers_description">Open each container and set the defaults you want every new game to inherit. New games will target the x86-64 container by default.</string>
     <string name="setup_wizard_store_sign_in_optional">Store sign-in is optional. Each sign-in returns here when it finishes.</string>
     <string name="setup_wizard_granted">Granted</string>
@@ -826,6 +827,14 @@ Installed path:
     <string name="setup_wizard_ready">Ready</string>
     <string name="setup_wizard_download_and_create">Download + Create</string>
     <string name="setup_wizard_configured">Configured</string>
+    <string name="setup_wizard_downloading">Downloading %1$s</string>
+    <string name="setup_wizard_installing_package">Installing %1$s</string>
+    <string name="setup_wizard_no_runtime_installed">No Wine or Proton packages installed yet.</string>
+    <string name="setup_wizard_no_runtime_hint">Install a Wine or Proton package from the previous step, or skip this for now.</string>
+    <string name="setup_wizard_recommended_label">Recommended</string>
+    <string name="setup_wizard_install_all_recommended">Install All Recommended</string>
+    <string name="setup_wizard_create_container">Create Container</string>
+    <string name="setup_wizard_creating_container">Creating\u2026</string>
 
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Authorization</string>

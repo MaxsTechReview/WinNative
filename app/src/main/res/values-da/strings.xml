@@ -810,6 +810,14 @@ Installeret sti:
     <string name="setup_wizard_ready">Klar</string>
     <string name="setup_wizard_download_and_create">Download + Opret</string>
     <string name="setup_wizard_configured">Konfigureret</string>
+    <string name="setup_wizard_downloading">Downloader %1$s</string>
+    <string name="setup_wizard_installing_package">Installerer %1$s</string>
+    <string name="setup_wizard_no_runtime_installed">Ingen Wine- eller Proton-pakker installeret endnu.</string>
+    <string name="setup_wizard_no_runtime_hint">Installer en Wine- eller Proton-pakke fra det forrige trin, eller spring over for nu.</string>
+    <string name="setup_wizard_recommended_label">Anbefalet</string>
+    <string name="setup_wizard_install_all_recommended">Installer alle anbefalede</string>
+    <string name="setup_wizard_create_container">Opret container</string>
+    <string name="setup_wizard_creating_container">Opretter\u2026</string>
 
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Godkendelse</string>

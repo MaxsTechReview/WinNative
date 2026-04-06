@@ -453,6 +453,10 @@ public class ContentsManager {
         localProfile.isInstalled = true;
     }
 
+    public boolean isRemoteUrlInstalled(String remoteUrl) {
+        return getRemoteProfileAlias(remoteUrl) != null;
+    }
+
     private String getRemoteProfileAlias(String remoteUrl) {
         if (remoteUrl == null || remoteUrl.isEmpty()) {
             return null;

@@ -289,8 +289,11 @@ public class Downloader {
                 output.flush();
             }
 
-            if (listener != null && lengthOfFile > 0 && total != lengthOfFile) {
-                listener.onProgress(total, lengthOfFile);
+            // Always report 100% on successful completion — Content-Length
+            // can differ from actual bytes received (CDN quirks, chunked
+            // encoding, etc.), so use total/total to guarantee 100%.
+            if (listener != null) {
+                listener.onProgress(total, total);
             }
             return true;
         } catch (Exception e) {

@@ -810,6 +810,14 @@ Zainstalowana ścieżka:
     <string name="setup_wizard_ready">Gotowe</string>
     <string name="setup_wizard_download_and_create">Pobierz + Utwórz</string>
     <string name="setup_wizard_configured">Skonfigurowano</string>
+    <string name="setup_wizard_downloading">Pobieranie %1$s</string>
+    <string name="setup_wizard_installing_package">Instalowanie %1$s</string>
+    <string name="setup_wizard_no_runtime_installed">Nie zainstalowano jeszcze żadnych pakietów Wine ani Proton.</string>
+    <string name="setup_wizard_no_runtime_hint">Zainstaluj pakiet Wine lub Proton w poprzednim kroku, lub pomiń na razie.</string>
+    <string name="setup_wizard_recommended_label">Zalecane</string>
+    <string name="setup_wizard_install_all_recommended">Zainstaluj wszystkie zalecane</string>
+    <string name="setup_wizard_create_container">Utwórz kontener</string>
+    <string name="setup_wizard_creating_container">Tworzenie\u2026</string>
 
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Autoryzacja</string>

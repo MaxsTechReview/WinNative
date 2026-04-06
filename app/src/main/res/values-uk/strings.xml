@@ -810,6 +810,14 @@
     <string name="setup_wizard_ready">Готово</string>
     <string name="setup_wizard_download_and_create">Завантажити + Створити</string>
     <string name="setup_wizard_configured">Налаштовано</string>
+    <string name="setup_wizard_downloading">Завантаження %1$s</string>
+    <string name="setup_wizard_installing_package">Встановлення %1$s</string>
+    <string name="setup_wizard_no_runtime_installed">Пакети Wine або Proton ще не встановлені.</string>
+    <string name="setup_wizard_no_runtime_hint">Встановіть пакет Wine або Proton на попередньому кроці, або пропустіть поки що.</string>
+    <string name="setup_wizard_recommended_label">Рекомендовано</string>
+    <string name="setup_wizard_install_all_recommended">Встановити всі рекомендовані</string>
+    <string name="setup_wizard_create_container">Створити контейнер</string>
+    <string name="setup_wizard_creating_container">Створення\u2026</string>
 
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Авторизація</string>

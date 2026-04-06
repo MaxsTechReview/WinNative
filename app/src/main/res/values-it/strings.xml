@@ -810,6 +810,14 @@ Percorso installato:
     <string name="setup_wizard_ready">Pronto</string>
     <string name="setup_wizard_download_and_create">Scarica + Crea</string>
     <string name="setup_wizard_configured">Configurato</string>
+    <string name="setup_wizard_downloading">Download di %1$s</string>
+    <string name="setup_wizard_installing_package">Installazione di %1$s</string>
+    <string name="setup_wizard_no_runtime_installed">Nessun pacchetto Wine o Proton installato.</string>
+    <string name="setup_wizard_no_runtime_hint">Installa un pacchetto Wine o Proton dal passaggio precedente, oppure salta per ora.</string>
+    <string name="setup_wizard_recommended_label">Consigliato</string>
+    <string name="setup_wizard_install_all_recommended">Installa tutti i consigliati</string>
+    <string name="setup_wizard_create_container">Crea contenitore</string>
+    <string name="setup_wizard_creating_container">Creazione\u2026</string>
 
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Autorizzazione</string>

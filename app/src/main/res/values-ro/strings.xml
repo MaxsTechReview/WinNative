@@ -810,6 +810,14 @@ Cale instalata:
     <string name="setup_wizard_ready">Pregatit</string>
     <string name="setup_wizard_download_and_create">Descarca + Creeaza</string>
     <string name="setup_wizard_configured">Configurat</string>
+    <string name="setup_wizard_downloading">Se descarcă %1$s</string>
+    <string name="setup_wizard_installing_package">Se instalează %1$s</string>
+    <string name="setup_wizard_no_runtime_installed">Niciun pachet Wine sau Proton instalat încă.</string>
+    <string name="setup_wizard_no_runtime_hint">Instalează un pachet Wine sau Proton din pasul anterior, sau sari peste acest pas deocamdată.</string>
+    <string name="setup_wizard_recommended_label">Recomandat</string>
+    <string name="setup_wizard_install_all_recommended">Instalează toate recomandate</string>
+    <string name="setup_wizard_create_container">Creează container</string>
+    <string name="setup_wizard_creating_container">Se creează\u2026</string>
 
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Autorizare</string>

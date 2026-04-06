@@ -810,6 +810,14 @@
     <string name="setup_wizard_ready">就绪</string>
     <string name="setup_wizard_download_and_create">下载 + 创建</string>
     <string name="setup_wizard_configured">已配置</string>
+    <string name="setup_wizard_downloading">正在下载 %1$s</string>
+    <string name="setup_wizard_installing_package">正在安装 %1$s</string>
+    <string name="setup_wizard_no_runtime_installed">尚未安装任何 Wine 或 Proton 软件包。</string>
+    <string name="setup_wizard_no_runtime_hint">请在上一步安装 Wine 或 Proton 软件包，或暂时跳过。</string>
+    <string name="setup_wizard_recommended_label">推荐</string>
+    <string name="setup_wizard_install_all_recommended">安装所有推荐</string>
+    <string name="setup_wizard_create_container">创建容器</string>
+    <string name="setup_wizard_creating_container">正在创建\u2026</string>
 
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">授权</string>

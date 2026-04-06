@@ -810,6 +810,14 @@
     <string name="setup_wizard_ready">준비 완료</string>
     <string name="setup_wizard_download_and_create">다운로드 + 생성</string>
     <string name="setup_wizard_configured">구성됨</string>
+    <string name="setup_wizard_downloading">%1$s 다운로드 중</string>
+    <string name="setup_wizard_installing_package">%1$s 설치 중</string>
+    <string name="setup_wizard_no_runtime_installed">아직 Wine 또는 Proton 패키지가 설치되지 않았습니다.</string>
+    <string name="setup_wizard_no_runtime_hint">이전 단계에서 Wine 또는 Proton 패키지를 설치하거나, 지금은 건너뛰세요.</string>
+    <string name="setup_wizard_recommended_label">추천</string>
+    <string name="setup_wizard_install_all_recommended">추천 항목 모두 설치</string>
+    <string name="setup_wizard_create_container">컨테이너 생성</string>
+    <string name="setup_wizard_creating_container">생성 중\u2026</string>
 
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">인증</string>
