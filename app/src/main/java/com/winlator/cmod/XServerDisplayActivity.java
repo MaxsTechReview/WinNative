@@ -1673,7 +1673,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     xServer = null;
                     xServerView = null;
                     if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.closeOnUiThread();
-                    preloaderDialog.closeOnUiThread();
                     finish();
                 }
             }, 1000);

@@ -47,7 +47,7 @@ public class ALSAClient {
         }
     }
 
-    public void prepare() {
+    public synchronized void prepare() {
         position = 0;
         frameBytes = channelCount * dataType.byteCount;
         release();
@@ -58,28 +58,28 @@ public class ALSAClient {
         if (streamPtr > 0) start();
     }
 
-    public void start() {
+    public synchronized void start() {
         if (streamPtr > 0 && !playing) {
             start(streamPtr);
             playing = true;
         }
     }
 
-    public void stop() {
+    public synchronized void stop() {
         if (streamPtr > 0 && playing) {
             stop(streamPtr);
             playing = false;
         }
     }
 
-    public void pause() {
+    public synchronized void pause() {
         if (streamPtr > 0) {
             pause(streamPtr);
             playing = false;
         }
     }
 
-    public void drain() {
+    public synchronized void drain() {
         if (streamPtr > 0) flush(streamPtr);
     }
 

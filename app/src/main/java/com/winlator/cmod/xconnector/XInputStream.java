@@ -129,8 +129,8 @@ public class XInputStream {
 
     public void release() {
         freeDirectBuffer(buffer);
+        if (activeBuffer != buffer) freeDirectBuffer(activeBuffer);
         buffer = null;
-        freeDirectBuffer(activeBuffer);
         activeBuffer = null;
     }
 
