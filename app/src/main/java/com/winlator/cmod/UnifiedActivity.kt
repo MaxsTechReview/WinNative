@@ -65,6 +65,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -897,7 +898,7 @@ class UnifiedActivity : ComponentActivity() {
                                 .clickable { showAddCustomGame = true },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = "Add Custom Game", tint = Color.White, modifier = Modifier.size(28.dp))
+                            Icon(Icons.Outlined.Add, contentDescription = "Add Custom Game", tint = Color.White, modifier = Modifier.size(28.dp))
                         }
                     }
 
@@ -1161,7 +1162,7 @@ class UnifiedActivity : ComponentActivity() {
                         val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
                         context.startActivity(intent, opts.toBundle())
                     }, modifier = Modifier.size(44.dp), enabled = true) {
-                        Icon(Icons.Default.Settings, contentDescription = "Menu", tint = TextPrimary, modifier = Modifier.size(24.dp))
+                        Icon(Icons.Outlined.Settings, contentDescription = "Menu", tint = TextPrimary, modifier = Modifier.size(24.dp))
                     }
                 }
                 if (isControllerConnected) {
@@ -1209,7 +1210,7 @@ class UnifiedActivity : ComponentActivity() {
                         enabled = !isDownloadsTab
                     ) {
                         Icon(
-                            Icons.Default.Search,
+                            Icons.Outlined.Search,
                             contentDescription = "Search",
                             tint = if (isDownloadsTab) TextSecondary.copy(alpha = 0.4f)
                                    else if (isSearchExpanded) Accent
@@ -1247,7 +1248,7 @@ class UnifiedActivity : ComponentActivity() {
                         .clickable { onFilterClicked() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = TextPrimary, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Outlined.FilterList, contentDescription = "Filter", tint = TextPrimary, modifier = Modifier.size(24.dp))
                 }
                 if (isControllerConnected) {
                     Spacer(Modifier.width(8.dp))
@@ -1297,7 +1298,7 @@ class UnifiedActivity : ComponentActivity() {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Default.Search,
+                            Icons.Outlined.Search,
                             contentDescription = null,
                             tint = Accent,
                             modifier = Modifier.size(22.dp)
@@ -1338,7 +1339,7 @@ class UnifiedActivity : ComponentActivity() {
                                 modifier = Modifier.size(32.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.Close,
+                                    Icons.Outlined.Close,
                                     contentDescription = "Clear",
                                     tint = TextSecondary,
                                     modifier = Modifier.size(18.dp)
@@ -1873,7 +1874,7 @@ class UnifiedActivity : ComponentActivity() {
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Icon(
-                imageVector = Icons.Default.Warning,
+                imageVector = Icons.Outlined.Warning,
                 contentDescription = null,
                 tint = accentColor.copy(alpha = 0.7f),
                 modifier = Modifier.size(18.dp),
@@ -2123,7 +2124,7 @@ class UnifiedActivity : ComponentActivity() {
                     val actions = listOf(
                         GameSettingsActionItem(
                             title = stringResource(R.string.common_ui_settings),
-                            icon = Icons.Default.Settings,
+                            icon = Icons.Outlined.Settings,
                             onClick = {
                                 val containerManager = ContainerManager(context)
                                 val shortcut = findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
@@ -2143,7 +2144,7 @@ class UnifiedActivity : ComponentActivity() {
                         ),
                         GameSettingsActionItem(
                             title = stringResource(R.string.common_ui_shortcut),
-                            icon = Icons.Default.Home,
+                            icon = Icons.Outlined.Home,
                             onClick = {
                                 scope.launch {
                                     val created = withContext(Dispatchers.IO) {
@@ -2174,17 +2175,17 @@ class UnifiedActivity : ComponentActivity() {
                         ),
                         GameSettingsActionItem(
                             title = stringResource(R.string.saves_import_export_title),
-                            icon = Icons.Default.Save,
+                            icon = Icons.Outlined.Save,
                             onClick = { currentTab = GameSettingsScreen.Saves },
                         ),
                         GameSettingsActionItem(
                             title = stringResource(R.string.cloud_saves_title),
-                            icon = Icons.Default.CloudSync,
+                            icon = Icons.Outlined.CloudSync,
                             onClick = { currentTab = GameSettingsScreen.CloudSaves },
                         ),
                         GameSettingsActionItem(
                             title = if (isCustom) stringResource(R.string.common_ui_remove) else stringResource(R.string.common_ui_uninstall),
-                            icon = Icons.Default.Delete,
+                            icon = Icons.Outlined.Delete,
                             accentColor = DangerRed,
                             onClick = { currentTab = GameSettingsScreen.Uninstall },
                         ),
@@ -2198,7 +2199,7 @@ class UnifiedActivity : ComponentActivity() {
                         actions = listOf(
                             GameSettingsActionItem(
                                 title = stringResource(R.string.common_ui_export),
-                                icon = Icons.Default.Upload,
+                                icon = Icons.Outlined.Upload,
                                 onClick = {
                                     exportLauncher.launch(
                                         "${app.name.replace(" ", "_").replace(":", "")}_Saves.zip",
@@ -2207,12 +2208,12 @@ class UnifiedActivity : ComponentActivity() {
                             ),
                             GameSettingsActionItem(
                                 title = stringResource(R.string.common_ui_import),
-                                icon = Icons.Default.Download,
+                                icon = Icons.Outlined.Download,
                                 onClick = { importLauncher.launch(arrayOf("application/zip")) },
                             ),
                             GameSettingsActionItem(
                                 title = stringResource(R.string.common_ui_back),
-                                icon = Icons.Default.ArrowBack,
+                                icon = Icons.Outlined.ArrowBack,
                                 onClick = { currentTab = GameSettingsScreen.Menu },
                             ),
                         ),
@@ -2347,7 +2348,7 @@ class UnifiedActivity : ComponentActivity() {
                         actions = listOf(
                             GameSettingsActionItem(
                                 title = stringResource(R.string.common_ui_settings),
-                                icon = Icons.Default.Settings,
+                                icon = Icons.Outlined.Settings,
                                 onClick = {
                                     val containerManager = ContainerManager(context)
                                     val shortcut = containerManager.loadShortcuts().find {
@@ -2368,7 +2369,7 @@ class UnifiedActivity : ComponentActivity() {
                             ),
                             GameSettingsActionItem(
                                 title = stringResource(R.string.common_ui_shortcut),
-                                icon = Icons.Default.Home,
+                                icon = Icons.Outlined.Home,
                                 onClick = {
                                     scope.launch {
                                         val artworkUrl = app.imageUrl.ifEmpty { app.iconUrl }
@@ -2393,17 +2394,17 @@ class UnifiedActivity : ComponentActivity() {
                             ),
                             GameSettingsActionItem(
                                 title = stringResource(R.string.saves_import_export_title),
-                                icon = Icons.Default.Save,
+                                icon = Icons.Outlined.Save,
                                 onClick = { currentTab = GameSettingsScreen.Saves },
                             ),
                             GameSettingsActionItem(
                                 title = stringResource(R.string.cloud_saves_title),
-                                icon = Icons.Default.CloudSync,
+                                icon = Icons.Outlined.CloudSync,
                                 onClick = { currentTab = GameSettingsScreen.CloudSaves },
                             ),
                             GameSettingsActionItem(
                                 title = stringResource(R.string.common_ui_uninstall),
-                                icon = Icons.Default.Delete,
+                                icon = Icons.Outlined.Delete,
                                 accentColor = DangerRed,
                                 onClick = { currentTab = GameSettingsScreen.Uninstall },
                             ),
@@ -2416,7 +2417,7 @@ class UnifiedActivity : ComponentActivity() {
                         actions = listOf(
                             GameSettingsActionItem(
                                 title = stringResource(R.string.common_ui_sync),
-                                icon = Icons.Default.Cloud,
+                                icon = Icons.Outlined.Cloud,
                                 onClick = {
                                     scope.launch(Dispatchers.IO) {
                                         GOGService.syncCloudSaves(context, "GOG_${app.id}", "auto")
@@ -2430,7 +2431,7 @@ class UnifiedActivity : ComponentActivity() {
                             ),
                             GameSettingsActionItem(
                                 title = stringResource(R.string.common_ui_back),
-                                icon = Icons.Default.ArrowBack,
+                                icon = Icons.Outlined.ArrowBack,
                                 onClick = { currentTab = GameSettingsScreen.Menu },
                             ),
                         ),
@@ -2773,7 +2774,7 @@ class UnifiedActivity : ComponentActivity() {
                                     Modifier.fillMaxSize().background(SurfaceDark),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    Icon(Icons.Default.SportsEsports, contentDescription = null, tint = Accent.copy(alpha = 0.4f), modifier = Modifier.size(72.dp))
+                                    Icon(Icons.Outlined.SportsEsports, contentDescription = null, tint = Accent.copy(alpha = 0.4f), modifier = Modifier.size(72.dp))
                                 }
                             }
                             Box(
@@ -2897,7 +2898,7 @@ class UnifiedActivity : ComponentActivity() {
                                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                                         ) {
                                             CompactActionButton(
-                                                icon = Icons.Default.Settings,
+                                                icon = Icons.Outlined.Settings,
                                                 label = stringResource(R.string.common_ui_settings),
                                                 modifier = Modifier.weight(1f),
                                                 onClick = {
@@ -2932,7 +2933,7 @@ class UnifiedActivity : ComponentActivity() {
                                             )
 
                                             CompactActionButton(
-                                                icon = Icons.Default.Home,
+                                                icon = Icons.Outlined.Home,
                                                 label = stringResource(R.string.common_ui_shortcut),
                                                 modifier = Modifier.weight(1f),
                                                 onClick = {
@@ -2958,14 +2959,14 @@ class UnifiedActivity : ComponentActivity() {
                                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                                         ) {
                                             CompactActionButton(
-                                                icon = Icons.Default.Save,
+                                                icon = Icons.Outlined.Save,
                                                 label = stringResource(R.string.saves_import_export_title),
                                                 modifier = Modifier.weight(1f),
                                                 onClick = { currentScreen = LibraryDetailScreen.Saves },
                                             )
 
                                             CompactActionButton(
-                                                icon = Icons.Default.CloudSync,
+                                                icon = Icons.Outlined.CloudSync,
                                                 label = stringResource(R.string.cloud_saves_title),
                                                 modifier = Modifier.weight(1f),
                                                 onClick = { currentScreen = LibraryDetailScreen.CloudSaves },
@@ -2977,7 +2978,7 @@ class UnifiedActivity : ComponentActivity() {
                                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                                         ) {
                                             CompactActionButton(
-                                                icon = Icons.Default.Delete,
+                                                icon = Icons.Outlined.Delete,
                                                 label = if (isCustom) stringResource(R.string.common_ui_remove) else stringResource(R.string.common_ui_uninstall),
                                                 tint = DangerRed,
                                                 bgColor = DangerRed.copy(alpha = 0.12f),
@@ -3009,7 +3010,7 @@ class UnifiedActivity : ComponentActivity() {
                                             actions = listOf(
                                                 GameSettingsActionItem(
                                                     title = stringResource(R.string.common_ui_sync),
-                                                    icon = Icons.Default.Cloud,
+                                                    icon = Icons.Outlined.Cloud,
                                                     onClick = {
                                                         scope.launch(Dispatchers.IO) {
                                                             GOGService.syncCloudSaves(context, "GOG_${gogGame!!.id}", "auto")
@@ -3019,14 +3020,14 @@ class UnifiedActivity : ComponentActivity() {
                                                 ),
                                                 GameSettingsActionItem(
                                                     title = stringResource(R.string.common_ui_export),
-                                                    icon = Icons.Default.Upload,
+                                                    icon = Icons.Outlined.Upload,
                                                     onClick = {
                                                         exportLauncher.launch("${app.name.replace(" ", "_").replace(":", "")}_Saves.zip")
                                                     },
                                                 ),
                                                 GameSettingsActionItem(
                                                     title = stringResource(R.string.common_ui_import),
-                                                    icon = Icons.Default.Download,
+                                                    icon = Icons.Outlined.Download,
                                                     onClick = { importLauncher.launch(arrayOf("application/zip")) },
                                                 ),
                                             ),
@@ -3036,14 +3037,14 @@ class UnifiedActivity : ComponentActivity() {
                                             actions = listOf(
                                                 GameSettingsActionItem(
                                                     title = stringResource(R.string.common_ui_export),
-                                                    icon = Icons.Default.Upload,
+                                                    icon = Icons.Outlined.Upload,
                                                     onClick = {
                                                         exportLauncher.launch("${app.name.replace(" ", "_").replace(":", "")}_Saves.zip")
                                                     },
                                                 ),
                                                 GameSettingsActionItem(
                                                     title = stringResource(R.string.common_ui_import),
-                                                    icon = Icons.Default.Download,
+                                                    icon = Icons.Outlined.Download,
                                                     onClick = { importLauncher.launch(arrayOf("application/zip")) },
                                                 ),
                                             ),
@@ -3052,7 +3053,7 @@ class UnifiedActivity : ComponentActivity() {
 
                                     Spacer(Modifier.weight(1f))
                                     TextButton(onClick = { currentScreen = LibraryDetailScreen.Main }) {
-                                        Icon(Icons.Default.ArrowBack, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
+                                        Icon(Icons.Outlined.ArrowBack, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
                                         Spacer(Modifier.width(6.dp))
                                         Text(stringResource(R.string.common_ui_back), color = TextSecondary)
                                     }
@@ -3225,7 +3226,7 @@ class UnifiedActivity : ComponentActivity() {
                             .clip(CircleShape)
                             .background(BgDark.copy(alpha = 0.7f)),
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = TextPrimary)
+                        Icon(Icons.Outlined.Close, contentDescription = "Close", tint = TextPrimary)
                     }
                 }
             }
@@ -3255,7 +3256,7 @@ class UnifiedActivity : ComponentActivity() {
                         fontSize = 10.sp,
                     )
                     if (onClick != null) {
-                        Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(10.dp), tint = Accent.copy(alpha = 0.6f))
+                        Icon(Icons.Outlined.OpenInNew, contentDescription = null, modifier = Modifier.size(10.dp), tint = Accent.copy(alpha = 0.6f))
                     }
                 }
                 Text(
@@ -3327,7 +3328,7 @@ class UnifiedActivity : ComponentActivity() {
                 horizontalArrangement = Arrangement.Center,
             ) {
                 Icon(
-                    Icons.Default.PlayArrow,
+                    Icons.Outlined.PlayArrow,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = Color.White,
@@ -3405,7 +3406,7 @@ class UnifiedActivity : ComponentActivity() {
                     horizontalArrangement = Arrangement.Center,
                 ) {
                     Icon(
-                        Icons.Default.Download,
+                        Icons.Outlined.Download,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
                         tint = Color.White,
@@ -3588,7 +3589,7 @@ class UnifiedActivity : ComponentActivity() {
                         modifier = artModifier.background(SurfaceDark),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.SportsEsports, contentDescription = app.name, tint = Accent.copy(alpha = 0.6f), modifier = Modifier.size(48.dp))
+                        Icon(Icons.Outlined.SportsEsports, contentDescription = app.name, tint = Accent.copy(alpha = 0.6f), modifier = Modifier.size(48.dp))
                     }
                 }
             } else if (gogGame != null) {
@@ -4075,7 +4076,7 @@ class UnifiedActivity : ComponentActivity() {
                             .clip(CircleShape)
                             .background(BgDark.copy(alpha = 0.7f))
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = TextPrimary)
+                        Icon(Icons.Outlined.Close, contentDescription = "Close", tint = TextPrimary)
                     }
                 }
             }
@@ -4218,7 +4219,7 @@ class UnifiedActivity : ComponentActivity() {
                 })
                 if (app.cloudSaveEnabled) {
                     CompactActionButton(
-                        icon = Icons.Default.CloudSync,
+                        icon = Icons.Outlined.CloudSync,
                         label = stringResource(R.string.google_cloud_title),
                         onClick = {
                             scope.launch(Dispatchers.IO) {
@@ -4230,7 +4231,7 @@ class UnifiedActivity : ComponentActivity() {
                     )
                 }
                 CompactActionButton(
-                    icon = Icons.Default.Delete,
+                    icon = Icons.Outlined.Delete,
                     label = stringResource(R.string.common_ui_uninstall),
                     tint = DangerRed,
                     bgColor = DangerRed.copy(alpha = 0.12f),
@@ -4260,7 +4261,7 @@ class UnifiedActivity : ComponentActivity() {
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     CompactActionButton(
-                        icon = Icons.Default.Folder,
+                        icon = Icons.Outlined.Folder,
                         label = if (customPath != null) stringResource(R.string.common_ui_custom) else if (defaultPathSet) stringResource(R.string.common_ui_already_set) else stringResource(R.string.common_ui_custom),
                         modifier = Modifier.weight(1f),
                         onClick = {
@@ -4273,7 +4274,7 @@ class UnifiedActivity : ComponentActivity() {
                     )
                     if (dlcApps.isNotEmpty()) {
                         CompactActionButton(
-                            icon = Icons.Default.Extension,
+                            icon = Icons.Outlined.Extension,
                             label = stringResource(R.string.library_games_dlcs),
                             modifier = Modifier.weight(1f),
                             onClick = { showDlcDialog = true },
@@ -4360,7 +4361,7 @@ class UnifiedActivity : ComponentActivity() {
                         )
                         if (isInstalled) {
                             Icon(
-                                Icons.Default.CheckCircle,
+                                Icons.Outlined.CheckCircle,
                                 contentDescription = "Installed",
                                 tint = StatusOnline,
                                 modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp).size(18.dp)
@@ -4429,7 +4430,7 @@ class UnifiedActivity : ComponentActivity() {
                         )
                         if (isInstalled) {
                             Icon(
-                                Icons.Default.CheckCircle,
+                                Icons.Outlined.CheckCircle,
                                 contentDescription = "Installed",
                                 tint = StatusOnline,
                                 modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp).size(24.dp)
@@ -4530,7 +4531,7 @@ class UnifiedActivity : ComponentActivity() {
                     onDismissRequest()
                 })
                 CompactActionButton(
-                    icon = Icons.Default.CloudSync,
+                    icon = Icons.Outlined.CloudSync,
                     label = stringResource(R.string.google_cloud_title),
                     onClick = {
                         scope.launch(Dispatchers.IO) {
@@ -4541,7 +4542,7 @@ class UnifiedActivity : ComponentActivity() {
                     },
                 )
                 CompactActionButton(
-                    icon = Icons.Default.Delete,
+                    icon = Icons.Outlined.Delete,
                     label = stringResource(R.string.common_ui_uninstall),
                     tint = DangerRed,
                     bgColor = DangerRed.copy(alpha = 0.12f),
@@ -4560,7 +4561,7 @@ class UnifiedActivity : ComponentActivity() {
                     },
                 )
                 CompactActionButton(
-                    icon = Icons.Default.Folder,
+                    icon = Icons.Outlined.Folder,
                     label = if (customPath != null) stringResource(R.string.common_ui_custom) else if (defaultPathSet) stringResource(R.string.common_ui_already_set) else stringResource(R.string.common_ui_custom),
                     onClick = {
                         if (customPath == null && defaultPathSet) {
@@ -4729,7 +4730,7 @@ class UnifiedActivity : ComponentActivity() {
                         )
                         if (isInstalled) {
                             Icon(
-                                Icons.Default.CheckCircle,
+                                Icons.Outlined.CheckCircle,
                                 contentDescription = "Installed",
                                 tint = StatusOnline,
                                 modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp).size(18.dp)
@@ -4784,7 +4785,7 @@ class UnifiedActivity : ComponentActivity() {
 
                     if (isInstalled) {
                         Icon(
-                            Icons.Default.CheckCircle,
+                            Icons.Outlined.CheckCircle,
                             contentDescription = "Installed",
                             tint = StatusOnline,
                             modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp).size(24.dp)
@@ -4889,7 +4890,7 @@ class UnifiedActivity : ComponentActivity() {
                         onClick = { if (queueSize > 1) { queueSize--; PrefManager.downloadQueueSize = queueSize } },
                         modifier = Modifier.size(24.dp)
                     ) {
-                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Decrease Queue", tint = TextPrimary, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Outlined.KeyboardArrowLeft, contentDescription = "Decrease Queue", tint = TextPrimary, modifier = Modifier.size(18.dp))
                     }
                     Text(
                         text = queueSize.toString(),
@@ -4902,7 +4903,7 @@ class UnifiedActivity : ComponentActivity() {
                         onClick = { queueSize++; PrefManager.downloadQueueSize = queueSize; com.winlator.cmod.steam.service.SteamService.checkQueue() },
                         modifier = Modifier.size(24.dp)
                     ) {
-                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Increase Queue", tint = TextPrimary, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Outlined.KeyboardArrowRight, contentDescription = "Increase Queue", tint = TextPrimary, modifier = Modifier.size(18.dp))
                     }
                 }
 
@@ -5170,7 +5171,7 @@ class UnifiedActivity : ComponentActivity() {
                     enabled = status != DownloadPhase.COMPLETE && status != DownloadPhase.CANCELLED
                 ) {
                     Icon(
-                        Icons.Default.Close,
+                        Icons.Outlined.Close,
                         contentDescription = "Cancel Download",
                         tint = if (status != DownloadPhase.COMPLETE && status != DownloadPhase.CANCELLED) Color(0xFFFF6B6B) else TextSecondary
                     )
@@ -5221,7 +5222,7 @@ class UnifiedActivity : ComponentActivity() {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
-                    Icons.Default.Store,
+                    Icons.Outlined.Store,
                     contentDescription = null,
                     tint = TextSecondary,
                     modifier = Modifier.size(64.dp)
@@ -5386,7 +5387,7 @@ class UnifiedActivity : ComponentActivity() {
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 CompactActionButton(
-                    icon = Icons.Default.Folder,
+                    icon = Icons.Outlined.Folder,
                     label = if (customPath != null) stringResource(R.string.common_ui_custom) else if (defaultPathSet) stringResource(R.string.common_ui_already_set) else stringResource(R.string.common_ui_custom),
                     modifier = Modifier.weight(1f),
                     onClick = {
@@ -5399,7 +5400,7 @@ class UnifiedActivity : ComponentActivity() {
                 )
                 if (dlcApps.isNotEmpty()) {
                     CompactActionButton(
-                        icon = Icons.Default.Extension,
+                        icon = Icons.Outlined.Extension,
                         label = stringResource(R.string.library_games_dlcs),
                         modifier = Modifier.weight(1f),
                         onClick = { showDlcDialog = true },
@@ -5549,13 +5550,13 @@ class UnifiedActivity : ComponentActivity() {
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 CompactActionButton(
-                    icon = Icons.Default.CloudUpload,
+                    icon = Icons.Outlined.CloudUpload,
                     label = stringResource(R.string.cloud_saves_backup),
                     modifier = Modifier.weight(1f),
                     onClick = onBackup,
                 )
                 CompactActionButton(
-                    icon = Icons.Default.CloudDownload,
+                    icon = Icons.Outlined.CloudDownload,
                     label = stringResource(R.string.cloud_saves_restore),
                     modifier = Modifier.weight(1f),
                     onClick = onRestore,
@@ -5564,7 +5565,7 @@ class UnifiedActivity : ComponentActivity() {
 
             Spacer(Modifier.height(4.dp))
             TextButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
+                Icon(Icons.Outlined.ArrowBack, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.common_ui_back), color = TextSecondary)
             }
@@ -6193,7 +6194,7 @@ class UnifiedActivity : ComponentActivity() {
                 modifier = Modifier.padding(horizontal = 48.dp)
             ) {
                 Icon(
-                    Icons.Default.Person,
+                    Icons.Outlined.Person,
                     contentDescription = null,
                     tint = TextSecondary.copy(alpha = 0.5f),
                     modifier = Modifier.size(48.dp)
@@ -6321,7 +6322,7 @@ class UnifiedActivity : ComponentActivity() {
                                 label = "chevronRotation"
                             )
                             Icon(
-                                Icons.Default.ChevronRight,
+                                Icons.Outlined.ChevronRight,
                                 contentDescription = "Toggle status",
                                 tint = TextSecondary,
                                 modifier = Modifier
@@ -6385,7 +6386,7 @@ class UnifiedActivity : ComponentActivity() {
                                         Text(label, color = TextPrimary, style = MaterialTheme.typography.bodyMedium)
                                         Spacer(Modifier.weight(1f))
                                         Icon(
-                                            Icons.Default.Check,
+                                            Icons.Outlined.Check,
                                             contentDescription = null,
                                             tint = Accent,
                                             modifier = Modifier
@@ -6610,7 +6611,7 @@ class UnifiedActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = Accent, modifier = Modifier.size(22.dp))
+                        Icon(Icons.Outlined.Add, contentDescription = null, tint = Accent, modifier = Modifier.size(22.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.library_games_add_custom_game), style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.weight(1f))
@@ -6667,7 +6668,7 @@ class UnifiedActivity : ComponentActivity() {
                             colors = ButtonDefaults.buttonColors(containerColor = SurfaceDark),
                             contentPadding = PaddingValues(horizontal = 12.dp)
                         ) {
-                            Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Accent, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = Accent, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 if (selectedExePath == null) "Select Executable (.exe)" else java.io.File(selectedExePath!!).name,
@@ -6713,7 +6714,7 @@ class UnifiedActivity : ComponentActivity() {
                                     .padding(horizontal = 10.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.Folder, contentDescription = null, tint = StatusOnline.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
+                                Icon(Icons.Outlined.Folder, contentDescription = null, tint = StatusOnline.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text("Game Folder (A: drive)", color = TextSecondary, fontSize = 10.sp)
@@ -6727,7 +6728,7 @@ class UnifiedActivity : ComponentActivity() {
                                     if (!ensureAllFilesAccessForImports(context)) return@IconButton
                                     folderPickerLauncher.launch(null)
                                 }, modifier = Modifier.size(28.dp)) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Change", tint = Accent, modifier = Modifier.size(14.dp))
+                                    Icon(Icons.Outlined.Edit, contentDescription = "Change", tint = Accent, modifier = Modifier.size(14.dp))
                                 }
                             }
                         }
