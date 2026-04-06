@@ -6599,57 +6599,21 @@ class UnifiedActivity : ComponentActivity() {
         ) {
             Surface(
                 modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .heightIn(max = 320.dp),
-                shape = RoundedCornerShape(16.dp),
-                color = CardDark,
-                shadowElevation = 16.dp
+                    .widthIn(max = 360.dp)
+                    .fillMaxWidth(0.9f),
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFF0D1117)
             ) {
-                Column(Modifier.padding(16.dp)) {
-                    // Header row with title + cancel/add buttons all in one line
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Outlined.Add, contentDescription = null, tint = Accent, modifier = Modifier.size(22.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.library_games_add_custom_game), style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.weight(1f))
-                        TextButton(onClick = onDismiss, modifier = Modifier.height(34.dp)) {
-                            Text(stringResource(R.string.common_ui_cancel), color = TextSecondary, fontSize = 12.sp)
-                        }
-                        Spacer(Modifier.width(4.dp))
-                        Button(
-                            onClick = {
-                                if (selectedExePath == null || gameName.isBlank() || gameFolder == null) {
-                                    android.widget.Toast.makeText(context, context.getString(R.string.library_games_select_exe_provide_name), android.widget.Toast.LENGTH_SHORT).show()
-                                    return@Button
-                                }
-                                isAdding = true
-                                scope.launch(Dispatchers.IO) {
-                                    addCustomGame(context, gameName.trim(), selectedExePath!!, gameFolder!!)
-                                    withContext(Dispatchers.Main) {
-                                        isAdding = false
-                                        android.widget.Toast.makeText(context, "$gameName added!", android.widget.Toast.LENGTH_SHORT).show()
-                                        onDismiss()
-                                    }
-                                }
-                            },
-                            enabled = selectedExePath != null && gameName.isNotBlank() && gameFolder != null && !isAdding,
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Accent),
-                            modifier = Modifier.height(34.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-                        ) {
-                            if (isAdding) {
-                                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                            } else {
-                                Text(stringResource(R.string.common_ui_add), fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            }
-                        }
-                    }
+                Column(Modifier.padding(20.dp)) {
+                    // Title
+                    Text(
+                        stringResource(R.string.library_games_add_custom_game),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.SemiBold
+                    )
 
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(16.dp))
 
                     // Scrollable content area
                     Column(
@@ -6658,18 +6622,20 @@ class UnifiedActivity : ComponentActivity() {
                             .verticalScroll(rememberScrollState())
                     ) {
                         // Pick EXE button
-                        Button(
-                            onClick = {
-                                if (!ensureAllFilesAccessForImports(context)) return@Button
-                                exePickerLauncher.launch(arrayOf("application/octet-stream", "application/x-msdos-program", "application/x-msdownload", "*/*"))
-                            },
-                            modifier = Modifier.fillMaxWidth().height(40.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = SurfaceDark),
-                            contentPadding = PaddingValues(horizontal = 12.dp)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White.copy(alpha = 0.05f))
+                                .clickable {
+                                    if (!ensureAllFilesAccessForImports(context)) return@clickable
+                                    exePickerLauncher.launch(arrayOf("application/octet-stream", "application/x-msdos-program", "application/x-msdownload", "*/*"))
+                                }
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = Accent, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
+                            Spacer(Modifier.width(10.dp))
                             Text(
                                 if (selectedExePath == null) "Select Executable (.exe)" else java.io.File(selectedExePath!!).name,
                                 color = if (selectedExePath == null) TextSecondary else TextPrimary,
@@ -6709,9 +6675,9 @@ class UnifiedActivity : ComponentActivity() {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(SurfaceDark)
-                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color.White.copy(alpha = 0.05f))
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(Icons.Outlined.Folder, contentDescription = null, tint = StatusOnline.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
@@ -6730,6 +6696,56 @@ class UnifiedActivity : ComponentActivity() {
                                 }, modifier = Modifier.size(28.dp)) {
                                     Icon(Icons.Outlined.Edit, contentDescription = "Change", tint = Accent, modifier = Modifier.size(14.dp))
                                 }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    // Action buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        OutlinedButton(
+                            onClick = onDismiss,
+                            shape = RoundedCornerShape(10.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, TextSecondary.copy(alpha = 0.3f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+                            modifier = Modifier.height(36.dp).widthIn(min = 80.dp)
+                        ) {
+                            Text(stringResource(R.string.common_ui_cancel), fontSize = 13.sp)
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        val addEnabled = selectedExePath != null && gameName.isNotBlank() && gameFolder != null && !isAdding
+                        OutlinedButton(
+                            onClick = {
+                                if (selectedExePath == null || gameName.isBlank() || gameFolder == null) {
+                                    android.widget.Toast.makeText(context, context.getString(R.string.library_games_select_exe_provide_name), android.widget.Toast.LENGTH_SHORT).show()
+                                    return@OutlinedButton
+                                }
+                                isAdding = true
+                                scope.launch(Dispatchers.IO) {
+                                    addCustomGame(context, gameName.trim(), selectedExePath!!, gameFolder!!)
+                                    withContext(Dispatchers.Main) {
+                                        isAdding = false
+                                        android.widget.Toast.makeText(context, "$gameName added!", android.widget.Toast.LENGTH_SHORT).show()
+                                        onDismiss()
+                                    }
+                                }
+                            },
+                            enabled = addEnabled,
+                            shape = RoundedCornerShape(10.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (addEnabled) Accent.copy(alpha = 0.5f) else TextSecondary.copy(alpha = 0.2f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Accent),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+                            modifier = Modifier.height(36.dp).widthIn(min = 80.dp)
+                        ) {
+                            if (isAdding) {
+                                CircularProgressIndicator(color = Accent, modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                            } else {
+                                Text(stringResource(R.string.common_ui_add), fontWeight = FontWeight.Medium, fontSize = 13.sp)
                             }
                         }
                     }
