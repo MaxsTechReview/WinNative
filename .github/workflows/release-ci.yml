@@ -1,0 +1,110 @@
+name: Release CI
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Clone repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 1
+        persist-credentials: false
+
+    - name: Cache LFS
+      uses: actions/cache@v5
+      with:
+        path: .git/lfs
+        key: lfs-${{ hashFiles('**/*.txz', '**/*.tzst') }}
+        restore-keys: lfs-
+
+    - name: Pull LFS files
+      run: git lfs pull
+
+    - name: Cache NDK build outputs
+      uses: actions/cache@v5
+      with:
+        path: |
+          app/.cxx
+          app/build/intermediates/cxx
+        key: ndk-${{ hashFiles('app/src/main/cpp/**', 'app/build.gradle', 'app/src/main/cpp/CMakeLists.txt') }}
+        restore-keys: ndk-
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        validate-wrappers: true
+        cache-cleanup: 'on-success'
+
+    - name: Build release APKs
+      timeout-minutes: 20
+      env:
+        KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        GRADLE_OPTS: -Xmx4g -XX:+UseG1GC
+      run: |
+        export KEYSTORE_FILE="${{ github.workspace }}/release.jks"
+        if [ -z "$KEYSTORE_BASE64" ]; then
+          echo "::error::KEYSTORE_BASE64 secret is required for release builds"
+          exit 1
+        fi
+        echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_FILE"
+        ./gradlew :app:assembleStandardRelease :app:assembleLudashiRelease --build-cache --parallel -x lint
+
+    - name: Prepare release assets
+      id: assets
+      run: |
+        TAG="${GITHUB_REF#refs/tags/}"
+        echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+        STANDARD_APK="app/build/outputs/apk/standard/release/app-standard-release.apk"
+        LUDASHI_APK="app/build/outputs/apk/ludashi/release/app-ludashi-release.apk"
+
+        cp "$STANDARD_APK" "WinNative-Standard-${TAG}.apk"
+        cp "$LUDASHI_APK" "WinNative-Ludashi-${TAG}.apk"
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.assets.outputs.tag }}
+        name: ${{ steps.assets.outputs.tag }}
+        draft: true
+        generate_release_notes: true
+        files: |
+          WinNative-Standard-${{ steps.assets.outputs.tag }}.apk
+          WinNative-Ludashi-${{ steps.assets.outputs.tag }}.apk
+
+    - name: Cleanup duplicate caches
+      continue-on-error: true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh cache list --repo "$GITHUB_REPOSITORY" --json id,key,createdAt --limit 100 |
+          jq -r '
+            group_by(.key | sub("-[a-f0-9]{20,}$"; ""))
+            | .[]
+            | sort_by(.createdAt) | reverse
+            | .[1:][]
+            | .id
+          ' |
+          xargs -I {} gh cache delete {} --repo "$GITHUB_REPOSITORY" || true
