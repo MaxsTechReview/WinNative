@@ -3,6 +3,7 @@ package com.winlator.cmod.xconnector;
 import com.winlator.cmod.xserver.XServer;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -124,5 +125,30 @@ public class XInputStream {
 
     public void skip(int length) {
         activeBuffer.position(activeBuffer.position() + length);
+    }
+
+    public void release() {
+        freeDirectBuffer(buffer);
+        if (activeBuffer != buffer) freeDirectBuffer(activeBuffer);
+        buffer = null;
+        activeBuffer = null;
+    }
+
+    static void freeDirectBuffer(ByteBuffer buffer) {
+        if (buffer == null || !buffer.isDirect()) return;
+        try {
+            Method freeMethod = buffer.getClass().getDeclaredMethod("free");
+            freeMethod.setAccessible(true);
+            freeMethod.invoke(buffer);
+        } catch (Exception e1) {
+            try {
+                Method cleanerMethod = buffer.getClass().getDeclaredMethod("cleaner");
+                cleanerMethod.setAccessible(true);
+                Object cleaner = cleanerMethod.invoke(buffer);
+                if (cleaner != null) {
+                    cleaner.getClass().getDeclaredMethod("clean").invoke(cleaner);
+                }
+            } catch (Exception ignored) {}
+        }
     }
 }

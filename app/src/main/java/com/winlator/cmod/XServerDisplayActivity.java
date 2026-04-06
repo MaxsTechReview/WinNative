@@ -1641,11 +1641,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     if (midiHandler != null) midiHandler.stop();
                     // Unregister sensor listener to avoid memory leaks
                     if (sensorManager != null) sensorManager.unregisterListener(gyroListener);
-                    if (environment != null) environment.stopEnvironmentComponents();
-                    if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.closeOnUiThread();
                     if (winHandler != null) winHandler.stop();
                     if (wineRequestHandler != null) wineRequestHandler.stop();
-                    /* Gracefully terminate all running wine processes */
+                    /* Gracefully terminate all running wine processes first, so ALSA/audio
+                     * threads are no longer fed data before we tear down their sockets. */
                     ProcessHelper.terminateAllWineProcesses();
                     /* Wait until all processes have gracefully terminated, forcefully killing them only after a certain amount of time */
                     long start = System.currentTimeMillis();
@@ -1662,8 +1661,19 @@ public class XServerDisplayActivity extends AppCompatActivity {
                             break;
                         }
                     }
-                    preloaderDialog.closeOnUiThread();
-                    AppUtils.restartApplication(getApplicationContext());
+                    /* Now safe to tear down environment components (ALSA, PulseAudio, XServer, etc.)
+                     * since Wine processes are no longer writing to their sockets. */
+                    if (environment != null) {
+                        environment.stopEnvironmentComponents();
+                        environment = null;
+                    }
+                    winHandler = null;
+                    wineRequestHandler = null;
+                    midiHandler = null;
+                    xServer = null;
+                    xServerView = null;
+                    if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.closeOnUiThread();
+                    finish();
                 }
             }, 1000);
         });
@@ -1895,6 +1905,28 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
         if (handler != null && controllerAutoSwitchRunnable != null) {
             handler.removeCallbacks(controllerAutoSwitchRunnable);
+        }
+
+        // Leak detection: log warnings if resources were not cleaned up by exit()
+        String tag = "XServerLeakCheck";
+        if (!exitRequested.get()) {
+            Log.w(tag, "onDestroy called without exit() — activity may have been killed by system");
+        }
+        ArrayList<String> remainingProcesses = ProcessHelper.listRunningWineProcesses();
+        if (!remainingProcesses.isEmpty()) {
+            Log.e(tag, "Wine processes still running: " + remainingProcesses);
+        }
+        if (environment != null) {
+            Log.w(tag, "Environment not null — components may not have been stopped");
+        }
+        if (winHandler != null && winHandler.getSocket() != null && !winHandler.getSocket().isClosed()) {
+            Log.e(tag, "WinHandler socket still open");
+        }
+        if (wineRequestHandler != null && wineRequestHandler.getServerSocket() != null && !wineRequestHandler.getServerSocket().isClosed()) {
+            Log.e(tag, "WineRequestHandler server socket still open");
+        }
+        if (midiHandler != null && midiHandler.getSocket() != null && !midiHandler.getSocket().isClosed()) {
+            Log.e(tag, "MidiHandler socket still open");
         }
     }
 

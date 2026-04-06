@@ -120,6 +120,11 @@ public class XOutputStream {
         }
     }
 
+    public void release() {
+        XInputStream.freeDirectBuffer(buffer);
+        buffer = null;
+    }
+
     public void writeSuccessReply(int sequenceNumber, int replyLength) throws IOException {
         try (XStreamLock lock = lock()) {
             writeByte((byte) 1);       // Response Code for Success

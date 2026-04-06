@@ -144,6 +144,9 @@ public class XConnectorEpoll implements Runnable {
             closeFd(client.shutdownFd);
         }
         else removeFdFromEpoll(epollFd, client.clientSocket.fd);
+        // Free direct byte buffers and ancillary FDs to avoid resource leak warnings
+        client.releaseIOStreams();
+        client.clientSocket.closeAncillaryFds();
         closeFd(client.clientSocket.fd);
         connectedClients.remove(client.clientSocket.fd);
     }
@@ -198,6 +201,7 @@ public class XConnectorEpoll implements Runnable {
             ByteBuffer data = ByteBuffer.allocateDirect(8);
             data.asLongBuffer().put(1);
             (new ClientSocket(shutdownFd)).write(data);
+            XInputStream.freeDirectBuffer(data);
         }
         catch (IOException e) {}
     }

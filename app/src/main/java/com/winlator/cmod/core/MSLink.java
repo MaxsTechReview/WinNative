@@ -179,11 +179,10 @@ public abstract class MSLink {
 
     public static String parseFilePath(File lnkFile) {
         String filePath = "";
-        try {
+        try (FileInputStream fis = new FileInputStream(lnkFile);
+             DataInputStream dis = new DataInputStream(fis)) {
             int linkFlags, linkInfoStart;
-            FileInputStream fis = new FileInputStream(lnkFile);
             byte[] bytes = new byte[(int) lnkFile.length()];
-            DataInputStream dis = new DataInputStream(fis);
             dis.readFully(bytes);
             ByteBuffer data = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
             linkFlags = data.getInt(0x14);
@@ -202,8 +201,6 @@ public abstract class MSLink {
             if (localBasePathOffset > 0) {
                 filePath = StringUtils.fromANSIString(data, linkInfoStart + localBasePathOffset);
             }
-            dis.close();
-            fis.close();
         }
         catch (IOException e) {
         }
@@ -217,16 +214,13 @@ public abstract class MSLink {
         ImageFs imageFs = ImageFs.find(context);
 
         File desktopFile = new File(lnkFilePath.substring(0, lnkFilePath.lastIndexOf(".")) + ".desktop");
-        try {
-            FileOutputStream fos = new FileOutputStream(desktopFile);
-            PrintWriter pw = new PrintWriter(fos);
+        try (FileOutputStream fos = new FileOutputStream(desktopFile);
+             PrintWriter pw = new PrintWriter(fos)) {
             pw.write("[Desktop Entry]\n");
             pw.write("Name=" + lnkFile.getName().substring(0, lnkFile.getName().lastIndexOf(".")) + "\n");
             pw.write("Exec=env WINEPREFIX=" + "\"" + imageFs.wineprefix + "\"" + " wine " + filePath + "\n");
             pw.write("Type=Application\n");
             pw.write("StartupNotify=True\n");
-            pw.close();
-            fos.close();
         }
         catch (IOException e) {
         }

@@ -57,6 +57,9 @@ public class WinHandler {
     public static final byte INPUT_TYPE_MIXED = 2;
     private static final int OSC_DEVICE_ID = -1;
     private DatagramSocket socket;
+
+    public DatagramSocket getSocket() { return socket; }
+
     private final ByteBuffer sendData = ByteBuffer.allocate(64).order(ByteOrder.LITTLE_ENDIAN);
     private final ByteBuffer receiveData = ByteBuffer.allocate(64).order(ByteOrder.LITTLE_ENDIAN);
     private final DatagramPacket sendPacket = new DatagramPacket(sendData.array(), 64);

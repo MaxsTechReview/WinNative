@@ -28,6 +28,8 @@ public class WineRequestHandler {
     private Context context;
     private ServerSocket serverSocket;
 
+    public ServerSocket getServerSocket() { return serverSocket; }
+
     public WineRequestHandler(Context context) {
         this.context = context;
     }

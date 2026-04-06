@@ -199,15 +199,16 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
                     envVars.toStringArray(),
                     workingDir != null ? workingDir : imageFs.getRootDir()
             );
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                output.append(line).append("\n");
-            }
-            if (includeStderr) {
-                while ((line = errorReader.readLine()) != null) {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                 BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
                     output.append(line).append("\n");
+                }
+                if (includeStderr) {
+                    while ((line = errorReader.readLine()) != null) {
+                        output.append(line).append("\n");
+                    }
                 }
             }
             process.waitFor();
@@ -398,17 +399,16 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
         try {
             java.lang.Process process = Runtime.getRuntime().exec(lddCommand);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-
-            String line;
-            while ((line = reader.readLine()) != null) {
-                output.append(line).append("\n");
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                 BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                }
+                while ((line = errorReader.readLine()) != null) {
+                    output.append(line).append("\n");
+                }
             }
-            while ((line = errorReader.readLine()) != null) {
-                output.append(line).append("\n");
-            }
-
             process.waitFor();
         } catch (Exception e) {
             output.append("Error running ldd: ").append(e.getMessage());
