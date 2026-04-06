@@ -746,9 +746,9 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
                     "Arm64EC detected: emulator64=FEXCore, emulator(32-bit)=" + emulator);
         } else {
             emulator64 = "Box64";
-            emulator = "Wowbox64";
+            emulator = "Box64";
             Log.d("GuestProgramLauncherComponent",
-                    "x86_64 detected: emulator64=Box64, emulator(32-bit)=Wowbox64");
+                    "x86_64 detected: emulator64=Box64, emulator(32-bit)=Box64");
         }
 
         Log.d("GuestProgramLauncherComponent", "=== EMULATOR SELECTION ===");

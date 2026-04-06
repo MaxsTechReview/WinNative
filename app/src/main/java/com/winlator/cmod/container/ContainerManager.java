@@ -201,6 +201,7 @@ public class ContainerManager {
             String wineVersion = data.getString("wineVersion");
             Log.d("ContainerManager", "createContainer: wineVersion=" + wineVersion);
             container.setWineVersion(wineVersion);
+            normalizeContainerArchitectureSettings(container, WineInfo.fromIdentifier(context, contentsManager, wineVersion));
 
             if (!extractContainerPatternFile(container, container.getWineVersion(), contentsManager, containerDir, null)) {
                 Log.e("ContainerManager", "createContainer: extractContainerPatternFile FAILED for wineVersion=" + container.getWineVersion());
@@ -226,6 +227,22 @@ public class ContainerManager {
             Log.e("ContainerManager", "Error creating container", e);
         }
         return null;
+    }
+
+    private void normalizeContainerArchitectureSettings(Container container, WineInfo wineInfo) {
+        if (container == null || wineInfo == null) return;
+
+        if (wineInfo.isArm64EC()) {
+            container.setEmulator64("FEXCore");
+
+            String emulator = container.getEmulator();
+            if (!"fexcore".equalsIgnoreCase(emulator) && !"wowbox64".equalsIgnoreCase(emulator)) {
+                container.setEmulator("FEXCore");
+            }
+        } else {
+            container.setEmulator("Box64");
+            container.setEmulator64("Box64");
+        }
     }
 
 
