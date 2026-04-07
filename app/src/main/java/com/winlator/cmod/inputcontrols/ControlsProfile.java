@@ -8,6 +8,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -177,6 +178,10 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
 
     public List<ControlElement> getElements() {
         return this.immutableElements;
+    }
+
+    public boolean isTemplate() {
+        return this.name != null && this.name.toLowerCase(Locale.ENGLISH).contains("template");
     }
 
     public ArrayList<ExternalController> loadControllers() {

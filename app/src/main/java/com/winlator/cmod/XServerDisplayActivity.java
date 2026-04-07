@@ -2488,8 +2488,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
             containerDataChanged = true;
         }
 
-        WineUtils.setJoystickRegistryKeys(new File(container.getRootDir(), ".wine/user.reg"), true);
-
         String gameInstallPath = null;
         if (shortcut != null) {
             gameInstallPath = shortcut.getExtra("game_install_path");
@@ -3531,19 +3529,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
-        // Reserve only guide/home-style buttons for the drawer so Select/Back
-        // remains available to the game and controller mapper.
-        if (event.getAction() == KeyEvent.ACTION_DOWN) {
-            if (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_MODE || event.getKeyCode() == KeyEvent.KEYCODE_HOME) {
-                onBackPressed();
-                return true;
-            }
+        if (this.inputControlsView.onKeyEvent(event) || (this.winHandler != null && this.winHandler.onKeyEvent(event) && this.xServer != null && this.xServer.keyboard.onKeyEvent(event))) {
+            return true;
         }
-
-        if (inputControlsView.onKeyEvent(event)) return true;
-        if (winHandler != null && winHandler.onKeyEvent(event)) return true;
-        if (xServer != null && xServer.keyboard.onKeyEvent(event)) return true;
-
         return !ExternalController.isGameController(event.getDevice()) && super.dispatchKeyEvent(event);
     }
 
@@ -5481,17 +5469,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
             }
 
             // Collect the first valid candidate as a fallback
-            if (fallbackExe == null && !candidates.isEmpty()) {
-                fallbackExe = candidates.get(0);
-            }
-            
-            if (!nextDirs.isEmpty()) queue.add(nextDirs.toArray(new File[0]));
-            depth++;
-        }
-        return fallbackExe;
-    }
-}
-fallback
             if (fallbackExe == null && !candidates.isEmpty()) {
                 fallbackExe = candidates.get(0);
             }
