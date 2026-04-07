@@ -275,6 +275,7 @@ class ShortcutSettingsComposeDialog private constructor(
         state.selectedDInputMapperType.intValue =
             if ((inputType and WinHandler.FLAG_DINPUT_MAPPER_STANDARD.toInt()) == WinHandler.FLAG_DINPUT_MAPPER_STANDARD.toInt()) 0 else 1
         state.disableXInput.value = shortcut.getExtra("disableXinput", "0") == "1"
+        state.exclusiveXInput.value = getShortcutSetting("exclusiveXInput", container.isExclusiveXInput().toString()).toBoolean()
         state.simTouchScreen.value = shortcut.getExtra("simTouchScreen", "0") == "1"
 
         // Display - Show FPS
@@ -1135,6 +1136,13 @@ class ShortcutSettingsComposeDialog private constructor(
                     )
                 }
             }
+
+            // Exclusive XInput
+            hasContainerOverride = hasContainerOverride or saveOverride(
+                "exclusiveXInput",
+                state.exclusiveXInput.value.toString(),
+                container.isExclusiveXInput().toString()
+            )
 
             // Container defaults flag
             shortcut.putExtra(

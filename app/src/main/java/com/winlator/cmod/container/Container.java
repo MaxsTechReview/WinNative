@@ -79,6 +79,7 @@ public class Container {
     private boolean forceDlc = false;
     private boolean steamOfflineMode = false;
     private boolean unpackFiles = false;
+    private boolean exclusiveXInput = true;
 
     public static final String STEAM_TYPE_NORMAL = "normal";
     public static final String STEAM_TYPE_LIGHT = "light";
@@ -451,6 +452,7 @@ public class Container {
             data.put("forceDlc", forceDlc);
             data.put("steamOfflineMode", steamOfflineMode);
             data.put("unpackFiles", unpackFiles);
+            data.put("exclusiveXInput", exclusiveXInput);
 
             if (!WineInfo.isMainWineVersion(wineVersion)) data.put("wineVersion", wineVersion);
             FileUtils.writeString(getConfigFile(), data.toString());
@@ -589,7 +591,10 @@ public class Container {
                 case "unpackFiles":
                     setUnpackFiles(data.getBoolean(key));
                     break;
-                case "moveSteamExe":
+                case "exclusiveXInput":
+                    setExclusiveXInput(data.getBoolean(key));
+                    break;
+                case "audioDriver" :
                     break;
             }
         }
@@ -753,6 +758,14 @@ public class Container {
 
     public void setUnpackFiles(boolean unpackFiles) {
         this.unpackFiles = unpackFiles;
+    }
+
+    public boolean isExclusiveXInput() {
+        return exclusiveXInput;
+    }
+
+    public void setExclusiveXInput(boolean exclusiveXInput) {
+        this.exclusiveXInput = exclusiveXInput;
     }
 
 }

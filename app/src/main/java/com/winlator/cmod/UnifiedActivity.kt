@@ -1386,16 +1386,26 @@ class UnifiedActivity : ComponentActivity() {
                     val cm = ContainerManager(context)
                     val allShortcuts = cm.loadShortcuts()
                     val apps = allShortcuts
-                        .filter { it.getExtra("game_source") == "CUSTOM" }
                         .map { shortcut ->
-                            val displayName = shortcut.getExtra("custom_name", shortcut.name)
-                            val customId = -(displayName.hashCode().and(0x7FFFFFFF) + 1)
+                            val gameSource = shortcut.getExtra("game_source", "CUSTOM")
+                            val displayName = if (gameSource == "CUSTOM") shortcut.getExtra("custom_name", shortcut.name) else shortcut.name
+                            val customId = if (gameSource == "STEAM") {
+                                shortcut.getExtra("app_id", "0").toIntOrNull() ?: 0
+                            } else {
+                                -(displayName.hashCode().and(0x7FFFFFFF) + 1)
+                            }
+                            
                             SteamApp(
                                 id = customId,
                                 name = displayName,
-                                developer = "Custom",
-                                gameDir = shortcut.getExtra("custom_game_folder", "")
+                                developer = if (gameSource == "CUSTOM") "Custom" else gameSource,
+                                gameDir = shortcut.getExtra("game_install_path", shortcut.getExtra("custom_game_folder", ""))
                             )
+                        }
+                        .filter { app -> 
+                            // Only include as 'customApps' if it's not already handled by official Steam/Epic/Gog lists
+                            // or if it's a generic desktop shortcut.
+                            app.id < 0 || app.developer == "CUSTOM" || app.developer == "Custom"
                         }
                     withContext(Dispatchers.Main) {
                         cachedShortcuts = allShortcuts
@@ -6579,6 +6589,7 @@ class UnifiedActivity : ComponentActivity() {
         var gameName by remember { mutableStateOf("") }
         var gameFolder by remember { mutableStateOf<String?>(null) }
         var isAdding by remember { mutableStateOf(false) }
+        var exclusiveXInput by remember { mutableStateOf(true) }
 
         val exePickerLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocument()
@@ -6732,6 +6743,32 @@ class UnifiedActivity : ComponentActivity() {
                                     Icon(Icons.Outlined.Edit, contentDescription = "Change", tint = Accent, modifier = Modifier.size(14.dp))
                                 }
                             }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            // Exclusive XInput Toggle
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { exclusiveXInput = !exclusiveXInput }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                androidx.compose.material3.Checkbox(
+                                    checked = exclusiveXInput,
+                                    onCheckedChange = { exclusiveXInput = it },
+                                    colors = androidx.compose.material3.CheckboxDefaults.colors(
+                                        checkedColor = Accent,
+                                        uncheckedColor = TextSecondary.copy(alpha = 0.5f),
+                                        checkmarkColor = CardDark
+                                    )
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Column {
+                                    Text("Exclusive Input", color = TextPrimary, fontSize = 11.sp)
+                                    Text("Claim gamepad exclusively for this game", color = TextSecondary, fontSize = 9.sp)
+                                }
+                            }
                         }
                     }
 
@@ -6762,7 +6799,7 @@ class UnifiedActivity : ComponentActivity() {
                                 }
                                 isAdding = true
                                 scope.launch(Dispatchers.IO) {
-                                    addCustomGame(context, gameName.trim(), selectedExePath!!, gameFolder!!)
+                                    addCustomGame(context, gameName.trim(), selectedExePath!!, gameFolder!!, exclusiveXInput)
                                     withContext(Dispatchers.Main) {
                                         isAdding = false
                                         android.widget.Toast.makeText(context, "$gameName added!", android.widget.Toast.LENGTH_SHORT).show()
@@ -6896,7 +6933,7 @@ class UnifiedActivity : ComponentActivity() {
     }
 
     // Create custom game shortcut + container
-    private fun addCustomGame(context: android.content.Context, name: String, exePath: String, gameFolderPath: String) {
+    private fun addCustomGame(context: android.content.Context, name: String, exePath: String, gameFolderPath: String, exclusiveXInput: Boolean = true) {
         val containerManager = ContainerManager(context)
         var container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
         if (container == null) {
@@ -6925,10 +6962,14 @@ class UnifiedActivity : ComponentActivity() {
         content.append("custom_name=$name\n")
         content.append("custom_exe=$exePath\n")
         content.append("custom_game_folder=$gameFolderPath\n")
+        content.append("exclusiveXInput=$exclusiveXInput\n")
         content.append("container_id=${container.id}\n")
         content.append("use_container_defaults=1\n")
         com.winlator.cmod.core.FileUtils.writeString(shortcutFile, content.toString())
-        container.saveData()
+        
+        // Trigger save/broadcast through Shortcut class to update UI library
+        val shortcut = com.winlator.cmod.container.Shortcut(container, shortcutFile)
+        shortcut.saveData()
 
         // Extract exe icon and save as PNG for carousel artwork
         try {

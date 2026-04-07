@@ -2481,6 +2481,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
             containerDataChanged = true;
         }
 
+        boolean exclusiveXInput = getShortcutSetting("exclusiveXInput", String.valueOf(container.isExclusiveXInput())).equals("true");
+        Log.d("XServerDisplayActivity", "Exclusive XInput: " + exclusiveXInput);
+        WineUtils.setJoystickRegistryKeys(container, true, exclusiveXInput);
+
         String gameInstallPath = null;
         if (shortcut != null) {
             gameInstallPath = shortcut.getExtra("game_install_path");

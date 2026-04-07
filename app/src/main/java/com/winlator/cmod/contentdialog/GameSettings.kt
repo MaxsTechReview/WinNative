@@ -268,6 +268,7 @@ class GameSettingsStateHolder {
     val controlsProfileEntries = mutableStateOf<List<String>>(emptyList())
     val selectedControlsProfile = mutableIntStateOf(0)
     val disableXInput = mutableStateOf(false)
+    val exclusiveXInput = mutableStateOf(true)
     val simTouchScreen = mutableStateOf(false)
     val sdl2Compatibility = mutableStateOf(false)
     val enableXInput = mutableStateOf(false)
@@ -2598,6 +2599,14 @@ private fun InputSection(state: GameSettingsStateHolder) {
                 onCheckedChange = { state.simTouchScreen.value = it }
             )
         }
+
+        Spacer(Modifier.height(4.dp))
+
+        SettingCheckbox(
+            label = "Exclusive XInput",
+            checked = state.exclusiveXInput.value,
+            onCheckedChange = { state.exclusiveXInput.value = it }
+        )
     }
 
     Spacer(Modifier.height(16.dp))
