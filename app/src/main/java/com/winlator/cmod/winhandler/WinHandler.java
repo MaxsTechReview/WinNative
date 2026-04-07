@@ -12,6 +12,8 @@ import com.winlator.cmod.inputcontrols.ControlsProfile;
 import com.winlator.cmod.inputcontrols.ExternalController;
 import com.winlator.cmod.inputcontrols.FakeInputWriter;
 import com.winlator.cmod.inputcontrols.GamepadState;
+import com.winlator.cmod.winhandler.OnGetProcessInfoListener;
+import com.winlator.cmod.winhandler.ProcessInfo;
 import com.winlator.cmod.xserver.XServer;
 import java.io.IOException;
 import java.net.DatagramPacket;

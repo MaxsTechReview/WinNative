@@ -317,7 +317,7 @@ public class ExternalController {
         if (device.isVirtual()) {
             return false;
         }
-        return (sources & InputDeviceCompat.SOURCE_GAMEPAD) == 1025 || ((sources & InputDeviceCompat.SOURCE_JOYSTICK) == 16777232 && (sources & 8194) == 0);
+        return (sources & InputDevice.SOURCE_GAMEPAD) == 1025 || ((sources & InputDevice.SOURCE_JOYSTICK) == 16777232 && (sources & 8194) == 0);
     }
 
     public float getCenteredAxis(MotionEvent event, int axis, int historyPos) {
@@ -345,7 +345,7 @@ public class ExternalController {
     }
 
     public static boolean isJoystickDevice(MotionEvent event) {
-        return (event.getSource() & InputDeviceCompat.SOURCE_JOYSTICK) == 16777232 && event.getAction() == 2;
+        return (event.getSource() & InputDevice.SOURCE_JOYSTICK) == 16777232 && event.getAction() == 2;
     }
 
     public static int getButtonIdxByKeyCode(int keyCode) {
