@@ -8,6 +8,7 @@ import android.widget.Toast
 import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.core.FileUtils
 import com.winlator.cmod.core.TarCompressorUtils
+import com.winlator.cmod.core.WineUtils
 import com.winlator.cmod.xenvironment.ImageFs
 import java.io.File
 import java.io.FileOutputStream
@@ -351,7 +352,11 @@ object SteamClientManager {
         var batchFile: File? = null
         try {
             val normalizedPath = exePath.replace('/', '\\')
-            val windowsPath = "A:\\$normalizedPath"
+            val windowsPath = when {
+                normalizedPath.matches(Regex("^[A-Za-z]:\\\\.*")) -> normalizedPath
+                File(exePath).isAbsolute -> WineUtils.hostPathToMappedWinePath(null, exePath)
+                else -> "Z:\\${normalizedPath.trimStart('\\')}"
+            }
 
             batchFile = File(rootDir, "tmp/steamless_wrapper.bat")
             batchFile.parentFile?.mkdirs()
@@ -360,13 +365,11 @@ object SteamClientManager {
             val command = "wine z:\\tmp\\steamless_wrapper.bat"
             Log.d(TAG, "Steamless output: ${shellRunner.exec(command)}")
 
-            val unixPath = exePath.replace('\\', '/')
-            val wineprefix = File(rootDir, ImageFs.WINEPREFIX)
-            val exe = File(wineprefix, "dosdevices/a:/$unixPath")
-            val unpackedExe = File(wineprefix, "dosdevices/a:/$unixPath.unpacked.exe")
-            val originalExe = File(wineprefix, "dosdevices/a:/$unixPath.original.exe")
+            val exe = WineUtils.getNativePath(ImageFs.find(context), windowsPath)
+            val unpackedExe = exe?.let { File(it.parentFile, "${it.name}.unpacked.exe") }
+            val originalExe = exe?.let { File(it.parentFile, "${it.name}.original.exe") }
 
-            if (exe.exists() && unpackedExe.exists()) {
+            if (exe != null && unpackedExe != null && originalExe != null && exe.exists() && unpackedExe.exists()) {
                 if (!originalExe.exists()) {
                     Files.copy(exe.toPath(), originalExe.toPath(), StandardCopyOption.REPLACE_EXISTING)
                 }

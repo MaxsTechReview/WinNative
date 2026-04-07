@@ -803,15 +803,15 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 }
             }
 
-            // Re-mount A: drive for Steam/Epic game shortcuts on the active container
+            // Refresh stored host install paths for shortcut-based launches.
             String gameSource = shortcut.getExtra("game_source");
             if ("STEAM".equals(gameSource)) {
                 String appIdStr = shortcut.getExtra("app_id");
                 if (!appIdStr.isEmpty()) {
                     String gameInstallPath = SteamBridge.getAppDirPath(Integer.parseInt(appIdStr));
                     if (new File(gameInstallPath).exists()) {
-                        mountADriveOnContainer(container, gameInstallPath);
-                        Log.d("XServerDisplayActivity", "Mounted A: drive to " + gameInstallPath + " on container " + container.id);
+                        shortcut.putExtra("game_install_path", gameInstallPath);
+                        shortcut.saveData();
                     }
                 }
             } else if ("EPIC".equals(gameSource)) {
@@ -841,8 +841,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     }
                 }
                 if (!gameInstallPath.isEmpty() && new File(gameInstallPath).exists()) {
-                    mountADriveOnContainer(container, gameInstallPath);
-                    Log.d("XServerDisplayActivity", "Mounted A: drive to " + gameInstallPath + " on container " + container.id);
+                    shortcut.putExtra("game_install_path", gameInstallPath);
+                    shortcut.saveData();
                 } else {
                     Log.e("XServerDisplayActivity", "EPIC install path missing or invalid: '" + gameInstallPath + "'");
                 }
@@ -870,17 +870,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     }
                 }
                 if (!gameInstallPath.isEmpty() && new File(gameInstallPath).exists()) {
-                    mountADriveOnContainer(container, gameInstallPath);
-                    Log.d("XServerDisplayActivity", "Mounted A: drive to " + gameInstallPath + " on container " + container.id);
+                    shortcut.putExtra("game_install_path", gameInstallPath);
+                    shortcut.saveData();
                 } else {
                     Log.e("XServerDisplayActivity", "GOG install path missing or invalid: '" + gameInstallPath + "'");
                 }
             } else if ("CUSTOM".equals(gameSource)) {
                 String customMountPath = resolveCustomMountPath(shortcut);
                 if (!customMountPath.isEmpty() && new File(customMountPath).isDirectory()) {
-                    mountADriveOnContainer(container, customMountPath);
-                    Log.d("XServerDisplayActivity", "Mounted A: drive to custom game folder '" + customMountPath + "' on container " + container.id);
-
                     if (shortcut.getExtra("custom_game_folder").isEmpty() || shortcut.getExtra("game_install_path").isEmpty()) {
                         if (shortcut.getExtra("custom_game_folder").isEmpty()) {
                             shortcut.putExtra("custom_game_folder", customMountPath);
@@ -1298,6 +1295,37 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         File parent = hostExeFile.getParentFile();
         return (parent != null && parent.isDirectory()) ? parent.getAbsolutePath() : "";
+    }
+
+    private String resolveCustomExecutableWinPath(@NonNull Shortcut shortcut) {
+        String customExe = shortcut.getExtra("custom_exe");
+        if (customExe != null && !customExe.isEmpty()) {
+            File customExeFile = new File(customExe);
+            if (customExeFile.isFile()) {
+                return WineUtils.hostPathToRootWinePath(container, customExeFile.getAbsolutePath());
+            }
+        }
+
+        String launchExePath = shortcut.getExtra("launch_exe_path");
+        if (launchExePath != null && !launchExePath.isEmpty()) {
+            File launchExeFile = new File(launchExePath);
+            if (launchExeFile.isFile()) {
+                return WineUtils.hostPathToRootWinePath(container, launchExeFile.getAbsolutePath());
+            }
+        }
+
+        String customGameFolder = resolveCustomMountPath(shortcut);
+        if (!customGameFolder.isEmpty()) {
+            File exeFile = findGameExe(new File(customGameFolder));
+            if (exeFile != null && exeFile.isFile()) {
+                if ((shortcut.getExtra("launch_exe_path") == null || shortcut.getExtra("launch_exe_path").isEmpty())) {
+                    shortcut.putExtra("launch_exe_path", exeFile.getAbsolutePath());
+                    shortcut.saveData();
+                }
+                return WineUtils.hostPathToRootWinePath(container, exeFile.getAbsolutePath());
+            }
+        }
+        return shortcut.path;
     }
 
     private boolean parseBoolean(String value) {
@@ -1907,6 +1935,49 @@ public class XServerDisplayActivity extends AppCompatActivity {
             handler.removeCallbacks(controllerAutoSwitchRunnable);
         }
 
+        if (!exitRequested.get()) {
+            Log.w("XServerLeakCheck", "onDestroy called without exit() — forcing last-resort cleanup");
+            try {
+                if (winHandler != null) winHandler.stop();
+            } catch (Exception e) {
+                Log.e("XServerLeakCheck", "Failed to stop WinHandler during last-resort cleanup", e);
+            }
+            try {
+                if (wineRequestHandler != null) wineRequestHandler.stop();
+            } catch (Exception e) {
+                Log.e("XServerLeakCheck", "Failed to stop WineRequestHandler during last-resort cleanup", e);
+            }
+            try {
+                if (midiHandler != null) midiHandler.stop();
+            } catch (Exception e) {
+                Log.e("XServerLeakCheck", "Failed to stop MidiHandler during last-resort cleanup", e);
+            }
+            try {
+                if (environment != null) {
+                    environment.stopEnvironmentComponents();
+                    environment = null;
+                }
+            } catch (Exception e) {
+                Log.e("XServerLeakCheck", "Failed to stop environment during last-resort cleanup", e);
+            }
+
+            ProcessHelper.terminateAllWineProcesses();
+            long start = System.currentTimeMillis();
+            while (!ProcessHelper.listRunningWineProcesses().isEmpty()) {
+                long elapsed = System.currentTimeMillis() - start;
+                if (elapsed >= 1500) {
+                    for (String process : ProcessHelper.listRunningWineProcesses()) {
+                        try {
+                            ProcessHelper.killProcess(Integer.parseInt(process));
+                        } catch (Exception e) {
+                            Log.e("XServerLeakCheck", "Failed to kill leaked process: " + process, e);
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
         // Leak detection: log warnings if resources were not cleaned up by exit()
         String tag = "XServerLeakCheck";
         if (!exitRequested.get()) {
@@ -2189,14 +2260,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
             touchpadView.releasePointerCapture();
             touchpadView.setOnCapturedPointerListener(null);
         }
-    }
-
-    private void extractInputDLLs() {
-        String inputAsset = "input_dlls.tzst";
-        File wineFolder = new File(imageFs.getWinePath() + "/lib/wine/");
-        boolean success = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, inputAsset, wineFolder);
-        if (!success)
-            Log.d("XServerDisplayActivity", "Failed to extract input dlls");
     }
 
     private void setupWineSystemFiles() {
@@ -2488,8 +2551,22 @@ public class XServerDisplayActivity extends AppCompatActivity {
         WineStartMenuCreator.create(this, container);
         WineUtils.createDosdevicesSymlinks(container);
 
-        // Keep Wine joystick defaults to avoid disabling DirectInput paths that some games need.
-        // This aligns behavior with the known-working Ludashi baseline.
+        int inputType = container.getInputType();
+        if (shortcut != null) {
+            String shortcutInputType = shortcut.getExtra("inputType");
+            if (!shortcutInputType.isEmpty()) {
+                inputType = Byte.parseByte(shortcutInputType);
+            }
+        }
+        boolean dinputEnabled = (inputType & WinHandler.FLAG_INPUT_TYPE_DINPUT) == WinHandler.FLAG_INPUT_TYPE_DINPUT;
+        boolean exclusiveXInput = container.isExclusiveXInput();
+        if (shortcut != null) {
+            String extra = shortcut.getExtra("exclusiveXInput");
+            if (!extra.isEmpty()) {
+                exclusiveXInput = extra.equals("1");
+            }
+        }
+        WineUtils.setJoystickRegistryKeys(container, dinputEnabled, exclusiveXInput);
 
         if (shortcut != null)
             startupSelection = getShortcutSetting("startupSelection", String.valueOf(container.getStartupSelection()));
@@ -2501,9 +2578,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
             container.putExtra("startupSelection", startupSelection);
             containerDataChanged = true;
         }
-        
-        extractInputDLLs();
-
         if (containerDataChanged) {
             Log.d("XServerDisplayActivity", "Saving container data id=" + container.id +
                     " dxwrapperConfigField='" + container.getDXWrapperConfig() +
@@ -3340,6 +3414,17 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     private void extractGraphicsDriverFiles() {
         String adrenoToolsDriverId = graphicsDriverConfig.get("version");
+        if ((adrenoToolsDriverId == null || adrenoToolsDriverId.isEmpty()) && "wrapper".equals(graphicsDriver)) {
+            try {
+                adrenoToolsDriverId = GPUInformation.isDriverSupported(DefaultVersion.WRAPPER_ADRENO, this)
+                        ? DefaultVersion.WRAPPER_ADRENO
+                        : DefaultVersion.WRAPPER;
+            } catch (Throwable e) {
+                adrenoToolsDriverId = DefaultVersion.WRAPPER;
+            }
+            graphicsDriverConfig.put("version", adrenoToolsDriverId);
+            Log.d("GraphicsDriverExtraction", "Graphics driver version was blank, falling back to " + adrenoToolsDriverId);
+        }
 
         Log.d("GraphicsDriverExtraction", "Adrenotools DriverID: " + adrenoToolsDriverId);
 
@@ -3374,6 +3459,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (adrenoToolsDriverId != null && !adrenoToolsDriverId.equals("System")) {
             AdrenotoolsManager adrenotoolsManager = new AdrenotoolsManager(this);
             adrenotoolsManager.setDriverById(envVars, imageFs, adrenoToolsDriverId);
+            Log.d("GraphicsDriverExtraction", "Driver env after Adrenotools: path=" +
+                    envVars.get("ADRENOTOOLS_DRIVER_PATH") + " name=" +
+                    envVars.get("ADRENOTOOLS_DRIVER_NAME") + " hooks=" +
+                    envVars.get("ADRENOTOOLS_HOOKS_PATH"));
         }
 
         String vulkanVersion = graphicsDriverConfig.get("vulkanVersion");
@@ -3494,18 +3583,19 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
-        // Reserve only guide/home-style buttons for the drawer so Select/Back
-        // remains available to the game and controller mapper.
-        if (event.getAction() == KeyEvent.ACTION_DOWN) {
-            if (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_MODE || event.getKeyCode() == KeyEvent.KEYCODE_HOME) {
-                onBackPressed();
-                return true;
-            }
+        boolean handled = false;
+        if (event.getAction() != KeyEvent.ACTION_DOWN ||
+                (event.getKeyCode() != KeyEvent.KEYCODE_BUTTON_MODE &&
+                 event.getKeyCode() != KeyEvent.KEYCODE_HOME &&
+                 event.getKeyCode() != KeyEvent.KEYCODE_BUTTON_SELECT)) {
+            return !(inputControlsView.onKeyEvent(event) || winHandler.onKeyEvent(event) || !xServer.keyboard.onKeyEvent(event)) ||
+                    (!ExternalController.isGameController(event.getDevice()) && super.dispatchKeyEvent(event));
         }
-
-        // Fallback to existing input handling
-        return (!inputControlsView.onKeyEvent(event) && !winHandler.onKeyEvent(event) && xServer.keyboard.onKeyEvent(event)) ||
-                (!ExternalController.isGameController(event.getDevice()) && super.dispatchKeyEvent(event));
+        if (inputControlsView.onKeyEvent(event) ||
+                (winHandler != null && winHandler.onKeyEvent(event) && xServer != null && xServer.keyboard.onKeyEvent(event))) {
+            handled = true;
+        }
+        return true;
     }
 
     public InputControlsView getInputControlsView() {
@@ -3693,59 +3783,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
      * This avoids polluting the container's persistent drives setting, so multiple
      * games sharing a container don't overwrite each other's A: mapping.
      */
-    private void mountADriveOnContainer(Container c, String gamePath) {
-        // P4: Ephemeral approach — create/update the dosdevices symlink directly
-        // instead of persisting to container.setDrives() + container.saveData()
-        if (gamePath == null || gamePath.isEmpty()) {
-            Log.e("XServerDisplayActivity", "mountADriveOnContainer: gamePath is null/empty, skipping");
-            return;
-        }
-        File gameDir = new File(gamePath);
-        if (!gameDir.exists()) {
-            Log.e("XServerDisplayActivity", "mountADriveOnContainer: gamePath does not exist: " + gamePath);
-        }
-        try {
-            File dosdevices = new File(c.getRootDir(), ".wine/dosdevices");
-            dosdevices.mkdirs();
-            File aLink = new File(dosdevices, "a:");
-            if (aLink.exists()) {
-                aLink.delete();
-            }
-            java.nio.file.Files.createSymbolicLink(aLink.toPath(), gameDir.toPath());
-
-            // Verify the symlink was created and resolves correctly
-            boolean linkOk = java.nio.file.Files.isSymbolicLink(aLink.toPath());
-            Log.d("XServerDisplayActivity", "Ephemeral A: drive symlink: " + aLink + " -> " + gamePath
-                    + " (valid=" + linkOk + ", target_exists=" + gameDir.exists() + ")");
-
-            // Also update in-memory drives for binding paths (but do NOT saveData)
-            String currentDrives = c.getDrives() != null ? c.getDrives() : Container.DEFAULT_DRIVES;
-            StringBuilder sb = new StringBuilder();
-            for (String[] drive : Container.drivesIterator(currentDrives)) {
-                if (!drive[0].equals("A")) {
-                    sb.append(drive[0]).append(':').append(drive[1]);
-                }
-            }
-            sb.append("A:").append(gamePath);
-            c.setDrives(sb.toString());
-            Log.d("XServerDisplayActivity", "In-memory drives updated with A: drive, total: " + sb);
-            // NOTE: intentionally NOT calling c.saveData() — ephemeral per-launch only
-        } catch (Exception e) {
-            Log.e("XServerDisplayActivity", "Failed to create ephemeral A: drive symlink", e);
-            // Fallback: persist to container (old behavior)
-            String currentDrives = c.getDrives() != null ? c.getDrives() : Container.DEFAULT_DRIVES;
-            StringBuilder sb = new StringBuilder();
-            for (String[] drive : Container.drivesIterator(currentDrives)) {
-                if (!drive[0].equals("A")) {
-                    sb.append(drive[0]).append(':').append(drive[1]);
-                }
-            }
-            sb.append("A:").append(gamePath);
-            c.setDrives(sb.toString());
-            c.saveData();
-        }
-    }
-
     private String getWineStartCommand(GuestProgramLauncherComponent launcherComponent) {
         // Initialize overrideEnvVars if not already done
         EnvVars envVars = getOverrideEnvVars();
@@ -3783,7 +3820,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     if (nativeDir != null && nativeDir.exists()) launcherComponent.setWorkingDir(nativeDir);
                     String gameInstPath = SteamBridge.getAppDirPath(appId);
                     String gameExe = findGameExeWinPath(appId, new File(gameInstPath));
-                    File gameExeFile = gameExe != null ? new File(gameInstPath, gameExe.replace("A:\\", "").replace("\\", "/")) : null;
+                    File gameExeFile = gameExe != null ? com.winlator.cmod.core.WineUtils.getNativePath(imageFs, gameExe) : null;
                     boolean use64BitLoader = gameExeFile == null || com.winlator.cmod.core.PEHelper.is64Bit(gameExeFile);
                     String loaderExe = use64BitLoader ? "steamclient_loader_x64.exe" : "steamclient_loader_x32.exe";
                     args = "/dir \"C:\\Program Files (x86)\\Steam\" \"" + loaderExe + "\"";
@@ -3800,13 +3837,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     if (nativeDir != null && nativeDir.exists()) launcherComponent.setWorkingDir(nativeDir);
 
                     if (gameExeWinPath != null) {
-                        // Convert A:\relative\game.exe → steamapps\common\<gameName>\relative\game.exe
-                        String relativeExe;
-                        if (gameExeWinPath.startsWith("A:\\")) {
-                            relativeExe = gameExeWinPath.substring(3);
-                        } else {
-                            relativeExe = gameExeWinPath.replace("/", "\\");
-                        }
+                        String relativeExe = getRelativeGameExePath(gameExeWinPath, new File(gameInstPathDir));
                         String steamExePath = "steamapps\\common\\" + gameDirName + "\\" + relativeExe;
 
                         // Extract just the filename and directory from the Steam-relative path
@@ -3891,9 +3922,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     }
                 }
                 
-                // Epic Games are always on A: drive. 
                 String filename = path;
-                String dir = "A:\\";
+                String dir = "F:\\";
                 
                 if (path != null && path.contains("\\")) {
                     int lastBackslash = path.lastIndexOf("\\");
@@ -3923,6 +3953,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 // Custom shortcut
                 String extraArgs = shortcut.getSettingExtra("execArgs", container.getExecArgs());
                 extraArgs = (extraArgs != null && !extraArgs.isEmpty()) ? " " + extraArgs : "";
+                String customResolvedPath = resolveCustomExecutableWinPath(shortcut);
+                if (customResolvedPath != null && !customResolvedPath.isEmpty()) {
+                    path = customResolvedPath;
+                }
 
                 if (path != null && (path.startsWith("explorer") || path.contains(" /desktop"))) {
                     return path + extraArgs;
@@ -3931,7 +3965,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     if (lastBackslash >= 0) {
                         String dir = path.substring(0, lastBackslash);
                         if (dir.endsWith(":")) dir += "\\";
-                        String file = path.substring(lastBackslash + 1);
 
                         File nativeDir = com.winlator.cmod.core.WineUtils.getNativePath(imageFs, dir);
                         if (nativeDir != null && nativeDir.exists()) {
@@ -3939,11 +3972,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                             Log.d("XServerDisplayActivity", "Set native working dir for Custom process: " + nativeDir.getPath());
                         }
 
-                        if (wineInfo != null && wineInfo.isArm64EC()) {
-                            args = "\"" + path + "\"" + extraArgs;
-                        } else {
-                            args = "/dir \"" + dir + "\" \"" + file + "\"" + extraArgs;
-                        }
+                        args = "\"" + path + "\"" + extraArgs;
                     } else {
                         args = "\"" + path + "\"" + extraArgs;
                     }
@@ -4138,19 +4167,13 @@ public class XServerDisplayActivity extends AppCompatActivity {
         File iniFile = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam/ColdClientLoader.ini");
         iniFile.getParentFile().mkdirs();
 
-        // Convert the A:\path to a relative path through steamapps\common\{gameName}\
-        // The symlink created in createDosdevicesSymlinks() ensures this resolves to the real game dir
         String exePath;
         String gameInstallPath = SteamBridge.getAppDirPath(appId);
         String gameDirName = new File(gameInstallPath).getName();
 
-        if (gameExeWinPath != null && gameExeWinPath.startsWith("A:\\")) {
-            // Strip the A:\ prefix and prepend the Steam relative path
-            String relativeExe = gameExeWinPath.substring(3); // Remove "A:\"
+        if (gameExeWinPath != null) {
+            String relativeExe = getRelativeGameExePath(gameExeWinPath, new File(gameInstallPath));
             exePath = "steamapps\\common\\" + gameDirName + "\\" + relativeExe;
-        } else if (gameExeWinPath != null) {
-            // Already a different format, use as-is but try to make relative
-            exePath = "steamapps\\common\\" + gameDirName + "\\" + gameExeWinPath.replace("/", "\\");
         } else {
             exePath = "";
         }
@@ -4196,8 +4219,29 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
     }
     
+    private String getRelativeGameExePath(String gameExeWinPath, File gameDir) {
+        if (gameExeWinPath == null || gameExeWinPath.isEmpty()) return "";
+
+        File nativeGameExe = com.winlator.cmod.core.WineUtils.getNativePath(imageFs, gameExeWinPath);
+        if (nativeGameExe != null && gameDir != null) {
+            String gameDirPath = gameDir.getAbsolutePath();
+            String nativePath = nativeGameExe.getAbsolutePath();
+            if (nativePath.equals(gameDirPath) || nativePath.startsWith(gameDirPath + File.separator)) {
+                String relativePath = nativePath.substring(gameDirPath.length());
+                if (relativePath.startsWith(File.separator)) relativePath = relativePath.substring(1);
+                return relativePath.replace("/", "\\");
+            }
+        }
+
+        String normalizedPath = gameExeWinPath.replace("/", "\\");
+        if (normalizedPath.matches("^[A-Za-z]:\\\\.*")) {
+            return normalizedPath.substring(3);
+        }
+        return normalizedPath;
+    }
+
     /**
-     * Finds the game exe and returns its Windows-style path (e.g. A:\path\game.exe).
+     * Finds the game exe and returns its Windows-style mapped path.
      * Uses shortcut.path if available, otherwise auto-detects from game install directory.
      */
     private String findGameExeWinPath(int appId, File gameDir) {
@@ -4234,12 +4278,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     shortcut.putExtra("launch_exe_path", resolvedRelativePath);
                     shortcut.saveData();
                 }
-                String normalizedRelativePath = resolvedRelativePath.replace("/", "\\");
-                while (normalizedRelativePath.startsWith("\\")) {
-                    normalizedRelativePath = normalizedRelativePath.substring(1);
-                }
-                if (!normalizedRelativePath.isEmpty()) {
-                    return "A:\\" + normalizedRelativePath;
+                File resolvedExeFile = new File(gameDir, resolvedRelativePath.replace("\\", "/"));
+                if (resolvedExeFile.isFile()) {
+                    return com.winlator.cmod.core.WineUtils.hostPathToRootWinePath(container, resolvedExeFile.getAbsolutePath());
                 }
             }
         }
@@ -4256,9 +4297,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         File exeFile = findGameExe(gameDir);
         if (exeFile != null) {
-            String relativePath = exeFile.getAbsolutePath().substring(gameInstallPath.length());
-            if (relativePath.startsWith("/")) relativePath = relativePath.substring(1);
-            return "A:\\" + relativePath.replace("/", "\\");
+            return com.winlator.cmod.core.WineUtils.hostPathToRootWinePath(container, exeFile.getAbsolutePath());
         }
 
         return null;
@@ -4813,7 +4852,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         try {
             String normalizedPath = executablePath.replace('/', '\\');
-            String windowsPath = "A:\\" + normalizedPath;
+            File hostExe = new File(gameInstallPath, executablePath.replace('\\', '/'));
+            String windowsPath = com.winlator.cmod.core.WineUtils.hostPathToRootWinePath(container, hostExe.getAbsolutePath());
 
             // Create batch file to handle paths with spaces
             File batchFile = new File(imageFs.getRootDir(), "tmp/steamless_wrapper.bat");

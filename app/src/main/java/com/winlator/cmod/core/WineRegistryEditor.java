@@ -201,7 +201,7 @@ public class WineRegistryEditor implements Closeable {
         return success ? unescape(new String(buffer)) : null;
     }
 
-    private void setRawValue(String key, String name, String value) {
+    public void setRawValue(String key, String name, String value) {
         resetLastParentKeyPositionIfNeed(key);
 
         Location keyLocation = getKeyLocation(key);

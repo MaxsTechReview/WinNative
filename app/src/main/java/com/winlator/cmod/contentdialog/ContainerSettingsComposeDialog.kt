@@ -225,6 +225,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
                 // Box64 list depends on arch (box64 vs wowbox64 entries).
                 rebuildEmulatorLists()
+                selectArchDefaultEmulators(wineInfo)
                 loadBox64Versions()
                 loadFexcoreVersions()
                 loadBox64Presets()
@@ -522,16 +523,20 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
         rebuildEmulatorLists()
         if (archChanged) {
-            selectByIdentifier(
-                state.emulator32Entries.value,
-                c?.getEmulator() ?: Container.DEFAULT_EMULATOR,
-                state.selectedEmulator
-            )
-            selectByIdentifier(
-                state.emulator64Entries.value,
-                c?.getEmulator64() ?: Container.DEFAULT_EMULATOR64,
-                state.selectedEmulator64
-            )
+            if (c != null) {
+                selectByIdentifier(
+                    state.emulator32Entries.value,
+                    c.getEmulator(),
+                    state.selectedEmulator
+                )
+                selectByIdentifier(
+                    state.emulator64Entries.value,
+                    c.getEmulator64(),
+                    state.selectedEmulator64
+                )
+            } else {
+                selectArchDefaultEmulators(wineInfo)
+            }
         }
 
         loadBox64Versions()
@@ -861,6 +866,19 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             StringUtils.parseIdentifier(it).equals(prev64Id, ignoreCase = true)
         }
         state.selectedEmulator64.intValue = if (new64Idx >= 0) new64Idx else 0
+    }
+
+    private fun selectArchDefaultEmulators(wineInfo: WineInfo) {
+        selectByIdentifier(
+            state.emulator32Entries.value,
+            WineInfo.getDefaultEmulator(wineInfo.isArm64EC(), false),
+            state.selectedEmulator
+        )
+        selectByIdentifier(
+            state.emulator64Entries.value,
+            WineInfo.getDefaultEmulator(wineInfo.isArm64EC(), true),
+            state.selectedEmulator64
+        )
     }
 
     private fun loadGraphicsDriverConfigState() {
