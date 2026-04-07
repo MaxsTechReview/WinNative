@@ -3495,33 +3495,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent event) {
-        boolean handledByWinHandler = false;
-        boolean handledByTouchpadView = false;
-
-        // Let winHandler process the event if available
-        if (winHandler != null) {
-            handledByWinHandler = winHandler.onGenericMotionEvent(event);
-            if (handledByWinHandler) {
-                //Log.d("XServerDisplayActivity", "Event handled by winHandler");
-            }
-        }
-
-        // Let touchpadView process the event if available
-        if (touchpadView != null) {
-            handledByTouchpadView = touchpadView.onExternalMouseEvent(event);
-            if (handledByTouchpadView) {
-                //Log.d("XServerDisplayActivity", "Event handled by touchpadView");
-            }
-        }
-
-        // Pass the event to the super method to ensure system-level handling
-        boolean handledBySuper = super.dispatchGenericMotionEvent(event);
-        if (!handledBySuper) {
-            //Log.d("XServerDisplayActivity", "Event not handled by super");
-        }
-
-        // Combine the results: any handler consuming the event indicates it was handled
-        return handledByWinHandler || handledByTouchpadView || handledBySuper;
+        return this.winHandler.onGenericMotionEvent(event) || this.touchpadView.onExternalMouseEvent(event) || super.dispatchGenericMotionEvent(event);
     }
 
 

@@ -3,7 +3,6 @@ package com.winlator.cmod.inputcontrols;
 import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
-import androidx.core.view.InputDeviceCompat;
 import com.winlator.cmod.XServerDisplayActivity;
 import java.util.ArrayList;
 import java.util.HashMap;
