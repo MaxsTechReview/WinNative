@@ -325,6 +325,16 @@ class SetupWizardActivity : FragmentActivity() {
         val remoteUrl: String
     )
 
+    private data class BundledRuntimeAsset(
+        val versionName: String,
+        val versionCode: Int,
+        val runtimeAsset: String,
+        val prefixPackAsset: String,
+        val binPath: String = "bin",
+        val libPath: String = "lib/wine",
+        val prefixPackName: String = "prefixPack.tzst"
+    )
+
     private data class TransferState(
         val title: String,
         val detail: String,
@@ -411,6 +421,21 @@ class SetupWizardActivity : FragmentActivity() {
             "${runtimeDisplayLabel(profile)} ARM64EC"
         },
         persistContainerId = ::saveDefaultArm64ContainerId
+    )
+
+    private val bundledRuntimeAssets = mapOf(
+        "proton:9.0-x86_64" to BundledRuntimeAsset(
+            versionName = "9.0-x86_64",
+            versionCode = 1,
+            runtimeAsset = "proton-9.0-x86_64.txz",
+            prefixPackAsset = "proton-9.0-x86_64_container_pattern.tzst"
+        ),
+        "proton:9.0-arm64ec" to BundledRuntimeAsset(
+            versionName = "9.0-arm64ec",
+            versionCode = 1,
+            runtimeAsset = "proton-9.0-arm64ec.txz",
+            prefixPackAsset = "proton-9.0-arm64ec_container_pattern.tzst"
+        )
     )
 
     private val storageGranted = mutableStateOf(false)
@@ -713,6 +738,8 @@ class SetupWizardActivity : FragmentActivity() {
         index: Int,
         total: Int
     ): ContentProfile? {
+        installBundledRuntimePackage(spec)?.let { return it }
+
         transferState.value = TransferState(
             title = getString(R.string.setup_wizard_recommended_components),
             detail = getString(R.string.setup_wizard_downloading, spec.label),
@@ -749,6 +776,98 @@ class SetupWizardActivity : FragmentActivity() {
         val profile = installDownloadedPackage(downloaded, spec.url)
         downloaded.delete()
         return profile
+    }
+
+    private fun resolveBundledRuntimeAsset(spec: PackageSpec): BundledRuntimeAsset? {
+        if (spec.type != ContentProfile.ContentType.CONTENT_TYPE_PROTON) return null
+
+        val normalized = buildString {
+            append(spec.label)
+            append(' ')
+            append(spec.nameHint)
+            append(' ')
+            append(spec.url)
+        }.lowercase()
+
+        return when {
+            normalized.contains("9.0") && normalized.contains("x86_64") ->
+                bundledRuntimeAssets["proton:9.0-x86_64"]
+            normalized.contains("9.0") && normalized.contains("arm64ec") ->
+                bundledRuntimeAssets["proton:9.0-arm64ec"]
+            else -> null
+        }
+    }
+
+    private fun installBundledRuntimePackage(spec: PackageSpec): ContentProfile? {
+        val bundled = resolveBundledRuntimeAsset(spec) ?: return null
+        if (FileUtils.getSize(this, bundled.runtimeAsset) <= 0L ||
+            FileUtils.getSize(this, bundled.prefixPackAsset) <= 0L) {
+            return null
+        }
+
+        val manager = ContentsManager(this)
+        manager.syncContents()
+
+        val existing = manager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_PROTON)
+            .orEmpty()
+            .firstOrNull { it.isInstalled && it.verName.equals(bundled.versionName, ignoreCase = true) && it.verCode == bundled.versionCode }
+        if (existing != null) {
+            manager.registerRemoteProfileAlias(spec.url, existing)
+            return existing
+        }
+
+        ContentsManager.cleanTmpDir(this)
+        val tmpDir = ContentsManager.getTmpDir(this)
+        if (!tmpDir.exists() && !tmpDir.mkdirs()) return null
+
+        if (!TarCompressorUtils.extract(Type.XZ, this, bundled.runtimeAsset, tmpDir)) {
+            return null
+        }
+
+        FileUtils.copy(this, bundled.prefixPackAsset, File(tmpDir, bundled.prefixPackName))
+
+        val profileJson = JSONObject().apply {
+            put(ContentProfile.MARK_TYPE, ContentProfile.ContentType.CONTENT_TYPE_PROTON.toString())
+            put(ContentProfile.MARK_VERSION_NAME, bundled.versionName)
+            put(ContentProfile.MARK_VERSION_CODE, bundled.versionCode)
+            put(ContentProfile.MARK_DESC, "Bundled Ludashi Proton runtime")
+            put(ContentProfile.MARK_FILE_LIST, JSONArray())
+            put(ContentProfile.MARK_WINE, JSONObject().apply {
+                put(ContentProfile.MARK_WINE_BINPATH, bundled.binPath)
+                put(ContentProfile.MARK_WINE_LIBPATH, bundled.libPath)
+                put(ContentProfile.MARK_WINE_PREFIX_PACK, bundled.prefixPackName)
+            })
+        }
+
+        val profileFile = File(tmpDir, ContentsManager.PROFILE_NAME)
+        if (!FileUtils.writeString(profileFile, profileJson.toString())) {
+            return null
+        }
+
+        val extractedProfile = manager.readProfile(profileFile) ?: return null
+
+        var installedProfile: ContentProfile? = null
+        var failed = false
+        val callback = object : ContentsManager.OnInstallFinishedCallback {
+            override fun onFailed(reason: ContentsManager.InstallFailedReason, e: Exception?) {
+                failed = true
+            }
+
+            override fun onSucceed(profile: ContentProfile) {
+                installedProfile = profile
+            }
+        }
+
+        manager.finishInstallContent(extractedProfile, callback)
+        if (failed) return null
+
+        installedProfile?.let {
+            manager.registerRemoteProfileAlias(spec.url, it)
+            manager.syncContents()
+            recordInstalledContent(this, it)
+        }
+
+        return installedProfile
     }
 
     private suspend fun downloadFileToCache(
@@ -1034,6 +1153,8 @@ class SetupWizardActivity : FragmentActivity() {
             )
         }
 
+        container.putExtra("wineprefixArch", wineInfo.arch)
+        container.putExtra("wineprefixSeedLayout", ContainerManager.WINEPREFIX_SEED_LAYOUT_VERSION)
         container.saveData()
     }
 
@@ -2293,6 +2414,10 @@ class SetupWizardActivity : FragmentActivity() {
         val entryName = ContentsManager.getEntryName(profile)
         val displayName = runtimeDisplayLabel(profile)
         val contentsManager = remember { ContentsManager(this@SetupWizardActivity) }
+        val desiredContainerName = remember(entryName) {
+            contentsManager.syncContents()
+            buildRuntimeContainerName(this@SetupWizardActivity, contentsManager, profile)
+        }
         val isArm64 = remember(entryName) {
             contentsManager.syncContents()
             WineInfo.fromIdentifier(this@SetupWizardActivity, contentsManager, entryName).isArm64EC
@@ -2358,7 +2483,7 @@ class SetupWizardActivity : FragmentActivity() {
                             wizardError.value = null
                             val container = withContext(Dispatchers.IO) {
                                 try {
-                                    val c = ensureContainerForProfile(profile, displayName)
+                                    val c = ensureContainerForProfile(profile, desiredContainerName)
                                     if (isArm64) {
                                         saveDefaultArm64ContainerId(this@SetupWizardActivity, c.id)
                                     } else {

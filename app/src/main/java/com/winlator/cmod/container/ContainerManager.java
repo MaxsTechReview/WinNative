@@ -247,6 +247,16 @@ public class ContainerManager {
             container.setEmulator64(normalized64);
             changed = true;
         }
+        String currentArch = container.getExtra("wineprefixArch", "");
+        if (!wineInfo.getArch().equalsIgnoreCase(currentArch)) {
+            container.putExtra("wineprefixArch", wineInfo.getArch());
+            changed = true;
+        }
+        String seedLayout = container.getExtra("wineprefixSeedLayout", "");
+        if (!WINEPREFIX_SEED_LAYOUT_VERSION.equals(seedLayout)) {
+            container.putExtra("wineprefixSeedLayout", WINEPREFIX_SEED_LAYOUT_VERSION);
+            changed = true;
+        }
         return changed;
     }
 
@@ -485,10 +495,11 @@ public class ContainerManager {
 
         if (result) {
             try {
-                if (wineInfo.isArm64EC())
+                if (wineInfo.isArm64EC()) {
                     extractCommonDlls(wineInfo, "aarch64-windows", "system32", containerDir, onExtractFileListener); // arm64ec only
-                else
+                } else {
                     extractCommonDlls(wineInfo, "x86_64-windows", "system32", containerDir, onExtractFileListener);
+                }
 
                 extractCommonDlls(wineInfo, "i386-windows", "syswow64", containerDir, onExtractFileListener);
             }
@@ -540,6 +551,7 @@ public class ContainerManager {
             WineInfo wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersion);
             container.putExtra("wineprefixArch", wineInfo.getArch());
             container.putExtra("wineprefixNeedsUpdate", null);
+            container.putExtra("wineprefixSeedLayout", WINEPREFIX_SEED_LAYOUT_VERSION);
             container.putExtra("appVersion", null);
             container.putExtra("imgVersion", null);
             container.putExtra("dxwrapper", null);

@@ -166,8 +166,12 @@ import java.nio.file.Files;
             return "1".equals(getExtra("use_container_defaults", "0"));
         }
 
+        public boolean hasExtra(String name) {
+            return extraData.has(name);
+        }
+
         public String getSettingExtra(String name, String containerValue) {
-            return usesContainerDefaults() ? containerValue : getExtra(name, containerValue);
+            return hasExtra(name) ? getExtra(name, containerValue) : containerValue;
         }
 
         public void putExtra(String name, String value) {

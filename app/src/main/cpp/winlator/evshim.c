@@ -67,13 +67,9 @@ static int g_spinwait_enabled = 0;
 #define MAX_GAMEPADS 4
 #define GAMEPAD_MEM_SIZE 64
 
-/*
- * Advertise a stable Xbox 360 wired identity. This is the most broadly
- * recognized XInput-era controller profile across SDL, Wine, and older games.
- */
-#define XBOX360_VENDOR_ID 0x045e
-#define XBOX360_PRODUCT_ID 0x028e
-#define XBOX360_NAME "Microsoft X-Box 360 pad"
+#define GAMEPAD_VENDOR_ID 0x1234
+#define GAMEPAD_PRODUCT_ID 0x5678
+#define GAMEPAD_NAME "Generic HID Gamepad"
 
 /* Adaptive polling intervals */
 #define POLL_FAST_NS 500000L  /* 0.5ms = 2000Hz during active input */
@@ -279,7 +275,7 @@ static void *watchdog_thread(void *arg) {
 static char g_data_path[256] = {0};
 
 static char *make_virtual_pad_name(void) {
-  return strdup(XBOX360_NAME);
+  return strdup(GAMEPAD_NAME);
 }
 
 static void try_attach_controller(int idx) {
@@ -313,8 +309,8 @@ static void try_attach_controller(int idx) {
   d.naxes = 6;
   d.nbuttons = 15;
   d.nhats = 1;
-  d.vendor_id = XBOX360_VENDOR_ID;
-  d.product_id = XBOX360_PRODUCT_ID;
+  d.vendor_id = GAMEPAD_VENDOR_ID;
+  d.product_id = GAMEPAD_PRODUCT_ID;
   d.Rumble = &OnRumble;
   d.userdata = (void *)(intptr_t)idx;
   d.name = make_virtual_pad_name();
@@ -442,8 +438,8 @@ __attribute__((constructor)) static void initialize_all_pads(void) {
     d.naxes = 6;
     d.nbuttons = 15;
     d.nhats = 1;
-    d.vendor_id = XBOX360_VENDOR_ID;
-    d.product_id = XBOX360_PRODUCT_ID;
+    d.vendor_id = GAMEPAD_VENDOR_ID;
+    d.product_id = GAMEPAD_PRODUCT_ID;
     d.Rumble = &OnRumble;
     d.userdata = (void *)(intptr_t)i;
     d.name = make_virtual_pad_name();

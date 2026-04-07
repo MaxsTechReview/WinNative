@@ -19,6 +19,20 @@ import java.util.concurrent.Executors;
 public abstract class ProcessHelper {
     public static final boolean PRINT_DEBUG = false;
     private static final ArrayList<Callback<String>> debugCallbacks = new ArrayList<>();
+    private static final String[] SESSION_PROCESS_FILTERS = {
+            "wine",
+            "wine64",
+            "wineserver",
+            "box64",
+            "box86",
+            "fexcore",
+            "wowbox64",
+            "winhandler",
+            "wfm.exe",
+            "explorer.exe",
+            "steam.exe",
+            "gameoverlayui"
+    };
     private static final byte SIGCONT = 18;
     private static final byte SIGSTOP = 19;
     private static final byte SIGTERM = 15;
@@ -254,15 +268,17 @@ public abstract class ProcessHelper {
 
     public static ArrayList<String> listRunningWineProcesses(){
         File proc = new File("/proc");
-        String[] filters = {"wine", "exe"};
         String[] allPids;
         ArrayList<String> filteredPids = new ArrayList<String>();
-        List<String> filterList = Arrays.asList(filters);
         allPids = proc.list(new FilenameFilter(){
             public boolean accept(File proc, String filename){
                 return new File(proc, filename).isDirectory() && filename.matches("[0-9]+");
             }
         });
+
+        if (allPids == null) {
+            return filteredPids;
+        }
 
         for (int index = 0; index < allPids.length; index++){
             String data = "";
@@ -271,9 +287,11 @@ public abstract class ProcessHelper {
                 data = br.readLine();
             }
             catch (IOException e) {}
-            for (String filter : filterList) {
-                if (data.contains(filter))
+            String normalized = data.toLowerCase();
+            for (String filter : SESSION_PROCESS_FILTERS) {
+                if (normalized.contains(filter) && !filteredPids.contains(allPids[index])) {
                     filteredPids.add(allPids[index]);
+                }
             }
         }
         return filteredPids;

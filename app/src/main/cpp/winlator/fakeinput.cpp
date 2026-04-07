@@ -35,14 +35,14 @@
 
 #define EXPORT __attribute__((visibility("default"))) extern "C"
 
-static constexpr uint16_t XBOX360_VENDOR_ID = 0x045e;
-static constexpr uint16_t XBOX360_PRODUCT_ID = 0x028e;
-static constexpr uint16_t XBOX360_VERSION = 0x0114;
-static constexpr const char *XBOX360_NAME = "Microsoft X-Box 360 pad";
-static constexpr const char *XBOX360_PHYS = "usb-fakeinput/input0";
-static constexpr const char *XBOX360_UNIQ = "000000000001";
-static constexpr uint8_t XBOX360_AXIS_COUNT = 8;
-static constexpr uint8_t XBOX360_BUTTON_COUNT = 11;
+static constexpr uint16_t GAMEPAD_VENDOR_ID = 0x1234;
+static constexpr uint16_t GAMEPAD_PRODUCT_ID = 0x5678;
+static constexpr uint16_t GAMEPAD_VERSION = 0x0001;
+static constexpr const char *GAMEPAD_NAME = "Generic HID Gamepad";
+static constexpr const char *GAMEPAD_PHYS = "usb-fakeinput/input0";
+static constexpr const char *GAMEPAD_UNIQ = "000000000001";
+static constexpr uint8_t GAMEPAD_AXIS_COUNT = 8;
+static constexpr uint8_t GAMEPAD_BUTTON_COUNT = 11;
 
 std::unordered_map<int, const char *> controller_map;
 static bool initialized = false;
@@ -422,22 +422,22 @@ EXPORT int ioctl(int fd, int op, ...) {
         struct input_id id;
         memset(&id, 0, sizeof(id));
         id.bustype = 0x03;
-        id.vendor = XBOX360_VENDOR_ID;
-        id.product = XBOX360_PRODUCT_ID;
-        id.version = XBOX360_VERSION;
+        id.vendor = GAMEPAD_VENDOR_ID;
+        id.product = GAMEPAD_PRODUCT_ID;
+        id.version = GAMEPAD_VERSION;
         memcpy(argp, (void *)&id, sizeof(id));
         return 0;
     } else if (type == 0x45 && number == 0x6) {
         Logger::log("Hooking ioctl EVIOCGNAME for event %s\n", event);
-        copy_ioctl_string(op, argp, XBOX360_NAME);
+        copy_ioctl_string(op, argp, GAMEPAD_NAME);
         return 0;
     } else if (type == 0x45 && number == 0x7) {
         Logger::log("Hooking ioctl EVIOCGPHYS for event %s\n", event);
-        copy_ioctl_string(op, argp, XBOX360_PHYS);
+        copy_ioctl_string(op, argp, GAMEPAD_PHYS);
         return 0;
     } else if (type == 0x45 && number == 0x8) {
         Logger::log("Hooking ioctl EVIOCGUNIQ for event %s\n", event);
-        copy_ioctl_string(op, argp, XBOX360_UNIQ);
+        copy_ioctl_string(op, argp, GAMEPAD_UNIQ);
         return 0;
     } else if (type == 0x45 && number == 0x9) {
         Logger::log("Hooking ioctl EVIOCGPROP for event %s\n", event);
@@ -550,17 +550,17 @@ EXPORT int ioctl(int fd, int op, ...) {
         return 0;
     } else if (type == 0x6A && number == 0x11) {
         Logger::log("Hooking ioctl JSIOCGAXES for event %s\n", event);
-        uint8_t axes = XBOX360_AXIS_COUNT;
+        uint8_t axes = GAMEPAD_AXIS_COUNT;
         memcpy(argp, (void *)&axes, sizeof(axes));
         return 0;
     } else if (type == 0x6A && number == 0x12) {
         Logger::log("Hooking ioctl JSIOCGBUTTONS for event %s\n", event);
-        uint8_t buttons = XBOX360_BUTTON_COUNT;
+        uint8_t buttons = GAMEPAD_BUTTON_COUNT;
         memcpy(argp, (void *)&buttons, sizeof(buttons));
         return 0;
     } else if (type == 0x6A && number == 0x13) {
         Logger::log("Hooking ioctl JSIOCGNAME(len) for event %s\n", event);
-        copy_ioctl_string(op, argp, XBOX360_NAME);
+        copy_ioctl_string(op, argp, GAMEPAD_NAME);
         return 0;
     } else {
         Logger::log("Unhandled evdev ioctl, type %d number %d\n", type, number);

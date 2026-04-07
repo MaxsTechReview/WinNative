@@ -5748,8 +5748,6 @@ class UnifiedActivity : ComponentActivity() {
                     )
                     return@launch
                 }
-                // Existing shortcut: mount A: drive to game install path on its container
-                mountADrive(shortcut!!.container, gameInstallPath)
                 shortcut!!.putExtra("game_source", "STEAM")
                 shortcut!!.putExtra("game_install_path", gameInstallPath)
                 shortcut!!.putExtra("launch_exe_path", launchExecutable)
@@ -5782,8 +5780,6 @@ class UnifiedActivity : ComponentActivity() {
                     SetupWizardActivity.promptToInstallWineOrCreateContainer(context)
                     return@launch
                 }
-
-                mountADrive(container, gameInstallPath)
 
                 val execPath = "wine \"C:\\\\Program Files (x86)\\\\Steam\\\\steamclient_loader_x64.exe\""
 
@@ -5845,22 +5841,21 @@ class UnifiedActivity : ComponentActivity() {
                     )
                     return@launch
                 }
-                // Existing shortcut found: preserve per-game settings, just update install path and mount A: drive
+                // Existing shortcut found: preserve per-game settings and update install path
                 val shortcut = existingShortcut!!
                 // Ensure game_install_path is always up-to-date
                 shortcut.putExtra("game_install_path", gameInstallPath)
 
-                // Repair broken Exec line if exe path is missing (just "A:\")
+                // Repair broken Exec line if exe path is missing or still points at the retired A: mapping
                 val currentPath = shortcut.path
                 if (currentPath == null || currentPath == "A:\\" || currentPath == "A:\\\\") {
                     var exePath = withContext(kotlinx.coroutines.Dispatchers.IO) { EpicService.getInstalledExe(app.id) }
                     val newExecCmd = if (exePath.isNotEmpty()) {
-                        "wine \"A:\\\\${exePath.replace("/", "\\\\")}\""
+                        buildMappedExecCommand(shortcut.container, gameDir, exePath)
                     } else {
                         val exeFile = findGameExe(gameDir)
                         if (exeFile != null) {
-                            val dosPath = exeFile.relativeTo(gameDir).path.replace("/", "\\\\")
-                            "wine \"A:\\\\${dosPath}\""
+                            buildMappedExecCommand(shortcut.container, exeFile)
                         } else null
                     }
                     if (newExecCmd != null) {
@@ -5880,8 +5875,6 @@ class UnifiedActivity : ComponentActivity() {
 
                 shortcut.saveData()
 
-                mountADrive(shortcut.container, gameInstallPath)
-
                 val intent = Intent(context, XServerDisplayActivity::class.java)
                 intent.putExtra("container_id", shortcut.container.id)
                 intent.putExtra("shortcut_path", shortcut.file.path)
@@ -5890,19 +5883,6 @@ class UnifiedActivity : ComponentActivity() {
                 context.startActivity(intent)
             } else {
                 // No existing shortcut — create a new one
-                var exePath = withContext(kotlinx.coroutines.Dispatchers.IO) { EpicService.getInstalledExe(app.id) }
-                val execCmd = if (exePath.isNotEmpty()) {
-                    "wine \"A:\\\\${exePath.replace("/", "\\\\")}\""
-                } else {
-                    val exeFile = findGameExe(gameDir)
-                    if (exeFile != null) {
-                        val dosPath = exeFile.relativeTo(gameDir).path.replace("/", "\\\\")
-                        "wine \"A:\\\\${dosPath}\""
-                    } else {
-                        "wine \"A:\\\\\""
-                    }
-                }
-
                 var container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
 
                 if (container == null) {
@@ -5910,7 +5890,17 @@ class UnifiedActivity : ComponentActivity() {
                     return@launch
                 }
 
-                mountADrive(container, gameInstallPath)
+                var exePath = withContext(kotlinx.coroutines.Dispatchers.IO) { EpicService.getInstalledExe(app.id) }
+                val execCmd = if (exePath.isNotEmpty()) {
+                    buildMappedExecCommand(container, gameDir, exePath)
+                } else {
+                    val exeFile = findGameExe(gameDir)
+                    if (exeFile != null) {
+                        buildMappedExecCommand(container, exeFile)
+                    } else {
+                        "wine \"F:\\\\\""
+                    }
+                }
 
                 val desktopDir = container.getDesktopDir()
                 if (!desktopDir.exists()) desktopDir.mkdirs()
@@ -5971,7 +5961,7 @@ class UnifiedActivity : ComponentActivity() {
                 }
                 shortcut.putExtra("game_install_path", gameInstallPath)
 
-                // Repair broken Exec line if exe path is missing (just "A:\")
+                // Repair broken Exec line if exe path is missing or still points at the retired A: mapping
                 val currentPath = shortcut.path
                 if (currentPath == null || currentPath == "A:\\" || currentPath == "A:\\\\") {
                     val newExecCmd = if (shortcut.getExtra("launch_exe_path").isNotEmpty()) {
@@ -5980,11 +5970,9 @@ class UnifiedActivity : ComponentActivity() {
                             val normalizedBaseDir = java.io.File(gameInstallPath).absolutePath.removeSuffix("/")
                             val normalizedExePath = selectedExe.absolutePath
                             if (normalizedExePath == normalizedBaseDir || normalizedExePath.startsWith("$normalizedBaseDir/")) {
-                                val dosPath = selectedExe.relativeTo(java.io.File(gameInstallPath)).path.replace("/", "\\\\")
-                                "wine \"A:\\\\${dosPath}\""
+                                buildMappedExecCommand(shortcut.container, selectedExe)
                             } else {
-                                val hostPath = normalizedExePath.replace("/", "\\\\").let { if (it.startsWith("\\")) it else "\\$it" }
-                                "wine \"Z:${hostPath}\""
+                                buildMappedExecCommand(shortcut.container, selectedExe)
                             }
                         } else null
                     } else {
@@ -5993,12 +5981,11 @@ class UnifiedActivity : ComponentActivity() {
                             GOGService.getInstalledExe(libraryItem)
                         }
                         if (exePath.isNotEmpty()) {
-                            "wine \"A:\\\\${exePath.replace("/", "\\\\")}\""
+                            buildMappedExecCommand(shortcut.container, gameDir, exePath)
                         } else {
                             val exeFile = findGameExe(gameDir)
                             if (exeFile != null) {
-                                val dosPath = exeFile.relativeTo(gameDir).path.replace("/", "\\\\")
-                                "wine \"A:\\\\${dosPath}\""
+                                buildMappedExecCommand(shortcut.container, exeFile)
                             } else null
                         }
                     }
@@ -6017,7 +6004,6 @@ class UnifiedActivity : ComponentActivity() {
                 }
 
                 shortcut.saveData()
-                mountADrive(shortcut.container, gameInstallPath)
 
                 val intent = Intent(context, XServerDisplayActivity::class.java)
                 intent.putExtra("container_id", shortcut.container.id)
@@ -6028,21 +6014,6 @@ class UnifiedActivity : ComponentActivity() {
             }
 
             val libraryItem = LibraryItem("GOG_${app.id}", app.title, com.winlator.cmod.steam.enums.GameSource.GOG)
-            val exePath = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                GOGService.getInstalledExe(libraryItem)
-            }
-            val execCmd = if (exePath.isNotEmpty()) {
-                "wine \"A:\\\\${exePath.replace("/", "\\\\")}\""
-            } else {
-                val exeFile = findGameExe(gameDir)
-                if (exeFile != null) {
-                    val dosPath = exeFile.relativeTo(gameDir).path.replace("/", "\\\\")
-                    "wine \"A:\\\\${dosPath}\""
-                } else {
-                    "wine \"A:\\\\\""
-                }
-            }
-
             var container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
 
             if (container == null) {
@@ -6050,7 +6021,19 @@ class UnifiedActivity : ComponentActivity() {
                 return@launch
             }
 
-            mountADrive(container, gameInstallPath)
+            val exePath = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                GOGService.getInstalledExe(libraryItem)
+            }
+            val execCmd = if (exePath.isNotEmpty()) {
+                buildMappedExecCommand(container, gameDir, exePath)
+            } else {
+                val exeFile = findGameExe(gameDir)
+                if (exeFile != null) {
+                    buildMappedExecCommand(container, exeFile)
+                } else {
+                    "wine \"F:\\\\\""
+                }
+            }
 
             val desktopDir = container.getDesktopDir()
             if (!desktopDir.exists()) desktopDir.mkdirs()
@@ -6080,16 +6063,20 @@ class UnifiedActivity : ComponentActivity() {
         }
     }
 
-    private fun mountADrive(container: com.winlator.cmod.container.Container, gamePath: String) {
-        val currentDrives = container.drives ?: com.winlator.cmod.container.Container.DEFAULT_DRIVES
-        val sb = StringBuilder()
-        for (drive in com.winlator.cmod.container.Container.drivesIterator(currentDrives)) {
-            if (drive[0] != "A") {
-                sb.append(drive[0]).append(':').append(drive[1])
-            }
-        }
-        sb.append("A:").append(gamePath)
-        container.drives = sb.toString()
+    private fun buildMappedWindowsPath(container: com.winlator.cmod.container.Container, file: java.io.File): String {
+        return com.winlator.cmod.core.WineUtils.hostPathToRootWinePath(container, file.absolutePath)
+    }
+
+    private fun buildMappedExecCommand(container: com.winlator.cmod.container.Container, file: java.io.File): String {
+        return "wine \"${buildMappedWindowsPath(container, file)}\""
+    }
+
+    private fun buildMappedExecCommand(
+        container: com.winlator.cmod.container.Container,
+        gameDir: java.io.File,
+        relativeExePath: String
+    ): String {
+        return buildMappedExecCommand(container, java.io.File(gameDir, relativeExePath.replace("\\", "/")))
     }
 
     // Launch custom game by shortcut name
@@ -6125,12 +6112,18 @@ class UnifiedActivity : ComponentActivity() {
             shortcut.saveData()
         }
 
-        // Ensure A: drive is mounted to the game folder
         val gameFolder = shortcut.getExtra("custom_game_folder", "")
-        if (gameFolder.isNotEmpty()) {
-            mountADrive(shortcut.container, gameFolder)
-            shortcut.container.saveData()
+        if (shortcut.getExtra("game_install_path").isEmpty() && gameFolder.isNotEmpty()) {
+            shortcut.putExtra("game_install_path", gameFolder)
         }
+        if (shortcut.getExtra("launch_exe_path").isEmpty()) {
+            val customExe = shortcut.getExtra("custom_exe", "")
+            if (customExe.isNotEmpty()) {
+                shortcut.putExtra("launch_exe_path", customExe)
+            }
+        }
+        shortcut.saveData()
+
         val intent = Intent(context, XServerDisplayActivity::class.java)
         intent.putExtra("container_id", shortcut.container.id)
         intent.putExtra("shortcut_path", shortcut.file.path)
@@ -6884,18 +6877,8 @@ class UnifiedActivity : ComponentActivity() {
             return
         }
 
-        // Mount the game folder as A: drive
-        mountADrive(container, gameFolderPath)
-
-        // Build the relative exe path from gameFolder
         val exeFile = java.io.File(exePath)
-        val gameFolderFile = java.io.File(gameFolderPath)
-        val dosPath = try {
-            exeFile.relativeTo(gameFolderFile).path.replace("/", "\\\\")
-        } catch (_: Exception) {
-            exeFile.name
-        }
-        val execCmd = "wine \"A:\\\\$dosPath\""
+        val execCmd = buildMappedExecCommand(container, exeFile)
 
         // Write .desktop shortcut
         val desktopDir = container.getDesktopDir()
@@ -6913,6 +6896,8 @@ class UnifiedActivity : ComponentActivity() {
         content.append("custom_name=$name\n")
         content.append("custom_exe=$exePath\n")
         content.append("custom_game_folder=$gameFolderPath\n")
+        content.append("game_install_path=$gameFolderPath\n")
+        content.append("launch_exe_path=$exePath\n")
         content.append("container_id=${container.id}\n")
         content.append("use_container_defaults=1\n")
         com.winlator.cmod.core.FileUtils.writeString(shortcutFile, content.toString())
