@@ -200,6 +200,14 @@ enum class LibraryLayoutMode {
 
 @AndroidEntryPoint
 class UnifiedActivity : ComponentActivity() {
+    companion object {
+        private var instance: UnifiedActivity? = null
+
+        fun refreshLibrary() {
+            instance?.let { it.libraryRefreshSignal++ }
+        }
+    }
+
     @Inject lateinit var db: PluviaDatabase
 
     // Track the currently selected game in the carousel for Game Settings button
@@ -470,6 +478,7 @@ class UnifiedActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        instance = this
         db = PluviaDatabase.getInstance(this)
         EpicAuthManager.updateLoginStatus(this)
         GOGAuthManager.updateLoginStatus(this)
@@ -5425,10 +5434,24 @@ class UnifiedActivity : ComponentActivity() {
                 if (parts.size == 2) {
                     val volumeId = parts[0]
                     val path = parts[1]
-                    if (path.isEmpty()) "/storage/$volumeId" else "/storage/$volumeId/$path"
+                    if (volumeId.equals("primary", ignoreCase = true)) {
+                        "${android.os.Environment.getExternalStorageDirectory().path}/$path"
+                    } else {
+                        val fullPath = if (path.isEmpty()) "/storage/$volumeId" else "/storage/$volumeId/$path"
+                        if (java.io.File(fullPath).exists()) fullPath else "/mnt/media_rw/$volumeId/$path"
+                    }
                 } else null
             } else docId
-        } catch (e: Exception) { uri.path }
+        } catch (e: Exception) { 
+            val rawPath = uri.path
+            if (rawPath != null) {
+                if (rawPath.startsWith("/tree/primary:")) {
+                    "${android.os.Environment.getExternalStorageDirectory().path}/${rawPath.substringAfter("/tree/primary:")}"
+                } else if (rawPath.startsWith("/storage/") || rawPath.startsWith("/data/")) {
+                    rawPath
+                } else null
+            } else null
+        }
     }
 
     private fun findLibraryShortcutForGame(
@@ -6532,15 +6555,15 @@ class UnifiedActivity : ComponentActivity() {
         val exeFile = java.io.File(exePath)
         // Directories that are typically sub-folders inside a game, not the root
         val subDirNames = setOf(
-            "bin", "binaries", "x64", "x86", "win64", "win32",
+            "bin", "binaries", "binarys", "x64", "x86", "win64", "win32",
             "bin64", "bin32", "game", "build", "release",
-            "shipping", "debug", "retail", "dist"
+            "shipping", "debug", "retail", "dist", "engine", "core", "launcher"
         )
         var dir = exeFile.parentFile ?: return exePath
         // Walk up while the current dir name looks like a sub-directory
         while (dir.parentFile != null) {
             val name = dir.name.lowercase()
-            if (name in subDirNames) {
+            if (name in subDirNames || name.startsWith("bin") || name.contains("win64") || name.contains("win32")) {
                 dir = dir.parentFile!!
             } else {
                 break
@@ -6787,29 +6810,30 @@ class UnifiedActivity : ComponentActivity() {
         try {
             if (DocumentsContract.isDocumentUri(context, uri)) {
                 val docId = DocumentsContract.getDocumentId(uri)
-                // raw: prefix contains the actual filesystem path directly
+                
                 if (docId.startsWith("raw:")) {
                     return docId.substringAfter("raw:")
                 }
+                
                 if (docId.startsWith("primary:")) {
-                    return "${android.os.Environment.getExternalStorageDirectory().path}/${docId.substringAfter(":")}"
+                    val path = "${android.os.Environment.getExternalStorageDirectory().path}/${docId.substringAfter(":")}"
+                    if (java.io.File(path).exists()) return path
                 }
-                // Downloads provider on some Android versions uses "msf:NNN"
-                if (docId.startsWith("msf:") || docId.all { it.isDigit() }) {
-                    val resolved = queryContentResolverForPath(context, uri)
-                    if (resolved != null) return resolved
-                    if (displayName != null) {
-                        val downloadsFile = java.io.File(
-                            android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
-                            displayName
-                        )
-                        if (downloadsFile.exists()) return downloadsFile.absolutePath
-                    }
-                }
+
+                // Generic storage path resolution
                 if (docId.contains(":")) {
                     val parts = docId.split(":", limit = 2)
-                    if (parts.size == 2 && parts[1].isNotEmpty()) {
-                        return "/storage/${parts[0]}/${parts[1]}"
+                    if (parts.size == 2) {
+                        val type = parts[0]
+                        val relativePath = parts[1]
+                        
+                        if ("primary".equals(type, ignoreCase = true)) {
+                            return "${android.os.Environment.getExternalStorageDirectory().path}/$relativePath"
+                        } else {
+                            // Non-primary volume (e.g. SD Card)
+                            val folder = "/storage/$type"
+                            if (java.io.File(folder).exists()) return "$folder/$relativePath"
+                        }
                     }
                 }
             }
@@ -6818,27 +6842,10 @@ class UnifiedActivity : ComponentActivity() {
         // Try querying ContentResolver for _data column (works for many providers)
         try {
             val resolved = queryContentResolverForPath(context, uri)
-            if (resolved != null) return resolved
+            if (resolved != null && java.io.File(resolved).exists()) return resolved
         } catch (_: Exception) {}
 
-        // Fallback: uri.path — strip common prefixes
-        val rawPath = uri.path
-        if (rawPath != null) {
-            // Handle /document/raw:/actual/path format
-            val rawPrefix = "/document/raw:"
-            if (rawPath.startsWith(rawPrefix)) {
-                return rawPath.substringAfter(rawPrefix)
-            }
-            // Handle /document/primary:path format
-            val primaryPrefix = "/document/primary:"
-            if (rawPath.startsWith(primaryPrefix)) {
-                return "${android.os.Environment.getExternalStorageDirectory().path}/${rawPath.substringAfter(primaryPrefix)}"
-            }
-            // If the path looks like a real file path, return it
-            if (rawPath.startsWith("/storage/") || rawPath.startsWith("/data/")) {
-                return rawPath
-            }
-        }
+        // Downloads fallback
         if (displayName != null) {
             val downloadsFile = java.io.File(
                 android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
@@ -6846,6 +6853,17 @@ class UnifiedActivity : ComponentActivity() {
             )
             if (downloadsFile.exists()) return downloadsFile.absolutePath
         }
+
+        // Fallback: uri.path — strip common prefixes
+        val rawPath = uri.path
+        if (rawPath != null) {
+            if (rawPath.startsWith("/document/raw:")) return rawPath.substringAfter("/document/raw:")
+            if (rawPath.startsWith("/document/primary:")) {
+                return "${android.os.Environment.getExternalStorageDirectory().path}/${rawPath.substringAfter("/document/primary:")}"
+            }
+            if (rawPath.startsWith("/storage/") || rawPath.startsWith("/data/")) return rawPath
+        }
+
         return rawPath
     }
 

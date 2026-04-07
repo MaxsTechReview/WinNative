@@ -22,8 +22,8 @@ public class ShortcutBroadcastReceiver extends BroadcastReceiver {
         if (action != null && action.equals(ACTION_SHORTCUT_ADDED)) {
             boolean isShortcutAdded = intent.getBooleanExtra("shortcut_added", false);
             if (isShortcutAdded) {
-                Log.d(LOG_TAG, "Shortcut added successfully!");
-                Toast.makeText(context, R.string.common_ui_device_not_supported, Toast.LENGTH_SHORT).show(); // yeah. I'm at a loss here.
+                Log.d(LOG_TAG, "Shortcut added successfully, refreshing library...");
+                UnifiedActivity.Companion.refreshLibrary();
             } else {
                 Log.d(LOG_TAG, "Shortcut addition failed.");
                 Toast.makeText(context, R.string.shortcuts_list_failed_add, Toast.LENGTH_SHORT).show();

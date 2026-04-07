@@ -205,6 +205,15 @@ import java.nio.file.Files;
             }
 
             FileUtils.writeString(file, content);
+
+            // Notify the app that a shortcut was added/updated
+            if (container != null && container.getManager() != null && container.getManager().getContext() != null) {
+                android.content.Context context = container.getManager().getContext();
+                android.content.Intent intent = new android.content.Intent(context.getPackageName() + ".SHORTCUT_ADDED");
+                intent.putExtra("shortcut_path", file.getPath());
+                intent.putExtra("shortcut_added", true);
+                context.sendBroadcast(intent);
+            }
         }
 
 

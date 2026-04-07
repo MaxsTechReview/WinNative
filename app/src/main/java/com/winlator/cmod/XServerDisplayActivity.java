@@ -3508,9 +3508,11 @@ public class XServerDisplayActivity extends AppCompatActivity {
             }
         }
 
-        // Fallback to existing input handling
-        return (!inputControlsView.onKeyEvent(event) && !winHandler.onKeyEvent(event) && xServer.keyboard.onKeyEvent(event)) ||
-                (!ExternalController.isGameController(event.getDevice()) && super.dispatchKeyEvent(event));
+        if (inputControlsView.onKeyEvent(event)) return true;
+        if (winHandler != null && winHandler.onKeyEvent(event)) return true;
+        if (xServer != null && xServer.keyboard.onKeyEvent(event)) return true;
+
+        return !ExternalController.isGameController(event.getDevice()) && super.dispatchKeyEvent(event);
     }
 
     public InputControlsView getInputControlsView() {

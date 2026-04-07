@@ -190,10 +190,10 @@ public class ExternalController {
             float axisX = getCenteredAxis(event, MotionEvent.AXIS_HAT_X, historyPos);
             float axisY = getCenteredAxis(event, MotionEvent.AXIS_HAT_Y, historyPos);
 
-            state.dpad[0] = axisY == -1.0f && Math.abs(state.thumbLY) < ControlElement.STICK_DEAD_ZONE;
-            state.dpad[1] = axisX == 1.0f && Math.abs(state.thumbLX) < ControlElement.STICK_DEAD_ZONE;
-            state.dpad[2] = axisY == 1.0f && Math.abs(state.thumbLY) < ControlElement.STICK_DEAD_ZONE;
-            state.dpad[3] = axisX == -1.0f && Math.abs(state.thumbLX) < ControlElement.STICK_DEAD_ZONE;
+            state.dpad[0] = axisY == -1.0f;
+            state.dpad[1] = axisX == 1.0f;
+            state.dpad[2] = axisY == 1.0f;
+            state.dpad[3] = axisX == -1.0f;
         }
     }
 
@@ -510,13 +510,10 @@ public class ExternalController {
     }
 
     public static boolean isGameController(InputDevice device) {
-        if (device == null)
-            return false;
+        if (device == null) return false;
         int sources = device.getSources();
-        // Exclude devices with SOURCE_MOUSE from being considered controllers
-        return !device.isVirtual() && ((sources & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD ||
-                ((sources & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
-                        && (sources & InputDevice.SOURCE_MOUSE) == 0));
+        return ((sources & (InputDevice.SOURCE_GAMEPAD | InputDevice.SOURCE_KEYBOARD)) == (InputDevice.SOURCE_GAMEPAD | InputDevice.SOURCE_KEYBOARD) ||
+                (sources & (InputDevice.SOURCE_GAMEPAD | InputDevice.SOURCE_JOYSTICK)) == (InputDevice.SOURCE_GAMEPAD | InputDevice.SOURCE_JOYSTICK)) && !device.isVirtual();
     }
 
     public float getCenteredAxis(MotionEvent event, int axis, int historyPos) {
