@@ -594,8 +594,6 @@ public class Container {
                 case "exclusiveXInput":
                     setExclusiveXInput(data.getBoolean(key));
                     break;
-                case "audioDriver" :
-                    break;
             }
         }
     }
