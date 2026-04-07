@@ -19,9 +19,9 @@ import java.util.List;
 import java.util.Locale;
 
 public abstract class WineUtils {
-    public static void createDosdevicesSymlinks(Container container) {
+    public static void createDosdevicesSymlinks(Container container, String gameDirectoryPath) {
         Log.d("ContainerLaunch", "createDosdevicesSymlinks: rootDir=" + container.getRootDir().getAbsolutePath() +
-                " drives=" + container.getDrives());
+                " drives=" + container.getDrives() + " gameDir=" + gameDirectoryPath);
         File dosdevicesDir = new File(container.getRootDir(), ".wine/dosdevices");
         if (!dosdevicesDir.exists()) {
             boolean created = dosdevicesDir.mkdirs();
@@ -45,8 +45,6 @@ public abstract class WineUtils {
 
         // Auto-fix containers missing D: and E: drives.
         // IMPORTANT: Only update in-memory drives — do NOT call container.saveData()
-        // because the drives string may contain an ephemeral A: mapping that must not
-        // be persisted (multiple games share the same container).
         String currentDrives = container.getDrives();
         if (currentDrives != null && (!currentDrives.contains("D:") || !currentDrives.contains("E:"))) {
             Log.d("WineUtils", "Container missing D: or E: drives, appending them...");
@@ -61,9 +59,9 @@ public abstract class WineUtils {
             Log.d("WineUtils", "Updated container drives (in-memory only) to: " + updatedDrives);
         }
 
-        String gameDirectoryPath = null;
         int driveCount = 0;
         for (String[] drive : container.drivesIterator()) {
+            if (drive[0].equals("A")) continue; // Skip legacy mapping if present
             File linkTarget = new File(drive[1]);
             String path = linkTarget.getAbsolutePath();
             boolean isAppStoragePath = path.endsWith(packageStorageSuffix) || path.endsWith(legacyPackageStorageSuffix);
@@ -74,17 +72,11 @@ public abstract class WineUtils {
             FileUtils.symlink(path, dosdevicesPath+"/"+drive[0].toLowerCase(Locale.ENGLISH)+":");
             Log.d("ContainerLaunch", "createDosdevicesSymlinks: " + drive[0] + ": -> " + path);
             driveCount++;
-
-            // Always treat A: as the primary game directory so ColdClientLoader can
-            // resolve steamapps\common\{gameName} to the A: drive for custom paths.
-            if (drive[0].equals("A")) {
-                gameDirectoryPath = path;
-            }
         }
         Log.d("ContainerLaunch", "createDosdevicesSymlinks: created " + driveCount + " drive symlinks");
 
-        // Create Steam directory structure and symlinks if we found the game directory on A:
-        if (gameDirectoryPath != null) {
+        // Create Steam directory structure and symlinks if we have a game directory
+        if (gameDirectoryPath != null && !gameDirectoryPath.isEmpty()) {
             ensureSteamappsCommonSymlink(container, gameDirectoryPath);
         }
     }

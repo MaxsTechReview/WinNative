@@ -342,16 +342,40 @@ object SteamClientManager {
         return steamlessCli.exists() && generateInterfacesExe.exists()
     }
 
+    private fun getDosPath(path: String): String {
+        if (path.isEmpty()) return "D:\\"
+        val downloadsPath = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS).absolutePath
+        val externalStoragePath = android.os.Environment.getExternalStorageDirectory().absolutePath
+
+        return if (path.startsWith(downloadsPath)) {
+            "D:" + path.substring(downloadsPath.length).replace("/", "\\")
+        } else if (path.startsWith(externalStoragePath)) {
+            "F:" + path.substring(externalStoragePath.length).replace("/", "\\")
+        } else {
+            "D:\\"
+        }
+    }
+
     @JvmStatic
-    fun runSteamless(context: Context, exePath: String, shellRunner: ShellCommandRunner): Boolean {
+    fun runSteamless(context: Context, exePath: String, gameInstallPath: String?, shellRunner: ShellCommandRunner): Boolean {
         val rootDir = ImageFs.find(context).rootDir
         val steamlessCli = File(rootDir, "Steamless/Steamless.CLI.exe")
         if (!steamlessCli.exists()) return false
 
         var batchFile: File? = null
         try {
-            val normalizedPath = exePath.replace('/', '\\')
-            val windowsPath = "A:\\$normalizedPath"
+            // Resolve the actual DOS path for the executable
+            val windowsPath = if (gameInstallPath != null && !gameInstallPath.isEmpty()) {
+                val appDosDir = getDosPath(gameInstallPath)
+                if (exePath.startsWith("/")) {
+                    appDosDir + exePath.substring(1).replace("/", "\\")
+                } else {
+                    appDosDir + exePath.replace("/", "\\")
+                }
+            } else {
+                // Fallback if no install path known
+                "D:\\${exePath.replace("/", "\\")}"
+            }
 
             batchFile = File(rootDir, "tmp/steamless_wrapper.bat")
             batchFile.parentFile?.mkdirs()
@@ -360,11 +384,14 @@ object SteamClientManager {
             val command = "wine z:\\tmp\\steamless_wrapper.bat"
             Log.d(TAG, "Steamless output: ${shellRunner.exec(command)}")
 
-            val unixPath = exePath.replace('\\', '/')
+            // The files are on the actual drive (d:, f:, etc.)
+            val driveLetter = windowsPath.substring(0, 2).lowercase()
+            val winPath = windowsPath.substring(2).replace('\\', '/')
             val wineprefix = File(rootDir, ImageFs.WINEPREFIX)
-            val exe = File(wineprefix, "dosdevices/a:/$unixPath")
-            val unpackedExe = File(wineprefix, "dosdevices/a:/$unixPath.unpacked.exe")
-            val originalExe = File(wineprefix, "dosdevices/a:/$unixPath.original.exe")
+            
+            val exe = File(wineprefix, "dosdevices/$driveLetter$winPath")
+            val unpackedExe = File(exe.absolutePath + ".unpacked.exe")
+            val originalExe = File(exe.absolutePath + ".original.exe")
 
             if (exe.exists() && unpackedExe.exists()) {
                 if (!originalExe.exists()) {

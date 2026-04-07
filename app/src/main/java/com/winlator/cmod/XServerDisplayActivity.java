@@ -803,15 +803,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 }
             }
 
-            // Re-mount A: drive for Steam/Epic game shortcuts on the active container
+            // Set up Steam/Epic game shortcuts on the active container
             String gameSource = shortcut.getExtra("game_source");
             if ("STEAM".equals(gameSource)) {
                 String appIdStr = shortcut.getExtra("app_id");
                 if (!appIdStr.isEmpty()) {
                     String gameInstallPath = SteamBridge.getAppDirPath(Integer.parseInt(appIdStr));
                     if (new File(gameInstallPath).exists()) {
-                        mountADriveOnContainer(container, gameInstallPath);
-                        Log.d("XServerDisplayActivity", "Mounted A: drive to " + gameInstallPath + " on container " + container.id);
+                        Log.d("XServerDisplayActivity", "Steam game detected: " + gameInstallPath + " on container " + container.id);
                     }
                 }
             } else if ("EPIC".equals(gameSource)) {
@@ -841,8 +840,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     }
                 }
                 if (!gameInstallPath.isEmpty() && new File(gameInstallPath).exists()) {
-                    mountADriveOnContainer(container, gameInstallPath);
-                    Log.d("XServerDisplayActivity", "Mounted A: drive to " + gameInstallPath + " on container " + container.id);
+                    Log.d("XServerDisplayActivity", "Epic game detected: " + gameInstallPath + " on container " + container.id);
                 } else {
                     Log.e("XServerDisplayActivity", "EPIC install path missing or invalid: '" + gameInstallPath + "'");
                 }
@@ -870,16 +868,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     }
                 }
                 if (!gameInstallPath.isEmpty() && new File(gameInstallPath).exists()) {
-                    mountADriveOnContainer(container, gameInstallPath);
-                    Log.d("XServerDisplayActivity", "Mounted A: drive to " + gameInstallPath + " on container " + container.id);
+                    Log.d("XServerDisplayActivity", "GOG game detected: " + gameInstallPath + " on container " + container.id);
                 } else {
                     Log.e("XServerDisplayActivity", "GOG install path missing or invalid: '" + gameInstallPath + "'");
                 }
             } else if ("CUSTOM".equals(gameSource)) {
                 String customMountPath = resolveCustomMountPath(shortcut);
                 if (!customMountPath.isEmpty() && new File(customMountPath).isDirectory()) {
-                    mountADriveOnContainer(container, customMountPath);
-                    Log.d("XServerDisplayActivity", "Mounted A: drive to custom game folder '" + customMountPath + "' on container " + container.id);
+                    Log.d("XServerDisplayActivity", "Custom game folder detected: '" + customMountPath + "' on container " + container.id);
 
                     if (shortcut.getExtra("custom_game_folder").isEmpty() || shortcut.getExtra("game_install_path").isEmpty()) {
                         if (shortcut.getExtra("custom_game_folder").isEmpty()) {
@@ -2332,8 +2328,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
                                 extraDllsDir.delete();
                             }
 
-                            // Purge any A:\steam.exe previously copied by MoveSteamExe hack
-                            // If a game invokes an isolated steam.exe on A:\, it immediately crashes Steam's integrity checks.
+                            // Purge any D:\steam.exe previously copied by MoveSteamExe hack
+                            // If a game invokes an isolated steam.exe on D:\, it immediately crashes Steam's integrity checks.
                             File copiedSteamExe = new File(gameInstallPath, "steam.exe");
                             if (copiedSteamExe.exists()) {
                                 copiedSteamExe.delete();
@@ -2485,8 +2481,17 @@ public class XServerDisplayActivity extends AppCompatActivity {
             containerDataChanged = true;
         }
 
-        WineStartMenuCreator.create(this, container);
-        WineUtils.createDosdevicesSymlinks(container);
+        String gameInstallPath = null;
+        if (shortcut != null) {
+            gameInstallPath = shortcut.getExtra("game_install_path");
+            if (gameInstallPath == null || gameInstallPath.isEmpty()) {
+                gameInstallPath = shortcut.getExtra("custom_game_folder");
+            }
+            if (gameInstallPath == null || gameInstallPath.isEmpty()) {
+                gameInstallPath = shortcut.getExtra("custom_mount_path");
+            }
+        }
+        WineUtils.createDosdevicesSymlinks(container, gameInstallPath);
 
         // Keep Wine joystick defaults to avoid disabling DirectInput paths that some games need.
         // This aligns behavior with the known-working Ludashi baseline.
@@ -2696,8 +2701,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
         guestProgramLauncherComponent.setTerminationCallback((status) -> {
             Log.d("XServerDisplayActivity", "Guest process terminated with status: " + status);
 
-            // Keep A:\Steam persistence for Android 16 testing
-            // User expressly requested: "don't remove the A:\Steam\ Folder unless the next game has the toggle off to not move it."
+            // Keep D:\Steam persistence for Android 16 testing
+            // User expressly requested: "don't remove the D:\Steam\ Folder unless the next game has the toggle off to not move it."
             // Removed MoveSteamExe cleanup hook from termination callback.
 
             if (shouldWatchSteamTermination(status)) {
@@ -3684,66 +3689,17 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
    }
 
-    /**
-     * Mount the A: drive on a container, pointing to the given game install path.
-     * Removes any existing A: mapping first.
-     */
-    /**
-     * Mount the A: drive on a container using an ephemeral dosdevices symlink.
-     * This avoids polluting the container's persistent drives setting, so multiple
-     * games sharing a container don't overwrite each other's A: mapping.
-     */
-    private void mountADriveOnContainer(Container c, String gamePath) {
-        // P4: Ephemeral approach — create/update the dosdevices symlink directly
-        // instead of persisting to container.setDrives() + container.saveData()
-        if (gamePath == null || gamePath.isEmpty()) {
-            Log.e("XServerDisplayActivity", "mountADriveOnContainer: gamePath is null/empty, skipping");
-            return;
-        }
-        File gameDir = new File(gamePath);
-        if (!gameDir.exists()) {
-            Log.e("XServerDisplayActivity", "mountADriveOnContainer: gamePath does not exist: " + gamePath);
-        }
-        try {
-            File dosdevices = new File(c.getRootDir(), ".wine/dosdevices");
-            dosdevices.mkdirs();
-            File aLink = new File(dosdevices, "a:");
-            if (aLink.exists()) {
-                aLink.delete();
-            }
-            java.nio.file.Files.createSymbolicLink(aLink.toPath(), gameDir.toPath());
+    private String getDosPath(String path) {
+        if (path == null || path.isEmpty()) return "D:\\";
+        String downloadsPath = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
+        String externalStoragePath = android.os.Environment.getExternalStorageDirectory().getAbsolutePath();
 
-            // Verify the symlink was created and resolves correctly
-            boolean linkOk = java.nio.file.Files.isSymbolicLink(aLink.toPath());
-            Log.d("XServerDisplayActivity", "Ephemeral A: drive symlink: " + aLink + " -> " + gamePath
-                    + " (valid=" + linkOk + ", target_exists=" + gameDir.exists() + ")");
-
-            // Also update in-memory drives for binding paths (but do NOT saveData)
-            String currentDrives = c.getDrives() != null ? c.getDrives() : Container.DEFAULT_DRIVES;
-            StringBuilder sb = new StringBuilder();
-            for (String[] drive : Container.drivesIterator(currentDrives)) {
-                if (!drive[0].equals("A")) {
-                    sb.append(drive[0]).append(':').append(drive[1]);
-                }
-            }
-            sb.append("A:").append(gamePath);
-            c.setDrives(sb.toString());
-            Log.d("XServerDisplayActivity", "In-memory drives updated with A: drive, total: " + sb);
-            // NOTE: intentionally NOT calling c.saveData() — ephemeral per-launch only
-        } catch (Exception e) {
-            Log.e("XServerDisplayActivity", "Failed to create ephemeral A: drive symlink", e);
-            // Fallback: persist to container (old behavior)
-            String currentDrives = c.getDrives() != null ? c.getDrives() : Container.DEFAULT_DRIVES;
-            StringBuilder sb = new StringBuilder();
-            for (String[] drive : Container.drivesIterator(currentDrives)) {
-                if (!drive[0].equals("A")) {
-                    sb.append(drive[0]).append(':').append(drive[1]);
-                }
-            }
-            sb.append("A:").append(gamePath);
-            c.setDrives(sb.toString());
-            c.saveData();
+        if (path.startsWith(downloadsPath)) {
+            return "D:" + path.substring(downloadsPath.length()).replace("/", "\\");
+        } else if (path.startsWith(externalStoragePath)) {
+            return "F:" + path.substring(externalStoragePath.length()).replace("/", "\\");
         }
+        return "D:\\"; // fallback
     }
 
     private String getWineStartCommand(GuestProgramLauncherComponent launcherComponent) {
@@ -3758,7 +3714,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             String gameSource = shortcut.getExtra("game_source", "CUSTOM");
             Log.d("XServerDisplayActivity", "getWineStartCommand: gameSource=" + gameSource + " shortcut.path=" + path);
 
-            // Normalize DOS paths like A:EOSBootstrapper.exe to A:\EOSBootstrapper.exe
+            // Normalize DOS paths like D:EOSBootstrapper.exe to D:\EOSBootstrapper.exe
             if (path != null && path.matches("^[A-Z]:[^\\\\/].*")) {
                 path = path.substring(0, 2) + "\\" + path.substring(2);
             }
@@ -3783,14 +3739,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     if (nativeDir != null && nativeDir.exists()) launcherComponent.setWorkingDir(nativeDir);
                     String gameInstPath = SteamBridge.getAppDirPath(appId);
                     String gameExe = findGameExeWinPath(appId, new File(gameInstPath));
-                    File gameExeFile = gameExe != null ? new File(gameInstPath, gameExe.replace("A:\\", "").replace("\\", "/")) : null;
+                    File gameExeFile = gameExe != null ? new File(gameInstPath, gameExe.replace("D:\\", "").replace("\\", "/")) : null;
                     boolean use64BitLoader = gameExeFile == null || com.winlator.cmod.core.PEHelper.is64Bit(gameExeFile);
                     String loaderExe = use64BitLoader ? "steamclient_loader_x64.exe" : "steamclient_loader_x32.exe";
                     args = "/dir \"C:\\Program Files (x86)\\Steam\" \"" + loaderExe + "\"";
                     Log.d("XServerDisplayActivity", "ColdClient launch via " + loaderExe + " for appId=" + appId);
                 } else {
                     // Goldberg mode (default): launch game exe from within Steam's directory structure
-                    // using steamapps\common\<game> symlink, NOT from A: drive directly
+                    // using steamapps\common\<game> symlink, NOT from a fixed A: drive directly
                     String gameInstPathDir = SteamBridge.getAppDirPath(appId);
                     String gameDirName = new File(gameInstPathDir).getName();
                     String gameExeWinPath = findGameExeWinPath(appId, new File(gameInstPathDir));
@@ -3800,9 +3756,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     if (nativeDir != null && nativeDir.exists()) launcherComponent.setWorkingDir(nativeDir);
 
                     if (gameExeWinPath != null) {
-                        // Convert A:\relative\game.exe → steamapps\common\<gameName>\relative\game.exe
+                        // Convert D:\relative\game.exe → steamapps\common\<gameName>\relative\game.exe
                         String relativeExe;
-                        if (gameExeWinPath.startsWith("A:\\")) {
+                        if (gameExeWinPath.startsWith("D:\\")) {
                             relativeExe = gameExeWinPath.substring(3);
                         } else {
                             relativeExe = gameExeWinPath.replace("/", "\\");
@@ -3846,7 +3802,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 }
                 extraArgs = (extraArgs != null && !extraArgs.isEmpty()) ? " " + extraArgs : "";
 
-                boolean needsAutoDetect = path == null || path.isEmpty() || "A:\\".equals(path) || "A:\\\\".equals(path);
+                boolean needsAutoDetect = path == null || path.isEmpty() || "D:\\".equals(path) || "D:\\\\".equals(path);
                 if (needsAutoDetect) {
                     String gameInstallPath = shortcut.getExtra("game_install_path");
                     if ((gameInstallPath == null || gameInstallPath.isEmpty()) && gameSource.equals("GOG")) {
@@ -3891,10 +3847,15 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     }
                 }
                 
-                // Epic Games are always on A: drive. 
+            // Epic Games are always resolved to their actual DOS path. 
                 String filename = path;
-                String dir = "A:\\";
+                String dir = "D:\\"; // default
                 
+                String gameInstallPath = shortcut.getExtra("game_install_path");
+                if (gameInstallPath != null && !gameInstallPath.isEmpty()) {
+                    dir = getDosPath(gameInstallPath);
+                }
+
                 if (path != null && path.contains("\\")) {
                     int lastBackslash = path.lastIndexOf("\\");
                     filename = path.substring(lastBackslash + 1);
@@ -4132,21 +4093,21 @@ public class XServerDisplayActivity extends AppCompatActivity {
      * Writes ColdClientLoader.ini with the correct game exe path for the Goldberg Steam emulator.
      * Uses a relative path through the steamapps/common symlink so the loader resolves correctly.
      * @param appId Steam app ID
-     * @param gameExeWinPath Windows-style path to the game exe (e.g. A:\SubDir\game.exe)
+     * @param gameExeWinPath Windows-style path to the game exe (e.g. D:\SubDir\game.exe)
      */
     private void writeColdClientIniForLaunch(int appId, String gameExeWinPath) {
         File iniFile = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam/ColdClientLoader.ini");
         iniFile.getParentFile().mkdirs();
 
-        // Convert the A:\path to a relative path through steamapps\common\{gameName}\
+        // Convert the D:\path to a relative path through steamapps\common\{gameName}\
         // The symlink created in createDosdevicesSymlinks() ensures this resolves to the real game dir
         String exePath;
         String gameInstallPath = SteamBridge.getAppDirPath(appId);
         String gameDirName = new File(gameInstallPath).getName();
 
-        if (gameExeWinPath != null && gameExeWinPath.startsWith("A:\\")) {
-            // Strip the A:\ prefix and prepend the Steam relative path
-            String relativeExe = gameExeWinPath.substring(3); // Remove "A:\"
+        if (gameExeWinPath != null && gameExeWinPath.startsWith("D:\\")) {
+            // Strip the D:\ prefix and prepend the Steam relative path
+            String relativeExe = gameExeWinPath.substring(3); // Remove "D:\"
             exePath = "steamapps\\common\\" + gameDirName + "\\" + relativeExe;
         } else if (gameExeWinPath != null) {
             // Already a different format, use as-is but try to make relative
@@ -4197,7 +4158,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
     
     /**
-     * Finds the game exe and returns its Windows-style path (e.g. A:\path\game.exe).
+     * Finds the game exe and returns its Windows-style path (e.g. D:\path\game.exe).
      * Uses shortcut.path if available, otherwise auto-detects from game install directory.
      */
     private String findGameExeWinPath(int appId, File gameDir) {
@@ -4239,7 +4200,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     normalizedRelativePath = normalizedRelativePath.substring(1);
                 }
                 if (!normalizedRelativePath.isEmpty()) {
-                    return "A:\\" + normalizedRelativePath;
+                    return getDosPath(gameInstallPath) + normalizedRelativePath;
                 }
             }
         }
@@ -4256,9 +4217,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         File exeFile = findGameExe(gameDir);
         if (exeFile != null) {
-            String relativePath = exeFile.getAbsolutePath().substring(gameInstallPath.length());
-            if (relativePath.startsWith("/")) relativePath = relativePath.substring(1);
-            return "A:\\" + relativePath.replace("/", "\\");
+            return getDosPath(exeFile.getAbsolutePath());
         }
 
         return null;
@@ -4713,11 +4672,11 @@ public class XServerDisplayActivity extends AppCompatActivity {
                             // Skip known non-installer files
                             if (exeName.startsWith("unins") || exeName.equals("detect.exe")) continue;
 
-                            // Build the Wine path using A: drive (game is mounted there)
+                            // Build the Wine path using dynamic drive mapping
                             String relPath = exe.getAbsolutePath()
                                     .substring(gameInstallPath.length())
                                     .replace('/', '\\');
-                            String winPath = "A:" + relPath;
+                            String winPath = getDosPath(gameInstallPath) + relPath;
 
                             try {
                                 Log.d("XServerDisplayActivity", "Running redistributable: " + winPath);
@@ -4812,8 +4771,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
 
         try {
-            String normalizedPath = executablePath.replace('/', '\\');
-            String windowsPath = "A:\\" + normalizedPath;
+            // Resolve the actual DOS path for the executable using getDosPath
+            String appDosDir = getDosPath(gameInstallPath);
+            String windowsPath;
+            if (executablePath.startsWith("/")) {
+                windowsPath = appDosDir + executablePath.substring(1).replace("/", "\\");
+            } else {
+                windowsPath = appDosDir + executablePath.replace("/", "\\");
+            }
 
             // Create batch file to handle paths with spaces
             File batchFile = new File(imageFs.getRootDir(), "tmp/steamless_wrapper.bat");
@@ -4829,6 +4794,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
             // Handle file swap: .unpacked.exe -> exe, exe -> .original.exe
             String unixPath = executablePath.replace('\\', '/');
+            if (unixPath.startsWith("/")) unixPath = unixPath.substring(1);
             File exe = new File(gameInstallPath, unixPath);
             File unpackedExe = new File(gameInstallPath, unixPath + ".unpacked.exe");
             File originalExe = new File(gameInstallPath, unixPath + ".original.exe");

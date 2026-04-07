@@ -1925,7 +1925,7 @@ class ShortcutSettingsComposeDialog private constructor(
             val exec = if (source == "STEAM") {
                 "wine \"C:\\\\Program Files (x86)\\\\Steam\\\\steamclient_loader_x64.exe\""
             } else {
-                "wine \"A:\\\\\""
+                "wine \"D:\\\\\""
             }
             val sb = StringBuilder()
             sb.append("[Desktop Entry]\n")

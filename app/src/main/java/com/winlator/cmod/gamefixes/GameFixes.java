@@ -22,9 +22,19 @@ import java.util.Map;
 public final class GameFixes {
     private static final String TAG = "GameFixes";
     private static final String INSTALL_PATH_PLACEHOLDER = "<InstallPath>";
-    private static final String GOG_WINDOWS_INSTALL_PATH = "A:\\";
-    private static final String STEAM_WINDOWS_INSTALL_PATH = "A:\\";
-    private static final String EPIC_WINDOWS_INSTALL_PATH = "A:\\";
+
+    private static String getDosPath(String path) {
+        if (path == null || path.isEmpty()) return "D:\\";
+        String downloadsPath = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
+        String externalStoragePath = android.os.Environment.getExternalStorageDirectory().getAbsolutePath();
+
+        if (path.startsWith(downloadsPath)) {
+            return "D:" + path.substring(downloadsPath.length()).replace("/", "\\");
+        } else if (path.startsWith(externalStoragePath)) {
+            return "F:" + path.substring(externalStoragePath.length()).replace("/", "\\");
+        }
+        return "D:\\"; // fallback
+    }
 
     private static final Map<String, Fix> GOG_FIXES;
     private static final Map<String, Fix> STEAM_FIXES;
@@ -112,7 +122,7 @@ public final class GameFixes {
         }
 
         File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
-        applyFix(fix, appId, installPath, STEAM_WINDOWS_INSTALL_PATH, systemRegFile);
+        applyFix(fix, appId, installPath, getDosPath(installPath), systemRegFile);
     }
 
     private static void applyGogFixes(Container container, Shortcut shortcut) {
@@ -122,11 +132,11 @@ public final class GameFixes {
         Fix fix = GOG_FIXES.get(gogId);
         if (fix == null) return;
 
-        ResolvedPaths resolvedPaths = resolveGogPaths(shortcut, gogId);
-        if (resolvedPaths == null) return;
+        String installPath = resolveGogPath(shortcut, gogId);
+        if (installPath == null) return;
 
         File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
-        applyFix(fix, gogId, resolvedPaths.installPath, resolvedPaths.installPathWindows, systemRegFile);
+        applyFix(fix, gogId, installPath, getDosPath(installPath), systemRegFile);
     }
 
     private static void applyEpicFixes(Container container, Shortcut shortcut) {
@@ -147,7 +157,7 @@ public final class GameFixes {
         }
 
         File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
-        applyFix(fix, catalogId, installPath, EPIC_WINDOWS_INSTALL_PATH, systemRegFile);
+        applyFix(fix, catalogId, installPath, getDosPath(installPath), systemRegFile);
     }
 
     private static void applyFix(Fix fix, String gameId, String installPath, String installPathWindows, File systemRegFile) {
@@ -164,10 +174,10 @@ public final class GameFixes {
         }
     }
 
-    private static ResolvedPaths resolveGogPaths(Shortcut shortcut, String gogId) {
+    private static String resolveGogPath(Shortcut shortcut, String gogId) {
         String shortcutInstallPath = shortcut.getExtra("game_install_path");
         if (isUsableInstallDir(shortcutInstallPath)) {
-            return new ResolvedPaths(shortcutInstallPath, GOG_WINDOWS_INSTALL_PATH);
+            return shortcutInstallPath;
         }
 
         GOGGame gogGame = GOGService.Companion.getGOGGameOf(gogId);
@@ -194,21 +204,11 @@ public final class GameFixes {
             shortcut.saveData();
         }
 
-        return new ResolvedPaths(installPath, GOG_WINDOWS_INSTALL_PATH);
+        return installPath;
     }
 
     private static boolean isUsableInstallDir(String path) {
         return path != null && !path.isEmpty() && new File(path).isDirectory();
-    }
-
-    private static final class ResolvedPaths {
-        private final String installPath;
-        private final String installPathWindows;
-
-        private ResolvedPaths(String installPath, String installPathWindows) {
-            this.installPath = installPath;
-            this.installPathWindows = installPathWindows;
-        }
     }
 
     private interface Fix {

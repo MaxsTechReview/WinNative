@@ -61,57 +61,37 @@ object ContainerUtils {
             ?: throw IllegalStateException("No installed Wine/Proton container available")
     }
 
-    fun getADrivePath(drives: String): String? {
-        for (drive in Container.drivesIterator(drives)) {
-            if (drive[0] == "A") {
-                return drive[1]
-            }
-        }
-        return null
-    }
-
-    fun deleteContainer(context: Context, containerId: String) {
-        val containerManager = ContainerManager(context)
-        val container = containerManager.getContainerById(extractGameIdFromContainerId(containerId))
-        if (container != null) {
-            containerManager.removeContainerAsync(container) {}
-        }
-    }
-
     /**
-     * Recursively scans the A: drive for .exe files, returning relative paths.
-     * Custom download paths are preserved because we respect the drives string.
+     * Recursively scans all mounted container drives for .exe files, returning relative DOS paths.
      */
     @JvmStatic
-    fun scanExecutablesInADrive(drives: String): List<String> {
+    fun scanExecutablesInDrives(drives: String): List<String> {
         val executables = mutableListOf<String>()
 
         try {
-            val aDrivePath = getADrivePath(drives)
-            if (aDrivePath == null) {
-                Timber.w("No A: drive found in container drives")
-                return emptyList()
-            }
+            for (drive in Container.drivesIterator(drives)) {
+                val driveLetter = drive[0]
+                val drivePath = drive[1]
 
-            val aDir = File(aDrivePath)
-            if (!aDir.exists() || !aDir.isDirectory) {
-                Timber.w("A: drive path does not exist or is not a directory: $aDrivePath")
-                return emptyList()
-            }
+                val driveDir = File(drivePath)
+                if (!driveDir.exists() || !driveDir.isDirectory) {
+                    continue
+                }
 
-            fun scanRecursive(dir: File, baseDir: File, depth: Int = 0, maxDepth: Int = 10) {
-                if (depth > maxDepth) return
-                dir.listFiles()?.forEach { file ->
-                    if (file.isDirectory) {
-                        scanRecursive(file, baseDir, depth + 1, maxDepth)
-                    } else if (file.isFile && file.name.lowercase().endsWith(".exe")) {
-                        val relativePath = baseDir.toURI().relativize(file.toURI()).path
-                        executables.add(relativePath)
+                fun scanRecursive(dir: File, baseDir: File, driveLetter: String, depth: Int = 0, maxDepth: Int = 8) {
+                    if (depth > maxDepth) return
+                    dir.listFiles()?.forEach { file ->
+                        if (file.isDirectory) {
+                            scanRecursive(file, baseDir, driveLetter, depth + 1, maxDepth)
+                        } else if (file.isFile && file.name.lowercase().endsWith(".exe")) {
+                            val relativePath = baseDir.toURI().relativize(file.toURI()).path
+                            executables.add("$driveLetter:\\${relativePath.replace("/", "\\")}")
+                        }
                     }
                 }
-            }
 
-            scanRecursive(aDir, aDir)
+                scanRecursive(driveDir, driveDir, driveLetter)
+            }
 
             executables.sortWith { a, b ->
                 val aScore = getExecutablePriority(a)
@@ -123,7 +103,7 @@ object ContainerUtils {
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Error scanning A: drive for executables")
+            Timber.e(e, "Error scanning container drives for executables")
         }
 
         return executables

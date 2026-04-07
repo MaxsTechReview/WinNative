@@ -92,11 +92,11 @@ import java.nio.file.Files;
             if (path.startsWith("\"") && path.endsWith("\"")) path = path.substring(1, path.length() - 1);
             path = StringUtils.unescape(path);
             
-            // Normalize DOS paths like A:game.exe to A:\game.exe
+            // Normalize DOS paths like D:game.exe to D:\game.exe
             if (path != null && path.matches("^[A-Z]:[^\\\\/].*")) {
                 path = path.substring(0, 2) + "\\" + path.substring(2);
             }
-            // If it's just "A:", make it "A:\"
+            // If it's just "D:", make it "D:\"
             if (path != null && path.matches("^[A-Z]:$")) {
                 path = path + "\\";
             }
