@@ -676,6 +676,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 data.put("showFPS", state.showFPS.value)
                 data.put("fullscreenStretched", state.fullscreenStretched.value)
                 data.put("inputType", finalInputType)
+                data.put("exclusiveXInput", state.containerExclusiveInput.value)
                 data.put("startupSelection", startupSelection.toInt())
                 data.put("box64Version", box64Version)
                 data.put("box64Preset", box64Preset)

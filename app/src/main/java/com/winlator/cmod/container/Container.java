@@ -79,6 +79,7 @@ public class Container {
     private boolean forceDlc = false;
     private boolean steamOfflineMode = false;
     private boolean unpackFiles = false;
+    private boolean exclusiveXInput = true;
 
     public static final String STEAM_TYPE_NORMAL = "normal";
     public static final String STEAM_TYPE_LIGHT = "light";
@@ -589,7 +590,10 @@ public class Container {
                 case "unpackFiles":
                     setUnpackFiles(data.getBoolean(key));
                     break;
-                case "audioDriver" :
+                case "exclusiveXInput":
+                    setExclusiveXInput(data.getBoolean(key));
+                    break;
+            }
         }
     }
 
@@ -751,6 +755,14 @@ public class Container {
 
     public void setUnpackFiles(boolean unpackFiles) {
         this.unpackFiles = unpackFiles;
+    }
+
+    public boolean isExclusiveXInput() {
+        return exclusiveXInput;
+    }
+
+    public void setExclusiveXInput(boolean exclusiveXInput) {
+        this.exclusiveXInput = exclusiveXInput;
     }
 
 }

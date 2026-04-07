@@ -995,9 +995,9 @@ class UnifiedActivity : ComponentActivity() {
                             Button(
                                 onClick = {
                                     // Kill all WinNative processes and close fully
+                                    onDismiss()
                                     finishAffinity()
-                                    Process.killProcess(Process.myPid())
-                                },
+                                    }
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.weight(1f)
@@ -5489,14 +5489,11 @@ class UnifiedActivity : ComponentActivity() {
         epicId: Int
     ): Shortcut? {
         return when {
-            isCustom -> shortcuts.find {
-                (it.getExtra("custom_name") == app.name || it.name == app.name)
-            }
             isEpic -> shortcuts.find {
                 it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == epicId.toString()
             }
             else -> shortcuts.find {
-                it.getExtra("app_id") == app.id.toString()
+                it.getExtra("app_id") == app.id.toString() || it.getExtra("custom_name") == app.name || it.name == app.name
             }
         }
     }
@@ -6572,15 +6569,15 @@ class UnifiedActivity : ComponentActivity() {
         val exeFile = java.io.File(exePath)
         // Directories that are typically sub-folders inside a game, not the root
         val subDirNames = setOf(
-            "bin", "binaries", "binarys", "x64", "x86", "win64", "win32",
+            "bin", "binaries", "binary", "binarys", "x64", "x86", "win64", "win32",
             "bin64", "bin32", "game", "build", "release",
             "shipping", "debug", "retail", "dist", "engine", "core", "launcher"
         )
         var dir = exeFile.parentFile ?: return exePath
-        // Walk up while the current dir name looks like a sub-directory
+        // Walk up while the current dir name looks like a sub-directory or binary folder
         while (dir.parentFile != null) {
             val name = dir.name.lowercase()
-            if (name in subDirNames || name.startsWith("bin") || name.contains("win64") || name.contains("win32")) {
+            if (name in subDirNames || name.startsWith("bin") || name.contains("win64") || name.contains("win32") || name.contains("binary")) {
                 dir = dir.parentFile!!
             } else {
                 break
@@ -6625,13 +6622,18 @@ class UnifiedActivity : ComponentActivity() {
                         }
                     }
                 }
-                if (path != null && (path.lowercase().endsWith(".exe") || java.io.File(path).exists() || path.contains("/storage/"))) {
+                if (path != null && (path.lowercase().endsWith(".exe") || path.contains("/") || java.io.File(path).exists())) {
                     selectedExePath = path
                     gameFolder = detectGameFolder(path)
                     // Auto-generate a game name from the folder name
                     if (gameName.isBlank()) {
-                        gameName = java.io.File(gameFolder!!).name
-                            .replace("_", " ").replace("-", " ")
+                        val folderName = java.io.File(gameFolder!!).name
+                        gameName = if (folderName.length <= 2) {
+                            // If folder is "0" or "F:", use the parent or the EXE name instead
+                            java.io.File(path).name.removeSuffix(".exe").removeSuffix(".EXE")
+                        } else {
+                            folderName.replace("_", " ").replace("-", " ")
+                        }
                     }
                 } else {
                     android.widget.Toast.makeText(context, "Please select a .exe file", android.widget.Toast.LENGTH_SHORT).show()
@@ -6832,65 +6834,57 @@ class UnifiedActivity : ComponentActivity() {
                     return docId.substringAfter("raw:")
                 }
                 
-                // Primary storage
-                if (docId.startsWith("primary:")) {
-                    val path = "${android.os.Environment.getExternalStorageDirectory().path}/${docId.substringAfter(":")}"
-                    if (java.io.File(path).exists()) return path
+                // Downloads provider
+                if (docId.startsWith("msf:") || docId.all { it.isDigit() } || docId.contains("downloads")) {
+                    val resolved = queryContentResolverForPath(context, uri)
+                    if (resolved != null && java.io.File(resolved).exists()) return resolved
+                    
+                    // Fallback using display name in Downloads folder
+                    if (displayName != null) {
+                        val downloadsFile = java.io.File(
+                            android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
+                            displayName
+                        )
+                        if (downloadsFile.exists()) return downloadsFile.absolutePath
+                    }
                 }
 
-                // Handle common volume patterns: [volume_id]:[path]
-                if (docId.contains(":")) {
-                    val parts = docId.split(":", limit = 2)
-                    if (parts.size == 2) {
-                        val type = parts[0]
-                        val relativePath = parts[1]
-                        
-                        if ("primary".equals(type, ignoreCase = true)) {
-                            return "${android.os.Environment.getExternalStorageDirectory().path}/$relativePath"
-                        } else {
-                            // Try common external mount points
-                            val volumes = listOf("/storage/$type", "/mnt/media_rw/$type", "/storage/self/primary")
-                            for (vol in volumes) {
-                                val fullPath = "$vol/$relativePath"
-                                if (java.io.File(fullPath).exists()) return fullPath
-                            }
-                            // Fallback to /storage/[id]/[path] even if File.exists fails (perm issue)
-                            return "/storage/$type/$relativePath"
+                // Handle primary and secondary volume patterns
+                val parts = docId.split(":", limit = 2)
+                if (parts.size == 2) {
+                    val volumeId = parts[0]
+                    val relativePath = parts[1]
+                    
+                    if ("primary".equals(volumeId, ignoreCase = true)) {
+                        return "${android.os.Environment.getExternalStorageDirectory().path}/$relativePath"
+                    } else {
+                        // Scan for physical mount points matching the volume ID
+                        val volumes = listOf("/storage/$volumeId", "/mnt/media_rw/$volumeId", "/sdcard", "/storage/emulated/0")
+                        for (vol in volumes) {
+                            val fullPath = if (vol.endsWith("/")) "$vol$relativePath" else "$vol/$relativePath"
+                            if (java.io.File(fullPath).exists()) return fullPath
                         }
+                        // Absolute fallback for external ID
+                        return "/storage/$volumeId/$relativePath"
                     }
                 }
             }
         } catch (_: Exception) {}
 
-        // Try querying ContentResolver for _data column (works for many providers including external storage)
+        // Global fallback for any provider returning a _data column
         try {
-            val projection = arrayOf(android.provider.MediaStore.MediaColumns.DATA)
-            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val columnIndex = cursor.getColumnIndexOrThrow(android.provider.MediaStore.MediaColumns.DATA)
-                    val path = cursor.getString(columnIndex)
-                    if (path != null && java.io.File(path).exists()) return path
-                }
-            }
+            val resolved = queryContentResolverForPath(context, uri)
+            if (resolved != null) return resolved
         } catch (_: Exception) {}
 
-        // Downloads fallback
-        if (displayName != null) {
-            val downloadsFile = java.io.File(
-                android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
-                displayName
-            )
-            if (downloadsFile.exists()) return downloadsFile.absolutePath
-        }
-
-        // Fallback: uri.path parsing
+        // Final fallbacks from URI parts
         val rawPath = uri.path
         if (rawPath != null) {
             if (rawPath.contains("/document/raw:")) return rawPath.substringAfter("/document/raw:")
             if (rawPath.contains("/document/primary:")) {
                 return "${android.os.Environment.getExternalStorageDirectory().path}/${rawPath.substringAfter("/document/primary:")}"
             }
-            if (rawPath.startsWith("/storage/") || rawPath.startsWith("/data/")) return rawPath
+            if (rawPath.startsWith("/storage/") || rawPath.startsWith("/data/") || rawPath.startsWith("/mnt/")) return rawPath
         }
 
         return rawPath

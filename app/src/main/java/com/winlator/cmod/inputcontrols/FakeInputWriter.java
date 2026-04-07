@@ -1,7 +1,7 @@
 package com.winlator.cmod.inputcontrols;
 
 import android.util.Log;
-
+import androidx.core.app.NotificationCompat;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -10,266 +10,174 @@ import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 
 public class FakeInputWriter {
+    public static final short ABS_BRAKE = 10;
+    public static final short ABS_GAS = 9;
+    public static final short ABS_HAT0X = 16;
+    public static final short ABS_HAT0Y = 17;
+    public static final short ABS_RX = 3;
+    public static final short ABS_RY = 4;
+    public static final short ABS_X = 0;
+    public static final short ABS_Y = 1;
+    public static final short BTN_A = 304;
+    public static final short BTN_B = 305;
+    public static final short BTN_SELECT = 314;
+    public static final short BTN_START = 315;
+    public static final short BTN_THUMBL = 317;
+    public static final short BTN_THUMBR = 318;
+    public static final short BTN_TL = 310;
+    public static final short BTN_TL2 = 312;
+    public static final short BTN_TR = 311;
+    public static final short BTN_TR2 = 313;
+    public static final short BTN_X = 307;
+    public static final short BTN_Y = 308;
+    private static final short[] BUTTON_MAP = {304, 305, 307, 308, 310, 311, 314, 315, 317, 318, 312, 313};
+    public static final short EV_ABS = 3;
+    public static final short EV_KEY = 1;
+    public static final short EV_MSC = 4;
+    public static final short EV_SYN = 0;
+    public static final short MSC_SCAN = 4;
+    public static final short SYN_REPORT = 0;
     private static final String TAG = "FakeInputWriter";
-    private static final int EVENT_SIZE = 24;
-    private static final int MAX_EVENTS_PER_UPDATE = 20;
-    private static final int BUFFER_SIZE = EVENT_SIZE * MAX_EVENTS_PER_UPDATE;
-
-    public static final short EV_SYN = 0x00;
-    public static final short EV_KEY = 0x01;
-    public static final short EV_ABS = 0x03;
-    public static final short EV_MSC = 0x04;
-
-    public static final short MSC_SCAN = 0x04;
-    public static final short SYN_REPORT = 0x00;
-
-    public static final short BTN_A = 0x130;
-    public static final short BTN_B = 0x131;
-    public static final short BTN_X = 0x133;
-    public static final short BTN_Y = 0x134;
-    public static final short BTN_TL = 0x136;
-    public static final short BTN_TR = 0x137;
-    public static final short BTN_SELECT = 0x13A;
-    public static final short BTN_START = 0x13B;
-    public static final short BTN_THUMBL = 0x13D;
-    public static final short BTN_THUMBR = 0x13E;
-
-    public static final short ABS_X = 0x00;
-    public static final short ABS_Y = 0x01;
-    public static final short ABS_RX = 0x03;
-    public static final short ABS_RY = 0x04;
-    public static final short ABS_HAT0X = 0x10;
-    public static final short ABS_HAT0Y = 0x11;
-    public static final short ABS_GAS = 0x09;
-    public static final short ABS_BRAKE = 0x0A;
-
-    private static final short[] BUTTON_MAP = {
-            BTN_A, BTN_B, BTN_X, BTN_Y, BTN_TL, BTN_TR,
-            BTN_SELECT, BTN_START, BTN_THUMBL, BTN_THUMBR
-    };
-
-    private final File eventFile;
-    private RandomAccessFile raf;
-    private FileChannel channel;
     private final ByteBuffer buffer;
+    private FileChannel channel;
+    private final File eventFile;
+    private boolean hasChanges;
     private boolean isOpen = false;
-    private volatile boolean destroyed = false;
-
-    private final boolean[] prevButtonStates = new boolean[12];
+    private int prevHatX;
+    private int prevHatY;
     private int prevThumbLX;
     private int prevThumbLY;
     private int prevThumbRX;
     private int prevThumbRY;
     private int prevTriggerL;
     private int prevTriggerR;
-    private int prevHatX;
-    private int prevHatY;
-    private boolean hasChanges = false;
+    private RandomAccessFile raf;
+    private final boolean[] prevButtonStates = new boolean[12];
 
     public FakeInputWriter(String fakeInputPath, int slot) {
-        this.eventFile = new File(fakeInputPath, "event" + slot);
-        this.buffer = ByteBuffer.allocateDirect(BUFFER_SIZE);
-        this.buffer.order(ByteOrder.LITTLE_ENDIAN);
+        this.eventFile = new File(fakeInputPath, NotificationCompat.CATEGORY_EVENT + slot);
+        ByteBuffer allocateDirect = ByteBuffer.allocateDirect(480);
+        this.buffer = allocateDirect;
+        allocateDirect.order(ByteOrder.LITTLE_ENDIAN);
     }
 
-    public synchronized boolean open() {
-        if (destroyed)
-            return false;
-        if (isOpen)
+    public boolean open() {
+        if (this.isOpen) {
             return true;
-
+        }
         try {
-            eventFile.getParentFile().mkdirs();
-            if (!eventFile.exists()) {
-                eventFile.createNewFile();
+            this.eventFile.getParentFile().mkdirs();
+            if (!this.eventFile.exists()) {
+                this.eventFile.createNewFile();
             }
-
-            raf = new RandomAccessFile(eventFile, "rw");
-            raf.seek(raf.length());
-            channel = raf.getChannel();
-            isOpen = true;
-            Log.i(TAG, "Opened fake input: " + eventFile.getAbsolutePath());
+            RandomAccessFile randomAccessFile = new RandomAccessFile(this.eventFile, "rw");
+            this.raf = randomAccessFile;
+            randomAccessFile.seek(randomAccessFile.length());
+            this.channel = this.raf.getChannel();
+            this.isOpen = true;
             return true;
         } catch (IOException e) {
-            Log.e(TAG, "Failed to open: " + e.getMessage());
             return false;
         }
     }
 
-    public synchronized void close() {
-        if (channel != null) {
+    public void close() {
+        FileChannel fileChannel = this.channel;
+        if (fileChannel != null) {
             try {
-                channel.close();
+                fileChannel.close();
             } catch (IOException e) {
             }
-            channel = null;
+            this.channel = null;
         }
-        if (raf != null) {
+        RandomAccessFile randomAccessFile = this.raf;
+        if (randomAccessFile != null) {
             try {
-                raf.close();
-            } catch (IOException e) {
+                randomAccessFile.close();
+            } catch (IOException e2) {
             }
-            raf = null;
+            this.raf = null;
         }
-        isOpen = false;
-    }
-
-    public synchronized void reset() {
-        if (!isOpen && !open())
-            return;
-
-        buffer.clear();
-        hasChanges = false;
-
-        for (int i = 0; i < BUTTON_MAP.length; i++) {
-            if (prevButtonStates[i]) {
-                prevButtonStates[i] = false;
-                writeEvent(EV_MSC, MSC_SCAN, BUTTON_MAP[i]);
-                writeEvent(EV_KEY, BUTTON_MAP[i], 0);
-            }
-        }
-
-        if (prevThumbLX != 0) {
-            prevThumbLX = 0;
-            writeEvent(EV_ABS, ABS_X, 0);
-        }
-        if (prevThumbLY != 0) {
-            prevThumbLY = 0;
-            writeEvent(EV_ABS, ABS_Y, 0);
-        }
-        if (prevThumbRX != 0) {
-            prevThumbRX = 0;
-            writeEvent(EV_ABS, ABS_RX, 0);
-        }
-        if (prevThumbRY != 0) {
-            prevThumbRY = 0;
-            writeEvent(EV_ABS, ABS_RY, 0);
-        }
-        if (prevTriggerL != 0) {
-            prevTriggerL = 0;
-            writeEvent(EV_ABS, ABS_BRAKE, 0);
-        }
-        if (prevTriggerR != 0) {
-            prevTriggerR = 0;
-            writeEvent(EV_ABS, ABS_GAS, 0);
-        }
-        if (prevHatX != 0) {
-            prevHatX = 0;
-            writeEvent(EV_ABS, ABS_HAT0X, 0);
-        }
-        if (prevHatY != 0) {
-            prevHatY = 0;
-            writeEvent(EV_ABS, ABS_HAT0Y, 0);
-        }
-
-        if (hasChanges) {
-            writeEvent(EV_SYN, SYN_REPORT, 0);
-            buffer.flip();
-            try {
-                channel.write(buffer);
-            } catch (IOException e) {
-                Log.e(TAG, "Reset write error: " + e.getMessage());
-            }
-        }
-        Log.i(TAG, "Reset fake input to neutral state: " + eventFile.getAbsolutePath());
-    }
-
-    public synchronized void softRelease() {
-        reset();
-        close();
-        Log.i(TAG, "Soft released fake input: " + eventFile.getAbsolutePath());
-    }
-
-    public synchronized void destroy() {
-        destroyed = true;
-        reset();
-        close();
-        if (eventFile != null && eventFile.exists()) {
-            boolean deleted = eventFile.delete();
-            Log.i(TAG, "Deleted fake input: " + eventFile.getAbsolutePath() + " (" + deleted + ")");
-        }
+        this.isOpen = false;
     }
 
     private void writeEvent(short type, short code, int value) {
         long timeMs = System.currentTimeMillis();
-        buffer.putLong(timeMs / 1000);
-        buffer.putLong((timeMs % 1000) * 1000);
-        buffer.putShort(type);
-        buffer.putShort(code);
-        buffer.putInt(value);
-        hasChanges = true;
+        this.buffer.putLong(timeMs / 1000);
+        this.buffer.putLong((timeMs % 1000) * 1000);
+        this.buffer.putShort(type);
+        this.buffer.putShort(code);
+        this.buffer.putInt(value);
+        this.hasChanges = true;
     }
 
     private void writeButton(int idx, boolean pressed) {
-        if (idx < 0 || idx >= BUTTON_MAP.length)
+        if (idx < 0) {
             return;
-        if (prevButtonStates[idx] == pressed)
+        }
+        short[] sArr = BUTTON_MAP;
+        if (idx >= sArr.length || this.prevButtonStates[idx] == pressed) {
             return;
-        prevButtonStates[idx] = pressed;
-        writeEvent(EV_MSC, MSC_SCAN, BUTTON_MAP[idx]);
-        writeEvent(EV_KEY, BUTTON_MAP[idx], pressed ? 1 : 0);
+        }
+        this.prevButtonStates[idx] = pressed;
+        writeEvent((short) 4, (short) 4, sArr[idx]);
+        writeEvent((short) 1, sArr[idx], pressed ? 1 : 0);
     }
 
     public void writeGamepadState(GamepadState state) {
-        if (!isOpen && !open())
+        if (!this.isOpen && !open()) {
             return;
-
-        buffer.clear();
-        hasChanges = false;
-
-        for (int i = 0; i < 10; i++) {
+        }
+        this.buffer.clear();
+        this.hasChanges = false;
+        for (int i = 0; i < 12; i++) {
             writeButton(i, state.isPressed((byte) i));
         }
-
-        int lx = (int) (state.thumbLX * 32767);
-        int ly = (int) (state.thumbLY * 32767);
-        int rx = (int) (state.thumbRX * 32767);
-        int ry = (int) (state.thumbRY * 32767);
-
-        if (lx != prevThumbLX) {
-            prevThumbLX = lx;
-            writeEvent(EV_ABS, ABS_X, lx);
+        int lx = (int) (state.thumbLX * 32767.0f);
+        int ly = (int) (state.thumbLY * 32767.0f);
+        int rx = (int) (state.thumbRX * 32767.0f);
+        int ry = (int) (state.thumbRY * 32767.0f);
+        if (lx != this.prevThumbLX) {
+            this.prevThumbLX = lx;
+            writeEvent((short) 3, (short) 0, lx);
         }
-        if (ly != prevThumbLY) {
-            prevThumbLY = ly;
-            writeEvent(EV_ABS, ABS_Y, ly);
+        if (ly != this.prevThumbLY) {
+            this.prevThumbLY = ly;
+            writeEvent((short) 3, (short) 1, ly);
         }
-        if (rx != prevThumbRX) {
-            prevThumbRX = rx;
-            writeEvent(EV_ABS, ABS_RX, rx);
+        if (rx != this.prevThumbRX) {
+            this.prevThumbRX = rx;
+            writeEvent((short) 3, (short) 3, rx);
         }
-        if (ry != prevThumbRY) {
-            prevThumbRY = ry;
-            writeEvent(EV_ABS, ABS_RY, ry);
+        if (ry != this.prevThumbRY) {
+            this.prevThumbRY = ry;
+            writeEvent((short) 3, (short) 4, ry);
         }
-
-        int tl = (int) (state.triggerL * 255);
-        int tr = (int) (state.triggerR * 255);
-        if (tl != prevTriggerL) {
-            prevTriggerL = tl;
-            writeEvent(EV_ABS, ABS_BRAKE, tl);
+        int tl = (int) (state.triggerL * 255.0f);
+        int tr = (int) (state.triggerR * 255.0f);
+        if (tl != this.prevTriggerL) {
+            this.prevTriggerL = tl;
+            writeEvent((short) 3, (short) 10, tl);
         }
-        if (tr != prevTriggerR) {
-            prevTriggerR = tr;
-            writeEvent(EV_ABS, ABS_GAS, tr);
+        if (tr != this.prevTriggerR) {
+            this.prevTriggerR = tr;
+            writeEvent((short) 3, (short) 9, tr);
         }
-
-        int hatX = state.dpad[3] ? -1 : (state.dpad[1] ? 1 : 0);
-        int hatY = state.dpad[0] ? -1 : (state.dpad[2] ? 1 : 0);
-        if (hatX != prevHatX) {
-            prevHatX = hatX;
-            writeEvent(EV_ABS, ABS_HAT0X, hatX);
+        int hatX = state.dpad[3] ? -1 : state.dpad[1] ? 1 : 0;
+        int hatY = state.dpad[0] ? -1 : state.dpad[2] ? 1 : 0;
+        if (hatX != this.prevHatX) {
+            this.prevHatX = hatX;
+            writeEvent((short) 3, (short) 16, hatX);
         }
-        if (hatY != prevHatY) {
-            prevHatY = hatY;
-            writeEvent(EV_ABS, ABS_HAT0Y, hatY);
+        if (hatY != this.prevHatY) {
+            this.prevHatY = hatY;
+            writeEvent((short) 3, (short) 17, hatY);
         }
-
-        if (hasChanges) {
-            writeEvent(EV_SYN, SYN_REPORT, 0);
-            buffer.flip();
+        if (this.hasChanges) {
+            writeEvent((short) 0, (short) 0, 0);
+            this.buffer.flip();
             try {
-                channel.write(buffer);
+                this.channel.write(this.buffer);
             } catch (IOException e) {
                 Log.e(TAG, "Write error: " + e.getMessage());
             }
@@ -277,6 +185,6 @@ public class FakeInputWriter {
     }
 
     public boolean isOpen() {
-        return isOpen;
+        return this.isOpen;
     }
 }

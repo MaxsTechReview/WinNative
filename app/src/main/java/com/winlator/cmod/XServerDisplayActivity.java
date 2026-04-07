@@ -1639,9 +1639,13 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     if (sensorManager != null) sensorManager.unregisterListener(gyroListener);
                     if (winHandler != null) winHandler.stop();
                     if (wineRequestHandler != null) wineRequestHandler.stop();
-                    /* Gracefully terminate all running wine processes first, so ALSA/audio
-                     * threads are no longer fed data before we tear down their sockets. */
+                    
+                    // Definitive Wine process cleanup
+                    if (launcher != null) {
+                        launcher.execShellCommand("wineserver -k");
+                    }
                     ProcessHelper.terminateAllWineProcesses();
+                    
                     /* Wait until all processes have gracefully terminated, forcefully killing them only after a certain amount of time */
                     long start = System.currentTimeMillis();
                     while (!ProcessHelper.listRunningWineProcesses().isEmpty()) {
@@ -1669,6 +1673,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     xServer = null;
                     xServerView = null;
                     if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.closeOnUiThread();
+                    
+                    // Restart application to ensure total RAM cleanup (reference app fix)
+                    AppUtils.restartApplication(getApplicationContext());
                     finish();
                 }
             }, 1000);
@@ -2540,6 +2547,29 @@ public class XServerDisplayActivity extends AppCompatActivity {
         String rootPath = imageFs.getRootDir().getPath();
         FileUtils.clear(imageFs.getTmpDir());
 
+        // Exclusive Input Alignment
+        boolean exclusiveXInput = container.isExclusiveXInput();
+        if (shortcut != null) {
+            String extra = shortcut.getExtra("exclusiveXInput");
+            if (!extra.isEmpty()) exclusiveXInput = extra.equals("1");
+        }
+
+        boolean dinputEnabled = (container.getInputType() & WinHandler.FLAG_INPUT_TYPE_DINPUT) != 0;
+        WineUtils.setJoystickRegistryKeys(container, dinputEnabled, exclusiveXInput);
+
+        File devInputDir = new File(imageFs.getRootDir(), "dev/input");
+        if (devInputDir.exists() || devInputDir.mkdirs()) {
+            for (int i = 0; i < 4; i++) {
+                File eventFile = new File(devInputDir, "event" + i);
+                if (!eventFile.exists()) {
+                    try {
+                        eventFile.createNewFile();
+                    } catch (IOException e) {
+                    }
+                }
+            }
+        }
+        winHandler.setFakeInputPath(devInputDir.getAbsolutePath());
 
         guestProgramLauncherComponent = new GuestProgramLauncherComponent(
                 contentsManager,
@@ -5451,6 +5481,17 @@ public class XServerDisplayActivity extends AppCompatActivity {
             }
 
             // Collect the first valid candidate as a fallback
+            if (fallbackExe == null && !candidates.isEmpty()) {
+                fallbackExe = candidates.get(0);
+            }
+            
+            if (!nextDirs.isEmpty()) queue.add(nextDirs.toArray(new File[0]));
+            depth++;
+        }
+        return fallbackExe;
+    }
+}
+fallback
             if (fallbackExe == null && !candidates.isEmpty()) {
                 fallbackExe = candidates.get(0);
             }

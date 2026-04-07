@@ -537,7 +537,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         }
 
         EnvVars envVars = new EnvVars();
-        boolean enableEvshim = true;
+        boolean enableEvshim = false;
 
         if (enableEvshim) {
             // --- Controller support: create shared memory files for all 4 slots ---
@@ -658,65 +658,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         }
         envVars.put("FAKE_EVDEV_DIR", devInputDir.getAbsolutePath());
 
-        if (enableEvshim) {
-            // Create libSDL symlink if necessary for evshim to intercept correctly
-            try {
-                File sdlSource = new File(imageFs.getLibDir(), "libSDL2-2.0.so");
-                File sdlSymlink = new File(imageFs.getLibDir(), "libSDL2-2.0.so.0");
-                if (sdlSource.exists() && !sdlSymlink.exists()) {
-                    android.system.Os.symlink(sdlSource.getAbsolutePath(), sdlSymlink.getAbsolutePath());
-                }
-
-                File sdlSourceAlt = new File(imageFs.getLibDir(), "libSDL2.so");
-                if (!sdlSource.exists() && sdlSourceAlt.exists() && !sdlSymlink.exists()) {
-                    android.system.Os.symlink(sdlSourceAlt.getAbsolutePath(), sdlSymlink.getAbsolutePath());
-                }
-            } catch (Exception e) {
-                Log.e("GuestProgramLauncherComponent", "Failed to setup SDL2 symlink", e);
-            }
-
-            // Add evshim for controller support (creates virtual SDL joysticks)
-            // Extract libevshim.so from APK native libs to imagefs if needed
-            // (Android may not extract native libs to disk on newer versions)
-            File evshimInImagefs = new File(imageFs.getLibDir(), "libevshim.so");
-            String apkNativeLibDir = context.getApplicationInfo().nativeLibraryDir;
-            File evshimInNativeDir = new File(apkNativeLibDir, "libevshim.so");
-
-            if (evshimInNativeDir.exists() && (!evshimInImagefs.exists() || evshimInImagefs.length() != evshimInNativeDir.length())) {
-                // Native libs are extracted to disk - copy to imagefs
-                FileUtils.copy(evshimInNativeDir, evshimInImagefs);
-                Log.d("GuestProgramLauncher", "Copied evshim from nativeLibDir to imagefs");
-            } else if (!evshimInImagefs.exists()) {
-                // Native libs NOT extracted (compressed in APK) - extract from APK
-                try {
-                    String abi = android.os.Build.SUPPORTED_ABIS[0];
-                    String entryName = "lib/" + abi + "/libevshim.so";
-                    java.util.zip.ZipFile apk = new java.util.zip.ZipFile(context.getApplicationInfo().sourceDir);
-                    java.util.zip.ZipEntry entry = apk.getEntry(entryName);
-                    if (entry != null) {
-                        try (java.io.InputStream is = apk.getInputStream(entry);
-                             java.io.FileOutputStream fos = new java.io.FileOutputStream(evshimInImagefs)) {
-                            byte[] buf = new byte[8192];
-                            int len;
-                            while ((len = is.read(buf)) != -1) fos.write(buf, 0, len);
-                        }
-                        evshimInImagefs.setExecutable(true, false);
-                        Log.d("GuestProgramLauncher", "Extracted evshim from APK to imagefs: " + evshimInImagefs.getAbsolutePath());
-                    }
-                    apk.close();
-                } catch (Exception e) {
-                    Log.e("GuestProgramLauncher", "Failed to extract evshim from APK", e);
-                }
-            }
-
-            if (evshimInImagefs.exists()) {
-                ld_preload += (ld_preload.isEmpty() ? "" : ":") + evshimInImagefs.getAbsolutePath();
-                Log.d("GuestProgramLauncher", "evshim added to LD_PRELOAD: " + evshimInImagefs.getAbsolutePath());
-            } else {
-                Log.w("GuestProgramLauncher", "libevshim.so not found anywhere!");
-            }
-        }
-
         // Winlator legacy hooks (libhook_impl.so, libfile_redirect_hook.so) break FEXCore rendering and stability.
         // Removed them for Arm64EC mode to match Bionic/Ludashi implementation.
         if (wineInfo.isArm64EC()) {
@@ -727,84 +668,16 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
         mergeExternalEnvVars(envVars, ld_preload, devInputDir.getAbsolutePath());
 
-        String emulator = container.getEmulator();
-        String emulator64 = container.getEmulator64();
-        if (shortcut != null) {
-            emulator = shortcut.getExtra("emulator", container.getEmulator());
-            emulator64 = shortcut.getExtra("emulator64", container.getEmulator64());
-        }
-
-        // Normalize slots to the runtime components that actually exist:
-        // x86_64 → Box64 binary + wowbox64.dll; ARM64EC → libwow64fex.dll + (FEX or wowbox64).
-        if (wineInfo.isArm64EC()) {
-            emulator64 = "FEXCore";
-            // Legacy shortcuts may have "box64" saved for 32-bit; fall back.
-            if (!"fexcore".equalsIgnoreCase(emulator) && !"wowbox64".equalsIgnoreCase(emulator)) {
-                emulator = "FEXCore";
-            }
-            Log.d("GuestProgramLauncherComponent",
-                    "Arm64EC detected: emulator64=FEXCore, emulator(32-bit)=" + emulator);
-        } else {
-            emulator64 = "Box64";
-            emulator = "Wowbox64";
-            Log.d("GuestProgramLauncherComponent",
-                    "x86_64 detected: emulator64=Box64, emulator(32-bit)=Wowbox64");
-        }
-
-        Log.d("GuestProgramLauncherComponent", "=== EMULATOR SELECTION ===");
-        Log.d("GuestProgramLauncherComponent", "Wine arch: " + wineInfo.getArch() + " isArm64EC: " + wineInfo.isArm64EC());
-        Log.d("GuestProgramLauncherComponent", "Emulator (32-bit): " + emulator);
-        Log.d("GuestProgramLauncherComponent", "Emulator (64-bit): " + emulator64);
-
-        boolean is64Bit = true;
-
-        // Find the actual .exe file to check architecture
-        File exeFile = null;
-        String winPath = null;
-        if (guestExecutable.contains("\"")) {
-            int start = guestExecutable.indexOf("\"") + 1;
-            int end = guestExecutable.indexOf("\"", start);
-            if (start > 0 && end > start) winPath = guestExecutable.substring(start, end);
-        } else {
-            // If not quoted, take the first part before any space
-            int spaceIndex = guestExecutable.indexOf(" ");
-            winPath = spaceIndex != -1 ? guestExecutable.substring(0, spaceIndex) : guestExecutable;
-        }
-
-        if (winPath != null && winPath.toLowerCase().endsWith(".exe")) {
-            exeFile = com.winlator.cmod.core.WineUtils.getNativePath(imageFs, winPath);
-            if (exeFile != null) Log.d("GuestProgramLauncherComponent", "Detected executable for arch check: " + exeFile.getAbsolutePath());
-        }
-
-        // Determine which emulator to use for HODLL based on guest executable architecture
+        // Determine emulator based on Wine architecture
         String selectedEmulator = emulator;
         if (wineInfo.isArm64EC()) {
-            is64Bit = (exeFile != null && com.winlator.cmod.core.PEHelper.is64Bit(exeFile)) || 
-                             (guestExecutable != null && guestExecutable.contains("steamclient_loader_x64.exe"));
-            
-            if (is64Bit) {
-                selectedEmulator = emulator64;
-            }
-        }
-
-        // Construct the command without Box64 to the Wine executable
-        String command = "";
-        String overriddenCommand = envVars.get("GUEST_PROGRAM_LAUNCHER_COMMAND");
-        if (overriddenCommand != null && !overriddenCommand.isEmpty()) {
-            String[] parts = overriddenCommand.split(";");
-            for (String part : parts)
-                command += part + " ";
-            command = command.trim();
+            command = winePath + "/" + guestExecutable;
+            if ("fexcore".equalsIgnoreCase(emulator))
+                envVars.put("HODLL", "libwow64fex.dll");
+            else
+                envVars.put("HODLL", "wowbox64.dll");
         } else {
-            if (wineInfo.isArm64EC()) {
-                command = winePath + "/" + guestExecutable;
-                if ("fexcore".equalsIgnoreCase(selectedEmulator))
-                    envVars.put("HODLL", "libwow64fex.dll");
-                else
-                    envVars.put("HODLL", "wowbox64.dll");
-            } else {
-                command = imageFs.getBinDir() + "/box64 " + guestExecutable;
-            }
+            command = imageFs.getBinDir() + "/box64 " + guestExecutable;
         }
 
         // **Maybe remove this: Set execute permissions for box64 if necessary (Glibc/Proot artifact)
@@ -827,6 +700,63 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
             }
 
             if (terminationCallback != null)
+                terminationCallback.call(status);
+        });
+    }
+
+    private void addBox64EnvVars(EnvVars envVars, boolean enableLogs) {
+        envVars.put("BOX64_NOBANNER", ProcessHelper.PRINT_DEBUG && enableLogs ? "0" : "1");
+        envVars.put("BOX64_DYNAREC", "1");
+
+        if (enableLogs) {
+            envVars.put("BOX64_LOG", "1");
+            envVars.put("BOX64_DYNAREC_MISSING", "1");
+        }
+
+        envVars.putAll(Box64PresetManager.getEnvVars("box64", environment.getContext(), box64Preset));
+        envVars.put("BOX64_X11GLX", "1");
+        envVars.put("BOX64_NORCFILES", "1");
+    }
+
+    public void suspendProcess() {
+        synchronized (lock) {
+            if (pid != -1) ProcessHelper.suspendProcess(pid);
+        }
+    }
+
+    public void resumeProcess() {
+        synchronized (lock) {
+            if (pid != -1) ProcessHelper.resumeProcess(pid);
+        }
+    }
+
+    private String resolveWineBinary(String wineBinDir, boolean prefer64BitWine) {
+        File preferredBinary = new File(wineBinDir, prefer64BitWine ? "wine64" : "wine");
+        if (preferredBinary.exists()) return preferredBinary.getAbsolutePath();
+
+        File fallbackBinary = new File(wineBinDir, "wine");
+        if (fallbackBinary.exists()) return fallbackBinary.getAbsolutePath();
+
+        return preferredBinary.getAbsolutePath();
+    }
+
+    private String resolveWineServerBinary(String wineBinDir, boolean prefer64BitWine) {
+        File preferredBinary = new File(wineBinDir, prefer64BitWine ? "wineserver64" : "wineserver");
+        if (preferredBinary.exists()) return preferredBinary.getAbsolutePath();
+
+        File fallbackBinary = new File(wineBinDir, "wineserver");
+        return fallbackBinary.exists() ? fallbackBinary.getAbsolutePath() : null;
+    }
+
+    private String pinWineLoader(String command, String wineLoader) {
+        if (command == null || command.isEmpty()) return command;
+        if (command.equals("wine") || command.equals("wine64")) return wineLoader;
+        if (command.startsWith("wine ")) return wineLoader + command.substring(4);
+        if (command.startsWith("wine64 ")) return wineLoader + command.substring(6);
+        return command;
+    }
+}
+tionCallback != null)
                 terminationCallback.call(status);
         });
     }
