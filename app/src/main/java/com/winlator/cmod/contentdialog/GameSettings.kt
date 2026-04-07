@@ -2565,7 +2565,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
         // Exclusive Input — when off, XInput + DInput are both forced on and locked below.
         // Container mode backs it with the global "xinput_toggle" pref.
         val exclusiveChecked = if (isContainer) state.containerExclusiveInput.value
-        else state.disableXInput.value
+        else state.exclusiveXInput.value
         SettingCheckbox(
             label = stringResource(R.string.shortcuts_properties_exclusive_input),
             checked = exclusiveChecked,
@@ -2573,6 +2573,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
                 if (isContainer) {
                     state.containerExclusiveInput.value = enabled
                 } else {
+                    state.exclusiveXInput.value = enabled
                     state.disableXInput.value = enabled
                 }
                 if (!enabled) {

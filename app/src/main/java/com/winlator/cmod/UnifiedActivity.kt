@@ -1389,8 +1389,16 @@ class UnifiedActivity : ComponentActivity() {
                         .map { shortcut ->
                             val gameSource = shortcut.getExtra("game_source", "CUSTOM")
                             val displayName = if (gameSource == "CUSTOM") shortcut.getExtra("custom_name", shortcut.name) else shortcut.name
-                            val customId = if (gameSource == "STEAM") {
-                                shortcut.getExtra("app_id", "0").toIntOrNull() ?: 0
+                            val steamId = shortcut.getExtra("app_id", "0").toIntOrNull() ?: 0
+                            
+                            val isOfficialSteam = steamId > 0 && steamApps.any { it.id == steamId }
+                            val isOfficialEpic = gameSource == "EPIC" && epicApps.any { it.id.toString() == shortcut.getExtra("app_id") }
+                            val isOfficialGog = gameSource == "GOG" && gogApps.any { it.id == shortcut.getExtra("gog_id") }
+
+                            val customId = if (gameSource == "STEAM" && !isOfficialSteam) {
+                                -(displayName.hashCode().and(0x7FFFFFFF) + 1)
+                            } else if (gameSource == "STEAM") {
+                                steamId
                             } else {
                                 -(displayName.hashCode().and(0x7FFFFFFF) + 1)
                             }
@@ -1404,8 +1412,10 @@ class UnifiedActivity : ComponentActivity() {
                         }
                         .filter { app -> 
                             // Only include as 'customApps' if it's not already handled by official Steam/Epic/Gog lists
-                            // or if it's a generic desktop shortcut.
-                            app.id < 0 || app.developer == "CUSTOM" || app.developer == "Custom"
+                            val isOfficial = (app.id > 0 && steamApps.any { it.id == app.id }) ||
+                                            epicApps.any { it.title == app.name } ||
+                                            gogApps.any { it.title == app.name }
+                            !isOfficial || app.id < 0
                         }
                     withContext(Dispatchers.Main) {
                         cachedShortcuts = allShortcuts
@@ -1991,7 +2001,7 @@ class UnifiedActivity : ComponentActivity() {
                         val containerManager = com.winlator.cmod.container.ContainerManager(context)
                         val shortcut = when {
                             isCustom -> containerManager.loadShortcuts().find {
-                                it.getExtra("game_source") == "CUSTOM" && (it.getExtra("custom_name") == app.name || it.name == app.name)
+                                (it.getExtra("custom_name") == app.name || it.name == app.name)
                             }
                             isEpic -> containerManager.loadShortcuts().find {
                                 it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == epicId.toString()
@@ -2077,7 +2087,7 @@ class UnifiedActivity : ComponentActivity() {
                         val containerManager = com.winlator.cmod.container.ContainerManager(context)
                         val shortcut = when {
                             isCustom -> containerManager.loadShortcuts().find {
-                                it.getExtra("game_source") == "CUSTOM" && (it.getExtra("custom_name") == app.name || it.name == app.name)
+                                (it.getExtra("custom_name") == app.name || it.name == app.name)
                             }
                             isEpic -> containerManager.loadShortcuts().find {
                                 it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == epicId.toString()
@@ -2317,8 +2327,7 @@ class UnifiedActivity : ComponentActivity() {
                                 scope.launch(Dispatchers.IO) {
                                     val cm = ContainerManager(context)
                                     val sc = cm.loadShortcuts().find {
-                                        it.getExtra("game_source") == "CUSTOM" &&
-                                            (it.getExtra("custom_name") == app.name || it.name == app.name)
+                                        it.getExtra("custom_name") == app.name || it.name == app.name
                                     }
                                     sc?.file?.delete()
                                     java.io.File(context.filesDir, "custom_icons/${app.name.replace("/", "_")}.png").delete()
@@ -2656,7 +2665,7 @@ class UnifiedActivity : ComponentActivity() {
                                 it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == gogGame!!.id
                             }
                             isCustom -> containerManager.loadShortcuts().find {
-                                it.getExtra("game_source") == "CUSTOM" && (it.getExtra("custom_name") == app.name || it.name == app.name)
+                                (it.getExtra("custom_name") == app.name || it.name == app.name)
                             }
                             isEpic -> containerManager.loadShortcuts().find {
                                 it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == epicId.toString()
@@ -2719,7 +2728,7 @@ class UnifiedActivity : ComponentActivity() {
                                 it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == gogGame!!.id
                             }
                             isCustom -> containerManager.loadShortcuts().find {
-                                it.getExtra("game_source") == "CUSTOM" && (it.getExtra("custom_name") == app.name || it.name == app.name)
+                                (it.getExtra("custom_name") == app.name || it.name == app.name)
                             }
                             isEpic -> containerManager.loadShortcuts().find {
                                 it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == epicId.toString()
@@ -3201,7 +3210,7 @@ class UnifiedActivity : ComponentActivity() {
                                                 scope.launch(Dispatchers.IO) {
                                                     val cm = ContainerManager(context)
                                                     val sc = cm.loadShortcuts().find {
-                                                        it.getExtra("game_source") == "CUSTOM" && (it.getExtra("custom_name") == app.name || it.name == app.name)
+                                                        (it.getExtra("custom_name") == app.name || it.name == app.name)
                                                     }
                                                     sc?.file?.delete()
                                                     java.io.File(context.filesDir, "custom_icons/${app.name.replace("/", "_")}.png").delete()
@@ -5481,7 +5490,7 @@ class UnifiedActivity : ComponentActivity() {
     ): Shortcut? {
         return when {
             isCustom -> shortcuts.find {
-                it.getExtra("game_source") == "CUSTOM" && (it.getExtra("custom_name") == app.name || it.name == app.name)
+                (it.getExtra("custom_name") == app.name || it.name == app.name)
             }
             isEpic -> shortcuts.find {
                 it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == epicId.toString()
@@ -6841,7 +6850,7 @@ class UnifiedActivity : ComponentActivity() {
             }
         } catch (_: Exception) { null }
 
-        // Try DocumentsContract first
+        // Try DocumentsContract
         try {
             if (DocumentsContract.isDocumentUri(context, uri)) {
                 val docId = DocumentsContract.getDocumentId(uri)
@@ -6850,12 +6859,13 @@ class UnifiedActivity : ComponentActivity() {
                     return docId.substringAfter("raw:")
                 }
                 
+                // Primary storage
                 if (docId.startsWith("primary:")) {
                     val path = "${android.os.Environment.getExternalStorageDirectory().path}/${docId.substringAfter(":")}"
                     if (java.io.File(path).exists()) return path
                 }
 
-                // Generic storage path resolution
+                // Handle common volume patterns: [volume_id]:[path]
                 if (docId.contains(":")) {
                     val parts = docId.split(":", limit = 2)
                     if (parts.size == 2) {
@@ -6865,19 +6875,28 @@ class UnifiedActivity : ComponentActivity() {
                         if ("primary".equals(type, ignoreCase = true)) {
                             return "${android.os.Environment.getExternalStorageDirectory().path}/$relativePath"
                         } else {
-                            // Non-primary volume (e.g. SD Card)
-                            val folder = "/storage/$type"
-                            if (java.io.File(folder).exists()) return "$folder/$relativePath"
+                            // Try common external mount points
+                            val volumes = listOf("/storage/$type", "/mnt/media_rw/$type", "/storage/self/primary")
+                            for (vol in volumes) {
+                                val fullPath = "$vol/$relativePath"
+                                if (java.io.File(fullPath).exists()) return fullPath
+                            }
                         }
                     }
                 }
             }
         } catch (_: Exception) {}
 
-        // Try querying ContentResolver for _data column (works for many providers)
+        // Try querying ContentResolver for _data column (works for many providers including external storage)
         try {
-            val resolved = queryContentResolverForPath(context, uri)
-            if (resolved != null && java.io.File(resolved).exists()) return resolved
+            val projection = arrayOf(android.provider.MediaStore.MediaColumns.DATA)
+            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val columnIndex = cursor.getColumnIndexOrThrow(android.provider.MediaStore.MediaColumns.DATA)
+                    val path = cursor.getString(columnIndex)
+                    if (path != null && java.io.File(path).exists()) return path
+                }
+            }
         } catch (_: Exception) {}
 
         // Downloads fallback
@@ -6889,11 +6908,11 @@ class UnifiedActivity : ComponentActivity() {
             if (downloadsFile.exists()) return downloadsFile.absolutePath
         }
 
-        // Fallback: uri.path — strip common prefixes
+        // Fallback: uri.path parsing
         val rawPath = uri.path
         if (rawPath != null) {
-            if (rawPath.startsWith("/document/raw:")) return rawPath.substringAfter("/document/raw:")
-            if (rawPath.startsWith("/document/primary:")) {
+            if (rawPath.contains("/document/raw:")) return rawPath.substringAfter("/document/raw:")
+            if (rawPath.contains("/document/primary:")) {
                 return "${android.os.Environment.getExternalStorageDirectory().path}/${rawPath.substringAfter("/document/primary:")}"
             }
             if (rawPath.startsWith("/storage/") || rawPath.startsWith("/data/")) return rawPath
