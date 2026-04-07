@@ -202,6 +202,7 @@ enum class LibraryLayoutMode {
 class UnifiedActivity : ComponentActivity() {
     companion object {
         private var instance: UnifiedActivity? = null
+        const val MOVE_INTERVAL_MS = 250L
 
         fun refreshLibrary() {
             instance?.let { it.libraryRefreshSignal++ }
@@ -252,9 +253,6 @@ class UnifiedActivity : ComponentActivity() {
     // a fresh press (fires immediately) from a held repeat (throttled at 250ms).
     private var dpadHeld = false
     private var joystickActive = false
-    private companion object {
-        const val MOVE_INTERVAL_MS = 250L
-    }
 
     private fun moveLibraryFocus(left: Boolean, right: Boolean, up: Boolean, down: Boolean) {
         val idx = libraryFocusIndex.value
