@@ -308,7 +308,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         state.lcAll.value = c?.getLC_ALL() ?: (
             Locale.getDefault().language + "_" + Locale.getDefault().country + ".UTF-8"
             )
-        state.exclusiveXInput.value = c?.isExclusiveXInput() ?: true
 
         val cpuCount = Runtime.getRuntime().availableProcessors()
         state.cpuCount.intValue = cpuCount
@@ -651,7 +650,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.setMidiSoundFont(midiSoundFont)
             c.setLC_ALL(state.lcAll.value)
             c.setExecArgs(state.execArgs.value)
-            c.setExclusiveXInput(state.exclusiveXInput.value)
             // Steam fields are intentionally not written — container edit UI
             // doesn't expose them, and saveData() round-trips the loaded
             // values from c's in-memory state.
@@ -688,7 +686,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 data.put("midiSoundFont", midiSoundFont)
                 data.put("lc_all", state.lcAll.value)
                 data.put("execArgs", state.execArgs.value)
-                data.put("exclusiveXInput", state.exclusiveXInput.value)
 
                 preloaderDialog.show(R.string.containers_list_creating)
                 ImageFs.find(File(context.filesDir, "imagefs"))

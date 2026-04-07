@@ -500,18 +500,15 @@ public abstract class WineUtils {
         }
     }
 
-    public static void setJoystickRegistryKeys(Container container, boolean dinputEnabled, boolean exclusiveXInput) {
-        File userRegFile = new File(container.getRootDir(), ".wine/user.reg");
-        String value = dinputEnabled ? "override" : "disabled";
+    public static void setJoystickRegistryKeys(File userRegFile, boolean enable) {
         try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
-            for (int i = 0; i < 4; i++) {
-                if (exclusiveXInput) {
-                    registryEditor.setStringValue("Software\\Wine\\DirectInput\\Joysticks", "Generic HID Gamepad " + i, value);
-                    registryEditor.setStringValue("Software\\Wine\\DirectInput\\Joysticks", "ric HID Gamepad " + i, value);
-                } else {
-                    registryEditor.removeValue("Software\\Wine\\DirectInput\\Joysticks", "Generic HID Gamepad " + i);
-                    registryEditor.removeValue("Software\\Wine\\DirectInput\\Joysticks", "ric HID Gamepad " + i);
-                }
+            if (enable) {
+                registryEditor.removeKey("Software\\Wine\\DirectInput");
+            } else {
+                registryEditor.setStringValue("Software\\Wine\\DirectInput", "js0", "");
+                registryEditor.setStringValue("Software\\Wine\\DirectInput", "js1", "");
+                registryEditor.setStringValue("Software\\Wine\\DirectInput", "js2", "");
+                registryEditor.setStringValue("Software\\Wine\\DirectInput", "js3", "");
             }
         }
     }

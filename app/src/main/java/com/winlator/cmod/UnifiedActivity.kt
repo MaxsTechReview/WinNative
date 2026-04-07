@@ -6598,7 +6598,6 @@ class UnifiedActivity : ComponentActivity() {
         var gameName by remember { mutableStateOf("") }
         var gameFolder by remember { mutableStateOf<String?>(null) }
         var isAdding by remember { mutableStateOf(false) }
-        var exclusiveXInput by remember { mutableStateOf(true) }
 
         val exePickerLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocument()
@@ -6626,7 +6625,7 @@ class UnifiedActivity : ComponentActivity() {
                         }
                     }
                 }
-                if (path != null && (path.lowercase().endsWith(".exe") || java.io.File(path).exists())) {
+                if (path != null && (path.lowercase().endsWith(".exe") || java.io.File(path).exists() || path.contains("/storage/"))) {
                     selectedExePath = path
                     gameFolder = detectGameFolder(path)
                     // Auto-generate a game name from the folder name
@@ -6752,32 +6751,6 @@ class UnifiedActivity : ComponentActivity() {
                                     Icon(Icons.Outlined.Edit, contentDescription = "Change", tint = Accent, modifier = Modifier.size(14.dp))
                                 }
                             }
-
-                            Spacer(Modifier.height(8.dp))
-
-                            // Exclusive XInput Toggle
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { exclusiveXInput = !exclusiveXInput }
-                                    .padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                androidx.compose.material3.Checkbox(
-                                    checked = exclusiveXInput,
-                                    onCheckedChange = { exclusiveXInput = it },
-                                    colors = androidx.compose.material3.CheckboxDefaults.colors(
-                                        checkedColor = Accent,
-                                        uncheckedColor = TextSecondary.copy(alpha = 0.5f),
-                                        checkmarkColor = CardDark
-                                    )
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                Column {
-                                    Text("Exclusive Input", color = TextPrimary, fontSize = 11.sp)
-                                    Text("Claim gamepad exclusively for this game", color = TextSecondary, fontSize = 9.sp)
-                                }
-                            }
                         }
                     }
 
@@ -6808,7 +6781,7 @@ class UnifiedActivity : ComponentActivity() {
                                 }
                                 isAdding = true
                                 scope.launch(Dispatchers.IO) {
-                                    addCustomGame(context, gameName.trim(), selectedExePath!!, gameFolder!!, exclusiveXInput)
+                                    addCustomGame(context, gameName.trim(), selectedExePath!!, gameFolder!!)
                                     withContext(Dispatchers.Main) {
                                         isAdding = false
                                         android.widget.Toast.makeText(context, "$gameName added!", android.widget.Toast.LENGTH_SHORT).show()
@@ -6881,6 +6854,8 @@ class UnifiedActivity : ComponentActivity() {
                                 val fullPath = "$vol/$relativePath"
                                 if (java.io.File(fullPath).exists()) return fullPath
                             }
+                            // Fallback to /storage/[id]/[path] even if File.exists fails (perm issue)
+                            return "/storage/$type/$relativePath"
                         }
                     }
                 }
@@ -6952,7 +6927,7 @@ class UnifiedActivity : ComponentActivity() {
     }
 
     // Create custom game shortcut + container
-    private fun addCustomGame(context: android.content.Context, name: String, exePath: String, gameFolderPath: String, exclusiveXInput: Boolean = true) {
+    private fun addCustomGame(context: android.content.Context, name: String, exePath: String, gameFolderPath: String) {
         val containerManager = ContainerManager(context)
         var container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
         if (container == null) {
@@ -6981,7 +6956,6 @@ class UnifiedActivity : ComponentActivity() {
         content.append("custom_name=$name\n")
         content.append("custom_exe=$exePath\n")
         content.append("custom_game_folder=$gameFolderPath\n")
-        content.append("exclusiveXInput=$exclusiveXInput\n")
         content.append("container_id=${container.id}\n")
         content.append("use_container_defaults=1\n")
         com.winlator.cmod.core.FileUtils.writeString(shortcutFile, content.toString())

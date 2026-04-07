@@ -268,7 +268,6 @@ class GameSettingsStateHolder {
     val controlsProfileEntries = mutableStateOf<List<String>>(emptyList())
     val selectedControlsProfile = mutableIntStateOf(0)
     val disableXInput = mutableStateOf(false)
-    val exclusiveXInput = mutableStateOf(true)
     val simTouchScreen = mutableStateOf(false)
     val sdl2Compatibility = mutableStateOf(false)
     val enableXInput = mutableStateOf(false)
@@ -2565,7 +2564,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
         // Exclusive Input — when off, XInput + DInput are both forced on and locked below.
         // Container mode backs it with the global "xinput_toggle" pref.
         val exclusiveChecked = if (isContainer) state.containerExclusiveInput.value
-        else state.exclusiveXInput.value
+        else state.disableXInput.value
         SettingCheckbox(
             label = stringResource(R.string.shortcuts_properties_exclusive_input),
             checked = exclusiveChecked,
@@ -2573,7 +2572,6 @@ private fun InputSection(state: GameSettingsStateHolder) {
                 if (isContainer) {
                     state.containerExclusiveInput.value = enabled
                 } else {
-                    state.exclusiveXInput.value = enabled
                     state.disableXInput.value = enabled
                 }
                 if (!enabled) {
@@ -2600,14 +2598,6 @@ private fun InputSection(state: GameSettingsStateHolder) {
                 onCheckedChange = { state.simTouchScreen.value = it }
             )
         }
-
-        Spacer(Modifier.height(4.dp))
-
-        SettingCheckbox(
-            label = "Exclusive XInput",
-            checked = state.exclusiveXInput.value,
-            onCheckedChange = { state.exclusiveXInput.value = it }
-        )
     }
 
     Spacer(Modifier.height(16.dp))

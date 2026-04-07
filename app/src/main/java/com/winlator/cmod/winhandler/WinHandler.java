@@ -994,101 +994,23 @@ public class WinHandler {
 
     public boolean onGenericMotionEvent(MotionEvent event) {
         boolean handled = false;
-
-        if ((event.getSource() & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD ||
-                (event.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) {
-            if (currentController == null || currentController.getDeviceId() != event.getDeviceId()) {
-                ExternalController newController = getController(event.getDeviceId());
-                if (newController != null) {
-                    currentController = newController;
-                    currentController.setTriggerType(triggerType);
-                }
-            }
-        }
-
-        if (currentController != null && currentController.getDeviceId() == event.getDeviceId()) {
-            handled = currentController.updateStateFromMotionEvent(event);
-            if (handled) {
-                if (!hasProfileBindings(event.getDeviceId())) {
-                    sendGamepadState(currentController);
-                }
-            }
-
-            if (gyroTriggerButton == KeyEvent.KEYCODE_BUTTON_L2 || gyroTriggerButton == KeyEvent.KEYCODE_BUTTON_R2) {
-                float triggerValue = 0f;
-                if (gyroTriggerButton == KeyEvent.KEYCODE_BUTTON_L2) {
-                    triggerValue = event.getAxisValue(MotionEvent.AXIS_LTRIGGER);
-                } else if (gyroTriggerButton == KeyEvent.KEYCODE_BUTTON_R2) {
-                    triggerValue = event.getAxisValue(MotionEvent.AXIS_RTRIGGER);
-                }
-
-                boolean isPressed = triggerValue > 0.5f; // Adjust threshold as needed
-
-                if (isPressed) {
-                    if (!isGyroActive) {
-                        if (isToggleMode) {
-                            isGyroActive = !isGyroActive;
-                        } else {
-                            isGyroActive = true;
-                        }
-                    }
-                } else {
-                    if (isGyroActive && !isToggleMode) {
-                        isGyroActive = false;
-                    }
-                }
-            }
-
-            if (gyroTriggerButton == KeyEvent.KEYCODE_BUTTON_THUMBL
-                    || gyroTriggerButton == KeyEvent.KEYCODE_BUTTON_THUMBR) {
-            }
+        ExternalController controller = getController(event.getDeviceId());
+        if (controller != null && (handled = controller.updateStateFromMotionEvent(event))) {
+            sendGamepadState(controller);
         }
         return handled;
     }
 
     public boolean onKeyEvent(KeyEvent event) {
         boolean handled = false;
-
-        if (event.getKeyCode() == gyroTriggerButton) {
-            if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                if (isToggleMode) {
-                    isGyroActive = !isGyroActive;
-                } else {
-                    isGyroActive = true;
-                }
-            } else if (event.getAction() == KeyEvent.ACTION_UP && !isToggleMode) {
-                isGyroActive = false;
-
-                // Reset the analog stick to center when the gyro activator is released
-                if (currentController != null) {
-                    currentController.state.thumbRX = 0.0f;
-                    currentController.state.thumbRY = 0.0f;
-                }
-
-                sendGamepadState(currentController);
-            }
-        }
-
-        if ((currentController == null || currentController.getDeviceId() != event.getDeviceId()) && event.getRepeatCount() == 0) {
-            ExternalController newController = getController(event.getDeviceId());
-            if (newController != null) {
-                currentController = newController;
-                currentController.setTriggerType(triggerType);
-            }
-        }
-
-        if (currentController != null && currentController.getDeviceId() == event.getDeviceId() && event.getRepeatCount() == 0) {
+        ExternalController controller = getController(event.getDeviceId());
+        if (controller != null && event.getRepeatCount() == 0) {
             int action = event.getAction();
-
-            if (action == KeyEvent.ACTION_DOWN) {
-                handled = currentController.updateStateFromKeyEvent(event);
-            } else if (action == KeyEvent.ACTION_UP) {
-                handled = currentController.updateStateFromKeyEvent(event);
+            if (action == KeyEvent.ACTION_DOWN || action == KeyEvent.ACTION_UP) {
+                handled = controller.updateStateFromKeyEvent(event);
             }
-
             if (handled) {
-                sendGamepadState(currentController);
-                writeStateToMappedBuffer(currentController.state, gamepadBuffer, true, 0);
+                sendGamepadState(controller);
             }
         }
         return handled;
