@@ -40,7 +40,7 @@ import com.winlator.cmod.winhandler.MouseEventFlags;
 import com.winlator.cmod.winhandler.WinHandler;
 import com.winlator.cmod.xserver.Pointer;
 import com.winlator.cmod.xserver.XServer;
-import com.winlator.vanilla.R;
+import com.winlator.cmod.R;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
