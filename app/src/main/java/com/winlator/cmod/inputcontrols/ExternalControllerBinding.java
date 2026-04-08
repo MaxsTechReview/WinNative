@@ -20,7 +20,7 @@ public class ExternalControllerBinding {
     private short keyCode;
     private Binding binding = Binding.NONE;
 
-    public int getKeyCodeForAxis() {
+    public int getKeyCode() {
         return keyCode;
     }
 

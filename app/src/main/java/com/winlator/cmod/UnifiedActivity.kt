@@ -2329,7 +2329,11 @@ class UnifiedActivity : ComponentActivity() {
                                     val sc = cm.loadShortcuts().find {
                                         it.getExtra("custom_name") == app.name || it.name == app.name
                                     }
-                                    sc?.file?.delete()
+                                    sc?.file?.let {
+                                        it.delete()
+                                        val lnkFile = java.io.File(it.path.substringBeforeLast(".") + ".lnk")
+                                        if (lnkFile.exists()) lnkFile.delete()
+                                    }
                                     java.io.File(context.filesDir, "custom_icons/${app.name.replace("/", "_")}.png").delete()
                                     PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(app.id))
                                     withContext(Dispatchers.Main) {
@@ -3212,7 +3216,11 @@ class UnifiedActivity : ComponentActivity() {
                                                     val sc = cm.loadShortcuts().find {
                                                         (it.getExtra("custom_name") == app.name || it.name == app.name)
                                                     }
-                                                    sc?.file?.delete()
+                                                    sc?.file?.let {
+                                                        it.delete()
+                                                        val lnkFile = java.io.File(it.path.substringBeforeLast(".") + ".lnk")
+                                                        if (lnkFile.exists()) lnkFile.delete()
+                                                    }
                                                     java.io.File(context.filesDir, "custom_icons/${app.name.replace("/", "_")}.png").delete()
                                                     PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(app.id))
                                                     withContext(Dispatchers.Main) {
@@ -6836,7 +6844,20 @@ class UnifiedActivity : ComponentActivity() {
                 
                 // Downloads provider
                 if (docId.startsWith("msf:") || docId.all { it.isDigit() } || docId.contains("downloads")) {
-                    val resolved = queryContentResolverForPath(context, uri)
+                    var resolved = queryContentResolverForPath(context, uri)
+
+                    // If it's an msf: ID, try querying MediaStore directly
+                    if (resolved == null && docId.startsWith("msf:")) {
+                        val id = docId.substringAfter("msf:")
+                        try {
+                            val mediaUri = android.content.ContentUris.withAppendedId(
+                                android.provider.MediaStore.Files.getContentUri("external"),
+                                id.toLong()
+                            )
+                            resolved = queryContentResolverForPath(context, mediaUri)
+                        } catch (_: Exception) {}
+                    }
+
                     if (resolved != null && java.io.File(resolved).exists()) return resolved
                     
                     // Fallback using display name in Downloads folder
@@ -6847,6 +6868,8 @@ class UnifiedActivity : ComponentActivity() {
                         )
                         if (downloadsFile.exists()) return downloadsFile.absolutePath
                     }
+
+                    if (docId.startsWith("msf:")) return null
                 }
 
                 // Handle primary and secondary volume patterns

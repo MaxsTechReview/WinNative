@@ -97,7 +97,7 @@ public class ExternalController {
 
     public ExternalControllerBinding getControllerBinding(int keyCode) {
         for (ExternalControllerBinding controllerBinding : this.controllerBindings) {
-            if (controllerBinding.getKeyCodeForAxis() == keyCode) {
+            if (controllerBinding.getKeyCode() == keyCode) {
                 return controllerBinding;
             }
         }
@@ -109,7 +109,7 @@ public class ExternalController {
     }
 
     public void addControllerBinding(ExternalControllerBinding controllerBinding) {
-        if (getControllerBinding(controllerBinding.getKeyCodeForAxis()) == null) {
+        if (getControllerBinding(controllerBinding.getKeyCode()) == null) {
             this.controllerBindings.add(controllerBinding);
         }
     }
