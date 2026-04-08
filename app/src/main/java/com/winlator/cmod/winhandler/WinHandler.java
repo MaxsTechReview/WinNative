@@ -405,27 +405,29 @@ public class WinHandler {
             if (!this.usedSlots.contains(slot)) {
                 this.usedSlots.add(slot);
                 this.deviceToSlot.put(deviceId, slot);
+                
+                // Initialize the writer only if it doesn't exist; keep it open
                 if (this.fakeInputBasePath != null && this.writers[slot] == null) {
                     this.writers[slot] = new FakeInputWriter(this.fakeInputBasePath, slot);
                     this.writers[slot].open();
-                    Log.d("WinHandler", "Assigned device " + deviceId + " to slot " + slot);
                 }
+                
+                Log.d("WinHandler", "Assigned device " + deviceId + " to slot " + slot);
                 return slot;
             }
         }
-        Log.w("WinHandler", "No slots available for device " + deviceId);
         return -1;
     }
 
     private void releaseSlot(int deviceId) {
         Integer slot = this.deviceToSlot.remove(deviceId);
         if (slot != null) {
+            // Do NOT close the writer here; instead, just zero out the state
             if (this.writers[slot] != null) {
-                this.writers[slot].close();
+                this.writers[slot].writeGamepadState(new GamepadState()); // Zero out
             }
             this.usedSlots.remove(slot);
-            this.controllers.remove(deviceId);
-            Log.d("WinHandler", "Device " + deviceId + " disconnected. Slot soft-released: " + slot);
+            Log.d("WinHandler", "Device " + deviceId + " disconnected. Slot zeroed: " + slot);
         }
     }
 

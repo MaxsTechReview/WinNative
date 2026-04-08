@@ -558,7 +558,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
                 }
             }
             envVars.put("EVSHIM_MAX_PLAYERS", String.valueOf(MAX_PLAYERS));
-            envVars.put("EVSHIM_DATA_PATH", tmpPath);
+            envVars.put("EVSHIM_DATA_PATH", "/tmp"); // Path inside the container
             envVars.put("EVSHIM_WIN_PATH", "Z:\\tmp");
         } else {
             Log.d("GuestProgramLauncher", "EVSHIM disabled for compatibility mode");

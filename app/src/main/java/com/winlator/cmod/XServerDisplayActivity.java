@@ -464,6 +464,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         // Initialize the WinHandler after context is set up
         winHandler = new WinHandler(this);
+        File tmpDir = new File(ImageFs.find(this).getRootDir(), "tmp");
+        tmpDir.mkdirs();
+        winHandler.setFakeInputPath(tmpDir.getAbsolutePath());
 
         if (isOpenWithAndroidBrowser || isShareAndroidClipboard)
             wineRequestHandler = new WineRequestHandler(this);
@@ -546,16 +549,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
         imageFs = ImageFs.find(this);
         GuestProgramLauncherComponent.ensureImageFsNativeLibrary(this, imageFs, "libfakeinput.so");
         GuestProgramLauncherComponent.ensureImageFsNativeLibrary(this, imageFs, "libandroid-sysvshm.so");
-        File devInputDir = new File(imageFs.getRootDir(), "dev/input");
-        if (devInputDir.exists() || devInputDir.mkdirs()) {
-            for (int i = 0; i < 4; i++) {
-                File eventFile = new File(devInputDir, "event" + i);
-                if (eventFile.exists()) {
-                    eventFile.delete();
-                }
-            }
-        }
-        winHandler.setFakeInputPath(devInputDir.getAbsolutePath());
+        File tmpDir = new File(imageFs.getRootDir(), "tmp");
+        tmpDir.mkdirs();
+        winHandler.setFakeInputPath(tmpDir.getAbsolutePath());
 
         String screenSize = Container.DEFAULT_SCREEN_SIZE;
         containerManager = new ContainerManager(this);
@@ -686,7 +682,13 @@ public class XServerDisplayActivity extends AppCompatActivity {
         numControllers = Math.max(1, Math.min(numControllers, 4));
         for (int i = 0; i < numControllers; i++) {
             try {
-                new File(devInputDir, "event" + i).createNewFile();
+                String memName = (i == 0) ? "gamepad.mem" : "gamepad" + i + ".mem";
+                File memFile = new File(tmpDir, memName);
+                if (!memFile.exists()) {
+                    try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(memFile, "rw")) {
+                        raf.setLength(64);
+                    }
+                }
             } catch (Exception e) {
             }
         }
