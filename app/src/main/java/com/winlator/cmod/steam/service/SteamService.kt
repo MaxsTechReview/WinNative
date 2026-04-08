@@ -3808,20 +3808,25 @@ class SteamService : Service(), IChallengeUrlChanged {
             }
         }
 
+        data class CloudSyncOutcome(
+            val success: Boolean,
+            val message: String = "",
+        )
+
         suspend fun closeApp(
             appId: Int,
             isOffline: Boolean,
             prefixToPath: (String) -> String,
             onProgress: ((message: String, progress: Float) -> Unit)? = null,
-        ) = withContext(Dispatchers.IO) {
+        ): CloudSyncOutcome = withContext(Dispatchers.IO) {
             async {
                 if (isOffline || !isConnected) {
-                    return@async
+                    return@async CloudSyncOutcome(false, "Steam is offline.")
                 }
 
                 if (!tryAcquireSync(appId)) {
                     Timber.w("Cannot close app when sync already in progress for appId=$appId")
-                    return@async
+                    return@async CloudSyncOutcome(false, "Steam cloud sync is already in progress.")
                 }
 
                 try {
@@ -3836,6 +3841,7 @@ class SteamService : Service(), IChallengeUrlChanged {
                         onProgress?.invoke(msg, prog)
                     }
                     val maxAttempts = 3
+                    var lastErrorMessage = "Steam cloud save sync failed."
                     for (attempt in 1..maxAttempts) {
                         try {
                             val clientId = PrefManager.clientId
@@ -3855,15 +3861,24 @@ class SteamService : Service(), IChallengeUrlChanged {
                                     onProgress = progressWrapper,
                                 ).await()
 
+                                val syncResult = postSyncInfo?.syncResult ?: SyncResult.UnknownFail
                                 steamCloud.signalAppExitSyncDone(
                                     appId = appId,
                                     clientId = clientId,
                                     uploadsCompleted = postSyncInfo?.uploadsCompleted == true,
                                     uploadsRequired = postSyncInfo?.uploadsRequired == false,
                                 )
+
+                                if (syncResult == SyncResult.Success || syncResult == SyncResult.UpToDate) {
+                                    return@async CloudSyncOutcome(true)
+                                }
+
+                                lastErrorMessage = "Steam cloud save sync failed."
+                            } else {
+                                lastErrorMessage = "Steam cloud service is unavailable."
                             }
-                            break
                         } catch (e: AsyncJobFailedException) {
+                            lastErrorMessage = e.message ?: "Steam cloud save sync failed."
                             if (attempt == maxAttempts) {
                                 Timber.e(e, "Close app sync failed after $maxAttempts attempts for app $appId")
                             } else {
@@ -3872,16 +3887,58 @@ class SteamService : Service(), IChallengeUrlChanged {
                             }
                         }
                     }
+                    return@async CloudSyncOutcome(false, lastErrorMessage)
                 } finally {
                     cloudSyncStatus.value = null
                     releaseSync(appId)
                 }
-            }
+            }.await()
         }
 
         interface CloudSyncCallback {
             fun onProgress(message: String, progress: Float)
-            fun onComplete()
+            fun onComplete(success: Boolean, message: String)
+        }
+
+        @JvmStatic
+        fun beginLaunchAppBlocking(
+            context: android.content.Context,
+            appId: Int,
+            ignorePendingOperations: Boolean = false,
+            preferredSave: SaveLocation = SaveLocation.None,
+            isOffline: Boolean = false,
+            callback: CloudSyncCallback? = null,
+        ): PostSyncInfo = runBlocking(Dispatchers.IO) {
+            check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+                "beginLaunchAppBlocking must not be called on the main thread"
+            }
+            var completionSent = false
+            val accountId = userSteamId?.accountID?.toLong()
+                ?: PrefManager.steamUserAccountId.takeIf { it != 0 }?.toLong()
+                ?: 0L
+            val prefixToPath: (String) -> String = { prefix ->
+                com.winlator.cmod.steam.enums.PathType.from(prefix).toAbsPath(context, appId, accountId)
+            }
+
+            try {
+                beginLaunchApp(
+                    appId = appId,
+                    parentScope = this,
+                    ignorePendingOperations = ignorePendingOperations,
+                    preferredSave = preferredSave,
+                    prefixToPath = prefixToPath,
+                    isOffline = isOffline,
+                    onProgress = { msg, prog -> callback?.onProgress(msg, prog) },
+                ).await()
+            } catch (e: Exception) {
+                completionSent = true
+                callback?.onComplete(false, e.message ?: "Steam cloud sync failed.")
+                throw e
+            } finally {
+                if (!completionSent) {
+                    callback?.onComplete(true, "")
+                }
+            }
         }
 
         /**
@@ -3932,15 +3989,21 @@ class SteamService : Service(), IChallengeUrlChanged {
                 com.winlator.cmod.steam.enums.PathType.from(prefix).toAbsPath(context, appId, accountId)
             }
             CoroutineScope(Dispatchers.IO).launch {
-                closeApp(
-                    appId = appId,
-                    isOffline = false,
-                    prefixToPath = prefixToPath,
-                    onProgress = { msg, prog -> callback.onProgress(msg, prog) }
-                )
-                notifyRunningProcesses()
-                withContext(Dispatchers.Main) {
-                    callback.onComplete()
+                try {
+                    val outcome = closeApp(
+                        appId = appId,
+                        isOffline = false,
+                        prefixToPath = prefixToPath,
+                        onProgress = { msg, prog -> callback.onProgress(msg, prog) }
+                    )
+                    notifyRunningProcesses()
+                    withContext(Dispatchers.Main) {
+                        callback.onComplete(outcome.success, outcome.message)
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        callback.onComplete(false, e.message ?: "Steam cloud save sync failed.")
+                    }
                 }
             }
         }

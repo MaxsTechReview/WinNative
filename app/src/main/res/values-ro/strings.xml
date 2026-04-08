@@ -901,4 +901,25 @@ Cale instalata:
     <string name="saves_import_export_imported">Salvarile au fost importate cu succes</string>
     <string name="saves_import_export_imported_failed">Importul salvarilor a esuat: %1$s</string>
 
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_default_name">Container</string>
+    <string name="preloader_initializing">Se inițializează…</string>
+    <string name="preloader_launching">Se lansează…</string>
+    <string name="preloader_closing">Se închide %1$s…</string>
+    <string name="preloader_setup_environment">Se configurează mediul…</string>
+    <string name="preloader_installing_mono">Se instalează Wine Mono v%1$s…</string>
+    <string name="preloader_installing_redist">Se instalează redistribuibilele…</string>
+    <string name="preloader_unpacking_exe">Se decomprimă executabilul jocului…</string>
+    <string name="preloader_downloading_cloud">Se descarcă salvările din cloud…</string>
+    <string name="preloader_syncing_cloud">Se sincronizează salvările din cloud…</string>
+    <string name="preloader_cloud_downloading">Descărcare Cloud Sync…</string>
+    <string name="preloader_cloud_backup">Se face backup pe Google Drive…</string>
+    <string name="cloud_sync_failed_provider">Sincronizarea cloud %1$s a eșuat.</string>
+    <string name="google_cloud_backup_failed">Backup-ul pe Google Drive a eșuat.</string>
+    <string name="preloader_platform_steam">Steam</string>
+    <string name="preloader_platform_epic">Epic Games</string>
+    <string name="preloader_platform_gog">GOG</string>
+    <string name="preloader_platform_custom">Joc personalizat</string>
+    <string name="preloader_platform_amazon">Amazon</string>
+
 </resources>

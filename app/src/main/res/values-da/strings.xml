@@ -901,4 +901,25 @@ Installeret sti:
     <string name="saves_import_export_imported">Gemmedata importeret</string>
     <string name="saves_import_export_imported_failed">Kunne ikke importere gemmedata: %1$s</string>
 
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_default_name">Container</string>
+    <string name="preloader_initializing">Initialiserer…</string>
+    <string name="preloader_launching">Starter…</string>
+    <string name="preloader_closing">Lukker %1$s…</string>
+    <string name="preloader_setup_environment">Opsætter miljø…</string>
+    <string name="preloader_installing_mono">Installerer Wine Mono v%1$s…</string>
+    <string name="preloader_installing_redist">Installerer redistribuerbare filer…</string>
+    <string name="preloader_unpacking_exe">Udpakker spilprogram…</string>
+    <string name="preloader_downloading_cloud">Downloader cloud-gemte data…</string>
+    <string name="preloader_syncing_cloud">Synkroniserer cloud-gemte data…</string>
+    <string name="preloader_cloud_downloading">Cloud Sync downloader…</string>
+    <string name="preloader_cloud_backup">Sikkerhedskopierer til Google Drev…</string>
+    <string name="cloud_sync_failed_provider">%1$s cloud-synkronisering mislykkedes.</string>
+    <string name="google_cloud_backup_failed">Sikkerhedskopiering til Google Drev mislykkedes.</string>
+    <string name="preloader_platform_steam">Steam</string>
+    <string name="preloader_platform_epic">Epic Games</string>
+    <string name="preloader_platform_gog">GOG</string>
+    <string name="preloader_platform_custom">Brugerdefineret spil</string>
+    <string name="preloader_platform_amazon">Amazon</string>
+
 </resources>

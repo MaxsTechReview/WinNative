@@ -150,6 +150,8 @@ import java.util.regex.Pattern;
 import cn.sherlock.com.sun.media.sound.SF2Soundbank;
 
 public class XServerDisplayActivity extends AppCompatActivity {
+    private static final String CLOUD_EXIT_SYNC_TAG = "CloudExitSync";
+    private static final long FAILURE_TOAST_DURATION_MS = 5000L;
     public static String NOTIFICATION_CHANNEL_ID = "Winlator";
     public static int NOTIFICATION_ID = -1;
     private static final long STEAM_TERMINATION_GRACE_MS = 10000L;
@@ -218,6 +220,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private String midiSoundFont = "";
     private String lc_all = "";
     PreloaderDialog preloaderDialog = null;
+    private String cachedDisplayName = "";
+    private String cachedPlatform = "";
+    private String cachedContainerLabel = "";
     private Runnable configChangedCallback = null;
     private boolean isPaused = false;
     private boolean isRelativeMouseMovement = false;
@@ -992,11 +997,11 @@ public class XServerDisplayActivity extends AppCompatActivity {
             };
         }
 
-        if (shortcutName != null && !shortcutName.isEmpty()) {
-            preloaderDialog.show("Starting " + shortcutName + "...");
-        } else {
-            preloaderDialog.show("Starting Container...");
-        }
+        cachedPlatform = shortcut != null ? shortcut.getExtra("game_source") : "";
+        if (cachedPlatform == null) cachedPlatform = "";
+        cachedDisplayName = (shortcutName != null && !shortcutName.isEmpty()) ? shortcutName : getString(R.string.preloader_default_name);
+        cachedContainerLabel = container != null ? container.getName() : "";
+        preloaderDialog.show(R.string.preloader_initializing, cachedDisplayName, cachedPlatform, cachedContainerLabel);
 
         inputControlsManager = new InputControlsManager(this);
         xServer = new XServer(new ScreenInfo(screenSize));
@@ -1102,14 +1107,16 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     if (isCloudSyncEnabledForShortcut()) {
                         CloudSyncHelper.forceDownloadOnContainerSwap(this, shortcut);
 
-                        // Cloud save sync on every store-game launch
-                        if (CloudSyncHelper.isStoreGame(shortcut)) {
+                        String gameSource = shortcut.getExtra("game_source");
+                        if ("STEAM".equals(gameSource)) {
+                            runSteamLaunchCloudSync();
+                        } else if (CloudSyncHelper.isStoreGame(shortcut)) {
+                            // Cloud save sync on every non-Steam store-game launch
                             if (!CloudSyncHelper.hasLocalCloudSaves(this, shortcut)) {
                                 // First launch — download silently
-                                preloaderDialog.showOnUiThread("Downloading Cloud Saves\u2026");
+                                preloaderDialog.setStepOnUiThread(R.string.preloader_downloading_cloud);
                                 CloudSyncHelper.downloadCloudSaves(this, shortcut);
-                                preloaderDialog.showOnUiThread("Starting " +
-                                        (shortcutName != null ? shortcutName : "Container") + "...");
+                                preloaderDialog.setStepOnUiThread(R.string.preloader_initializing);
                             } else if (CloudSyncHelper.cloudSavesDiffer(this, shortcut)) {
                                 // Cloud differs from local — ask the user what to do
                                 final CountDownLatch dialogLatch = new CountDownLatch(1);
@@ -1137,15 +1144,15 @@ public class XServerDisplayActivity extends AppCompatActivity {
                                 } catch (InterruptedException ignored) {}
 
                                 if (useCloud[0]) {
-                                    preloaderDialog.showOnUiThread("Syncing Cloud Saves\u2026");
+                                    preloaderDialog.setStepOnUiThread(R.string.preloader_syncing_cloud);
                                     CloudSyncHelper.downloadCloudSaves(this, shortcut);
-                                    preloaderDialog.showOnUiThread("Starting " +
-                                            (shortcutName != null ? shortcutName : "Container") + "...");
+                                    preloaderDialog.setStepOnUiThread(R.string.preloader_initializing);
                                 }
                             }
                         }
                     }
                 }
+                preloaderDialog.setStepOnUiThread(R.string.preloader_setup_environment);
                 setupWineSystemFiles();
                 extractGraphicsDriverFiles();
                 changeWineAudioDriver();
@@ -1154,6 +1161,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 } catch (PackageManager.NameNotFoundException e) {
                     throw new RuntimeException(e);
                 }
+                preloaderDialog.setStepOnUiThread(R.string.preloader_launching);
+
             });
         };
 
@@ -1625,11 +1634,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
 
         NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID);
-        if (shortcutName != null && !shortcutName.isEmpty()) {
-            preloaderDialog.showOnUiThread("Closing " + shortcutName + "...");
-        } else {
-            preloaderDialog.showOnUiThread("Closing Container...");
-        }
+        String closingName = (shortcutName != null && !shortcutName.isEmpty()) ? shortcutName : getString(R.string.preloader_default_name);
+        showLaunchPreloader(getString(R.string.preloader_closing, closingName));
         
         // Sync store cloud saves before shutting down
         syncStoreCloudOnExit(() -> {
@@ -1761,7 +1767,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         String gameName = shortcutName != null && !shortcutName.isEmpty() ? shortcutName : (shortcut.name != null ? shortcut.name : "Unknown");
 
         Log.d("XServerDisplayActivity", "Starting auto backup to Google Drive for " + gameSource + "/" + gameId);
-        preloaderDialog.showOnUiThread("Backing up save to Google Drive...");
+        showLaunchPreloader(getString(R.string.preloader_cloud_backup));
 
         new Thread(() -> {
             try {
@@ -1777,8 +1783,13 @@ public class XServerDisplayActivity extends AppCompatActivity {
                         )
                     );
                 Log.d("XServerDisplayActivity", "Auto backup result: " + result.getMessage());
+                if (!result.getSuccess()) {
+                    Log.w(CLOUD_EXIT_SYNC_TAG, "Google Drive auto-backup failed: " + result.getMessage());
+                    runOnUiThread(() -> showToast(this, result.getMessage(), FAILURE_TOAST_DURATION_MS));
+                }
             } catch (Exception e) {
-                Log.w("XServerDisplayActivity", "Auto backup to Google Drive failed", e);
+                Log.w(CLOUD_EXIT_SYNC_TAG, "Google Drive auto-backup threw an exception", e);
+                runOnUiThread(() -> showToast(this, getString(R.string.google_cloud_backup_failed), FAILURE_TOAST_DURATION_MS));
             } finally {
                 runOnUiThread(onComplete);
             }
@@ -1805,26 +1816,30 @@ public class XServerDisplayActivity extends AppCompatActivity {
             int appId = Integer.parseInt(shortcut.getExtra("app_id"));
             Log.d("XServerDisplayActivity", "Syncing Steam cloud saves for appId=" + appId);
             
-            preloaderDialog.showOnUiThread("Cloud Sync Uploading...");
+            showLaunchPreloader(getString(R.string.preloader_syncing_cloud));
             
             com.winlator.cmod.steam.service.SteamService.Companion.CloudSyncCallback callback = new com.winlator.cmod.steam.service.SteamService.Companion.CloudSyncCallback() {
                 @Override
                 public void onProgress(String message, float progress) {
-                    runOnUiThread(() -> {
-                        int pct = (int)(progress * 100);
-                        preloaderDialog.showOnUiThread(message + " (" + pct + "%)");
-                    });
+                    runOnUiThread(() -> showLaunchPreloader(getString(R.string.preloader_syncing_cloud)));
                 }
                 @Override
-                public void onComplete() {
-                    Log.d("XServerDisplayActivity", "Steam cloud sync complete for appId=" + appId);
+                public void onComplete(boolean success, String message) {
+                    Log.d("XServerDisplayActivity", "Steam cloud sync complete for appId=" + appId + ", success=" + success);
+                    if (!success) {
+                        Log.w(CLOUD_EXIT_SYNC_TAG, "Steam exit cloud sync failed for appId=" + appId + " message=" + message);
+                        showToast(XServerDisplayActivity.this, getString(R.string.cloud_sync_failed_provider, "Steam"), FAILURE_TOAST_DURATION_MS);
+                    } else {
+                        Log.d(CLOUD_EXIT_SYNC_TAG, "Steam exit cloud sync succeeded for appId=" + appId);
+                    }
                     onComplete.run();
                 }
             };
             
             com.winlator.cmod.steam.service.SteamService.syncCloudOnExit(this, appId, callback);
         } catch (Exception e) {
-            Log.w("XServerDisplayActivity", "Failed to initiate Steam cloud sync", e);
+            Log.w(CLOUD_EXIT_SYNC_TAG, "Steam exit cloud sync could not be started", e);
+            showToast(this, getString(R.string.cloud_sync_failed_provider, "Steam"), FAILURE_TOAST_DURATION_MS);
             onComplete.run();
         }
     }
@@ -1839,7 +1854,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         try {
             int appId = Integer.parseInt(appIdStr);
             Log.d("XServerDisplayActivity", "Syncing Epic cloud saves for appId=" + appId);
-            preloaderDialog.showOnUiThread("Cloud Sync Uploading...");
+            showLaunchPreloader(getString(R.string.preloader_syncing_cloud));
 
             new Thread(() -> {
                 try {
@@ -1853,14 +1868,22 @@ public class XServerDisplayActivity extends AppCompatActivity {
                             )
                     );
                     Log.d("XServerDisplayActivity", "Epic cloud sync complete for appId=" + appId + ", success=" + syncSuccess);
+                    if (!Boolean.TRUE.equals(syncSuccess)) {
+                        Log.w(CLOUD_EXIT_SYNC_TAG, "Epic exit cloud sync failed for appId=" + appId + " success=" + syncSuccess);
+                        runOnUiThread(() -> showToast(this, getString(R.string.cloud_sync_failed_provider, "Epic"), FAILURE_TOAST_DURATION_MS));
+                    } else {
+                        Log.d(CLOUD_EXIT_SYNC_TAG, "Epic exit cloud sync succeeded for appId=" + appId);
+                    }
                 } catch (Exception e) {
-                    Log.w("XServerDisplayActivity", "Failed to initiate Epic cloud sync", e);
+                    Log.w(CLOUD_EXIT_SYNC_TAG, "Epic exit cloud sync threw an exception for appId=" + appId, e);
+                    runOnUiThread(() -> showToast(this, getString(R.string.cloud_sync_failed_provider, "Epic"), FAILURE_TOAST_DURATION_MS));
                 } finally {
                     runOnUiThread(onComplete);
                 }
             }).start();
         } catch (Exception e) {
-            Log.w("XServerDisplayActivity", "Failed to parse Epic app_id for cloud sync", e);
+            Log.w(CLOUD_EXIT_SYNC_TAG, "Epic exit cloud sync could not be started", e);
+            showToast(this, getString(R.string.cloud_sync_failed_provider, "Epic"), FAILURE_TOAST_DURATION_MS);
             onComplete.run();
         }
     }
@@ -1873,7 +1896,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
 
         Log.d("XServerDisplayActivity", "Syncing GOG cloud saves for gogId=" + gogId);
-        preloaderDialog.showOnUiThread("Cloud Sync Uploading...");
+        showLaunchPreloader(getString(R.string.preloader_syncing_cloud));
 
         new Thread(() -> {
             try {
@@ -1887,12 +1910,83 @@ public class XServerDisplayActivity extends AppCompatActivity {
                         )
                 );
                 Log.d("XServerDisplayActivity", "GOG cloud sync complete for gogId=" + gogId + ", success=" + syncSuccess);
+                if (!Boolean.TRUE.equals(syncSuccess)) {
+                    Log.w(CLOUD_EXIT_SYNC_TAG, "GOG exit cloud sync failed for gogId=" + gogId + " success=" + syncSuccess);
+                    runOnUiThread(() -> showToast(this, getString(R.string.cloud_sync_failed_provider, "GOG"), FAILURE_TOAST_DURATION_MS));
+                } else {
+                    Log.d(CLOUD_EXIT_SYNC_TAG, "GOG exit cloud sync succeeded for gogId=" + gogId);
+                }
             } catch (Exception e) {
-                Log.w("XServerDisplayActivity", "Failed to initiate GOG cloud sync", e);
+                Log.w(CLOUD_EXIT_SYNC_TAG, "GOG exit cloud sync threw an exception for gogId=" + gogId, e);
+                runOnUiThread(() -> showToast(this, getString(R.string.cloud_sync_failed_provider, "GOG"), FAILURE_TOAST_DURATION_MS));
             } finally {
                 runOnUiThread(onComplete);
             }
         }).start();
+    }
+
+    private void showLaunchPreloader(String text) {
+        if (preloaderDialog == null) return;
+        preloaderDialog.showOnUiThread(text, cachedDisplayName, cachedPlatform, cachedContainerLabel);
+    }
+
+    private void showLaunchPreloaderProgress(String text, int percent) {
+        if (preloaderDialog == null) return;
+        preloaderDialog.showProgressOnUiThread(text, cachedDisplayName, cachedPlatform, cachedContainerLabel, Math.max(0, Math.min(100, percent)));
+    }
+
+    private void runSteamLaunchCloudSync() {
+        if (shortcut == null || !"STEAM".equals(shortcut.getExtra("game_source"))) return;
+
+        String appIdRaw = shortcut.getExtra("app_id");
+        if (appIdRaw == null || appIdRaw.isEmpty()) return;
+
+        final int appId;
+        try {
+            appId = Integer.parseInt(appIdRaw);
+        } catch (NumberFormatException e) {
+            Log.w("XServerDisplayActivity", "Invalid Steam app_id for startup cloud sync", e);
+            return;
+        }
+
+        showLaunchPreloader(getString(R.string.preloader_cloud_downloading));
+
+        try {
+            com.winlator.cmod.steam.data.PostSyncInfo syncInfo =
+                    com.winlator.cmod.steam.service.SteamService.beginLaunchAppBlocking(
+                            this,
+                            appId,
+                            true,
+                            com.winlator.cmod.steam.enums.SaveLocation.None,
+                            false,
+                            new com.winlator.cmod.steam.service.SteamService.Companion.CloudSyncCallback() {
+                                @Override
+                                public void onProgress(String message, float progress) {
+                                    String step = (message != null && !message.isEmpty())
+                                            ? message
+                                            : getString(R.string.preloader_cloud_downloading);
+                                    runOnUiThread(() -> showLaunchPreloader(step));
+                                }
+
+                                @Override
+                                public void onComplete(boolean success, String message) {
+                                    if (preloaderDialog == null) return;
+                                    preloaderDialog.setIndeterminateOnUiThread(true);
+                                    preloaderDialog.setProgressOnUiThread(0);
+                                }
+                            });
+
+            if (syncInfo != null) {
+                com.winlator.cmod.steam.enums.SyncResult result = syncInfo.getSyncResult();
+                Log.d("XServerDisplayActivity", "Steam launch cloud sync result for appId=" + appId + ": " + result);
+                if (result == com.winlator.cmod.steam.enums.SyncResult.Success
+                        || result == com.winlator.cmod.steam.enums.SyncResult.UpToDate) {
+                    CloudSyncHelper.markCloudSaveSynced(this, shortcut);
+                }
+            }
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Steam launch cloud sync failed for appId=" + appId, e);
+        }
     }
 
     @Override
@@ -4532,6 +4626,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             // .unpacked.exe exists yet (user turned Legacy DRM on for the first time).
             boolean unpackedExeExists = doesUnpackedExeExist();
             if (needsUnpacking || !unpackedExeExists) {
+                preloaderDialog.setStepOnUiThread(R.string.preloader_unpacking_exe);
                 runSteamlessOnExe(launcher);
             } else {
                 // Steamless already ran on a prior launch. Ensure the unpacked exe is active
@@ -4635,6 +4730,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         try {
             Log.d("XServerDisplayActivity", "Installing Wine Mono v" + requiredVersion
                     + " (" + monoWinePath + ") in container " + container.id + "...");
+            preloaderDialog.setStepOnUiThread(R.string.preloader_installing_mono, requiredVersion);
             String monoCmd = "wine msiexec /i " + monoWinePath + " && wineserver -k";
             launcher.execShellCommand(monoCmd);
             container.putExtra("mono_installed", "true");
@@ -4689,6 +4785,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         Log.d("XServerDisplayActivity", "Installing redistributables for appId=" + appId
                 + " in container " + container.id + "...");
+        preloaderDialog.setStepOnUiThread(R.string.preloader_installing_redist);
 
         // Walk _CommonRedist subdirs and find installer executables
         // Typical structure: _CommonRedist/vcredist/2019/vc_redist.x64.exe

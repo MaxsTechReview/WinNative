@@ -189,7 +189,6 @@ private val StatusOnline = Color(0xFF3FB950)
 private val StatusAway = Color(0xFFF0C040)
 private val StatusOffline = Color(0xFF6E7681)
 
-
 private val LIBRARY_NAME_SANITIZE_REGEX = "[^A-Za-z0-9 _-]".toRegex()
 
 enum class LibraryLayoutMode {
@@ -905,11 +904,6 @@ class UnifiedActivity : ComponentActivity() {
                         }
                     }
 
-                    // Cloud Sync Dialog
-                    val cloudSyncStatus by SteamService.cloudSyncStatus.collectAsState()
-                    if (cloudSyncStatus != null) {
-                        CloudSyncOverlay(cloudSyncStatus!!)
-                    }
                 }
             }
 
@@ -5713,8 +5707,7 @@ class UnifiedActivity : ComponentActivity() {
             return
         }
 
-        // Try to find an existing shortcut first
-        var shortcut = containerManager.loadShortcuts().find {
+        val shortcut = containerManager.loadShortcuts().find {
             it.getExtra("app_id") == app.id.toString()
         }
 
@@ -5723,35 +5716,21 @@ class UnifiedActivity : ComponentActivity() {
                 SteamService.getInstalledExe(app.id)
             }
 
-            // Initiate Cloud Sync download
-            val accountId = SteamService.userSteamId?.accountID?.toLong()
-                ?: PrefManager.steamUserAccountId.takeIf { it != 0 }?.toLong()
-                ?: 0L
-            val prefixToPath: (String) -> String = { prefix ->
-                com.winlator.cmod.steam.enums.PathType.from(prefix).toAbsPath(context, app.id, accountId)
-            }
-            SteamService.beginLaunchApp(
-                appId = app.id,
-                prefixToPath = prefixToPath,
-                ignorePendingOperations = true,
-                preferredSave = com.winlator.cmod.steam.enums.SaveLocation.None,
-            ).await()
-
             if (shortcut != null) {
-                if (!SetupWizardActivity.isContainerUsable(context, shortcut!!.container)) {
+                if (!SetupWizardActivity.isContainerUsable(context, shortcut.container)) {
                     SetupWizardActivity.promptToInstallWineOrCreateContainer(
                         context,
-                        shortcut!!.container.wineVersion
+                        shortcut.container.wineVersion
                     )
                     return@launch
                 }
                 // Existing shortcut: mount A: drive to game install path on its container
-                mountADrive(shortcut!!.container, gameInstallPath)
-                shortcut!!.putExtra("game_source", "STEAM")
-                shortcut!!.putExtra("game_install_path", gameInstallPath)
-                shortcut!!.putExtra("launch_exe_path", launchExecutable)
+                mountADrive(shortcut.container, gameInstallPath)
+                shortcut.putExtra("game_source", "STEAM")
+                shortcut.putExtra("game_install_path", gameInstallPath)
+                shortcut.putExtra("launch_exe_path", launchExecutable)
                 val loaderExec = "wine \"C:\\\\Program Files (x86)\\\\Steam\\\\steamclient_loader_x64.exe\""
-                val lines = com.winlator.cmod.core.FileUtils.readLines(shortcut!!.file)
+                val lines = com.winlator.cmod.core.FileUtils.readLines(shortcut.file)
                 val rewritten = StringBuilder()
                 var execUpdated = false
                 for (line in lines) {
@@ -5765,15 +5744,15 @@ class UnifiedActivity : ComponentActivity() {
                 if (!execUpdated) {
                     rewritten.append("Exec=").append(loaderExec).append("\n")
                 }
-                com.winlator.cmod.core.FileUtils.writeString(shortcut!!.file, rewritten.toString())
-                shortcut!!.saveData()
+                com.winlator.cmod.core.FileUtils.writeString(shortcut.file, rewritten.toString())
+                shortcut.saveData()
                 val intent = Intent(context, XServerDisplayActivity::class.java)
-                intent.putExtra("container_id", shortcut!!.container.id)
-                intent.putExtra("shortcut_path", shortcut!!.file.path)
-                intent.putExtra("shortcut_name", shortcut!!.name)
-                context.startActivity(intent)
+                intent.putExtra("container_id", shortcut.container.id)
+                intent.putExtra("shortcut_path", shortcut.file.path)
+                intent.putExtra("shortcut_name", shortcut.name)
+                launchGame(context, intent)
             } else {
-                var container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
+                val container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
 
                 if (container == null) {
                     SetupWizardActivity.promptToInstallWineOrCreateContainer(context)
@@ -5810,7 +5789,7 @@ class UnifiedActivity : ComponentActivity() {
                 intent.putExtra("container_id", container.id)
                 intent.putExtra("shortcut_path", shortcutFile.path)
                 intent.putExtra("shortcut_name", app.name)
-                context.startActivity(intent)
+                launchGame(context, intent)
             }
         }
     }
@@ -5884,7 +5863,7 @@ class UnifiedActivity : ComponentActivity() {
                 intent.putExtra("shortcut_path", shortcut.file.path)
                 intent.putExtra("shortcut_name", shortcut.name)
                 intent.putExtra("extra_exec_args", args) // Pass fresh tokens
-                context.startActivity(intent)
+                launchGame(context, intent)
             } else {
                 // No existing shortcut — create a new one
                 var exePath = withContext(kotlinx.coroutines.Dispatchers.IO) { EpicService.getInstalledExe(app.id) }
@@ -5934,7 +5913,7 @@ class UnifiedActivity : ComponentActivity() {
                 intent.putExtra("shortcut_path", shortcutFile.path)
                 intent.putExtra("shortcut_name", app.title)
                 intent.putExtra("extra_exec_args", args) // Pass fresh tokens
-                context.startActivity(intent)
+                launchGame(context, intent)
             }
         }
     }
@@ -6020,7 +5999,7 @@ class UnifiedActivity : ComponentActivity() {
                 intent.putExtra("container_id", shortcut.container.id)
                 intent.putExtra("shortcut_path", shortcut.file.path)
                 intent.putExtra("shortcut_name", shortcut.name)
-                context.startActivity(intent)
+                launchGame(context, intent)
                 return@launch
             }
 
@@ -6073,7 +6052,7 @@ class UnifiedActivity : ComponentActivity() {
             intent.putExtra("container_id", container.id)
             intent.putExtra("shortcut_path", shortcutFile.path)
             intent.putExtra("shortcut_name", app.title)
-            context.startActivity(intent)
+            launchGame(context, intent)
         }
     }
 
@@ -6132,7 +6111,16 @@ class UnifiedActivity : ComponentActivity() {
         intent.putExtra("container_id", shortcut.container.id)
         intent.putExtra("shortcut_path", shortcut.file.path)
         intent.putExtra("shortcut_name", gameName)
+        launchGame(context, intent)
+    }
+
+    private fun launchGame(context: android.content.Context, intent: Intent) {
         context.startActivity(intent)
+        // Suppress the default activity transition so the preloader stays seamless
+        if (context is android.app.Activity) {
+            @Suppress("DEPRECATION")
+            context.overridePendingTransition(0, 0)
+        }
     }
 
     private fun findGameExe(dir: java.io.File): java.io.File? {
@@ -6922,59 +6910,6 @@ class UnifiedActivity : ComponentActivity() {
         } catch (_: Exception) {}
     }
 
-    // Cloud Sync UI Overlay
-    @Composable
-    fun CloudSyncOverlay(status: SteamService.Companion.CloudSyncMessage) {
-        Box(
-            modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)).clickable(enabled=false, onClick={}),
-            contentAlignment = Alignment.Center
-        ) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = CardDark,
-                modifier = Modifier.width(340.dp).padding(16.dp).border(2.dp, Accent.copy(alpha=0.5f), RoundedCornerShape(16.dp))
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    val title = if (status.isUpload) "Cloud Sync Uploading..." else "Cloud Sync Downloading..."
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = TextPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.height(16.dp))
-
-                    Text(
-                        text = status.message,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary,
-                        textAlign = TextAlign.Center,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(Modifier.height(16.dp))
-
-                    androidx.compose.material3.LinearProgressIndicator(
-                        progress = { status.progress.coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
-                        color = Accent,
-                        trackColor = SurfaceDark
-                    )
-
-                    Spacer(Modifier.height(8.dp))
-                    val pct = (status.progress * 100).toInt()
-                    Text(
-                        text = "$pct%",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TextPrimary
-                    )
-                }
-            }
-        }
-    }
 
     @Composable
     fun CustomPathWarningDialog(onDismiss: () -> Unit, onProceed: () -> Unit) {

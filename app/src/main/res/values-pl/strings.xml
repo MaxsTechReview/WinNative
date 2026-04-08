@@ -901,4 +901,25 @@ Zainstalowana ścieżka:
     <string name="saves_import_export_imported">Zapisy zaimportowane pomyślnie</string>
     <string name="saves_import_export_imported_failed">Nie udało się zaimportować zapisów: %1$s</string>
 
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_default_name">Kontener</string>
+    <string name="preloader_initializing">Inicjalizacja…</string>
+    <string name="preloader_launching">Uruchamianie…</string>
+    <string name="preloader_closing">Zamykanie %1$s…</string>
+    <string name="preloader_setup_environment">Konfiguracja środowiska…</string>
+    <string name="preloader_installing_mono">Instalowanie Wine Mono v%1$s…</string>
+    <string name="preloader_installing_redist">Instalowanie pakietów redystrybucyjnych…</string>
+    <string name="preloader_unpacking_exe">Rozpakowywanie pliku wykonywalnego gry…</string>
+    <string name="preloader_downloading_cloud">Pobieranie zapisów z chmury…</string>
+    <string name="preloader_syncing_cloud">Synchronizacja zapisów z chmury…</string>
+    <string name="preloader_cloud_downloading">Pobieranie synchronizacji chmury…</string>
+    <string name="preloader_cloud_backup">Tworzenie kopii zapasowej na Dysku Google…</string>
+    <string name="cloud_sync_failed_provider">Synchronizacja chmury %1$s nie powiodła się.</string>
+    <string name="google_cloud_backup_failed">Kopia zapasowa na Dysku Google nie powiodła się.</string>
+    <string name="preloader_platform_steam">Steam</string>
+    <string name="preloader_platform_epic">Epic Games</string>
+    <string name="preloader_platform_gog">GOG</string>
+    <string name="preloader_platform_custom">Gra niestandardowa</string>
+    <string name="preloader_platform_amazon">Amazon</string>
+
 </resources>
