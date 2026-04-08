@@ -549,9 +549,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
         imageFs = ImageFs.find(this);
         GuestProgramLauncherComponent.ensureImageFsNativeLibrary(this, imageFs, "libfakeinput.so");
         GuestProgramLauncherComponent.ensureImageFsNativeLibrary(this, imageFs, "libandroid-sysvshm.so");
-        File tmpDir = new File(imageFs.getRootDir(), "tmp");
-        tmpDir.mkdirs();
-        winHandler.setFakeInputPath(tmpDir.getAbsolutePath());
 
         String screenSize = Container.DEFAULT_SCREEN_SIZE;
         containerManager = new ContainerManager(this);
