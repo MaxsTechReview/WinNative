@@ -37,7 +37,7 @@ public class ControllerAssignmentDialog {
 
     // ---------- Public entry points -----------------------------------------
 
-    /** Legacy call (e.g., from MainActivity). Will try to grab WinHandler if context is XServerDisplayActivity. */
+    /** Legacy call (e.g., from UnifiedActivity). Will try to grab WinHandler if context is XServerDisplayActivity. */
     public static void show(Context context) {
         show(context, null);
     }

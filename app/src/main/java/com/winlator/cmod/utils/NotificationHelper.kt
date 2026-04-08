@@ -9,7 +9,7 @@ import android.content.Context.NOTIFICATION_SERVICE
 import android.content.Intent
 import androidx.core.app.NotificationCompat
 import com.winlator.cmod.BuildConfig
-import com.winlator.cmod.MainActivity
+import com.winlator.cmod.UnifiedActivity
 import com.winlator.cmod.steam.utils.PrefManager
 import com.winlator.cmod.R
 import com.winlator.cmod.steam.service.SteamService
@@ -56,7 +56,7 @@ class NotificationHelper @Inject constructor(private val context: Context) {
     }
 
     fun createForegroundNotification(content: String): Notification {
-        val intent = Intent(context, MainActivity::class.java).apply {
+        val intent = Intent(context, UnifiedActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
 

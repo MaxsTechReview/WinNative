@@ -47,21 +47,12 @@
         <item name="android:windowTranslucentNavigation">true</item>
     </style>
 
-    <!-- Activity window animation for settings/container screens -->
-    <style name="SettingsActivityAnimation">
-        <item name="android:activityOpenEnterAnimation">@anim/settings_enter</item>
-        <item name="android:activityOpenExitAnimation">@anim/settings_exit</item>
-        <item name="android:activityCloseEnterAnimation">@anim/settings_enter</item>
-        <item name="android:activityCloseExitAnimation">@anim/settings_exit</item>
-    </style>
-
     <!-- Dark Theme Fullscreen -->
     <style name="AppThemeFullscreen.Dark" parent="@style/AppTheme.Dark">
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowBackground">#000000</item>
         <item name="android:windowTranslucentStatus">true</item>
         <item name="android:windowTranslucentNavigation">true</item>
-        <item name="android:windowAnimationStyle">@style/SettingsActivityAnimation</item>
     </style>
 
     <!-- Base ComboBox Styles -->

@@ -150,6 +150,7 @@ import java.util.regex.Pattern;
 import cn.sherlock.com.sun.media.sound.SF2Soundbank;
 
 public class XServerDisplayActivity extends AppCompatActivity {
+    private static final int EDIT_INPUT_CONTROLS_REQUEST_CODE = 3;
     private static final String CLOUD_EXIT_SYNC_TAG = "CloudExitSync";
     private static final long FAILURE_TOAST_DURATION_MS = 5000L;
     public static String NOTIFICATION_CHANNEL_ID = "Winlator";
@@ -1396,7 +1397,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == MainActivity.EDIT_INPUT_CONTROLS_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
+        if (requestCode == EDIT_INPUT_CONTROLS_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
             if (editInputControlsCallback != null) {
                 editInputControlsCallback.run();
                 editInputControlsCallback = null;
@@ -3273,7 +3274,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         // Settings button callback
         dialog.setOnSettingsClickCallback(() -> {
             int position = dialog.getSelectedProfileIndex().getIntValue();
-            Intent intent = new Intent(this, MainActivity.class);
+            Intent intent = new Intent(this, UnifiedActivity.class);
             intent.putExtra("edit_input_controls", true);
             intent.putExtra("selected_profile_id", position > 0 ? inputControlsManager.getProfiles(true).get(position - 1).id : 0);
             editInputControlsCallback = () -> {

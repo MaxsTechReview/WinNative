@@ -3,9 +3,6 @@ package com.winlator.cmod.xenvironment;
 import android.content.Context;
 import android.util.Log;
 
-import androidx.appcompat.app.AppCompatActivity;
-
-import com.winlator.cmod.MainActivity;
 import com.winlator.cmod.R;
 import com.winlator.cmod.SettingsConfig;
 import com.winlator.cmod.container.Container;
@@ -47,7 +44,7 @@ public abstract class ImageFsInstaller {
         }
     }
 
-    public static void installWineFromAssets(final MainActivity activity) {
+    public static void installWineFromAssets(final android.app.Activity activity) {
         String[] versions = activity.getResources().getStringArray(R.array.wine_entries);
         File rootDir = ImageFs.find(activity).getRootDir();
         for (String version : versions) {
@@ -57,7 +54,7 @@ public abstract class ImageFsInstaller {
         }
     }
 
-    public static void installDriversFromAssets(final MainActivity activity) {
+    public static void installDriversFromAssets(final android.app.Activity activity) {
         AdrenotoolsManager adrenotoolsManager = new AdrenotoolsManager(activity);
         String[] adrenotoolsAssetDrivers = activity.getResources().getStringArray(R.array.wrapper_graphics_driver_version_entries);
 
@@ -65,7 +62,7 @@ public abstract class ImageFsInstaller {
             adrenotoolsManager.extractDriverFromResources(driver);
     }
 
-    public static void installFromAssets(final MainActivity activity) {
+    public static void installFromAssets(final android.app.Activity activity) {
         AppUtils.keepScreenOn(activity);
         ImageFs imageFs = ImageFs.find(activity);
         File rootDir = imageFs.getRootDir();
@@ -102,7 +99,7 @@ public abstract class ImageFsInstaller {
         });
     }
 
-    public static void installIfNeeded(final MainActivity activity) {
+    public static void installIfNeeded(final android.app.Activity activity) {
         ImageFs imageFs = ImageFs.find(activity);
         if (!imageFs.isValid() || imageFs.getVersion() < LATEST_VERSION) installFromAssets(activity);
     }

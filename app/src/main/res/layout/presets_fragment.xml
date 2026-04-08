@@ -12,7 +12,7 @@
         android:paddingStart="11dp"
         android:paddingTop="16dp"
         android:paddingEnd="0dp"
-        android:paddingBottom="16dp">
+>
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/RecyclerView"

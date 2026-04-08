@@ -233,9 +233,9 @@ class SetupWizardActivity : FragmentActivity() {
 
             val intent = when {
                 !isSetupComplete(context) -> Intent(context, SetupWizardActivity::class.java)
-                hasInstalledRuntimes(context) -> Intent(context, MainActivity::class.java)
+                hasInstalledRuntimes(context) -> Intent(context, UnifiedActivity::class.java)
                     .putExtra("selected_menu_item_id", R.id.main_menu_containers)
-                else -> Intent(context, MainActivity::class.java)
+                else -> Intent(context, UnifiedActivity::class.java)
                     .putExtra("selected_menu_item_id", R.id.main_menu_contents)
             }
             if (context !is Activity) {
@@ -1291,7 +1291,7 @@ class SetupWizardActivity : FragmentActivity() {
     private fun openContainerDefaultSettings(containerId: Int, type: String) {
         pendingContainerSettingsType = type
         containerSettingsLauncher.launch(
-            Intent(this, MainActivity::class.java)
+            Intent(this, UnifiedActivity::class.java)
                 .putExtra("edit_container_id", containerId)
         )
     }

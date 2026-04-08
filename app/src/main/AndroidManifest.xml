@@ -88,15 +88,6 @@
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation">
         </activity>
 
-        <!-- Main backend activity -->
-        <activity
-            android:name="com.winlator.cmod.MainActivity"
-            android:theme="@style/AppThemeFullscreen.Dark"
-            android:screenOrientation="sensorLandscape"
-            android:exported="true"
-            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation">
-        </activity>
-
         <activity
             android:name="com.winlator.cmod.XServerDisplayActivity"
             android:theme="@style/AppThemeFullscreen"

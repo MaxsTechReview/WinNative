@@ -125,7 +125,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             }
             // Centralize cleanup so back-button dismissal follows the same
             // path as Save/Cancel and still fires onFinished (important for
-            // the setup wizard launcher that blocks on MainActivity finishing).
+            // the setup wizard launcher that blocks on UnifiedActivity finishing).
             setOnDismissListener {
                 AppUtils.hideKeyboard(activity)
                 directoryPickerLauncher?.unregister()

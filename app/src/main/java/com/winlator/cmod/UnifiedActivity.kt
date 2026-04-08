@@ -6,11 +6,10 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
-import androidx.core.app.ActivityOptionsCompat
 import android.os.Bundle
 import android.os.Process
 import android.provider.DocumentsContract
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -37,6 +36,8 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.background
@@ -85,6 +86,7 @@ import androidx.compose.ui.focus.focusTarget
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -173,6 +175,12 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.ui.text.style.TextAlign
 import androidx.core.view.WindowCompat
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import kotlin.math.roundToInt
 
 // Color palette
@@ -198,8 +206,19 @@ enum class LibraryLayoutMode {
 }
 
 @AndroidEntryPoint
-class UnifiedActivity : ComponentActivity() {
+class UnifiedActivity : AppCompatActivity() {
     @Inject lateinit var db: PluviaDatabase
+
+    private data class PendingNavigation(
+        val item: SettingsNavItem = SettingsNavItem.CONTAINERS,
+        val profileId: Int = 0,
+        val editContainerId: Int = 0
+    )
+
+    // Root navigation controller for hub <-> settings transitions
+    private var rootNavController: NavHostController? = null
+    // Queued navigation to process once the nav controller is ready
+    private var pendingNavigation: PendingNavigation? = null
 
     // Track the currently selected game in the carousel for Game Settings button
     private var selectedSteamAppId: Int = 0
@@ -243,8 +262,9 @@ class UnifiedActivity : ComponentActivity() {
     // a fresh press (fires immediately) from a held repeat (throttled at 250ms).
     private var dpadHeld = false
     private var joystickActive = false
-    private companion object {
-        const val MOVE_INTERVAL_MS = 250L
+    companion object {
+        private const val MOVE_INTERVAL_MS = 250L
+        const val OPEN_IMAGE_REQUEST_CODE = 5
     }
 
     private fun moveLibraryFocus(left: Boolean, right: Boolean, up: Boolean, down: Boolean) {
@@ -306,7 +326,24 @@ class UnifiedActivity : ComponentActivity() {
         return 1_500_000_000 + normalized
     }
 
+    // Cached reference to avoid fragment tree traversal on every input event.
+    // Invalidated via FragmentLifecycleCallbacks.
+    private var cachedInputControlsFragment: InputControlsFragment? = null
+    private val inputControlsFragmentTracker = object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
+        override fun onFragmentResumed(fm: androidx.fragment.app.FragmentManager, f: androidx.fragment.app.Fragment) {
+            if (f is InputControlsFragment) cachedInputControlsFragment = f
+        }
+        override fun onFragmentPaused(fm: androidx.fragment.app.FragmentManager, f: androidx.fragment.app.Fragment) {
+            if (f is InputControlsFragment) cachedInputControlsFragment = null
+        }
+    }
+
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        // Forward to InputControlsFragment if it's active (for gamepad binding capture)
+        cachedInputControlsFragment?.let { fragment ->
+            if (fragment.dispatchKeyEvent(event)) return true
+        }
+
         val keyCode = event.keyCode
         val action = event.action
 
@@ -368,8 +405,14 @@ class UnifiedActivity : ComponentActivity() {
         return super.dispatchKeyEvent(event)
     }
 
+    override fun onPause() {
+        super.onPause()
+        chasingBordersPaused.value = true
+    }
+
     override fun onResume() {
         super.onResume()
+        chasingBordersPaused.value = false
         // Ensure all store services are running when returning from a game or other activity
         if (GOGService.hasStoredCredentials(this) && !GOGService.isRunning) {
             GOGService.start(this)
@@ -387,6 +430,11 @@ class UnifiedActivity : ComponentActivity() {
     }
 
     override fun dispatchGenericMotionEvent(event: android.view.MotionEvent): Boolean {
+        // Forward to InputControlsFragment if it's active (for gamepad binding capture)
+        cachedInputControlsFragment?.let { fragment ->
+            if (fragment.dispatchGenericMotionEvent(event)) return true
+        }
+
         if ((event.source and android.view.InputDevice.SOURCE_JOYSTICK) == android.view.InputDevice.SOURCE_JOYSTICK &&
             event.action == android.view.MotionEvent.ACTION_MOVE) {
             
@@ -465,10 +513,66 @@ class UnifiedActivity : ComponentActivity() {
         if (requestCode == GameSaveBackupManager.REQUEST_CODE_DRIVE_AUTH) {
             GameSaveBackupManager.onDriveAuthResult(this, resultCode)
         }
+        // Wallpaper image picker
+        if (requestCode == OPEN_IMAGE_REQUEST_CODE && resultCode == Activity.RESULT_OK && data != null) {
+            val bitmap = com.winlator.cmod.core.ImageUtils.getBitmapFromUri(this, data.data, 1280)
+            if (bitmap != null) {
+                val wallpaperFile = com.winlator.cmod.core.WineThemeManager.getUserWallpaperFile(this)
+                com.winlator.cmod.core.ImageUtils.save(bitmap, wallpaperFile, Bitmap.CompressFormat.PNG, 100)
+            }
+        }
     }
+
+    private fun navigateToSettings(
+        item: SettingsNavItem = SettingsNavItem.CONTAINERS,
+        profileId: Int = 0,
+        editContainerId: Int = 0
+    ) {
+        val nav = rootNavController
+        if (nav == null) {
+            pendingNavigation = PendingNavigation(item, profileId, editContainerId)
+            return
+        }
+        nav.navigate(
+            "settings?item=${item.name}&profileId=$profileId&editContainerId=$editContainerId"
+        ) {
+            launchSingleTop = true
+        }
+    }
+
+    private fun handleSettingsIntent(intent: Intent?) {
+        if (intent == null) return
+
+        val editContainerId = intent.getIntExtra("edit_container_id", 0)
+        if (editContainerId > 0) {
+            navigateToSettings(item = SettingsNavItem.CONTAINERS, editContainerId = editContainerId)
+            return
+        }
+
+        val editInputControls = intent.getBooleanExtra("edit_input_controls", false)
+        if (editInputControls) {
+            val profileId = intent.getIntExtra("selected_profile_id", 0)
+            navigateToSettings(item = SettingsNavItem.INPUT_CONTROLS, profileId = profileId)
+            return
+        }
+
+        val selectedMenuItemId = intent.getIntExtra("selected_menu_item_id", 0)
+        if (selectedMenuItemId > 0) {
+            val target = SettingsNavItem.fromMenuId(selectedMenuItemId) ?: SettingsNavItem.CONTAINERS
+            navigateToSettings(item = target)
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleSettingsIntent(intent)
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        supportFragmentManager.registerFragmentLifecycleCallbacks(inputControlsFragmentTracker, true)
         db = PluviaDatabase.getInstance(this)
         EpicAuthManager.updateLoginStatus(this)
         GOGAuthManager.updateLoginStatus(this)
@@ -505,13 +609,79 @@ class UnifiedActivity : ComponentActivity() {
         UpdateChecker.startBackgroundLoop(this)
 
         setContent {
+            val navController = rememberNavController()
+            rootNavController = navController
+
+            // Drain any queued navigation or process the launch intent
+            LaunchedEffect(Unit) {
+                val pending = pendingNavigation
+                if (pending != null) {
+                    navigateToSettings(pending.item, pending.profileId, pending.editContainerId)
+                    pendingNavigation = null
+                } else {
+                    handleSettingsIntent(intent)
+                }
+            }
+
             MaterialTheme(colorScheme = darkColorScheme(
                 primary = Accent,
                 background = BgDark,
                 surface = SurfaceDark,
                 onSurface = TextPrimary
             )) {
-                UnifiedHub()
+                NavHost(
+                    navController = navController,
+                    startDestination = "hub",
+                    modifier = Modifier.navigationBarsPadding(),
+                    enterTransition = {
+                        fadeIn(tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                    },
+                    exitTransition = { fadeOut(tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)) },
+                    popEnterTransition = { fadeIn(tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)) },
+                    popExitTransition = {
+                        fadeOut(tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                    }
+                ) {
+                    composable("hub") {
+                        UnifiedHub()
+                    }
+                    composable(
+                        "settings?item={item}&profileId={profileId}&editContainerId={editContainerId}",
+                        arguments = listOf(
+                            navArgument("item") { type = NavType.StringType; defaultValue = SettingsNavItem.CONTAINERS.name },
+                            navArgument("profileId") { type = NavType.IntType; defaultValue = 0 },
+                            navArgument("editContainerId") { type = NavType.IntType; defaultValue = 0 }
+                        )
+                    ) { backStackEntry ->
+                        val itemName = backStackEntry.arguments?.getString("item") ?: SettingsNavItem.CONTAINERS.name
+                        val startItem = try { SettingsNavItem.valueOf(itemName) } catch (_: Exception) { SettingsNavItem.CONTAINERS }
+                        val profileId = backStackEntry.arguments?.getInt("profileId") ?: 0
+                        val editContainerId = backStackEntry.arguments?.getInt("editContainerId") ?: 0
+
+                        SettingsHost(
+                            startItem = startItem,
+                            selectedProfileId = profileId,
+                            bordersPaused = chasingBordersPaused.value,
+                            onBack = { navController.popBackStack() }
+                        )
+
+                        // Handle edit_container_id deep link — show dialog on main thread outside composition
+                        if (editContainerId > 0) {
+                            LaunchedEffect(editContainerId) {
+                                val activity = this@UnifiedActivity
+                                val cm = ContainerManager(activity)
+                                val container = cm.getContainerById(editContainerId)
+                                if (container != null) {
+                                    com.winlator.cmod.contentdialog.ContainerSettingsComposeDialog(
+                                        activity, container
+                                    ) { navController.popBackStack() }.show()
+                                } else {
+                                    navController.popBackStack()
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -686,11 +856,7 @@ class UnifiedActivity : ComponentActivity() {
                         selectedIdx = (selectedIdx + 1) % tabs.size
                     }
                     android.view.KeyEvent.KEYCODE_BUTTON_START -> {
-                        val intent = Intent(context, MainActivity::class.java)
-                        intent.putExtra("selected_menu_item_id", R.id.main_menu_stores)
-                        intent.putExtra("return_to_unified", true)
-                        val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
-                        context.startActivity(intent, opts.toBundle())
+                        navigateToSettings(SettingsNavItem.STORES)
                     }
                     android.view.KeyEvent.KEYCODE_BUTTON_X -> {
                         if (key != "downloads") {
@@ -1153,11 +1319,7 @@ class UnifiedActivity : ComponentActivity() {
                     contentAlignment = Alignment.Center
                 ) {
                     IconButton(onClick = {
-                        val intent = Intent(context, MainActivity::class.java)
-                        intent.putExtra("selected_menu_item_id", R.id.main_menu_stores)
-                        intent.putExtra("return_to_unified", true)
-                        val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
-                        context.startActivity(intent, opts.toBundle())
+                        navigateToSettings(SettingsNavItem.STORES)
                     }, modifier = Modifier.size(44.dp), enabled = true) {
                         Icon(Icons.Outlined.Settings, contentDescription = "Menu", tint = TextPrimary, modifier = Modifier.size(24.dp))
                     }
@@ -1502,12 +1664,7 @@ class UnifiedActivity : ComponentActivity() {
                 GOGAuthManager.isLoggedIn(context)
             if (!anyLoggedIn && !hasAnyCredentials) {
                 LoginRequiredScreen("Library") {
-                    // Redirect to the Stores section in settings
-                    val intent = Intent(this@UnifiedActivity, MainActivity::class.java)
-                    intent.putExtra("selected_menu_item_id", R.id.main_menu_stores)
-                    intent.putExtra("return_to_unified", true)
-                    val opts = ActivityOptionsCompat.makeCustomAnimation(this@UnifiedActivity, R.anim.settings_enter, R.anim.settings_exit)
-                    startActivity(intent, opts.toBundle())
+                    navigateToSettings(SettingsNavItem.STORES)
                 }
             } else if (anyLoggedIn) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -6239,13 +6396,16 @@ class UnifiedActivity : ComponentActivity() {
         var statusExpanded by remember { mutableStateOf(false) }
 
         ModalDrawerSheet(
+            drawerShape = RectangleShape,
             drawerContainerColor = BgDark,
             drawerContentColor = TextPrimary,
+            windowInsets = WindowInsets(0, 0, 0, 0),
             modifier = Modifier.width(324.dp)
         ) {
             Column(
                 Modifier
                     .fillMaxHeight()
+                    .navigationBarsPadding()
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp)
             ) {
