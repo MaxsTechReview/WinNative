@@ -580,9 +580,9 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         // Setting up essential environment variables for Wine
         envVars.put("HOME", imageFs.home_path);
         envVars.put("USER", ImageFs.USER);
-        envVars.put("TMPDIR", rootDir.getPath() + "/usr/tmp");
+        envVars.put("TMPDIR", "/tmp");
+        envVars.put("LD_LIBRARY_PATH", "/usr/lib:/usr/lib/aarch64-linux-gnu");
         envVars.put("XDG_DATA_DIRS", rootDir.getPath() + "/usr/share");
-        envVars.put("LD_LIBRARY_PATH", rootDir.getPath() + "/usr/lib" + ":" + "/system/lib64");
         envVars.put("XDG_CONFIG_DIRS", rootDir.getPath() + "/usr/etc/xdg");
         envVars.put("GST_PLUGIN_PATH", rootDir.getPath() + "/usr/lib/gstreamer-1.0");
         envVars.put("FONTCONFIG_PATH", rootDir.getPath() + "/usr/etc/fonts");
@@ -590,7 +590,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         envVars.put("WRAPPER_LAYER_PATH", rootDir.getPath() + "/usr/lib");
         envVars.put("WRAPPER_CACHE_PATH", rootDir.getPath() + "/usr/var/cache");
         envVars.put("WINE_NO_DUPLICATE_EXPLORER", "1");
-        envVars.put("PREFIX", rootDir.getPath() + "/usr");
+        envVars.put("PREFIX", "/usr");
         envVars.put("DISPLAY", ":0");
         envVars.put("WINE_DISABLE_FULLSCREEN_HACK", "1");
         envVars.put("ENABLE_UTIL_LAYER", "1");
@@ -611,8 +611,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
         Log.d("GuestProgramLauncherComponent", "WinePath is " + winePath);
 
-        envVars.put("PATH", winePath + ":" +
-                rootDir.getPath() + "/usr/bin");
+        envVars.put("PATH", "/usr/bin:/usr/local/bin:" + winePath);
 
         envVars.put("ANDROID_SYSVSHM_SERVER", rootDir.getPath() + UnixSocketConfig.SYSVSHM_SERVER_PATH);
 
@@ -631,30 +630,21 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         File sysvshmDest = ensureImageFsNativeLibrary(context, imageFs, "libandroid-sysvshm.so");
         if (sysvshmDest != null && sysvshmDest.exists()){
             ld_preload = sysvshmDest.getAbsolutePath();
-        } else {
-            Log.w("GuestProgramLauncher", "libandroid-sysvshm.so not available for LD_PRELOAD - shared memory may fail!");
         }
 
-        File fakeinputDest = ensureImageFsNativeLibrary(context, imageFs, "libfakeinput.so");
-
-        if (fakeinputDest != null && fakeinputDest.exists()) {
-            if (!ld_preload.isEmpty()) {
-                ld_preload += ":";
-            }
-            ld_preload += fakeinputDest.getAbsolutePath();
-        } else {
-            Log.w("GuestProgramLauncher", "libfakeinput.so not available for LD_PRELOAD");
+        File fakeinputLib = ensureImageFsNativeLibrary(context, imageFs, "libfakeinput.so");
+        if (fakeinputLib != null && fakeinputLib.exists()) {
+            if (!ld_preload.isEmpty()) ld_preload += ":";
+            ld_preload += fakeinputLib.getAbsolutePath();
         }
-        Log.d("GuestProgramLauncher", "execGuestProgram LD_PRELOAD=" + ld_preload);
+        envVars.put("LD_PRELOAD", ld_preload);
 
+        // Setup FAKE_EVDEV_DIR matching reference app exactly
         File devInputDir = new File(imageFs.getRootDir(), "dev/input");
         devInputDir.mkdirs();
         File event0 = new File(devInputDir, "event0");
         if (!event0.exists()) {
-            try {
-                event0.createNewFile();
-            } catch (Exception e) {
-            }
+            try { event0.createNewFile(); } catch (Exception e) {}
         }
         envVars.put("FAKE_EVDEV_DIR", devInputDir.getAbsolutePath());
 

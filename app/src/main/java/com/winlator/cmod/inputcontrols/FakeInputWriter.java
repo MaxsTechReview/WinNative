@@ -43,11 +43,11 @@ public class FakeInputWriter {
     public static final short BTN_Y = 308;
     public static final short BTN_TL = 310;
     public static final short BTN_TR = 311;
+    public static final short BTN_TL2 = 312;
+    public static final short BTN_TR2 = 313;
     public static final short BTN_SELECT = 314;
     public static final short BTN_START = 315;
-    public static final short BTN_THUMBL = 317;
-    public static final short BTN_THUMBR = 318;
-    private static final short[] BUTTON_MAP = {BTN_A, BTN_B, BTN_X, BTN_Y, BTN_TL, BTN_TR, BTN_SELECT, BTN_START, BTN_THUMBL, BTN_THUMBR};
+    private static final short[] BUTTON_MAP = {BTN_A, BTN_B, BTN_X, BTN_Y, BTN_TL, BTN_TR, BTN_SELECT, BTN_START, BTN_TL2, BTN_TR2};
     private boolean isOpen = false;
     private volatile boolean destroyed = false;
     private final boolean[] prevButtonStates = new boolean[12];
@@ -185,7 +185,7 @@ public class FakeInputWriter {
         if (hatY != this.prevHatY) { this.prevHatY = hatY; writeEvent((short) 3, (short) 17, hatY); }
         
         if (this.hasChanges) {
-            writeEvent((short) 0, (short) 0, 0);
+            writeEvent((short) 0, (short) 0, 0); // Final SYN_REPORT
             this.buffer.flip();
             try {
                 this.channel.write(this.buffer);
