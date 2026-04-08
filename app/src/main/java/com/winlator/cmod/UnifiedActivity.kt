@@ -997,7 +997,7 @@ class UnifiedActivity : ComponentActivity() {
                                     // Kill all WinNative processes and close fully
                                     onDismiss()
                                     finishAffinity()
-                                    }
+                                    },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.weight(1f)

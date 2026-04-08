@@ -53,82 +53,44 @@ public class InputControlsManager {
     }
 
     private void copyAssetProfilesIfNeeded() {
-        AssetManager assetManager;
-        File profilesDir;
-        String[] assetFiles;
-        SharedPreferences preferences;
-        File profilesDir2 = getProfilesDir(this.context);
-        if (FileUtils.isEmpty(profilesDir2)) {
-            FileUtils.copy(this.context, "inputcontrols/profiles", profilesDir2);
+        File profilesDir = getProfilesDir(this.context);
+        if (FileUtils.isEmpty(profilesDir)) {
+            FileUtils.copy(this.context, "inputcontrols/profiles", profilesDir);
             return;
         }
-        SharedPreferences preferences2 = PreferenceManager.getDefaultSharedPreferences(this.context);
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this.context);
         int newVersion = AppUtils.getVersionCode(this.context);
-        int i = 0;
-        int oldVersion = preferences2.getInt("inputcontrols_app_version", 0);
+        int oldVersion = preferences.getInt("inputcontrols_app_version", 0);
         if (oldVersion == newVersion) {
             return;
         }
-        preferences2.edit().putInt("inputcontrols_app_version", newVersion).apply();
-        File[] files = profilesDir2.listFiles();
+        preferences.edit().putInt("inputcontrols_app_version", newVersion).apply();
+        File[] files = profilesDir.listFiles();
         if (files == null) {
             return;
         }
         try {
-            AssetManager assetManager2 = this.context.getAssets();
-            String[] assetFiles2 = assetManager2.list("inputcontrols/profiles");
-            int length = assetFiles2.length;
-            int i2 = 0;
-            while (i2 < length) {
-                String assetFile = assetFiles2[i2];
+            for (String assetFile : this.context.getAssets().list("inputcontrols/profiles")) {
                 String assetPath = "inputcontrols/profiles/" + assetFile;
-                ControlsProfile originProfile = loadProfile(this.context, assetManager2.open(assetPath));
+                ControlsProfile originProfile = loadProfile(this.context, this.context.getAssets().open(assetPath));
+                if (originProfile == null) continue;
+
                 File targetFile = null;
-                int length2 = files.length;
-                while (true) {
-                    if (i >= length2) {
-                        assetManager = assetManager2;
-                        profilesDir = profilesDir2;
-                        assetFiles = assetFiles2;
-                        preferences = preferences2;
+                for (File file : files) {
+                    ControlsProfile targetProfile = loadProfile(this.context, file);
+                    if (targetProfile != null && originProfile.id == targetProfile.id && originProfile.getName().equals(targetProfile.getName())) {
+                        targetFile = file;
                         break;
                     }
-                    File file = files[i];
-                    assetManager = assetManager2;
-                    profilesDir = profilesDir2;
-                    try {
-                        ControlsProfile targetProfile = loadProfile(this.context, file);
-                        assetFiles = assetFiles2;
-                        preferences = preferences2;
-                        try {
-                            if (originProfile.id != targetProfile.id || !originProfile.getName().equals(targetProfile.getName())) {
-                                i++;
-                                assetManager2 = assetManager;
-                                assetFiles2 = assetFiles;
-                                profilesDir2 = profilesDir;
-                                preferences2 = preferences;
-                            } else {
-                                targetFile = file;
-                                break;
-                            }
-                        } catch (IOException e) {
-                            return;
-                        }
-                    } catch (IOException e2) {
-                        return;
-                    }
                 }
+                
                 if (targetFile != null) {
                     FileUtils.copy(this.context, assetPath, targetFile);
+                } else {
+                    FileUtils.copy(this.context, assetPath, new File(profilesDir, assetFile));
                 }
-                i2++;
-                assetManager2 = assetManager;
-                assetFiles2 = assetFiles;
-                profilesDir2 = profilesDir;
-                preferences2 = preferences;
-                i = 0;
             }
-        } catch (IOException e3) {
+        } catch (IOException e) {
         }
     }
 

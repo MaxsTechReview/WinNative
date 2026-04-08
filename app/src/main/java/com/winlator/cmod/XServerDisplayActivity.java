@@ -461,16 +461,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         // Initialize the WinHandler after context is set up
         winHandler = new WinHandler(this);
-        winHandler.initializeController();
-        controller = winHandler.getCurrentController();
 
         if (isOpenWithAndroidBrowser || isShareAndroidClipboard)
             wineRequestHandler = new WineRequestHandler(this);
-
-        if (controller != null) {
-            int triggerType = preferences.getInt("trigger_type", ExternalController.TRIGGER_IS_AXIS); // Default to TRIGGER_IS_AXIS
-            controller.setTriggerType((byte) triggerType); // Cast to byte if needed
-        }
 
 
 
@@ -3495,7 +3488,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent event) {
-        return this.winHandler.onGenericMotionEvent(event) || this.touchpadView.onExternalMouseEvent(event) || super.dispatchGenericMotionEvent(event);
+        return (this.winHandler != null && this.winHandler.onGenericMotionEvent(event)) || (this.touchpadView != null && this.touchpadView.onExternalMouseEvent(event)) || super.dispatchGenericMotionEvent(event);
     }
 
 
@@ -3503,10 +3496,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
-        if (this.inputControlsView.onKeyEvent(event) || (this.winHandler != null && this.winHandler.onKeyEvent(event) && this.xServer != null && this.xServer.keyboard.onKeyEvent(event))) {
-            return true;
+        boolean z = false;
+        if (event.getAction() != 0 || (event.getKeyCode() != 110 && event.getKeyCode() != 3 && event.getKeyCode() != 109)) {
+            return !(this.inputControlsView.onKeyEvent(event) || (this.winHandler != null && this.winHandler.onKeyEvent(event)) || (this.xServer != null && !this.xServer.keyboard.onKeyEvent(event))) || (!ExternalController.isGameController(event.getDevice()) && super.dispatchKeyEvent(event));
         }
-        return !ExternalController.isGameController(event.getDevice()) && super.dispatchKeyEvent(event);
+        if (this.inputControlsView.onKeyEvent(event) || (this.winHandler != null && this.winHandler.onKeyEvent(event) && this.xServer != null && this.xServer.keyboard.onKeyEvent(event))) {
+            z = true;
+        }
+        return true;
     }
 
     public InputControlsView getInputControlsView() {
