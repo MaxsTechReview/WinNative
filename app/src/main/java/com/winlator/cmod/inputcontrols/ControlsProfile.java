@@ -247,7 +247,12 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
                         element.setOrientation((byte) elementJSONObject.getInt("orientation"));
                     }
                     if (elementJSONObject.has("customColor")) {
-                        element.setCustomColor(elementJSONObject.getInt("customColor"));
+                        Object colorObj = elementJSONObject.get("customColor");
+                        if (colorObj instanceof String) {
+                            element.setCustomColor((int) Long.parseLong(((String) colorObj).replace("#", ""), 16));
+                        } else {
+                            element.setCustomColor(elementJSONObject.getInt("customColor"));
+                        }
                     }
                     boolean hasGamepadBinding = true;
                     JSONArray bindingsJSONArray = elementJSONObject.getJSONArray("bindings");
