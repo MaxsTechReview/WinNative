@@ -3395,38 +3395,32 @@ public class XServerDisplayActivity extends AppCompatActivity {
         boolean isTimeoutEnabled = preferences.getBoolean("touchscreen_timeout_enabled", false);
 
         if (isTimeoutEnabled) {
-            // Show controls initially and set up touch event listeners
+            // Ensure controls are visible when timeout starts
             inputControlsView.setVisibility(View.VISIBLE);
-            Log.d("XServerDisplayActivity", "Timeout is enabled, setting up timeout logic.");
 
-            // Attach the OnTouchListener to reset the timeout on touch events
+            // Attach the OnTouchListener to show/reset the timeout on touch events
             touchpadView.setOnTouchListener((v, event) -> {
                 int action = event.getAction();
                 if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE) {
-                    // Reset the timeout on any touch event
-                    //Log.d("XServerDisplayActivity", "Touch detected, resetting timeout.");
-
-                    // Keep the controls visible
-                    inputControlsView.setVisibility(View.VISIBLE);
+                    // Show the controls if they are hidden
+                    if (inputControlsView.getVisibility() != View.VISIBLE) {
+                        inputControlsView.setVisibility(View.VISIBLE);
+                    }
 
                     // Remove any pending hide callbacks and reset the timeout
                     timeoutHandler.removeCallbacks(hideControlsRunnable);
-                    timeoutHandler.postDelayed(hideControlsRunnable, 5000); // Reset timeout
+                    timeoutHandler.postDelayed(hideControlsRunnable, 5000); 
                 }
-
-                return false; // Allow the touch event to propagate
+                return false; // Allow the touch event to propagate to touchpad logic
             });
 
-            // Reset the timeout when the controls are initially displayed
+            // Initial timeout trigger
             timeoutHandler.removeCallbacks(hideControlsRunnable);
-            timeoutHandler.postDelayed(hideControlsRunnable, 5000); // Hide after 5 seconds of inactivity
+            timeoutHandler.postDelayed(hideControlsRunnable, 5000);
         } else {
-            // If timeout is disabled, keep the controls always visible
-            Log.d("XServerDisplayActivity", "Timeout is disabled, controls will stay visible.");
-
-            inputControlsView.setVisibility(View.VISIBLE); // Ensure controls are visible
-            timeoutHandler.removeCallbacks(hideControlsRunnable); // Remove any existing hide callbacks
-            touchpadView.setOnTouchListener(null); // Remove the touch listener
+            inputControlsView.setVisibility(View.VISIBLE);
+            timeoutHandler.removeCallbacks(hideControlsRunnable);
+            touchpadView.setOnTouchListener(null);
         }
     }
 

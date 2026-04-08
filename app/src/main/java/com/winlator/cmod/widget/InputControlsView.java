@@ -711,7 +711,7 @@ public class InputControlsView extends View {
         if (element == null) return;
 
         Rect dirtyRect = element.getBoundingBox();
-        int padding = Math.max(getSnappingSize() * 4, 32);
+        int padding = 64; // Increased constant padding to ensure full redraw
         postInvalidateOnAnimation(
                 dirtyRect.left - padding,
                 dirtyRect.top - padding,

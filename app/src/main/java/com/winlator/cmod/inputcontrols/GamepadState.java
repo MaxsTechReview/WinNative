@@ -54,11 +54,15 @@ public class GamepadState {
     }
 
     public void setPressed(int buttonIdx, boolean pressed) {
-        int flag = 1 << buttonIdx;
-        if (pressed) {
-            this.buttons = (short) (this.buttons | flag);
+        if (buttonIdx >= BUTTON_DPAD_UP && buttonIdx <= BUTTON_DPAD_RIGHT) {
+            this.dpad[buttonIdx - BUTTON_DPAD_UP] = pressed;
         } else {
-            this.buttons = (short) (this.buttons & (~flag));
+            int flag = 1 << buttonIdx;
+            if (pressed) {
+                this.buttons = (short) (this.buttons | flag);
+            } else {
+                this.buttons = (short) (this.buttons & (~flag));
+            }
         }
     }
 
