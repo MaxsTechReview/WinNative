@@ -105,7 +105,7 @@ public class ContentDialog extends Dialog {
         });
 
         if (getWindow() != null) {
-            getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN |
+            getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN |
                                          android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING);
         }
 
@@ -228,6 +228,10 @@ public class ContentDialog extends Dialog {
 
         final EditText editText = dialog.findViewById(R.id.EditText);
         editText.setHint(R.string.common_ui_untitled);
+        editText.setFocusable(true);
+        editText.setFocusableInTouchMode(true);
+        editText.setClickable(true);
+        editText.setCursorVisible(true);
         editText.setImeOptions(editText.getImeOptions() | android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         if (defaultText != null) editText.setText(defaultText);
         editText.setVisibility(View.VISIBLE);
@@ -238,8 +242,13 @@ public class ContentDialog extends Dialog {
             if (!text.isEmpty()) callback.call(text);
         });
 
-        dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE | android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         dialog.show();
+        editText.requestFocus();
+        editText.post(() -> {
+            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) imm.showSoftInput(editText, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+        });
     }
 
     public static void showMultipleChoiceList(Context context, int titleResId, final String[] items, Callback<ArrayList<Integer>> callback) {

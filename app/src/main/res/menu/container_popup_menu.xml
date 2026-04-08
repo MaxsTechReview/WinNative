@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:id="@+id/container_duplicate" android:title="@string/common_ui_duplicate" android:icon="@drawable/ic_controls_duplicate" android:iconTint="@color/settings_icon_tint" />
-    <item android:id="@+id/container_backups" android:title="@string/container_backups_title" android:icon="@drawable/icon_popup_menu_transfer" android:iconTint="@color/settings_icon_tint" />
+    <item android:id="@+id/container_backups" android:title="@string/container_backups_title" android:icon="@drawable/ic_content_menu_backups" android:iconTint="@color/settings_icon_tint" />
     <item android:id="@+id/container_info" android:title="@string/container_config_storage_info" android:icon="@drawable/ic_content_menu_info" android:iconTint="@color/settings_icon_tint" />
     <item android:id="@+id/container_remove" android:title="@string/common_ui_remove" android:icon="@drawable/ic_content_menu_remove" android:iconTint="@color/settings_danger" />
 </menu>

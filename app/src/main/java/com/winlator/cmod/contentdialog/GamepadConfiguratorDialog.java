@@ -327,7 +327,9 @@ public class GamepadConfiguratorDialog {
         });
         builder.setNegativeButton(R.string.common_ui_cancel, (dialogInterface, which) -> dialogInterface.cancel());
 
-        builder.show();
+        AlertDialog alertDialog = builder.show();
+        input.requestFocus();
+        alertDialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
     }
 
 
