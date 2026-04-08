@@ -3312,19 +3312,25 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         // Confirm callback
         dialog.setOnConfirmCallback(() -> {
-            inputControlsView.setShowTouchscreenControls(dialog.getShowTouchscreenControls().getValue());
+            boolean isShowControls = dialog.getShowTouchscreenControls().getValue();
+            inputControlsView.setShowTouchscreenControls(isShowControls);
+            inputControlsView.setVisibility(isShowControls ? View.VISIBLE : View.GONE);
+            
             boolean isTimeoutEnabled = dialog.getTouchscreenTimeout().getValue();
             boolean isHapticsEnabled = dialog.getTouchscreenHaptics().getValue();
             SharedPreferences.Editor editor = preferences.edit();
-            editor.putBoolean("show_touchscreen_controls_enabled", dialog.getShowTouchscreenControls().getValue());
+            editor.putBoolean("show_touchscreen_controls_enabled", isShowControls);
             editor.putBoolean("touchscreen_timeout_enabled", isTimeoutEnabled);
             editor.putBoolean("touchscreen_haptics_enabled", isHapticsEnabled);
             editor.apply();
 
-            if (isTimeoutEnabled) {
-                startTouchscreenTimeout();
-            } else {
-                touchpadView.setOnTouchListener(null);
+            if (isShowControls) {
+                timeoutHandler.removeCallbacks(hideControlsRunnable);
+                if (isTimeoutEnabled) {
+                    startTouchscreenTimeout();
+                } else {
+                    touchpadView.setOnTouchListener(null);
+                }
             }
             updateProfile.run();
         });
