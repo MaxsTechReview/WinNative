@@ -304,8 +304,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
             if (event.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
                 float gyroX = event.values[0]; // Rotation around the X-axis
                 float gyroY = event.values[1]; // Rotation around the Y-axis
-
-                winHandler.updateGyroData(gyroX, gyroY); // Send gyro data to WinHandler
             }
         }
 
