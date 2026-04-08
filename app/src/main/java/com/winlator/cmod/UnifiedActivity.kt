@@ -995,7 +995,7 @@ class UnifiedActivity : ComponentActivity() {
                             Button(
                                 onClick = {
                                     // Kill all WinNative processes and close fully
-                                    onDismissRequest()
+                                    showExitDialog = false
                                     finishAffinity()
                                     },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
