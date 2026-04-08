@@ -18,8 +18,6 @@ import android.graphics.Rect;
 import android.os.Handler;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
-import android.util.AttributeSet;
-import android.util.Log;
 import android.util.SparseArray;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -27,8 +25,10 @@ import android.view.PointerIcon;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
-import androidx.core.view.ViewCompat;
+
 import androidx.preference.PreferenceManager;
+
+import com.winlator.cmod.R;
 import com.winlator.cmod.inputcontrols.Binding;
 import com.winlator.cmod.inputcontrols.ControlElement;
 import com.winlator.cmod.inputcontrols.ControlsProfile;
@@ -40,305 +40,740 @@ import com.winlator.cmod.winhandler.MouseEventFlags;
 import com.winlator.cmod.winhandler.WinHandler;
 import com.winlator.cmod.xserver.Pointer;
 import com.winlator.cmod.xserver.XServer;
-import com.winlator.cmod.R;
+
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.Timer;
 import java.util.TimerTask;
 
 public class InputControlsView extends View {
     public static final float DEFAULT_OVERLAY_OPACITY = 0.4f;
     private static final byte MOUSE_WHEEL_DELTA = 120;
-    private final ColorFilter colorFilter;
-    private final Point cursor = new Point();
     private boolean editMode = false;
-    private boolean focusOnStick = false;
-    private Runnable hideControlsRunnable;
-    private final Bitmap[] icons = new Bitmap[Binding.values().length];
-    private final PointF mouseMoveOffset = new PointF();
-    private Timer mouseMoveTimer;
+    private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Path path = new Path();
+    private final ColorFilter colorFilter = new PorterDuffColorFilter(0xffffffff, PorterDuff.Mode.SRC_IN);
+    private final Point cursor = new Point();
+    private boolean readyToDraw = false;
     private boolean moveCursor = false;
+    private int snappingSize;
     private float offsetX;
     private float offsetY;
-    private float overlayOpacity = 0.4f;
-    private final Paint paint = new Paint(1);
-    private final Path path = new Path();
-    private SharedPreferences preferences;
-    private ControlsProfile profile;
-    private boolean readyToDraw = false;
     private ControlElement selectedElement;
-    private boolean showTouchscreenControls = true;
-    private int snappingSize;
-    public ControlElement stickElement;
-    private Handler timeoutHandler;
-
-    public void updateStickPosition(float x, float y) {
-        if (this.stickElement != null) {
-            this.stickElement.getCurrentPosition().x = x;
-            this.stickElement.getCurrentPosition().y = y;
-            invalidate();
-        }
-    }
+    private ControlsProfile profile;
+    private float overlayOpacity = DEFAULT_OVERLAY_OPACITY;
     private TouchpadView touchpadView;
     private XServer xServer;
+    private final Bitmap[] icons = new Bitmap[17];
+    private Timer mouseMoveTimer;
+    private final PointF mouseMoveOffset = new PointF();
+    private boolean showTouchscreenControls = true;
+
+    private Handler timeoutHandler; // Reference to the activity's timeout handler
+    private Runnable hideControlsRunnable; // Runnable to hide the controls
+
+    private SharedPreferences preferences;
     private final SparseArray<ControlElement> activeTouchElements = new SparseArray<>();
 
+    private ControlElement stickElement;
+
+    private boolean focusOnStick = false; // A flag to determine if we are focusing on the stick
+
+    public boolean isFocusedOnStick() {
+        return focusOnStick;
+    }
+
+    public void setFocusOnStick(boolean focus) {
+        this.focusOnStick = focus;
+        invalidate(); // Redraw the view with the new focus setting
+    }
+
+
+
+    @SuppressLint("ResourceType")
     public InputControlsView(Context context) {
         super(context);
-        init();
+        setClickable(true);
+        setFocusable(true);
+        setFocusableInTouchMode(true);
+        requestFocus(); // Add this line to request focus
+        setBackgroundColor(0x00000000);
+        setPointerIcon(PointerIcon.load(getResources(), R.drawable.hidden_pointer_arrow));
+        setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        preferences = PreferenceManager.getDefaultSharedPreferences(this.getContext());
     }
 
-    public InputControlsView(Context context, AttributeSet attrs) {
-        super(context, attrs);
-        init();
-    }
-
+    @SuppressLint("ResourceType")
     public InputControlsView(Context context, Handler timeoutHandler, Runnable hideControlsRunnable) {
         super(context);
-        this.timeoutHandler = timeoutHandler;
-        this.hideControlsRunnable = hideControlsRunnable;
-        init();
+        this.timeoutHandler = timeoutHandler; // Store the reference to timeout handler
+        this.hideControlsRunnable = hideControlsRunnable; // Store the reference to the hide controls runnable
+        setClickable(true);
+        setFocusable(true);
+        setFocusableInTouchMode(true);
+        requestFocus(); // Add this line to request focus
+        setBackgroundColor(0x00000000);
+        setPointerIcon(PointerIcon.load(getResources(), R.drawable.hidden_pointer_arrow));
+        setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        preferences = PreferenceManager.getDefaultSharedPreferences(this.getContext());
     }
 
     public InputControlsView(Context context, boolean focusOnStick) {
         super(context);
-        this.focusOnStick = focusOnStick;
-        init();
-        if (focusOnStick) {
-            setLayoutParams(new FrameLayout.LayoutParams(-2, -2));
-        } else {
-            setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
-        }
-    }
-
-    private void init() {
-        this.preferences = PreferenceManager.getDefaultSharedPreferences(getContext());
-        this.snappingSize = getResources().getDimensionPixelSize(com.winlator.vanilla.R.dimen.input_controls_snapping_size);
-        this.colorFilter = new PorterDuffColorFilter(-1, PorterDuff.Mode.SRC_IN);
         setClickable(true);
         setFocusable(true);
         setFocusableInTouchMode(true);
-        requestFocus();
-        setBackgroundColor(0);
+        requestFocus(); // Add this line to request focus
+        setBackgroundColor(0x00000000);
         setPointerIcon(PointerIcon.load(getResources(), R.drawable.hidden_pointer_arrow));
+
+        // If focusOnStick is true, adjust the layout params to match the stick element size
+        if (focusOnStick) {
+            setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        } else {
+            setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        }
+
+        preferences = PreferenceManager.getDefaultSharedPreferences(this.getContext());
     }
 
-    public boolean isFocusedOnStick() { return this.focusOnStick; }
-    public void setFocusOnStick(boolean focus) { this.focusOnStick = focus; invalidate(); }
 
-    public int getPrimaryColor() {
-        return Color.argb((int) (this.overlayOpacity * 255.0f), 255, 255, 255);
+    public void setEditMode(boolean editMode) {
+        this.editMode = editMode;
     }
 
-    public int getSecondaryColor() {
-        return Color.argb((int) (this.overlayOpacity * 255.0f), 2, 119, 189);
+    public void setOverlayOpacity(float overlayOpacity) {
+        this.overlayOpacity = overlayOpacity;
+    }
+
+    public int getSnappingSize() {
+        return snappingSize;
     }
 
     @Override
     protected synchronized void onDraw(Canvas canvas) {
-        int width;
-        int height;
-        if (this.stickElement != null && isFocusedOnStick()) {
-            Rect boundingBox = this.stickElement.getBoundingBox();
+        int width, height;
+
+        if (stickElement != null && isFocusedOnStick()) {
+            // If focusing on the stick, set width and height to the stick's bounding box size
+            Rect boundingBox = stickElement.getBoundingBox();
             width = boundingBox.width();
             height = boundingBox.height();
         } else {
+            // Default behavior for full screen
             width = getWidth();
             height = getHeight();
         }
-        if (width == 0 || height == 0) return;
 
-        this.snappingSize = width / 100;
-        this.readyToDraw = true;
+        if (width == 0 || height == 0) {
+            readyToDraw = false;
+            return;
+        }
 
-        if (this.editMode) {
+        snappingSize = width / 100;
+        readyToDraw = true;
+
+        if (editMode) {
             drawGrid(canvas);
             drawCursor(canvas);
         }
 
-        if (this.stickElement != null) {
-            this.stickElement.draw(canvas);
+        if (stickElement != null) {
+            // Draw only the stick element if focus mode is active
+            stickElement.draw(canvas);
         }
 
-        if (this.profile != null && this.showTouchscreenControls && !isFocusedOnStick()) {
-            if (!this.profile.isElementsLoaded()) this.profile.loadElements(this);
-            for (ControlElement element : this.profile.getElements()) {
+        if (profile != null && showTouchscreenControls && !isFocusedOnStick()) {
+            if (!profile.isElementsLoaded()) profile.loadElements(this);
+            for (ControlElement element : profile.getElements()) {
                 element.draw(canvas);
             }
         }
+
         super.onDraw(canvas);
     }
 
+
     public void resetStickPosition() {
-        if (this.stickElement != null) {
-            Rect boundingBox = this.stickElement.getBoundingBox();
-            this.stickElement.setCurrentPosition(boundingBox.centerX(), boundingBox.centerY());
-            invalidate();
+        if (stickElement != null) {
+            Rect boundingBox = stickElement.getBoundingBox();
+            float centerX = boundingBox.centerX();
+            float centerY = boundingBox.centerY();
+
+            stickElement.setCurrentPosition(centerX, centerY); // Reset to the center of the bounding box
+            invalidate(); // Redraw the stick in the centered position
         }
     }
 
+
+
     public void initializeStickElement(float x, float y, float scale) {
-        this.stickElement = new ControlElement(this);
-        this.stickElement.setType(ControlElement.Type.STICK);
-        this.stickElement.setX((int) x);
-        this.stickElement.setY((int) y);
-        this.stickElement.setScale(scale);
-        invalidate();
+        stickElement = new ControlElement(this);
+        stickElement.setType(ControlElement.Type.STICK); // Set type to STICK
+        stickElement.setX((int) x);
+        stickElement.setY((int) y);
+        stickElement.setScale(scale);
+        invalidate(); // Force the view to redraw with the stick
+    }
+
+
+    public void updateStickPosition(float x, float y) {
+        if (stickElement != null) {
+            stickElement.getCurrentPosition().x = x;  // Update the thumbstick's position
+            stickElement.getCurrentPosition().y = y;  // Update the thumbstick's position
+            invalidate(); // Redraw the view
+        }
+    }
+
+
+    public ControlElement getStickElement() {
+        return stickElement;
     }
 
     private void drawGrid(Canvas canvas) {
-        this.paint.setStyle(Paint.Style.FILL);
-        this.paint.setStrokeWidth(this.snappingSize * 0.0625f);
-        this.paint.setColor(ViewCompat.MEASURED_STATE_MASK);
-        canvas.drawColor(ViewCompat.MEASURED_STATE_MASK);
-        this.paint.setAntiAlias(false);
-        this.paint.setColor(-13619152);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setStrokeWidth(snappingSize * 0.0625f);
+        
+        // Background color from theme
+        int bgColor = 0xFF030612;
+        canvas.drawColor(bgColor);
+
+        paint.setAntiAlias(false);
+        // Grid line color from theme (outline)
+        int gridColor = androidx.core.content.ContextCompat.getColor(getContext(), R.color.settings_outline);
+        paint.setColor(gridColor);
+
         int width = getMaxWidth();
         int height = getMaxHeight();
-        for (int i = 0; i < width; i += this.snappingSize) {
-            canvas.drawLine(i, 0.0f, i, height, this.paint);
-            canvas.drawLine(0.0f, i, width, i, this.paint);
+
+        for (int i = 0; i < width; i += snappingSize) {
+            canvas.drawLine(i, 0, i, height, paint);
+            canvas.drawLine(0, i, width, i, paint);
         }
-        float cx = Mathf.roundTo(width * 0.5f, this.snappingSize);
-        float cy = Mathf.roundTo(height * 0.5f, this.snappingSize);
-        this.paint.setColor(-12434878);
-        for (int i2 = 0; i2 < width; i2 += this.snappingSize * 2) {
-            canvas.drawLine(cx, i2, cx, this.snappingSize + i2, this.paint);
-            canvas.drawLine(i2, cy, this.snappingSize + i2, cy, this.paint);
+
+        float cx = Mathf.roundTo(width * 0.5f, snappingSize);
+        float cy = Mathf.roundTo(height * 0.5f, snappingSize);
+        
+        // Snapping center line color
+        int snappingColor = androidx.core.content.ContextCompat.getColor(getContext(), R.color.settings_popup_surface_edge);
+        paint.setColor(snappingColor);
+
+        for (int i = 0; i < width; i += snappingSize * 2) {
+            canvas.drawLine(cx, i, cx, i + snappingSize, paint);
+            canvas.drawLine(i, cy, i + snappingSize, cy, paint);
         }
-        this.paint.setAntiAlias(true);
+
+        paint.setAntiAlias(true);
     }
 
     private void drawCursor(Canvas canvas) {
-        this.paint.setStyle(Paint.Style.FILL);
-        this.paint.setStrokeWidth(this.snappingSize * 0.0625f);
-        this.paint.setColor(-3790808);
-        this.paint.setAntiAlias(false);
-        canvas.drawLine(0.0f, this.cursor.y, getMaxWidth(), this.cursor.y, this.paint);
-        canvas.drawLine(this.cursor.x, 0.0f, this.cursor.x, getMaxHeight(), this.paint);
-        this.paint.setAntiAlias(true);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setStrokeWidth(snappingSize * 0.0625f);
+        paint.setColor(0xffc62828);
+
+        paint.setAntiAlias(false);
+        canvas.drawLine(0, cursor.y, getMaxWidth(), cursor.y, paint);
+        canvas.drawLine(cursor.x, 0, cursor.x, getMaxHeight(), paint);
+
+        paint.setAntiAlias(true);
     }
 
-    public boolean isEditMode() { return this.editMode; }
-    public void setEditMode(boolean editMode) {
-        this.editMode = editMode;
-        if (editMode) this.cursor.set(getWidth() / 2, getHeight() / 2);
-        else selectElement(null);
-        invalidate();
-    }
-
-    public ControlsProfile getProfile() { return this.profile; }
-    public void setProfile(ControlsProfile profile) {
-        this.profile = profile;
-        if (profile != null) {
-            this.profile.loadElements(this);
-            deselectAllElements();
+    public synchronized boolean addElement() {
+        if (editMode && profile != null) {
+            ControlElement element = new ControlElement(this);
+            element.setX(cursor.x);
+            element.setY(cursor.y);
+            profile.addElement(element);
+            profile.save();
+            selectElement(element);
+            return true;
         }
-        invalidate();
+        else return false;
     }
 
-    public XServer getXServer() { return this.xServer; }
-    public void setXServer(XServer xServer) { this.xServer = xServer; createMouseMoveTimer(); }
-
-    public TouchpadView getTouchpadView() { return this.touchpadView; }
-    public void setTouchpadView(TouchpadView touchpadView) { this.touchpadView = touchpadView; }
-
-    public boolean isShowTouchscreenControls() { return this.showTouchscreenControls; }
-    public void setShowTouchscreenControls(boolean showTouchscreenControls) {
-        this.showTouchscreenControls = showTouchscreenControls;
-        invalidate();
-    }
-
-    public int getSnappingSize() { return this.snappingSize; }
-    public Path getPath() { return this.path; }
-    public Paint getPaint() { return this.paint; }
-    public ColorFilter getColorFilter() { return this.colorFilter; }
-
-    public ControlElement getSelectedElement() { return this.selectedElement; }
-    public void selectElement(ControlElement element) {
-        deselectAllElements();
-        if (element != null) {
-            this.selectedElement = element;
-            this.selectedElement.setSelected(true);
+    public synchronized boolean removeElement() {
+        if (editMode && selectedElement != null && profile != null) {
+            profile.removeElement(selectedElement);
+            selectedElement = null;
+            profile.save();
+            invalidate();
+            return true;
         }
-        invalidate();
+        else return false;
+    }
+
+    public ControlElement getSelectedElement() {
+        return selectedElement;
     }
 
     private synchronized void deselectAllElements() {
-        this.selectedElement = null;
-        if (this.profile != null) {
-            for (ControlElement element : this.profile.getElements()) element.setSelected(false);
+        selectedElement = null;
+        if (profile != null) {
+            for (ControlElement element : profile.getElements()) element.setSelected(false);
         }
     }
 
-    public int getMaxWidth() { return (int) Mathf.roundTo(getWidth(), this.snappingSize); }
-    public int getMaxHeight() { return (int) Mathf.roundTo(getHeight(), this.snappingSize); }
+    private void selectElement(ControlElement element) {
+        deselectAllElements();
+        if (element != null) {
+            selectedElement = element;
+            selectedElement.setSelected(true);
+        }
+        invalidate();
+    }
+
+    public synchronized ControlsProfile getProfile() {
+        return profile;
+    }
+
+    public synchronized void setProfile(ControlsProfile profile) {
+        if (profile != null) {
+            this.profile = profile;
+            deselectAllElements();
+        }
+        else this.profile = null;
+        activeTouchElements.clear();
+    }
+
+    public boolean isShowTouchscreenControls() {
+        return showTouchscreenControls;
+    }
+
+    public void setShowTouchscreenControls(boolean showTouchscreenControls) {
+        this.showTouchscreenControls = showTouchscreenControls;
+    }
+
+    public int getPrimaryColor() {
+        return Color.argb((int)(overlayOpacity * 255), 255, 255, 255);
+    }
+
+    public int getSecondaryColor() {
+        return Color.argb((int)(overlayOpacity * 255), 2, 119, 189);
+    }
+
+    private synchronized ControlElement intersectElement(float x, float y) {
+        if (profile != null) {
+            for (ControlElement element : profile.getElements()) {
+                if (element.containsPoint(x, y)) return element;
+            }
+        }
+        return null;
+    }
+
+    public Paint getPaint() {
+        return paint;
+    }
+
+    public Path getPath() {
+        return path;
+    }
+
+    public ColorFilter getColorFilter() {
+        return colorFilter;
+    }
+
+    public TouchpadView getTouchpadView() {
+        return touchpadView;
+    }
+
+    public void setTouchpadView(TouchpadView touchpadView) {
+        this.touchpadView = touchpadView;
+    }
+
+    public XServer getXServer() {
+        return xServer;
+    }
+
+    public void setXServer(XServer xServer) {
+        this.xServer = xServer;
+        createMouseMoveTimer();
+    }
+
+    private boolean hasMouseLeftButtonElement() {
+        if (profile == null) return false;
+        for (ControlElement element : profile.getElements()) {
+            if (element.getBindingAt(0) == Binding.MOUSE_LEFT_BUTTON) return true;
+        }
+        return false;
+    }
+
+    public int getMaxWidth() {
+        return (int)Mathf.roundTo(getWidth(), snappingSize);
+    }
 
     @Override
     protected void onDetachedFromWindow() {
-        if (this.mouseMoveTimer != null) this.mouseMoveTimer.cancel();
+        if (mouseMoveTimer != null)
+            mouseMoveTimer.cancel();
         super.onDetachedFromWindow();
     }
 
+    public int getMaxHeight() {
+        return (int)Mathf.roundTo(getHeight(), snappingSize);
+    }
+
     private void createMouseMoveTimer() {
-        final WinHandler winHandler = this.xServer.getWinHandler();
-        if (this.mouseMoveTimer == null && this.profile != null) {
-            final float cursorSpeed = this.profile.getCursorSpeed();
-            this.mouseMoveTimer = new Timer();
-            this.mouseMoveTimer.schedule(new TimerTask() {
+        WinHandler winHandler = xServer.getWinHandler();
+        if (mouseMoveTimer == null && profile != null) {
+            final float cursorSpeed = profile.getCursorSpeed();
+            mouseMoveTimer = new Timer();
+            mouseMoveTimer.schedule(new TimerTask() {
                 @Override
                 public void run() {
-                    if (mouseMoveOffset.x != 0 || mouseMoveOffset.y != 0) {
-                        if (xServer.isRelativeMouseMovement()) {
-                            winHandler.mouseEvent(1, (int)(mouseMoveOffset.x * cursorSpeed * 10.0f), (int)(mouseMoveOffset.y * cursorSpeed * 10.0f), 0);
-                        } else {
-                            xServer.injectPointerMoveDelta((int)(mouseMoveOffset.x * cursorSpeed * 10.0f), (int)(mouseMoveOffset.y * cursorSpeed * 10.0f));
-                        }
+                    if (mouseMoveOffset.x != 0 || mouseMoveOffset.y != 0) {// Only move if there's an offsete if there's an offset
+                        if (xServer.isRelativeMouseMovement())
+                            winHandler.mouseEvent(MouseEventFlags.MOVE, (int) (mouseMoveOffset.x * cursorSpeed * 10), (int) (mouseMoveOffset.y * cursorSpeed * 10), 0);
+                        else
+                            xServer.injectPointerMoveDelta(
+                                (int) (mouseMoveOffset.x * cursorSpeed * 10),
+                                (int) (mouseMoveOffset.y * cursorSpeed * 10)
+                        );
                     }
                 }
-            }, 0, 16);
+            }, 0, 1000 / 60); // 60 FPS
         }
     }
+
+
+//    private void processJoystickInput(ExternalController controller) {
+//        ExternalControllerBinding controllerBinding;
+//        final int[] axes = {MotionEvent.AXIS_X, MotionEvent.AXIS_Y, MotionEvent.AXIS_Z, MotionEvent.AXIS_RZ, MotionEvent.AXIS_HAT_X, MotionEvent.AXIS_HAT_Y};
+//        final float[] values = {controller.state.thumbLX, controller.state.thumbLY, controller.state.thumbRX, controller.state.thumbRY, controller.state.getDPadX(), controller.state.getDPadY()};
+//
+//        for (byte i = 0; i < axes.length; i++) {
+//            if (Math.abs(values[i]) > ControlElement.STICK_DEAD_ZONE) {
+//                controllerBinding = controller.getControllerBinding(ExternalControllerBinding.getKeyCodeForAxis(axes[i], Mathf.sign(values[i])));
+//                if (controllerBinding != null) handleInputEvent(controllerBinding.getBinding(), true, values[i]);
+//            }
+//            else {
+//                controllerBinding = controller.getControllerBinding(ExternalControllerBinding.getKeyCodeForAxis(axes[i], (byte) 1));
+//                if (controllerBinding != null) handleInputEvent(controllerBinding.getBinding(), false, values[i]);
+//                controllerBinding = controller.getControllerBinding(ExternalControllerBinding.getKeyCodeForAxis(axes[i], (byte)-1));
+//                if (controllerBinding != null) handleInputEvent(controllerBinding.getBinding(), false, values[i]);
+//            }
+//        }
+//    }
+
+    private void processJoystickInput(ExternalController controller) {
+        final int[] axes = {
+                MotionEvent.AXIS_X, MotionEvent.AXIS_Y,
+                MotionEvent.AXIS_Z, MotionEvent.AXIS_RZ,
+                MotionEvent.AXIS_HAT_X, MotionEvent.AXIS_HAT_Y
+        };
+        final float[] values = {
+                controller.state.thumbLX, controller.state.thumbLY,
+                controller.state.thumbRX, controller.state.thumbRY,
+                controller.state.getDPadX(), controller.state.getDPadY()
+        };
+
+        for (int i = 0; i < axes.length; i++) {
+            float value = values[i];
+            if (Math.abs(value) > ControlElement.STICK_DEAD_ZONE) {
+                byte sign = Mathf.sign(value);
+                int keyCode = ExternalControllerBinding.getKeyCodeForAxis(axes[i], sign);
+                ExternalControllerBinding controllerBinding = controller.getControllerBinding(keyCode);
+                if (controllerBinding != null) {
+                    handleInputEvent(controller, controllerBinding.getBinding(), true, value, false);
+                }
+            } else {
+                for (byte sign = -1; sign <= 1; sign += 2) {
+                    int keyCode = ExternalControllerBinding.getKeyCodeForAxis(axes[i], sign);
+                    ExternalControllerBinding controllerBinding = controller.getControllerBinding(keyCode);
+                    if (controllerBinding != null) {
+                        handleInputEvent(controller, controllerBinding.getBinding(), false, value, false);
+                    }
+                }
+            }
+        }
+
+        processTriggerInput(controller, controller.state.triggerL, KeyEvent.KEYCODE_BUTTON_L2, false);
+        processTriggerInput(controller, controller.state.triggerR, KeyEvent.KEYCODE_BUTTON_R2, false);
+
+        WinHandler winHandler = xServer != null ? xServer.getWinHandler() : null;
+        if (winHandler != null) {
+            winHandler.sendGamepadState(controller);
+        }
+    }
+
+    private void processTriggerInput(ExternalController controller, float value, int keyCode, boolean sendUpdate) {
+        ExternalControllerBinding binding = controller.getControllerBinding(keyCode);
+        if (binding != null) {
+            boolean isPressed = value > ControlElement.STICK_DEAD_ZONE;
+            if (isPressed) {
+                handleInputEvent(controller, binding.getBinding(), true, value, sendUpdate);
+            } else {
+                handleInputEvent(controller, binding.getBinding(), false, 0, sendUpdate);
+            }
+        }
+    }
+
+
+
+//    @Override
+//    public boolean onGenericMotionEvent(MotionEvent event) {
+//        if (!editMode && profile != null) {
+//            ExternalController controller = profile.getController(event.getDeviceId());
+//            if (controller != null && controller.updateStateFromMotionEvent(event)) {
+//                ExternalControllerBinding controllerBinding;
+//                controllerBinding = controller.getControllerBinding(KeyEvent.KEYCODE_BUTTON_L2);
+//                if (controllerBinding != null) handleInputEvent(controllerBinding.getBinding(), controller.state.isPressed(ExternalController.IDX_BUTTON_L2));
+//
+//                controllerBinding = controller.getControllerBinding(KeyEvent.KEYCODE_BUTTON_R2);
+//                if (controllerBinding != null) handleInputEvent(controllerBinding.getBinding(), controller.state.isPressed(ExternalController.IDX_BUTTON_R2));
+//
+//                processJoystickInput(controller);
+//                return true;
+//            }
+//        }
+//        return super.onGenericMotionEvent(event);
+//    }
 
     @Override
-    public void onWindowFocusChanged(boolean hasWindowFocus) {
-        super.onWindowFocusChanged(hasWindowFocus);
-        if (hasWindowFocus && showTouchscreenControls) {
-            setVisibility(View.VISIBLE);
-            resetTouchscreenTimeout();
+    public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        return super.dispatchGenericMotionEvent(event);
+    }
+
+
+    @Override
+    public boolean onGenericMotionEvent(MotionEvent event) {
+        if (!editMode && profile != null) {
+            ExternalController controller = profile.getController(event.getDeviceId());
+
+            if (controller != null && controller.updateStateFromMotionEvent(event)) {
+                ExternalControllerBinding controllerBinding;
+
+                controllerBinding = controller.getControllerBinding(KeyEvent.KEYCODE_BUTTON_L2);
+                if (controllerBinding != null) {
+                    handleInputEvent(controller, controllerBinding.getBinding(), controller.state.isPressed(ExternalController.IDX_BUTTON_L2));
+                }
+
+                controllerBinding = controller.getControllerBinding(KeyEvent.KEYCODE_BUTTON_R2);
+                if (controllerBinding != null) {
+                    handleInputEvent(controller, controllerBinding.getBinding(), controller.state.isPressed(ExternalController.IDX_BUTTON_R2));
+                }
+
+                processJoystickInput(controller);
+                return true;
+            }
+        }
+        return super.onGenericMotionEvent(event);
+    }
+
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+
+        boolean hapticsEnabled = preferences.getBoolean("touchscreen_haptics_enabled", true);
+
+        // Reset the timeout when touch events occur within InputControlsView
+        resetTouchscreenTimeout();
+
+        if (editMode && readyToDraw) {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN: {
+                    float x = event.getX();
+                    float y = event.getY();
+
+                    ControlElement element = intersectElement(x, y);
+                    moveCursor = true;
+                    if (element != null) {
+                        offsetX = x - element.getX();
+                        offsetY = y - element.getY();
+                        moveCursor = false;
+                    }
+
+                    selectElement(element);
+                    break;
+                }
+                case MotionEvent.ACTION_MOVE: {
+                    if (selectedElement != null) {
+                        selectedElement.setX((int)Mathf.roundTo(event.getX() - offsetX, snappingSize));
+                        selectedElement.setY((int)Mathf.roundTo(event.getY() - offsetY, snappingSize));
+                        invalidate();
+                    }
+                    break;
+                }
+                case MotionEvent.ACTION_UP: {
+                    if (selectedElement != null && profile != null) profile.save();
+                    if (moveCursor) cursor.set((int)Mathf.roundTo(event.getX(), snappingSize), (int)Mathf.roundTo(event.getY(), snappingSize));
+                    invalidate();
+                    break;
+                }
+            }
+        }
+
+        if (!editMode && profile != null) {
+            int actionIndex = event.getActionIndex();
+            int pointerId = event.getPointerId(actionIndex);
+            int actionMasked = event.getActionMasked();
+            boolean handled = false;
+
+            switch (actionMasked) {
+                case MotionEvent.ACTION_DOWN:
+                case MotionEvent.ACTION_POINTER_DOWN: {
+                    float x = event.getX(actionIndex);
+                    float y = event.getY(actionIndex);
+
+                    touchpadView.setPointerButtonLeftEnabled(!hasMouseLeftButtonElement());
+                    for (ControlElement element : profile.getElements()) {
+                        if (element.handleTouchDown(pointerId, x, y)) {
+                            handled = true;
+                            activeTouchElements.put(pointerId, element);
+
+                            // Trigger haptic feedback for input controls
+                            if (hapticsEnabled) {
+                                Vibrator vibrator = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
+                                if (vibrator != null && vibrator.hasVibrator()) {
+                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                        vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE));
+                                    } else {
+                                        vibrator.vibrate(50); // Legacy method for older Android versions
+                                    }
+
+                                }
+
+                            }
+                            break;
+                        }
+                    }
+                    if (!handled) touchpadView.onTouchEvent(event);
+                    break;
+                }
+                case MotionEvent.ACTION_MOVE: {
+                    for (byte i = 0, count = (byte)event.getPointerCount(); i < count; i++) {
+                        int movePointerId = event.getPointerId(i);
+                        float x = event.getX(i);
+                        float y = event.getY(i);
+
+                        ControlElement activeElement = activeTouchElements.get(movePointerId);
+                        handled = activeElement != null && activeElement.handleTouchMove(movePointerId, x, y);
+
+                        if (!handled && activeElement == null) {
+                            for (ControlElement element : profile.getElements()) {
+                                if (element.handleTouchMove(movePointerId, x, y)) {
+                                    activeTouchElements.put(movePointerId, element);
+                                    handled = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!handled) touchpadView.onTouchEvent(event);
+                    }
+                    break;
+                }
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_POINTER_UP: {
+                    ControlElement activeElement = activeTouchElements.get(pointerId);
+                    if (activeElement != null) {
+                        handled = activeElement.handleTouchUp(pointerId);
+                        activeTouchElements.remove(pointerId);
+                    }
+                    else {
+                        for (ControlElement element : profile.getElements()) {
+                            if (element.handleTouchUp(pointerId)) {
+                                handled = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!handled) touchpadView.onTouchEvent(event);
+                    break;
+                }
+                case MotionEvent.ACTION_CANCEL: {
+                    for (int i = 0; i < activeTouchElements.size(); i++) {
+                        int activePointerId = activeTouchElements.keyAt(i);
+                        ControlElement activeElement = activeTouchElements.valueAt(i);
+                        if (activeElement != null) activeElement.handleTouchUp(activePointerId);
+                    }
+                    activeTouchElements.clear();
+                    touchpadView.onTouchEvent(event);
+                    break;
+                }
+            }
+        }
+        return true;
+    }
+
+
+
+
+
+    private void resetTouchscreenTimeout() {
+        if (timeoutHandler != null && hideControlsRunnable != null) {
+            // Cancel any pending hide requests
+            timeoutHandler.removeCallbacks(hideControlsRunnable);
+            // Post a new request to hide the controls after 5 seconds
+            timeoutHandler.postDelayed(hideControlsRunnable, 5000); // Adjust timeout as necessary
         }
     }
 
-    private void resetTouchscreenTimeout() {
-        if (this.timeoutHandler != null && this.hideControlsRunnable != null) {
-            this.timeoutHandler.removeCallbacks(this.hideControlsRunnable);
-            this.timeoutHandler.postDelayed(this.hideControlsRunnable, 5000L);
+    public void invalidateControlElement(ControlElement element) {
+        if (element == null) return;
+
+        Rect dirtyRect = element.getBoundingBox();
+        int padding = 64; // Increased constant padding to ensure full redraw
+        postInvalidateOnAnimation(
+                dirtyRect.left - padding,
+                dirtyRect.top - padding,
+                dirtyRect.right + padding,
+                dirtyRect.bottom + padding
+        );
+    }
+
+    public boolean onKeyEvent(KeyEvent event) {
+        if (profile != null && event.getRepeatCount() == 0) {
+            ExternalController controller = profile.getController(event.getDeviceId());
+            if (controller != null) {
+                ExternalControllerBinding controllerBinding = controller.getControllerBinding(event.getKeyCode());
+                if (controllerBinding != null) {
+                    int action = event.getAction();
+
+                    if (action == KeyEvent.ACTION_DOWN) {
+                        handleInputEvent(controller, controllerBinding.getBinding(), true);
+                    }
+                    else if (action == KeyEvent.ACTION_UP) {
+                        handleInputEvent(controller, controllerBinding.getBinding(), false);
+                    }
+                    return true;
+                }
+            }
         }
+        return false;
     }
 
     public void handleInputEvent(Binding binding, boolean isActionDown) {
-        handleInputEvent(null, binding, isActionDown, 0.0f);
+        handleInputEvent(null, binding, isActionDown, 0);
     }
 
     public void handleInputEvent(ExternalController controller, Binding binding, boolean isActionDown) {
-        handleInputEvent(controller, binding, isActionDown, 0.0f);
+        handleInputEvent(controller, binding, isActionDown, 0);
     }
 
+    /**
+     * Updates both stick axes together so analog motion is dispatched as one
+     * coherent state update instead of four competing per-direction writes.
+     */
     public void handleStickInput(Binding firstBinding, float deltaX, float deltaY) {
-        if (firstBinding.isGamepad()) {
-            GamepadState state = this.profile.getGamepadState();
-            WinHandler winHandler = this.xServer != null ? this.xServer.getWinHandler() : null;
-            boolean isLeftStick = firstBinding == Binding.GAMEPAD_LEFT_THUMB_UP || firstBinding == Binding.GAMEPAD_LEFT_THUMB_DOWN || firstBinding == Binding.GAMEPAD_LEFT_THUMB_LEFT || firstBinding == Binding.GAMEPAD_LEFT_THUMB_RIGHT;
-            if (isLeftStick) {
-                state.thumbLX = deltaX;
-                state.thumbLY = deltaY;
-            } else {
-                state.thumbRX = deltaX;
-                state.thumbRY = deltaY;
-            }
-            if (winHandler != null) winHandler.sendGamepadState();
+        if (profile == null || !firstBinding.isGamepad()) return;
+
+        GamepadState state = profile.getGamepadState();
+        WinHandler winHandler = xServer != null ? xServer.getWinHandler() : null;
+
+        boolean isLeftStick = firstBinding == Binding.GAMEPAD_LEFT_THUMB_UP ||
+                firstBinding == Binding.GAMEPAD_LEFT_THUMB_DOWN ||
+                firstBinding == Binding.GAMEPAD_LEFT_THUMB_LEFT ||
+                firstBinding == Binding.GAMEPAD_LEFT_THUMB_RIGHT;
+
+        if (isLeftStick) {
+            state.thumbLX = deltaX;
+            state.thumbLY = deltaY;
+        } else {
+            state.thumbRX = deltaX;
+            state.thumbRY = deltaY;
+        }
+
+        if (winHandler != null) {
+            winHandler.sendGamepadState();
         }
     }
 
@@ -351,73 +786,91 @@ public class InputControlsView extends View {
     }
 
     public void handleInputEvent(ExternalController controller, Binding binding, boolean isActionDown, float offset, boolean sendUpdate) {
-        WinHandler winHandler = this.xServer != null ? this.xServer.getWinHandler() : null;
+        WinHandler winHandler = xServer != null ? xServer.getWinHandler() : null;
         if (binding.isGamepad()) {
-            GamepadState state = controller != null ? controller.remappedState : this.profile.getGamepadState();
+            GamepadState state = (controller != null) ? controller.remappedState : profile.getGamepadState();
+
             int buttonIdx = binding.ordinal() - Binding.GAMEPAD_BUTTON_A.ordinal();
-            if (buttonIdx <= 11) {
-                if (buttonIdx == 10)
-                    state.triggerL = isActionDown ? offset != 0.0f ? offset : 1.0f : 0.0f;
-                else if (buttonIdx == 11)
-                    state.triggerR = isActionDown ? offset != 0.0f ? offset : 1.0f : 0.0f;
+            if (buttonIdx <= ExternalController.IDX_BUTTON_R2) {
+                if (buttonIdx == ExternalController.IDX_BUTTON_L2)
+                    state.triggerL = isActionDown ? (offset != 0 ? offset : 1.0f) : 0f;
+                else if (buttonIdx == ExternalController.IDX_BUTTON_R2)
+                    state.triggerR = isActionDown ? (offset != 0 ? offset : 1.0f) : 0f;
                 else
                     state.setPressed(buttonIdx, isActionDown);
-            } else if (binding == Binding.GAMEPAD_LEFT_THUMB_UP || binding == Binding.GAMEPAD_LEFT_THUMB_DOWN) {
-                float val = (isActionDown && offset == 0.0f) ? 1.0f : Math.abs(offset);
-                state.thumbLY = isActionDown ? (binding == Binding.GAMEPAD_LEFT_THUMB_UP ? -val : val) : 0.0f;
-            } else if (binding == Binding.GAMEPAD_LEFT_THUMB_LEFT || binding == Binding.GAMEPAD_LEFT_THUMB_RIGHT) {
-                float val2 = (isActionDown && offset == 0.0f) ? 1.0f : Math.abs(offset);
-                state.thumbLX = isActionDown ? (binding == Binding.GAMEPAD_LEFT_THUMB_LEFT ? -val2 : val2) : 0.0f;
-            } else if (binding == Binding.GAMEPAD_RIGHT_THUMB_UP || binding == Binding.GAMEPAD_RIGHT_THUMB_DOWN) {
-                float val3 = (isActionDown && offset == 0.0f) ? 1.0f : Math.abs(offset);
-                state.thumbRY = isActionDown ? (binding == Binding.GAMEPAD_RIGHT_THUMB_UP ? -val3 : val3) : 0.0f;
-            } else if (binding == Binding.GAMEPAD_RIGHT_THUMB_LEFT || binding == Binding.GAMEPAD_RIGHT_THUMB_RIGHT) {
-                float val4 = (isActionDown && offset == 0.0f) ? 1.0f : Math.abs(offset);
-                state.thumbRX = isActionDown ? (binding == Binding.GAMEPAD_RIGHT_THUMB_LEFT ? -val4 : val4) : 0.0f;
-            } else if (binding == Binding.GAMEPAD_DPAD_UP || binding == Binding.GAMEPAD_DPAD_RIGHT || binding == Binding.GAMEPAD_DPAD_DOWN || binding == Binding.GAMEPAD_DPAD_LEFT) {
+            }
+            else if (binding == Binding.GAMEPAD_LEFT_THUMB_UP || binding == Binding.GAMEPAD_LEFT_THUMB_DOWN) {
+                float val = (isActionDown && offset == 0) ? 1.0f : Math.abs(offset);
+                state.thumbLY = isActionDown ? (binding == Binding.GAMEPAD_LEFT_THUMB_UP ? -val : val) : 0;
+            }
+            else if (binding == Binding.GAMEPAD_LEFT_THUMB_LEFT || binding == Binding.GAMEPAD_LEFT_THUMB_RIGHT) {
+                float val = (isActionDown && offset == 0) ? 1.0f : Math.abs(offset);
+                state.thumbLX = isActionDown ? (binding == Binding.GAMEPAD_LEFT_THUMB_LEFT ? -val : val) : 0;
+            }
+            else if (binding == Binding.GAMEPAD_RIGHT_THUMB_UP || binding == Binding.GAMEPAD_RIGHT_THUMB_DOWN) {
+                float val = (isActionDown && offset == 0) ? 1.0f : Math.abs(offset);
+                state.thumbRY = isActionDown ? (binding == Binding.GAMEPAD_RIGHT_THUMB_UP ? -val : val) : 0;
+            }
+            else if (binding == Binding.GAMEPAD_RIGHT_THUMB_LEFT || binding == Binding.GAMEPAD_RIGHT_THUMB_RIGHT) {
+                float val = (isActionDown && offset == 0) ? 1.0f : Math.abs(offset);
+                state.thumbRX = isActionDown ? (binding == Binding.GAMEPAD_RIGHT_THUMB_LEFT ? -val : val) : 0;
+            }
+            else if (binding == Binding.GAMEPAD_DPAD_UP || binding == Binding.GAMEPAD_DPAD_RIGHT ||
+                     binding == Binding.GAMEPAD_DPAD_DOWN || binding == Binding.GAMEPAD_DPAD_LEFT) {
                 state.dpad[binding.ordinal() - Binding.GAMEPAD_DPAD_UP.ordinal()] = isActionDown;
             }
+
             if (winHandler != null && sendUpdate) {
-                if (controller != null) winHandler.sendGamepadState(controller);
-                else winHandler.sendGamepadState();
+                if (controller != null)
+                    winHandler.sendGamepadState(controller);
+                else
+                    winHandler.sendGamepadState();
             }
-            return;
         }
-        if (binding == Binding.MOUSE_MOVE_LEFT || binding == Binding.MOUSE_MOVE_RIGHT) {
-            if (isActionDown) mouseMoveOffset.x = offset != 0.0f ? offset : (binding == Binding.MOUSE_MOVE_LEFT ? -1 : 1);
-            else mouseMoveOffset.x = 0;
-            if (isActionDown) createMouseMoveTimer();
-            return;
-        }
-        if (binding == Binding.MOUSE_MOVE_DOWN || binding == Binding.MOUSE_MOVE_UP) {
-            if (isActionDown) mouseMoveOffset.y = offset != 0.0f ? offset : (binding == Binding.MOUSE_MOVE_UP ? -1 : 1);
-            else mouseMoveOffset.y = 0;
-            if (isActionDown) createMouseMoveTimer();
-            return;
-        }
-        Pointer.Button pointerButton = binding.getPointerButton();
-        if (isActionDown) {
-            if (pointerButton != null) {
-                if (this.xServer.isRelativeMouseMovement()) {
-                    int wheelDelta = pointerButton == Pointer.Button.BUTTON_SCROLL_UP ? 120 : (pointerButton == Pointer.Button.BUTTON_SCROLL_DOWN ? -120 : 0);
-                    winHandler.mouseEvent(MouseEventFlags.getFlagFor(pointerButton, true), 0, 0, wheelDelta);
-                } else this.xServer.injectPointerButtonPress(pointerButton);
-            } else this.xServer.injectKeyPress(binding.keycode);
-        } else {
-            if (pointerButton != null) {
-                if (this.xServer.isRelativeMouseMovement()) winHandler.mouseEvent(MouseEventFlags.getFlagFor(pointerButton, false), 0, 0, 0);
-                else this.xServer.injectPointerButtonRelease(pointerButton);
-            } else this.xServer.injectKeyRelease(binding.keycode);
+        else {
+            if (binding == Binding.MOUSE_MOVE_LEFT || binding == Binding.MOUSE_MOVE_RIGHT) {
+                mouseMoveOffset.x = isActionDown ? (offset != 0 ? offset : (binding == Binding.MOUSE_MOVE_LEFT ? -1 : 1)) : 0;
+                if (isActionDown) createMouseMoveTimer();
+            }
+            else if (binding == Binding.MOUSE_MOVE_DOWN || binding == Binding.MOUSE_MOVE_UP) {
+                mouseMoveOffset.y = isActionDown ? (offset != 0 ? offset : (binding == Binding.MOUSE_MOVE_UP ? -1 : 1)) : 0;
+                if (isActionDown) createMouseMoveTimer();
+            }
+            else {
+                Pointer.Button pointerButton = binding.getPointerButton();
+                if (isActionDown) {
+                    if (pointerButton != null) {
+                        if (xServer.isRelativeMouseMovement()) {
+                            int wheelDelta = pointerButton == Pointer.Button.BUTTON_SCROLL_UP ? MOUSE_WHEEL_DELTA : (pointerButton == Pointer.Button.BUTTON_SCROLL_DOWN ? -MOUSE_WHEEL_DELTA : 0);
+                            winHandler.mouseEvent(MouseEventFlags.getFlagFor(pointerButton, true), 0, 0, wheelDelta);
+                        } else {
+                            xServer.injectPointerButtonPress(pointerButton);
+                        }
+                    }
+                    else xServer.injectKeyPress(binding.keycode);
+                }
+                else {
+                    if (pointerButton != null) {
+                        if (xServer.isRelativeMouseMovement()) {
+                            winHandler.mouseEvent(MouseEventFlags.getFlagFor(pointerButton, false), 0, 0, 0);
+                        } else {
+                            xServer.injectPointerButtonRelease(pointerButton);
+                        }
+                    }
+                    else xServer.injectKeyRelease(binding.keycode);
+                }
+            }
         }
     }
 
     public Bitmap getIcon(byte id) {
-        if (this.icons[id] == null) {
+        if (icons[id] == null) {
             Context context = getContext();
-            try (InputStream is = context.getAssets().open("inputcontrols/icons/" + ((int) id) + ".png")) {
-                this.icons[id] = BitmapFactory.decodeStream(is);
-            } catch (IOException e) {}
+            try (InputStream is = context.getAssets().open("inputcontrols/icons/"+id+".png")) {
+                icons[id] = BitmapFactory.decodeStream(is);
+            }
+            catch (IOException e) {}
         }
-        return this.icons[id];
+        return icons[id];
     }
 }

@@ -12,6 +12,8 @@ import com.winlator.cmod.inputcontrols.ControlsProfile;
 import com.winlator.cmod.inputcontrols.ExternalController;
 import com.winlator.cmod.inputcontrols.FakeInputWriter;
 import com.winlator.cmod.inputcontrols.GamepadState;
+import com.winlator.cmod.winhandler.OnGetProcessInfoListener;
+import com.winlator.cmod.winhandler.ProcessInfo;
 import com.winlator.cmod.xserver.XServer;
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -35,12 +37,13 @@ import java.util.concurrent.TimeUnit;
 
 public class WinHandler {
     private static final short CLIENT_PORT = 7946;
-    public static final byte DEFAULT_INPUT_TYPE = 4;
-    public static final byte FLAG_DINPUT_MAPPER_STANDARD = 1;
-    public static final byte FLAG_DINPUT_MAPPER_XINPUT = 2;
-    public static final byte FLAG_INPUT_TYPE_DINPUT = 8;
-    public static final byte FLAG_INPUT_TYPE_XINPUT = 4;
+    public static final byte FLAG_DINPUT_MAPPER_STANDARD = 0x01;
+    public static final byte FLAG_DINPUT_MAPPER_XINPUT = 0x02;
+    public static final byte FLAG_INPUT_TYPE_XINPUT = 0x04;
+    public static final byte FLAG_INPUT_TYPE_DINPUT = 0x08;
+    public static final byte DEFAULT_INPUT_TYPE = FLAG_INPUT_TYPE_XINPUT;
     private static final int MAX_CONTROLLERS = 4;
+    private static final int OSC_DEVICE_ID = -1;
     private static final short SERVER_PORT = 7947;
     private final XServerDisplayActivity activity;
     private String fakeInputBasePath;
@@ -66,7 +69,8 @@ public class WinHandler {
     private boolean xinputDisabledInitialized = false;
     private final InputManager.InputDeviceListener inputDeviceListener = new InputManager.InputDeviceListener() {
         @Override
-        public void onInputDeviceAdded(int deviceId) {}
+        public void onInputDeviceAdded(int deviceId) {
+        }
 
         @Override
         public void onInputDeviceRemoved(int deviceId) {
@@ -74,7 +78,8 @@ public class WinHandler {
         }
 
         @Override
-        public void onInputDeviceChanged(int deviceId) {}
+        public void onInputDeviceChanged(int deviceId) {
+        }
     };
 
     public WinHandler(XServerDisplayActivity activity) {
@@ -84,12 +89,12 @@ public class WinHandler {
         this.preferences = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
     }
 
-    public OnGetProcessInfoListener getOnGetProcessInfoListener() { return onGetProcessInfoListener; }
-
     private boolean sendPacket(int port) {
         try {
             int size = this.sendData.position();
-            if (size == 0) return false;
+            if (size == 0) {
+                return false;
+            }
             this.sendPacket.setAddress(this.localhost);
             this.sendPacket.setPort(port);
             this.socket.send(this.sendPacket);
@@ -103,49 +108,59 @@ public class WinHandler {
         final String filename;
         final String parameters;
         String command2 = command.trim();
-        if (command2.isEmpty()) return;
+        if (command2.isEmpty()) {
+            return;
+        }
         if (command2.contains("\"")) {
             int firstQuote = command2.indexOf("\"");
             int lastQuote = command2.lastIndexOf("\"");
             filename = command2.substring(firstQuote + 1, lastQuote);
-            parameters = lastQuote + 1 < command2.length() ? command2.substring(lastQuote + 1).trim() : "";
+            if (lastQuote + 1 < command2.length()) {
+                parameters = command2.substring(lastQuote + 1).trim();
+            } else {
+                parameters = "";
+            }
         } else {
             String[] cmdList = command2.split(" ", 2);
             filename = cmdList[0];
-            parameters = cmdList.length > 1 ? cmdList[1] : "";
+            if (cmdList.length > 1) {
+                parameters = cmdList[1];
+            } else {
+                parameters = "";
+            }
         }
         addAction(() -> {
             byte[] filenameBytes = filename.getBytes();
             byte[] parametersBytes = parameters.getBytes();
-            sendData.rewind();
-            sendData.put((byte) 2);
-            sendData.putInt(filenameBytes.length + parametersBytes.length + 8);
-            sendData.putInt(filenameBytes.length);
-            sendData.putInt(parametersBytes.length);
-            sendData.put(filenameBytes);
-            sendData.put(parametersBytes);
+            this.sendData.rewind();
+            this.sendData.put((byte) 2);
+            this.sendData.putInt(filenameBytes.length + parametersBytes.length + 8);
+            this.sendData.putInt(filenameBytes.length);
+            this.sendData.putInt(parametersBytes.length);
+            this.sendData.put(filenameBytes);
+            this.sendData.put(parametersBytes);
             sendPacket(7946);
         });
     }
 
     public void killProcess(final String processName) {
         addAction(() -> {
-            sendData.rewind();
-            sendData.put((byte) 3);
+            this.sendData.rewind();
+            this.sendData.put((byte) 3);
             byte[] bytes = processName.getBytes();
-            sendData.putInt(bytes.length);
-            sendData.put(bytes);
+            this.sendData.putInt(bytes.length);
+            this.sendData.put(bytes);
             sendPacket(7946);
         });
     }
 
     public void listProcesses() {
         addAction(() -> {
-            sendData.rewind();
-            sendData.put((byte) 4);
-            sendData.putInt(0);
-            if (!sendPacket(7946) && onGetProcessInfoListener != null) {
-                onGetProcessInfoListener.onGetProcessInfo(0, 0, null);
+            this.sendData.rewind();
+            this.sendData.put((byte) 4);
+            this.sendData.putInt(0);
+            if (!sendPacket(7946) && this.onGetProcessInfoListener != null) {
+                this.onGetProcessInfoListener.onGetProcessInfo(0, 0, null);
             }
         });
     }
@@ -153,51 +168,55 @@ public class WinHandler {
     public void setProcessAffinity(final String processName, final int affinityMask) {
         addAction(() -> {
             byte[] bytes = processName.getBytes();
-            sendData.rewind();
-            sendData.put((byte) 6);
-            sendData.putInt(bytes.length + 9);
-            sendData.putInt(0);
-            sendData.putInt(affinityMask);
-            sendData.put((byte) bytes.length);
-            sendData.put(bytes);
+            this.sendData.rewind();
+            this.sendData.put((byte) 6);
+            this.sendData.putInt(bytes.length + 9);
+            this.sendData.putInt(0);
+            this.sendData.putInt(affinityMask);
+            this.sendData.put((byte) bytes.length);
+            this.sendData.put(bytes);
             sendPacket(7946);
         });
     }
 
     public void setProcessAffinity(final int pid, final int affinityMask) {
         addAction(() -> {
-            sendData.rewind();
-            sendData.put((byte) 6);
-            sendData.putInt(9);
-            sendData.putInt(pid);
-            sendData.putInt(affinityMask);
-            sendData.put((byte) 0);
+            this.sendData.rewind();
+            this.sendData.put((byte) 6);
+            this.sendData.putInt(9);
+            this.sendData.putInt(pid);
+            this.sendData.putInt(affinityMask);
+            this.sendData.put((byte) 0);
             sendPacket(7946);
         });
     }
 
     public void mouseEvent(final int flags, final int dx, final int dy, final int wheelDelta) {
-        if (!this.initReceived) return;
+        if (!this.initReceived) {
+            return;
+        }
         addAction(() -> {
-            sendData.rewind();
-            sendData.put((byte) 7);
-            sendData.putInt(10);
-            sendData.putInt(flags);
-            sendData.putShort((short) dx);
-            sendData.putShort((short) dy);
-            sendData.putShort((short) wheelDelta);
-            sendData.put((byte) ((flags & 1) != 0 ? 1 : 0));
+            this.sendData.rewind();
+            this.sendData.put((byte) 7);
+            this.sendData.putInt(10);
+            this.sendData.putInt(flags);
+            this.sendData.putShort((short) dx);
+            this.sendData.putShort((short) dy);
+            this.sendData.putShort((short) wheelDelta);
+            this.sendData.put((byte) ((flags & 1) != 0 ? 1 : 0));
             sendPacket(7946);
         });
     }
 
     public void keyboardEvent(final byte vkey, final int flags) {
-        if (!this.initReceived) return;
+        if (!this.initReceived) {
+            return;
+        }
         addAction(() -> {
-            sendData.rewind();
-            sendData.put((byte) 11);
-            sendData.put(vkey);
-            sendData.putInt(flags);
+            this.sendData.rewind();
+            this.sendData.put((byte) 11);
+            this.sendData.put(vkey);
+            this.sendData.putInt(flags);
             sendPacket(7946);
         });
     }
@@ -208,16 +227,16 @@ public class WinHandler {
 
     public void bringToFront(final String processName, final long handle) {
         addAction(() -> {
-            sendData.rewind();
+            this.sendData.rewind();
             try {
-                sendData.put((byte) 12);
+                this.sendData.put((byte) 12);
                 byte[] bytes = processName.getBytes();
-                sendData.putInt(bytes.length);
-                sendData.put(bytes);
-                sendData.putLong(handle);
+                this.sendData.putInt(bytes.length);
+                this.sendData.put(bytes);
+                this.sendData.putLong(handle);
             } catch (BufferOverflowException e) {
                 e.printStackTrace();
-                sendData.rewind();
+                this.sendData.rewind();
             }
             sendPacket(7946);
         });
@@ -230,6 +249,10 @@ public class WinHandler {
         }
     }
 
+    public OnGetProcessInfoListener getOnGetProcessInfoListener() {
+        return this.onGetProcessInfoListener;
+    }
+
     public void setOnGetProcessInfoListener(OnGetProcessInfoListener onGetProcessInfoListener) {
         synchronized (this.actions) {
             this.onGetProcessInfoListener = onGetProcessInfoListener;
@@ -238,17 +261,22 @@ public class WinHandler {
 
     private void startSendThread() {
         Executors.newSingleThreadExecutor().execute(() -> {
-            while (running) {
-                synchronized (actions) {
-                    while (initReceived && !actions.isEmpty()) {
-                        actions.poll().run();
+            while (this.running) {
+                synchronized (this.actions) {
+                    while (this.initReceived && !this.actions.isEmpty()) {
+                        this.actions.poll().run();
                     }
                     try {
-                        actions.wait();
-                    } catch (InterruptedException e) {}
+                        this.actions.wait();
+                    } catch (InterruptedException e) {
+                    }
                 }
             }
         });
+    }
+
+    public DatagramSocket getSocket() {
+        return socket;
     }
 
     public void stop() {
@@ -274,7 +302,7 @@ public class WinHandler {
                 synchronized (this.actions) {
                     this.actions.notify();
                 }
-                break;
+                return;
             case 5:
                 if (this.onGetProcessInfoListener != null) {
                     this.receiveData.position(this.receiveData.position() + 4);
@@ -289,7 +317,7 @@ public class WinHandler {
                     String name = StringUtils.fromANSIString(bytes);
                     this.onGetProcessInfoListener.onGetProcessInfo(index, numProcesses, new ProcessInfo(pid, name, memoryUsage, affinityMask, wow64Process));
                 }
-                break;
+                return;
             case 10:
             case 13:
                 short x = this.receiveData.getShort();
@@ -298,7 +326,7 @@ public class WinHandler {
                 xServer.pointer.setX(x);
                 xServer.pointer.setY(y);
                 this.activity.getXServerView().requestRender();
-                break;
+                return;
         }
     }
 
@@ -306,30 +334,36 @@ public class WinHandler {
         try {
             this.localhost = InetAddress.getLocalHost();
         } catch (UnknownHostException e) {
-            try { this.localhost = InetAddress.getByName("127.0.0.1"); } catch (UnknownHostException e2) {}
+            try {
+                this.localhost = InetAddress.getByName("127.0.0.1");
+            } catch (UnknownHostException e2) {
+            }
         }
         this.running = true;
         startSendThread();
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
-                socket = new DatagramSocket(null);
-                socket.setReuseAddress(true);
-                socket.bind(new InetSocketAddress((InetAddress) null, 7947));
-                while (running) {
-                    socket.receive(receivePacket);
-                    synchronized (actions) {
-                        receiveData.rewind();
-                        byte requestCode = receiveData.get();
-                        handleRequest(requestCode, receivePacket.getPort());
+                this.socket = new DatagramSocket(null);
+                this.socket.setReuseAddress(true);
+                this.socket.bind(new InetSocketAddress((InetAddress) null, 7947));
+                while (this.running) {
+                    this.socket.receive(this.receivePacket);
+                    synchronized (this.actions) {
+                        this.receiveData.rewind();
+                        byte requestCode = this.receiveData.get();
+                        handleRequest(requestCode, this.receivePacket.getPort());
                     }
                 }
-            } catch (IOException e) {}
+            } catch (IOException e) {
+            }
         });
     }
 
     public void sendGamepadState() {
         ControlsProfile profile = this.activity.getInputControlsView().getProfile();
-        if (profile == null) return;
+        if (profile == null) {
+            return;
+        }
         GamepadState gamepadState = profile.getGamepadState();
         boolean useVirtualGamepad = profile.isVirtualGamepad() && this.activity.getInputControlsView().isShowTouchscreenControls();
         if (useVirtualGamepad) {
@@ -338,44 +372,47 @@ public class WinHandler {
                 this.writers[slot].writeGamepadState(gamepadState);
                 return;
             }
-            return;
+        } else {
+            releaseSlot(-1);
         }
-        releaseSlot(-1);
     }
 
     public void sendGamepadState(ExternalController controller) {
-        if (controller == null) return;
+        ExternalController profileController;
+        if (controller == null) {
+            return;
+        }
         ControlsProfile profile = this.activity.getInputControlsView().getProfile();
-        int slot;
-        if (profile != null) {
-            ExternalController profileController = profile.getController(controller.getDeviceId());
-            if (profileController != null && profileController.getControllerBindingCount() > 0) {
-                slot = assignSlot(controller.getDeviceId());
-                if (slot >= 0 && this.writers[slot] != null) {
-                    this.writers[slot].writeGamepadState(controller.remappedState);
-                    return;
-                }
+        if (profile != null && (profileController = profile.getController(controller.getDeviceId())) != null && profileController.getControllerBindingCount() > 0) {
+            int slot = assignSlot(controller.getDeviceId());
+            if (slot >= 0 && this.writers[slot] != null) {
+                this.writers[slot].writeGamepadState(controller.remappedState);
                 return;
             }
         }
-        slot = assignSlot(controller.getDeviceId());
-        if (slot >= 0 && this.writers[slot] != null) {
-            this.writers[slot].writeGamepadState(controller.state);
+        int slot2 = assignSlot(controller.getDeviceId());
+        if (slot2 >= 0 && this.writers[slot2] != null) {
+            this.writers[slot2].writeGamepadState(controller.state);
         }
     }
 
     private int assignSlot(int deviceId) {
         Integer existing = this.deviceToSlot.get(deviceId);
-        if (existing != null) return existing;
+        if (existing != null) {
+            return existing;
+        }
         for (int slot = 0; slot < 4; slot++) {
             if (!this.usedSlots.contains(slot)) {
                 this.usedSlots.add(slot);
                 this.deviceToSlot.put(deviceId, slot);
+                
+                // Initialize the writer only if it doesn't exist; keep it open
                 if (this.fakeInputBasePath != null && this.writers[slot] == null) {
                     this.writers[slot] = new FakeInputWriter(this.fakeInputBasePath, slot);
                     this.writers[slot].open();
-                    Log.d("WinHandler", "Assigned device " + deviceId + " to slot " + slot);
                 }
+                
+                Log.d("WinHandler", "Assigned device " + deviceId + " to slot " + slot);
                 return slot;
             }
         }
@@ -385,12 +422,12 @@ public class WinHandler {
     private void releaseSlot(int deviceId) {
         Integer slot = this.deviceToSlot.remove(deviceId);
         if (slot != null) {
+            // Do NOT close the writer here; instead, just zero out the state
             if (this.writers[slot] != null) {
-                this.writers[slot].softRelease();
+                this.writers[slot].writeGamepadState(new GamepadState()); // Zero out
             }
             this.usedSlots.remove(slot);
-            this.controllers.remove(deviceId);
-            Log.d("WinHandler", "Device " + deviceId + " disconnected. Slot soft-released: " + slot);
+            Log.d("WinHandler", "Device " + deviceId + " disconnected. Slot zeroed: " + slot);
         }
     }
 
@@ -402,10 +439,7 @@ public class WinHandler {
     public void setFakeInputPath(String fakeInputPath) {
         if (fakeInputPath != null && !fakeInputPath.isEmpty()) {
             this.fakeInputBasePath = fakeInputPath;
-            int slot = assignSlot(-1);
-            if (slot >= 0 && this.writers[slot] != null) {
-                this.writers[slot].writeGamepadState(new GamepadState());
-            }
+            Log.d("WinHandler", "FakeInputWriter base path set: " + fakeInputPath);
         }
     }
 
@@ -415,7 +449,7 @@ public class WinHandler {
         }
         for (int i = 0; i < 4; i++) {
             if (this.writers[i] != null) {
-                this.writers[i].destroy();
+                this.writers[i].close();
                 this.writers[i] = null;
             }
         }
@@ -425,10 +459,12 @@ public class WinHandler {
     }
 
     private ExternalController getController(int deviceId) {
-        ExternalController controller = this.controllers.get(deviceId);
-        if (controller == null) {
-            controller = ExternalController.getController(deviceId);
-            if (controller != null) this.controllers.put(deviceId, controller);
+        if (this.controllers.containsKey(deviceId)) {
+            return this.controllers.get(deviceId);
+        }
+        ExternalController controller = ExternalController.getController(deviceId);
+        if (controller != null) {
+            this.controllers.put(deviceId, controller);
         }
         return controller;
     }
@@ -450,16 +486,25 @@ public class WinHandler {
             if (action == 0 || action == 1) {
                 handled = controller.updateStateFromKeyEvent(event);
             }
-            if (handled) sendGamepadState(controller);
+            if (handled) {
+                sendGamepadState(controller);
+            }
         }
         return handled;
     }
 
-    public byte getInputType() { return this.inputType; }
-    public void setInputType(byte inputType) { this.inputType = inputType; }
+    public byte getInputType() {
+        return this.inputType;
+    }
+
+    public void setInputType(byte inputType) {
+        this.inputType = inputType;
+    }
 
     public void execWithDelay(final String command, int delaySeconds) {
-        if (command == null || command.trim().isEmpty() || delaySeconds < 0) return;
+        if (command == null || command.trim().isEmpty() || delaySeconds < 0) {
+            return;
+        }
         Executors.newSingleThreadScheduledExecutor().schedule(() -> exec(command), delaySeconds, TimeUnit.SECONDS);
     }
 }
