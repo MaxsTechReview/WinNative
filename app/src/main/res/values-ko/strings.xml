@@ -901,4 +901,25 @@
     <string name="saves_import_export_imported">저장 데이터가 성공적으로 가져와졌습니다</string>
     <string name="saves_import_export_imported_failed">저장 데이터 가져오기 실패: %1$s</string>
 
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_default_name">컨테이너</string>
+    <string name="preloader_initializing">초기화 중…</string>
+    <string name="preloader_launching">실행 중…</string>
+    <string name="preloader_closing">%1$s 종료 중…</string>
+    <string name="preloader_setup_environment">환경 설정 중…</string>
+    <string name="preloader_installing_mono">Wine Mono v%1$s 설치 중…</string>
+    <string name="preloader_installing_redist">재배포 파일 설치 중…</string>
+    <string name="preloader_unpacking_exe">게임 실행 파일 압축 해제 중…</string>
+    <string name="preloader_downloading_cloud">클라우드 세이브 다운로드 중…</string>
+    <string name="preloader_syncing_cloud">클라우드 세이브 동기화 중…</string>
+    <string name="preloader_cloud_downloading">클라우드 동기화 다운로드 중…</string>
+    <string name="preloader_cloud_backup">Google 드라이브에 세이브 백업 중…</string>
+    <string name="cloud_sync_failed_provider">%1$s 클라우드 동기화에 실패했습니다.</string>
+    <string name="google_cloud_backup_failed">Google 드라이브 백업에 실패했습니다.</string>
+    <string name="preloader_platform_steam">Steam</string>
+    <string name="preloader_platform_epic">Epic Games</string>
+    <string name="preloader_platform_gog">GOG</string>
+    <string name="preloader_platform_custom">커스텀 게임</string>
+    <string name="preloader_platform_amazon">Amazon</string>
+
 </resources>

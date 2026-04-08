@@ -46,6 +46,7 @@ import java.util.TimerTask;
 
 public abstract class AppUtils {
     private static WeakReference<Toast> globalToastReference = null;
+    private static WeakReference<PopupWindow> globalPopupToastReference = null;
 
     public static void keepScreenOn(Activity activity) {
         activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -181,6 +182,10 @@ public abstract class AppUtils {
         return showToast(context, context.getString(textResId));
     }
 
+    public static void showToast(Context context, int textResId, long durationMs) {
+        showToast(context, context.getString(textResId), durationMs);
+    }
+
     public static Toast showToast(final Context context, final String text) {
         if (!isUiThread()) {
             if (context instanceof Activity) {
@@ -205,6 +210,61 @@ public abstract class AppUtils {
         toast.show();
         globalToastReference = new WeakReference<>(toast);
         return toast;
+    }
+
+    public static void showToast(final Context context, final String text, final long durationMs) {
+        if (!isUiThread()) {
+            if (context instanceof Activity) {
+                ((Activity)context).runOnUiThread(() -> showToast(context, text, durationMs));
+            }
+            return;
+        }
+
+        if (globalToastReference != null) {
+            Toast toast = globalToastReference.get();
+            if (toast != null) toast.cancel();
+            globalToastReference = null;
+        }
+
+        if (globalPopupToastReference != null) {
+            PopupWindow popupWindow = globalPopupToastReference.get();
+            if (popupWindow != null) popupWindow.dismiss();
+            globalPopupToastReference = null;
+        }
+
+        if (!(context instanceof Activity)) {
+            showToast(context, text);
+            return;
+        }
+
+        Activity activity = (Activity) context;
+        if (activity.isFinishing() || activity.isDestroyed()) {
+            return;
+        }
+        View view = LayoutInflater.from(context).inflate(R.layout.custom_toast, null);
+        ((TextView)view.findViewById(R.id.TextView)).setText(text);
+
+        PopupWindow popupWindow = new PopupWindow(
+                view,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                false
+        );
+        popupWindow.setTouchable(false);
+        popupWindow.setOutsideTouchable(false);
+        popupWindow.setClippingEnabled(false);
+        popupWindow.showAtLocation(activity.getWindow().getDecorView(), Gravity.CENTER | Gravity.BOTTOM, 0, 50);
+        globalPopupToastReference = new WeakReference<>(popupWindow);
+
+        view.postDelayed(() -> {
+            try {
+                PopupWindow currentPopup = globalPopupToastReference != null ? globalPopupToastReference.get() : null;
+                if (currentPopup == popupWindow && popupWindow.isShowing()) {
+                    popupWindow.dismiss();
+                    globalPopupToastReference = null;
+                }
+            } catch (Exception ignored) {}
+        }, durationMs);
     }
 
     public static PopupWindow showPopupWindow(View anchor, View contentView) {

@@ -901,4 +901,25 @@ Caminho instalado:
     <string name="saves_import_export_imported">Saves importados com sucesso</string>
     <string name="saves_import_export_imported_failed">Falha ao importar saves: %1$s</string>
 
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_default_name">Contêiner</string>
+    <string name="preloader_initializing">Inicializando…</string>
+    <string name="preloader_launching">Iniciando…</string>
+    <string name="preloader_closing">Fechando %1$s…</string>
+    <string name="preloader_setup_environment">Configurando ambiente…</string>
+    <string name="preloader_installing_mono">Instalando Wine Mono v%1$s…</string>
+    <string name="preloader_installing_redist">Instalando redistribuíveis…</string>
+    <string name="preloader_unpacking_exe">Descompactando executável do jogo…</string>
+    <string name="preloader_downloading_cloud">Baixando saves na nuvem…</string>
+    <string name="preloader_syncing_cloud">Sincronizando saves na nuvem…</string>
+    <string name="preloader_cloud_downloading">Download da sincronização na nuvem…</string>
+    <string name="preloader_cloud_backup">Fazendo backup do save no Google Drive…</string>
+    <string name="cloud_sync_failed_provider">Sincronização na nuvem do %1$s falhou.</string>
+    <string name="google_cloud_backup_failed">Backup no Google Drive falhou.</string>
+    <string name="preloader_platform_steam">Steam</string>
+    <string name="preloader_platform_epic">Epic Games</string>
+    <string name="preloader_platform_gog">GOG</string>
+    <string name="preloader_platform_custom">Jogo personalizado</string>
+    <string name="preloader_platform_amazon">Amazon</string>
+
 </resources>

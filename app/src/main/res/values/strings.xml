@@ -928,4 +928,25 @@ Installed path:
     <string name="saves_import_export_imported">Saves imported successfully</string>
     <string name="saves_import_export_imported_failed">Failed to import saves: %1$s</string>
 
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_default_name">Container</string>
+    <string name="preloader_initializing">Initializing…</string>
+    <string name="preloader_launching">Launching…</string>
+    <string name="preloader_closing">Closing %1$s…</string>
+    <string name="preloader_setup_environment">Setting up environment…</string>
+    <string name="preloader_installing_mono">Installing Wine Mono v%1$s…</string>
+    <string name="preloader_installing_redist">Installing redistributables…</string>
+    <string name="preloader_unpacking_exe">Unpacking game executable…</string>
+    <string name="preloader_downloading_cloud">Downloading cloud saves…</string>
+    <string name="preloader_syncing_cloud">Syncing cloud saves…</string>
+    <string name="preloader_cloud_downloading">Cloud Sync Downloading…</string>
+    <string name="preloader_cloud_backup">Backing up save to Google Drive…</string>
+    <string name="cloud_sync_failed_provider">%1$s cloud save sync failed.</string>
+    <string name="google_cloud_backup_failed">Google Drive backup failed.</string>
+    <string name="preloader_platform_steam">Steam</string>
+    <string name="preloader_platform_epic">Epic Games</string>
+    <string name="preloader_platform_gog">GOG</string>
+    <string name="preloader_platform_custom">Custom Game</string>
+    <string name="preloader_platform_amazon">Amazon</string>
+
 </resources>
