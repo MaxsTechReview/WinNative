@@ -71,8 +71,16 @@ public class InputControlsView extends View {
     private ControlElement selectedElement;
     private boolean showTouchscreenControls = true;
     private int snappingSize;
-    private ControlElement stickElement;
+    public ControlElement stickElement;
     private Handler timeoutHandler;
+
+    public void updateStickPosition(float x, float y) {
+        if (this.stickElement != null) {
+            this.stickElement.getCurrentPosition().x = x;
+            this.stickElement.getCurrentPosition().y = y;
+            invalidate();
+        }
+    }
     private TouchpadView touchpadView;
     private XServer xServer;
     private final SparseArray<ControlElement> activeTouchElements = new SparseArray<>();
