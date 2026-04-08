@@ -1634,8 +1634,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     if (wineRequestHandler != null) wineRequestHandler.stop();
                     
                     // Definitive Wine process cleanup
-                    if (launcher != null) {
-                        launcher.execShellCommand("wineserver -k");
+                    if (guestProgramLauncherComponent != null) {
+                        guestProgramLauncherComponent.execShellCommand("wineserver -k");
                     }
                     ProcessHelper.terminateAllWineProcesses();
                     

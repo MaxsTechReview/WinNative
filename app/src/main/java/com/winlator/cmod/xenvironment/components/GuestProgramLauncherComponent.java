@@ -669,7 +669,11 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         mergeExternalEnvVars(envVars, ld_preload, devInputDir.getAbsolutePath());
 
         // Determine emulator based on Wine architecture
-        String selectedEmulator = emulator;
+        String emulator = container != null ? container.getEmulator() : "box64";
+        if (shortcut != null) {
+            emulator = shortcut.getExtra("emulator", emulator);
+        }
+        String command;
         if (wineInfo.isArm64EC()) {
             command = winePath + "/" + guestExecutable;
             if ("fexcore".equalsIgnoreCase(emulator))

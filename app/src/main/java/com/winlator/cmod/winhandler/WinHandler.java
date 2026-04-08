@@ -275,6 +275,10 @@ public class WinHandler {
         });
     }
 
+    public DatagramSocket getSocket() {
+        return socket;
+    }
+
     public void stop() {
         this.running = false;
         closeFakeInputWriter();
@@ -417,7 +421,7 @@ public class WinHandler {
         Integer slot = this.deviceToSlot.remove(deviceId);
         if (slot != null) {
             if (this.writers[slot] != null) {
-                this.writers[slot].softRelease();
+                this.writers[slot].close();
             }
             this.usedSlots.remove(slot);
             this.controllers.remove(deviceId);
@@ -443,7 +447,7 @@ public class WinHandler {
         }
         for (int i = 0; i < 4; i++) {
             if (this.writers[i] != null) {
-                this.writers[i].destroy();
+                this.writers[i].close();
                 this.writers[i] = null;
             }
         }

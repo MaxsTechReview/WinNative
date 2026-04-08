@@ -223,7 +223,7 @@ public class GamepadConfiguratorDialog {
 //        ((XServerDisplayActivity) context).getWinHandler().updateTriggerType(externalController.getTriggerType());
 
         Toast.makeText(context, R.string.session_gamepad_mappings_saved, Toast.LENGTH_SHORT).show();
-        ((XServerDisplayActivity) context).getWinHandler().refreshControllerMappings();
+        // ((XServerDisplayActivity) context).getWinHandler().refreshControllerMappings();
     }
 
 
