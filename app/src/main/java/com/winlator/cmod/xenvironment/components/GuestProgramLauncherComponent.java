@@ -537,7 +537,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         }
 
         EnvVars envVars = new EnvVars();
-        boolean enableEvshim = false;
+        boolean enableEvshim = true;
 
         if (enableEvshim) {
             // --- Controller support: create shared memory files for all 4 slots ---

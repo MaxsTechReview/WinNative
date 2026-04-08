@@ -43,14 +43,28 @@ public class GamepadState {
     }
 
     public void writeTo(ByteBuffer buffer) {
-        buffer.putShort(this.buttons);
-        buffer.put(getPovHat());
+        // Must match evshim.c: struct gamepad_io
+        // Axes: lx, ly, rx, ry, lt, rt (int16_t * 6 = 12 bytes)
         buffer.putShort((short) (this.thumbLX * 32767.0f));
         buffer.putShort((short) (this.thumbLY * 32767.0f));
         buffer.putShort((short) (this.thumbRX * 32767.0f));
         buffer.putShort((short) (this.thumbRY * 32767.0f));
-        buffer.put((byte) (this.triggerL * 255.0f));
-        buffer.put((byte) (this.triggerR * 255.0f));
+        buffer.putShort((short) (this.triggerL * 32767.0f));
+        buffer.putShort((short) (this.triggerR * 32767.0f));
+
+        // Buttons: uint8_t[15] (15 bytes)
+        for (int i = 0; i < 15; i++) {
+            buffer.put((byte) (isPressed(i) ? 1 : 0));
+        }
+
+        // Hat/DPad: uint8_t (1 byte)
+        buffer.put(getPovHat());
+
+        // Padding: uint8_t[4] (4 bytes)
+        buffer.putInt(0); 
+
+        // Rumble: uint16_t * 2 (4 bytes) - Read back from C++ if needed
+        // (Position should now be 12 + 15 + 1 + 4 = 32)
     }
 
     public void setPressed(int buttonIdx, boolean pressed) {
