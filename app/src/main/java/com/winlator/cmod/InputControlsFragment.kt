@@ -253,7 +253,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
             controllerBinding.setBinding(Binding.NONE)
             controller.addControllerBinding(controllerBinding)
             // Ensure the controller is in profile.controllers so save() serializes it
-            profile.putController(controller)
+            profile.addController(controller.id)
             profile.save()
             // Directly update the ViewHolder UI instead of submitRows(),
             // which would call loadControllers() and invalidate activeBindingController
@@ -280,7 +280,7 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
 
         // Profiles
         rows += ControlRow.SectionHeader(R.string.common_ui_profile)
-        rows += ControlRow.ProfileSelector(currentProfile?.id, currentProfile?.name, currentProfile?.elementCountFromFile ?: 0)
+        rows += ControlRow.ProfileSelector(currentProfile?.id, currentProfile?.name, currentProfile?.elements?.size ?: 0)
 
         // Overlay
         rows += ControlRow.SectionHeader(R.string.input_controls_editor_overlay_opacity)
@@ -797,8 +797,8 @@ class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
             val profile = currentProfile
             if (profile != null) {
                 itemBinding.TVProfileName.text = profile.name
-                val elementCount = profile.elementCountFromFile
-                Log.d("ICFrag", "ProfileViewHolder.bind: name=${profile.name}, id=${profile.id}, elementCountFromFile=$elementCount")
+                val elementCount = profile.elements?.size ?: 0
+                Log.d("ICFrag", "ProfileViewHolder.bind: name=${profile.name}, id=${profile.id}, elementCount=$elementCount")
                 itemBinding.TVProfileSubtitle.text = getString(R.string.common_ui_elements_count, elementCount)
             } else {
                 itemBinding.TVProfileName.setText(R.string.input_controls_editor_select_profile)
