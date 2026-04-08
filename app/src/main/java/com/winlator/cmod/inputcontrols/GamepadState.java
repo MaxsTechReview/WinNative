@@ -32,14 +32,12 @@ public class GamepadState {
     public static final int BUTTON_DPAD_RIGHT = 16;
 
     public byte getPovHat() {
-        if (this.dpad[0] && this.dpad[1]) return (byte) 1;
-        if (this.dpad[1] && this.dpad[2]) return (byte) 3;
-        if (this.dpad[2] && this.dpad[3]) return (byte) 5;
-        if (this.dpad[3] && this.dpad[0]) return (byte) 7;
-        if (this.dpad[0]) return (byte) 0;
-        if (this.dpad[1]) return (byte) 2;
-        if (this.dpad[2]) return (byte) 4;
-        return this.dpad[3] ? (byte) 6 : (byte) -1;
+        int hat = 0;
+        if (this.dpad[0]) hat |= 1; // SDL_HAT_UP
+        if (this.dpad[1]) hat |= 2; // SDL_HAT_RIGHT
+        if (this.dpad[2]) hat |= 4; // SDL_HAT_DOWN
+        if (this.dpad[3]) hat |= 8; // SDL_HAT_LEFT
+        return (byte) hat;
     }
 
     public void writeTo(ByteBuffer buffer) {

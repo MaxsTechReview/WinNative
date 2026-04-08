@@ -744,7 +744,7 @@ public class ControlElement {
                         float value = i == 1 || i == 3 ? deltaX : deltaY;
                         Binding binding = getBindingAt(i);
                         boolean state = binding.isMouseMove() ? (states[i] || states[(i+2)%4]) : states[i];
-                        inputControlsView.handleInputEvent(binding, state, value);
+                        inputControlsView.handleInputEvent(null, binding, state, value, i == 3);
                         this.states[i] = state;
                     }
                 }

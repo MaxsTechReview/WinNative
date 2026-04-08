@@ -30,6 +30,7 @@ public class FakeInputWriter {
             if (this.raf.length() < MEM_SIZE) this.raf.setLength(MEM_SIZE);
             this.channel = this.raf.getChannel();
             this.mappedBuffer = this.channel.map(FileChannel.MapMode.READ_WRITE, 0, MEM_SIZE);
+            this.mappedBuffer.order(java.nio.ByteOrder.LITTLE_ENDIAN); // Essential for native parity
             this.isOpen = true;
             return true;
         } catch (IOException e) {

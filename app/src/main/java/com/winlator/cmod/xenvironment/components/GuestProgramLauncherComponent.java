@@ -635,27 +635,24 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
             Log.w("GuestProgramLauncher", "libandroid-sysvshm.so not available for LD_PRELOAD - shared memory may fail!");
         }
 
-        File fakeinputDest = ensureImageFsNativeLibrary(context, imageFs, "libfakeinput.so");
-
-        if (fakeinputDest != null && fakeinputDest.exists()) {
-            if (!ld_preload.isEmpty()) {
-                ld_preload += ":";
-            }
-            ld_preload += fakeinputDest.getAbsolutePath();
+        // Use libevshim.so for high-performance shared-memory input
+        File evshimDest = ensureImageFsNativeLibrary(context, imageFs, "libevshim.so");
+        if (evshimDest != null && evshimDest.exists()) {
+            if (!ld_preload.isEmpty()) ld_preload += ":";
+            ld_preload += evshimDest.getAbsolutePath();
+            Log.d("GuestProgramLauncher", "Using libevshim.so for input");
         } else {
-            Log.w("GuestProgramLauncher", "libfakeinput.so not available for LD_PRELOAD");
+            Log.w("GuestProgramLauncher", "libevshim.so not found, falling back to legacy input");
+            File fakeinputDest = ensureImageFsNativeLibrary(context, imageFs, "libfakeinput.so");
+            if (fakeinputDest != null && fakeinputDest.exists()) {
+                if (!ld_preload.isEmpty()) ld_preload += ":";
+                ld_preload += fakeinputDest.getAbsolutePath();
+            }
         }
         Log.d("GuestProgramLauncher", "execGuestProgram LD_PRELOAD=" + ld_preload);
 
         File devInputDir = new File(imageFs.getRootDir(), "dev/input");
         devInputDir.mkdirs();
-        File event0 = new File(devInputDir, "event0");
-        if (!event0.exists()) {
-            try {
-                event0.createNewFile();
-            } catch (Exception e) {
-            }
-        }
         envVars.put("FAKE_EVDEV_DIR", devInputDir.getAbsolutePath());
 
         // Winlator legacy hooks (libhook_impl.so, libfile_redirect_hook.so) break FEXCore rendering and stability.
