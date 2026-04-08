@@ -84,6 +84,8 @@ public class WinHandler {
         this.preferences = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
     }
 
+    public OnGetProcessInfoListener getOnGetProcessInfoListener() { return onGetProcessInfoListener; }
+
     private boolean sendPacket(int port) {
         try {
             int size = this.sendData.position();
@@ -158,6 +160,18 @@ public class WinHandler {
             sendData.putInt(affinityMask);
             sendData.put((byte) bytes.length);
             sendData.put(bytes);
+            sendPacket(7946);
+        });
+    }
+
+    public void setProcessAffinity(final int pid, final int affinityMask) {
+        addAction(() -> {
+            sendData.rewind();
+            sendData.put((byte) 6);
+            sendData.putInt(9);
+            sendData.putInt(pid);
+            sendData.putInt(affinityMask);
+            sendData.put((byte) 0);
             sendPacket(7946);
         });
     }
@@ -313,14 +327,10 @@ public class WinHandler {
         });
     }
 
-    private GamepadState lastSentState = new GamepadState();
-
     public void sendGamepadState() {
         ControlsProfile profile = this.activity.getInputControlsView().getProfile();
         if (profile == null) return;
         GamepadState gamepadState = profile.getGamepadState();
-        
-        // Only send if state has changed to prevent flooding
         boolean useVirtualGamepad = profile.isVirtualGamepad() && this.activity.getInputControlsView().isShowTouchscreenControls();
         if (useVirtualGamepad) {
             int slot = assignSlot(-1);
@@ -392,7 +402,6 @@ public class WinHandler {
     public void setFakeInputPath(String fakeInputPath) {
         if (fakeInputPath != null && !fakeInputPath.isEmpty()) {
             this.fakeInputBasePath = fakeInputPath;
-            // Pre-initialize and wake up the first slot immediately
             int slot = assignSlot(-1);
             if (slot >= 0 && this.writers[slot] != null) {
                 this.writers[slot].writeGamepadState(new GamepadState());
