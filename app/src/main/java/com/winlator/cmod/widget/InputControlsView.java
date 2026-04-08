@@ -707,6 +707,15 @@ public class InputControlsView extends View {
         }
     }
 
+    @Override
+    public void onWindowFocusChanged(boolean hasWindowFocus) {
+        super.onWindowFocusChanged(hasWindowFocus);
+        if (hasWindowFocus && showTouchscreenControls) {
+            setVisibility(View.VISIBLE);
+            resetTouchscreenTimeout();
+        }
+    }
+
     public void invalidateControlElement(ControlElement element) {
         if (element == null) return;
 
@@ -791,10 +800,10 @@ public class InputControlsView extends View {
             GamepadState state = (controller != null) ? controller.remappedState : profile.getGamepadState();
 
             int buttonIdx = binding.ordinal() - Binding.GAMEPAD_BUTTON_A.ordinal();
-            if (buttonIdx <= ExternalController.IDX_BUTTON_R2) {
-                if (buttonIdx == ExternalController.IDX_BUTTON_L2)
+            if (buttonIdx <= 11) {
+                if (buttonIdx == 10)
                     state.triggerL = isActionDown ? (offset != 0 ? offset : 1.0f) : 0f;
-                else if (buttonIdx == ExternalController.IDX_BUTTON_R2)
+                else if (buttonIdx == 11)
                     state.triggerR = isActionDown ? (offset != 0 ? offset : 1.0f) : 0f;
                 else
                     state.setPressed(buttonIdx, isActionDown);
