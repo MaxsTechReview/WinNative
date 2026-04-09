@@ -15,9 +15,30 @@ add_library(winlator SHARED
         winlator/xconnector_epoll.c
         winlator/alsa_client.c
         winlator/vulkan.c
+        xz/native_xz_stream.c
+        xz/xz_embedded/xz_crc32.c
+        xz/xz_embedded/xz_crc64.c
+        xz/xz_embedded/xz_dec_bcj.c
+        xz/xz_embedded/xz_dec_lzma2.c
+        xz/xz_embedded/xz_dec_stream.c
 )
 
 target_compile_options(winlator PRIVATE -Wall -Wextra)
+target_compile_definitions(winlator PRIVATE
+        XZ_USE_CRC64
+        XZ_DEC_CONCATENATED
+        XZ_DEC_X86
+        XZ_DEC_ARM
+        XZ_DEC_ARMTHUMB
+        XZ_DEC_ARM64
+        XZ_DEC_RISCV
+        XZ_DEC_POWERPC
+        XZ_DEC_IA64
+        XZ_DEC_SPARC
+)
+target_include_directories(winlator PRIVATE
+        xz/xz_embedded
+)
 
 target_link_libraries(winlator
         log

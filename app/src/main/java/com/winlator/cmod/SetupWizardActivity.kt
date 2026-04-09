@@ -262,14 +262,7 @@ class SetupWizardActivity : FragmentActivity() {
         }
 
         private fun hasInstalledRuntimes(context: Context): Boolean {
-            val contentsManager = ContentsManager(context)
-            contentsManager.syncContents()
-            return contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_WINE)
-                .orEmpty()
-                .any { it.isInstalled } ||
-                contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_PROTON)
-                    .orEmpty()
-                    .any { it.isInstalled }
+            return ContentsManager.hasInstalledRuntimes(context)
         }
 
         private fun resolveWineVersionLabel(context: Context, wineVersion: String?): String {
@@ -1117,7 +1110,6 @@ class SetupWizardActivity : FragmentActivity() {
         if (advancedProfiles.isNotEmpty()) return
         lifecycleScope.launch {
             val profiles = withContext(Dispatchers.IO) {
-                Downloader.clearFileMap()
                 // Fetch recommended (default.json) for marking recommendations
                 val recommended = fetchRecommendedPackages()
                 // Fetch full catalog (content.json) for all categories

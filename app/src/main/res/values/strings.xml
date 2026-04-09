@@ -344,6 +344,7 @@
     <string name="container_wine_vkd3d_feature_level">VKD3D Feature Level</string>
     <string name="container_wine_ddraw_wrapper">DDraw Wrapper</string>
     <string name="container_wine_error_not_installed">Wine/Proton package \'%1$s\' is not installed and could not be downloaded.</string>
+    <string name="container_no_wine_installed">No Wine or Proton installed. Install one first.</string>
     <string name="container_wine_title">Wine</string>
     <string name="container_wine_opengl">OpenGL</string>
 

@@ -1,35 +1,38 @@
 /**
  * Shared download helper with WinNative.dev-first resolution.
  *
- * On first use within a session the class recursively crawls
- * https://WinNative.dev/Downloads/ and every subdirectory it finds,
- * building a complete  filename → full-URL  map.  When any download
- * is requested the filename from the original (GitHub) URL is looked
- * up in that map.  If the file exists on WinNative.dev the download
- * is attempted from there first; only if it fails does it fall back
- * to the original URL.
- *
- * The map is rebuilt automatically when clearFileMap() is called
- * (e.g. at the start of a new wizard session).
+ * On first use the class loads a cached filename → full-URL map from
+ * app storage when it is still fresh enough; otherwise it recursively
+ * crawls https://WinNative.dev/Downloads/ and every subdirectory it
+ * finds to rebuild that map. When any download is requested, the
+ * filename from the original (GitHub) URL is looked up in the map.
+ * If the file exists on WinNative.dev the download is attempted from
+ * there first; only if it fails does it fall back to the original URL.
  */
 package com.winlator.cmod.contents;
 
+import android.content.Context;
 import android.util.Log;
 import androidx.preference.PreferenceManager;
 import com.winlator.cmod.PluviaApp;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -44,17 +47,43 @@ public class Downloader {
     private static final int STRING_CONNECT_TIMEOUT_MS = 5000;
     private static final int STRING_READ_TIMEOUT_MS = 10000;
     private static final Pattern HREF_PATTERN = Pattern.compile("href=\"([^\"?]+)\"");
+    private static final String FILE_MAP_CACHE_NAME = "winnative_file_map_v1.txt";
+    private static final String FILE_MAP_CACHE_HEADER_PREFIX = "# timestamp=";
+    private static final long FILE_MAP_CACHE_TTL_MS = 24L * 60L * 60L * 1000L;
+
+    private static volatile boolean logEnabledCached = false;
+    private static volatile boolean logEnabledResolved = false;
 
     /** Returns true only if the user has enabled download logging in Debug settings. */
     private static boolean logEnabled() {
+        if (logEnabledResolved) return logEnabledCached;
         try {
-            android.content.Context ctx = PluviaApp.Companion.getInstance().getApplicationContext();
+            Context ctx = getAppContext();
             if (ctx == null) return false;
-            return PreferenceManager.getDefaultSharedPreferences(ctx)
+            logEnabledCached = PreferenceManager.getDefaultSharedPreferences(ctx)
                     .getBoolean("enable_download_logs", false);
+            logEnabledResolved = true;
+            return logEnabledCached;
         } catch (Exception e) {
             return false;
         }
+    }
+
+    static void refreshLogEnabled() {
+        logEnabledResolved = false;
+    }
+
+    private static Context getAppContext() {
+        try {
+            return PluviaApp.Companion.getInstance().getApplicationContext();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static File getFileMapCacheFile() {
+        Context context = getAppContext();
+        return context != null ? new File(context.getFilesDir(), FILE_MAP_CACHE_NAME) : null;
     }
 
     // ---- Global file map (filename-lowercase → full download URL) ----
@@ -123,7 +152,11 @@ public class Downloader {
         if (fileMapReady) return;
         synchronized (mapLock) {
             if (fileMapReady) return;
-            buildFileMap();
+            refreshLogEnabled();
+            if (!loadFileMapFromDisk()) {
+                buildFileMap();
+                persistFileMap();
+            }
             fileMapReady = true;
         }
     }
@@ -136,6 +169,10 @@ public class Downloader {
         synchronized (mapLock) {
             fileMap.clear();
             fileMapReady = false;
+            File cacheFile = getFileMapCacheFile();
+            if (cacheFile != null && cacheFile.exists() && !cacheFile.delete() && logEnabled()) {
+                Log.w(TAG, "Unable to delete WinNative file map cache: " + cacheFile.getAbsolutePath());
+            }
         }
     }
 
@@ -174,6 +211,97 @@ public class Downloader {
         crawlDirectory(WINNATIVE_ROOT, 0);
         if (logEnabled()) Log.d(TAG, "WinNative file map built: " + fileMap.size() + " files in " +
                 (System.currentTimeMillis() - start) + "ms");
+    }
+
+    private static boolean loadFileMapFromDisk() {
+        File cacheFile = getFileMapCacheFile();
+        if (cacheFile == null || !cacheFile.isFile()) {
+            return false;
+        }
+
+        fileMap.clear();
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new FileInputStream(cacheFile), StandardCharsets.UTF_8))) {
+            String header = reader.readLine();
+            if (header == null || !header.startsWith(FILE_MAP_CACHE_HEADER_PREFIX)) {
+                return false;
+            }
+
+            long timestamp = Long.parseLong(header.substring(FILE_MAP_CACHE_HEADER_PREFIX.length()).trim());
+            long ageMs = System.currentTimeMillis() - timestamp;
+            if (ageMs > FILE_MAP_CACHE_TTL_MS) {
+                if (!cacheFile.delete() && logEnabled()) {
+                    Log.w(TAG, "Unable to delete expired WinNative file map cache");
+                }
+                return false;
+            }
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                int separatorIndex = line.indexOf('\t');
+                if (separatorIndex <= 0 || separatorIndex >= line.length() - 1) {
+                    continue;
+                }
+                fileMap.putIfAbsent(
+                        line.substring(0, separatorIndex),
+                        line.substring(separatorIndex + 1)
+                );
+            }
+        } catch (Exception e) {
+            if (logEnabled()) Log.w(TAG, "Failed to load WinNative file map cache", e);
+            fileMap.clear();
+            return false;
+        }
+
+        if (fileMap.isEmpty()) {
+            return false;
+        }
+
+        if (logEnabled()) {
+            Log.d(TAG, "Loaded WinNative file map cache: " + fileMap.size() + " files");
+        }
+        return true;
+    }
+
+    private static void persistFileMap() {
+        if (fileMap.isEmpty()) {
+            return;
+        }
+
+        File cacheFile = getFileMapCacheFile();
+        if (cacheFile == null) {
+            return;
+        }
+
+        File tempFile = new File(cacheFile.getParentFile(), cacheFile.getName() + ".tmp");
+        try (BufferedWriter writer = new BufferedWriter(
+                new OutputStreamWriter(new FileOutputStream(tempFile), StandardCharsets.UTF_8))) {
+            writer.write(FILE_MAP_CACHE_HEADER_PREFIX);
+            writer.write(Long.toString(System.currentTimeMillis()));
+            writer.newLine();
+
+            for (Map.Entry<String, String> entry : fileMap.entrySet()) {
+                String value = entry.getValue();
+                if (value == null || value.isEmpty()) {
+                    continue;
+                }
+                writer.write(entry.getKey());
+                writer.write('\t');
+                writer.write(value);
+                writer.newLine();
+            }
+        } catch (Exception e) {
+            if (logEnabled()) Log.w(TAG, "Failed to persist WinNative file map cache", e);
+            tempFile.delete();
+            return;
+        }
+
+        if (cacheFile.exists() && !cacheFile.delete() && logEnabled()) {
+            Log.w(TAG, "Unable to replace existing WinNative file map cache");
+        }
+        if (!tempFile.renameTo(cacheFile) && logEnabled()) {
+            Log.w(TAG, "Unable to finalize WinNative file map cache write");
+        }
     }
 
     /**
@@ -270,8 +398,8 @@ public class Downloader {
             }
 
             try (InputStream input = connection.getInputStream();
-                 OutputStream output = new FileOutputStream(file)) {
-                byte[] data = new byte[8192];
+                 OutputStream output = new BufferedOutputStream(new FileOutputStream(file), 131072)) {
+                byte[] data = new byte[65536];
                 int count;
 
                 while ((count = input.read(data)) != -1) {
