@@ -901,4 +901,25 @@
     <string name="saves_import_export_imported">存檔已成功匯入</string>
     <string name="saves_import_export_imported_failed">匯入存檔失敗：%1$s</string>
 
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_default_name">容器</string>
+    <string name="preloader_initializing">正在初始化…</string>
+    <string name="preloader_launching">正在啟動…</string>
+    <string name="preloader_closing">正在關閉 %1$s…</string>
+    <string name="preloader_setup_environment">正在設定環境…</string>
+    <string name="preloader_installing_mono">正在安裝 Wine Mono v%1$s…</string>
+    <string name="preloader_installing_redist">正在安裝可轉散發套件…</string>
+    <string name="preloader_unpacking_exe">正在解壓遊戲執行檔…</string>
+    <string name="preloader_downloading_cloud">正在下載雲端存檔…</string>
+    <string name="preloader_syncing_cloud">正在同步雲端存檔…</string>
+    <string name="preloader_cloud_downloading">雲端同步下載中…</string>
+    <string name="preloader_cloud_backup">正在備份存檔至 Google 雲端硬碟…</string>
+    <string name="cloud_sync_failed_provider">%1$s 雲端同步失敗。</string>
+    <string name="google_cloud_backup_failed">Google 雲端硬碟備份失敗。</string>
+    <string name="preloader_platform_steam">Steam</string>
+    <string name="preloader_platform_epic">Epic Games</string>
+    <string name="preloader_platform_gog">GOG</string>
+    <string name="preloader_platform_custom">自訂遊戲</string>
+    <string name="preloader_platform_amazon">Amazon</string>
+
 </resources>

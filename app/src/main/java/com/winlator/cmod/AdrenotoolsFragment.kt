@@ -835,6 +835,12 @@ class AdrenotoolsFragment : Fragment() {
 
         val etName = dialog.findViewById<android.widget.EditText>(R.id.ETName)
         val etUrl = dialog.findViewById<android.widget.EditText>(R.id.ETUrl)
+        val inlineImeFlags =
+            android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI or
+            android.view.inputmethod.EditorInfo.IME_FLAG_NO_FULLSCREEN
+
+        etName.imeOptions = etName.imeOptions or inlineImeFlags
+        etUrl.imeOptions = etUrl.imeOptions or inlineImeFlags
 
         if (repoToEdit != null) {
             etName.setText(repoToEdit.name)

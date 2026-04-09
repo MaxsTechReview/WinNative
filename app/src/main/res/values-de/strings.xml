@@ -901,4 +901,25 @@ Installierter Pfad:
     <string name="saves_import_export_imported">Spielstände erfolgreich importiert</string>
     <string name="saves_import_export_imported_failed">Spielstände konnten nicht importiert werden: %1$s</string>
 
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_default_name">Container</string>
+    <string name="preloader_initializing">Initialisierung…</string>
+    <string name="preloader_launching">Wird gestartet…</string>
+    <string name="preloader_closing">%1$s wird geschlossen…</string>
+    <string name="preloader_setup_environment">Umgebung wird eingerichtet…</string>
+    <string name="preloader_installing_mono">Wine Mono v%1$s wird installiert…</string>
+    <string name="preloader_installing_redist">Redistributables werden installiert…</string>
+    <string name="preloader_unpacking_exe">Spiel-Programmdatei wird entpackt…</string>
+    <string name="preloader_downloading_cloud">Cloud-Spielstände werden heruntergeladen…</string>
+    <string name="preloader_syncing_cloud">Cloud-Spielstände werden synchronisiert…</string>
+    <string name="preloader_cloud_downloading">Cloud-Sync lädt herunter…</string>
+    <string name="preloader_cloud_backup">Spielstand wird auf Google Drive gesichert…</string>
+    <string name="cloud_sync_failed_provider">%1$s Cloud-Synchronisierung fehlgeschlagen.</string>
+    <string name="google_cloud_backup_failed">Google Drive-Sicherung fehlgeschlagen.</string>
+    <string name="preloader_platform_steam">Steam</string>
+    <string name="preloader_platform_epic">Epic Games</string>
+    <string name="preloader_platform_gog">GOG</string>
+    <string name="preloader_platform_custom">Eigenes Spiel</string>
+    <string name="preloader_platform_amazon">Amazon</string>
+
 </resources>

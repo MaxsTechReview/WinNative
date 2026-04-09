@@ -901,4 +901,25 @@
     <string name="saves_import_export_imported">Збереження успішно імпортовано</string>
     <string name="saves_import_export_imported_failed">Не вдалося імпортувати збереження: %1$s</string>
 
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_default_name">Контейнер</string>
+    <string name="preloader_initializing">Ініціалізація…</string>
+    <string name="preloader_launching">Запуск…</string>
+    <string name="preloader_closing">Закриття %1$s…</string>
+    <string name="preloader_setup_environment">Налаштування середовища…</string>
+    <string name="preloader_installing_mono">Встановлення Wine Mono v%1$s…</string>
+    <string name="preloader_installing_redist">Встановлення поширюваних компонентів…</string>
+    <string name="preloader_unpacking_exe">Розпакування виконуваного файлу гри…</string>
+    <string name="preloader_downloading_cloud">Завантаження хмарних збережень…</string>
+    <string name="preloader_syncing_cloud">Синхронізація хмарних збережень…</string>
+    <string name="preloader_cloud_downloading">Завантаження Cloud Sync…</string>
+    <string name="preloader_cloud_backup">Резервне копіювання на Google Диск…</string>
+    <string name="cloud_sync_failed_provider">Хмарна синхронізація %1$s не вдалася.</string>
+    <string name="google_cloud_backup_failed">Резервне копіювання на Google Диск не вдалося.</string>
+    <string name="preloader_platform_steam">Steam</string>
+    <string name="preloader_platform_epic">Epic Games</string>
+    <string name="preloader_platform_gog">GOG</string>
+    <string name="preloader_platform_custom">Власна гра</string>
+    <string name="preloader_platform_amazon">Amazon</string>
+
 </resources>

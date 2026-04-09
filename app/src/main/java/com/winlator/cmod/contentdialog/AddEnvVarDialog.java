@@ -31,6 +31,9 @@ public class AddEnvVarDialog extends ContentDialog {
             popupMenu.show();
         });
 
+        getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE | android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        etName.requestFocus();
+
         setOnConfirmCallback(() -> {
             String name = etName.getText().toString().trim().replace(" ", "");
             String value = etValue.getText().toString().trim().replace(" ", "");

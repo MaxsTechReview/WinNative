@@ -230,7 +230,7 @@ public class OtherSettingsFragment extends Fragment {
         });
 
         view.findViewById(R.id.BTReInstallImagefs).setOnClickListener(v -> {
-            ContentDialog.confirm(context, R.string.settings_general_confirm_reinstall_imagefs, () -> ImageFsInstaller.installFromAssets((MainActivity) getActivity()));
+            ContentDialog.confirm(context, R.string.settings_general_confirm_reinstall_imagefs, () -> ImageFsInstaller.installFromAssets(getActivity()));
         });
 
         return view;

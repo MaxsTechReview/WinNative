@@ -28,6 +28,7 @@ import java.util.Map;
 public class ContentsManager {
     public static final String PROFILE_NAME = "profile.json";
     public static final String REMOTE_PROFILES = "https://raw.githubusercontent.com/Xnick417x/Winlator-Bionic-Nightly-wcp/refs/heads/main/content.json";
+    private static final long EXTRACTION_PROGRESS_INTERVAL_MS = 120L;
     public static final String[] DXVK_TRUST_FILES = {"${system32}/d3d8.dll", "${system32}/d3d9.dll", "${system32}/d3d10.dll", "${system32}/d3d10_1.dll",
             "${system32}/d3d10core.dll", "${system32}/d3d11.dll", "${system32}/dxgi.dll", "${syswow64}/d3d8.dll", "${syswow64}/d3d9.dll", "${syswow64}/d3d10.dll",
             "${syswow64}/d3d10_1.dll", "${syswow64}/d3d10core.dll", "${syswow64}/d3d11.dll", "${syswow64}/dxgi.dll"};
@@ -208,17 +209,28 @@ public class ContentsManager {
 
         // Count extracted files for progress
         final int[] fileCount = {0};
+        final long[] lastProgressUpdateMs = {0L};
         OnExtractFileListener extractListener = progressListener != null ? (destination, size) -> {
             fileCount[0]++;
-            progressListener.onProgress(fileCount[0], destination.getName());
+            long now = System.currentTimeMillis();
+            if (fileCount[0] <= 3 ||
+                    now - lastProgressUpdateMs[0] >= EXTRACTION_PROGRESS_INTERVAL_MS) {
+                progressListener.onProgress(fileCount[0], destination.getName());
+                lastProgressUpdateMs[0] = now;
+            }
             return destination;
         } : null;
 
         boolean ret;
-        ret = TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, context, uri, file, extractListener);
+        TarCompressorUtils.Type primaryType = detectCompressionType(context, uri);
+        TarCompressorUtils.Type fallbackType = (primaryType == TarCompressorUtils.Type.ZSTD)
+                ? TarCompressorUtils.Type.XZ : TarCompressorUtils.Type.ZSTD;
+
+        ret = TarCompressorUtils.extract(primaryType, context, uri, file, extractListener);
         if (!ret) {
             fileCount[0] = 0;
-            ret = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, uri, file, extractListener);
+            lastProgressUpdateMs[0] = 0L;
+            ret = TarCompressorUtils.extract(fallbackType, context, uri, file, extractListener);
         }
         if (!ret) {
             callback.onFailed(InstallFailedReason.ERROR_BADTAR, null);
@@ -337,6 +349,64 @@ public class ContentsManager {
         return profile != null && profile.type != null && profile.verName != null && getInstallDir(context, profile).exists();
     }
 
+    public static boolean hasInstalledRuntimes(Context context) {
+        ContentsManager contentsManager = new ContentsManager(context);
+        contentsManager.syncContents();
+        List<ContentProfile> wineProfiles = contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_WINE);
+        if (wineProfiles != null) {
+            for (ContentProfile profile : wineProfiles) {
+                if (profile.isInstalled) {
+                    Log.d("ContentsManager", "Installed runtime found: " + profile.verName);
+                    return true;
+                }
+            }
+        }
+        List<ContentProfile> protonProfiles = contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_PROTON);
+        if (protonProfiles != null) {
+            for (ContentProfile profile : protonProfiles) {
+                if (profile.isInstalled) {
+                    Log.d("ContentsManager", "Installed runtime found: " + profile.verName);
+                    return true;
+                }
+            }
+        }
+        int wineCount = wineProfiles != null ? wineProfiles.size() : 0;
+        int protonCount = protonProfiles != null ? protonProfiles.size() : 0;
+        Log.d("ContentsManager", "No installed runtimes found (wine profiles: " + wineCount + ", proton profiles: " + protonCount + ")");
+        return false;
+    }
+
+    private static TarCompressorUtils.Type detectCompressionType(Context context, Uri uri) {
+        try {
+            byte[] header = new byte[6];
+            int read;
+            if (uri.toString().startsWith("/") || "file".equalsIgnoreCase(uri.getScheme())) {
+                String path = uri.getPath();
+                if (path == null) path = uri.toString();
+                try (java.io.FileInputStream fis = new java.io.FileInputStream(path)) {
+                    read = fis.read(header);
+                }
+            } else {
+                try (java.io.InputStream is = context.getContentResolver().openInputStream(uri)) {
+                    if (is == null) return TarCompressorUtils.Type.XZ;
+                    read = is.read(header);
+                }
+            }
+            if (read >= 6 &&
+                    header[0] == (byte) 0xFD && header[1] == '7' && header[2] == 'z' &&
+                    header[3] == 'X' && header[4] == 'Z' && header[5] == 0x00) {
+                return TarCompressorUtils.Type.XZ;
+            }
+            if (read >= 4 &&
+                    (header[0] & 0xFF) == 0x28 && (header[1] & 0xFF) == 0xB5 &&
+                    (header[2] & 0xFF) == 0x2F && (header[3] & 0xFF) == 0xFD) {
+                return TarCompressorUtils.Type.ZSTD;
+            }
+        } catch (Exception ignored) {
+        }
+        return TarCompressorUtils.Type.XZ;
+    }
+
     public static File getContentDir(Context context) {
         return new File(context.getFilesDir(), ContentDirName.CONTENT_MAIN_DIR_NAME.toString());
     }
@@ -421,7 +491,6 @@ public class ContentsManager {
         if (profilesMap.get(profile.type).contains(profile)) {
             FileUtils.delete(getInstallDir(context, profile));
             profilesMap.get(profile.type).remove(profile);
-            syncContents();
         }
     }
 
@@ -514,7 +583,7 @@ public class ContentsManager {
     }
 
     public boolean applyContent(ContentProfile profile) {
-        if (profile.type != ContentProfile.ContentType.CONTENT_TYPE_WINE || profile.type != ContentProfile.ContentType.CONTENT_TYPE_PROTON) {
+        if (profile.type != ContentProfile.ContentType.CONTENT_TYPE_WINE && profile.type != ContentProfile.ContentType.CONTENT_TYPE_PROTON) {
             for (ContentProfile.ContentFile contentFile : profile.fileList) {
                 File targetFile = new File(getPathFromTemplate(contentFile.target));
                 File sourceFile = new File(getInstallDir(context, profile), contentFile.source);

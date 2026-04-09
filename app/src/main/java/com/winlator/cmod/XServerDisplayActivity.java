@@ -1410,7 +1410,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == MainActivity.EDIT_INPUT_CONTROLS_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
+        if (requestCode == 3 && resultCode == Activity.RESULT_OK) {
             if (editInputControlsCallback != null) {
                 editInputControlsCallback.run();
                 editInputControlsCallback = null;
@@ -1842,8 +1842,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     });
                 }
                 @Override
-                public void onComplete() {
-                    Log.d("XServerDisplayActivity", "Steam cloud sync complete for appId=" + appId);
+                public void onComplete(boolean success, String message) {
+                    Log.d("XServerDisplayActivity", "Steam cloud sync complete for appId=" + appId + ", success=" + success);
                     onComplete.run();
                 }
             };
@@ -3258,7 +3258,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         // Settings button callback
         dialog.setOnSettingsClickCallback(() -> {
             int position = dialog.getSelectedProfileIndex().getIntValue();
-            Intent intent = new Intent(this, MainActivity.class);
+            Intent intent = new Intent(this, UnifiedActivity.class);
             intent.putExtra("edit_input_controls", true);
             intent.putExtra("selected_profile_id", position > 0 ? inputControlsManager.getProfiles(true).get(position - 1).id : 0);
             editInputControlsCallback = () -> {

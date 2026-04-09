@@ -245,8 +245,9 @@ class UnifiedActivity : ComponentActivity() {
     // a fresh press (fires immediately) from a held repeat (throttled at 250ms).
     private var dpadHeld = false
     private var joystickActive = false
-    private companion object {
+    companion object {
         const val MOVE_INTERVAL_MS = 250L
+        const val OPEN_IMAGE_REQUEST_CODE = 5
     }
 
     private fun moveLibraryFocus(left: Boolean, right: Boolean, up: Boolean, down: Boolean) {
@@ -688,10 +689,10 @@ class UnifiedActivity : ComponentActivity() {
                         selectedIdx = (selectedIdx + 1) % tabs.size
                     }
                     android.view.KeyEvent.KEYCODE_BUTTON_START -> {
-                        val intent = Intent(context, MainActivity::class.java)
+                        val intent = Intent(context, UnifiedActivity::class.java)
                         intent.putExtra("selected_menu_item_id", R.id.main_menu_stores)
                         intent.putExtra("return_to_unified", true)
-                        val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
+                        val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.slide_in_down, R.anim.slide_out_up)
                         context.startActivity(intent, opts.toBundle())
                     }
                     android.view.KeyEvent.KEYCODE_BUTTON_X -> {
@@ -1164,10 +1165,10 @@ class UnifiedActivity : ComponentActivity() {
                     contentAlignment = Alignment.Center
                 ) {
                     IconButton(onClick = {
-                        val intent = Intent(context, MainActivity::class.java)
+                        val intent = Intent(context, UnifiedActivity::class.java)
                         intent.putExtra("selected_menu_item_id", R.id.main_menu_stores)
                         intent.putExtra("return_to_unified", true)
-                        val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
+                        val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.slide_in_down, R.anim.slide_out_up)
                         context.startActivity(intent, opts.toBundle())
                     }, modifier = Modifier.size(44.dp), enabled = true) {
                         Icon(Icons.Outlined.Settings, contentDescription = "Menu", tint = TextPrimary, modifier = Modifier.size(24.dp))
@@ -1514,10 +1515,10 @@ class UnifiedActivity : ComponentActivity() {
             if (!anyLoggedIn && !hasAnyCredentials) {
                 LoginRequiredScreen("Library") {
                     // Redirect to the Stores section in settings
-                    val intent = Intent(this@UnifiedActivity, MainActivity::class.java)
+                    val intent = Intent(this@UnifiedActivity, UnifiedActivity::class.java)
                     intent.putExtra("selected_menu_item_id", R.id.main_menu_stores)
                     intent.putExtra("return_to_unified", true)
-                    val opts = ActivityOptionsCompat.makeCustomAnimation(this@UnifiedActivity, R.anim.settings_enter, R.anim.settings_exit)
+                    val opts = ActivityOptionsCompat.makeCustomAnimation(this@UnifiedActivity, R.anim.slide_in_down, R.anim.slide_out_up)
                     startActivity(intent, opts.toBundle())
                 }
             } else if (anyLoggedIn) {

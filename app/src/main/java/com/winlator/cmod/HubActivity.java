@@ -45,7 +45,7 @@ public class HubActivity extends AppCompatActivity {
         
         TextView emptyLibrary = findViewById(R.id.tv_empty_library);
         emptyLibrary.setOnClickListener(v -> {
-            startActivity(new Intent(this, MainActivity.class));
+            startActivity(new Intent(this, UnifiedActivity.class));
         });
 
         setupLibraryRecyclerView();
@@ -145,7 +145,7 @@ public class HubActivity extends AppCompatActivity {
             ((TextView) holder.itemView).setText(games.get(position));
             holder.itemView.setOnClickListener(v -> {
                 if (games.get(position).equals("Winlator Backend")) {
-                    startActivity(new Intent(HubActivity.this, MainActivity.class));
+                    startActivity(new Intent(HubActivity.this, UnifiedActivity.class));
                 }
             });
         }

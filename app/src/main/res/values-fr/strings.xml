@@ -901,4 +901,25 @@ Chemin installé :
     <string name="saves_import_export_imported">Sauvegardes importées avec succès</string>
     <string name="saves_import_export_imported_failed">Échec de l\'importation des sauvegardes : %1$s</string>
 
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_default_name">Conteneur</string>
+    <string name="preloader_initializing">Initialisation…</string>
+    <string name="preloader_launching">Lancement…</string>
+    <string name="preloader_closing">Fermeture de %1$s…</string>
+    <string name="preloader_setup_environment">Configuration de l\'environnement…</string>
+    <string name="preloader_installing_mono">Installation de Wine Mono v%1$s…</string>
+    <string name="preloader_installing_redist">Installation des redistribuables…</string>
+    <string name="preloader_unpacking_exe">Extraction de l\'exécutable du jeu…</string>
+    <string name="preloader_downloading_cloud">Téléchargement des sauvegardes cloud…</string>
+    <string name="preloader_syncing_cloud">Synchronisation des sauvegardes cloud…</string>
+    <string name="preloader_cloud_downloading">Téléchargement Cloud Sync…</string>
+    <string name="preloader_cloud_backup">Sauvegarde vers Google Drive…</string>
+    <string name="cloud_sync_failed_provider">Synchronisation cloud %1$s échouée.</string>
+    <string name="google_cloud_backup_failed">Sauvegarde Google Drive échouée.</string>
+    <string name="preloader_platform_steam">Steam</string>
+    <string name="preloader_platform_epic">Epic Games</string>
+    <string name="preloader_platform_gog">GOG</string>
+    <string name="preloader_platform_custom">Jeu personnalisé</string>
+    <string name="preloader_platform_amazon">Amazon</string>
+
 </resources>
