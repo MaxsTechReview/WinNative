@@ -426,12 +426,12 @@ class ShortcutSettingsComposeDialog private constructor(
         rebuildEmulatorLists()
         selectByIdentifier(
             state.emulator32Entries.value,
-            getShortcutSetting("emulator", container.getEmulator()),
+            resolveShortcutEmulatorSelection(wineInfo, false),
             state.selectedEmulator
         )
         selectByIdentifier(
             state.emulator64Entries.value,
-            getShortcutSetting("emulator64", container.getEmulator64()),
+            resolveShortcutEmulatorSelection(wineInfo, true),
             state.selectedEmulator64
         )
 
@@ -519,27 +519,25 @@ class ShortcutSettingsComposeDialog private constructor(
         else shortcut.getExtra("wineVersion", container.getWineVersion())
 
         val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersionStr)
-        val archChanged = isArm64EC != wineInfo.isArm64EC
         isArm64EC = wineInfo.isArm64EC
         state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
 
         rebuildEmulatorLists()
         state.emulatorsEnabled.value = true
 
-        // Arch flipped after async sync resolved the wine profile — re-apply
-        // the shortcut's saved emulator against the rebuilt lists.
-        if (archChanged) {
-            selectByIdentifier(
-                state.emulator32Entries.value,
-                getShortcutSetting("emulator", container.getEmulator()),
-                state.selectedEmulator
-            )
-            selectByIdentifier(
-                state.emulator64Entries.value,
-                getShortcutSetting("emulator64", container.getEmulator64()),
-                state.selectedEmulator64
-            )
-        }
+        // Always re-apply the saved shortcut emulators after async content sync.
+        // Rebuilding the filtered lists can otherwise snap the selection back to
+        // the architecture default even when the saved override is still valid.
+        selectByIdentifier(
+            state.emulator32Entries.value,
+            resolveShortcutEmulatorSelection(wineInfo, false),
+            state.selectedEmulator
+        )
+        selectByIdentifier(
+            state.emulator64Entries.value,
+            resolveShortcutEmulatorSelection(wineInfo, true),
+            state.selectedEmulator64
+        )
 
         loadBox64Versions()
         loadFexcoreVersions()
@@ -769,6 +767,16 @@ class ShortcutSettingsComposeDialog private constructor(
         state.selectedEmulator64.intValue = if (new64Idx >= 0) new64Idx else 0
     }
 
+    private fun resolveShortcutEmulatorSelection(wineInfo: WineInfo, is64BitSlot: Boolean): String {
+        val container = shortcut.container
+        val raw = if (is64BitSlot) {
+            getShortcutSetting("emulator64", container.getEmulator64())
+        } else {
+            getShortcutSetting("emulator", container.getEmulator())
+        }
+        return WineInfo.normalizeEmulatorSelection(wineInfo.isArm64EC, raw, is64BitSlot)
+    }
+
     private fun loadWinComponents() {
         val container = shortcut.container
         val wincomponentsStr =
@@ -881,7 +889,18 @@ class ShortcutSettingsComposeDialog private constructor(
             hasContainerOverride =
                 hasContainerOverride or saveOverride("graphicsDriver", graphicsDriver, container.getGraphicsDriver())
 
-            val graphicsDriverConfig = buildGraphicsDriverConfigFromState()
+            var graphicsDriverConfig = buildGraphicsDriverConfigFromState()
+            val parsedGfx = GraphicsDriverConfigDialog.parseGraphicsDriverConfig(graphicsDriverConfig)
+            if (parsedGfx["version"].isNullOrEmpty()) {
+                val defaultVersion = try {
+                    if (com.winlator.cmod.core.GPUInformation.isDriverSupported(DefaultVersion.WRAPPER_ADRENO, context))
+                        DefaultVersion.WRAPPER_ADRENO else DefaultVersion.WRAPPER
+                } catch (e: Throwable) {
+                    DefaultVersion.WRAPPER
+                }
+                parsedGfx["version"] = defaultVersion
+                graphicsDriverConfig = GraphicsDriverConfigDialog.toGraphicsDriverConfig(parsedGfx)
+            }
             hasContainerOverride = hasContainerOverride or saveOverride(
                 "graphicsDriverConfig", graphicsDriverConfig, container.getGraphicsDriverConfig()
             )
@@ -1000,6 +1019,7 @@ class ShortcutSettingsComposeDialog private constructor(
                 "controlsProfile",
                 if (controlsProfile > 0) controlsProfile.toString() else null
             )
+            if (controlsProfile > 0) hasContainerOverride = true
 
             // CPU list
             val cpuList = buildCpuListString(state.cpuChecked.value)
@@ -1037,18 +1057,18 @@ class ShortcutSettingsComposeDialog private constructor(
             // Touchscreen mode
             shortcut.putExtra(
                 "simTouchScreen",
-                if (state.simTouchScreen.value) "1" else "0"
+                if (state.simTouchScreen.value) "1" else null
             )
+            if (state.simTouchScreen.value) hasContainerOverride = true
 
             // Launch EXE path
             val launchExePath = state.launchExePath.value
-            if (launchExePath.isNotEmpty()) {
-                shortcut.putExtra("launch_exe_path", launchExePath)
-                val gameSource = shortcut.getExtra("game_source", "")
-                if (gameSource == "CUSTOM") {
-                    shortcut.putExtra("custom_exe", launchExePath)
-                }
+            shortcut.putExtra("launch_exe_path", if (launchExePath.isNotEmpty()) launchExePath else null)
+            val gameSource = shortcut.getExtra("game_source", "")
+            if (gameSource == "CUSTOM") {
+                shortcut.putExtra("custom_exe", if (launchExePath.isNotEmpty()) launchExePath else null)
             }
+            if (launchExePath.isNotEmpty()) hasContainerOverride = true
 
             // Exec args
             val execArgs = state.execArgs.value
@@ -1066,6 +1086,7 @@ class ShortcutSettingsComposeDialog private constructor(
                     shortcut.putExtra("refreshRate", null)
                 } else {
                     shortcut.putExtra("refreshRate", selectedRate.toString())
+                    hasContainerOverride = true
                 }
             }
 
@@ -1235,7 +1256,9 @@ class ShortcutSettingsComposeDialog private constructor(
         target: androidx.compose.runtime.MutableIntState
     ) {
         val idx =
-            entries.indexOfFirst { StringUtils.parseIdentifier(it) == identifier }
+            entries.indexOfFirst {
+                StringUtils.parseIdentifier(it).equals(identifier, ignoreCase = true)
+            }
         target.intValue = if (idx >= 0) idx else 0
     }
 
@@ -1925,7 +1948,7 @@ class ShortcutSettingsComposeDialog private constructor(
             val exec = if (source == "STEAM") {
                 "wine \"C:\\\\Program Files (x86)\\\\Steam\\\\steamclient_loader_x64.exe\""
             } else {
-                "wine \"A:\\\\\""
+                "wine \"F:\\\\\""
             }
             val sb = StringBuilder()
             sb.append("[Desktop Entry]\n")

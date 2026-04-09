@@ -163,8 +163,6 @@ public class AdrenotoolsManager {
     }
         
     public boolean extractDriverFromResources(String adrenotoolsDriverId) {
-        if ("System".equalsIgnoreCase(adrenotoolsDriverId)) return true;
-
         String src = "graphics_driver/adrenotools-" + adrenotoolsDriverId + ".tzst";
         boolean hasExtracted;
 
@@ -227,18 +225,34 @@ public class AdrenotoolsManager {
         boolean isFromResources = isFromResources(adrenotoolsDriverId);
 
         if (isFromResources || enumarateInstalledDrivers().contains(adrenotoolsDriverId)) {
-            String driverPath = getDriverPath(adrenotoolsDriverId);
+            File driverDir = new File(adrenotoolsContentDir, adrenotoolsDriverId);
+            if (isFromResources && (!driverDir.exists() || !new File(driverDir, "meta.json").exists())) {
+                Log.d("AdrenotoolsManager", "Driver " + adrenotoolsDriverId + " not extracted yet, extracting from resources");
+                extractDriverFromResources(adrenotoolsDriverId);
+            }
 
-            if (!getLibraryName(adrenotoolsDriverId).equals("")) {
+            String driverPath = getDriverPath(adrenotoolsDriverId);
+            String libraryName = getLibraryName(adrenotoolsDriverId);
+
+            if (!libraryName.equals("")) {
                 envVars.put("ADRENOTOOLS_DRIVER_PATH", driverPath);
                 envVars.put("ADRENOTOOLS_HOOKS_PATH", imagefs.getLibDir());
-                envVars.put("ADRENOTOOLS_DRIVER_NAME", getLibraryName(adrenotoolsDriverId));
+                envVars.put("ADRENOTOOLS_DRIVER_NAME", libraryName);
 
                 File winlatorDir = new File(SettingsConfig.DEFAULT_WINLATOR_PATH);
+                if (!winlatorDir.exists()) {
+                    winlatorDir.mkdirs();
+                }
                 File qglConfig = new File(winlatorDir, "qgl_config.txt");
                 if (qglConfig.exists())
                     envVars.put("ADRENOTOOLS_REDIRECT_DIR", winlatorDir.getAbsolutePath() + "/");
+                Log.d("AdrenotoolsManager", "Using Adrenotools driver id=" + adrenotoolsDriverId +
+                        " library=" + libraryName + " path=" + driverPath);
+            } else {
+                Log.w("AdrenotoolsManager", "Selected driver " + adrenotoolsDriverId + " has no libraryName; driver env not applied");
             }
+        } else {
+            Log.w("AdrenotoolsManager", "Driver " + adrenotoolsDriverId + " is not installed and not bundled");
         }
     }
  }

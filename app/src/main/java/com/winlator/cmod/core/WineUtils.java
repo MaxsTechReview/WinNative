@@ -3,6 +3,8 @@ package com.winlator.cmod.core;
 import android.content.Context;
 import android.util.Log;
 
+import androidx.annotation.Nullable;
+
 import java.io.IOException;
 import java.nio.file.Files;
 
@@ -19,6 +21,77 @@ import java.util.List;
 import java.util.Locale;
 
 public abstract class WineUtils {
+
+    public static String hostPathToRootWinePath(@Nullable Container container, @Nullable String hostPath) {
+        if (hostPath == null || hostPath.isEmpty()) return "";
+
+        String normalizedHostPath = new File(hostPath).getAbsolutePath();
+        String drives = container != null && container.getDrives() != null
+                ? container.getDrives()
+                : Container.DEFAULT_DRIVES;
+
+        String rootDrive = null;
+        String rootDrivePath = null;
+        for (String[] drive : Container.drivesIterator(drives)) {
+            if (drive.length < 2) continue;
+            if (!"F".equalsIgnoreCase(drive[0])) continue;
+            rootDrive = drive[0];
+            rootDrivePath = new File(drive[1]).getAbsolutePath();
+            break;
+        }
+
+        if (rootDrive != null && rootDrivePath != null && pathStartsWith(normalizedHostPath, rootDrivePath)) {
+            String relativePath = normalizedHostPath.substring(rootDrivePath.length()).replace("/", "\\");
+            while (relativePath.startsWith("\\")) relativePath = relativePath.substring(1);
+            if (relativePath.isEmpty()) return rootDrive + ":\\";
+            return rootDrive + ":\\" + relativePath;
+        }
+
+        return hostPathToMappedWinePath(container, hostPath);
+    }
+
+    public static String hostPathToMappedWinePath(@Nullable Container container, @Nullable String hostPath) {
+        if (hostPath == null || hostPath.isEmpty()) return "";
+
+        String normalizedHostPath = new File(hostPath).getAbsolutePath();
+        String bestDriveLetter = null;
+        String bestDriveRoot = null;
+
+        String drives = container != null && container.getDrives() != null
+                ? container.getDrives()
+                : Container.DEFAULT_DRIVES;
+
+        for (String[] drive : Container.drivesIterator(drives)) {
+            if (drive.length < 2) continue;
+            String driveLetter = drive[0];
+            if ("A".equalsIgnoreCase(driveLetter)) continue;
+            String driveRoot = new File(drive[1]).getAbsolutePath();
+            if (!pathStartsWith(normalizedHostPath, driveRoot)) continue;
+
+            if (bestDriveRoot == null || driveRoot.length() > bestDriveRoot.length()) {
+                bestDriveLetter = driveLetter;
+                bestDriveRoot = driveRoot;
+            }
+        }
+
+        if (bestDriveLetter != null && bestDriveRoot != null) {
+            String relativePath = normalizedHostPath.substring(bestDriveRoot.length()).replace("/", "\\");
+            while (relativePath.startsWith("\\")) relativePath = relativePath.substring(1);
+            if (relativePath.isEmpty()) return bestDriveLetter + ":\\";
+            return bestDriveLetter + ":\\" + relativePath;
+        }
+
+        String windowsPath = normalizedHostPath.replace("/", "\\");
+        if (!windowsPath.startsWith("\\")) windowsPath = "\\" + windowsPath;
+        return "Z:" + windowsPath;
+    }
+
+    private static boolean pathStartsWith(String path, String basePath) {
+        if (path.equals(basePath)) return true;
+        if (basePath.endsWith(File.separator)) return path.startsWith(basePath);
+        return path.startsWith(basePath + File.separator);
+    }
+
     public static void createDosdevicesSymlinks(Container container) {
         Log.d("ContainerLaunch", "createDosdevicesSymlinks: rootDir=" + container.getRootDir().getAbsolutePath() +
                 " drives=" + container.getDrives());
@@ -261,8 +334,8 @@ public abstract class WineUtils {
             for (String name : direct3dLibs) registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
             for (String name : dinputLibs) registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
             for (String name : xinputLibs) registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
-            // Conditional OpenGL override for ARM64EC
-            if (wineInfo != null && wineInfo.isArm64EC()) {
+            // Conditional OpenGL override for ARM64EC (exclude Mali GPUs)
+            if (wineInfo != null && wineInfo.isArm64EC() && !GPUInformation.getRenderer(null, null).contains("Mali")) {
                 registryEditor.setStringValue(dllOverridesKey, "opengl32", "native,builtin");
             }
             setWindowMetrics(registryEditor);
@@ -508,15 +581,53 @@ public abstract class WineUtils {
         }
     }
 
-    public static void setJoystickRegistryKeys(File userRegFile, boolean enable) {
+    public static void setJoystickRegistryKeys(Container container, boolean dinputEnabled, boolean exclusiveXInput) {
+        File userRegFile = new File(container.getRootDir(), ".wine/user.reg");
+        String value = dinputEnabled ? "override" : "disabled";
         try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
-            if (enable) {
-                registryEditor.removeKey("Software\\Wine\\DirectInput");
-            } else {
-                registryEditor.setStringValue("Software\\Wine\\DirectInput", "js0", "");
-                registryEditor.setStringValue("Software\\Wine\\DirectInput", "js1", "");
-                registryEditor.setStringValue("Software\\Wine\\DirectInput", "js2", "");
-                registryEditor.setStringValue("Software\\Wine\\DirectInput", "js3", "");
+            for (int i = 0; i < 4; i++) {
+                if (exclusiveXInput) {
+                    registryEditor.setStringValue("Software\\Wine\\DirectInput\\Joysticks", "Generic HID Gamepad " + i, value);
+                    registryEditor.setStringValue("Software\\Wine\\DirectInput\\Joysticks", "ric HID Gamepad " + i, value);
+                } else {
+                    registryEditor.removeValue("Software\\Wine\\DirectInput\\Joysticks", "Generic HID Gamepad " + i);
+                    registryEditor.removeValue("Software\\Wine\\DirectInput\\Joysticks", "ric HID Gamepad " + i);
+                }
+            }
+        }
+    }
+
+    /**
+     * Ensures winebus is configured correctly for the fake-input mechanism on
+     * every launch.  Runs unconditionally so pre-existing containers are repaired.
+     * 1. Removes stale WINEBUS device entries (phantom VID_845E devices).
+     * 2. Sets DisableHidraw=1 so Proton winebus uses evdev (hooked by libfakeinput).
+     */
+    public static void ensureWinebusConfig(Container container) {
+        File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
+        if (!systemRegFile.exists()) return;
+
+        try (WineRegistryEditor registryEditor = new WineRegistryEditor(systemRegFile)) {
+            // Remove stale WINEBUS device registrations that don't match our fake gamepad
+            registryEditor.removeKey("System\\ControlSet001\\Enum\\WINEBUS\\VID_845E&PID_0001", true);
+            registryEditor.removeKey("System\\CurrentControlSet\\Enum\\WINEBUS\\VID_845E&PID_0001", true);
+
+            // Ensure winebus parameters disable hidraw and keep evdev enabled
+            String winebusParamsKey = "System\\CurrentControlSet\\Services\\winebus\\Parameters";
+            registryEditor.setDwordValue(winebusParamsKey, "DisableHidraw", 1);
+            registryEditor.setDwordValue(winebusParamsKey, "DisableInput", 0);
+            String winebusParamsKey2 = "System\\ControlSet001\\Services\\winebus\\Parameters";
+            registryEditor.setDwordValue(winebusParamsKey2, "DisableHidraw", 1);
+            registryEditor.setDwordValue(winebusParamsKey2, "DisableInput", 0);
+        }
+    }
+
+    public static void setJoystickRegistryKeys(File userRegFile, boolean enable) {
+        String value = enable ? "override" : "disabled";
+        try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
+            for (int i = 0; i < 4; i++) {
+                registryEditor.setStringValue("Software\\Wine\\DirectInput\\Joysticks", "Generic HID Gamepad " + i, value);
+                registryEditor.setStringValue("Software\\Wine\\DirectInput\\Joysticks", "ric HID Gamepad " + i, value);
             }
         }
     }

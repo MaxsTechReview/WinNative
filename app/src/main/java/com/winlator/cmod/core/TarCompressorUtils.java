@@ -4,9 +4,6 @@ import android.content.Context;
 import android.net.Uri;
 import android.util.Log;
 
-import com.github.luben.zstd.ZstdInputStreamNoFinalizer;
-import com.github.luben.zstd.ZstdOutputStreamNoFinalizer;
-
 import org.apache.commons.compress.archivers.ArchiveInputStream;
 import org.apache.commons.compress.archivers.ArchiveOutputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
@@ -15,6 +12,8 @@ import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.apache.commons.compress.archivers.tar.TarConstants;
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
 import org.apache.commons.compress.compressors.xz.XZCompressorOutputStream;
+import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream;
+import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -130,29 +129,11 @@ public abstract class TarCompressorUtils {
     public static boolean extract(Type type, Context context, Uri source, File destination, OnExtractFileListener onExtractFileListener) {
         if (source == null) return false;
         try {
-            String scheme = source.getScheme();
-            if (source.toString().startsWith("/") || scheme == null || scheme.isEmpty() || "file".equalsIgnoreCase(scheme)) {
-                String filePath = source.getPath();
-                if (filePath == null || filePath.isEmpty()) {
-                    filePath = source.toString();
-                }
-                File sourceFile = new File(filePath);
-                if (sourceFile.isFile()) {
-                    return extract(type, sourceFile, destination, onExtractFileListener);
-                }
+            if (source.toString().startsWith("/")) {
+                return extract(type, new FileInputStream(source.toString()), destination, onExtractFileListener);
+            } else {
+                return extract(type, context.getContentResolver().openInputStream(source), destination, onExtractFileListener);
             }
-
-            String resolvedPath = FileUtils.getFilePathFromUri(context, source);
-            if (resolvedPath != null && !resolvedPath.isEmpty()) {
-                File sourceFile = new File(resolvedPath);
-                if (sourceFile.isFile()) {
-                    return extract(type, sourceFile, destination, onExtractFileListener);
-                }
-            }
-
-            InputStream inputStream = context.getContentResolver().openInputStream(source);
-            if (inputStream == null) return false;
-            return extract(type, null, new BufferedInputStream(inputStream, StreamUtils.BUFFER_SIZE), destination, onExtractFileListener);
         }
         catch (FileNotFoundException e) {
             return false;
@@ -166,7 +147,7 @@ public abstract class TarCompressorUtils {
     public static boolean extract(Type type, File source, File destination, OnExtractFileListener onExtractFileListener) {
         if (source == null || !source.isFile()) return false;
         try {
-            return extract(type, source, null, destination, onExtractFileListener);
+            return extract(type, new BufferedInputStream(new FileInputStream(source), StreamUtils.BUFFER_SIZE), destination, onExtractFileListener);
         }
         catch (Throwable e) {
             Log.e("TarCompressor", "Error extracting file: " + source, e);
@@ -175,12 +156,8 @@ public abstract class TarCompressorUtils {
     }
 
     private static boolean extract(Type type, InputStream source, File destination, OnExtractFileListener onExtractFileListener) {
-        return extract(type, null, source, destination, onExtractFileListener);
-    }
-
-    private static boolean extract(Type type, File sourceFile, InputStream source, File destination, OnExtractFileListener onExtractFileListener) {
-        if (sourceFile == null && source == null) return false;
-        try (InputStream inStream = getCompressorInputStream(type, sourceFile, source);
+        if (source == null) return false;
+        try (InputStream inStream = getCompressorInputStream(type, source);
              ArchiveInputStream tar = new TarArchiveInputStream(inStream)) {
             TarArchiveEntry entry;
             while ((entry = (TarArchiveEntry)tar.getNextEntry()) != null) {
@@ -206,7 +183,7 @@ public abstract class TarCompressorUtils {
                     }
                 }
 
-                applyExtractedEntryPermissions(file, entry);
+                FileUtils.chmod(file, 0771);
             }
             return true;
         }
@@ -216,48 +193,12 @@ public abstract class TarCompressorUtils {
         }
     }
 
-    private static void applyExtractedEntryPermissions(File file, TarArchiveEntry entry) {
-        if (entry == null || file == null) return;
-        if (entry.isDirectory()) {
-            FileUtils.chmod(file, 0771);
-            return;
-        }
-        if (entry.isSymbolicLink()) {
-            return;
-        }
-
-        // Only regular files marked executable in the archive need an explicit chmod.
-        if ((entry.getMode() & 0111) != 0) {
-            FileUtils.chmod(file, 0771);
-        }
-    }
-
-    private static InputStream getCompressorInputStream(Type type, File sourceFile, InputStream source) throws IOException {
+    private static InputStream getCompressorInputStream(Type type, InputStream source) throws IOException {
         if (type == Type.XZ) {
-            if (sourceFile != null) {
-                try {
-                    return new NativeXzInputStream(sourceFile);
-                }
-                catch (IOException e) {
-                    Log.d("TarCompressor", "Falling back to Java XZ decoder for " + sourceFile);
-                    BufferedInputStream bis = new BufferedInputStream(new FileInputStream(sourceFile), StreamUtils.BUFFER_SIZE);
-                    try {
-                        return new XZCompressorInputStream(bis);
-                    } catch (IOException e2) {
-                        bis.close();
-                        throw e2;
-                    }
-                }
-            }
-            if (source == null) return null;
             return new XZCompressorInputStream(source);
         }
         else if (type == Type.ZSTD) {
-            if (sourceFile != null) {
-                return new ZstdInputStreamNoFinalizer(new BufferedInputStream(new FileInputStream(sourceFile), StreamUtils.BUFFER_SIZE));
-            }
-            if (source == null) return null;
-            return new ZstdInputStreamNoFinalizer(source);
+            return new ZstdCompressorInputStream(source);
         }
         return null;
     }
@@ -267,7 +208,7 @@ public abstract class TarCompressorUtils {
             return new XZCompressorOutputStream(new BufferedOutputStream(new FileOutputStream(destination), StreamUtils.BUFFER_SIZE), level);
         }
         else if (type == Type.ZSTD) {
-            return new ZstdOutputStreamNoFinalizer(new BufferedOutputStream(new FileOutputStream(destination), StreamUtils.BUFFER_SIZE), level);
+            return new ZstdCompressorOutputStream(new BufferedOutputStream(new FileOutputStream(destination), StreamUtils.BUFFER_SIZE), level);
         }
         return null;
     }
@@ -342,7 +283,7 @@ public abstract class TarCompressorUtils {
                     }
                 }
 
-                applyExtractedEntryPermissions(file, entry);
+                FileUtils.chmod(file, 0771);
             }
             return true;
         } catch (IOException e) {

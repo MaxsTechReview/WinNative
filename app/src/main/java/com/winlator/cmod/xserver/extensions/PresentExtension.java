@@ -132,7 +132,6 @@ public class PresentExtension implements Extension {
             content.copyArea((short)0, (short)0, xOff, yOff, pixmap.drawable.width, pixmap.drawable.height, pixmap.drawable);
             sendIdleNotify(window, pixmap, serial, idleFence);
             sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.COPY, ust, msc);
-            client.xServer.windowManager.triggerOnFramePresented(window);
         }
     }
 

@@ -61,13 +61,25 @@ object ContainerUtils {
             ?: throw IllegalStateException("No installed Wine/Proton container available")
     }
 
-    fun getADrivePath(drives: String): String? {
+    fun getPreferredGameDrivePath(drives: String): String? {
+        var fallback: String? = null
         for (drive in Container.drivesIterator(drives)) {
-            if (drive[0] == "A") {
-                return drive[1]
+            val letter = drive[0]
+            val path = drive[1]
+            if (letter.equals("A", ignoreCase = true) ||
+                letter.equals("C", ignoreCase = true) ||
+                letter.equals("Z", ignoreCase = true)
+            ) {
+                continue
+            }
+            if (letter.equals("F", ignoreCase = true)) {
+                return path
+            }
+            if (fallback == null) {
+                fallback = path
             }
         }
-        return null
+        return fallback
     }
 
     fun deleteContainer(context: Context, containerId: String) {
@@ -79,23 +91,22 @@ object ContainerUtils {
     }
 
     /**
-     * Recursively scans the A: drive for .exe files, returning relative paths.
-     * Custom download paths are preserved because we respect the drives string.
+     * Recursively scans the primary mapped game drive for .exe files, returning relative paths.
      */
     @JvmStatic
-    fun scanExecutablesInADrive(drives: String): List<String> {
+    fun scanExecutablesInMappedGameDrive(drives: String): List<String> {
         val executables = mutableListOf<String>()
 
         try {
-            val aDrivePath = getADrivePath(drives)
-            if (aDrivePath == null) {
-                Timber.w("No A: drive found in container drives")
+            val gameDrivePath = getPreferredGameDrivePath(drives)
+            if (gameDrivePath == null) {
+                Timber.w("No mapped game drive found in container drives")
                 return emptyList()
             }
 
-            val aDir = File(aDrivePath)
-            if (!aDir.exists() || !aDir.isDirectory) {
-                Timber.w("A: drive path does not exist or is not a directory: $aDrivePath")
+            val gameDir = File(gameDrivePath)
+            if (!gameDir.exists() || !gameDir.isDirectory) {
+                Timber.w("Mapped game drive path does not exist or is not a directory: $gameDrivePath")
                 return emptyList()
             }
 
@@ -111,7 +122,7 @@ object ContainerUtils {
                 }
             }
 
-            scanRecursive(aDir, aDir)
+            scanRecursive(gameDir, gameDir)
 
             executables.sortWith { a, b ->
                 val aScore = getExecutablePriority(a)
@@ -123,7 +134,7 @@ object ContainerUtils {
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Error scanning A: drive for executables")
+            Timber.e(e, "Error scanning mapped game drive for executables")
         }
 
         return executables

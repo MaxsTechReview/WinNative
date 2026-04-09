@@ -6,10 +6,11 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
+import androidx.core.app.ActivityOptionsCompat
 import android.os.Bundle
 import android.os.Process
 import android.provider.DocumentsContract
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -36,8 +37,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.background
@@ -86,7 +85,6 @@ import androidx.compose.ui.focus.focusTarget
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -118,6 +116,7 @@ import coil.compose.AsyncImage
 import coil.imageLoader
 import coil.request.ImageRequest
 import com.winlator.cmod.core.UpdateChecker
+import com.winlator.cmod.core.ProcessHelper
 import com.winlator.cmod.google.GameSaveBackupManager
 import com.winlator.cmod.steam.service.SteamService
 import com.winlator.cmod.steam.utils.PrefManager
@@ -175,12 +174,6 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.ui.text.style.TextAlign
 import androidx.core.view.WindowCompat
-import androidx.navigation.NavHostController
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import kotlin.math.roundToInt
 
 // Color palette
@@ -197,6 +190,7 @@ private val StatusOnline = Color(0xFF3FB950)
 private val StatusAway = Color(0xFFF0C040)
 private val StatusOffline = Color(0xFF6E7681)
 
+
 private val LIBRARY_NAME_SANITIZE_REGEX = "[^A-Za-z0-9 _-]".toRegex()
 
 enum class LibraryLayoutMode {
@@ -206,19 +200,8 @@ enum class LibraryLayoutMode {
 }
 
 @AndroidEntryPoint
-class UnifiedActivity : AppCompatActivity() {
+class UnifiedActivity : ComponentActivity() {
     @Inject lateinit var db: PluviaDatabase
-
-    private data class PendingNavigation(
-        val item: SettingsNavItem = SettingsNavItem.CONTAINERS,
-        val profileId: Int = 0,
-        val editContainerId: Int = 0
-    )
-
-    // Root navigation controller for hub <-> settings transitions
-    private var rootNavController: NavHostController? = null
-    // Queued navigation to process once the nav controller is ready
-    private var pendingNavigation: PendingNavigation? = null
 
     // Track the currently selected game in the carousel for Game Settings button
     private var selectedSteamAppId: Int = 0
@@ -262,9 +245,8 @@ class UnifiedActivity : AppCompatActivity() {
     // a fresh press (fires immediately) from a held repeat (throttled at 250ms).
     private var dpadHeld = false
     private var joystickActive = false
-    companion object {
-        private const val MOVE_INTERVAL_MS = 250L
-        const val OPEN_IMAGE_REQUEST_CODE = 5
+    private companion object {
+        const val MOVE_INTERVAL_MS = 250L
     }
 
     private fun moveLibraryFocus(left: Boolean, right: Boolean, up: Boolean, down: Boolean) {
@@ -326,24 +308,7 @@ class UnifiedActivity : AppCompatActivity() {
         return 1_500_000_000 + normalized
     }
 
-    // Cached reference to avoid fragment tree traversal on every input event.
-    // Invalidated via FragmentLifecycleCallbacks.
-    private var cachedInputControlsFragment: InputControlsFragment? = null
-    private val inputControlsFragmentTracker = object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
-        override fun onFragmentResumed(fm: androidx.fragment.app.FragmentManager, f: androidx.fragment.app.Fragment) {
-            if (f is InputControlsFragment) cachedInputControlsFragment = f
-        }
-        override fun onFragmentPaused(fm: androidx.fragment.app.FragmentManager, f: androidx.fragment.app.Fragment) {
-            if (f is InputControlsFragment) cachedInputControlsFragment = null
-        }
-    }
-
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
-        // Forward to InputControlsFragment if it's active (for gamepad binding capture)
-        cachedInputControlsFragment?.let { fragment ->
-            if (fragment.dispatchKeyEvent(event)) return true
-        }
-
         val keyCode = event.keyCode
         val action = event.action
 
@@ -405,14 +370,8 @@ class UnifiedActivity : AppCompatActivity() {
         return super.dispatchKeyEvent(event)
     }
 
-    override fun onPause() {
-        super.onPause()
-        chasingBordersPaused.value = true
-    }
-
     override fun onResume() {
         super.onResume()
-        chasingBordersPaused.value = false
         // Ensure all store services are running when returning from a game or other activity
         if (GOGService.hasStoredCredentials(this) && !GOGService.isRunning) {
             GOGService.start(this)
@@ -430,11 +389,6 @@ class UnifiedActivity : AppCompatActivity() {
     }
 
     override fun dispatchGenericMotionEvent(event: android.view.MotionEvent): Boolean {
-        // Forward to InputControlsFragment if it's active (for gamepad binding capture)
-        cachedInputControlsFragment?.let { fragment ->
-            if (fragment.dispatchGenericMotionEvent(event)) return true
-        }
-
         if ((event.source and android.view.InputDevice.SOURCE_JOYSTICK) == android.view.InputDevice.SOURCE_JOYSTICK &&
             event.action == android.view.MotionEvent.ACTION_MOVE) {
             
@@ -513,66 +467,10 @@ class UnifiedActivity : AppCompatActivity() {
         if (requestCode == GameSaveBackupManager.REQUEST_CODE_DRIVE_AUTH) {
             GameSaveBackupManager.onDriveAuthResult(this, resultCode)
         }
-        // Wallpaper image picker
-        if (requestCode == OPEN_IMAGE_REQUEST_CODE && resultCode == Activity.RESULT_OK && data != null) {
-            val bitmap = com.winlator.cmod.core.ImageUtils.getBitmapFromUri(this, data.data, 1280)
-            if (bitmap != null) {
-                val wallpaperFile = com.winlator.cmod.core.WineThemeManager.getUserWallpaperFile(this)
-                com.winlator.cmod.core.ImageUtils.save(bitmap, wallpaperFile, Bitmap.CompressFormat.PNG, 100)
-            }
-        }
     }
-
-    private fun navigateToSettings(
-        item: SettingsNavItem = SettingsNavItem.CONTAINERS,
-        profileId: Int = 0,
-        editContainerId: Int = 0
-    ) {
-        val nav = rootNavController
-        if (nav == null) {
-            pendingNavigation = PendingNavigation(item, profileId, editContainerId)
-            return
-        }
-        nav.navigate(
-            "settings?item=${item.name}&profileId=$profileId&editContainerId=$editContainerId"
-        ) {
-            launchSingleTop = true
-        }
-    }
-
-    private fun handleSettingsIntent(intent: Intent?) {
-        if (intent == null) return
-
-        val editContainerId = intent.getIntExtra("edit_container_id", 0)
-        if (editContainerId > 0) {
-            navigateToSettings(item = SettingsNavItem.CONTAINERS, editContainerId = editContainerId)
-            return
-        }
-
-        val editInputControls = intent.getBooleanExtra("edit_input_controls", false)
-        if (editInputControls) {
-            val profileId = intent.getIntExtra("selected_profile_id", 0)
-            navigateToSettings(item = SettingsNavItem.INPUT_CONTROLS, profileId = profileId)
-            return
-        }
-
-        val selectedMenuItemId = intent.getIntExtra("selected_menu_item_id", 0)
-        if (selectedMenuItemId > 0) {
-            val target = SettingsNavItem.fromMenuId(selectedMenuItemId) ?: SettingsNavItem.CONTAINERS
-            navigateToSettings(item = target)
-        }
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        handleSettingsIntent(intent)
-    }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        supportFragmentManager.registerFragmentLifecycleCallbacks(inputControlsFragmentTracker, true)
         db = PluviaDatabase.getInstance(this)
         EpicAuthManager.updateLoginStatus(this)
         GOGAuthManager.updateLoginStatus(this)
@@ -609,79 +507,13 @@ class UnifiedActivity : AppCompatActivity() {
         UpdateChecker.startBackgroundLoop(this)
 
         setContent {
-            val navController = rememberNavController()
-            rootNavController = navController
-
-            // Drain any queued navigation or process the launch intent
-            LaunchedEffect(Unit) {
-                val pending = pendingNavigation
-                if (pending != null) {
-                    navigateToSettings(pending.item, pending.profileId, pending.editContainerId)
-                    pendingNavigation = null
-                } else {
-                    handleSettingsIntent(intent)
-                }
-            }
-
             MaterialTheme(colorScheme = darkColorScheme(
                 primary = Accent,
                 background = BgDark,
                 surface = SurfaceDark,
                 onSurface = TextPrimary
             )) {
-                NavHost(
-                    navController = navController,
-                    startDestination = "hub",
-                    modifier = Modifier.navigationBarsPadding(),
-                    enterTransition = {
-                        fadeIn(tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing))
-                    },
-                    exitTransition = { fadeOut(tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)) },
-                    popEnterTransition = { fadeIn(tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)) },
-                    popExitTransition = {
-                        fadeOut(tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing))
-                    }
-                ) {
-                    composable("hub") {
-                        UnifiedHub()
-                    }
-                    composable(
-                        "settings?item={item}&profileId={profileId}&editContainerId={editContainerId}",
-                        arguments = listOf(
-                            navArgument("item") { type = NavType.StringType; defaultValue = SettingsNavItem.CONTAINERS.name },
-                            navArgument("profileId") { type = NavType.IntType; defaultValue = 0 },
-                            navArgument("editContainerId") { type = NavType.IntType; defaultValue = 0 }
-                        )
-                    ) { backStackEntry ->
-                        val itemName = backStackEntry.arguments?.getString("item") ?: SettingsNavItem.CONTAINERS.name
-                        val startItem = try { SettingsNavItem.valueOf(itemName) } catch (_: Exception) { SettingsNavItem.CONTAINERS }
-                        val profileId = backStackEntry.arguments?.getInt("profileId") ?: 0
-                        val editContainerId = backStackEntry.arguments?.getInt("editContainerId") ?: 0
-
-                        SettingsHost(
-                            startItem = startItem,
-                            selectedProfileId = profileId,
-                            bordersPaused = chasingBordersPaused.value,
-                            onBack = { navController.popBackStack() }
-                        )
-
-                        // Handle edit_container_id deep link — show dialog on main thread outside composition
-                        if (editContainerId > 0) {
-                            LaunchedEffect(editContainerId) {
-                                val activity = this@UnifiedActivity
-                                val cm = ContainerManager(activity)
-                                val container = cm.getContainerById(editContainerId)
-                                if (container != null) {
-                                    com.winlator.cmod.contentdialog.ContainerSettingsComposeDialog(
-                                        activity, container
-                                    ) { navController.popBackStack() }.show()
-                                } else {
-                                    navController.popBackStack()
-                                }
-                            }
-                        }
-                    }
-                }
+                UnifiedHub()
             }
         }
     }
@@ -856,7 +688,11 @@ class UnifiedActivity : AppCompatActivity() {
                         selectedIdx = (selectedIdx + 1) % tabs.size
                     }
                     android.view.KeyEvent.KEYCODE_BUTTON_START -> {
-                        navigateToSettings(SettingsNavItem.STORES)
+                        val intent = Intent(context, MainActivity::class.java)
+                        intent.putExtra("selected_menu_item_id", R.id.main_menu_stores)
+                        intent.putExtra("return_to_unified", true)
+                        val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
+                        context.startActivity(intent, opts.toBundle())
                     }
                     android.view.KeyEvent.KEYCODE_BUTTON_X -> {
                         if (key != "downloads") {
@@ -1070,6 +906,11 @@ class UnifiedActivity : AppCompatActivity() {
                         }
                     }
 
+                    // Cloud Sync Dialog
+                    val cloudSyncStatus by SteamService.cloudSyncStatus.collectAsState()
+                    if (cloudSyncStatus != null) {
+                        CloudSyncOverlay(cloudSyncStatus!!)
+                    }
                 }
             }
 
@@ -1147,9 +988,13 @@ class UnifiedActivity : AppCompatActivity() {
                             // Exit button
                             Button(
                                 onClick = {
-                                    // Kill all WinNative processes and close fully
+                                    // Drain session processes first, then finish the task
+                                    // without abruptly killing our own process. A hard self-kill
+                                    // can orphan child game processes as zombies.
+                                    ProcessHelper.terminateSessionProcessesAndWait(2000, true)
+                                    ProcessHelper.drainDeadChildren("whole-app exit")
+                                    ProcessHelper.scheduleDeadChildReapSweep("whole-app exit", 4000, 200)
                                     finishAffinity()
-                                    Process.killProcess(Process.myPid())
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
                                 shape = RoundedCornerShape(12.dp),
@@ -1319,7 +1164,11 @@ class UnifiedActivity : AppCompatActivity() {
                     contentAlignment = Alignment.Center
                 ) {
                     IconButton(onClick = {
-                        navigateToSettings(SettingsNavItem.STORES)
+                        val intent = Intent(context, MainActivity::class.java)
+                        intent.putExtra("selected_menu_item_id", R.id.main_menu_stores)
+                        intent.putExtra("return_to_unified", true)
+                        val opts = ActivityOptionsCompat.makeCustomAnimation(context, R.anim.settings_enter, R.anim.settings_exit)
+                        context.startActivity(intent, opts.toBundle())
                     }, modifier = Modifier.size(44.dp), enabled = true) {
                         Icon(Icons.Outlined.Settings, contentDescription = "Menu", tint = TextPrimary, modifier = Modifier.size(24.dp))
                     }
@@ -1664,7 +1513,12 @@ class UnifiedActivity : AppCompatActivity() {
                 GOGAuthManager.isLoggedIn(context)
             if (!anyLoggedIn && !hasAnyCredentials) {
                 LoginRequiredScreen("Library") {
-                    navigateToSettings(SettingsNavItem.STORES)
+                    // Redirect to the Stores section in settings
+                    val intent = Intent(this@UnifiedActivity, MainActivity::class.java)
+                    intent.putExtra("selected_menu_item_id", R.id.main_menu_stores)
+                    intent.putExtra("return_to_unified", true)
+                    val opts = ActivityOptionsCompat.makeCustomAnimation(this@UnifiedActivity, R.anim.settings_enter, R.anim.settings_exit)
+                    startActivity(intent, opts.toBundle())
                 }
             } else if (anyLoggedIn) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -5864,7 +5718,8 @@ class UnifiedActivity : AppCompatActivity() {
             return
         }
 
-        val shortcut = containerManager.loadShortcuts().find {
+        // Try to find an existing shortcut first
+        var shortcut = containerManager.loadShortcuts().find {
             it.getExtra("app_id") == app.id.toString()
         }
 
@@ -5873,21 +5728,33 @@ class UnifiedActivity : AppCompatActivity() {
                 SteamService.getInstalledExe(app.id)
             }
 
+            // Initiate Cloud Sync download
+            val accountId = SteamService.userSteamId?.accountID?.toLong()
+                ?: PrefManager.steamUserAccountId.takeIf { it != 0 }?.toLong()
+                ?: 0L
+            val prefixToPath: (String) -> String = { prefix ->
+                com.winlator.cmod.steam.enums.PathType.from(prefix).toAbsPath(context, app.id, accountId)
+            }
+            SteamService.beginLaunchApp(
+                appId = app.id,
+                prefixToPath = prefixToPath,
+                ignorePendingOperations = true,
+                preferredSave = com.winlator.cmod.steam.enums.SaveLocation.None,
+            ).await()
+
             if (shortcut != null) {
-                if (!SetupWizardActivity.isContainerUsable(context, shortcut.container)) {
+                if (!SetupWizardActivity.isContainerUsable(context, shortcut!!.container)) {
                     SetupWizardActivity.promptToInstallWineOrCreateContainer(
                         context,
-                        shortcut.container.wineVersion
+                        shortcut!!.container.wineVersion
                     )
                     return@launch
                 }
-                // Existing shortcut: mount A: drive to game install path on its container
-                mountADrive(shortcut.container, gameInstallPath)
-                shortcut.putExtra("game_source", "STEAM")
-                shortcut.putExtra("game_install_path", gameInstallPath)
-                shortcut.putExtra("launch_exe_path", launchExecutable)
+                shortcut!!.putExtra("game_source", "STEAM")
+                shortcut!!.putExtra("game_install_path", gameInstallPath)
+                shortcut!!.putExtra("launch_exe_path", launchExecutable)
                 val loaderExec = "wine \"C:\\\\Program Files (x86)\\\\Steam\\\\steamclient_loader_x64.exe\""
-                val lines = com.winlator.cmod.core.FileUtils.readLines(shortcut.file)
+                val lines = com.winlator.cmod.core.FileUtils.readLines(shortcut!!.file)
                 val rewritten = StringBuilder()
                 var execUpdated = false
                 for (line in lines) {
@@ -5901,22 +5768,20 @@ class UnifiedActivity : AppCompatActivity() {
                 if (!execUpdated) {
                     rewritten.append("Exec=").append(loaderExec).append("\n")
                 }
-                com.winlator.cmod.core.FileUtils.writeString(shortcut.file, rewritten.toString())
-                shortcut.saveData()
+                com.winlator.cmod.core.FileUtils.writeString(shortcut!!.file, rewritten.toString())
+                shortcut!!.saveData()
                 val intent = Intent(context, XServerDisplayActivity::class.java)
-                intent.putExtra("container_id", shortcut.container.id)
-                intent.putExtra("shortcut_path", shortcut.file.path)
-                intent.putExtra("shortcut_name", shortcut.name)
-                launchGame(context, intent)
+                intent.putExtra("container_id", shortcut!!.container.id)
+                intent.putExtra("shortcut_path", shortcut!!.file.path)
+                intent.putExtra("shortcut_name", shortcut!!.name)
+                context.startActivity(intent)
             } else {
-                val container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
+                var container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
 
                 if (container == null) {
                     SetupWizardActivity.promptToInstallWineOrCreateContainer(context)
                     return@launch
                 }
-
-                mountADrive(container, gameInstallPath)
 
                 val execPath = "wine \"C:\\\\Program Files (x86)\\\\Steam\\\\steamclient_loader_x64.exe\""
 
@@ -5946,7 +5811,7 @@ class UnifiedActivity : AppCompatActivity() {
                 intent.putExtra("container_id", container.id)
                 intent.putExtra("shortcut_path", shortcutFile.path)
                 intent.putExtra("shortcut_name", app.name)
-                launchGame(context, intent)
+                context.startActivity(intent)
             }
         }
     }
@@ -5978,22 +5843,21 @@ class UnifiedActivity : AppCompatActivity() {
                     )
                     return@launch
                 }
-                // Existing shortcut found: preserve per-game settings, just update install path and mount A: drive
+                // Existing shortcut found: preserve per-game settings and update install path
                 val shortcut = existingShortcut!!
                 // Ensure game_install_path is always up-to-date
                 shortcut.putExtra("game_install_path", gameInstallPath)
 
-                // Repair broken Exec line if exe path is missing (just "A:\")
+                // Repair broken Exec line if exe path is missing or still points at the retired A: mapping
                 val currentPath = shortcut.path
                 if (currentPath == null || currentPath == "A:\\" || currentPath == "A:\\\\") {
                     var exePath = withContext(kotlinx.coroutines.Dispatchers.IO) { EpicService.getInstalledExe(app.id) }
                     val newExecCmd = if (exePath.isNotEmpty()) {
-                        "wine \"A:\\\\${exePath.replace("/", "\\\\")}\""
+                        buildMappedExecCommand(shortcut.container, gameDir, exePath)
                     } else {
                         val exeFile = findGameExe(gameDir)
                         if (exeFile != null) {
-                            val dosPath = exeFile.relativeTo(gameDir).path.replace("/", "\\\\")
-                            "wine \"A:\\\\${dosPath}\""
+                            buildMappedExecCommand(shortcut.container, exeFile)
                         } else null
                     }
                     if (newExecCmd != null) {
@@ -6013,29 +5877,14 @@ class UnifiedActivity : AppCompatActivity() {
 
                 shortcut.saveData()
 
-                mountADrive(shortcut.container, gameInstallPath)
-
                 val intent = Intent(context, XServerDisplayActivity::class.java)
                 intent.putExtra("container_id", shortcut.container.id)
                 intent.putExtra("shortcut_path", shortcut.file.path)
                 intent.putExtra("shortcut_name", shortcut.name)
                 intent.putExtra("extra_exec_args", args) // Pass fresh tokens
-                launchGame(context, intent)
+                context.startActivity(intent)
             } else {
                 // No existing shortcut — create a new one
-                var exePath = withContext(kotlinx.coroutines.Dispatchers.IO) { EpicService.getInstalledExe(app.id) }
-                val execCmd = if (exePath.isNotEmpty()) {
-                    "wine \"A:\\\\${exePath.replace("/", "\\\\")}\""
-                } else {
-                    val exeFile = findGameExe(gameDir)
-                    if (exeFile != null) {
-                        val dosPath = exeFile.relativeTo(gameDir).path.replace("/", "\\\\")
-                        "wine \"A:\\\\${dosPath}\""
-                    } else {
-                        "wine \"A:\\\\\""
-                    }
-                }
-
                 var container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
 
                 if (container == null) {
@@ -6043,7 +5892,17 @@ class UnifiedActivity : AppCompatActivity() {
                     return@launch
                 }
 
-                mountADrive(container, gameInstallPath)
+                var exePath = withContext(kotlinx.coroutines.Dispatchers.IO) { EpicService.getInstalledExe(app.id) }
+                val execCmd = if (exePath.isNotEmpty()) {
+                    buildMappedExecCommand(container, gameDir, exePath)
+                } else {
+                    val exeFile = findGameExe(gameDir)
+                    if (exeFile != null) {
+                        buildMappedExecCommand(container, exeFile)
+                    } else {
+                        "wine \"F:\\\\\""
+                    }
+                }
 
                 val desktopDir = container.getDesktopDir()
                 if (!desktopDir.exists()) desktopDir.mkdirs()
@@ -6070,7 +5929,7 @@ class UnifiedActivity : AppCompatActivity() {
                 intent.putExtra("shortcut_path", shortcutFile.path)
                 intent.putExtra("shortcut_name", app.title)
                 intent.putExtra("extra_exec_args", args) // Pass fresh tokens
-                launchGame(context, intent)
+                context.startActivity(intent)
             }
         }
     }
@@ -6104,7 +5963,7 @@ class UnifiedActivity : AppCompatActivity() {
                 }
                 shortcut.putExtra("game_install_path", gameInstallPath)
 
-                // Repair broken Exec line if exe path is missing (just "A:\")
+                // Repair broken Exec line if exe path is missing or still points at the retired A: mapping
                 val currentPath = shortcut.path
                 if (currentPath == null || currentPath == "A:\\" || currentPath == "A:\\\\") {
                     val newExecCmd = if (shortcut.getExtra("launch_exe_path").isNotEmpty()) {
@@ -6113,11 +5972,9 @@ class UnifiedActivity : AppCompatActivity() {
                             val normalizedBaseDir = java.io.File(gameInstallPath).absolutePath.removeSuffix("/")
                             val normalizedExePath = selectedExe.absolutePath
                             if (normalizedExePath == normalizedBaseDir || normalizedExePath.startsWith("$normalizedBaseDir/")) {
-                                val dosPath = selectedExe.relativeTo(java.io.File(gameInstallPath)).path.replace("/", "\\\\")
-                                "wine \"A:\\\\${dosPath}\""
+                                buildMappedExecCommand(shortcut.container, selectedExe)
                             } else {
-                                val hostPath = normalizedExePath.replace("/", "\\\\").let { if (it.startsWith("\\")) it else "\\$it" }
-                                "wine \"Z:${hostPath}\""
+                                buildMappedExecCommand(shortcut.container, selectedExe)
                             }
                         } else null
                     } else {
@@ -6126,12 +5983,11 @@ class UnifiedActivity : AppCompatActivity() {
                             GOGService.getInstalledExe(libraryItem)
                         }
                         if (exePath.isNotEmpty()) {
-                            "wine \"A:\\\\${exePath.replace("/", "\\\\")}\""
+                            buildMappedExecCommand(shortcut.container, gameDir, exePath)
                         } else {
                             val exeFile = findGameExe(gameDir)
                             if (exeFile != null) {
-                                val dosPath = exeFile.relativeTo(gameDir).path.replace("/", "\\\\")
-                                "wine \"A:\\\\${dosPath}\""
+                                buildMappedExecCommand(shortcut.container, exeFile)
                             } else null
                         }
                     }
@@ -6150,32 +6006,16 @@ class UnifiedActivity : AppCompatActivity() {
                 }
 
                 shortcut.saveData()
-                mountADrive(shortcut.container, gameInstallPath)
 
                 val intent = Intent(context, XServerDisplayActivity::class.java)
                 intent.putExtra("container_id", shortcut.container.id)
                 intent.putExtra("shortcut_path", shortcut.file.path)
                 intent.putExtra("shortcut_name", shortcut.name)
-                launchGame(context, intent)
+                context.startActivity(intent)
                 return@launch
             }
 
             val libraryItem = LibraryItem("GOG_${app.id}", app.title, com.winlator.cmod.steam.enums.GameSource.GOG)
-            val exePath = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                GOGService.getInstalledExe(libraryItem)
-            }
-            val execCmd = if (exePath.isNotEmpty()) {
-                "wine \"A:\\\\${exePath.replace("/", "\\\\")}\""
-            } else {
-                val exeFile = findGameExe(gameDir)
-                if (exeFile != null) {
-                    val dosPath = exeFile.relativeTo(gameDir).path.replace("/", "\\\\")
-                    "wine \"A:\\\\${dosPath}\""
-                } else {
-                    "wine \"A:\\\\\""
-                }
-            }
-
             var container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
 
             if (container == null) {
@@ -6183,7 +6023,19 @@ class UnifiedActivity : AppCompatActivity() {
                 return@launch
             }
 
-            mountADrive(container, gameInstallPath)
+            val exePath = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                GOGService.getInstalledExe(libraryItem)
+            }
+            val execCmd = if (exePath.isNotEmpty()) {
+                buildMappedExecCommand(container, gameDir, exePath)
+            } else {
+                val exeFile = findGameExe(gameDir)
+                if (exeFile != null) {
+                    buildMappedExecCommand(container, exeFile)
+                } else {
+                    "wine \"F:\\\\\""
+                }
+            }
 
             val desktopDir = container.getDesktopDir()
             if (!desktopDir.exists()) desktopDir.mkdirs()
@@ -6209,20 +6061,24 @@ class UnifiedActivity : AppCompatActivity() {
             intent.putExtra("container_id", container.id)
             intent.putExtra("shortcut_path", shortcutFile.path)
             intent.putExtra("shortcut_name", app.title)
-            launchGame(context, intent)
+            context.startActivity(intent)
         }
     }
 
-    private fun mountADrive(container: com.winlator.cmod.container.Container, gamePath: String) {
-        val currentDrives = container.drives ?: com.winlator.cmod.container.Container.DEFAULT_DRIVES
-        val sb = StringBuilder()
-        for (drive in com.winlator.cmod.container.Container.drivesIterator(currentDrives)) {
-            if (drive[0] != "A") {
-                sb.append(drive[0]).append(':').append(drive[1])
-            }
-        }
-        sb.append("A:").append(gamePath)
-        container.drives = sb.toString()
+    private fun buildMappedWindowsPath(container: com.winlator.cmod.container.Container, file: java.io.File): String {
+        return com.winlator.cmod.core.WineUtils.hostPathToRootWinePath(container, file.absolutePath)
+    }
+
+    private fun buildMappedExecCommand(container: com.winlator.cmod.container.Container, file: java.io.File): String {
+        return "wine \"${buildMappedWindowsPath(container, file)}\""
+    }
+
+    private fun buildMappedExecCommand(
+        container: com.winlator.cmod.container.Container,
+        gameDir: java.io.File,
+        relativeExePath: String
+    ): String {
+        return buildMappedExecCommand(container, java.io.File(gameDir, relativeExePath.replace("\\", "/")))
     }
 
     // Launch custom game by shortcut name
@@ -6258,26 +6114,23 @@ class UnifiedActivity : AppCompatActivity() {
             shortcut.saveData()
         }
 
-        // Ensure A: drive is mounted to the game folder
         val gameFolder = shortcut.getExtra("custom_game_folder", "")
-        if (gameFolder.isNotEmpty()) {
-            mountADrive(shortcut.container, gameFolder)
-            shortcut.container.saveData()
+        if (shortcut.getExtra("game_install_path").isEmpty() && gameFolder.isNotEmpty()) {
+            shortcut.putExtra("game_install_path", gameFolder)
         }
+        if (shortcut.getExtra("launch_exe_path").isEmpty()) {
+            val customExe = shortcut.getExtra("custom_exe", "")
+            if (customExe.isNotEmpty()) {
+                shortcut.putExtra("launch_exe_path", customExe)
+            }
+        }
+        shortcut.saveData()
+
         val intent = Intent(context, XServerDisplayActivity::class.java)
         intent.putExtra("container_id", shortcut.container.id)
         intent.putExtra("shortcut_path", shortcut.file.path)
         intent.putExtra("shortcut_name", gameName)
-        launchGame(context, intent)
-    }
-
-    private fun launchGame(context: android.content.Context, intent: Intent) {
         context.startActivity(intent)
-        // Suppress the default activity transition so the preloader stays seamless
-        if (context is android.app.Activity) {
-            @Suppress("DEPRECATION")
-            context.overridePendingTransition(0, 0)
-        }
     }
 
     private fun findGameExe(dir: java.io.File): java.io.File? {
@@ -6396,16 +6249,13 @@ class UnifiedActivity : AppCompatActivity() {
         var statusExpanded by remember { mutableStateOf(false) }
 
         ModalDrawerSheet(
-            drawerShape = RectangleShape,
             drawerContainerColor = BgDark,
             drawerContentColor = TextPrimary,
-            windowInsets = WindowInsets(0, 0, 0, 0),
             modifier = Modifier.width(324.dp)
         ) {
             Column(
                 Modifier
                     .fillMaxHeight()
-                    .navigationBarsPadding()
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp)
             ) {
@@ -7029,18 +6879,8 @@ class UnifiedActivity : AppCompatActivity() {
             return
         }
 
-        // Mount the game folder as A: drive
-        mountADrive(container, gameFolderPath)
-
-        // Build the relative exe path from gameFolder
         val exeFile = java.io.File(exePath)
-        val gameFolderFile = java.io.File(gameFolderPath)
-        val dosPath = try {
-            exeFile.relativeTo(gameFolderFile).path.replace("/", "\\\\")
-        } catch (_: Exception) {
-            exeFile.name
-        }
-        val execCmd = "wine \"A:\\\\$dosPath\""
+        val execCmd = buildMappedExecCommand(container, exeFile)
 
         // Write .desktop shortcut
         val desktopDir = container.getDesktopDir()
@@ -7058,6 +6898,8 @@ class UnifiedActivity : AppCompatActivity() {
         content.append("custom_name=$name\n")
         content.append("custom_exe=$exePath\n")
         content.append("custom_game_folder=$gameFolderPath\n")
+        content.append("game_install_path=$gameFolderPath\n")
+        content.append("launch_exe_path=$exePath\n")
         content.append("container_id=${container.id}\n")
         content.append("use_container_defaults=1\n")
         com.winlator.cmod.core.FileUtils.writeString(shortcutFile, content.toString())
@@ -7070,6 +6912,59 @@ class UnifiedActivity : AppCompatActivity() {
         } catch (_: Exception) {}
     }
 
+    // Cloud Sync UI Overlay
+    @Composable
+    fun CloudSyncOverlay(status: SteamService.Companion.CloudSyncMessage) {
+        Box(
+            modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)).clickable(enabled=false, onClick={}),
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = CardDark,
+                modifier = Modifier.width(340.dp).padding(16.dp).border(2.dp, Accent.copy(alpha=0.5f), RoundedCornerShape(16.dp))
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    val title = if (status.isUpload) "Cloud Sync Uploading..." else "Cloud Sync Downloading..."
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(16.dp))
+
+                    Text(
+                        text = status.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.height(16.dp))
+
+                    androidx.compose.material3.LinearProgressIndicator(
+                        progress = { status.progress.coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
+                        color = Accent,
+                        trackColor = SurfaceDark
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+                    val pct = (status.progress * 100).toInt()
+                    Text(
+                        text = "$pct%",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextPrimary
+                    )
+                }
+            }
+        }
+    }
 
     @Composable
     fun CustomPathWarningDialog(onDismiss: () -> Unit, onProceed: () -> Unit) {

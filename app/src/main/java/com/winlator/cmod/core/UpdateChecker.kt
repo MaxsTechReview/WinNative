@@ -248,13 +248,13 @@ object UpdateChecker {
             .header("Cache-Control", "no-cache")
             .build()
 
-        val pageBody = client.newCall(pageRequest).execute().use { pageResponse ->
-            if (!pageResponse.isSuccessful) {
-                Timber.w("Update check page request failed: ${pageResponse.code}")
-                return null
-            }
-            pageResponse.body?.string() ?: return null
+        val pageResponse = client.newCall(pageRequest).execute()
+        if (!pageResponse.isSuccessful) {
+            Timber.w("Update check page request failed: ${pageResponse.code}")
+            return null
         }
+
+        val pageBody = pageResponse.body?.string() ?: return null
 
         // 2.  Parse "Last Updated: March 29, 2026, 5:46 am EDT"
         val pattern = Pattern.compile(
@@ -329,12 +329,11 @@ object UpdateChecker {
                 .url(RELEASE_NOTES_URL)
                 .build()
 
-            client.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    response.body?.string()?.trim()?.takeIf { it.isNotEmpty() }
-                } else {
-                    null
-                }
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful) {
+                response.body?.string()?.trim()?.takeIf { it.isNotEmpty() }
+            } else {
+                null
             }
         } catch (e: Exception) {
             Timber.d(e, "Could not fetch release notes")

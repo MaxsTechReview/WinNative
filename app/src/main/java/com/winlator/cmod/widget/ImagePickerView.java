@@ -13,9 +13,8 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatImageButton;
 import androidx.core.content.ContextCompat;
 
-import android.app.Activity;
+import com.winlator.cmod.MainActivity;
 import com.winlator.cmod.R;
-import com.winlator.cmod.UnifiedActivity;
 import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.FileUtils;
 import com.winlator.cmod.core.UnitUtils;
@@ -61,11 +60,11 @@ public class ImagePickerView extends AppCompatImageButton implements View.OnClic
         final PopupWindow[] popupWindow = {null};
         View browseButton = view.findViewById(R.id.BTBrowse);
         browseButton.setOnClickListener((v) -> {
-            Activity activity = (Activity) context;
+            MainActivity activity = (MainActivity) context;
             Intent intent = new Intent(Intent.ACTION_PICK);
             intent.setType("image/*");
             popupWindow[0].dismiss();
-            activity.startActivityForResult(intent, UnifiedActivity.OPEN_IMAGE_REQUEST_CODE);
+            activity.startActivityForResult(intent, MainActivity.OPEN_IMAGE_REQUEST_CODE);
         });
 
         View removeButton = view.findViewById(R.id.BTRemove);

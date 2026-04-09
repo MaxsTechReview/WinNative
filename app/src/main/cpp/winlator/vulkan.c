@@ -176,9 +176,9 @@ static VkResult create_instance(jstring driverName, JNIEnv *env, jobject context
 
     VkApplicationInfo app_info = {};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app_info.pApplicationName = "Winlator";
+    app_info.pApplicationName = "WinNative";
     app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.pEngineName = "Winlator";
+    app_info.pEngineName = "WinNative";
     app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     if (apiLevel > 32)
         app_info.apiVersion = VK_API_VERSION_1_0;
@@ -210,7 +210,7 @@ static VkResult create_instance(jstring driverName, JNIEnv *env, jobject context
 
 static VkResult enumerate_physical_devices() {
     VkResult result;
-    uint32_t deviceCount;
+    uint32_t deviceCount = 0;
 
     result = enumeratePhysicalDevices(instance, &deviceCount, NULL);
 
@@ -226,10 +226,13 @@ static VkResult enumerate_physical_devices() {
 
     result = enumeratePhysicalDevices(instance, &deviceCount, pdevices);
 
-    if (result != VK_SUCCESS)
+    if (result != VK_SUCCESS) {
+        free(pdevices);
         return result;
+    }
 
     physicalDevice = pdevices[0];
+    free(pdevices);
 
     if (physicalDevice == VK_NULL_HANDLE)
         return VK_ERROR_INITIALIZATION_FAILED;
@@ -258,12 +261,15 @@ Java_com_winlator_cmod_core_GPUInformation_getVulkanVersion(JNIEnv *env, jclass 
     uint32_t api_version_patch = VK_VERSION_PATCH(props.apiVersion);
     asprintf(&driverVersion, "%d.%d.%d", api_version_major, api_version_minor, api_version_patch);
 
+    jstring result = (*env)->NewStringUTF(env, driverVersion);
+    free(driverVersion);
+
     destroyInstance(instance, NULL);
 
     if (vulkan_handle)
         dlclose(vulkan_handle);
 
-    return (*env)->NewStringUTF(env, driverVersion);
+    return result;
 }
 
 JNIEXPORT jint JNICALL
@@ -292,12 +298,9 @@ Java_com_winlator_cmod_core_GPUInformation_getVendorID(JNIEnv *env, jclass obj, 
     return vendorID;
 }
 
-
 JNIEXPORT jstring JNICALL
 Java_com_winlator_cmod_core_GPUInformation_getRenderer(JNIEnv *env, jclass obj, jstring driverName, jobject context) {
     VkPhysicalDeviceProperties props = {};
-    char *renderer;
-
 
     if  (create_instance(driverName, env, context) != VK_SUCCESS) {
         printf("Failed to create instance");
@@ -310,14 +313,14 @@ Java_com_winlator_cmod_core_GPUInformation_getRenderer(JNIEnv *env, jclass obj, 
     }
 
     getPhysicalDeviceProperties(physicalDevice, &props);
-    asprintf(&renderer, "%s", props.deviceName);
+    jstring result = (*env)->NewStringUTF(env, props.deviceName);
 
     destroyInstance(instance, NULL);
 
     if (vulkan_handle)
         dlclose(vulkan_handle);
 
-    return (*env)->NewStringUTF(env, renderer);
+    return result;
 }
 
 JNIEXPORT jobjectArray JNICALL
@@ -325,40 +328,48 @@ Java_com_winlator_cmod_core_GPUInformation_enumerateExtensions(JNIEnv *env, jcla
     jobjectArray extensions;
     VkResult result;
     uint32_t extensionCount;
+    jclass stringClass = (*env)->FindClass(env, "java/lang/String");
 
     if  (create_instance(driverName, env, context) != VK_SUCCESS) {
         printf("Failed to create instance");
-        return (*env)->NewObjectArray(env, 0, (*env)->FindClass(env, "java/lang/String"), NULL);
+        return (*env)->NewObjectArray(env, 0, stringClass, NULL);
     }
 
     if (enumerate_physical_devices() != VK_SUCCESS) {
         printf("Failed to query physical devices");
-        return (*env)->NewObjectArray(env, 0, (*env)->FindClass(env, "java/lang/String"), NULL);
+        return (*env)->NewObjectArray(env, 0, stringClass, NULL);
     }
 
     result = enumerateDeviceExtensionProperties(physicalDevice, NULL, &extensionCount, NULL);
 
     if (result != VK_SUCCESS || extensionCount < 1) {
         printf("Failed to query extension count");
-        return (*env)->NewObjectArray(env, 0, (*env)->FindClass(env, "java/lang/String"), NULL);
+        return (*env)->NewObjectArray(env, 0, stringClass, NULL);
     }
 
     VkExtensionProperties *extensionProperties = malloc(sizeof(VkExtensionProperties) * extensionCount);
-    enumerateDeviceExtensionProperties(physicalDevice, NULL, &extensionCount,
-                                       extensionProperties);
+    if (!extensionProperties) {
+        printf("Failed to allocate extension properties");
+        return (*env)->NewObjectArray(env, 0, stringClass, NULL);
+    }
+
+    result = enumerateDeviceExtensionProperties(physicalDevice, NULL, &extensionCount,
+                                                extensionProperties);
 
     if (result != VK_SUCCESS) {
-        printf("Failed to query extensions");
-        return (*env)->NewObjectArray(env, 0, (*env)->FindClass(env, "java/lang/String"), NULL);
+        printf("Failed to query extensions (result=%d)", result);
+        free(extensionProperties);
+        return (*env)->NewObjectArray(env, 0, stringClass, NULL);
     }
 
-    extensions = (jobjectArray) (*env)->NewObjectArray(env, extensionCount,
-                                                       (*env)->FindClass(env, "java/lang/String"),
-                                                       NULL);
-    for (int i = 0; i < extensionCount; i++) {
-        (*env)->SetObjectArrayElement(env, extensions, i,
-                                      (*env)->NewStringUTF(env, extensionProperties[i].extensionName));
+    extensions = (jobjectArray)(*env)->NewObjectArray(env, extensionCount, stringClass, NULL);
+    for (uint32_t i = 0; i < extensionCount; i++) {
+        jstring extName = (*env)->NewStringUTF(env, extensionProperties[i].extensionName);
+        (*env)->SetObjectArrayElement(env, extensions, i, extName);
+        (*env)->DeleteLocalRef(env, extName);
     }
+
+    free(extensionProperties);
 
     destroyInstance(instance, NULL);
 

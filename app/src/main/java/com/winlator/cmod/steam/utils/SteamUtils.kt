@@ -523,10 +523,14 @@ object SteamUtils {
         Timber.i("Starting restoreOriginalExecutable for appId: $steamAppId")
         var restoredCount = 0
 
-        val imageFs = ImageFs.find(context)
-        val dosDevicesPath = File(imageFs.wineprefix, "dosdevices/a:")
+        val appDirPath = SteamService.getAppDirPath(steamAppId)
+        val gameDir = File(appDirPath)
+        if (!gameDir.isDirectory) {
+            Timber.w("Game install directory missing for appId=$steamAppId path=$appDirPath")
+            return
+        }
 
-        dosDevicesPath.walkTopDown().maxDepth(10)
+        gameDir.walkTopDown().maxDepth(10)
             .filter { it.isFile && it.name.endsWith(".original.exe", ignoreCase = true) }
             .forEach { file ->
                 try {
@@ -555,28 +559,23 @@ object SteamUtils {
     @JvmStatic
     fun restoreUnpackedExecutable(context: Context, steamAppId: Int) {
         try {
-            val imageFs = ImageFs.find(context)
             val appDirPath = com.winlator.cmod.steam.service.SteamService.getAppDirPath(steamAppId)
+            val gameDir = File(appDirPath)
+            if (!gameDir.isDirectory) {
+                Timber.w("Game install directory missing for appId=$steamAppId path=$appDirPath")
+                return
+            }
 
             val container = com.winlator.cmod.steam.utils.ContainerUtils.getContainer(context, "STEAM_$steamAppId")
             val executablePath = container?.executablePath ?: ""
-            val drives = container?.drives ?: ""
-
-            // Find the drive letter for the game directory using proper drives iterator
-            var drive = 'A' // default to A: drive
-            for (driveEntry in Container.drivesIterator(drives)) {
-                if (driveEntry[1] == appDirPath) {
-                    drive = driveEntry[0][0]
-                    break
-                }
+            if (executablePath.isEmpty()) {
+                Timber.w("No executablePath set on Steam container for appId=$steamAppId")
+                return
             }
-            if (drive == 'A' && !drives.contains("A:")) {
-                Timber.w("Could not locate game drive for appDirPath=$appDirPath in drives, defaulting to A:")
-            }
-            val executableFile = "$drive:\\${executablePath}"
 
-            val exe = File(imageFs.wineprefix + "/dosdevices/" + executableFile.replace("A:", "a:").replace('\\', '/'))
-            val unpackedExe = File(imageFs.wineprefix + "/dosdevices/" + executableFile.replace("A:", "a:").replace('\\', '/') + ".unpacked.exe")
+            val unixPath = executablePath.replace('\\', '/')
+            val exe = File(gameDir, unixPath)
+            val unpackedExe = File(gameDir, "$unixPath.unpacked.exe")
 
             if (unpackedExe.exists()) {
                 val areFilesDifferent = !exe.exists() ||

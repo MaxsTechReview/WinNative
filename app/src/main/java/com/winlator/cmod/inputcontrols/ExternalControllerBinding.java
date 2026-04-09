@@ -24,6 +24,10 @@ public class ExternalControllerBinding {
         return keyCode;
     }
 
+    public int getKeyCode() {
+        return keyCode;
+    }
+
     public void setKeyCode(int keyCode) {
         this.keyCode = (short)keyCode;
     }

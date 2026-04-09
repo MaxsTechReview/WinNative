@@ -24,6 +24,7 @@ import com.winlator.cmod.core.KeyValueSet;
 import com.winlator.cmod.core.ProcessHelper;
 import com.winlator.cmod.core.TarCompressorUtils;
 import com.winlator.cmod.core.WineInfo;
+import com.winlator.cmod.core.WineUtils;
 import com.winlator.cmod.fexcore.FEXCoreManager;
 import com.winlator.cmod.fexcore.FEXCorePreset;
 import com.winlator.cmod.fexcore.FEXCorePresetManager;
@@ -43,6 +44,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.List;
 
 public class GuestProgramLauncherComponent extends EnvironmentComponent {
     private String guestExecutable;
@@ -349,9 +351,9 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     @Override
     public void start() {
         synchronized (lock) {
-            if (wineInfo.isArm64EC())
+            if (wineInfo.isArm64EC()) {
                 extractEmulatorsDlls();
-            else
+            } else
                 extractBox64Files();
             copyDefaultBox64RCFile();
             checkDependencies();
@@ -537,32 +539,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         }
 
         EnvVars envVars = new EnvVars();
-        boolean enableEvshim = false;
-
-        if (enableEvshim) {
-            // --- Controller support: create shared memory files for all 4 slots ---
-            // Pre-create all files to support hot-plug (controllers connected mid-game)
-            final int MAX_PLAYERS = 4;
-            File tmpDir = new File(rootDir, "tmp");
-            tmpDir.mkdirs();
-            String tmpPath = tmpDir.getAbsolutePath();
-            for (int i = 0; i < MAX_PLAYERS; i++) {
-                String memPath = (i == 0)
-                        ? tmpPath + "/gamepad.mem"
-                        : tmpPath + "/gamepad" + i + ".mem";
-                File memFile = new File(memPath);
-                try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(memFile, "rw")) {
-                    raf.setLength(64);
-                } catch (IOException e) {
-                    Log.e("GuestProgramLauncher", "Failed to create mem file for player " + i, e);
-                }
-            }
-            envVars.put("EVSHIM_MAX_PLAYERS", String.valueOf(MAX_PLAYERS));
-            envVars.put("EVSHIM_DATA_PATH", tmpPath);
-            envVars.put("EVSHIM_WIN_PATH", "Z:\\tmp");
-        } else {
-            Log.d("GuestProgramLauncher", "EVSHIM disabled for compatibility mode");
-        }
 
         addBox64EnvVars(envVars, enableBox64Logs);
         envVars.putAll(FEXCorePresetManager.getEnvVars(context, fexcorePreset));
@@ -593,7 +569,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         envVars.put("PREFIX", rootDir.getPath() + "/usr");
         envVars.put("DISPLAY", ":0");
         envVars.put("WINE_DISABLE_FULLSCREEN_HACK", "1");
-        envVars.put("ENABLE_UTIL_LAYER", "1");
         envVars.put("GST_PLUGIN_FEATURE_RANK", "ximagesink:3000");
         envVars.put("ALSA_CONFIG_PATH", rootDir.getPath() + "/usr/share/alsa/alsa.conf" + ":" + rootDir.getPath() + "/usr/etc/alsa/conf.d/android_aserver.conf");
         envVars.put("ALSA_PLUGIN_DIR", rootDir.getPath() + "/usr/lib/alsa-lib");
@@ -625,107 +600,77 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         envVars.put("ANDROID_RESOLV_DNS", primaryDNS);
         envVars.put("WINE_NEW_NDIS", "1");
         
-        String ld_preload = "";
-
-        // Ensure shared memory library is extracted and available
-        File sysvshmDest = ensureImageFsNativeLibrary(context, imageFs, "libandroid-sysvshm.so");
-        if (sysvshmDest != null && sysvshmDest.exists()){
-            ld_preload = sysvshmDest.getAbsolutePath();
+        String ld_preload;
+        if (!new File(imageFs.getLibDir(), "libandroid-sysvshm.so").exists()) {
+            ld_preload = "";
         } else {
-            Log.w("GuestProgramLauncher", "libandroid-sysvshm.so not available for LD_PRELOAD - shared memory may fail!");
+            ld_preload = imageFs.getLibDir() + "/libandroid-sysvshm.so";
         }
-
-        File fakeinputDest = ensureImageFsNativeLibrary(context, imageFs, "libfakeinput.so");
-
-        if (fakeinputDest != null && fakeinputDest.exists()) {
-            if (!ld_preload.isEmpty()) {
-                ld_preload += ":";
+        File fakeinputDest = new File(imageFs.getLibDir(), "libfakeinput.so");
+        String nativeLibDir = environment.getContext().getApplicationInfo().nativeLibraryDir;
+        File fakeinputSrc = new File(nativeLibDir, "libfakeinput.so");
+        Log.d("GuestLauncher", "nativeLibDir: " + nativeLibDir);
+        Log.d("GuestLauncher", "fakeinputSrc exists: " + fakeinputSrc.exists());
+        Log.d("GuestLauncher", "fakeinputDest: " + fakeinputDest.getAbsolutePath());
+        if (!fakeinputDest.exists()) {
+            try {
+                if (fakeinputSrc.exists()) {
+                    FileUtils.copy(fakeinputSrc, fakeinputDest);
+                    Log.d("GuestLauncher", "Copied libfakeinput.so to imagefs");
+                } else {
+                    Log.e("GuestLauncher", "libfakeinput.so NOT FOUND in APK: " + fakeinputSrc.getAbsolutePath());
+                }
+            } catch (Exception e) {
+                Log.e("GuestLauncher", "Failed to copy libfakeinput.so: " + e.getMessage());
+                e.printStackTrace();
             }
-            ld_preload += fakeinputDest.getAbsolutePath();
-        } else {
-            Log.w("GuestProgramLauncher", "libfakeinput.so not available for LD_PRELOAD");
         }
-        Log.d("GuestProgramLauncher", "execGuestProgram LD_PRELOAD=" + ld_preload);
+        Log.d("GuestLauncher", "fakeinputDest exists after copy: " + fakeinputDest.exists());
+
+        // Some Proton builds dlopen "libSDL2-2.0.so.0" (standard SONAME on desktop Linux).
+        // The imagefs ships "libSDL2-2.0.so" without the .0 suffix.  Create a symlink so
+        // any winebus.so build can find SDL regardless of the exact name it tries.
+        File sdlSo = new File(imageFs.getLibDir(), "libSDL2-2.0.so");
+        File sdlSoLink = new File(imageFs.getLibDir(), "libSDL2-2.0.so.0");
+        if (sdlSo.exists() && !sdlSoLink.exists()) {
+            FileUtils.symlink(sdlSo.getName(), sdlSoLink.getPath());
+            Log.d("GuestLauncher", "Created SDL symlink: " + sdlSoLink.getPath());
+        }
+
+        if (fakeinputDest.exists()) {
+            if (!ld_preload.isEmpty()) {
+                ld_preload = ld_preload + ":";
+            }
+            ld_preload = ld_preload + fakeinputDest.getAbsolutePath();
+        }
 
         File devInputDir = new File(imageFs.getRootDir(), "dev/input");
         devInputDir.mkdirs();
-        File event0 = new File(devInputDir, "event0");
-        if (!event0.exists()) {
-            try {
-                event0.createNewFile();
-            } catch (Exception e) {
+        // Pre-create all 4 event files so Wine's winebus/SDL can detect
+        // up to 4 controllers on startup.
+        for (int i = 0; i < 4; i++) {
+            File eventFile = new File(devInputDir, "event" + i);
+            if (!eventFile.exists()) {
+                try {
+                    eventFile.createNewFile();
+                } catch (Exception e) {
+                }
             }
         }
         envVars.put("FAKE_EVDEV_DIR", devInputDir.getAbsolutePath());
 
-        if (enableEvshim) {
-            // Create libSDL symlink if necessary for evshim to intercept correctly
-            try {
-                File sdlSource = new File(imageFs.getLibDir(), "libSDL2-2.0.so");
-                File sdlSymlink = new File(imageFs.getLibDir(), "libSDL2-2.0.so.0");
-                if (sdlSource.exists() && !sdlSymlink.exists()) {
-                    android.system.Os.symlink(sdlSource.getAbsolutePath(), sdlSymlink.getAbsolutePath());
-                }
+        // Ensure Proton-flavoured winebus.sys uses the evdev/SDL path that
+        // libfakeinput.so hooks, and does not filter out our fake gamepad.
+        envVars.put("PROTON_ENABLE_HIDRAW", "0");
+        envVars.put("SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD", "1");
+        envVars.put("SDL_JOYSTICK_HIDAPI", "0");
 
-                File sdlSourceAlt = new File(imageFs.getLibDir(), "libSDL2.so");
-                if (!sdlSource.exists() && sdlSourceAlt.exists() && !sdlSymlink.exists()) {
-                    android.system.Os.symlink(sdlSourceAlt.getAbsolutePath(), sdlSymlink.getAbsolutePath());
-                }
-            } catch (Exception e) {
-                Log.e("GuestProgramLauncherComponent", "Failed to setup SDL2 symlink", e);
-            }
-
-            // Add evshim for controller support (creates virtual SDL joysticks)
-            // Extract libevshim.so from APK native libs to imagefs if needed
-            // (Android may not extract native libs to disk on newer versions)
-            File evshimInImagefs = new File(imageFs.getLibDir(), "libevshim.so");
-            String apkNativeLibDir = context.getApplicationInfo().nativeLibraryDir;
-            File evshimInNativeDir = new File(apkNativeLibDir, "libevshim.so");
-
-            if (evshimInNativeDir.exists() && (!evshimInImagefs.exists() || evshimInImagefs.length() != evshimInNativeDir.length())) {
-                // Native libs are extracted to disk - copy to imagefs
-                FileUtils.copy(evshimInNativeDir, evshimInImagefs);
-                Log.d("GuestProgramLauncher", "Copied evshim from nativeLibDir to imagefs");
-            } else if (!evshimInImagefs.exists()) {
-                // Native libs NOT extracted (compressed in APK) - extract from APK
-                try {
-                    String abi = android.os.Build.SUPPORTED_ABIS[0];
-                    String entryName = "lib/" + abi + "/libevshim.so";
-                    java.util.zip.ZipFile apk = new java.util.zip.ZipFile(context.getApplicationInfo().sourceDir);
-                    java.util.zip.ZipEntry entry = apk.getEntry(entryName);
-                    if (entry != null) {
-                        try (java.io.InputStream is = apk.getInputStream(entry);
-                             java.io.FileOutputStream fos = new java.io.FileOutputStream(evshimInImagefs)) {
-                            byte[] buf = new byte[8192];
-                            int len;
-                            while ((len = is.read(buf)) != -1) fos.write(buf, 0, len);
-                        }
-                        evshimInImagefs.setExecutable(true, false);
-                        Log.d("GuestProgramLauncher", "Extracted evshim from APK to imagefs: " + evshimInImagefs.getAbsolutePath());
-                    }
-                    apk.close();
-                } catch (Exception e) {
-                    Log.e("GuestProgramLauncher", "Failed to extract evshim from APK", e);
-                }
-            }
-
-            if (evshimInImagefs.exists()) {
-                ld_preload += (ld_preload.isEmpty() ? "" : ":") + evshimInImagefs.getAbsolutePath();
-                Log.d("GuestProgramLauncher", "evshim added to LD_PRELOAD: " + evshimInImagefs.getAbsolutePath());
-            } else {
-                Log.w("GuestProgramLauncher", "libevshim.so not found anywhere!");
-            }
-        }
-
-        // Winlator legacy hooks (libhook_impl.so, libfile_redirect_hook.so) break FEXCore rendering and stability.
-        // Removed them for Arm64EC mode to match Bionic/Ludashi implementation.
-        if (wineInfo.isArm64EC()) {
-            // Do not preload libhook_impl.so or libfile_redirect_hook.so on Arm64EC.
-        }
-
+        Log.d("GuestLauncher", "Final LD_PRELOAD: " + ld_preload);
         envVars.put("LD_PRELOAD", ld_preload);
 
-        mergeExternalEnvVars(envVars, ld_preload, devInputDir.getAbsolutePath());
+        // Preserve the launcher-owned preload/input paths while restoring the
+        // full env built upstream in XServerDisplayActivity (driver, DXVK, Vulkan, etc).
+        mergeExternalEnvVars(envVars, envVars.get("LD_PRELOAD"), envVars.get("FAKE_EVDEV_DIR"));
 
         String emulator = container.getEmulator();
         String emulator64 = container.getEmulator64();
@@ -734,97 +679,54 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
             emulator64 = shortcut.getExtra("emulator64", container.getEmulator64());
         }
 
-        // Normalize slots to the runtime components that actually exist:
-        // x86_64 → Box64 binary + wowbox64.dll; ARM64EC → libwow64fex.dll + (FEX or wowbox64).
         if (wineInfo.isArm64EC()) {
-            emulator64 = "FEXCore";
-            // Legacy shortcuts may have "box64" saved for 32-bit; fall back.
-            if (!"fexcore".equalsIgnoreCase(emulator) && !"wowbox64".equalsIgnoreCase(emulator)) {
-                emulator = "FEXCore";
-            }
-            Log.d("GuestProgramLauncherComponent",
-                    "Arm64EC detected: emulator64=FEXCore, emulator(32-bit)=" + emulator);
-        } else {
-            emulator64 = "Box64";
-            emulator = "Wowbox64";
-            Log.d("GuestProgramLauncherComponent",
-                    "x86_64 detected: emulator64=Box64, emulator(32-bit)=Wowbox64");
-        }
-
-        Log.d("GuestProgramLauncherComponent", "=== EMULATOR SELECTION ===");
-        Log.d("GuestProgramLauncherComponent", "Wine arch: " + wineInfo.getArch() + " isArm64EC: " + wineInfo.isArm64EC());
-        Log.d("GuestProgramLauncherComponent", "Emulator (32-bit): " + emulator);
-        Log.d("GuestProgramLauncherComponent", "Emulator (64-bit): " + emulator64);
-
-        boolean is64Bit = true;
-
-        // Find the actual .exe file to check architecture
-        File exeFile = null;
-        String winPath = null;
-        if (guestExecutable.contains("\"")) {
-            int start = guestExecutable.indexOf("\"") + 1;
-            int end = guestExecutable.indexOf("\"", start);
-            if (start > 0 && end > start) winPath = guestExecutable.substring(start, end);
-        } else {
-            // If not quoted, take the first part before any space
-            int spaceIndex = guestExecutable.indexOf(" ");
-            winPath = spaceIndex != -1 ? guestExecutable.substring(0, spaceIndex) : guestExecutable;
-        }
-
-        if (winPath != null && winPath.toLowerCase().endsWith(".exe")) {
-            exeFile = com.winlator.cmod.core.WineUtils.getNativePath(imageFs, winPath);
-            if (exeFile != null) Log.d("GuestProgramLauncherComponent", "Detected executable for arch check: " + exeFile.getAbsolutePath());
-        }
-
-        // Determine which emulator to use for HODLL based on guest executable architecture
-        String selectedEmulator = emulator;
-        if (wineInfo.isArm64EC()) {
-            is64Bit = (exeFile != null && com.winlator.cmod.core.PEHelper.is64Bit(exeFile)) || 
-                             (guestExecutable != null && guestExecutable.contains("steamclient_loader_x64.exe"));
-            
-            if (is64Bit) {
-                selectedEmulator = emulator64;
+            emulator64 = container.getEmulator64();
+            if (shortcut != null) {
+                emulator64 = shortcut.getExtra("emulator64", container.getEmulator64());
             }
         }
 
-        // Construct the command without Box64 to the Wine executable
         String command = "";
         String overriddenCommand = envVars.get("GUEST_PROGRAM_LAUNCHER_COMMAND");
-        if (overriddenCommand != null && !overriddenCommand.isEmpty()) {
-            String[] parts = overriddenCommand.split(";");
-            for (String part : parts)
-                command += part + " ";
-            command = command.trim();
-        } else {
+        if (overriddenCommand.isEmpty()) {
             if (wineInfo.isArm64EC()) {
                 command = winePath + "/" + guestExecutable;
-                if ("fexcore".equalsIgnoreCase(selectedEmulator))
+                if (emulator.toLowerCase().equals("fexcore")) {
                     envVars.put("HODLL", "libwow64fex.dll");
-                else
+                } else {
                     envVars.put("HODLL", "wowbox64.dll");
+                }
             } else {
                 command = imageFs.getBinDir() + "/box64 " + guestExecutable;
             }
+        } else {
+            String[] parts = overriddenCommand.split(";");
+            for (String part : parts) {
+                command = command + part + " ";
+            }
+            command = command.trim();
         }
 
-        // **Maybe remove this: Set execute permissions for box64 if necessary (Glibc/Proot artifact)
         File box64File = new File(rootDir, "/usr/bin/box64");
         if (box64File.exists()) {
             FileUtils.chmod(box64File, 0755);
         }
 
-        Log.d("GuestProgramLauncherComponent", "=== FINAL LAUNCH COMMAND ===");
-        Log.d("GuestProgramLauncherComponent", "Command: " + command);
-        Log.d("GuestProgramLauncherComponent", "Working dir: " + (workingDir != null ? workingDir.getAbsolutePath() : rootDir.getAbsolutePath()));
-        Log.d("GuestProgramLauncherComponent", "=== FINAL ENVIRONMENT (" + envVars.toStringArray().length + " vars) ===");
-        for (String kv : envVars.toStringArray()) {
-            Log.d("GuestProgramLauncherComponent", "env " + kv);
-        }
+        Log.d("GuestProgramLauncherComponent", "Launch env excerpt: " +
+                "ADRENOTOOLS_DRIVER_PATH=" + envVars.get("ADRENOTOOLS_DRIVER_PATH") + " " +
+                "ADRENOTOOLS_DRIVER_NAME=" + envVars.get("ADRENOTOOLS_DRIVER_NAME") + " " +
+                "VK_ICD_FILENAMES=" + envVars.get("VK_ICD_FILENAMES") + " " +
+                "WRAPPER_VK_VERSION=" + envVars.get("WRAPPER_VK_VERSION") + " " +
+                "GALLIUM_DRIVER=" + envVars.get("GALLIUM_DRIVER") + " " +
+                "MESA_VK_WSI_DEBUG=" + envVars.get("MESA_VK_WSI_DEBUG"));
 
         return ProcessHelper.exec(command, envVars.toStringArray(), workingDir != null ? workingDir : rootDir, (status) -> {
             synchronized (lock) {
                 pid = -1;
             }
+
+            ProcessHelper.drainDeadChildren("guest process termination callback");
+            ProcessHelper.scheduleDeadChildReapSweep("guest process termination callback", 3000, 200);
 
             if (terminationCallback != null)
                 terminationCallback.call(status);
@@ -842,7 +744,12 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
         envVars.putAll(Box64PresetManager.getEnvVars("box64", environment.getContext(), box64Preset));
         envVars.put("BOX64_X11GLX", "1");
+        // Load ONLY our custom rc file (per-game Steam overrides, ZINK_CONTEXT_THREADED, etc.)
+        // BOX64_NORCFILES=1 skips default system rc files to avoid conflicts,
+        // BOX64_RCFILE points to our custom file so it still gets loaded.
         envVars.put("BOX64_NORCFILES", "1");
+        ImageFs imageFs = ImageFs.find(environment.getContext());
+        envVars.put("BOX64_RCFILE", imageFs.getRootDir().getPath() + "/etc/config.box64rc");
     }
 
     public void suspendProcess() {

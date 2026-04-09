@@ -6,6 +6,7 @@ import android.os.Parcelable;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.winlator.cmod.R;
 import com.winlator.cmod.contents.ContentProfile;
@@ -69,6 +70,21 @@ public class WineInfo implements Parcelable {
     }
 
     public boolean isArm64EC() { return arch.equals("arm64ec"); }
+
+    public static String getDefaultEmulator(boolean isArm64EC, boolean is64BitSlot) {
+        if (!isArm64EC) return "Box64";
+        return is64BitSlot ? "FEXCore" : "Wowbox64";
+    }
+
+    public static String normalizeEmulatorSelection(boolean isArm64EC, @Nullable String emulator, boolean is64BitSlot) {
+        String normalized = emulator != null ? emulator.trim() : "";
+        if (isArm64EC) {
+            if ("fexcore".equalsIgnoreCase(normalized)) return "FEXCore";
+            if ("wowbox64".equalsIgnoreCase(normalized)) return "Wowbox64";
+            return getDefaultEmulator(true, is64BitSlot);
+        }
+        return "Box64";
+    }
 
     public String identifier() {
         if (type.equals("proton"))

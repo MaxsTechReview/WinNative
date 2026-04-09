@@ -12,7 +12,6 @@ import com.winlator.cmod.xenvironment.EnvironmentComponent;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -51,16 +50,12 @@ public class PulseAudioComponent extends EnvironmentComponent {
             "libltdl.so", "libpulseaudio.so", "libpulse.so", "libpulsecommon-13.0.so", "libpulsecore-13.0.so", "libsndfile.so"
         };
         for (int i = 0; i < libs.length; i++) {
-            String path = "lib/" + "arm64-v8a" + "/" + libs[i];
-            ClassLoader loader = PulseAudioComponent.class.getClassLoader();
-            URL res = loader != null ? loader.getResource(path) : null;
             Path dstDir = Paths.get(dst.getAbsolutePath() + "/" + libs[i]);
-            try {
-                InputStream is = res != null ? res.openStream() : null;
+            try (InputStream is = environment.getContext().getAssets().open("pulseaudio-bin/" + libs[i])) {
                 if (is != null) {
                     Files.copy(is, dstDir, StandardCopyOption.REPLACE_EXISTING);
                     FileUtils.chmod(dstDir.toFile(), 0771);
-                }    
+                }
             }
             catch (IOException e) {
                 throw new RuntimeException(e);

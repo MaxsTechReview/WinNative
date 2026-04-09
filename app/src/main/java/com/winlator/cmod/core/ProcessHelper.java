@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -19,10 +20,65 @@ import java.util.concurrent.Executors;
 public abstract class ProcessHelper {
     public static final boolean PRINT_DEBUG = false;
     private static final ArrayList<Callback<String>> debugCallbacks = new ArrayList<>();
+    private static final String[] SESSION_PROCESS_FILTERS = {
+            "wine",
+            "wine64",
+            "wineserver",
+            "winedevice",
+            "services.exe",
+            "start.exe",
+            "rpcss.exe",
+            "conhost.exe",
+            "box64",
+            "box86",
+            "fexcore",
+            "wowbox64",
+            "winhandler",
+            "wfm.exe",
+            "explorer.exe",
+            "steam.exe",
+            "gameoverlayui",
+            ".exe"
+    };
     private static final byte SIGCONT = 18;
     private static final byte SIGSTOP = 19;
     private static final byte SIGTERM = 15;
     private static final byte SIGKILL = 9;
+
+    static {
+        try {
+            System.loadLibrary("winlator");
+        }
+        catch (UnsatisfiedLinkError e) {
+            Log.w("ProcessHelper", "winlator native library not available for explicit child reaping yet", e);
+        }
+    }
+
+    public static native int reapDeadChildrenNow();
+    public static native void startNativeReaperWindow(int durationMs);
+
+    public static void drainDeadChildren(String reason) {
+        try {
+            int reaped = reapDeadChildrenNow();
+            if (reaped > 0) {
+                Log.i("ProcessHelper", "Reaped " + reaped + " dead child processes after " + reason);
+            }
+        }
+        catch (UnsatisfiedLinkError e) {
+            Log.w("ProcessHelper", "Failed to explicitly reap dead children after " + reason, e);
+        }
+    }
+
+    public static void scheduleDeadChildReapSweep(String reason, long durationMs, long intervalMs) {
+        if (durationMs <= 0) return;
+        try {
+            startNativeReaperWindow((int) durationMs);
+            Log.d("ProcessHelper", "Started native reaper window after " + reason + " for " + durationMs + "ms");
+        }
+        catch (UnsatisfiedLinkError e) {
+            Log.w("ProcessHelper", "Failed to start native reaper window after " + reason, e);
+        }
+    }
 
     public static void suspendProcess(int pid) {
         Process.sendSignal(pid, SIGSTOP);
@@ -48,6 +104,49 @@ public abstract class ProcessHelper {
         for (String process : listRunningWineProcesses()) {
             terminateProcess(Integer.parseInt(process));
         }
+    }
+
+    public static void forceKillAllWineProcesses() {
+        for (String process : listRunningWineProcesses()) {
+            killProcess(Integer.parseInt(process));
+        }
+    }
+
+    public static ArrayList<String> terminateSessionProcessesAndWait(long timeoutMs, boolean forceKillAfterTimeout) {
+        drainDeadChildren("pre-terminate sweep");
+        terminateAllWineProcesses();
+        long start = System.currentTimeMillis();
+        ArrayList<String> remaining = listRunningWineProcesses();
+        while (!remaining.isEmpty() && System.currentTimeMillis() - start < timeoutMs) {
+            drainDeadChildren("terminate wait loop");
+            try {
+                Thread.sleep(50);
+            }
+            catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+            remaining = listRunningWineProcesses();
+        }
+
+        if (!remaining.isEmpty() && forceKillAfterTimeout) {
+            forceKillAllWineProcesses();
+            long forceKillStart = System.currentTimeMillis();
+            while (!(remaining = listRunningWineProcesses()).isEmpty()
+                    && System.currentTimeMillis() - forceKillStart < 1000) {
+                drainDeadChildren("force-kill wait loop");
+                try {
+                    Thread.sleep(50);
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+
+        drainDeadChildren("post-terminate sweep");
+        return listRunningWineProcesses();
     }
 
     public static void pauseAllWineProcesses() {
@@ -89,9 +188,16 @@ public abstract class ProcessHelper {
             ProcessBuilder pb = new ProcessBuilder(splitCommand);
             pb.directory(workingDir);
             pb.environment().putAll(EnvironmentManager.getEnvVars());
+            if (debugCallbacks.isEmpty()) {
+                File nullFile = new File("/dev/null");
+                pb.redirectError(nullFile);
+                pb.redirectOutput(nullFile);
+            }
             java.lang.Process process = pb.start();
-            createDebugThread(process.getInputStream());
-            createDebugThread(process.getErrorStream());
+            if (!debugCallbacks.isEmpty()) {
+                createDebugThread(process.getInputStream());
+                createDebugThread(process.getErrorStream());
+            }
 
             // Accessing hidden field
             if (PRINT_DEBUG) Log.d("ProcessHelper", "Accessing hidden field to get PID");
@@ -135,6 +241,7 @@ public abstract class ProcessHelper {
             public void run() {
                 try {
                     int status = process.waitFor();
+                    drainDeadChildren("process waitFor");
                     terminationCallback.call(status);
                 }
                 catch (InterruptedException e) {
@@ -254,26 +361,37 @@ public abstract class ProcessHelper {
 
     public static ArrayList<String> listRunningWineProcesses(){
         File proc = new File("/proc");
-        String[] filters = {"wine", "exe"};
         String[] allPids;
         ArrayList<String> filteredPids = new ArrayList<String>();
-        List<String> filterList = Arrays.asList(filters);
         allPids = proc.list(new FilenameFilter(){
             public boolean accept(File proc, String filename){
                 return new File(proc, filename).isDirectory() && filename.matches("[0-9]+");
             }
         });
 
+        if (allPids == null) {
+            return filteredPids;
+        }
+
         for (int index = 0; index < allPids.length; index++){
-            String data = "";
+            String statData = "";
             try (FileInputStream fr = new FileInputStream(proc + "/" + allPids[index] + "/stat");
                  BufferedReader br = new BufferedReader(new InputStreamReader(fr))) {
-                data = br.readLine();
+                statData = br.readLine();
             }
             catch (IOException e) {}
-            for (String filter : filterList) {
-                if (data.contains(filter))
+            String cmdlineData = "";
+            try (FileInputStream fr = new FileInputStream(proc + "/" + allPids[index] + "/cmdline")) {
+                byte[] bytes = fr.readAllBytes();
+                cmdlineData = new String(bytes, StandardCharsets.UTF_8).replace('\0', ' ');
+            }
+            catch (IOException e) {}
+
+            String normalized = (statData + " " + cmdlineData).toLowerCase();
+            for (String filter : SESSION_PROCESS_FILTERS) {
+                if (normalized.contains(filter) && !filteredPids.contains(allPids[index])) {
                     filteredPids.add(allPids[index]);
+                }
             }
         }
         return filteredPids;

@@ -26,6 +26,7 @@ import com.winlator.cmod.xserver.XLock;
 import com.winlator.cmod.xserver.XServer;
 
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -41,7 +42,8 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
     public final ViewTransformation viewTransformation = new ViewTransformation();
     private final Drawable rootCursorDrawable;
     private final ArrayList<RenderableWindow> renderableWindows = new ArrayList<>();
-    private boolean fullscreen = false;
+    private volatile boolean fullscreen = false;
+    private final AtomicBoolean toggleFullscreenPending = new AtomicBoolean(false);
     public boolean viewportNeedsUpdate = true;
     private boolean cursorVisible = true;
     private boolean screenOffsetYRelativeToCursor = false;
@@ -84,7 +86,7 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
 
         GLES20.glEnable(GLES20.GL_BLEND);
         GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
-        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     }
 
     @Override
@@ -97,12 +99,19 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
 
     @Override
     public void onDrawFrame(GL10 gl) {
-        if (cpuSaverMode) {
+        // Handle fullscreen toggle on the GL thread (thread-safe)
+        if (toggleFullscreenPending.compareAndSet(true, false)) {
+            fullscreen = !fullscreen;
+            viewportNeedsUpdate = true;
+        }
+
+        if (effectComposer.hasEffects()) {
+            effectComposer.render();
+        } else if (cpuSaverMode) {
             drawFrameOptimized();
         } else {
             drawFrame();
         }
-        xServer.windowManager.triggerOnFramePresented(null);
     }
 
     public void drawFrame() {
@@ -159,8 +168,6 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
 
         // Render cursor if enabled
         if (cursorVisible) {
-            GLES20.glEnable(GLES20.GL_BLEND);
-            GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
             renderCursor();
         }
 
@@ -221,10 +228,6 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
         synchronized (drawable.renderLock) {
             Texture texture = drawable.getTexture();
             texture.updateFromDrawable(drawable);
-
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture.getTextureId());
-            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
-            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
 
             XForm.set(tmpXForm1, x, y, drawable.width, drawable.height);
             XForm.multiply(tmpXForm1, tmpXForm1, tmpXForm2);
@@ -287,8 +290,7 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
     }
 
     public void toggleFullscreen() {
-        fullscreen = !fullscreen;
-        viewportNeedsUpdate = true;
+        toggleFullscreenPending.set(true);
         xServerView.requestRender();
     }
 
@@ -412,7 +414,7 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
             viewportNeedsUpdate = true;
             final String msg = enable ? "Direct Rendering+ Enabled" : "Direct Rendering+ Disabled";
             xServerView.post(() -> Toast.makeText(xServerView.getContext(), msg, Toast.LENGTH_SHORT).show());
-            xServerView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
+            xServerView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
             xServerView.requestRender();
         }
     }

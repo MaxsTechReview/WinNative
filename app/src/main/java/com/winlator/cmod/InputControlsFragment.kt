@@ -47,7 +47,6 @@ import com.winlator.cmod.databinding.ControlsAnalogSticksCardBinding
 import com.winlator.cmod.databinding.ContentSectionHeaderItemBinding
 import com.winlator.cmod.databinding.ControlsExternalControllerCardBinding
 import com.winlator.cmod.contentdialog.ContentDialog
-import com.winlator.cmod.core.PreloaderDialog
 import com.winlator.cmod.inputcontrols.Binding
 import com.winlator.cmod.inputcontrols.ControlElement
 import com.winlator.cmod.inputcontrols.ControlsProfile
@@ -65,7 +64,7 @@ import org.json.JSONException
 import org.json.JSONObject
 import java.util.concurrent.atomic.AtomicInteger
 
-class InputControlsFragment : Fragment() {
+class InputControlsFragment(private val selectedProfileId: Int) : Fragment() {
 
     private var _binding: InputControlsFragmentV2Binding? = null
     private val binding get() = checkNotNull(_binding)
@@ -92,7 +91,6 @@ class InputControlsFragment : Fragment() {
         super.onCreate(savedInstanceState)
         manager = InputControlsManager(requireContext())
         preferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
-        val selectedProfileId = arguments?.getInt(ARG_SELECTED_PROFILE_ID, 0) ?: 0
         val profileId = if (selectedProfileId > 0) selectedProfileId
             else preferences.getInt(PREF_SELECTED_PROFILE_ID, 0)
         currentProfile = if (profileId > 0) manager.getProfile(profileId) else null
@@ -137,12 +135,13 @@ class InputControlsFragment : Fragment() {
     }
 
     override fun onDestroy() {
+        savePreferences()
         super.onDestroy()
     }
 
     @Suppress("deprecation")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == OPEN_FILE_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
+        if (requestCode == MainActivity.OPEN_FILE_REQUEST_CODE.toInt() && resultCode == Activity.RESULT_OK) {
             try {
                 val jsonString = FileUtils.readString(requireContext(), data?.data)
                 if (jsonString.isNullOrBlank()) {
@@ -176,6 +175,10 @@ class InputControlsFragment : Fragment() {
 
     private fun persistSelectedProfileId() {
         preferences.edit().putInt(PREF_SELECTED_PROFILE_ID, currentProfile?.id ?: 0).apply()
+    }
+
+    private fun savePreferences() {
+        // Gyro and trigger preferences are saved inline when changed
     }
 
     private fun stopGyroSensor() {
@@ -500,16 +503,15 @@ class InputControlsFragment : Fragment() {
         intent.addCategory(Intent.CATEGORY_OPENABLE)
         intent.type = "*/*"
         @Suppress("deprecation")
-        activity?.startActivityFromFragment(this, intent, OPEN_FILE_REQUEST_CODE)
+        activity?.startActivityFromFragment(this, intent, MainActivity.OPEN_FILE_REQUEST_CODE.toInt())
     }
 
     private fun downloadProfileList() {
-        val activity = activity ?: return
-        val preloader = PreloaderDialog(activity)
-        preloader.show(R.string.common_ui_loading)
+        val activity = activity as? MainActivity ?: return
+        activity.preloaderDialog.show(R.string.common_ui_loading)
         HttpUtils.download(String.format(INPUT_CONTROLS_URL, "index.txt")) { content ->
             activity.runOnUiThread {
-                preloader.close()
+                activity.preloaderDialog.close()
                 if (content != null) {
                     val items = content.split("\n").toTypedArray()
                     ContentDialog.showMultipleChoiceList(activity, R.string.input_controls_editor_import_profile, items) { positions ->
@@ -527,9 +529,8 @@ class InputControlsFragment : Fragment() {
     }
 
     private fun downloadSelectedProfiles(items: Array<String>, positions: ArrayList<Int>) {
-        val activity = activity ?: return
-        val preloader = PreloaderDialog(activity)
-        preloader.show(R.string.common_ui_downloading_file)
+        val activity = activity as? MainActivity ?: return
+        activity.preloaderDialog.show(R.string.common_ui_downloading_file)
         currentProfile = null
         persistSelectedProfileId()
         val processedCount = AtomicInteger()
@@ -542,7 +543,7 @@ class InputControlsFragment : Fragment() {
                 }
                 if (processedCount.incrementAndGet() == positions.size) {
                     activity.runOnUiThread {
-                        preloader.close()
+                        activity.preloaderDialog.close()
                         submitRows()
                     }
                 }
@@ -1570,16 +1571,8 @@ class InputControlsFragment : Fragment() {
 
     companion object {
         private const val TAG = "ICFrag"
-        private const val ARG_SELECTED_PROFILE_ID = "selectedProfileId"
-        private const val OPEN_FILE_REQUEST_CODE = 2
         private const val INPUT_CONTROLS_URL =
             "https://raw.githubusercontent.com/brunodev85/winlator/main/input_controls/%s"
-
-        fun newInstance(profileId: Int = 0): InputControlsFragment {
-            return InputControlsFragment().apply {
-                arguments = Bundle().apply { putInt(ARG_SELECTED_PROFILE_ID, profileId) }
-            }
-        }
 
         private const val VIEW_TYPE_HEADER = 0
         private const val VIEW_TYPE_PROFILE = 1

@@ -5,6 +5,9 @@ import android.content.Intent;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -28,7 +31,6 @@ import com.winlator.cmod.container.Shortcut;
 import com.winlator.cmod.contentdialog.ContainerSettingsComposeDialog;
 import com.winlator.cmod.contentdialog.ContentDialog;
 import com.winlator.cmod.contentdialog.StorageInfoDialog;
-import com.winlator.cmod.contents.ContentsManager;
 import com.winlator.cmod.core.PreloaderDialog;
 import com.winlator.cmod.google.ContainerBackupManager;
 import com.winlator.cmod.xenvironment.ImageFs;
@@ -48,6 +50,7 @@ public class ContainersFragment extends Fragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setHasOptionsMenu(true);
         preloaderDialog = new PreloaderDialog(getActivity());
     }
 
@@ -96,26 +99,29 @@ public class ContainersFragment extends Fragment {
             Toast.makeText(getContext(), R.string.setup_wizard_system_image_not_installed, Toast.LENGTH_LONG).show();
             return;
         }
-        new Thread(() -> {
-            Context ctx = getContext();
-            if (ctx == null) return;
-            boolean installed = ContentsManager.hasInstalledRuntimes(ctx);
-            if (!isAdded()) return;
-            requireActivity().runOnUiThread(() -> {
-                if (!isAdded()) return;
-                if (!installed) {
-                    Toast.makeText(getContext(), R.string.container_no_wine_installed, Toast.LENGTH_LONG).show();
-                    return;
-                }
-                new ContainerSettingsComposeDialog(requireActivity(), null, this::loadContainersList).show();
-            });
-        }).start();
+        new ContainerSettingsComposeDialog(requireActivity(), null, this::loadContainersList).show();
     }
 
     private void loadContainersList() {
         ArrayList<Container> containers = manager.getContainers();
         recyclerView.setAdapter(new ContainersAdapter(containers));
         emptyTextView.setVisibility(containers.isEmpty() ? View.VISIBLE : View.GONE);
+    }
+
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater menuInflater) {
+        // Menu removed to clean up header bar
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem menuItem) {
+        switch (menuItem.getItemId()) {
+            case R.id.containers_menu_add:
+                openAddContainer();
+                return true;
+            default:
+                return super.onOptionsItemSelected(menuItem);
+        }
     }
 
     private void showContainerBackupsDialog(Container container) {

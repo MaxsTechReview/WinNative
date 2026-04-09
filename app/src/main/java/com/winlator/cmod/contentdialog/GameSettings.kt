@@ -498,8 +498,11 @@ private fun SectionContent(
         transitionSpec = {
             val direction = if (targetState > initialState) 1 else -1
             (slideInHorizontally(
-                animationSpec = tween(220)
-            ) { direction * it / 6 } + fadeIn(tween(200)))
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioLowBouncy,
+                    stiffness = Spring.StiffnessMedium
+                )
+            ) { direction * it / 6 } + fadeIn(tween(220)))
                 .togetherWith(
                     slideOutHorizontally(
                         animationSpec = tween(180)

@@ -2,6 +2,7 @@ package com.winlator.cmod
 
 import android.content.SharedPreferences
 import android.os.Environment
+import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceManager
 
 object SettingsConfig {
@@ -17,7 +18,7 @@ object SettingsConfig {
         "$DEFAULT_WINLATOR_PATH/Shortcuts"
 
     @JvmStatic
-    fun resetEmulatorsVersion(activity: android.content.Context) {
+    fun resetEmulatorsVersion(activity: AppCompatActivity) {
         val preferences = PreferenceManager.getDefaultSharedPreferences(activity)
         val editor: SharedPreferences.Editor = preferences.edit()
         editor.remove("current_box64_version")
