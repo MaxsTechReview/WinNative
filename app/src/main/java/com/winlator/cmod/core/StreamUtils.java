@@ -6,7 +6,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 public class StreamUtils {
-    public static final int BUFFER_SIZE = 64 * 1024;
+    public static final int BUFFER_SIZE = 256 * 1024;
 
     public static byte[] copyToByteArray(InputStream inStream) {
         if (inStream == null) return new byte[0];

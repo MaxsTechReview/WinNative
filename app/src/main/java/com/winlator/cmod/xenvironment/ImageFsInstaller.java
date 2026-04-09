@@ -24,6 +24,8 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -87,9 +89,13 @@ public abstract class ImageFsInstaller {
             });
 
             if (success) {
-                installWineFromAssets(activity);
-                installDriversFromAssets(activity);
-                installGuestExtras(activity, rootDir);
+                ExecutorService pool = Executors.newFixedThreadPool(3);
+                CountDownLatch latch = new CountDownLatch(3);
+                pool.execute(() -> { try { installWineFromAssets(activity); } finally { latch.countDown(); } });
+                pool.execute(() -> { try { installDriversFromAssets(activity); } finally { latch.countDown(); } });
+                pool.execute(() -> { try { installGuestExtras(activity, rootDir); } finally { latch.countDown(); } });
+                try { latch.await(); } catch (InterruptedException ignored) {}
+                pool.shutdown();
                 imageFs.createImgVersionFile(LATEST_VERSION);
                 resetContainerImgVersions(activity);
             }
@@ -138,16 +144,22 @@ public abstract class ImageFsInstaller {
             });
 
             if (success) {
-                // Install wine and drivers if available
-                try {
-                    String[] versions = activity.getResources().getStringArray(R.array.wine_entries);
-                    for (String version : versions) {
-                        File outFile = new File(rootDir, "/opt/" + version);
-                        outFile.mkdirs();
-                        TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, activity, version + ".txz", outFile);
-                    }
-                } catch (Exception e) { /* wine assets may not exist */ }
-                installGuestExtras(activity, rootDir);
+                ExecutorService pool = Executors.newFixedThreadPool(2);
+                CountDownLatch latch = new CountDownLatch(2);
+                pool.execute(() -> {
+                    try {
+                        String[] versions = activity.getResources().getStringArray(R.array.wine_entries);
+                        for (String version : versions) {
+                            File outFile = new File(rootDir, "/opt/" + version);
+                            outFile.mkdirs();
+                            TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, activity, version + ".txz", outFile);
+                        }
+                    } catch (Exception e) { /* wine assets may not exist */ }
+                    finally { latch.countDown(); }
+                });
+                pool.execute(() -> { try { installGuestExtras(activity, rootDir); } finally { latch.countDown(); } });
+                try { latch.await(); } catch (InterruptedException ignored) {}
+                pool.shutdown();
                 clearSteamDllMarkers(activity);
                 imageFs.createImgVersionFile(LATEST_VERSION);
             } else {

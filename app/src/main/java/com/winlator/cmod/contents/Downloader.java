@@ -16,17 +16,13 @@ import android.util.Log;
 import androidx.preference.PreferenceManager;
 import com.winlator.cmod.PluviaApp;
 
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -34,18 +30,49 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import okhttp3.ConnectionPool;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
+import okio.Buffer;
+import okio.BufferedSource;
 
 public class Downloader {
 
     private static final String TAG = "Downloader";
     private static final String WINNATIVE_ROOT = "https://WinNative.dev/Downloads/";
     private static final int MAX_CRAWL_DEPTH = 10;
-    private static final int FILE_CONNECT_TIMEOUT_MS = 15000;
-    private static final int FILE_READ_TIMEOUT_MS = 30000;
-    private static final int STRING_CONNECT_TIMEOUT_MS = 5000;
-    private static final int STRING_READ_TIMEOUT_MS = 10000;
+    private static final int READ_BUFFER_SIZE = 256 * 1024; // 256 KB — fewer syscalls per read cycle
+
+    /**
+     * Shared OkHttpClient for file downloads.
+     * - HTTP/2 + connection pooling so the 2nd+ downloads to the same host
+     *   skip TCP handshake and slow-start entirely
+     * - Connections stay warm for 5 minutes across sequential component installs
+     */
+    private static final OkHttpClient FILE_CLIENT = new OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .connectionPool(new ConnectionPool(8, 5, TimeUnit.MINUTES))
+            .retryOnConnectionFailure(true)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .build();
+
+    /**
+     * Lightweight client for short string fetches (JSON, directory listings).
+     * Shares the same connection pool as file downloads so that a directory
+     * crawl warms up connections for subsequent file downloads.
+     */
+    private static final OkHttpClient STRING_CLIENT = FILE_CLIENT.newBuilder()
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .build();
     private static final Pattern HREF_PATTERN = Pattern.compile("href=\"([^\"?]+)\"");
     private static final String FILE_MAP_CACHE_NAME = "winnative_file_map_v1.txt";
     private static final String FILE_MAP_CACHE_HEADER_PREFIX = "# timestamp=";
@@ -378,9 +405,9 @@ public class Downloader {
 
     /**
      * Downloads a file from the given address with progress reporting.
+     * Uses OkHttp with HTTP/2 and connection pooling for fast ramp-up.
      */
     public static boolean downloadFile(String address, File file, DownloadListener listener) {
-        HttpURLConnection connection = null;
         try {
             File parent = file.getParentFile();
             if (parent != null && !parent.exists() && !parent.mkdirs()) {
@@ -388,100 +415,82 @@ public class Downloader {
                 return false;
             }
 
-            connection = openConnection(address, FILE_CONNECT_TIMEOUT_MS, FILE_READ_TIMEOUT_MS, true);
-            long lengthOfFile = connection.getContentLengthLong();
-            long total = 0;
-            long lastUpdateTime = 0;
+            Request request = new Request.Builder()
+                    .url(address)
+                    .header("Accept-Encoding", "identity")
+                    .build();
 
-            if (listener != null) {
-                listener.onProgress(0, lengthOfFile);
-            }
-
-            try (InputStream input = connection.getInputStream();
-                 OutputStream output = new BufferedOutputStream(new FileOutputStream(file), 131072)) {
-                byte[] data = new byte[65536];
-                int count;
-
-                while ((count = input.read(data)) != -1) {
-                    total += count;
-                    output.write(data, 0, count);
-                    if (listener != null) {
-                        long currentTime = System.currentTimeMillis();
-                        if (currentTime - lastUpdateTime > 80 || total == lengthOfFile) {
-                            listener.onProgress(total, lengthOfFile);
-                            lastUpdateTime = currentTime;
-                        }
-                    }
+            try (Response response = FILE_CLIENT.newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    throw new IllegalStateException("HTTP " + response.code() + " for " + address);
                 }
 
-                output.flush();
-            }
+                ResponseBody body = response.body();
+                if (body == null) {
+                    throw new IllegalStateException("Empty response body for " + address);
+                }
 
-            // Always report 100% on successful completion — Content-Length
-            // can differ from actual bytes received (CDN quirks, chunked
-            // encoding, etc.), so use total/total to guarantee 100%.
-            if (listener != null) {
-                listener.onProgress(total, total);
+                long lengthOfFile = body.contentLength();
+                long total = 0;
+                long lastUpdateTime = 0;
+
+                if (listener != null) {
+                    listener.onProgress(0, lengthOfFile);
+                }
+
+                try (BufferedSource source = body.source();
+                     FileOutputStream fos = new FileOutputStream(file)) {
+                    Buffer buffer = new Buffer();
+                    long bytesRead;
+
+                    while ((bytesRead = source.read(buffer, READ_BUFFER_SIZE)) != -1) {
+                        buffer.writeTo(fos);
+                        total += bytesRead;
+                        if (listener != null) {
+                            long currentTime = System.currentTimeMillis();
+                            if (currentTime - lastUpdateTime > 80 || total == lengthOfFile) {
+                                listener.onProgress(total, lengthOfFile);
+                                lastUpdateTime = currentTime;
+                            }
+                        }
+                    }
+
+                    fos.flush();
+                }
+
+                if (listener != null) {
+                    listener.onProgress(total, total);
+                }
+                return true;
             }
-            return true;
         } catch (Exception e) {
             if (logEnabled()) Log.w(TAG, "Download failed for " + address, e);
             if (file.exists() && !file.delete() && logEnabled()) {
                 Log.w(TAG, "Unable to delete partial download: " + file.getAbsolutePath());
             }
             return false;
-        } finally {
-            if (connection != null) {
-                connection.disconnect();
-            }
         }
     }
 
     /**
      * Downloads a URL as a String (used for JSON fetches and directory listings).
+     * Shares the connection pool with file downloads so directory crawling
+     * warms up connections for subsequent file downloads.
      */
     public static String downloadString(String address) {
-        HttpURLConnection connection = null;
-        try {
-            connection = openConnection(address, STRING_CONNECT_TIMEOUT_MS, STRING_READ_TIMEOUT_MS, false);
-            StringBuilder sb = new StringBuilder();
-            try (InputStream input = connection.getInputStream();
-                 BufferedReader reader = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    sb.append(line).append("\n");
-                }
+        Request request = new Request.Builder()
+                .url(address)
+                .build();
+
+        try (Response response = STRING_CLIENT.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IllegalStateException("HTTP " + response.code() + " for " + address);
             }
-            return sb.toString();
+            ResponseBody body = response.body();
+            return body != null ? body.string() : null;
         } catch (Exception e) {
             if (logEnabled()) Log.w(TAG, "String download failed for " + address, e);
             return null;
-        } finally {
-            if (connection != null) {
-                connection.disconnect();
-            }
         }
-    }
-
-    private static HttpURLConnection openConnection(
-            String address,
-            int connectTimeoutMs,
-            int readTimeoutMs,
-            boolean identityEncoding
-    ) throws Exception {
-        HttpURLConnection connection = (HttpURLConnection) new URL(address).openConnection();
-        connection.setInstanceFollowRedirects(true);
-        connection.setConnectTimeout(connectTimeoutMs);
-        connection.setReadTimeout(readTimeoutMs);
-        if (identityEncoding) {
-            connection.setRequestProperty("Accept-Encoding", "identity");
-        }
-        connection.connect();
-
-        int responseCode = connection.getResponseCode();
-        if (responseCode < HttpURLConnection.HTTP_OK || responseCode >= HttpURLConnection.HTTP_MULT_CHOICE) {
-            throw new IllegalStateException("HTTP " + responseCode + " for " + address);
-        }
-        return connection;
     }
 }
