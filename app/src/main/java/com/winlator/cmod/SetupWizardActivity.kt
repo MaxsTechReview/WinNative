@@ -427,6 +427,7 @@ class SetupWizardActivity : FragmentActivity() {
     private val defaultArmContainerName = mutableStateOf("")
     private val wizardError = mutableStateOf<String?>(null)
     private val transferState = mutableStateOf<TransferState?>(null)
+    private val creatingContainer = mutableStateOf(false)
     private val advancedProfiles = mutableStateListOf<RemotePackageSpec>()
     private val advancedInstalledSet = mutableStateListOf<String>()
     private val advancedContainerNames = mutableStateListOf<String>()
@@ -1610,7 +1611,7 @@ class SetupWizardActivity : FragmentActivity() {
                     } else {
                         AccentPillButton(
                             label = stringResource(R.string.setup_wizard_finish),
-                            enabled = transferState.value == null,
+                            enabled = transferState.value == null && !creatingContainer.value,
                             onClick = { finishWizard() }
                         )
                     }
@@ -1648,21 +1649,12 @@ class SetupWizardActivity : FragmentActivity() {
                 .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (state.progress == null) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    color = Color(0xFF57CBDE),
-                    strokeWidth = 2.dp
-                )
-                Spacer(Modifier.width(12.dp))
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .background(Color(0xFF57CBDE), RoundedCornerShape(4.dp))
-                )
-                Spacer(Modifier.width(10.dp))
-            }
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(Color(0xFF57CBDE), RoundedCornerShape(4.dp))
+            )
+            Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -2296,7 +2288,7 @@ class SetupWizardActivity : FragmentActivity() {
         var existingContainer by remember { mutableStateOf(
             containerManager.containers.firstOrNull { it.wineVersion == entryName }
         ) }
-        var creating by remember { mutableStateOf(false) }
+        val creating = creatingContainer.value
 
         val hasContainer = existingContainer != null
         val bgColor = Color(0xFF12171F)
@@ -2346,7 +2338,7 @@ class SetupWizardActivity : FragmentActivity() {
                 Button(
                     onClick = {
                         if (creating) return@Button
-                        creating = true
+                        creatingContainer.value = true
                         lifecycleScope.launch {
                             wizardError.value = null
                             val container = withContext(Dispatchers.IO) {
@@ -2364,7 +2356,7 @@ class SetupWizardActivity : FragmentActivity() {
                                 }
                             }
                             existingContainer = container
-                            creating = false
+                            creatingContainer.value = false
                             refreshAdvancedInstalledSet()
                             refreshWizardState()
                         }
