@@ -163,6 +163,8 @@ public class AdrenotoolsManager {
     }
         
     public boolean extractDriverFromResources(String adrenotoolsDriverId) {
+        if ("System".equalsIgnoreCase(adrenotoolsDriverId)) return true;
+
         String src = "graphics_driver/adrenotools-" + adrenotoolsDriverId + ".tzst";
         boolean hasExtracted;
 

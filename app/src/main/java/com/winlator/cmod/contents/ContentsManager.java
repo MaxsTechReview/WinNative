@@ -222,11 +222,15 @@ public class ContentsManager {
         } : null;
 
         boolean ret;
-        ret = TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, context, uri, file, extractListener);
+        TarCompressorUtils.Type primaryType = detectCompressionType(context, uri);
+        TarCompressorUtils.Type fallbackType = (primaryType == TarCompressorUtils.Type.ZSTD)
+                ? TarCompressorUtils.Type.XZ : TarCompressorUtils.Type.ZSTD;
+
+        ret = TarCompressorUtils.extract(primaryType, context, uri, file, extractListener);
         if (!ret) {
             fileCount[0] = 0;
             lastProgressUpdateMs[0] = 0L;
-            ret = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, uri, file, extractListener);
+            ret = TarCompressorUtils.extract(fallbackType, context, uri, file, extractListener);
         }
         if (!ret) {
             callback.onFailed(InstallFailedReason.ERROR_BADTAR, null);
@@ -370,6 +374,37 @@ public class ContentsManager {
         int protonCount = protonProfiles != null ? protonProfiles.size() : 0;
         Log.d("ContentsManager", "No installed runtimes found (wine profiles: " + wineCount + ", proton profiles: " + protonCount + ")");
         return false;
+    }
+
+    private static TarCompressorUtils.Type detectCompressionType(Context context, Uri uri) {
+        try {
+            byte[] header = new byte[6];
+            int read;
+            if (uri.toString().startsWith("/") || "file".equalsIgnoreCase(uri.getScheme())) {
+                String path = uri.getPath();
+                if (path == null) path = uri.toString();
+                try (java.io.FileInputStream fis = new java.io.FileInputStream(path)) {
+                    read = fis.read(header);
+                }
+            } else {
+                try (java.io.InputStream is = context.getContentResolver().openInputStream(uri)) {
+                    if (is == null) return TarCompressorUtils.Type.XZ;
+                    read = is.read(header);
+                }
+            }
+            if (read >= 6 &&
+                    header[0] == (byte) 0xFD && header[1] == '7' && header[2] == 'z' &&
+                    header[3] == 'X' && header[4] == 'Z' && header[5] == 0x00) {
+                return TarCompressorUtils.Type.XZ;
+            }
+            if (read >= 4 &&
+                    (header[0] & 0xFF) == 0x28 && (header[1] & 0xFF) == 0xB5 &&
+                    (header[2] & 0xFF) == 0x2F && (header[3] & 0xFF) == 0xFD) {
+                return TarCompressorUtils.Type.ZSTD;
+            }
+        } catch (Exception ignored) {
+        }
+        return TarCompressorUtils.Type.XZ;
     }
 
     public static File getContentDir(Context context) {
