@@ -159,10 +159,6 @@ object PrefManager {
         get() = getString("gog_download_folder", "")
         set(value) { setString("gog_download_folder", value) }
 
-    var amazonDownloadFolder: String
-        get() = getString("amazon_download_folder", "")
-        set(value) { setString("amazon_download_folder", value) }
-
     var downloadQueueSize: Int
         get() = getInt("download_queue_size", 1)
         set(value) { setInt("download_queue_size", value) }

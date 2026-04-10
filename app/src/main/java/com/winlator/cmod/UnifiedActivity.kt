@@ -694,14 +694,13 @@ class UnifiedActivity : AppCompatActivity() {
         if (storeVisible["steam"] != false) base.add(TabDef("Steam", "steam"))
         if (storeVisible["epic"] != false) base.add(TabDef("Epic", "epic"))
         if (storeVisible["gog"] != false) base.add(TabDef("GOG", "gog"))
-        if (storeVisible["amazon"] != false) base.add(TabDef("Amazon", "amazon"))
         return base
     }
 
     // Main scaffold
     @Composable
     fun UnifiedHub() {
-        val storeVisible = remember { mutableStateMapOf("steam" to true, "epic" to true, "gog" to true, "amazon" to true) }
+        val storeVisible = remember { mutableStateMapOf("steam" to true, "epic" to true, "gog" to true) }
         var showAddCustomGame by remember { mutableStateOf(false) }
         var showExitDialog by remember { mutableStateOf(false) }
         var searchQueryTfv by remember { mutableStateOf(TextFieldValue("")) }
@@ -1046,7 +1045,6 @@ class UnifiedActivity : AppCompatActivity() {
                                 "gog" -> GOGStoreTab(isGogLoggedIn, searchQuery, libraryLayoutMode) {
                                     gogLoginLauncher.launch(Intent(this@UnifiedActivity, GOGOAuthActivity::class.java))
                                 }
-                                "amazon" -> StorePlaceholderTab("Amazon Games")
                                 else -> {}
                             }
                         }
@@ -5370,32 +5368,6 @@ class UnifiedActivity : AppCompatActivity() {
         }
     }
 
-    // Store placeholder tabs
-    @Composable
-    fun StorePlaceholderTab(storeName: String) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    Icons.Outlined.Store,
-                    contentDescription = null,
-                    tint = TextSecondary,
-                    modifier = Modifier.size(64.dp)
-                )
-                Spacer(Modifier.height(16.dp))
-                Text("$storeName", style = MaterialTheme.typography.headlineSmall, color = TextPrimary, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
-                Text(stringResource(R.string.common_ui_coming_soon), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
-                Spacer(Modifier.height(24.dp))
-                Button(
-                    onClick = { /* TODO: Wire sign-in flow */ },
-                    colors = ButtonDefaults.buttonColors(containerColor = Accent),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Sign In to $storeName")
-                }
-            }
-        }
-    }
 
     // Game Manager Dialog
     @Composable
@@ -6594,7 +6566,7 @@ class UnifiedActivity : AppCompatActivity() {
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     DrawerFilterButton("GOG", storeVisible["gog"] == true, Modifier.weight(1f)) { storeVisible["gog"] = it }
-                    DrawerFilterButton("Amazon", storeVisible["amazon"] == true, Modifier.weight(1f)) { storeVisible["amazon"] = it }
+                    Spacer(Modifier.weight(1f))
                 }
 
                 Spacer(Modifier.height(16.dp))

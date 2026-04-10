@@ -58,10 +58,6 @@ class StoresFragment : Fragment() {
         ActivityResultContracts.OpenDocumentTree()
     ) { uri -> uri?.let { persistUri(it); PrefManager.gogDownloadFolder = it.toString(); refresh() } }
 
-    private val amazonFolderLauncher = registerForActivityResult(
-        ActivityResultContracts.OpenDocumentTree()
-    ) { uri -> uri?.let { persistUri(it); PrefManager.amazonDownloadFolder = it.toString(); refresh() } }
-
     private val gogLoginLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -156,7 +152,6 @@ class StoresFragment : Fragment() {
                         onPickSteamFolder    = { steamFolderLauncher.launch(null) },
                         onPickEpicFolder     = { epicFolderLauncher.launch(null) },
                         onPickGogFolder      = { gogFolderLauncher.launch(null) },
-                        onPickAmazonFolder   = { amazonFolderLauncher.launch(null) },
                     )
                 }
             }
@@ -224,7 +219,6 @@ class StoresFragment : Fragment() {
             steamFolder     = resolveUri(PrefManager.steamDownloadFolder,   ctx),
             epicFolder      = resolveUri(PrefManager.epicDownloadFolder,    ctx),
             gogFolder       = resolveUri(PrefManager.gogDownloadFolder,     ctx),
-            amazonFolder    = resolveUri(PrefManager.amazonDownloadFolder,  ctx),
         )
     }
 

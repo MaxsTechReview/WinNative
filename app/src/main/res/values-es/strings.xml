@@ -920,6 +920,5 @@ Ruta instalada:
     <string name="preloader_platform_epic">Epic Games</string>
     <string name="preloader_platform_gog">GOG</string>
     <string name="preloader_platform_custom">Juego personalizado</string>
-    <string name="preloader_platform_amazon">Amazon</string>
 
 </resources>

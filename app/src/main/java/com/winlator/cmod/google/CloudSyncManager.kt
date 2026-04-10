@@ -52,19 +52,10 @@ object CloudSyncManager {
     private const val ZIP_STEAM = "stores/steam.json"
     private const val ZIP_EPIC = "stores/epic_credentials.json"
     private const val ZIP_GOG = "stores/gog_auth.json"
-    private const val ZIP_AMAZON = "stores/amazon_credentials.json"
 
     private const val STORE_STEAM = "Steam"
     private const val STORE_EPIC = "Epic"
     private const val STORE_GOG = "GOG"
-    private const val STORE_AMAZON = "Amazon"
-
-    private const val AMAZON_PRIMARY_RELATIVE_PATH = "amazon/credentials.json"
-    private val AMAZON_DISCOVERY_PATHS = listOf(
-        AMAZON_PRIMARY_RELATIVE_PATH,
-        "amazon/auth.json",
-        "amazon_auth.json"
-    )
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val syncMutex = Mutex()
@@ -644,7 +635,6 @@ object CloudSyncManager {
         exportSteam(context)?.let { stores[STORE_STEAM] = it }
         exportEpic(context)?.let { stores[STORE_EPIC] = it }
         exportGog(context)?.let { stores[STORE_GOG] = it }
-        exportAmazon(context)?.let { stores[STORE_AMAZON] = it }
 
         val createdAt = System.currentTimeMillis()
         val fingerprint = computeFingerprint(stores)
@@ -687,16 +677,6 @@ object CloudSyncManager {
         return if (file.exists()) file.readBytes() else null
     }
 
-    private fun exportAmazon(context: Context): ByteArray? {
-        for (relativePath in AMAZON_DISCOVERY_PATHS) {
-            val file = File(context.filesDir, relativePath)
-            if (file.exists()) {
-                return file.readBytes()
-            }
-        }
-        return null
-    }
-
     private fun restoreMissingStores(context: Context, payload: StorePayload): Set<String> {
         val restored = linkedSetOf<String>()
 
@@ -710,9 +690,6 @@ object CloudSyncManager {
                 }
                 STORE_GOG -> if (!GOGAuthManager.hasStoredCredentials(context) && restoreGog(context, bytes)) {
                     restored += STORE_GOG
-                }
-                STORE_AMAZON -> if (restoreAmazon(context, bytes)) {
-                    restored += STORE_AMAZON
                 }
             }
         }
@@ -773,19 +750,6 @@ object CloudSyncManager {
         }
     }
 
-    private fun restoreAmazon(context: Context, bytes: ByteArray): Boolean {
-        return runCatching {
-            Timber.tag(TAG).i("Restoring Amazon login tokens from cloud payload")
-            val file = File(context.filesDir, AMAZON_PRIMARY_RELATIVE_PATH)
-            file.parentFile?.mkdirs()
-            file.writeBytes(bytes)
-            true
-        }.getOrElse { error ->
-            Timber.tag(TAG).e(error, "Failed to restore Amazon login tokens")
-            false
-        }
-    }
-
     private fun payloadToZip(payload: StorePayload): ByteArray {
         val output = ByteArrayOutputStream()
         ZipOutputStream(output).use { zip ->
@@ -802,7 +766,6 @@ object CloudSyncManager {
                     STORE_STEAM -> ZIP_STEAM
                     STORE_EPIC -> ZIP_EPIC
                     STORE_GOG -> ZIP_GOG
-                    STORE_AMAZON -> ZIP_AMAZON
                     else -> null
                 }
                 if (entryName != null) {
@@ -831,7 +794,6 @@ object CloudSyncManager {
                     ZIP_STEAM -> stores[STORE_STEAM] = entryBytes
                     ZIP_EPIC -> stores[STORE_EPIC] = entryBytes
                     ZIP_GOG -> stores[STORE_GOG] = entryBytes
-                    ZIP_AMAZON -> stores[STORE_AMAZON] = entryBytes
                 }
                 zip.closeEntry()
                 entry = zip.nextEntry

@@ -98,7 +98,6 @@ private fun platformStringRes(source: String): Int? = when (source.uppercase()) 
     "EPIC" -> R.string.preloader_platform_epic
     "GOG" -> R.string.preloader_platform_gog
     "CUSTOM" -> R.string.preloader_platform_custom
-    "AMAZON" -> R.string.preloader_platform_amazon
     else -> null
 }
 
@@ -107,7 +106,6 @@ private fun platformColor(source: String): Color = when (source.uppercase()) {
     "EPIC" -> Color(0xFF8A8A8A)
     "GOG" -> Color(0xFFAB47BC)
     "CUSTOM" -> Color(0xFF4CAF50)
-    "AMAZON" -> Color(0xFFFF9800)
     else -> Color(0xFF57CBDE)
 }
 

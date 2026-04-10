@@ -920,6 +920,5 @@ Zainstalowana ścieżka:
     <string name="preloader_platform_epic">Epic Games</string>
     <string name="preloader_platform_gog">GOG</string>
     <string name="preloader_platform_custom">Gra niestandardowa</string>
-    <string name="preloader_platform_amazon">Amazon</string>
 
 </resources>

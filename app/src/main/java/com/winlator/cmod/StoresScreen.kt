@@ -41,7 +41,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderShared
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Gamepad
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Speed
@@ -99,7 +98,6 @@ data class StoreState(
     val steamFolder: String = "",
     val epicFolder: String = "",
     val gogFolder: String = "",
-    val amazonFolder: String = "",
 )
 
 // Root
@@ -127,7 +125,6 @@ fun StoresScreen(
     onPickSteamFolder: () -> Unit,
     onPickEpicFolder: () -> Unit,
     onPickGogFolder: () -> Unit,
-    onPickAmazonFolder: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -144,7 +141,6 @@ fun StoresScreen(
             icon = Icons.Filled.Gamepad,
             accentColor = Color(0xFF66C0F4),
             isLoggedIn = state.isSteamLoggedIn,
-            isComingSoon = false,
             onSignIn = onSteamSignIn,
             onSignOut = onSteamSignOut,
         )
@@ -153,7 +149,6 @@ fun StoresScreen(
             icon = Icons.Filled.Gamepad,
             accentColor = Color(0xFF8BAFD4),
             isLoggedIn = state.isEpicLoggedIn,
-            isComingSoon = false,
             onSignIn = onEpicSignIn,
             onSignOut = onEpicSignOut,
         )
@@ -162,18 +157,8 @@ fun StoresScreen(
             icon = Icons.Filled.Gamepad,
             accentColor = Color(0xFFA855F7),
             isLoggedIn = state.isGogLoggedIn,
-            isComingSoon = false,
             onSignIn = onGogSignIn,
             onSignOut = onGogSignOut,
-        )
-        StoreCard(
-            name = "Amazon Games",
-            icon = Icons.Filled.Gamepad,
-            accentColor = Color(0xFFFF9900),
-            isLoggedIn = false,
-            isComingSoon = true,
-            onSignIn = {},
-            onSignOut = {},
         )
 
         SectionLabel("Download Settings", modifier = Modifier.padding(top = 8.dp))
@@ -205,7 +190,6 @@ fun StoresScreen(
                     FolderPathCard("Steam Downloads",  state.steamFolder,  onPickSteamFolder)
                     FolderPathCard("Epic Downloads",   state.epicFolder,   onPickEpicFolder)
                     FolderPathCard("GOG Downloads",    state.gogFolder,    onPickGogFolder)
-                    FolderPathCard("Amazon Downloads", state.amazonFolder, onPickAmazonFolder)
                 }
             }
         }
@@ -298,7 +282,6 @@ private fun StoreCard(
     icon: ImageVector,
     accentColor: Color,
     isLoggedIn: Boolean,
-    isComingSoon: Boolean,
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
 ) {
@@ -368,77 +351,42 @@ private fun StoreCard(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(Modifier.height(4.dp))
-                if (isComingSoon) {
-                    Text(text = stringResource(R.string.common_ui_coming_soon), color = TextSecondary, fontSize = 12.sp)
-                } else {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(contentAlignment = Alignment.Center) {
-                            if (isLoggedIn) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(10.dp)
-                                        .scale(pulseScale)
-                                        .clip(CircleShape)
-                                        .background(StatusGreen.copy(alpha = pulseAlpha)),
-                                )
-                            }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(contentAlignment = Alignment.Center) {
+                        if (isLoggedIn) {
                             Box(
                                 modifier = Modifier
-                                    .size(6.dp)
+                                    .size(10.dp)
+                                    .scale(pulseScale)
                                     .clip(CircleShape)
-                                    .background(
-                                        if (isLoggedIn) StatusGreen
-                                        else TextSecondary.copy(alpha = 0.4f)
-                                    ),
+                                    .background(StatusGreen.copy(alpha = pulseAlpha)),
                             )
                         }
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = if (isLoggedIn) stringResource(R.string.common_ui_signed_in) else stringResource(R.string.google_cloud_status_not_signed_in),
-                            color = if (isLoggedIn) StatusGreen else TextSecondary,
-                            fontSize = 12.sp,
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isLoggedIn) StatusGreen
+                                    else TextSecondary.copy(alpha = 0.4f)
+                                ),
                         )
                     }
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = if (isLoggedIn) stringResource(R.string.common_ui_signed_in) else stringResource(R.string.google_cloud_status_not_signed_in),
+                        color = if (isLoggedIn) StatusGreen else TextSecondary,
+                        fontSize = 12.sp,
+                    )
                 }
             }
 
-            if (isComingSoon) {
-                ComingSoonBadge()
-            } else {
-                ActionButton(
-                    label = if (isLoggedIn) "Sign Out" else "Sign In",
-                    textColor = if (isLoggedIn) DangerRed else accentColor,
-                    onClick = if (isLoggedIn) ({ showSignOutDialog = true }) else onSignIn,
-                )
-            }
+            ActionButton(
+                label = if (isLoggedIn) "Sign Out" else "Sign In",
+                textColor = if (isLoggedIn) DangerRed else accentColor,
+                onClick = if (isLoggedIn) ({ showSignOutDialog = true }) else onSignIn,
+            )
         }
-    }
-}
-
-@Composable
-private fun ComingSoonBadge() {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(Color(0xFF262638))
-            .border(1.dp, Color(0xFF363650), RoundedCornerShape(6.dp))
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Lock,
-            contentDescription = null,
-            tint = TextSecondary,
-            modifier = Modifier.size(10.dp),
-        )
-        Text(
-            text = stringResource(R.string.common_ui_coming_soon).uppercase(),
-            color = TextSecondary,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.8.sp,
-        )
     }
 }
 
