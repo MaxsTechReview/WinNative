@@ -26,7 +26,7 @@ object SettingsRoutes {
     fun fromNavItem(item: SettingsNavItem): String = "settings/${item.name.lowercase()}"
 }
 
-private val SettingsBg = Color(0xFF121212)
+private val SettingsBg = Color(0xFF1C1C1C)
 
 @Composable
 fun SettingsHost(

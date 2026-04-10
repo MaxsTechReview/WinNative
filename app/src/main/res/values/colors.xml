@@ -6,10 +6,9 @@
     <color name="colorPrimary">#607d8b</color>
     <color name="colorPrimaryDark">#455a64</color>
     <color name="colorAccent">#0288d1</color>
-    <color name="black">#000000</color>
 
-    
-    <color name="window_background_color_dark">#121212</color>
+
+    <color name="window_background_color_dark">#1C1C1C</color>
     <color name="colorPrimaryDarkMode">#37474f</color>
     <color name="colorPrimaryDarkModeDark">#263238</color>
     <color name="colorAccentDark">#80d8ff</color>
@@ -17,25 +16,23 @@
     <color name="gray">#888888</color>
 
     
-<color name="content_dialog_background_dark">#424242</color>
-    <color name="button_neutral_dark">#37474f</color>
-    <color name="button_positive_dark">#1e88e5</color>
-    <color name="settings_section_surface">#151E2A</color>
-    <color name="control_editor_background">#030612</color>
-    <color name="settings_card_surface">#1A2432</color>
-    <color name="settings_outline">#1A2A3D</color>
-    <color name="settings_chip_surface">#1B2A3D</color>
+<color name="content_dialog_background_dark">#4C4C4C</color>
+    <color name="settings_section_surface">#1C2838</color>
+    <color name="control_editor_background">#060C23</color>
+    <color name="settings_card_surface">#212E3F</color>
+    <color name="settings_outline">#20344B</color>
+    <color name="settings_chip_surface">#21344B</color>
     <color name="settings_chip_selected">#1A9FFF</color>
     <color name="settings_chip_selected_stroke">#74D0FF</color>
     <color name="settings_text_primary">#F5F9FF</color>
     <color name="settings_text_secondary">#9CB0C7</color>
     <color name="settings_icon_tint">#D7E6F7</color>
-    <color name="settings_action_surface">#132030</color>
-    <color name="settings_action_surface_pressed">#1A2A3D</color>
+    <color name="settings_action_surface">#192A3F</color>
+    <color name="settings_action_surface_pressed">#20344B</color>
     <color name="settings_accent">#1A9FFF</color>
     <color name="settings_danger">#FF7A88</color>
-    <color name="settings_popup_surface">#162130</color>
-    <color name="settings_popup_surface_edge">#2D425A</color>
+    <color name="settings_popup_surface">#1C2B3E</color>
+    <color name="settings_popup_surface_edge">#344C68</color>
     <color name="settings_input_outline_soft">#52F5F9FF</color>
 
     <color name="abc_decor_view_status_guard">#ff000000</color>
@@ -153,14 +150,4 @@
     <color name="tooltip_background_dark">#e6616161</color>
     <color name="tooltip_background_light">#e6ffffff</color>
 
-<color name="navigation_dialog_background">#1A1A1A</color>
-    <color name="navigation_dialog_item_color">#FAFAFA</color>
-    <color name="external_display_surface_background">#2B2B2B</color>
-    <color name="external_display_keyboard_background">#1F1F1F</color>
-    <color name="external_display_key_background">#3A3A3A</color>
-    <color name="external_display_key_highlight_background">#3D6CC4</color>
-    <color name="external_display_key_highlight_strong_background">#2E5AAC</color>
-
-    <color name="seekbar_blue">#2196F3</color>
-    <color name="seekbar_blue_track">#332196F3</color>
-    <color name="menu_gradient_start">#2e1065</color><color name="menu_gradient_end">#172554</color></resources>
+</resources>

@@ -52,15 +52,15 @@ import com.winlator.cmod.R
 import kotlin.math.roundToInt
 
 // Color scheme matching updated UI
-private val BgDark        = Color(0xFF151E2A)
-private val SurfaceDark   = Color(0xFF1A2432)
-private val CardBorder    = Color(0xFF25364A)
+private val BgDark        = Color(0xFF1C2838)
+private val SurfaceDark   = Color(0xFF212E3F)
+private val CardBorder    = Color(0xFF2C4058)
 private val Accent        = Color(0xFF1A9FFF)
 private val TextPrimary   = Color(0xFFF5F9FF)
 private val TextSecondary = Color(0xFF9CB0C7)
-private val DividerColor  = Color(0xFF25364A)
-private val CheckBorder   = Color(0xFF2D425A)
-private val TrackInactive = Color(0xFF25364A)
+private val DividerColor  = Color(0xFF2C4058)
+private val CheckBorder   = Color(0xFF344C68)
+private val TrackInactive = Color(0xFF2C4058)
 
 data class ScreenEffectState(
     val brightness: Float = 0f,

@@ -2,7 +2,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0F1015"
+    android:background="#181921"
     android:id="@+id/main_root">
 
     <!-- Top Bar -->
@@ -13,7 +13,7 @@
         android:gravity="center_vertical"
         android:paddingHorizontal="16dp"
         android:layout_gravity="top"
-        android:background="#1C1D24"
+        android:background="#25262F"
         android:elevation="4dp">
 
         <ImageView

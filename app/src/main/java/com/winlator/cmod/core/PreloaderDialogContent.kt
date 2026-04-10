@@ -82,14 +82,14 @@ class PreloaderDialogState {
 private data class Particle(val x: Float, val speed: Float, val size: Float, val phaseOffset: Float)
 
 // Colors
-private val BgDark = Color(0xFF0A0E14)
+private val BgDark = Color(0xFF111822)
 private val TextPrimary = Color(0xFFF5F9FF)
 private val TextSecondary = Color(0xFF9CB0C7)
 private val TextDim = Color(0xFF6B7F95)
-private val TrackColor = Color(0xFF1A2030)
+private val TrackColor = Color(0xFF21293D)
 private val IndicatorColor = Color(0xFF57CBDE)
-private val CardBg = Color(0xFF12161C)
-private val CardBorder = Color(0xFF1E2A36)
+private val CardBg = Color(0xFF1A2028)
+private val CardBorder = Color(0xFF253443)
 
 private val InterFont = FontFamily(Font(R.font.inter_medium))
 

@@ -49,14 +49,14 @@ import androidx.compose.ui.unit.sp
 
 // ─── Palette ────────────────────────────────────────────────────────
 
-private val SidebarBgTop    = Color(0xFF101520)
-private val SidebarBgBot    = Color(0xFF0A0D12)
+private val SidebarBgTop    = Color(0xFF171E2E)
+private val SidebarBgBot    = Color(0xFF11161F)
 private val SectionLabelClr = Color(0xFF3D4F65)
 private val TextNormal      = Color(0xFF7A8FA8)
 private val TextSelected    = Color(0xFFF0F4FF)
 private val IconMuted       = Color(0xFF4A7A8F)
-private val SelectedBg      = Color(0xFF0D1420)
-private val DividerColor    = Color(0xFF1A2332)
+private val SelectedBg      = Color(0xFF131D2F)
+private val DividerColor    = Color(0xFF212C3F)
 
 private val AccentSelected   = Color(0xFF4FC3F7)
 

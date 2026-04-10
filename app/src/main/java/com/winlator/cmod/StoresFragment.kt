@@ -124,8 +124,8 @@ class StoresFragment : Fragment() {
                 MaterialTheme(
                     colorScheme = darkColorScheme(
                         primary    = Color(0xFF1A9FFF),
-                        background = Color(0xFF0D1117),
-                        surface    = Color(0xFF161B22),
+                        background = Color(0xFF141B24),
+                        surface    = Color(0xFF1E252E),
                     )
                 ) {
                     StoresScreen(

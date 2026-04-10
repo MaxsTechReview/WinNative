@@ -119,7 +119,7 @@ public class HubActivity extends AppCompatActivity {
             RecyclerView.LayoutParams lp = new RecyclerView.LayoutParams(width, height);
             lp.setMargins(16, 16, 16, 16);
             tv.setLayoutParams(lp);
-            tv.setBackgroundColor(Color.parseColor("#333333"));
+            tv.setBackgroundColor(Color.parseColor("#3D3D3D"));
             tv.setTextColor(Color.WHITE);
             tv.setTextSize(18);
             tv.setGravity(android.view.Gravity.CENTER);
@@ -129,10 +129,10 @@ public class HubActivity extends AppCompatActivity {
             // Controller focus highlight
             tv.setOnFocusChangeListener((v, hasFocus) -> {
                 if (hasFocus) {
-                    v.setBackgroundColor(Color.parseColor("#555555"));
+                    v.setBackgroundColor(Color.parseColor("#5F5F5F"));
                     v.animate().scaleX(1.05f).scaleY(1.05f).setDuration(150).start();
                 } else {
-                    v.setBackgroundColor(Color.parseColor("#333333"));
+                    v.setBackgroundColor(Color.parseColor("#3D3D3D"));
                     v.animate().scaleX(1.0f).scaleY(1.0f).setDuration(150).start();
                 }
             });
