@@ -495,8 +495,6 @@ class ShortcutSettingsComposeDialog private constructor(
         // Show Box64/FEXCore frames based on saved emulator selection immediately,
         // before the async content sync runs
         updateEmulatorFrameVisibility()
-
-        state.isLoaded.value = true
     }
 
     private fun loadContentsAsync() {
@@ -504,10 +502,17 @@ class ShortcutSettingsComposeDialog private constructor(
             try {
                 contentsManager.syncContents()
                 activity.runOnUiThread {
-                    populateContentsDependentData()
+                    try {
+                        populateContentsDependentData()
+                    } finally {
+                        state.isLoaded.value = true
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error syncing contents", e)
+                activity.runOnUiThread {
+                    state.isLoaded.value = true
+                }
             }
         }
     }

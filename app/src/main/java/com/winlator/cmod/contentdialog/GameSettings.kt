@@ -407,6 +407,7 @@ fun GameSettingsContent(
     val sections = remember(isSteam) { buildSections(isSteam) }
     val selectedIdx by state.currentSection
     val currentSectionId = sections.getOrNull(selectedIdx)?.first ?: SEC_GENERAL
+    val saveEnabled by state.isLoaded
 
     BoxWithConstraints(
         modifier = Modifier
@@ -422,6 +423,7 @@ fun GameSettingsContent(
                 // Top action bar: title on left, Cancel/Save on right
                 CompactBottomBar(
                     title = state.name.value,
+                    saveEnabled = saveEnabled,
                     onSave = { callbacks.onConfirm() },
                     onCancel = { callbacks.onDismiss() }
                 )
@@ -459,6 +461,7 @@ fun GameSettingsContent(
                     sections = sections.map { it.second },
                     currentIndex = selectedIdx,
                     onSectionSelected = { state.currentSection.intValue = it },
+                    saveEnabled = saveEnabled,
                     onSave = { callbacks.onConfirm() },
                     onCancel = { callbacks.onDismiss() },
                     modifier = Modifier
@@ -587,6 +590,7 @@ private fun CompactTopBar(
 @Composable
 private fun CompactBottomBar(
     title: String,
+    saveEnabled: Boolean,
     onSave: () -> Unit,
     onCancel: () -> Unit
 ) {
@@ -632,13 +636,24 @@ private fun CompactBottomBar(
             modifier = Modifier
                 .height(28.dp)
                 .clip(RoundedCornerShape(7.dp))
-                .border(1.dp, AccentBlue.copy(alpha = 0.5f), RoundedCornerShape(7.dp))
-                .background(AccentBlue.copy(alpha = 0.1f))
-                .clickable { onSave() }
+                .border(
+                    1.dp,
+                    if (saveEnabled) AccentBlue.copy(alpha = 0.5f) else CardBorder,
+                    RoundedCornerShape(7.dp)
+                )
+                .background(
+                    if (saveEnabled) AccentBlue.copy(alpha = 0.1f) else CardSurface
+                )
+                .clickable(enabled = saveEnabled) { onSave() }
                 .padding(horizontal = 14.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(stringResource(R.string.common_ui_save), color = AccentBlue, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+            Text(
+                stringResource(R.string.common_ui_save),
+                color = if (saveEnabled) AccentBlue else TextDim,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }
@@ -652,6 +667,7 @@ private fun Sidebar(
     sections: List<SidebarSection>,
     currentIndex: Int,
     onSectionSelected: (Int) -> Unit,
+    saveEnabled: Boolean,
     onSave: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier
@@ -744,14 +760,20 @@ private fun Sidebar(
                     .weight(1f)
                     .height(32.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .border(1.dp, AccentBlue.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                    .background(AccentBlue.copy(alpha = 0.1f))
-                    .clickable { onSave() },
+                    .border(
+                        1.dp,
+                        if (saveEnabled) AccentBlue.copy(alpha = 0.5f) else CardBorder,
+                        RoundedCornerShape(8.dp)
+                    )
+                    .background(
+                        if (saveEnabled) AccentBlue.copy(alpha = 0.1f) else CardSurface
+                    )
+                    .clickable(enabled = saveEnabled) { onSave() },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     stringResource(R.string.common_ui_save),
-                    color = AccentBlue,
+                    color = if (saveEnabled) AccentBlue else TextDim,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
