@@ -528,39 +528,59 @@ class UnifiedActivity : AppCompatActivity() {
         profileId: Int = 0,
         editContainerId: Int = 0
     ) {
+        val route = buildSettingsRoute(item, profileId, editContainerId)
         val nav = rootNavController
         if (nav == null) {
             pendingNavigation = PendingNavigation(item, profileId, editContainerId)
             return
         }
-        nav.navigate(
-            "settings?item=${item.name}&profileId=$profileId&editContainerId=$editContainerId"
-        ) {
+        nav.navigate(route) {
             launchSingleTop = true
         }
     }
 
-    private fun handleSettingsIntent(intent: Intent?) {
-        if (intent == null) return
+    private fun buildSettingsRoute(
+        item: SettingsNavItem = SettingsNavItem.CONTAINERS,
+        profileId: Int = 0,
+        editContainerId: Int = 0
+    ): String {
+        return "settings?item=${item.name}&profileId=$profileId&editContainerId=$editContainerId"
+    }
+
+    private fun extractSettingsNavigation(intent: Intent?): PendingNavigation? {
+        if (intent == null) return null
 
         val editContainerId = intent.getIntExtra("edit_container_id", 0)
         if (editContainerId > 0) {
-            navigateToSettings(item = SettingsNavItem.CONTAINERS, editContainerId = editContainerId)
-            return
+            return PendingNavigation(SettingsNavItem.CONTAINERS, 0, editContainerId)
         }
 
-        val editInputControls = intent.getBooleanExtra("edit_input_controls", false)
-        if (editInputControls) {
+        if (intent.getBooleanExtra("edit_input_controls", false)) {
             val profileId = intent.getIntExtra("selected_profile_id", 0)
-            navigateToSettings(item = SettingsNavItem.INPUT_CONTROLS, profileId = profileId)
-            return
+            return PendingNavigation(SettingsNavItem.INPUT_CONTROLS, profileId, 0)
         }
 
         val selectedMenuItemId = intent.getIntExtra("selected_menu_item_id", 0)
         if (selectedMenuItemId > 0) {
             val target = SettingsNavItem.fromMenuId(selectedMenuItemId) ?: SettingsNavItem.CONTAINERS
-            navigateToSettings(item = target)
+            return PendingNavigation(target, 0, 0)
         }
+
+        return null
+    }
+
+    private fun consumeSettingsIntent(intent: Intent?) {
+        intent ?: return
+        intent.removeExtra("edit_container_id")
+        intent.removeExtra("edit_input_controls")
+        intent.removeExtra("selected_profile_id")
+        intent.removeExtra("selected_menu_item_id")
+    }
+
+    private fun handleSettingsIntent(intent: Intent?) {
+        val request = extractSettingsNavigation(intent) ?: return
+        consumeSettingsIntent(intent)
+        navigateToSettings(request.item, request.profileId, request.editContainerId)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -595,6 +615,10 @@ class UnifiedActivity : AppCompatActivity() {
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.navigationBarColor = 0xFF141B24.toInt()
+        val initialSettingsNavigation = extractSettingsNavigation(intent)
+        if (initialSettingsNavigation != null) {
+            consumeSettingsIntent(intent)
+        }
 
         // Exclude left edge from system back gesture so the drawer can capture swipes
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
@@ -631,7 +655,9 @@ class UnifiedActivity : AppCompatActivity() {
             )) {
                 NavHost(
                     navController = navController,
-                    startDestination = "hub",
+                    startDestination = initialSettingsNavigation?.let {
+                        buildSettingsRoute(it.item, it.profileId, it.editContainerId)
+                    } ?: "hub",
                     modifier = Modifier.navigationBarsPadding(),
                     enterTransition = {
                         fadeIn(tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing))
@@ -5855,7 +5881,7 @@ class UnifiedActivity : AppCompatActivity() {
         return requestPinnedHomeShortcut(context, shortcut, artworkModel)
     }
 
-    // Game launch with A: drive mounting
+    // Game launch with drive-aware mapping
     private fun launchSteamGame(context: android.content.Context, containerManager: ContainerManager, app: SteamApp) {
         val gameInstallPath = SteamService.getAppDirPath(app.id)
         val gameDir = java.io.File(gameInstallPath)
@@ -5881,8 +5907,7 @@ class UnifiedActivity : AppCompatActivity() {
                     )
                     return@launch
                 }
-                // Existing shortcut: mount A: drive to game install path on its container
-                mountADrive(shortcut.container, gameInstallPath)
+                ensureGameDrive(shortcut.container, gameInstallPath)
                 shortcut.putExtra("game_source", "STEAM")
                 shortcut.putExtra("game_install_path", gameInstallPath)
                 shortcut.putExtra("launch_exe_path", launchExecutable)
@@ -5916,7 +5941,7 @@ class UnifiedActivity : AppCompatActivity() {
                     return@launch
                 }
 
-                mountADrive(container, gameInstallPath)
+                ensureGameDrive(container, gameInstallPath)
 
                 val execPath = "wine \"C:\\\\Program Files (x86)\\\\Steam\\\\steamclient_loader_x64.exe\""
 
@@ -5978,22 +6003,27 @@ class UnifiedActivity : AppCompatActivity() {
                     )
                     return@launch
                 }
-                // Existing shortcut found: preserve per-game settings, just update install path and mount A: drive
+                // Existing shortcut found: preserve per-game settings and update the mapped install path
                 val shortcut = existingShortcut!!
                 // Ensure game_install_path is always up-to-date
                 shortcut.putExtra("game_install_path", gameInstallPath)
+                ensureGameDrive(shortcut.container, gameInstallPath)
 
-                // Repair broken Exec line if exe path is missing (just "A:\")
+                // Repair broken Exec line if the executable is missing or still points at the old A: mapping.
                 val currentPath = shortcut.path
-                if (currentPath == null || currentPath == "A:\\" || currentPath == "A:\\\\") {
+                if (currentPath == null || currentPath == "A:\\" || currentPath == "A:\\\\" || currentPath.startsWith("A:\\")) {
                     var exePath = withContext(kotlinx.coroutines.Dispatchers.IO) { EpicService.getInstalledExe(app.id) }
                     val newExecCmd = if (exePath.isNotEmpty()) {
-                        "wine \"A:\\\\${exePath.replace("/", "\\\\")}\""
+                        buildStoreWineExecCommand(
+                            shortcut.container,
+                            "EPIC",
+                            gameInstallPath,
+                            java.io.File(gameInstallPath, exePath.replace("\\", "/"))
+                        )
                     } else {
                         val exeFile = findGameExe(gameDir)
                         if (exeFile != null) {
-                            val dosPath = exeFile.relativeTo(gameDir).path.replace("/", "\\\\")
-                            "wine \"A:\\\\${dosPath}\""
+                            buildStoreWineExecCommand(shortcut.container, "EPIC", gameInstallPath, exeFile)
                         } else null
                     }
                     if (newExecCmd != null) {
@@ -6012,9 +6042,6 @@ class UnifiedActivity : AppCompatActivity() {
                 }
 
                 shortcut.saveData()
-
-                mountADrive(shortcut.container, gameInstallPath)
-
                 val intent = Intent(context, XServerDisplayActivity::class.java)
                 intent.putExtra("container_id", shortcut.container.id)
                 intent.putExtra("shortcut_path", shortcut.file.path)
@@ -6024,17 +6051,6 @@ class UnifiedActivity : AppCompatActivity() {
             } else {
                 // No existing shortcut — create a new one
                 var exePath = withContext(kotlinx.coroutines.Dispatchers.IO) { EpicService.getInstalledExe(app.id) }
-                val execCmd = if (exePath.isNotEmpty()) {
-                    "wine \"A:\\\\${exePath.replace("/", "\\\\")}\""
-                } else {
-                    val exeFile = findGameExe(gameDir)
-                    if (exeFile != null) {
-                        val dosPath = exeFile.relativeTo(gameDir).path.replace("/", "\\\\")
-                        "wine \"A:\\\\${dosPath}\""
-                    } else {
-                        "wine \"A:\\\\\""
-                    }
-                }
 
                 var container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
 
@@ -6043,7 +6059,22 @@ class UnifiedActivity : AppCompatActivity() {
                     return@launch
                 }
 
-                mountADrive(container, gameInstallPath)
+                ensureGameDrive(container, gameInstallPath)
+                val execCmd = if (exePath.isNotEmpty()) {
+                    buildStoreWineExecCommand(
+                        container,
+                        "EPIC",
+                        gameInstallPath,
+                        java.io.File(gameInstallPath, exePath.replace("\\", "/"))
+                    )
+                } else {
+                    val exeFile = findGameExe(gameDir)
+                    if (exeFile != null) {
+                        buildStoreWineExecCommand(container, "EPIC", gameInstallPath, exeFile)
+                    } else {
+                        "wine \"explorer.exe\""
+                    }
+                }
 
                 val desktopDir = container.getDesktopDir()
                 if (!desktopDir.exists()) desktopDir.mkdirs()
@@ -6103,18 +6134,18 @@ class UnifiedActivity : AppCompatActivity() {
                     return@launch
                 }
                 shortcut.putExtra("game_install_path", gameInstallPath)
+                ensureGameDrive(shortcut.container, gameInstallPath)
 
-                // Repair broken Exec line if exe path is missing (just "A:\")
+                // Repair broken Exec line if the executable is missing or still points at the old A: mapping.
                 val currentPath = shortcut.path
-                if (currentPath == null || currentPath == "A:\\" || currentPath == "A:\\\\") {
+                if (currentPath == null || currentPath == "A:\\" || currentPath == "A:\\\\" || currentPath.startsWith("A:\\")) {
                     val newExecCmd = if (shortcut.getExtra("launch_exe_path").isNotEmpty()) {
                         val selectedExe = java.io.File(shortcut.getExtra("launch_exe_path"))
                         if (selectedExe.exists()) {
                             val normalizedBaseDir = java.io.File(gameInstallPath).absolutePath.removeSuffix("/")
                             val normalizedExePath = selectedExe.absolutePath
                             if (normalizedExePath == normalizedBaseDir || normalizedExePath.startsWith("$normalizedBaseDir/")) {
-                                val dosPath = selectedExe.relativeTo(java.io.File(gameInstallPath)).path.replace("/", "\\\\")
-                                "wine \"A:\\\\${dosPath}\""
+                                buildStoreWineExecCommand(shortcut.container, "GOG", gameInstallPath, selectedExe)
                             } else {
                                 val hostPath = normalizedExePath.replace("/", "\\\\").let { if (it.startsWith("\\")) it else "\\$it" }
                                 "wine \"Z:${hostPath}\""
@@ -6126,12 +6157,16 @@ class UnifiedActivity : AppCompatActivity() {
                             GOGService.getInstalledExe(libraryItem)
                         }
                         if (exePath.isNotEmpty()) {
-                            "wine \"A:\\\\${exePath.replace("/", "\\\\")}\""
+                            buildStoreWineExecCommand(
+                                shortcut.container,
+                                "GOG",
+                                gameInstallPath,
+                                java.io.File(gameInstallPath, exePath.replace("\\", "/"))
+                            )
                         } else {
                             val exeFile = findGameExe(gameDir)
                             if (exeFile != null) {
-                                val dosPath = exeFile.relativeTo(gameDir).path.replace("/", "\\\\")
-                                "wine \"A:\\\\${dosPath}\""
+                                buildStoreWineExecCommand(shortcut.container, "GOG", gameInstallPath, exeFile)
                             } else null
                         }
                     }
@@ -6150,7 +6185,6 @@ class UnifiedActivity : AppCompatActivity() {
                 }
 
                 shortcut.saveData()
-                mountADrive(shortcut.container, gameInstallPath)
 
                 val intent = Intent(context, XServerDisplayActivity::class.java)
                 intent.putExtra("container_id", shortcut.container.id)
@@ -6164,17 +6198,6 @@ class UnifiedActivity : AppCompatActivity() {
             val exePath = withContext(kotlinx.coroutines.Dispatchers.IO) {
                 GOGService.getInstalledExe(libraryItem)
             }
-            val execCmd = if (exePath.isNotEmpty()) {
-                "wine \"A:\\\\${exePath.replace("/", "\\\\")}\""
-            } else {
-                val exeFile = findGameExe(gameDir)
-                if (exeFile != null) {
-                    val dosPath = exeFile.relativeTo(gameDir).path.replace("/", "\\\\")
-                    "wine \"A:\\\\${dosPath}\""
-                } else {
-                    "wine \"A:\\\\\""
-                }
-            }
 
             var container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
 
@@ -6183,7 +6206,22 @@ class UnifiedActivity : AppCompatActivity() {
                 return@launch
             }
 
-            mountADrive(container, gameInstallPath)
+            ensureGameDrive(container, gameInstallPath)
+            val execCmd = if (exePath.isNotEmpty()) {
+                buildStoreWineExecCommand(
+                    container,
+                    "GOG",
+                    gameInstallPath,
+                    java.io.File(gameInstallPath, exePath.replace("\\", "/"))
+                )
+            } else {
+                val exeFile = findGameExe(gameDir)
+                if (exeFile != null) {
+                    buildStoreWineExecCommand(container, "GOG", gameInstallPath, exeFile)
+                } else {
+                    "wine \"explorer.exe\""
+                }
+            }
 
             val desktopDir = container.getDesktopDir()
             if (!desktopDir.exists()) desktopDir.mkdirs()
@@ -6213,16 +6251,66 @@ class UnifiedActivity : AppCompatActivity() {
         }
     }
 
-    private fun mountADrive(container: com.winlator.cmod.container.Container, gamePath: String) {
-        val currentDrives = container.drives ?: com.winlator.cmod.container.Container.DEFAULT_DRIVES
-        val sb = StringBuilder()
-        for (drive in com.winlator.cmod.container.Container.drivesIterator(currentDrives)) {
-            if (drive[0] != "A") {
-                sb.append(drive[0]).append(':').append(drive[1])
+    private fun ensureGameDrive(
+        container: com.winlator.cmod.container.Container,
+        gamePath: String,
+        preferredLetter: String = "F"
+    ) {
+        container.drives = com.winlator.cmod.core.WineUtils.normalizePersistentDrives(
+            this,
+            container.drives ?: com.winlator.cmod.container.Container.DEFAULT_DRIVES
+        )
+    }
+
+    private fun buildWineExecCommand(
+        container: com.winlator.cmod.container.Container?,
+        gameInstallPath: String,
+        relativeExePath: String
+    ): String {
+        val exeFile = java.io.File(gameInstallPath, relativeExePath.replace("\\", "/"))
+        return buildWineExecCommand(container, gameInstallPath, exeFile)
+    }
+
+    private fun buildWineExecCommand(
+        container: com.winlator.cmod.container.Container?,
+        gameInstallPath: String,
+        exeFile: java.io.File
+    ): String {
+        val windowsPath = container?.let {
+            com.winlator.cmod.core.WineUtils.getWindowsPath(it, exeFile.absolutePath)
+        } ?: run {
+            val relativePath = try {
+                exeFile.relativeTo(java.io.File(gameInstallPath)).path.replace("/", "\\")
+            } catch (_: Exception) {
+                exeFile.name
             }
+            "F:\\$relativePath"
         }
-        sb.append("A:").append(gamePath)
-        container.drives = sb.toString()
+        return "wine \"$windowsPath\""
+    }
+
+    private fun buildStoreWineExecCommand(
+        container: com.winlator.cmod.container.Container?,
+        source: String,
+        gameInstallPath: String,
+        exeFile: java.io.File
+    ): String {
+        val windowsPath = container?.let {
+            com.winlator.cmod.core.WineUtils.getDriveCGameWindowsPath(
+                it,
+                source,
+                gameInstallPath,
+                exeFile.absolutePath
+            )
+        } ?: run {
+            val relativePath = try {
+                exeFile.relativeTo(java.io.File(gameInstallPath)).path.replace("/", "\\")
+            } catch (_: Exception) {
+                exeFile.name
+            }
+            "C:\\WinNative\\Games\\$source\\${java.io.File(gameInstallPath).name}\\$relativePath"
+        }
+        return "wine \"$windowsPath\""
     }
 
     // Launch custom game by shortcut name
@@ -6258,10 +6346,10 @@ class UnifiedActivity : AppCompatActivity() {
             shortcut.saveData()
         }
 
-        // Ensure A: drive is mounted to the game folder
+        // Ensure the custom game folder is mapped into the container.
         val gameFolder = shortcut.getExtra("custom_game_folder", "")
         if (gameFolder.isNotEmpty()) {
-            mountADrive(shortcut.container, gameFolder)
+            ensureGameDrive(shortcut.container, gameFolder, "F")
             shortcut.container.saveData()
         }
         val intent = Intent(context, XServerDisplayActivity::class.java)
@@ -6838,7 +6926,7 @@ class UnifiedActivity : AppCompatActivity() {
                                 Icon(Icons.Outlined.Folder, contentDescription = null, tint = StatusOnline.copy(alpha = 0.7f), modifier = Modifier.size(14.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text("Game Folder (A: drive)", color = TextSecondary, fontSize = 9.sp)
+                                    Text("Game Folder (Mapped Game Drive)", color = TextSecondary, fontSize = 9.sp)
                                     Text(
                                         gameFolder ?: "Auto-detected",
                                         color = if (gameFolder != null) TextPrimary else TextSecondary,
@@ -7029,18 +7117,13 @@ class UnifiedActivity : AppCompatActivity() {
             return
         }
 
-        // Mount the game folder as A: drive
-        mountADrive(container, gameFolderPath)
-
-        // Build the relative exe path from gameFolder
         val exeFile = java.io.File(exePath)
-        val gameFolderFile = java.io.File(gameFolderPath)
-        val dosPath = try {
-            exeFile.relativeTo(gameFolderFile).path.replace("/", "\\\\")
-        } catch (_: Exception) {
-            exeFile.name
-        }
-        val execCmd = "wine \"A:\\\\$dosPath\""
+        ensureGameDrive(
+            container,
+            gameFolderPath,
+            com.winlator.cmod.core.WineUtils.getPreferredGameDriveLetter(gameFolderPath)
+        )
+        val execCmd = buildWineExecCommand(container, gameFolderPath, exeFile)
 
         // Write .desktop shortcut
         val desktopDir = container.getDesktopDir()

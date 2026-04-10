@@ -85,7 +85,8 @@ class ShortcutSettingsComposeDialog private constructor(
         "SDL_JOYSTICK_WGI" to "0",
         "SDL_XINPUT_ENABLED" to "1",
         "SDL_JOYSTICK_RAWINPUT" to "0",
-        "SDL_JOYSTICK_HIDAPI" to "1",
+        "SDL_JOYSTICK_HIDAPI" to "0",
+        "SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD" to "1",
         "SDL_DIRECTINPUT_ENABLED" to "0",
         "SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS" to "1",
         "SDL_HINT_FORCE_RAISEWINDOW" to "0",
@@ -1334,7 +1335,7 @@ class ShortcutSettingsComposeDialog private constructor(
         val syncFrame = if (state.gfxSyncFrame.value) "1" else "0"
         val disablePresentWait = if (state.gfxDisablePresentWait.value) "1" else "0"
         val resourceType = state.gfxResourceTypeEntries.value.getOrElse(state.gfxSelectedResourceType.intValue) { "auto" }
-        val bcnEmulation = state.gfxBcnEmulationEntries.value.getOrElse(state.gfxSelectedBcnEmulation.intValue) { "auto" }
+        val bcnEmulation = state.gfxBcnEmulationEntries.value.getOrElse(state.gfxSelectedBcnEmulation.intValue) { "none" }
         val bcnEmulationType = state.gfxBcnEmulationTypeEntries.value.getOrElse(state.gfxSelectedBcnEmulationType.intValue) { "compute" }
         val bcnEmulationCache = state.gfxBcnEmulationCacheEntries.value.getOrElse(state.gfxSelectedBcnEmulationCache.intValue) { "0" }
 
@@ -1355,7 +1356,7 @@ class ShortcutSettingsComposeDialog private constructor(
         val isGplAsync = version.contains("gplasync")
         val isAsync = version.contains("async")
         val async = if (state.dxvkAsync.value && (isAsync || isGplAsync)) "1" else "0"
-        val asyncCache = if (state.dxvkAsyncCache.value && isGplAsync) "1" else "0"
+        val asyncCache = if (state.dxvkAsyncCache.value && (isAsync || isGplAsync)) "1" else "0"
 
         val vkd3dEntries = state.dxvkVkd3dVersionEntries.value
         val vkd3dIdx = state.dxvkSelectedVkd3dVersion.intValue
@@ -1410,7 +1411,7 @@ class ShortcutSettingsComposeDialog private constructor(
         selectByNumber(state.gfxMaxDeviceMemoryEntries.value, config["maxDeviceMemory"] ?: "0", state.gfxSelectedMaxDeviceMemory)
         selectByValue(state.gfxPresentModeEntries.value, config["presentMode"] ?: "mailbox", state.gfxSelectedPresentMode)
         selectByValue(state.gfxResourceTypeEntries.value, config["resourceType"] ?: "auto", state.gfxSelectedResourceType)
-        selectByValue(state.gfxBcnEmulationEntries.value, config["bcnEmulation"] ?: "auto", state.gfxSelectedBcnEmulation)
+        selectByValue(state.gfxBcnEmulationEntries.value, config["bcnEmulation"] ?: "none", state.gfxSelectedBcnEmulation)
         selectByValue(state.gfxBcnEmulationTypeEntries.value, config["bcnEmulationType"] ?: "compute", state.gfxSelectedBcnEmulationType)
         selectByValue(state.gfxBcnEmulationCacheEntries.value, config["bcnEmulationCache"] ?: "0", state.gfxSelectedBcnEmulationCache)
 
@@ -1517,8 +1518,10 @@ class ShortcutSettingsComposeDialog private constructor(
         selectByIdentifier(state.dxvkDdrawWrapperEntries.value, config.get("ddrawrapper"), state.dxvkSelectedDdrawWrapper)
         selectByIdentifier(state.dxvkFramerateEntries.value, config.get("framerate"), state.dxvkSelectedFramerate)
 
-        state.dxvkAsync.value = config.get("async") == "1"
-        state.dxvkAsyncCache.value = config.get("asyncCache") == "1"
+        val selectedVersion = state.dxvkVersionEntries.value.getOrElse(state.dxvkSelectedVersion.intValue) { DefaultVersion.DXVK }
+        val asyncCapable = selectedVersion.contains("async", ignoreCase = true)
+        state.dxvkAsync.value = config.get("async")?.let { it == "1" } ?: asyncCapable
+        state.dxvkAsyncCache.value = config.get("asyncCache")?.let { it == "1" } ?: asyncCapable
     }
 
     private fun loadDxvkVersions(container: Container = shortcut.container) {
@@ -1930,7 +1933,7 @@ class ShortcutSettingsComposeDialog private constructor(
             val exec = if (source == "STEAM") {
                 "wine \"C:\\\\Program Files (x86)\\\\Steam\\\\steamclient_loader_x64.exe\""
             } else {
-                "wine \"A:\\\\\""
+                "wine \"explorer.exe\""
             }
             val sb = StringBuilder()
             sb.append("[Desktop Entry]\n")

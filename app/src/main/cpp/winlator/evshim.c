@@ -67,6 +67,10 @@ static int g_spinwait_enabled = 0;
 #define MAX_GAMEPADS 4
 #define GAMEPAD_MEM_SIZE 64
 
+#define GAMEPAD_VENDOR_ID 0x1234
+#define GAMEPAD_PRODUCT_ID 0x5678
+#define GAMEPAD_NAME "Generic HID Gamepad"
+
 /* Adaptive polling intervals */
 #define POLL_FAST_NS 500000L  /* 0.5ms = 2000Hz during active input */
 #define POLL_SLOW_NS 4000000L /* 4ms = 250Hz during idle */
@@ -270,6 +274,10 @@ static void *watchdog_thread(void *arg) {
 /* Hot-plug detection - checks for newly connected controllers */
 static char g_data_path[256] = {0};
 
+static char *make_virtual_pad_name(void) {
+  return strdup(GAMEPAD_NAME);
+}
+
 static void try_attach_controller(int idx) {
   if (ctrl[idx].active || !handle)
     return; /* Already active or SDL not loaded */
@@ -301,12 +309,11 @@ static void try_attach_controller(int idx) {
   d.naxes = 6;
   d.nbuttons = 15;
   d.nhats = 1;
+  d.vendor_id = GAMEPAD_VENDOR_ID;
+  d.product_id = GAMEPAD_PRODUCT_ID;
   d.Rumble = &OnRumble;
   d.userdata = (void *)(intptr_t)idx;
-
-  char name[64];
-  snprintf(name, sizeof name, "Virtual Gamepad P%d", idx + 1);
-  d.name = strdup(name);
+  d.name = make_virtual_pad_name();
 
   int vjoy_id = p_SDL_JoystickAttachVirtualEx(&d);
   if (vjoy_id < 0) {
@@ -431,12 +438,11 @@ __attribute__((constructor)) static void initialize_all_pads(void) {
     d.naxes = 6;
     d.nbuttons = 15;
     d.nhats = 1;
+    d.vendor_id = GAMEPAD_VENDOR_ID;
+    d.product_id = GAMEPAD_PRODUCT_ID;
     d.Rumble = &OnRumble;
     d.userdata = (void *)(intptr_t)i;
-
-    char name[64];
-    snprintf(name, sizeof name, "Virtual Gamepad P%d", i + 1);
-    d.name = strdup(name);
+    d.name = make_virtual_pad_name();
 
     vjoy_ids[i] = p_SDL_JoystickAttachVirtualEx(&d);
     if (vjoy_ids[i] < 0) {
@@ -484,4 +490,86 @@ int open(const char *path, int flags, ...) {
   mode_t mode = (flags & O_CREAT) ? va_arg(ap, mode_t) : 0;
   va_end(ap);
   return real_open(path, flags, mode);
+}
+
+/* Android 11+ FUSE NOEXEC bypass for Wine */
+#include <sys/vfs.h>
+#include <sys/statvfs.h>
+
+#ifndef ST_NOEXEC
+#define ST_NOEXEC 8
+#endif
+
+/* Cached function pointers - resolved once on first call */
+static int (*real_statfs)(const char*, struct statfs*);
+static int (*real_statfs64)(const char*, struct statfs64*);
+static int (*real_statvfs)(const char*, struct statvfs*);
+static int (*real_statvfs64)(const char*, struct statvfs64*);
+static int (*real_fstatfs)(int, struct statfs*);
+static int (*real_fstatfs64)(int, struct statfs64*);
+static int (*real_fstatvfs)(int, struct statvfs*);
+static int (*real_fstatvfs64)(int, struct statvfs64*);
+
+__attribute__((visibility("default")))
+int statfs(const char *path, struct statfs *buf) {
+    if (!real_statfs) real_statfs = dlsym(RTLD_NEXT, "statfs");
+    int res = real_statfs(path, buf);
+    if (res == 0) buf->f_type = 0xEF53;
+    return res;
+}
+
+__attribute__((visibility("default")))
+int statfs64(const char *path, struct statfs64 *buf) {
+    if (!real_statfs64) real_statfs64 = dlsym(RTLD_NEXT, "statfs64");
+    int res = real_statfs64(path, buf);
+    if (res == 0) buf->f_type = 0xEF53;
+    return res;
+}
+
+__attribute__((visibility("default")))
+int statvfs(const char *path, struct statvfs *buf) {
+    if (!real_statvfs) real_statvfs = dlsym(RTLD_NEXT, "statvfs");
+    int res = real_statvfs(path, buf);
+    if (res == 0) buf->f_flag &= ~ST_NOEXEC;
+    return res;
+}
+
+__attribute__((visibility("default")))
+int statvfs64(const char *path, struct statvfs64 *buf) {
+    if (!real_statvfs64) real_statvfs64 = dlsym(RTLD_NEXT, "statvfs64");
+    int res = real_statvfs64(path, buf);
+    if (res == 0) buf->f_flag &= ~ST_NOEXEC;
+    return res;
+}
+
+__attribute__((visibility("default")))
+int fstatfs(int fd, struct statfs *buf) {
+    if (!real_fstatfs) real_fstatfs = dlsym(RTLD_NEXT, "fstatfs");
+    int res = real_fstatfs(fd, buf);
+    if (res == 0) buf->f_type = 0xEF53;
+    return res;
+}
+
+__attribute__((visibility("default")))
+int fstatfs64(int fd, struct statfs64 *buf) {
+    if (!real_fstatfs64) real_fstatfs64 = dlsym(RTLD_NEXT, "fstatfs64");
+    int res = real_fstatfs64(fd, buf);
+    if (res == 0) buf->f_type = 0xEF53;
+    return res;
+}
+
+__attribute__((visibility("default")))
+int fstatvfs(int fd, struct statvfs *buf) {
+    if (!real_fstatvfs) real_fstatvfs = dlsym(RTLD_NEXT, "fstatvfs");
+    int res = real_fstatvfs(fd, buf);
+    if (res == 0) buf->f_flag &= ~ST_NOEXEC;
+    return res;
+}
+
+__attribute__((visibility("default")))
+int fstatvfs64(int fd, struct statvfs64 *buf) {
+    if (!real_fstatvfs64) real_fstatvfs64 = dlsym(RTLD_NEXT, "fstatvfs64");
+    int res = real_fstatvfs64(fd, buf);
+    if (res == 0) buf->f_flag &= ~ST_NOEXEC;
+    return res;
 }

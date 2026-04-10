@@ -129,8 +129,9 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
         android.view.InputDevice device = android.view.InputDevice.getDevice(deviceId);
         if (device != null) {
             String descriptor = device.getDescriptor();
+            String physicalId = ExternalController.getPhysicalDeviceIdentifier(device);
             for (ExternalController controller : controllers) {
-                if (controller.getId().equals(descriptor)) return controller;
+                if (controller.getId().equals(physicalId) || controller.getId().equals(descriptor)) return controller;
             }
         }
 

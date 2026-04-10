@@ -351,7 +351,7 @@ object SteamClientManager {
         var batchFile: File? = null
         try {
             val normalizedPath = exePath.replace('/', '\\')
-            val windowsPath = "A:\\$normalizedPath"
+            val windowsPath = "F:\\$normalizedPath"
 
             batchFile = File(rootDir, "tmp/steamless_wrapper.bat")
             batchFile.parentFile?.mkdirs()
@@ -362,9 +362,9 @@ object SteamClientManager {
 
             val unixPath = exePath.replace('\\', '/')
             val wineprefix = File(rootDir, ImageFs.WINEPREFIX)
-            val exe = File(wineprefix, "dosdevices/a:/$unixPath")
-            val unpackedExe = File(wineprefix, "dosdevices/a:/$unixPath.unpacked.exe")
-            val originalExe = File(wineprefix, "dosdevices/a:/$unixPath.original.exe")
+            val exe = File(wineprefix, "dosdevices/f:/$unixPath")
+            val unpackedExe = File(wineprefix, "dosdevices/f:/$unixPath.unpacked.exe")
+            val originalExe = File(wineprefix, "dosdevices/f:/$unixPath.original.exe")
 
             if (exe.exists() && unpackedExe.exists()) {
                 if (!originalExe.exists()) {

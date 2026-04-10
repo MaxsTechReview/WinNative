@@ -4,6 +4,7 @@ import android.util.Log;
 
 import com.winlator.cmod.container.Container;
 import com.winlator.cmod.container.Shortcut;
+import com.winlator.cmod.core.WineUtils;
 import com.winlator.cmod.core.WineRegistryEditor;
 import com.winlator.cmod.gog.data.GOGGame;
 import com.winlator.cmod.gog.service.GOGConstants;
@@ -22,10 +23,6 @@ import java.util.Map;
 public final class GameFixes {
     private static final String TAG = "GameFixes";
     private static final String INSTALL_PATH_PLACEHOLDER = "<InstallPath>";
-    private static final String GOG_WINDOWS_INSTALL_PATH = "A:\\";
-    private static final String STEAM_WINDOWS_INSTALL_PATH = "A:\\";
-    private static final String EPIC_WINDOWS_INSTALL_PATH = "A:\\";
-
     private static final Map<String, Fix> GOG_FIXES;
     private static final Map<String, Fix> STEAM_FIXES;
     private static final Map<String, Fix> EPIC_FIXES;
@@ -112,7 +109,8 @@ public final class GameFixes {
         }
 
         File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
-        applyFix(fix, appId, installPath, STEAM_WINDOWS_INSTALL_PATH, systemRegFile);
+        String installPathWindows = WineUtils.getDriveCGameWindowsPath(container, "STEAM", installPath, installPath);
+        applyFix(fix, appId, installPath, installPathWindows != null ? installPathWindows : "C:\\", systemRegFile);
     }
 
     private static void applyGogFixes(Container container, Shortcut shortcut) {
@@ -122,7 +120,7 @@ public final class GameFixes {
         Fix fix = GOG_FIXES.get(gogId);
         if (fix == null) return;
 
-        ResolvedPaths resolvedPaths = resolveGogPaths(shortcut, gogId);
+        ResolvedPaths resolvedPaths = resolveGogPaths(container, shortcut, gogId);
         if (resolvedPaths == null) return;
 
         File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
@@ -147,7 +145,8 @@ public final class GameFixes {
         }
 
         File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
-        applyFix(fix, catalogId, installPath, EPIC_WINDOWS_INSTALL_PATH, systemRegFile);
+        String installPathWindows = WineUtils.getDriveCGameWindowsPath(container, "EPIC", installPath, installPath);
+        applyFix(fix, catalogId, installPath, installPathWindows != null ? installPathWindows : "C:\\", systemRegFile);
     }
 
     private static void applyFix(Fix fix, String gameId, String installPath, String installPathWindows, File systemRegFile) {
@@ -164,10 +163,11 @@ public final class GameFixes {
         }
     }
 
-    private static ResolvedPaths resolveGogPaths(Shortcut shortcut, String gogId) {
+    private static ResolvedPaths resolveGogPaths(Container container, Shortcut shortcut, String gogId) {
         String shortcutInstallPath = shortcut.getExtra("game_install_path");
         if (isUsableInstallDir(shortcutInstallPath)) {
-            return new ResolvedPaths(shortcutInstallPath, GOG_WINDOWS_INSTALL_PATH);
+            String installPathWindows = WineUtils.getDriveCGameWindowsPath(container, "GOG", shortcutInstallPath, shortcutInstallPath);
+            return new ResolvedPaths(shortcutInstallPath, installPathWindows != null ? installPathWindows : "C:\\");
         }
 
         GOGGame gogGame = GOGService.Companion.getGOGGameOf(gogId);
@@ -194,7 +194,8 @@ public final class GameFixes {
             shortcut.saveData();
         }
 
-        return new ResolvedPaths(installPath, GOG_WINDOWS_INSTALL_PATH);
+        String installPathWindows = WineUtils.getDriveCGameWindowsPath(container, "GOG", installPath, installPath);
+        return new ResolvedPaths(installPath, installPathWindows != null ? installPathWindows : "C:\\");
     }
 
     private static boolean isUsableInstallDir(String path) {

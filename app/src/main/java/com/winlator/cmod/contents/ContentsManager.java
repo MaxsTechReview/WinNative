@@ -488,10 +488,8 @@ public class ContentsManager {
     }
 
     public void removeContent(ContentProfile profile) {
-        if (profilesMap.get(profile.type).contains(profile)) {
-            FileUtils.delete(getInstallDir(context, profile));
-            profilesMap.get(profile.type).remove(profile);
-        }
+        FileUtils.delete(getInstallDir(context, profile));
+        syncContents();
     }
 
     public static String getEntryName(ContentProfile profile) {

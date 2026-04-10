@@ -51,13 +51,19 @@ public class ControllerManager {
 
     public void scanForDevices() {
         detectedDevices.clear();
+        java.util.LinkedHashMap<String, InputDevice> uniqueDevices = new java.util.LinkedHashMap<>();
         int[] deviceIds = inputManager.getInputDeviceIds();
         for (int deviceId : deviceIds) {
             InputDevice device = inputManager.getInputDevice(deviceId);
             if (device != null && !device.isVirtual() && isGameController(device)) {
-                detectedDevices.add(device);
+                String identifier = getDeviceIdentifier(device);
+                InputDevice current = uniqueDevices.get(identifier);
+                if (current == null || device.getMotionRanges().size() > current.getMotionRanges().size()) {
+                    uniqueDevices.put(identifier, device);
+                }
             }
         }
+        detectedDevices.addAll(uniqueDevices.values());
     }
 
     private void loadAssignments() {
@@ -93,10 +99,7 @@ public class ControllerManager {
     public static String getDeviceIdentifier(InputDevice device) {
         if (device == null)
             return null;
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            return device.getDescriptor();
-        }
-        return "vendor_" + device.getVendorId() + "_product_" + device.getProductId();
+        return ExternalController.getPhysicalDeviceIdentifier(device);
     }
 
     public List<InputDevice> getDetectedDevices() {

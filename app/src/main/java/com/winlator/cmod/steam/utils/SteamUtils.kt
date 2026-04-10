@@ -524,7 +524,10 @@ object SteamUtils {
         var restoredCount = 0
 
         val imageFs = ImageFs.find(context)
-        val dosDevicesPath = File(imageFs.wineprefix, "dosdevices/a:")
+        val dosDevicesRoot = File(imageFs.wineprefix, "dosdevices")
+        val dosDevicesPath = dosDevicesRoot.listFiles()
+            ?.firstOrNull { it.isDirectory && it.name.matches(Regex("[a-z]:")) && it.name != "c:" && it.name != "z:" }
+            ?: File(dosDevicesRoot, "f:")
 
         dosDevicesPath.walkTopDown().maxDepth(10)
             .filter { it.isFile && it.name.endsWith(".original.exe", ignoreCase = true) }
@@ -563,20 +566,21 @@ object SteamUtils {
             val drives = container?.drives ?: ""
 
             // Find the drive letter for the game directory using proper drives iterator
-            var drive = 'A' // default to A: drive
+            var drive = 'F'
             for (driveEntry in Container.drivesIterator(drives)) {
                 if (driveEntry[1] == appDirPath) {
                     drive = driveEntry[0][0]
                     break
                 }
             }
-            if (drive == 'A' && !drives.contains("A:")) {
-                Timber.w("Could not locate game drive for appDirPath=$appDirPath in drives, defaulting to A:")
+            if (drive == 'F' && !drives.contains("F:")) {
+                Timber.w("Could not locate game drive for appDirPath=$appDirPath in drives, defaulting to F:")
             }
             val executableFile = "$drive:\\${executablePath}"
 
-            val exe = File(imageFs.wineprefix + "/dosdevices/" + executableFile.replace("A:", "a:").replace('\\', '/'))
-            val unpackedExe = File(imageFs.wineprefix + "/dosdevices/" + executableFile.replace("A:", "a:").replace('\\', '/') + ".unpacked.exe")
+            val dosDevicePath = executableFile.replace("${drive}:", "${drive.lowercaseChar()}:").replace('\\', '/')
+            val exe = File(imageFs.wineprefix + "/dosdevices/" + dosDevicePath)
+            val unpackedExe = File(imageFs.wineprefix + "/dosdevices/" + dosDevicePath + ".unpacked.exe")
 
             if (unpackedExe.exists()) {
                 val areFilesDifferent = !exe.exists() ||

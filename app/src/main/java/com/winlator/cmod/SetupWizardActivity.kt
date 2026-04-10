@@ -952,8 +952,13 @@ class SetupWizardActivity : FragmentActivity() {
         contentsManager.syncContents()
         val wineInfo = WineInfo.fromIdentifier(this, contentsManager, container.wineVersion)
         val isArm64 = wineInfo.isArm64EC
+        val normalizedDrives = com.winlator.cmod.core.WineUtils.normalizePersistentDrives(
+            this,
+            container.drives ?: Container.DEFAULT_DRIVES
+        )
 
         container.setGraphicsDriver(Container.DEFAULT_GRAPHICS_DRIVER)
+        container.setDrives(normalizedDrives)
         container.setGraphicsDriverConfig(
             replaceDelimitedConfigValue(
                 Container.DEFAULT_GRAPHICSDRIVERCONFIG,
@@ -1285,6 +1290,7 @@ class SetupWizardActivity : FragmentActivity() {
         pendingContainerSettingsType = type
         containerSettingsLauncher.launch(
             Intent(this, UnifiedActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .putExtra("edit_container_id", containerId)
         )
     }

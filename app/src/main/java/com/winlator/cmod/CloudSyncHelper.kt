@@ -3,16 +3,27 @@ package com.winlator.cmod
 import android.content.Context
 import com.winlator.cmod.container.Shortcut
 import com.winlator.cmod.epic.service.EpicCloudSavesManager
+import com.winlator.cmod.gog.service.GOGCloudSavesManager
 import com.winlator.cmod.gog.service.GOGService
 import com.winlator.cmod.steam.enums.PathType
 import com.winlator.cmod.steam.enums.SaveLocation
 import com.winlator.cmod.steam.enums.SyncResult
 import com.winlator.cmod.steam.service.SteamService
 import com.winlator.cmod.steam.utils.PrefManager
+import java.io.File
+import java.text.SimpleDateFormat
+import java.time.Instant
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.runBlocking
 import timber.log.Timber
 
 object CloudSyncHelper {
+    private fun formatTimestamp(timestampMs: Long?): String {
+        if (timestampMs == null || timestampMs <= 0L) return "Unknown"
+        return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(timestampMs))
+    }
+
     @JvmStatic
     fun forceDownloadOnContainerSwap(context: Context, shortcut: Shortcut): Boolean {
         val forceFlag = shortcut.getExtra("cloud_force_download")
@@ -162,6 +173,65 @@ object CloudSyncHelper {
                 Timber.e(e, "Cloud save diff check failed for %s", shortcut.name)
                 // Cannot determine — assume different so user gets to decide
                 true
+            }
+        }
+    }
+
+    @JvmStatic
+    fun getConflictTimestamps(context: Context, shortcut: Shortcut): CloudSyncConflictTimestamps {
+        return runBlocking {
+            try {
+                when (shortcut.getExtra("game_source")) {
+                    "EPIC" -> {
+                        val appId = shortcut.getExtra("app_id").toIntOrNull()
+                        val saveDir = appId?.let { EpicCloudSavesManager.getResolvedSaveDirectory(context, it) }
+                        val localNewest = saveDir
+                            ?.takeIf { it.exists() }
+                            ?.walkTopDown()
+                            ?.filter { it.isFile }
+                            ?.maxOfOrNull(File::lastModified)
+                        val prefs = context.getSharedPreferences("epic_games", Context.MODE_PRIVATE)
+                        val cloudTimestamp = prefs.getString("sync_timestamp_${appId ?: 0}", null)
+                            ?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
+                        CloudSyncConflictTimestamps(
+                            localTimestampLabel = formatTimestamp(localNewest),
+                            cloudTimestampLabel = formatTimestamp(cloudTimestamp),
+                        )
+                    }
+                    "GOG" -> {
+                        val appId = shortcut.getExtra("app_id").ifEmpty { shortcut.getExtra("gog_id") }
+                        val installPath = shortcut.getExtra("game_install_path")
+                        val localNewest = installPath.takeIf { it.isNotEmpty() }
+                            ?.let { File(it) }
+                            ?.takeIf { it.exists() }
+                            ?.walkTopDown()
+                            ?.filter { it.isFile }
+                            ?.maxOfOrNull(File::lastModified)
+                        val rawAppId = if (appId.startsWith("GOG_", ignoreCase = true)) appId else "GOG_$appId"
+                        val gogManager = GOGService.getInstance()?.gogManager
+                        val cloudTimestamp = gogManager
+                            ?.getCloudSaveSyncTimestamp(rawAppId, "default")
+                            ?.toLongOrNull()
+                            ?.times(1000)
+                        CloudSyncConflictTimestamps(
+                            localTimestampLabel = formatTimestamp(localNewest),
+                            cloudTimestampLabel = formatTimestamp(cloudTimestamp),
+                        )
+                    }
+                    "STEAM" -> {
+                        val appId = shortcut.getExtra("app_id").toIntOrNull()
+                        val localTracked = appId?.let { SteamService.getTrackedCloudSaveFiles(it) }
+                            ?.maxOfOrNull { it.timestamp }
+                        CloudSyncConflictTimestamps(
+                            localTimestampLabel = formatTimestamp(localTracked),
+                            cloudTimestampLabel = "Unknown",
+                        )
+                    }
+                    else -> CloudSyncConflictTimestamps("Unknown", "Unknown")
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to build cloud conflict timestamps for %s", shortcut.name)
+                CloudSyncConflictTimestamps("Unknown", "Unknown")
             }
         }
     }

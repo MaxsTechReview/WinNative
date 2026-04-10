@@ -3,6 +3,8 @@ package com.winlator.cmod.core;
 import android.content.Context;
 import android.util.Log;
 
+import androidx.annotation.Nullable;
+
 import java.io.IOException;
 import java.nio.file.Files;
 
@@ -14,11 +16,257 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
 public abstract class WineUtils {
+
+    public static String hostPathToRootWinePath(@Nullable Container container, @Nullable String hostPath) {
+        if (hostPath == null || hostPath.isEmpty()) return "";
+
+        String normalizedHostPath = new File(hostPath).getAbsolutePath();
+        String drives = container != null && container.getDrives() != null
+                ? container.getDrives()
+                : Container.DEFAULT_DRIVES;
+
+        String rootDrive = null;
+        String rootDrivePath = null;
+        for (String[] drive : Container.drivesIterator(drives)) {
+            if (drive.length < 2) continue;
+            if (!"F".equalsIgnoreCase(drive[0])) continue;
+            rootDrive = drive[0];
+            rootDrivePath = new File(drive[1]).getAbsolutePath();
+            break;
+        }
+
+        if (rootDrive != null && rootDrivePath != null && pathStartsWith(normalizedHostPath, rootDrivePath)) {
+            String relativePath = normalizedHostPath.substring(rootDrivePath.length()).replace("/", "\\");
+            while (relativePath.startsWith("\\")) relativePath = relativePath.substring(1);
+            if (relativePath.isEmpty()) return rootDrive + ":\\";
+            return rootDrive + ":\\" + relativePath;
+        }
+
+        return hostPathToMappedWinePath(container, hostPath);
+    }
+
+    public static String hostPathToMappedWinePath(@Nullable Container container, @Nullable String hostPath) {
+        if (hostPath == null || hostPath.isEmpty()) return "";
+
+        String normalizedHostPath = new File(hostPath).getAbsolutePath();
+        String bestDriveLetter = null;
+        String bestDriveRoot = null;
+
+        String drives = container != null && container.getDrives() != null
+                ? container.getDrives()
+                : Container.DEFAULT_DRIVES;
+
+        for (String[] drive : Container.drivesIterator(drives)) {
+            if (drive.length < 2) continue;
+            String driveLetter = drive[0];
+            if ("A".equalsIgnoreCase(driveLetter)) continue;
+            String driveRoot = new File(drive[1]).getAbsolutePath();
+            if (!pathStartsWith(normalizedHostPath, driveRoot)) continue;
+
+            if (bestDriveRoot == null || driveRoot.length() > bestDriveRoot.length()) {
+                bestDriveLetter = driveLetter;
+                bestDriveRoot = driveRoot;
+            }
+        }
+
+        if (bestDriveLetter != null && bestDriveRoot != null) {
+            String relativePath = normalizedHostPath.substring(bestDriveRoot.length()).replace("/", "\\");
+            while (relativePath.startsWith("\\")) relativePath = relativePath.substring(1);
+            if (relativePath.isEmpty()) return bestDriveLetter + ":\\";
+            return bestDriveLetter + ":\\" + relativePath;
+        }
+
+        String windowsPath = normalizedHostPath.replace("/", "\\");
+        if (!windowsPath.startsWith("\\")) windowsPath = "\\" + windowsPath;
+        return "Z:" + windowsPath;
+    }
+
+    private static boolean pathStartsWith(String path, String basePath) {
+        if (path.equals(basePath)) return true;
+        if (basePath.endsWith(File.separator)) return path.startsWith(basePath);
+        return path.startsWith(basePath + File.separator);
+    }
+
+    public static String normalizePersistentDrives(Context context, String drives) {
+        List<String[]> entries = new ArrayList<>();
+        if (drives != null && !drives.isEmpty()) {
+            for (String[] drive : Container.drivesIterator(drives)) {
+                if (drive[1] == null || drive[1].isEmpty()) continue;
+                if ("A".equals(drive[0]) || "E".equals(drive[0])) continue;
+                entries.add(new String[]{drive[0], drive[1]});
+            }
+        }
+
+        String downloadsPath = android.os.Environment
+                .getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                .getAbsolutePath();
+        String externalStoragePath = android.os.Environment.getExternalStorageDirectory().getAbsolutePath();
+        String sdCardRootPath = getSdCardRootPath();
+
+        upsertDrive(entries, "D", downloadsPath);
+        upsertDrive(entries, "F", externalStoragePath);
+        if (sdCardRootPath != null && !sdCardRootPath.isEmpty()) upsertDrive(entries, "G", sdCardRootPath);
+        else removeDrive(entries, "G");
+
+        StringBuilder normalized = new StringBuilder();
+        appendDriveIfPresent(normalized, entries, "C");
+        appendDriveIfPresent(normalized, entries, "D");
+        appendDriveIfPresent(normalized, entries, "F");
+        appendDriveIfPresent(normalized, entries, "G");
+
+        for (String[] entry : entries) {
+            if ("C".equals(entry[0]) || "D".equals(entry[0]) || "F".equals(entry[0]) || "G".equals(entry[0])) {
+                continue;
+            }
+            normalized.append(entry[0]).append(':').append(entry[1]);
+        }
+
+        return normalized.toString();
+    }
+
+    public static String getPrimaryGameDrivePath(Container container) {
+        if (container == null) return null;
+
+        String fallback = null;
+        String drives = container.getDrives() != null ? container.getDrives() : Container.DEFAULT_DRIVES;
+        for (String[] drive : Container.drivesIterator(drives)) {
+            String letter = drive[0];
+            if ("G".equals(letter)) return drive[1];
+            if ("F".equals(letter)) return drive[1];
+            if (!Arrays.asList("C", "D", "Z").contains(letter) && !"A".equals(letter) && fallback == null) {
+                fallback = drive[1];
+            }
+            if ("A".equals(letter) && fallback == null) fallback = drive[1];
+        }
+        return fallback;
+    }
+
+    public static String getSdCardRootPath() {
+        try {
+            if (!com.winlator.cmod.steam.utils.PrefManager.INSTANCE.getUseExternalStorage()) return null;
+            String path = com.winlator.cmod.steam.utils.PrefManager.INSTANCE.getExternalStoragePath();
+            if (path == null || path.isEmpty()) return null;
+            File root = new File(path);
+            return root.exists() ? root.getAbsolutePath() : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    public static boolean isOnSdCard(String nativePath) {
+        if (nativePath == null || nativePath.isEmpty()) return false;
+        String sdCardRoot = getSdCardRootPath();
+        if (sdCardRoot == null || sdCardRoot.isEmpty()) return false;
+        try {
+            String canonicalPath = new File(nativePath).getCanonicalPath();
+            String canonicalSdRoot = new File(sdCardRoot).getCanonicalPath();
+            return canonicalPath.equals(canonicalSdRoot) || canonicalPath.startsWith(canonicalSdRoot + File.separator);
+        } catch (IOException e) {
+            return nativePath.equals(sdCardRoot) || nativePath.startsWith(sdCardRoot + File.separator);
+        }
+    }
+
+    public static String getPreferredGameDriveLetter(String nativePath) {
+        return isOnSdCard(nativePath) ? "G" : "F";
+    }
+
+    public static File ensureDriveCGameSymlink(Container container, String source, String gameInstallPath) {
+        if (container == null || gameInstallPath == null || gameInstallPath.isEmpty()) return null;
+
+        File gameDir = new File(gameInstallPath);
+        if (!gameDir.exists()) return null;
+
+        String safeSource = source == null || source.isEmpty() ? "Games" : source;
+        String gameName = gameDir.getName();
+        if (gameName == null || gameName.isEmpty()) gameName = "Game";
+        gameName = gameName.replace("/", "_").replace("\\", "_");
+
+        File parentDir = new File(container.getRootDir(), ".wine/drive_c/WinNative/Games/" + safeSource);
+        if (!parentDir.exists()) parentDir.mkdirs();
+
+        File link = new File(parentDir, gameName);
+        boolean needsCreation = !link.exists() && !isSymlink(link);
+        if (!needsCreation) {
+            try {
+                if (isSymlink(link)) {
+                    String currentTarget = Files.readSymbolicLink(link.toPath()).toString();
+                    if (!new File(currentTarget).getAbsolutePath().equals(gameDir.getAbsolutePath())) {
+                        FileUtils.delete(link);
+                        needsCreation = true;
+                    }
+                }
+            } catch (IOException e) {
+                if (link.isDirectory()) {
+                    String[] children = link.list();
+                    if (children == null || children.length == 0) {
+                        FileUtils.delete(link);
+                        needsCreation = true;
+                    }
+                }
+            }
+        }
+
+        if (needsCreation) FileUtils.symlink(gameDir.getAbsolutePath(), link.getAbsolutePath());
+        return link;
+    }
+
+    public static String getDriveCGameWindowsPath(Container container, String source, String gameInstallPath, String nativePath) {
+        if (container == null || gameInstallPath == null || nativePath == null) return null;
+        try {
+            File gameDir = new File(gameInstallPath).getCanonicalFile();
+            File target = new File(nativePath).getCanonicalFile();
+            String gameDirPath = gameDir.getPath();
+            String targetPath = target.getPath();
+            if (!targetPath.equals(gameDirPath) && !targetPath.startsWith(gameDirPath + File.separator)) return null;
+
+            File symlink = ensureDriveCGameSymlink(container, source, gameInstallPath);
+            if (symlink == null) return null;
+
+            String relative = targetPath.substring(gameDirPath.length()).replace(File.separatorChar, '\\');
+            if (relative.isEmpty()) relative = "\\";
+            else if (!relative.startsWith("\\")) relative = "\\" + relative;
+            return "C:\\WinNative\\Games\\" + source + "\\" + symlink.getName() + relative;
+        } catch (IOException e) {
+            Log.w("WineUtils", "Failed to resolve C: game path for " + nativePath, e);
+            return null;
+        }
+    }
+
+    public static String getWindowsPath(Container container, String nativePath) {
+        return hostPathToMappedWinePath(container, nativePath);
+    }
+
+    private static void upsertDrive(List<String[]> entries, String letter, String path) {
+        for (String[] entry : entries) {
+            if (letter.equals(entry[0])) {
+                entry[1] = path;
+                return;
+            }
+        }
+        entries.add(new String[]{letter, path});
+    }
+
+    private static void removeDrive(List<String[]> entries, String letter) {
+        for (int i = entries.size() - 1; i >= 0; i--) {
+            if (letter.equals(entries.get(i)[0])) entries.remove(i);
+        }
+    }
+
+    private static void appendDriveIfPresent(StringBuilder builder, List<String[]> entries, String letter) {
+        for (String[] entry : entries) {
+            if (letter.equals(entry[0])) {
+                builder.append(entry[0]).append(':').append(entry[1]);
+                return;
+            }
+        }
+    }
+
     public static void createDosdevicesSymlinks(Container container) {
         Log.d("ContainerLaunch", "createDosdevicesSymlinks: rootDir=" + container.getRootDir().getAbsolutePath() +
                 " drives=" + container.getDrives());
@@ -261,8 +509,8 @@ public abstract class WineUtils {
             for (String name : direct3dLibs) registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
             for (String name : dinputLibs) registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
             for (String name : xinputLibs) registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
-            // Conditional OpenGL override for ARM64EC
-            if (wineInfo != null && wineInfo.isArm64EC()) {
+            // Conditional OpenGL override for ARM64EC (exclude Mali GPUs)
+            if (wineInfo != null && wineInfo.isArm64EC() && !GPUInformation.getRenderer(null, null).contains("Mali")) {
                 registryEditor.setStringValue(dllOverridesKey, "opengl32", "native,builtin");
             }
             setWindowMetrics(registryEditor);
@@ -508,15 +756,53 @@ public abstract class WineUtils {
         }
     }
 
-    public static void setJoystickRegistryKeys(File userRegFile, boolean enable) {
+    public static void setJoystickRegistryKeys(Container container, boolean dinputEnabled, boolean exclusiveXInput) {
+        File userRegFile = new File(container.getRootDir(), ".wine/user.reg");
+        String value = dinputEnabled ? "override" : "disabled";
         try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
-            if (enable) {
-                registryEditor.removeKey("Software\\Wine\\DirectInput");
-            } else {
-                registryEditor.setStringValue("Software\\Wine\\DirectInput", "js0", "");
-                registryEditor.setStringValue("Software\\Wine\\DirectInput", "js1", "");
-                registryEditor.setStringValue("Software\\Wine\\DirectInput", "js2", "");
-                registryEditor.setStringValue("Software\\Wine\\DirectInput", "js3", "");
+            for (int i = 0; i < 4; i++) {
+                if (exclusiveXInput) {
+                    registryEditor.setStringValue("Software\\Wine\\DirectInput\\Joysticks", "Generic HID Gamepad " + i, value);
+                    registryEditor.setStringValue("Software\\Wine\\DirectInput\\Joysticks", "ric HID Gamepad " + i, value);
+                } else {
+                    registryEditor.removeValue("Software\\Wine\\DirectInput\\Joysticks", "Generic HID Gamepad " + i);
+                    registryEditor.removeValue("Software\\Wine\\DirectInput\\Joysticks", "ric HID Gamepad " + i);
+                }
+            }
+        }
+    }
+
+    /**
+     * Ensures winebus is configured correctly for the fake-input mechanism on
+     * every launch.  Runs unconditionally so pre-existing containers are repaired.
+     * 1. Removes stale WINEBUS device entries (phantom VID_845E devices).
+     * 2. Sets DisableHidraw=1 so Proton winebus uses evdev (hooked by libfakeinput).
+     */
+    public static void ensureWinebusConfig(Container container) {
+        File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
+        if (!systemRegFile.exists()) return;
+
+        try (WineRegistryEditor registryEditor = new WineRegistryEditor(systemRegFile)) {
+            // Remove stale WINEBUS device registrations that don't match our fake gamepad
+            registryEditor.removeKey("System\\ControlSet001\\Enum\\WINEBUS\\VID_845E&PID_0001", true);
+            registryEditor.removeKey("System\\CurrentControlSet\\Enum\\WINEBUS\\VID_845E&PID_0001", true);
+
+            // Ensure winebus parameters disable hidraw and keep evdev enabled
+            String winebusParamsKey = "System\\CurrentControlSet\\Services\\winebus\\Parameters";
+            registryEditor.setDwordValue(winebusParamsKey, "DisableHidraw", 1);
+            registryEditor.setDwordValue(winebusParamsKey, "DisableInput", 0);
+            String winebusParamsKey2 = "System\\ControlSet001\\Services\\winebus\\Parameters";
+            registryEditor.setDwordValue(winebusParamsKey2, "DisableHidraw", 1);
+            registryEditor.setDwordValue(winebusParamsKey2, "DisableInput", 0);
+        }
+    }
+
+    public static void setJoystickRegistryKeys(File userRegFile, boolean enable) {
+        String value = enable ? "override" : "disabled";
+        try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
+            for (int i = 0; i < 4; i++) {
+                registryEditor.setStringValue("Software\\Wine\\DirectInput\\Joysticks", "Generic HID Gamepad " + i, value);
+                registryEditor.setStringValue("Software\\Wine\\DirectInput\\Joysticks", "ric HID Gamepad " + i, value);
             }
         }
     }

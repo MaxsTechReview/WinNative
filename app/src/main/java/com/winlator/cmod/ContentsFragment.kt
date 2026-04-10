@@ -178,7 +178,7 @@ class ContentsFragment : Fragment() {
             }
         }
 
-        loadContentList()
+        loadContentList(scrollToTop = true)
     }
 
     private fun updateInstallAction(type: ContentProfile.ContentType) {
@@ -341,11 +341,16 @@ class ContentsFragment : Fragment() {
         }
     }
 
-    private fun loadContentList() {
+    private fun loadContentList(scrollToTop: Boolean = false) {
         val profiles = manager.getProfiles(currentContentType).orEmpty()
         binding.TVEmptyText.isVisible = profiles.isEmpty()
         binding.RecyclerView.isVisible = profiles.isNotEmpty()
-        contentAdapter.submitList(buildContentRows(profiles))
+        contentAdapter.submitList(buildContentRows(profiles)) {
+            if (_binding != null && scrollToTop) {
+                binding.RecyclerView.stopScroll()
+                binding.RecyclerView.scrollToPosition(0)
+            }
+        }
     }
 
     private fun buildContentRows(profiles: List<ContentProfile>): List<ContentRow> {
@@ -532,7 +537,8 @@ class ContentsFragment : Fragment() {
                             )
                         } else {
                             manager.removeContent(profile)
-                            loadContentList()
+                            manager.syncContents()
+                            loadContentList(scrollToTop = true)
                         }
                     }
                     true

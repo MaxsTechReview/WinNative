@@ -61,9 +61,9 @@ object ContainerUtils {
             ?: throw IllegalStateException("No installed Wine/Proton container available")
     }
 
-    fun getADrivePath(drives: String): String? {
+    fun getGameDrivePath(drives: String): String? {
         for (drive in Container.drivesIterator(drives)) {
-            if (drive[0] == "A") {
+            if (drive[0] != "C" && drive[0] != "D" && drive[0] != "E" && drive[0] != "Z") {
                 return drive[1]
             }
         }
@@ -79,23 +79,23 @@ object ContainerUtils {
     }
 
     /**
-     * Recursively scans the A: drive for .exe files, returning relative paths.
+     * Recursively scans the mapped game drive for .exe files, returning relative paths.
      * Custom download paths are preserved because we respect the drives string.
      */
     @JvmStatic
-    fun scanExecutablesInADrive(drives: String): List<String> {
+    fun scanExecutablesInGameDrive(drives: String): List<String> {
         val executables = mutableListOf<String>()
 
         try {
-            val aDrivePath = getADrivePath(drives)
-            if (aDrivePath == null) {
-                Timber.w("No A: drive found in container drives")
+            val gameDrivePath = getGameDrivePath(drives)
+            if (gameDrivePath == null) {
+                Timber.w("No mapped game drive found in container drives")
                 return emptyList()
             }
 
-            val aDir = File(aDrivePath)
+            val aDir = File(gameDrivePath)
             if (!aDir.exists() || !aDir.isDirectory) {
-                Timber.w("A: drive path does not exist or is not a directory: $aDrivePath")
+                Timber.w("Mapped game drive path does not exist or is not a directory: $gameDrivePath")
                 return emptyList()
             }
 
@@ -123,7 +123,7 @@ object ContainerUtils {
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Error scanning A: drive for executables")
+            Timber.e(e, "Error scanning mapped game drive for executables")
         }
 
         return executables

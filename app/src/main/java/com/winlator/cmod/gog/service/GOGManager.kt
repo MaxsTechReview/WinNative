@@ -849,7 +849,7 @@ class GOGManager @Inject constructor(
         ensureScriptInterpreterRootDirSymlink(gameInstallDir)
 
         val isiRelativePathWin = isiRelativePath.replace('/', '\\')
-        val gameDriveLetter = "A"
+        val gameDriveLetter = "F"
         val buildId = root.optString("buildId", "")
         val versionName = root.optString("versionName", "")
         val langCode = root.optString("language", "en").let { if (it.length <= 2) "$it-US" else it }
