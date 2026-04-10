@@ -714,7 +714,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     private fun resolveSelectedWineVersionIdentifier(): String {
         wineVersionIdentifiers.getOrNull(state.selectedWineVersion.intValue)?.let { return it }
 
-        contentsManager.syncContents()
+        // Profiles were already synced in loadContentsAsync(); query what's available
+        // without re-scanning disk on the main thread.
         val installedProfiles = (
             contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_WINE).orEmpty() +
                 contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_PROTON).orEmpty()
