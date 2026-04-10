@@ -6,9 +6,4 @@
     <dimen name="github_asset_button_horizontal_padding">18dp</dimen>
     <dimen name="github_asset_button_vertical_padding">10dp</dimen>
     <dimen name="github_asset_button_spacing">8dp</dimen>
-    <dimen name="debug_channel_chip_spacing_horizontal">8dp</dimen>
-    <dimen name="debug_channel_chip_spacing_vertical">8dp</dimen>
-    <dimen name="debug_channel_dialog_button_padding_horizontal">16dp</dimen>
-    <dimen name="debug_channel_dialog_button_padding_vertical">8dp</dimen>
-    <dimen name="debug_channel_dialog_button_min_width">84dp</dimen>
 </resources>
