@@ -664,9 +664,6 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="settings_general_refresh_rate">Bildwiederholrate</string>
     <string name="settings_general_refresh_rate_auto_max">Max</string>
     <string name="settings_general_refresh_rate_summary">Bildwiederholrate und DXVK-Frame-Limit festlegen</string>
-    <string name="settings_general_help_file_provider">
-        &lt;i&gt;&lt;b&gt;Dateianbieter&lt;/b&gt;&lt;/i&gt; ermöglicht den Zugriff auf die internen Daten von Winlator über den Android-Dateimanager.&lt;br/&gt;&lt;br/&gt;
-    </string>
     <string name="settings_general_touchscreen_timeout">Touchscreen-Timeout (Neustart erforderlich)</string>
     <string name="settings_general_touchscreen_haptics">Haptisches Touchscreen-Feedback aktivieren</string>
     <string name="settings_general_open_with_android_browser">Android-Browser in Wine öffnen</string>

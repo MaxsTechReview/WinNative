@@ -664,9 +664,6 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_general_refresh_rate">Rata de reimprospatare</string>
     <string name="settings_general_refresh_rate_auto_max">Max</string>
     <string name="settings_general_refresh_rate_summary">Seteaza rata de reimprospatare a ecranului si limita de cadre DXVK</string>
-    <string name="settings_general_help_file_provider">
-        &lt;i&gt;&lt;b&gt;Furnizorul de fisiere&lt;/b&gt;&lt;/i&gt; permite accesul la datele interne Winlator prin managerul de fisiere Android.&lt;br/&gt;&lt;br/&gt;
-    </string>
     <string name="settings_general_touchscreen_timeout">Timeout ecran tactil (necesita repornire)</string>
     <string name="settings_general_touchscreen_haptics">Activeaza feedback haptic ecran tactil</string>
     <string name="settings_general_open_with_android_browser">Deschide browserul Android in Wine</string>

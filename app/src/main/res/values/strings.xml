@@ -679,9 +679,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_general_refresh_rate">Refresh Rate</string>
     <string name="settings_general_refresh_rate_auto_max">Max</string>
     <string name="settings_general_refresh_rate_summary">Set display refresh rate and DXVK frame limit</string>
-    <string name="settings_general_help_file_provider">
-        &lt;i&gt;&lt;b&gt;File Provider&lt;/b&gt;&lt;/i&gt; allows access to Winlator\'s internal data through android file manager.&lt;br/&gt;&lt;br/&gt;
-    </string>
     <string name="settings_general_touchscreen_timeout">Touchscreen Timeout (Requires Restart)</string>
     <string name="settings_general_touchscreen_haptics">Enable Touchscreen Haptic Feedback</string>
     <string name="settings_general_open_with_android_browser">Open Android Browser in Wine</string>

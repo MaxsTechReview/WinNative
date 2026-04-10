@@ -664,9 +664,6 @@
     <string name="settings_general_refresh_rate">重新整理率</string>
     <string name="settings_general_refresh_rate_auto_max">最大值</string>
     <string name="settings_general_refresh_rate_summary">設定顯示重新整理率和 DXVK 幀率限制</string>
-    <string name="settings_general_help_file_provider">
-        &lt;i&gt;&lt;b&gt;檔案提供者&lt;/b&gt;&lt;/i&gt;允許透過 Android 檔案管理員存取 Winlator 的內部資料。&lt;br/&gt;&lt;br/&gt;
-    </string>
     <string name="settings_general_touchscreen_timeout">觸控螢幕逾時（需要重新啟動）</string>
     <string name="settings_general_touchscreen_haptics">啟用觸控螢幕觸覺回饋</string>
     <string name="settings_general_open_with_android_browser">在 Wine 中開啟 Android 瀏覽器</string>

@@ -664,9 +664,6 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="settings_general_refresh_rate">Częstotliwość odświeżania</string>
     <string name="settings_general_refresh_rate_auto_max">Maks.</string>
     <string name="settings_general_refresh_rate_summary">Ustaw częstotliwość odświeżania ekranu i limit klatek DXVK</string>
-    <string name="settings_general_help_file_provider">
-        &lt;i&gt;&lt;b&gt;Dostawca plików&lt;/b&gt;&lt;/i&gt; umożliwia dostęp do wewnętrznych danych Winlator przez menedżer plików Androida.&lt;br/&gt;&lt;br/&gt;
-    </string>
     <string name="settings_general_touchscreen_timeout">Limit czasu ekranu dotykowego (wymaga restartu)</string>
     <string name="settings_general_touchscreen_haptics">Włącz wibracje przy dotyku</string>
     <string name="settings_general_open_with_android_browser">Otwieraj przeglądarkę Androida w Wine</string>

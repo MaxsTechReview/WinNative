@@ -219,6 +219,10 @@ class UnifiedActivity : AppCompatActivity() {
     private var rootNavController: NavHostController? = null
     // Queued navigation to process once the nav controller is ready
     private var pendingNavigation: PendingNavigation? = null
+    // Guards against rapid Back presses during the settings → hub exit animation.
+    // Without this, two popBackStack() calls inside the 300ms transition can desync
+    // the NavHost state and leave the root composable rendering nothing (black screen).
+    private var isPoppingSettings: Boolean = false
 
     // Track the currently selected game in the carousel for Game Settings button
     private var selectedSteamAppId: Int = 0
@@ -534,6 +538,7 @@ class UnifiedActivity : AppCompatActivity() {
             pendingNavigation = PendingNavigation(item, profileId, editContainerId)
             return
         }
+        isPoppingSettings = false
         nav.navigate(route) {
             launchSingleTop = true
         }
@@ -669,6 +674,9 @@ class UnifiedActivity : AppCompatActivity() {
                     }
                 ) {
                     composable("hub") {
+                        // Once hub is the current destination, the previous settings-pop is
+                        // complete — clear the guard so the next settings session starts fresh.
+                        LaunchedEffect(Unit) { isPoppingSettings = false }
                         UnifiedHub()
                     }
                     composable(
@@ -684,11 +692,22 @@ class UnifiedActivity : AppCompatActivity() {
                         val profileId = backStackEntry.arguments?.getInt("profileId") ?: 0
                         val editContainerId = backStackEntry.arguments?.getInt("editContainerId") ?: 0
 
+                        // Idempotent pop: the first Back press pops, any further presses during
+                        // the 300ms exit animation are absorbed here so NavHost state stays
+                        // consistent (see isPoppingSettings field for full context).
+                        val popSettingsOnce: () -> Unit = {
+                            if (!isPoppingSettings) {
+                                isPoppingSettings = true
+                                navController.popBackStack()
+                            }
+                        }
+                        BackHandler(enabled = true) { popSettingsOnce() }
+
                         SettingsHost(
                             startItem = startItem,
                             selectedProfileId = profileId,
                             bordersPaused = chasingBordersPaused.value,
-                            onBack = { navController.popBackStack() }
+                            onBack = popSettingsOnce
                         )
 
                         // Handle edit_container_id deep link — show dialog on main thread outside composition

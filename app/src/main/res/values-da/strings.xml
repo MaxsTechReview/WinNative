@@ -664,9 +664,6 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_general_refresh_rate">Opdateringshastighed</string>
     <string name="settings_general_refresh_rate_auto_max">Maks</string>
     <string name="settings_general_refresh_rate_summary">Indstil skærmens opdateringshastighed og DXVK-billedgrænse</string>
-    <string name="settings_general_help_file_provider">
-        &lt;i&gt;&lt;b&gt;Filudbyder&lt;/b&gt;&lt;/i&gt; giver adgang til Winlators interne data gennem Android-filhåndtering.&lt;br/&gt;&lt;br/&gt;
-    </string>
     <string name="settings_general_touchscreen_timeout">Touchskærm-timeout (kræver genstart)</string>
     <string name="settings_general_touchscreen_haptics">Aktiver haptisk feedback for touchskærm</string>
     <string name="settings_general_open_with_android_browser">Åbn Android-browser i Wine</string>

@@ -664,9 +664,6 @@ Ej. <b>META</b> para la <i>tecla META</i>, \n
     <string name="settings_general_refresh_rate">Tasa de refresco</string>
     <string name="settings_general_refresh_rate_auto_max">Máx</string>
     <string name="settings_general_refresh_rate_summary">Establecer la tasa de refresco de pantalla y el límite de fotogramas de DXVK</string>
-    <string name="settings_general_help_file_provider">
-        &lt;i&gt;&lt;b&gt;Proveedor de archivos&lt;/b&gt;&lt;/i&gt; permite acceder a los datos internos de Winlator a través del administrador de archivos de Android.&lt;br/&gt;&lt;br/&gt;
-    </string>
     <string name="settings_general_touchscreen_timeout">Tiempo de espera de pantalla táctil (Requiere reinicio)</string>
     <string name="settings_general_touchscreen_haptics">Activar retroalimentación háptica de pantalla táctil</string>
     <string name="settings_general_open_with_android_browser">Abrir navegador Android en Wine</string>

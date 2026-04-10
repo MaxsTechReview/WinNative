@@ -664,9 +664,6 @@
     <string name="settings_general_refresh_rate">刷新率</string>
     <string name="settings_general_refresh_rate_auto_max">最大</string>
     <string name="settings_general_refresh_rate_summary">设置显示刷新率和 DXVK 帧率限制</string>
-    <string name="settings_general_help_file_provider">
-        &lt;i&gt;&lt;b&gt;文件提供程序&lt;/b&gt;&lt;/i&gt;允许通过 Android 文件管理器访问 Winlator 的内部数据。&lt;br/&gt;&lt;br/&gt;
-    </string>
     <string name="settings_general_touchscreen_timeout">触屏超时（需要重启）</string>
     <string name="settings_general_touchscreen_haptics">启用触屏触觉反馈</string>
     <string name="settings_general_open_with_android_browser">在 Wine 中打开 Android 浏览器</string>

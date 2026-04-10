@@ -664,9 +664,6 @@
     <string name="settings_general_refresh_rate">Частота оновлення</string>
     <string name="settings_general_refresh_rate_auto_max">Макс.</string>
     <string name="settings_general_refresh_rate_summary">Встановити частоту оновлення дисплея та обмеження кадрів DXVK</string>
-    <string name="settings_general_help_file_provider">
-        &lt;i&gt;&lt;b&gt;Файловий провайдер&lt;/b&gt;&lt;/i&gt; дозволяє отримати доступ до внутрішніх даних Winlator через файловий менеджер Android.&lt;br/&gt;&lt;br/&gt;
-    </string>
     <string name="settings_general_touchscreen_timeout">Тайм-аут сенсорного екрана (потрібен перезапуск)</string>
     <string name="settings_general_touchscreen_haptics">Увімкнути тактильний відгук сенсорного екрана</string>
     <string name="settings_general_open_with_android_browser">Відкривати Android-браузер у Wine</string>

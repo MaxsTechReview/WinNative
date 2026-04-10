@@ -664,9 +664,6 @@
     <string name="settings_general_refresh_rate">주사율</string>
     <string name="settings_general_refresh_rate_auto_max">최대</string>
     <string name="settings_general_refresh_rate_summary">디스플레이 주사율 및 DXVK 프레임 제한 설정</string>
-    <string name="settings_general_help_file_provider">
-        &lt;i&gt;&lt;b&gt;파일 제공자&lt;/b&gt;&lt;/i&gt;를 통해 Android 파일 관리자에서 Winlator의 내부 데이터에 접근할 수 있습니다.&lt;br/&gt;&lt;br/&gt;
-    </string>
     <string name="settings_general_touchscreen_timeout">터치스크린 시간 초과 (재시작 필요)</string>
     <string name="settings_general_touchscreen_haptics">터치스크린 햅틱 피드백 활성화</string>
     <string name="settings_general_open_with_android_browser">Wine에서 Android 브라우저 열기</string>

@@ -32,6 +32,16 @@ import java.util.concurrent.atomic.AtomicLong;
 public abstract class ImageFsInstaller {
     public static final byte LATEST_VERSION = 22;
 
+    /**
+     * Progress callback for installing ImageFS from assets.
+     * Lets callers drive a custom UI (e.g. Jetpack Compose) instead of the legacy dialog.
+     * All callbacks are invoked on a background thread; marshal to UI thread as needed.
+     */
+    public interface ProgressListener {
+        void onProgress(int percent);
+        void onFinished(boolean success);
+    }
+
     private static void resetContainerImgVersions(Context context) {
         ContainerManager manager = new ContainerManager(context);
         for (Container container : manager.getContainers()) {
@@ -65,14 +75,28 @@ public abstract class ImageFsInstaller {
     }
 
     public static void installFromAssets(final android.app.Activity activity) {
+        final DownloadProgressDialog dialog = new DownloadProgressDialog(activity);
+        dialog.show(R.string.setup_wizard_installing_system_files);
+        installFromAssets(activity, new ProgressListener() {
+            @Override
+            public void onProgress(int percent) {
+                activity.runOnUiThread(() -> dialog.setProgress(percent));
+            }
+
+            @Override
+            public void onFinished(boolean success) {
+                dialog.closeOnUiThread();
+            }
+        });
+    }
+
+    public static void installFromAssets(final android.app.Activity activity, final ProgressListener listener) {
         AppUtils.keepScreenOn(activity);
         ImageFs imageFs = ImageFs.find(activity);
         File rootDir = imageFs.getRootDir();
 
         SettingsConfig.resetEmulatorsVersion(activity);
 
-        final DownloadProgressDialog dialog = new DownloadProgressDialog(activity);
-        dialog.show(R.string.setup_wizard_installing_system_files);
         Executors.newSingleThreadExecutor().execute(() -> {
             clearRootDir(rootDir);
             final byte compressionRatio = 22;
@@ -83,7 +107,7 @@ public abstract class ImageFsInstaller {
                 if (size > 0) {
                     long totalSize = totalSizeRef.addAndGet(size);
                     final int progress = (int)(((float)totalSize / contentLength) * 100);
-                    activity.runOnUiThread(() -> dialog.setProgress(progress));
+                    if (listener != null) listener.onProgress(progress);
                 }
                 return file;
             });
@@ -101,7 +125,7 @@ public abstract class ImageFsInstaller {
             }
             else AppUtils.showToast(activity, R.string.setup_wizard_unable_to_install_system_files);
 
-            dialog.closeOnUiThread();
+            if (listener != null) listener.onFinished(success);
         });
     }
 
