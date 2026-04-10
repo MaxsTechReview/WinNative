@@ -202,8 +202,8 @@ fun setupXServerDrawerComposeView(
         MaterialTheme(
             colorScheme = darkColorScheme(
                 primary = Color(0xFF2F81F7),
-                background = Color(0xFF0D1117),
-                surface = Color(0xFF161B22),
+                background = Color(0xFF141B24),
+                surface = Color(0xFF1E252E),
                 onSurface = Color(0xFFE6EDF3),
             )
         ) {
@@ -221,13 +221,13 @@ private fun XServerDrawerContent(
         modifier = Modifier
             .fillMaxHeight()
             .width(336.dp),
-        color = Color(0xFF0D1117),
+        color = Color(0xFF141B24),
         tonalElevation = 0.dp,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0D1117))
+                .background(Color(0xFF141B24))
                 .padding(horizontal = 14.dp, vertical = 12.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -247,7 +247,7 @@ private fun XServerHUDSettingsExpanded(
     state: XServerDrawerState,
     listener: XServerDrawerActionListener,
 ) {
-    val card = Color(0xFF1C2333)
+    val card = Color(0xFF232C40)
     val accent = Color(0xFF2F81F7)
     val textSecondary = Color(0xFF8B949E)
 
@@ -369,7 +369,7 @@ private fun HUDCheckmarkToggle(
             modifier = Modifier.size(24.dp),
             colors = CheckboxDefaults.colors(
                 checkedColor = accent,
-                uncheckedColor = Color(0xFF30363D),
+                uncheckedColor = Color(0xFF394048),
                 checkmarkColor = Color.White
             )
         )
@@ -390,8 +390,8 @@ private fun XServerDrawerRow(
     onClick: () -> Unit,
 ) {
     val accent = Color(0xFF2F81F7)
-    val surface = Color(0xFF161B22)
-    val card = Color(0xFF1C2333)
+    val surface = Color(0xFF1E252E)
+    val card = Color(0xFF232C40)
     val textPrimary = Color(0xFFE6EDF3)
     val textSecondary = Color(0xFF8B949E)
 

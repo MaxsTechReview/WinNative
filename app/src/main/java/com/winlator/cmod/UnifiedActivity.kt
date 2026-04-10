@@ -184,10 +184,10 @@ import androidx.navigation.navArgument
 import kotlin.math.roundToInt
 
 // Color palette
-private val BgDark = Color(0xFF0F0F12)
-private val SurfaceDark = Color(0xFF161B22)
-private val CardDark = Color(0xFF0A0A0F)
-private val CardBorder = Color(0xFF21212E)
+private val BgDark = Color(0xFF18181D)
+private val SurfaceDark = Color(0xFF1E252E)
+private val CardDark = Color(0xFF12121B)
+private val CardBorder = Color(0xFF2A2A3A)
 private val Accent = Color(0xFF1A9FFF)
 private val AccentGlow = Color(0xFF58A6FF)
 private val TextPrimary = Color(0xFFF0F4FF)
@@ -594,7 +594,7 @@ class UnifiedActivity : AppCompatActivity() {
         }
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.navigationBarColor = 0xFF0D1117.toInt()
+        window.navigationBarColor = 0xFF141B24.toInt()
 
         // Exclude left edge from system back gesture so the drawer can capture swipes
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
@@ -6757,7 +6757,7 @@ class UnifiedActivity : AppCompatActivity() {
                     .widthIn(max = 360.dp)
                     .fillMaxWidth(0.9f),
                 shape = RoundedCornerShape(20.dp),
-                color = Color(0xFF0D1117)
+                color = Color(0xFF141B24)
             ) {
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                     // Title
@@ -7121,7 +7121,7 @@ fun ControllerBadge(text: String, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .defaultMinSize(minHeight = 22.dp)
-            .background(Color(0xFF30363D), RoundedCornerShape(15.dp))
+            .background(Color(0xFF394048), RoundedCornerShape(15.dp))
             .border(1.dp, Color(0xFF8B949E).copy(alpha = 0.5f), RoundedCornerShape(15.dp))
             .padding(horizontal = 10.dp, vertical = 3.dp),
         contentAlignment = Alignment.Center

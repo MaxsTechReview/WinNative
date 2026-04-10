@@ -85,6 +85,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -96,22 +97,22 @@ import kotlin.math.roundToInt
 // ---------------------------------------------------------------------------
 // Black / gray color scheme
 // ---------------------------------------------------------------------------
-private val BgDeep = Color(0xFF0F0F12)
-private val SidebarBg = Color(0xFF0F0F12)
-private val ContentBg = Color(0xFF0F0F12)
-private val CardSurface = Color(0xFF14141E)
-private val CardBorder = Color(0xFF21212E)
-private val InputSurface = Color(0xFF0F0F16)
-private val InputBorder = Color(0xFF21212E)
+private val BgDeep = Color(0xFF18181D)
+private val SidebarBg = Color(0xFF18181D)
+private val ContentBg = Color(0xFF18181D)
+private val CardSurface = Color(0xFF1C1C2A)
+private val CardBorder = Color(0xFF2A2A3A)
+private val InputSurface = Color(0xFF171722)
+private val InputBorder = Color(0xFF2A2A3A)
 private val AccentBlue = Color(0xFF1A9FFF)
 private val TextPrimary = Color(0xFFF0F4FF)
 private val TextSecondary = Color(0xFF7A8FA8)
 private val TextDim = Color(0xFF6E7681)
-private val DividerColor = Color(0xFF21212E)
-private val CheckBorder = Color(0xFF21212E)
-private val TrackInactive = Color(0xFF14141E)
-private val ChipSurface = Color(0xFF0F0F16)
-private val ChipBorder = Color(0xFF21212E)
+private val DividerColor = Color(0xFF2A2A3A)
+private val CheckBorder = Color(0xFF2A2A3A)
+private val TrackInactive = Color(0xFF1C1C2A)
+private val ChipSurface = Color(0xFF171722)
+private val ChipBorder = Color(0xFF2A2A3A)
 private val DangerRed = Color(0xFFFF6B6B)
 private val WarningAmber = Color(0xFFFFB74D)
 
@@ -407,6 +408,7 @@ fun GameSettingsContent(
     val sections = remember(isSteam) { buildSections(isSteam) }
     val selectedIdx by state.currentSection
     val currentSectionId = sections.getOrNull(selectedIdx)?.first ?: SEC_GENERAL
+    val saveEnabled by state.isLoaded
 
     BoxWithConstraints(
         modifier = Modifier
@@ -422,6 +424,7 @@ fun GameSettingsContent(
                 // Top action bar: title on left, Cancel/Save on right
                 CompactBottomBar(
                     title = state.name.value,
+                    saveEnabled = saveEnabled,
                     onSave = { callbacks.onConfirm() },
                     onCancel = { callbacks.onDismiss() }
                 )
@@ -459,6 +462,7 @@ fun GameSettingsContent(
                     sections = sections.map { it.second },
                     currentIndex = selectedIdx,
                     onSectionSelected = { state.currentSection.intValue = it },
+                    saveEnabled = saveEnabled,
                     onSave = { callbacks.onConfirm() },
                     onCancel = { callbacks.onDismiss() },
                     modifier = Modifier
@@ -587,6 +591,7 @@ private fun CompactTopBar(
 @Composable
 private fun CompactBottomBar(
     title: String,
+    saveEnabled: Boolean,
     onSave: () -> Unit,
     onCancel: () -> Unit
 ) {
@@ -628,18 +633,7 @@ private fun CompactBottomBar(
         ) {
             Text(stringResource(R.string.common_ui_cancel), color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
         }
-        Box(
-            modifier = Modifier
-                .height(28.dp)
-                .clip(RoundedCornerShape(7.dp))
-                .border(1.dp, AccentBlue.copy(alpha = 0.5f), RoundedCornerShape(7.dp))
-                .background(AccentBlue.copy(alpha = 0.1f))
-                .clickable { onSave() }
-                .padding(horizontal = 14.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(stringResource(R.string.common_ui_save), color = AccentBlue, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-        }
+        SaveButton(enabled = saveEnabled, onClick = onSave, height = 28.dp, corner = 7.dp, fontSize = 11.sp)
     }
 }
 
@@ -652,6 +646,7 @@ private fun Sidebar(
     sections: List<SidebarSection>,
     currentIndex: Int,
     onSectionSelected: (Int) -> Unit,
+    saveEnabled: Boolean,
     onSave: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier
@@ -739,24 +734,49 @@ private fun Sidebar(
                     fontWeight = FontWeight.Medium
                 )
             }
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(32.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .border(1.dp, AccentBlue.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                    .background(AccentBlue.copy(alpha = 0.1f))
-                    .clickable { onSave() },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    stringResource(R.string.common_ui_save),
-                    color = AccentBlue,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
+            SaveButton(
+                enabled = saveEnabled,
+                onClick = onSave,
+                height = 32.dp,
+                corner = 8.dp,
+                fontSize = 12.sp,
+                modifier = Modifier.weight(1f)
+            )
         }
+    }
+}
+
+@Composable
+private fun SaveButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+    height: Dp,
+    corner: Dp,
+    fontSize: TextUnit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .height(height)
+            .clip(RoundedCornerShape(corner))
+            .border(
+                1.dp,
+                if (enabled) AccentBlue.copy(alpha = 0.5f) else CardBorder,
+                RoundedCornerShape(corner)
+            )
+            .background(
+                if (enabled) AccentBlue.copy(alpha = 0.1f) else CardSurface
+            )
+            .clickable(enabled = enabled) { onClick() }
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            stringResource(R.string.common_ui_save),
+            color = if (enabled) AccentBlue else TextDim,
+            fontSize = fontSize,
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 

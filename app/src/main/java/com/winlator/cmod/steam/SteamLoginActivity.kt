@@ -52,10 +52,10 @@ import com.winlator.cmod.steam.ui.data.UserLoginState
 import timber.log.Timber
 
 // Palette (matches Settings > Stores)
-private val BgDark        = Color(0xFF0F0F12)
-private val CardDark      = Color(0xFF14141E)
-private val CardBorder    = Color(0xFF21212E)
-private val IconBoxBg     = Color(0xFF1C1C28)
+private val BgDark        = Color(0xFF18181D)
+private val CardDark      = Color(0xFF1C1C2A)
+private val CardBorder    = Color(0xFF2A2A3A)
+private val IconBoxBg     = Color(0xFF242434)
 private val Accent        = Color(0xFF1A9FFF)
 private val TextPrimary   = Color(0xFFF0F4FF)
 private val TextSecondary = Color(0xFF7A8FA8)
@@ -633,7 +633,7 @@ class SteamLoginActivity : ComponentActivity() {
             modifier = Modifier
                 .scale(scale)
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFF1A1A26))
+                .background(Color(0xFF222232))
                 .border(1.dp, textColor.copy(alpha = 0.28f), RoundedCornerShape(8.dp))
                 .pointerInput(onClick) {
                     detectTapGestures(

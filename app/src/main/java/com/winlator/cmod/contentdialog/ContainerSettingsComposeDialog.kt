@@ -472,7 +472,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         // DXVK/WineD3D loaders iterate contents profiles; deferred to
         // populateContentsDependentData() after contentsManager.syncContents.
         updateEmulatorFrameVisibility()
-        state.isLoaded.value = true
     }
 
     private fun loadContentsAsync() {
@@ -480,10 +479,17 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             try {
                 contentsManager.syncContents()
                 activity.runOnUiThread {
-                    populateContentsDependentData()
+                    try {
+                        populateContentsDependentData()
+                    } finally {
+                        state.isLoaded.value = true
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error syncing contents", e)
+                activity.runOnUiThread {
+                    state.isLoaded.value = true
+                }
             }
         }
     }
@@ -619,9 +625,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
         val desktopTheme = buildDesktopThemeString()
 
-        val selectedWineStr = wineVersionIdentifiers.getOrNull(
-            state.selectedWineVersion.intValue
-        ) ?: WineInfo.MAIN_WINE_VERSION.identifier()
+        val selectedWineStr = resolveSelectedWineVersionIdentifier()
 
         if (c != null) {
             c.setName(name)
@@ -705,6 +709,26 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 AppUtils.showToast(context, "Error: " + e.message)
             }
         }
+    }
+
+    private fun resolveSelectedWineVersionIdentifier(): String {
+        wineVersionIdentifiers.getOrNull(state.selectedWineVersion.intValue)?.let { return it }
+
+        // Profiles were already synced in loadContentsAsync(); query what's available
+        // without re-scanning disk on the main thread.
+        val installedProfiles = (
+            contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_WINE).orEmpty() +
+                contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_PROTON).orEmpty()
+            )
+            .filter { it.isInstalled }
+            .sortedWith(
+                compareByDescending<ContentProfile> { it.verCode }
+                    .thenByDescending { it.verName.lowercase(Locale.ROOT) }
+            )
+
+        return installedProfiles.firstOrNull()
+            ?.let(ContentsManager::getEntryName)
+            ?: WineInfo.MAIN_WINE_VERSION.identifier()
     }
 
     private fun saveMouseWarpOverride(c: Container) {

@@ -491,8 +491,8 @@ class SetupWizardActivity : FragmentActivity() {
                 colorScheme = darkColorScheme(
                     primary = Color(0xFF57CBDE),
                     secondary = Color(0xFF3B82F6),
-                    background = Color(0xFF0D1117),
-                    surface = Color(0xFF161B22)
+                    background = Color(0xFF141B24),
+                    surface = Color(0xFF1E252E)
                 )
             ) {
                 SetupWizardScreen()
@@ -1382,7 +1382,7 @@ class SetupWizardActivity : FragmentActivity() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0A0E14))
+                .background(Color(0xFF111822))
                 .drawBehind {
                     val w = size.width
                     val h = size.height
@@ -1522,7 +1522,7 @@ class SetupWizardActivity : FragmentActivity() {
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(1.dp)
-                        .background(Color(0xFF1B2330))
+                        .background(Color(0xFF222D3D))
                 )
                 Spacer(Modifier.height(12.dp))
 
@@ -1636,8 +1636,8 @@ class SetupWizardActivity : FragmentActivity() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF111722), RoundedCornerShape(12.dp))
-                .border(1.dp, Color(0xFF1F3A4A), RoundedCornerShape(12.dp))
+                .background(Color(0xFF182030), RoundedCornerShape(12.dp))
+                .border(1.dp, Color(0xFF254558), RoundedCornerShape(12.dp))
                 .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1684,7 +1684,7 @@ class SetupWizardActivity : FragmentActivity() {
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(6.dp)
-                            .background(Color(0xFF223140), RoundedCornerShape(3.dp))
+                            .background(Color(0xFF293B4D), RoundedCornerShape(3.dp))
                     ) {
                         Box(
                             modifier = Modifier
@@ -1699,7 +1699,7 @@ class SetupWizardActivity : FragmentActivity() {
                             .fillMaxWidth()
                             .height(6.dp),
                         color = Color(0xFF57CBDE),
-                        trackColor = Color(0xFF223140)
+                        trackColor = Color(0xFF293B4D)
                     )
                 }
             }
@@ -1723,9 +1723,9 @@ class SetupWizardActivity : FragmentActivity() {
                 val active = i == current
                 val completed = i < current
                 val reached = active || completed
-                val bg = if (reached) Color(0xFF57CBDE) else Color(0xFF0A0E14)
-                val borderC = if (reached) Color(0xFF57CBDE) else Color(0xFF2A323E)
-                val textC = if (reached) Color(0xFF0A0E14) else Color(0xFF8B949E)
+                val bg = if (reached) Color(0xFF57CBDE) else Color(0xFF111822)
+                val borderC = if (reached) Color(0xFF57CBDE) else Color(0xFF323C4A)
+                val textC = if (reached) Color(0xFF111822) else Color(0xFF8B949E)
                 Box(
                     modifier = Modifier
                         .size(24.dp)
@@ -1746,7 +1746,7 @@ class SetupWizardActivity : FragmentActivity() {
                         modifier = Modifier
                             .width(18.dp)
                             .height(2.dp)
-                            .background(if (i < current) Color(0xFF57CBDE) else Color(0xFF2A323E))
+                            .background(if (i < current) Color(0xFF57CBDE) else Color(0xFF323C4A))
                     )
                 }
             }
@@ -1763,10 +1763,10 @@ class SetupWizardActivity : FragmentActivity() {
             onClick = onClick,
             enabled = enabled,
             shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, if (enabled) Color(0xFF3A4350) else Color(0xFF1B2330)),
+            border = BorderStroke(1.dp, if (enabled) Color(0xFF434D5C) else Color(0xFF222D3D)),
             colors = ButtonDefaults.outlinedButtonColors(
                 contentColor = Color(0xFFE6EDF3),
-                disabledContentColor = Color(0xFF3A4350)
+                disabledContentColor = Color(0xFF434D5C)
             )
         ) {
             Text(label, fontFamily = InterFont, fontSize = 13.sp, fontWeight = FontWeight.Medium)
@@ -1780,7 +1780,7 @@ class SetupWizardActivity : FragmentActivity() {
         onClick: () -> Unit
     ) {
         val borderColor by animateColorAsState(
-            targetValue = if (enabled) Color(0xFF57CBDE) else Color(0xFF1B2330),
+            targetValue = if (enabled) Color(0xFF57CBDE) else Color(0xFF222D3D),
             animationSpec = tween(300),
             label = "accentBorder"
         )
@@ -1911,8 +1911,8 @@ class SetupWizardActivity : FragmentActivity() {
         fun ContentPanel(modifier: Modifier) {
             Box(
                 modifier = modifier
-                    .background(Color(0xFF111722), RoundedCornerShape(12.dp))
-                    .border(1.dp, Color(0xFF1B2330), RoundedCornerShape(12.dp))
+                    .background(Color(0xFF182030), RoundedCornerShape(12.dp))
+                    .border(1.dp, Color(0xFF222D3D), RoundedCornerShape(12.dp))
                     .padding(10.dp)
             ) {
                 when (selectedTab) {
@@ -2012,9 +2012,9 @@ class SetupWizardActivity : FragmentActivity() {
                                                     shape = RoundedCornerShape(8.dp),
                                                     border = BorderStroke(
                                                         1.dp,
-                                                        if (allRecommendedInstalled) Color(0xFF1E3A5F)
-                                                        else if (transferState.value != null) Color(0xFF1B2330)
-                                                        else Color(0xFF2A5A6A)
+                                                        if (allRecommendedInstalled) Color(0xFF23436F)
+                                                        else if (transferState.value != null) Color(0xFF222D3D)
+                                                        else Color(0xFF306679)
                                                     ),
                                                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
                                                     modifier = Modifier.height(30.dp),
@@ -2058,7 +2058,7 @@ class SetupWizardActivity : FragmentActivity() {
         fun TabItem(tab: TabInfo, fillWidth: Boolean, fontSize: TextUnit) {
             val isSelected = selectedTab == tab.key
             val interactionSource = remember { MutableInteractionSource() }
-            val bgColor = if (isSelected) Color(0xFF1A2A3A) else Color.Transparent
+            val bgColor = if (isSelected) Color(0xFF203448) else Color.Transparent
             val labelColor = when {
                 isSelected -> Color(0xFFE6EDF3)
                 tab.highlight -> Color(0xFF57CBDE)
@@ -2101,8 +2101,8 @@ class SetupWizardActivity : FragmentActivity() {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFF111722), RoundedCornerShape(12.dp))
-                        .border(1.dp, Color(0xFF1B2330), RoundedCornerShape(12.dp))
+                        .background(Color(0xFF182030), RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFF222D3D), RoundedCornerShape(12.dp))
                         .horizontalScroll(rememberScrollState())
                         .padding(horizontal = 6.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -2127,8 +2127,8 @@ class SetupWizardActivity : FragmentActivity() {
                     modifier = Modifier
                         .weight(0.38f)
                         .fillMaxHeight()
-                        .background(Color(0xFF111722), RoundedCornerShape(12.dp))
-                        .border(1.dp, Color(0xFF1B2330), RoundedCornerShape(12.dp))
+                        .background(Color(0xFF182030), RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFF222D3D), RoundedCornerShape(12.dp))
                         .verticalScroll(rememberScrollState())
                         .padding(6.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -2153,8 +2153,8 @@ class SetupWizardActivity : FragmentActivity() {
         enabled: Boolean = true,
         recommended: Boolean = false
     ) {
-        val bgColor = Color(0xFF12171F)
-        val outlineColor = Color(0xFF222A36)
+        val bgColor = Color(0xFF19212C)
+        val outlineColor = Color(0xFF2A3443)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2201,9 +2201,9 @@ class SetupWizardActivity : FragmentActivity() {
                 modifier = Modifier.height(28.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (installed) Color(0xFF16253A) else Color(0xFF1A3A4A),
+                    containerColor = if (installed) Color(0xFF1C2E49) else Color(0xFF1F4659),
                     contentColor = if (installed) Color(0xFF3B82F6) else Color(0xFF57CBDE),
-                    disabledContainerColor = if (installed) Color(0xFF16253A) else Color(0xFF14191F),
+                    disabledContainerColor = if (installed) Color(0xFF1C2E49) else Color(0xFF1C232B),
                     disabledContentColor = if (installed) Color(0xFF3B82F6) else Color(0xFF4A5260)
                 )
             ) {
@@ -2283,8 +2283,8 @@ class SetupWizardActivity : FragmentActivity() {
         val creating = creatingContainer.value
 
         val hasContainer = existingContainer != null
-        val bgColor = Color(0xFF12171F)
-        val outlineColor = if (hasContainer) Color(0xFF1E3A5F) else Color(0xFF222A36)
+        val bgColor = Color(0xFF19212C)
+        val outlineColor = if (hasContainer) Color(0xFF23436F) else Color(0xFF2A3443)
 
         Row(
             modifier = Modifier
@@ -2359,15 +2359,15 @@ class SetupWizardActivity : FragmentActivity() {
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF57CBDE),
-                        contentColor = Color(0xFF0A0E14),
-                        disabledContainerColor = Color(0xFF1B2330),
+                        contentColor = Color(0xFF111822),
+                        disabledContainerColor = Color(0xFF222D3D),
                         disabledContentColor = Color(0xFF4A5260)
                     )
                 ) {
                     if (creating) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(14.dp),
-                            color = Color(0xFF0A0E14),
+                            color = Color(0xFF111822),
                             strokeWidth = 2.dp
                         )
                         Spacer(Modifier.width(6.dp))
@@ -2390,7 +2390,7 @@ class SetupWizardActivity : FragmentActivity() {
                     modifier = Modifier.height(28.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF1B2733),
+                        containerColor = Color(0xFF223140),
                         contentColor = Color(0xFFB8C5D1)
                     )
                 ) {
@@ -2417,13 +2417,13 @@ class SetupWizardActivity : FragmentActivity() {
         progress: Float? = null
     ) {
         val borderColor = when {
-            completed -> Color(0xFF1E3A5F)
+            completed -> Color(0xFF23436F)
             progress != null -> Color(0xFF57CBDE)
-            else -> Color(0xFF1B2330)
+            else -> Color(0xFF222D3D)
         }
         Column(
             modifier = modifier
-                .background(Color(0xFF111722), RoundedCornerShape(12.dp))
+                .background(Color(0xFF182030), RoundedCornerShape(12.dp))
                 .border(1.dp, borderColor, RoundedCornerShape(12.dp))
                 .padding(horizontal = 12.dp, vertical = 11.dp)
         ) {
@@ -2475,7 +2475,7 @@ class SetupWizardActivity : FragmentActivity() {
                         .fillMaxWidth()
                         .height(3.dp),
                     color = Color(0xFF57CBDE),
-                    trackColor = Color(0xFF1B2330)
+                    trackColor = Color(0xFF222D3D)
                 )
             }
             Spacer(Modifier.height(10.dp))
@@ -2488,12 +2488,12 @@ class SetupWizardActivity : FragmentActivity() {
                     .height(32.dp),
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (completed) Color(0xFF16253A) else Color(0xFF57CBDE),
-                    contentColor = if (completed) Color(0xFF3B82F6) else Color(0xFF0A0E14),
+                    containerColor = if (completed) Color(0xFF1C2E49) else Color(0xFF57CBDE),
+                    contentColor = if (completed) Color(0xFF3B82F6) else Color(0xFF111822),
                     disabledContainerColor = when {
-                        completed -> Color(0xFF16253A)
-                        progress != null -> Color(0xFF16253A)
-                        else -> Color(0xFF1B2330)
+                        completed -> Color(0xFF1C2E49)
+                        progress != null -> Color(0xFF1C2E49)
+                        else -> Color(0xFF222D3D)
                     },
                     disabledContentColor = when {
                         completed -> Color(0xFF3B82F6)

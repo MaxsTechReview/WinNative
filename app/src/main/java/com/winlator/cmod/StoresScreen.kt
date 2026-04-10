@@ -74,15 +74,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // Palette
-private val BgDark        = Color(0xFF0F0F12)
-private val CardDark      = Color(0xFF14141E)
-private val CardBorder    = Color(0xFF21212E)   
-private val IconBoxBg     = Color(0xFF1C1C28)   
-private val SurfaceDark   = Color(0xFF18181F)
+private val BgDark        = Color(0xFF18181D)
+private val CardDark      = Color(0xFF1C1C2A)
+private val CardBorder    = Color(0xFF2A2A3A)
+private val IconBoxBg     = Color(0xFF242434)
+private val SurfaceDark   = Color(0xFF21212A)
 private val Accent        = Color(0xFF1A9FFF)
 private val TextPrimary   = Color(0xFFF0F4FF)
 private val TextSecondary = Color(0xFF7A8FA8)
-private val Divider       = Color(0xFF2A2A2A)
+private val Divider       = Color(0xFF343434)
 private val DangerRed     = Color(0xFFFF7A88)
 private val StatusGreen   = Color(0xFF3FB950)
 
@@ -420,8 +420,8 @@ private fun ComingSoonBadge() {
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(Color(0xFF1E1E2C))
-            .border(1.dp, Color(0xFF2E2E44), RoundedCornerShape(6.dp))
+            .background(Color(0xFF262638))
+            .border(1.dp, Color(0xFF363650), RoundedCornerShape(6.dp))
             .padding(horizontal = 10.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -454,7 +454,7 @@ private fun ActionButton(label: String, textColor: Color, onClick: () -> Unit) {
         modifier = Modifier
             .scale(scale)
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFF1A1A26))
+            .background(Color(0xFF222232))
             .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
             .pointerInput(onClick) {
                 detectTapGestures(
@@ -596,7 +596,7 @@ private fun SettingsDropdownCard(
                     modifier = Modifier
                         .scale(scale)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF1A1A26))
+                        .background(Color(0xFF222232))
                         .border(1.dp, selectedColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
                         .pointerInput(Unit) {
                             detectTapGestures(
@@ -625,7 +625,7 @@ private fun SettingsDropdownCard(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
                     shape = RoundedCornerShape(8.dp),
-                    containerColor = Color(0xFF1C1C2E),
+                    containerColor = Color(0xFF24243B),
                     border = BorderStroke(1.dp, CardBorder),
                     modifier = Modifier.widthIn(max = 220.dp),
                 ) {
