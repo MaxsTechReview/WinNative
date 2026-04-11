@@ -10,6 +10,7 @@ import androidx.preference.PreferenceManager;
 
 import com.winlator.cmod.XServerDisplayActivity;
 import com.winlator.cmod.core.StringUtils;
+import com.winlator.cmod.inputcontrols.ControllerManager;
 import com.winlator.cmod.inputcontrols.ControlsProfile;
 import com.winlator.cmod.inputcontrols.ExternalController;
 import com.winlator.cmod.inputcontrols.FakeInputWriter;
@@ -436,50 +437,90 @@ public class WinHandler {
     }
 
     private int assignSlot(int deviceId) {
-        // Fast path: already assigned
         Integer existing = this.deviceToSlot.get(deviceId);
         if (existing != null) {
             return existing;
         }
 
-        // Resolve the physical device descriptor to group sub-devices (e.g. DualSense
-        // gamepad + touchpad + motion sensors all share one physical controller)
+        ControllerManager controllerManager = ControllerManager.getInstance();
+        String physicalIdentifier = null;
         String descriptor = null;
         android.view.InputDevice device = android.view.InputDevice.getDevice(deviceId);
         if (device != null) {
+            physicalIdentifier = ControllerManager.getDeviceIdentifier(device);
             descriptor = device.getDescriptor();
         }
 
-        // If another deviceId from the same physical controller already has a slot, reuse it
         if (descriptor != null) {
             Integer descriptorSlot = this.descriptorToSlot.get(descriptor);
             if (descriptorSlot != null) {
-                this.deviceToSlot.put(deviceId, descriptorSlot);
-                this.deviceToDescriptor.put(deviceId, descriptor);
+                bindDeviceToSlot(deviceId, descriptor, descriptorSlot);
                 Log.d("WinHandler", "Mapped device " + deviceId + " to existing slot " + descriptorSlot + " (same physical controller: " + descriptor + ")");
                 return descriptorSlot;
             }
         }
 
-        // Assign a new slot
-        for (int slot = 0; slot < 4; slot++) {
-            if (!this.usedSlots.contains(slot)) {
-                this.usedSlots.add(slot);
-                this.deviceToSlot.put(deviceId, slot);
-                if (descriptor != null) {
-                    this.descriptorToSlot.put(descriptor, slot);
-                    this.deviceToDescriptor.put(deviceId, descriptor);
-                }
-                if (this.fakeInputBasePath != null && this.writers[slot] == null) {
-                    this.writers[slot] = new FakeInputWriter(this.fakeInputBasePath, slot);
-                    this.writers[slot].open();
-                    Log.d("WinHandler", "Assigned device " + deviceId + " to slot " + slot + " (descriptor: " + descriptor + ")");
-                }
-                return slot;
+        int preferredSlot = deviceId == OSC_DEVICE_ID ? -1 : controllerManager.getSlotForDevice(deviceId);
+        if (preferredSlot >= 0) {
+            if (!controllerManager.isSlotEnabled(preferredSlot)) {
+                Log.w("WinHandler", "Device " + deviceId + " is assigned to disabled slot " + preferredSlot);
+                return -1;
             }
+            if (isSlotReservedForOtherDevice(preferredSlot, physicalIdentifier)) {
+                Log.w("WinHandler", "Device " + deviceId + " cannot claim reserved slot " + preferredSlot);
+                return -1;
+            }
+            if (canUseSlot(preferredSlot, descriptor)) {
+                bindDeviceToSlot(deviceId, descriptor, preferredSlot);
+                Log.d("WinHandler", "Assigned device " + deviceId + " to preferred slot " + preferredSlot + " (descriptor: " + descriptor + ")");
+                return preferredSlot;
+            }
+            Log.w("WinHandler", "Preferred slot " + preferredSlot + " is already in use by another active controller");
+            return -1;
         }
+
+        for (int slot = 0; slot < MAX_CONTROLLERS; slot++) {
+            if (!controllerManager.isSlotEnabled(slot))
+                continue;
+            if (isSlotReservedForOtherDevice(slot, physicalIdentifier))
+                continue;
+            if (!canUseSlot(slot, descriptor))
+                continue;
+
+            bindDeviceToSlot(deviceId, descriptor, slot);
+            Log.d("WinHandler", "Assigned device " + deviceId + " to slot " + slot + " (descriptor: " + descriptor + ")");
+            return slot;
+        }
+
         Log.w("WinHandler", "No slots available for device " + deviceId);
         return -1;
+    }
+
+    private boolean canUseSlot(int slot, String descriptor) {
+        if (!this.usedSlots.contains(slot))
+            return true;
+        if (descriptor == null)
+            return false;
+        Integer descriptorSlot = this.descriptorToSlot.get(descriptor);
+        return descriptorSlot != null && descriptorSlot == slot;
+    }
+
+    private boolean isSlotReservedForOtherDevice(int slot, String physicalIdentifier) {
+        String assignedIdentifier = ControllerManager.getInstance().getAssignedIdentifierForSlot(slot);
+        return assignedIdentifier != null && !assignedIdentifier.equals(physicalIdentifier);
+    }
+
+    private void bindDeviceToSlot(int deviceId, String descriptor, int slot) {
+        this.usedSlots.add(slot);
+        this.deviceToSlot.put(deviceId, slot);
+        if (descriptor != null) {
+            this.descriptorToSlot.put(descriptor, slot);
+            this.deviceToDescriptor.put(deviceId, descriptor);
+        }
+        if (this.fakeInputBasePath != null && this.writers[slot] == null) {
+            this.writers[slot] = new FakeInputWriter(this.fakeInputBasePath, slot);
+            this.writers[slot].open();
+        }
     }
 
     private void releaseSlot(int deviceId) {

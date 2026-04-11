@@ -49,6 +49,7 @@ import androidx.core.app.NotificationManagerCompat;
 import androidx.compose.ui.platform.ComposeView;
 import androidx.core.view.GravityCompat;
 import com.winlator.cmod.steam.enums.Marker;
+import com.winlator.cmod.steam.SteamMountManager;
 import com.winlator.cmod.steam.utils.MarkerUtils;
 import com.winlator.cmod.steam.utils.SteamUtils;
 
@@ -1984,8 +1985,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        // Restore Steam directory if it was hidden for a Custom Game
-        restoreSteamDir();
+        // Always hide the shared Steam mount after a session ends.
+        hideSteamForCustomGame();
         // Schedule a deferred update check 10 s after game exit
         com.winlator.cmod.core.UpdateChecker.INSTANCE.schedulePostGameCheck(this);
         if (inputDeviceManager != null) {
@@ -2367,7 +2368,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         boolean isSteamGame = shortcut != null && "STEAM".equals(shortcut.getExtra("game_source"));
         boolean isCustomGame = shortcut != null && "CUSTOM".equals(shortcut.getExtra("game_source", "CUSTOM")) && !isSteamGame;
         boolean launchRealSteamSetup = shortcut != null
-                ? parseBoolean(getShortcutSetting("launchRealSteam", container.isLaunchRealSteam() ? "1" : "0"))
+                ? isSteamGame && parseBoolean(getShortcutSetting("launchRealSteam", container.isLaunchRealSteam() ? "1" : "0"))
                 : container.isLaunchRealSteam();
 
         // Restore Steam dir before Steam game setup; hide it for Custom Games
@@ -2446,7 +2447,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                             MarkerUtils.INSTANCE.removeMarker(gameInstallPath, Marker.STEAM_DRM_PATCHED);
 
                             // Purge known ColdClientLoader emulator footprints which could trigger Steam's anti-tamper
-                            File steamDirFile = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam");
+                            File steamDirFile = SteamMountManager.getAccessibleSteamDir(this, container);
                             String[] emulatorFootprints = {
                                 "steamclient_loader_x64.exe", "steamclient_loader_x64.dll",
                                 "steamclient_loader_x86.dll", "steamclient_loader.exe", "steamclient_loader.dll",
@@ -2515,7 +2516,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                             SteamUtils.backupSteamclientFiles(this, appId);
 
                             // ColdClient launcher setup (writes steam_settings in Steam dir + ColdClientLoader.ini)
-                            File steamDir = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam");
+                            File steamDir = SteamMountManager.getAccessibleSteamDir(this, container);
                             steamDir.mkdirs();
                             SteamUtils.writeCompleteSettingsDir(steamDir, appId, language, isOfflineMode, forceDlc, useSteamInput, ticketBase64);
                             SteamUtils.enrichSteamSettings(this, appId, new File(steamDir, "steam_settings"));
@@ -2604,7 +2605,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             }
         } else {
             // Not a Steam game. Delete any lingering ColdClientLoader.ini so winhandler.exe doesn't get confused.
-            File iniFile = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam/ColdClientLoader.ini");
+            File iniFile = new File(SteamMountManager.getAccessibleSteamDir(this, container), "ColdClientLoader.ini");
             if (iniFile.exists()) {
                 iniFile.delete();
                 Log.d("XServerDisplayActivity", "Deleted lingering ColdClientLoader.ini for non-Steam game");
@@ -2619,7 +2620,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
 
         WineStartMenuCreator.create(this, container);
-        WineUtils.createDosdevicesSymlinks(container, getActiveGameDirectoryPath());
+        String steamGameDirectoryPath = (isSteamGame || launchRealSteamSetup) ? getActiveGameDirectoryPath() : null;
+        WineUtils.createDosdevicesSymlinks(container, steamGameDirectoryPath);
 
         int inputType = container.getInputType();
         if (shortcut != null) {
@@ -2773,7 +2775,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                             ? parseBoolean(getShortcutSetting("unpackFiles", container.isUnpackFiles() ? "1" : "0"))
                             : container.isUnpackFiles();
                     final boolean launchRealSteamForSetup = shortcut != null
-                            ? parseBoolean(getShortcutSetting("launchRealSteam", container.isLaunchRealSteam() ? "1" : "0"))
+                            ? isSteamGameForUnpack && parseBoolean(getShortcutSetting("launchRealSteam", container.isLaunchRealSteam() ? "1" : "0"))
                             : container.isLaunchRealSteam();
                     if (launchRealSteamForSetup) {
                         guestProgramLauncherComponent.setPreUnpack(null);
@@ -2830,7 +2832,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         // Add Steam client component for Steam games (Goldberg emulator support)
         boolean launchRealSteamMode = shortcut != null
-                ? parseBoolean(getShortcutSetting("launchRealSteam", container.isLaunchRealSteam() ? "1" : "0"))
+                ? "STEAM".equals(shortcut.getExtra("game_source")) &&
+                  parseBoolean(getShortcutSetting("launchRealSteam", container.isLaunchRealSteam() ? "1" : "0"))
                 : (container != null && container.isLaunchRealSteam());
         if (shortcut != null && "STEAM".equals(shortcut.getExtra("game_source")) && !launchRealSteamMode) {
             Log.d("XServerDisplayActivity", "Adding SteamClientComponent for Steam game");
@@ -4139,7 +4142,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
      * but if files are missing (e.g. after prefix repair), force re-extraction.
      */
     private boolean verifySteamClientFiles(boolean requireColdClientSupport) {
-        File steamDir = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam");
+        File steamDir = SteamMountManager.getAccessibleSteamDir(this, container);
         String[] criticalFiles = requireColdClientSupport
                 ? new String[] {
                     "steam.exe",
@@ -4289,7 +4292,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
      * @param gameExeWinPath Windows-style path to the game exe (e.g. A:\SubDir\game.exe)
      */
     private void writeColdClientIniForLaunch(int appId, String gameInstallPath, String gameExeWinPath) {
-        File iniFile = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam/ColdClientLoader.ini");
+        File iniFile = new File(SteamMountManager.getAccessibleSteamDir(this, container), "ColdClientLoader.ini");
         iniFile.getParentFile().mkdirs();
 
         String exePath;
@@ -5054,19 +5057,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
      */
     private void hideSteamForCustomGame() {
         if (container == null) return;
-        try {
-            File steamDir = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam");
-            File hiddenDir = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam.hidden");
-            if (steamDir.exists() && steamDir.isDirectory() && !hiddenDir.exists()) {
-                if (steamDir.renameTo(hiddenDir)) {
-                    Log.d("XServerDisplayActivity", "Hidden Steam directory for custom game launch");
-                } else {
-                    Log.w("XServerDisplayActivity", "Failed to hide Steam directory");
-                }
-            }
-        } catch (Exception e) {
-            Log.e("XServerDisplayActivity", "Error hiding Steam directory", e);
-        }
+        SteamMountManager.unmountSharedSteam(container);
+        disableSteamRegistryState();
     }
 
     /**
@@ -5076,17 +5068,62 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private void restoreSteamDir() {
         if (container == null) return;
         try {
-            File steamDir = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam");
-            File hiddenDir = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam.hidden");
-            if (hiddenDir.exists() && !steamDir.exists()) {
-                if (hiddenDir.renameTo(steamDir)) {
-                    Log.d("XServerDisplayActivity", "Restored Steam directory");
-                } else {
-                    Log.w("XServerDisplayActivity", "Failed to restore Steam directory");
-                }
+            if (!SteamMountManager.mountSharedSteam(this, container)) {
+                Log.w("XServerDisplayActivity", "Failed to mount shared Steam runtime");
             }
+            restoreSteamRegistryState();
         } catch (Exception e) {
             Log.e("XServerDisplayActivity", "Error restoring Steam directory", e);
+        }
+    }
+
+    private void disableSteamRegistryState() {
+        if (container == null) return;
+
+        File rootDir = container.getRootDir();
+        File systemRegFile = new File(rootDir, ".wine/system.reg");
+        File userRegFile = new File(rootDir, ".wine/user.reg");
+
+        try (WineRegistryEditor systemReg = new WineRegistryEditor(systemRegFile);
+             WineRegistryEditor userReg = new WineRegistryEditor(userRegFile)) {
+            systemReg.removeKey("Software\\Classes\\steam", true);
+            systemReg.removeKey("Software\\Wow6432Node\\Valve\\Steam", true);
+            userReg.removeKey("Software\\Valve\\Steam", true);
+            Log.d("XServerDisplayActivity", "Disabled Steam registry state for non-Steam launch");
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Failed to disable Steam registry state", e);
+        }
+    }
+
+    private void restoreSteamRegistryState() {
+        if (container == null) return;
+
+        File rootDir = container.getRootDir();
+        File systemRegFile = new File(rootDir, ".wine/system.reg");
+        File userRegFile = new File(rootDir, ".wine/user.reg");
+        String steamRoot = "C:\\Program Files (x86)\\Steam";
+
+        try (WineRegistryEditor systemReg = new WineRegistryEditor(systemRegFile);
+             WineRegistryEditor userReg = new WineRegistryEditor(userRegFile)) {
+            systemReg.setStringValue("Software\\Classes\\steam", null, "URL:steam protocol");
+            systemReg.setStringValue("Software\\Classes\\steam", "URL Protocol", "");
+            systemReg.setStringValue(
+                    "Software\\Classes\\steam\\shell\\open\\command",
+                    null,
+                    "\"" + steamRoot + "\\steamclient_loader_x32.exe\" -- \"%1\"");
+            systemReg.setStringValue("Software\\Wow6432Node\\Valve\\Steam", "InstallPath", steamRoot);
+
+            userReg.setStringValue("Software\\Valve\\Steam", "SteamExe", steamRoot + "\\steam.exe");
+            userReg.setStringValue("Software\\Valve\\Steam", "SteamPath", steamRoot);
+            userReg.setStringValue("Software\\Valve\\Steam", "InstallPath", steamRoot);
+            userReg.setStringValue("Software\\Valve\\Steam\\ActiveProcess", "SteamClientDll",
+                    steamRoot + "\\steamclient.dll");
+            userReg.setStringValue("Software\\Valve\\Steam\\ActiveProcess", "SteamClientDll64",
+                    steamRoot + "\\steamclient64.dll");
+            userReg.setStringValue("Software\\Valve\\Steam\\ActiveProcess", "SteamPath", steamRoot);
+            Log.d("XServerDisplayActivity", "Restored Steam registry state for Steam launch");
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Failed to restore Steam registry state", e);
         }
     }
 
@@ -5097,8 +5134,12 @@ public class XServerDisplayActivity extends AppCompatActivity {
      */
     private void setupSteamEnvironment(int appId, File gameDir) {
         try {
+            if (shortcut == null || !"STEAM".equals(shortcut.getExtra("game_source"))) {
+                Log.d("XServerDisplayActivity", "Skipping Steam environment setup for non-Steam launch");
+                return;
+            }
             File winePrefix = container.getRootDir();
-            File steamDir = new File(winePrefix, ".wine/drive_c/Program Files (x86)/Steam");
+            File steamDir = SteamMountManager.getAccessibleSteamDir(this, container);
             steamDir.mkdirs();
             boolean launchRealSteamMode = shortcut != null
                     ? parseBoolean(getShortcutSetting("launchRealSteam", container.isLaunchRealSteam() ? "1" : "0"))
@@ -5384,7 +5425,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         try {
             gameSteamDir.mkdirs();
-            File steamDirSrc = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam");
+            File steamDirSrc = SteamMountManager.getAccessibleSteamDir(this, container);
             File[] steamChildren = steamDirSrc.listFiles();
             if (steamChildren != null) {
                 for (File child : steamChildren) {

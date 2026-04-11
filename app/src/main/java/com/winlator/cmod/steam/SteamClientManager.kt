@@ -41,18 +41,18 @@ object SteamClientManager {
 
     @JvmStatic
     fun isSteamInstalled(context: Context): Boolean {
-        val imageFs = ImageFs.find(context)
-        val steamExe = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/steam.exe")
-        val steamClient = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/steamclient.dll")
-        val steamClient64 = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/steamclient64.dll")
+        val steamDir = SteamMountManager.getSharedSteamDir(context)
+        val steamExe = File(steamDir, "steam.exe")
+        val steamClient = File(steamDir, "steamclient.dll")
+        val steamClient64 = File(steamDir, "steamclient64.dll")
         return steamExe.exists() && steamClient.exists() && steamClient64.exists()
     }
 
     @JvmStatic
     fun isColdClientInstalled(context: Context): Boolean {
-        val imageFs = ImageFs.find(context)
-        val loaderExe = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/steamclient_loader_x64.exe")
-        val extraDll = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/extra_dlls/steamclient_extra_x64.dll")
+        val steamDir = SteamMountManager.getSharedSteamDir(context)
+        val loaderExe = File(steamDir, "steamclient_loader_x64.exe")
+        val extraDll = File(steamDir, "extra_dlls/steamclient_extra_x64.dll")
         return loaderExe.exists() && loaderExe.length() > 0 && extraDll.exists() && extraDll.length() > 0
     }
 

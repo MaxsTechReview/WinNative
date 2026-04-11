@@ -161,6 +161,12 @@ public class ControllerManager {
         return null;
     }
 
+    public String getAssignedIdentifierForSlot(int slotIndex) {
+        if (slotIndex < 0 || slotIndex >= 4)
+            return null;
+        return slotAssignments.get(slotIndex);
+    }
+
     public void setSlotEnabled(int slotIndex, boolean isEnabled) {
         if (slotIndex < 0 || slotIndex >= 4)
             return;
