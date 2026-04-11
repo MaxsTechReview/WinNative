@@ -23,11 +23,20 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      actions: write
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor:
+          - name: Standard
+            gradleTask: assembleStandardDebug
+            apkPath: app/build/outputs/apk/standard/debug/standard.apk
+          - name: Ludashi
+            gradleTask: assembleLudashiDebug
+            apkPath: app/build/outputs/apk/ludashi/debug/ludashi.apk
 
     steps:
     - name: Clone repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 1
@@ -49,23 +58,24 @@ jobs:
         path: |
           app/.cxx
           app/build/intermediates/cxx
-        key: ndk-${{ hashFiles('app/src/main/cpp/**', 'app/build.gradle', 'app/src/main/cpp/CMakeLists.txt') }}
-        restore-keys: ndk-
+        key: ndk-${{ matrix.flavor.name }}-${{ hashFiles('app/src/main/cpp/**', 'app/build.gradle', 'app/src/main/cpp/CMakeLists.txt') }}
+        restore-keys: |
+          ndk-${{ matrix.flavor.name }}-
+          ndk-
 
     - name: Set up JDK 17
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: '17'
         distribution: 'temurin'
 
     - name: Set up Gradle
-      uses: gradle/actions/setup-gradle@v4
+      uses: gradle/actions/setup-gradle@v6
       with:
         validate-wrappers: true
         cache-cleanup: 'on-success'
-        
+
     - name: Decode keystore and build
-      if: github.event_name == 'pull_request' || github.event_name == 'push'
       timeout-minutes: 15
       env:
         KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -88,50 +98,45 @@ jobs:
             -storepass dummypass -keypass dummypass \
             -dname "CN=CI, OU=CI, O=CI, L=CI, ST=CI, C=US"
         fi
-        ./gradlew :app:assembleStandardDebug :app:assembleLudashiDebug --build-cache --parallel -x lint
+        ./gradlew :app:${{ matrix.flavor.gradleTask }} --build-cache --parallel -x lint
 
     - name: Resolve build label
-      if: github.event_name == 'pull_request' || github.event_name == 'push'
       id: label
       run: |
-        short_sha=$(echo "$GITHUB_SHA" | cut -c1-7)
         if [ "${{ github.event_name }}" = "pull_request" ]; then
-          echo "name=PR${{ github.event.pull_request.number }}-${short_sha}" >> "$GITHUB_OUTPUT"
+          echo "name=PR${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
         else
           # Squash-merge commit subjects look like "Title (#123)"; extract the PR number.
           num=$(git log -1 --pretty=%s | grep -oE '\(#[0-9]+\)' | tail -1 | tr -d '(#)')
           if [ -n "$num" ]; then
-            echo "name=PR${num}-${short_sha}" >> "$GITHUB_OUTPUT"
+            echo "name=PR${num}" >> "$GITHUB_OUTPUT"
           else
+            short_sha=$(echo "$GITHUB_SHA" | cut -c1-7)
             echo "name=main-${short_sha}" >> "$GITHUB_OUTPUT"
           fi
         fi
 
-    - name: Prepare artifact files
-      if: github.event_name == 'pull_request' || github.event_name == 'push'
+    - name: Prepare artifact file
       run: |
         mkdir -p artifacts
-        cp app/build/outputs/apk/standard/debug/standard.apk "artifacts/WinNative-Standard-debug-${{ steps.label.outputs.name }}.apk"
-        cp app/build/outputs/apk/ludashi/debug/ludashi.apk "artifacts/WinNative-Ludashi-debug-${{ steps.label.outputs.name }}.apk"
+        cp ${{ matrix.flavor.apkPath }} "artifacts/WinNative-${{ matrix.flavor.name }}-debug-${{ steps.label.outputs.name }}.apk"
 
-    - name: Upload Standard APK
-      if: github.event_name == 'pull_request' || github.event_name == 'push'
+    - name: Upload APK
       uses: actions/upload-artifact@v7
       with:
-        path: artifacts/WinNative-Standard-debug-${{ steps.label.outputs.name }}.apk
+        path: artifacts/WinNative-${{ matrix.flavor.name }}-debug-${{ steps.label.outputs.name }}.apk
         retention-days: 7
         archive: false
         if-no-files-found: error
 
-    - name: Upload Ludashi APK
-      if: github.event_name == 'pull_request' || github.event_name == 'push'
-      uses: actions/upload-artifact@v7
-      with:
-        path: artifacts/WinNative-Ludashi-debug-${{ steps.label.outputs.name }}.apk
-        retention-days: 7
-        archive: false
-        if-no-files-found: error
-
+  cleanup-caches:
+    needs: build
+    if: ${{ always() && github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
     - name: Cleanup duplicate caches
       continue-on-error: true
       env:
