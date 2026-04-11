@@ -100,7 +100,7 @@ jobs:
         fi
         ./gradlew :app:${{ matrix.flavor.gradleTask }} --build-cache --parallel -x lint
 
-    - name: Resolve build label
+    - name: Compute artifact label
       id: label
       run: |
         if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -116,7 +116,7 @@ jobs:
           fi
         fi
 
-    - name: Prepare artifact file
+    - name: Rename APK for upload
       run: |
         mkdir -p artifacts
         cp ${{ matrix.flavor.apkPath }} "artifacts/WinNative-${{ matrix.flavor.name }}-debug-${{ steps.label.outputs.name }}.apk"
