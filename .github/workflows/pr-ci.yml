@@ -90,28 +90,47 @@ jobs:
         fi
         ./gradlew :app:assembleStandardDebug :app:assembleLudashiDebug --build-cache --parallel -x lint
 
-    - name: Set short SHA
+    - name: Resolve build label
       if: github.event_name == 'pull_request' || github.event_name == 'push'
-      id: sha
-      run: echo "short=$(echo $GITHUB_SHA | cut -c1-7)" >> "$GITHUB_OUTPUT"
+      id: label
+      run: |
+        short_sha=$(echo "$GITHUB_SHA" | cut -c1-7)
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          echo "name=PR${{ github.event.pull_request.number }}-${short_sha}" >> "$GITHUB_OUTPUT"
+        else
+          # Squash-merge commit subjects look like "Title (#123)"; extract the PR number.
+          num=$(git log -1 --pretty=%s | grep -oE '\(#[0-9]+\)' | tail -1 | tr -d '(#)')
+          if [ -n "$num" ]; then
+            echo "name=PR${num}-${short_sha}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=main-${short_sha}" >> "$GITHUB_OUTPUT"
+          fi
+        fi
+
+    - name: Prepare artifact files
+      if: github.event_name == 'pull_request' || github.event_name == 'push'
+      run: |
+        mkdir -p artifacts
+        cp app/build/outputs/apk/standard/debug/standard.apk "artifacts/WinNative-Standard-debug-${{ steps.label.outputs.name }}.apk"
+        cp app/build/outputs/apk/ludashi/debug/ludashi.apk "artifacts/WinNative-Ludashi-debug-${{ steps.label.outputs.name }}.apk"
 
     - name: Upload Standard APK
       if: github.event_name == 'pull_request' || github.event_name == 'push'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
-        name: WinNative-Standard-debug-${{ github.event_name == 'pull_request' && format('PR{0}', github.event.pull_request.number) || 'main' }}-${{ steps.sha.outputs.short }}
-        path: app/build/outputs/apk/standard/debug/standard.apk
+        path: artifacts/WinNative-Standard-debug-${{ steps.label.outputs.name }}.apk
         retention-days: 7
-        compression-level: 0
+        archive: false
+        if-no-files-found: error
 
     - name: Upload Ludashi APK
       if: github.event_name == 'pull_request' || github.event_name == 'push'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
-        name: WinNative-Ludashi-debug-${{ github.event_name == 'pull_request' && format('PR{0}', github.event.pull_request.number) || 'main' }}-${{ steps.sha.outputs.short }}
-        path: app/build/outputs/apk/ludashi/debug/ludashi.apk
+        path: artifacts/WinNative-Ludashi-debug-${{ steps.label.outputs.name }}.apk
         retention-days: 7
-        compression-level: 0
+        archive: false
+        if-no-files-found: error
 
     - name: Cleanup duplicate caches
       continue-on-error: true
