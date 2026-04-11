@@ -99,6 +99,11 @@
     <string name="common_ui_open">Otwórz</string>
     <string name="common_ui_connected">Połączono</string>
     <string name="common_ui_install">Zainstaluj</string>
+    <string name="common_ui_application">Aplikacja</string>
+    <string name="common_ui_check">Sprawdź</string>
+    <string name="common_ui_select">Wybierz</string>
+    <string name="common_ui_not_configured">Nie skonfigurowano</string>
+    <string name="common_ui_reinstall">Zainstaluj ponownie</string>
     <string name="common_ui_exit_app_confirm">Zamknąć WinNative?</string>
     <string name="common_ui_elements_count">%1$d elementów</string>
     <string name="common_ui_disabled_placeholder">-- Wyłączone --</string>
@@ -716,21 +721,50 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="settings_debug_download_logs">Logi pobierania</string>
     <string name="settings_debug_download_logs_description">Loguj zdarzenia resolvera pobierania i fallbacku WinNative</string>
     <string name="settings_debug_share_logs">Udostępnij logi</string>
+    <string name="settings_debug_logs_subject">Logi WinNative (%1$s)</string>
+    <string name="settings_debug_no_logs_available">Brak dostępnych logów debugowania. Najpierw włącz opcje debugowania i uruchom grę.</string>
+    <string name="settings_debug_capture_failed">Nie udało się przechwycić logów: %1$s</string>
+    <string name="settings_debug_log_to_file_desc">Zapisuj błędy, ostrzeżenia i awarie procesu WinNative do pliku</string>
+    <string name="settings_debug_section_emulation">Emulacja</string>
+    <string name="settings_debug_section_subsystems">Podsystemy</string>
+    <string name="settings_debug_section_tools">Narzędzia</string>
+    <string name="settings_debug_no_channels_selected">Nie wybrano kanałów</string>
+    <string name="settings_debug_no_channels_available">Brak dostępnych kanałów</string>
+    <string name="settings_debug_channel_toggle_hint">Dotknij, aby przełączać kanały. Włączone kanały są uwzględniane w wyjściu debugowania Wine.</string>
+    <string name="settings_debug_remove_channel_desc">Usuń %1$s</string>
+
+    <string name="settings_other_language_title">Język</string>
+    <string name="settings_other_language_summary">Wybierz język wyświetlania</string>
+    <string name="settings_other_language_system_default">Domyślny systemu</string>
+
+    <string name="settings_other_section_integration">Integracja</string>
+    <string name="settings_other_checking_for_updates">Sprawdzanie aktualizacji\u2026</string>
+    <string name="settings_other_update_check_cooldown">Zaczekaj %1$ds przed ponownym sprawdzeniem</string>
+    <string name="settings_other_persistable_permission_failed">Nie można uzyskać trwałych uprawnień: %1$s</string>
+    <string name="settings_other_keep_app_open">Nie zamykaj aplikacji do zakończenia operacji.</string>
 
     <!-- Settings > Content Packages -->
     <string name="settings_content_install">Zainstaluj zawartość</string>
     <string name="settings_content_type">Typ zawartości</string>
     <string name="settings_content_components">Komponenty</string>
-    <string name="settings_content_install_confirm_message">Instaluj tylko zaufane pakiety. Te pliki mogą zawierać wykonywalną zawartość i mogą wpływać na Twoje urządzenie lub dane.
-
-Obsługiwane pakiety używają rozszerzenia .wcp i są skompresowane jako xz lub zst.</string>
+    <string name="settings_content_auto_create_container">Automatycznie utwórz kontener</string>
+    <string name="settings_content_remove_title">Usunąć komponent?</string>
+    <string name="settings_content_empty_subtitle">Zainstaluj pakiet lub zmień typ, aby rozpocząć.</string>
+    <string name="settings_content_container_created">Utworzono kontener: %1$s</string>
+    <string name="settings_content_download_failed">Pobieranie nie powiodło się.</string>
+    <string name="common_ui_working">Pracuję…</string>
+    <string name="settings_content_desc_wine">Warstwa kompatybilności Windows używana do uruchamiania gier i aplikacji. Wymagana jest co najmniej jedna zainstalowana wersja Wine lub FEXCore.</string>
+    <string name="settings_content_desc_proton">Oparta na Wine kompilacja Valve z dodatkowymi łatkami do gier. Przydatna w przypadku niektórych tytułów, ale standardowy Wine zwykle działa dobrze.</string>
+    <string name="settings_content_desc_dxvk">Tłumaczy DirectX 9, 10 i 11 na Vulkan. Zwykle poprawia wydajność w starszych grach Windows.</string>
+    <string name="settings_content_desc_vkd3d">Tłumaczy DirectX 12 na Vulkan. Wymagany dla wielu nowszych gier Windows.</string>
+    <string name="settings_content_desc_box64">Tłumaczy kod Windows x86 / x64 tak, aby mógł działać na urządzeniach ARM. Box64 lub FEXCore jest wymagany dla większości gier.</string>
+    <string name="settings_content_desc_wowbox64">Kompilacja Box64 dla trybu Wine WoW64. Wymagana tylko przy użyciu prefiksu 64-bitowego z obsługą aplikacji 32-bitowych.</string>
+    <string name="settings_content_desc_fexcore">Alternatywny tłumacz x86 / x64. Wypróbuj go, jeśli gra ma problemy lub słabą wydajność z Box64.</string>
     <string name="settings_content_unable_to_install">Nie można zainstalować zawartości.</string>
     <string name="settings_content_install_failed">Instalacja nie powiodła się</string>
     <string name="settings_content_file_cannot_be_recognized">Nie można rozpoznać pliku.</string>
     <string name="settings_content_profile_not_found">Nie znaleziono profilu w zawartości.</string>
     <string name="settings_content_profile_cannot_be_recognized">Nie można rozpoznać profilu</string>
-    <string name="settings_content_info">Informacje o zawartości</string>
-    <string name="settings_content_version_code">Kod wersji</string>
     <string name="settings_content_file_list">Lista plików</string>
     <string name="settings_content_install_directory">Katalog instalacji</string>
     <string name="settings_content_installed_success">Zawartość zainstalowana pomyślnie!</string>

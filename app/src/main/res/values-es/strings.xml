@@ -99,6 +99,11 @@
     <string name="common_ui_open">Abrir</string>
     <string name="common_ui_connected">Conectado</string>
     <string name="common_ui_install">Instalar</string>
+    <string name="common_ui_application">Aplicación</string>
+    <string name="common_ui_check">Comprobar</string>
+    <string name="common_ui_select">Seleccionar</string>
+    <string name="common_ui_not_configured">No configurado</string>
+    <string name="common_ui_reinstall">Reinstalar</string>
     <string name="common_ui_exit_app_confirm">¿Salir de WinNative?</string>
     <string name="common_ui_elements_count">%1$d elementos</string>
     <string name="common_ui_disabled_placeholder">-- Desactivado --</string>
@@ -716,21 +721,50 @@ Ej. <b>META</b> para la <i>tecla META</i>, \n
     <string name="settings_debug_download_logs">Registros de descarga</string>
     <string name="settings_debug_download_logs_description">Registrar eventos del resolvedor de descargas y respaldo de WinNative</string>
     <string name="settings_debug_share_logs">Compartir registros</string>
+    <string name="settings_debug_logs_subject">Registros de WinNative (%1$s)</string>
+    <string name="settings_debug_no_logs_available">No hay registros de depuración disponibles. Activa primero las opciones de depuración e inicia un juego.</string>
+    <string name="settings_debug_capture_failed">Error al capturar registros: %1$s</string>
+    <string name="settings_debug_log_to_file_desc">Registrar errores, advertencias y fallos del proceso de WinNative en archivo</string>
+    <string name="settings_debug_section_emulation">Emulación</string>
+    <string name="settings_debug_section_subsystems">Subsistemas</string>
+    <string name="settings_debug_section_tools">Herramientas</string>
+    <string name="settings_debug_no_channels_selected">Ningún canal seleccionado</string>
+    <string name="settings_debug_no_channels_available">No hay canales disponibles</string>
+    <string name="settings_debug_channel_toggle_hint">Toca para alternar canales. Los canales activados se incluyen en la salida de depuración de Wine.</string>
+    <string name="settings_debug_remove_channel_desc">Eliminar %1$s</string>
+
+    <string name="settings_other_language_title">Idioma</string>
+    <string name="settings_other_language_summary">Elige el idioma de visualización</string>
+    <string name="settings_other_language_system_default">Predeterminado del sistema</string>
+
+    <string name="settings_other_section_integration">Integración</string>
+    <string name="settings_other_checking_for_updates">Comprobando actualizaciones\u2026</string>
+    <string name="settings_other_update_check_cooldown">Espera %1$ds antes de volver a comprobar</string>
+    <string name="settings_other_persistable_permission_failed">No se pueden obtener permisos persistentes: %1$s</string>
+    <string name="settings_other_keep_app_open">Mantén la aplicación abierta hasta que esto termine.</string>
 
     <!-- Settings > Content Packages -->
     <string name="settings_content_install">Instalar contenido</string>
     <string name="settings_content_type">Tipo de contenido</string>
     <string name="settings_content_components">Componentes</string>
-    <string name="settings_content_install_confirm_message">Instala solo paquetes de confianza. Estos archivos pueden incluir contenido ejecutable y pueden afectar tu dispositivo o datos.
-
-Los paquetes compatibles usan la extensión .wcp y están comprimidos como xz o zst.</string>
+    <string name="settings_content_auto_create_container">Crear contenedor automáticamente</string>
+    <string name="settings_content_remove_title">¿Eliminar componente?</string>
+    <string name="settings_content_empty_subtitle">Instala un paquete o cambia de tipo para empezar.</string>
+    <string name="settings_content_container_created">Contenedor creado: %1$s</string>
+    <string name="settings_content_download_failed">Descarga fallida.</string>
+    <string name="common_ui_working">Trabajando…</string>
+    <string name="settings_content_desc_wine">La capa de compatibilidad de Windows usada para ejecutar juegos y aplicaciones. Necesitas al menos una versión de Wine o FEXCore instalada.</string>
+    <string name="settings_content_desc_proton">Compilación basada en Wine de Valve con parches adicionales para juegos. Útil para algunos títulos, pero Wine estándar suele funcionar bien.</string>
+    <string name="settings_content_desc_dxvk">Traduce DirectX 9, 10 y 11 a Vulkan. Esto suele mejorar el rendimiento en juegos antiguos de Windows.</string>
+    <string name="settings_content_desc_vkd3d">Traduce DirectX 12 a Vulkan. Necesario para muchos juegos recientes de Windows.</string>
+    <string name="settings_content_desc_box64">Traduce código x86 / x64 de Windows para que pueda ejecutarse en dispositivos ARM. Box64 o FEXCore son necesarios para la mayoría de los juegos.</string>
+    <string name="settings_content_desc_wowbox64">Una compilación de Box64 para el modo WoW64 de Wine. Solo se necesita al usar un prefijo de 64 bits con soporte para aplicaciones de 32 bits.</string>
+    <string name="settings_content_desc_fexcore">Un traductor x86 / x64 alternativo. Pruébalo si un juego tiene problemas o bajo rendimiento con Box64.</string>
     <string name="settings_content_unable_to_install">No se pudo instalar el contenido.</string>
     <string name="settings_content_install_failed">Error en la instalación</string>
     <string name="settings_content_file_cannot_be_recognized">No se puede reconocer el archivo.</string>
     <string name="settings_content_profile_not_found">Perfil no encontrado en el contenido.</string>
     <string name="settings_content_profile_cannot_be_recognized">No se puede reconocer el perfil</string>
-    <string name="settings_content_info">Info del contenido</string>
-    <string name="settings_content_version_code">Código de versión</string>
     <string name="settings_content_file_list">Lista de archivos</string>
     <string name="settings_content_install_directory">Directorio de instalación</string>
     <string name="settings_content_installed_success">¡Contenido instalado correctamente!</string>

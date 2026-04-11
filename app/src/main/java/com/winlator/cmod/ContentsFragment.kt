@@ -1,69 +1,69 @@
-/* Components screen UI: tabs, installed/available content lists, downloads, and package installs. */
+/* Components screen — Jetpack Compose host.
+ * Hosts ComponentsScreen; orchestrates install / download / remove flows. */
 package com.winlator.cmod
 
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.text.SpannableStringBuilder
-import android.text.Spanned
-import android.text.style.TypefaceSpan
 import android.util.Log
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
-import androidx.appcompat.view.ContextThemeWrapper
+import android.widget.FrameLayout
+import android.widget.ScrollView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.PopupMenu
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
-import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.ListAdapter
-import androidx.recyclerview.widget.RecyclerView
 import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.contentdialog.ContentDialog
-import com.winlator.cmod.contentdialog.ContentInfoDialog
 import com.winlator.cmod.contents.ContentProfile
 import com.winlator.cmod.contents.ContentsManager
 import com.winlator.cmod.contents.Downloader
 import com.winlator.cmod.core.AppUtils
-import com.winlator.cmod.core.ContentTransferDialog
 import com.winlator.cmod.core.FileUtils
-import com.winlator.cmod.databinding.ContentListItemBinding
-import com.winlator.cmod.databinding.ContentSectionHeaderItemBinding
-import com.winlator.cmod.databinding.ContentsFragmentBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
 class ContentsFragment : Fragment() {
-    private var _binding: ContentsFragmentBinding? = null
-    private val binding get() = checkNotNull(_binding)
 
     private lateinit var manager: ContentsManager
-    private lateinit var contentAdapter: ContentItemAdapter
-    private val contentTabs = linkedMapOf<ContentProfile.ContentType, TextView>()
 
+    private var componentsState by mutableStateOf(ComponentsState())
     private var currentContentType = ContentProfile.ContentType.CONTENT_TYPE_WINE
+
+    private var profilesByKey = emptyMap<String, ContentProfile>()
+
+    private val sizeCache = mutableMapOf<String, Long>()
+    private val sizeFetchesInFlight = mutableSetOf<String>()
+
+    private var downloadProgress: ComponentsDownloadProgress? = null
+
+    private var autoCreateContainer = true
 
     private val contentPicker =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             uri?.let {
-                val transferDialog = ContentTransferDialog(requireActivity())
-                transferDialog.show(
-                    getString(R.string.settings_content_installing_title),
-                    getString(R.string.settings_content_preparing_package),
-                    indeterminate = true
+                updateDownloadProgress(
+                    title = getString(R.string.settings_content_installing_title),
+                    message = getString(R.string.settings_content_preparing_package),
+                    indeterminate = true,
                 )
                 installSelectedContent(
                     it,
-                    transferDialog,
                     getString(R.string.settings_content_installed_success)
                 )
             }
@@ -78,6 +78,9 @@ class ContentsFragment : Fragment() {
             ?.getString(STATE_CONTENT_TYPE)
             ?.let(ContentProfile.ContentType::getTypeByName)
             ?.let { currentContentType = it }
+
+        autoCreateContainer = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            .getBoolean(PREF_AUTO_CREATE_CONTAINER, true)
     }
 
     override fun onCreateView(
@@ -85,35 +88,81 @@ class ContentsFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        _binding = ContentsFragmentBinding.inflate(inflater, container, false)
-        return binding.root
+        val ctx = requireContext()
+        publishState()
+
+        val composeView = ComposeView(ctx).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                MaterialTheme(
+                    colorScheme = darkColorScheme(
+                        primary    = Color(0xFF1A9FFF),
+                        background = Color(0xFF141B24),
+                        surface    = Color(0xFF1E252E),
+                    )
+                ) {
+                    ComponentsScreen(
+                        state = componentsState,
+                        onTypeSelected = { type -> selectContentType(type) },
+                        onInstallFromFile = { promptInstallFromFile() },
+                        onDownloadItem = { item ->
+                            profilesByKey[item.key]?.let { downloadRemoteContent(it) }
+                        },
+                        onRemoveItem = { item ->
+                            profilesByKey[item.key]?.let { onRemoveRequested(it) }
+                        },
+                        onToggleAutoCreateContainer = { enabled ->
+                            autoCreateContainer = enabled
+                            PreferenceManager.getDefaultSharedPreferences(requireContext())
+                                .edit()
+                                .putBoolean(PREF_AUTO_CREATE_CONTAINER, enabled)
+                                .apply()
+                            publishState()
+                        },
+                    )
+                }
+            }
+        }
+
+        val density = resources.displayMetrics.density
+        val scrollView = ScrollView(ctx).apply {
+            isFillViewport = true
+            scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
+            scrollBarSize = (3 * density).toInt()
+            isScrollbarFadingEnabled = true
+            scrollBarDefaultDelayBeforeFade = 400
+            scrollBarFadeDuration = 250
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                setVerticalScrollbarThumbDrawable(GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(android.graphics.Color.argb(100, 26, 159, 255))
+                    cornerRadius = 4 * density
+                })
+            }
+            addView(
+                composeView,
+                ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ),
+            )
+        }
+
+        return FrameLayout(ctx).apply {
+            setBackgroundColor(android.graphics.Color.parseColor("#18181D"))
+            addView(
+                scrollView,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                ).apply { marginEnd = (10 * density).toInt() },
+            )
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         (activity as? AppCompatActivity)?.supportActionBar?.setTitle(R.string.settings_content_components)
-
-        contentAdapter = ContentItemAdapter()
-        binding.RecyclerView.apply {
-            layoutManager = LinearLayoutManager(context)
-            adapter = contentAdapter
-        }
-
-        setupContentTypeTabs()
-
-        binding.BTInstallContent.setOnClickListener {
-            val dialog = ContentDialog(requireContext())
-            dialog.setIcon(R.drawable.ic_content_notice)
-            dialog.setTitle(R.string.settings_content_install)
-            dialog.setMessage(buildInstallConfirmMessage())
-            dialog.setOnConfirmCallback {
-                contentPicker.launch(arrayOf("*/*"))
-            }
-            dialog.show()
-        }
-
-        selectContentType(currentContentType, animateScroll = false)
     }
 
     override fun onResume() {
@@ -126,64 +175,167 @@ class ContentsFragment : Fragment() {
         super.onSaveInstanceState(outState)
     }
 
-    override fun onDestroyView() {
-        binding.RecyclerView.adapter = null
-        contentTabs.clear()
-        _binding = null
-        super.onDestroyView()
-    }
-
     override fun onDestroy() {
         context?.cacheDir?.let(FileUtils::clear)
         super.onDestroy()
     }
 
-    private fun setupContentTypeTabs() {
-        binding.LLContentTypeTabs.removeAllViews()
-        contentTabs.clear()
+    // ------------------------------------------------------------------
+    // State management
+    // ------------------------------------------------------------------
 
-        val inflater = LayoutInflater.from(requireContext())
-        ContentProfile.ContentType.values().forEach { type ->
-            val tab = inflater.inflate(
-                R.layout.content_type_tab_item,
-                binding.LLContentTypeTabs,
-                false
-            ) as TextView
+    private fun selectContentType(type: ContentProfile.ContentType) {
+        if (type == currentContentType) return
+        currentContentType = type
+        publishState()
+    }
 
-            tab.text = type.toString()
-            tab.setOnClickListener { selectContentType(type) }
+    private fun publishState() {
+        val profiles = manager.getProfiles(currentContentType).orEmpty()
 
-            binding.LLContentTypeTabs.addView(tab)
-            contentTabs[type] = tab
+        val installed = profiles.filter { it.isInstalled }
+            .sortedWith(
+                compareByDescending<ContentProfile> { it.isInstalled }
+                    .thenBy { it.verName.lowercase() }
+                    .thenByDescending { it.verCode }
+            )
+        val available = profiles.filterNot { it.isInstalled }
+            .sortedWith(
+                compareBy<ContentProfile> { it.verName.lowercase() }
+                    .thenByDescending { it.verCode }
+            )
+
+        val keyedProfiles = linkedMapOf<String, ContentProfile>()
+        val installedItems = installed.map { profile ->
+            val item = profile.toItem()
+            keyedProfiles[item.key] = profile
+            item
+        }
+        val availableItems = available.map { profile ->
+            val item = profile.toItem()
+            keyedProfiles[item.key] = profile
+            item
+        }
+
+        profilesByKey = keyedProfiles
+        componentsState = ComponentsState(
+            currentType = currentContentType,
+            installed = installedItems,
+            available = availableItems,
+            downloadProgress = downloadProgress,
+            autoCreateContainer = autoCreateContainer,
+        )
+
+        scheduleSizeFetches(availableItems)
+    }
+
+    private fun updateDownloadProgress(
+        title: String,
+        message: String,
+        progress: Float? = null,
+        indeterminate: Boolean = false,
+    ) {
+        val next = ComponentsDownloadProgress(
+            title = title,
+            message = message,
+            progress = progress ?: 0f,
+            indeterminate = indeterminate || progress == null,
+        )
+        runOnMain {
+            downloadProgress = next
+            publishState()
         }
     }
 
-    private fun selectContentType(
-        type: ContentProfile.ContentType,
-        animateScroll: Boolean = true
-    ) {
-        currentContentType = type
-        updateInstallAction(type)
-        contentTabs.forEach { (tabType, tabView) ->
-            tabView.isSelected = tabType == type
+    private fun clearDownloadProgress() {
+        runOnMain {
+            downloadProgress = null
+            publishState()
         }
+    }
 
-        if (animateScroll) {
-            val selectedTab = contentTabs[type] ?: return
-            binding.HSVContentTypeNav.post {
-                val scrollX =
-                    (selectedTab.left - (binding.HSVContentTypeNav.width - selectedTab.width) / 2)
-                        .coerceAtLeast(0)
-                binding.HSVContentTypeNav.smoothScrollTo(scrollX, 0)
+    private inline fun runOnMain(crossinline block: () -> Unit) {
+        val act = activity
+        if (act != null && android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            block()
+        } else {
+            act?.runOnUiThread { block() }
+        }
+    }
+
+    private fun ContentProfile.toItem(): ComponentItem {
+        val installedSuffix = if (isInstalled) "1" else "0"
+        val cachedSize = remoteUrl?.let { sizeCache[it] }
+        return ComponentItem(
+            key = "${type}:${verName}:${verCode}:${installedSuffix}:${remoteUrl ?: ""}",
+            type = type,
+            verName = verName,
+            isInstalled = isInstalled,
+            hasRemote = remoteUrl != null,
+            sizeBytes = cachedSize,
+        )
+    }
+
+    private fun scheduleSizeFetches(items: List<ComponentItem>) {
+        val urlsToFetch = items
+            .mapNotNull { item -> profilesByKey[item.key]?.remoteUrl }
+            .filter { url -> url !in sizeCache && url !in sizeFetchesInFlight }
+            .distinct()
+
+        if (urlsToFetch.isEmpty()) return
+
+        sizeFetchesInFlight.addAll(urlsToFetch)
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            urlsToFetch.forEach { url ->
+                val size = withContext(Dispatchers.IO) {
+                    Downloader.fetchContentLength(url)
+                }
+                if (!isAdded || view == null) return@launch
+                sizeCache[url] = size
+                sizeFetchesInFlight.remove(url)
+                publishState()
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Actions
+    // ------------------------------------------------------------------
+
+    private fun promptInstallFromFile() {
+        contentPicker.launch(arrayOf("*/*"))
+    }
+
+    private fun onRemoveRequested(profile: ContentProfile) {
+        var containerInUse: String? = null
+        if (profile.type == ContentProfile.ContentType.CONTENT_TYPE_WINE ||
+            profile.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON
+        ) {
+            val containerManager = ContainerManager(requireContext())
+            containerManager.containers.forEach { container ->
+                if (container.wineVersion == ContentsManager.getEntryName(profile)) {
+                    containerInUse = container.name
+                    return@forEach
+                }
             }
         }
 
-        loadContentList(scrollToTop = true)
-    }
+        if (containerInUse != null) {
+            ContentDialog.alert(
+                requireContext(),
+                getString(
+                    R.string.settings_content_unable_to_remove_in_use,
+                    containerInUse
+                ),
+                null
+            )
+            return
+        }
 
-    private fun updateInstallAction(type: ContentProfile.ContentType) {
-        binding.BTInstallContent.contentDescription =
-            "${getString(R.string.settings_content_install)} ${type}"
+        manager.removeContent(profile)
+        manager.syncContents()
+        publishState()
     }
 
     private fun refreshRemoteProfiles() {
@@ -204,8 +356,8 @@ class ContentsFragment : Fragment() {
                     manager.setRemoteProfiles(json)
                 }
 
-                if (isAdded && _binding != null) {
-                    loadContentList()
+                if (isAdded && view != null) {
+                    publishState()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to refresh remote profiles.", e)
@@ -215,7 +367,6 @@ class ContentsFragment : Fragment() {
 
     private fun installSelectedContent(
         uri: Uri,
-        transferDialog: ContentTransferDialog,
         completionMessage: String,
         sourceRemoteUrl: String? = null
     ) {
@@ -243,8 +394,8 @@ class ContentsFragment : Fragment() {
                     else -> R.string.settings_content_unable_to_install
                 }
 
-                activity?.runOnUiThread {
-                    transferDialog.dismiss()
+                runOnMain {
+                    clearDownloadProgress()
                     if (reason == ContentsManager.InstallFailedReason.ERROR_EXIST && conflictingProfile != null) {
                         showConflictingContentDialog(conflictingProfile)
                     } else {
@@ -261,40 +412,37 @@ class ContentsFragment : Fragment() {
                 if (isExtracting) {
                     isExtracting = false
                     extractedProfile = profile
-                    // Transition from extracting to installing phase
-                    transferDialog.update(
-                        getString(R.string.settings_content_installing_title),
-                        profile.verName,
-                        indeterminate = true
+                    updateDownloadProgress(
+                        title = getString(R.string.settings_content_installing_title),
+                        message = profile.verName,
+                        indeterminate = true,
                     )
                     manager.finishInstallContent(profile, this)
                     return
                 }
 
-                transferDialog.dismiss()
-                activity?.runOnUiThread {
+                clearDownloadProgress()
+                runOnMain {
                     if (sourceRemoteUrl != null) {
                         manager.registerRemoteProfileAlias(sourceRemoteUrl, profile)
                     }
                     AppUtils.showToast(requireContext(), completionMessage)
                     manager.syncContents()
-                    selectContentType(profile.type)
+                    currentContentType = profile.type
+                    publishState()
 
-                    // Automatically create a container if it's Wine or Proton
-                    if (profile.type == ContentProfile.ContentType.CONTENT_TYPE_WINE || profile.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON) {
-                        val containerManager = com.winlator.cmod.container.ContainerManager(requireContext())
-                        
-                        // Clean up the container name
+                    if (autoCreateContainer && (profile.type == ContentProfile.ContentType.CONTENT_TYPE_WINE || profile.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON)) {
+                        val containerManager = ContainerManager(requireContext())
+
                         var desiredName = profile.verName
                             .replace("winlator", "", ignoreCase = true)
                             .replace("wine", "", ignoreCase = true)
                             .replace(Regex("[^a-zA-Z0-9.\\-]"), " ")
                             .trim()
                             .replace(Regex("\\s+"), " ")
-                        
-                        if (desiredName.isEmpty()) desiredName = "Container"
-                        
-                        // Ensure unique name
+
+                        if (desiredName.isEmpty()) desiredName = getString(R.string.common_ui_container)
+
                         var uniqueName = desiredName
                         var counter = 2
                         while (containerManager.containers.any { it.name.equals(uniqueName, ignoreCase = true) }) {
@@ -309,11 +457,14 @@ class ContentsFragment : Fragment() {
 
                         val preloaderDialog = com.winlator.cmod.core.PreloaderDialog(activity)
                         preloaderDialog.show(R.string.containers_list_creating)
-                        
+
                         containerManager.createContainerAsync(data, manager) { newContainer ->
                             preloaderDialog.close()
                             if (newContainer != null) {
-                                AppUtils.showToast(requireContext(), "Created container: $uniqueName")
+                                AppUtils.showToast(
+                                    requireContext(),
+                                    getString(R.string.settings_content_container_created, uniqueName)
+                                )
                             }
                         }
                     }
@@ -321,58 +472,22 @@ class ContentsFragment : Fragment() {
             }
         }
 
-        // Progress listener that updates the dialog during extraction
-        val extractionProgress = ContentsManager.OnExtractionProgressListener { filesExtracted, currentFileName ->
-            transferDialog.update(
-                getString(R.string.settings_content_extracting_title),
-                getString(R.string.settings_content_extracting_detail, filesExtracted),
-                indeterminate = true
+        val extractionProgress = ContentsManager.OnExtractionProgressListener { filesExtracted, _ ->
+            updateDownloadProgress(
+                title = getString(R.string.settings_content_extracting_title),
+                message = getString(R.string.settings_content_extracting_detail, filesExtracted),
+                indeterminate = true,
             )
         }
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             runCatching { manager.extraContentFile(uri, callback, extractionProgress) }
                 .onFailure {
-                    activity?.runOnUiThread {
-                        transferDialog.dismiss()
+                    runOnMain {
+                        clearDownloadProgress()
                         AppUtils.showToast(requireContext(), R.string.input_controls_editor_unable_to_import)
                     }
                 }
-        }
-    }
-
-    private fun loadContentList(scrollToTop: Boolean = false) {
-        val profiles = manager.getProfiles(currentContentType).orEmpty()
-        binding.TVEmptyText.isVisible = profiles.isEmpty()
-        binding.RecyclerView.isVisible = profiles.isNotEmpty()
-        contentAdapter.submitList(buildContentRows(profiles)) {
-            if (_binding != null && scrollToTop) {
-                binding.RecyclerView.stopScroll()
-                binding.RecyclerView.scrollToPosition(0)
-            }
-        }
-    }
-
-    private fun buildContentRows(profiles: List<ContentProfile>): List<ContentRow> {
-        if (profiles.isEmpty()) {
-            return emptyList()
-        }
-
-        val installed = profiles.filter { it.isInstalled }
-            .sortedWith(compareByDescending<ContentProfile> { it.isInstalled }.thenBy { it.verName.lowercase() }.thenByDescending { it.verCode })
-        val available = profiles.filterNot { it.isInstalled }
-            .sortedWith(compareBy<ContentProfile> { it.verName.lowercase() }.thenByDescending { it.verCode })
-
-        return buildList {
-            if (installed.isNotEmpty()) {
-                add(ContentRow.Header(R.string.common_ui_installed))
-                installed.forEach { add(ContentRow.Item(it)) }
-            }
-
-            if (available.isNotEmpty()) {
-                add(ContentRow.Header(R.string.common_ui_available))
-                available.forEach { add(ContentRow.Item(it)) }
-            }
         }
     }
 
@@ -390,172 +505,12 @@ class ContentsFragment : Fragment() {
         dialog.show()
     }
 
-    private fun buildInstallConfirmMessage(): CharSequence {
-        val message = getString(R.string.settings_content_install_confirm_message)
-        val builder = SpannableStringBuilder(message)
-
-        listOf(".wcp", "xz", "zst").forEach { token ->
-            var startIndex = message.indexOf(token)
-            while (startIndex >= 0) {
-                builder.setSpan(
-                    TypefaceSpan("monospace"),
-                    startIndex,
-                    startIndex + token.length,
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-                startIndex = message.indexOf(token, startIndex + token.length)
-            }
-        }
-
-        return builder
-    }
-
-    private inner class ContentItemAdapter :
-        ListAdapter<ContentRow, RecyclerView.ViewHolder>(DiffCallback) {
-
-        override fun getItemViewType(position: Int): Int =
-            when (getItem(position)) {
-                is ContentRow.Header -> VIEW_TYPE_HEADER
-                is ContentRow.Item -> VIEW_TYPE_ITEM
-            }
-
-        inner class HeaderViewHolder(
-            private val itemBinding: ContentSectionHeaderItemBinding
-        ) : RecyclerView.ViewHolder(itemBinding.root) {
-
-            fun bind(header: ContentRow.Header) {
-                itemBinding.TVSectionTitle.setText(header.titleResId)
-            }
-        }
-
-        inner class ContentViewHolder(
-            private val itemBinding: ContentListItemBinding
-        ) : RecyclerView.ViewHolder(itemBinding.root) {
-
-            fun bind(profile: ContentProfile) {
-                itemBinding.IVIcon.setImageResource(iconFor(profile.type))
-                itemBinding.TVVersionName.text =
-                    getString(R.string.common_ui_version) + ": " + profile.verName
-                itemBinding.TVVersionCode.text =
-                    getString(R.string.settings_content_version_code) + ": " + profile.verCode
-
-                itemBinding.Progress.isVisible = false
-                itemBinding.BTMenu.isVisible = profile.isInstalled
-                itemBinding.BTDownload.isVisible = !profile.isInstalled && profile.remoteUrl != null
-
-                itemBinding.BTMenu.setOnClickListener(null)
-                itemBinding.BTDownload.setOnClickListener(null)
-
-                if (profile.isInstalled) {
-                    itemBinding.BTMenu.setOnClickListener {
-                        showContentMenu(profile, itemBinding.BTMenu)
-                    }
-                } else if (profile.remoteUrl != null) {
-                    itemBinding.BTDownload.setOnClickListener {
-                        downloadRemoteContent(profile)
-                    }
-                }
-            }
-        }
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-            return when (viewType) {
-                VIEW_TYPE_HEADER -> {
-                    val itemBinding = ContentSectionHeaderItemBinding.inflate(
-                        LayoutInflater.from(parent.context),
-                        parent,
-                        false
-                    )
-                    HeaderViewHolder(itemBinding)
-                }
-
-                else -> {
-                    val itemBinding = ContentListItemBinding.inflate(
-                        LayoutInflater.from(parent.context),
-                        parent,
-                        false
-                    )
-                    ContentViewHolder(itemBinding)
-                }
-            }
-        }
-
-        override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-            when (val row = getItem(position)) {
-                is ContentRow.Header -> (holder as HeaderViewHolder).bind(row)
-                is ContentRow.Item -> (holder as ContentViewHolder).bind(row.profile)
-            }
-        }
-    }
-
-    private fun showContentMenu(profile: ContentProfile, anchor: View) {
-        val popupContext = ContextThemeWrapper(requireContext(), R.style.ThemeOverlay_ContentPopupMenu)
-        val popupMenu = PopupMenu(
-            popupContext,
-            anchor,
-            Gravity.END,
-            0,
-            R.style.Widget_ContentPopupMenu
-        )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            popupMenu.setForceShowIcon(true)
-        }
-        popupMenu.inflate(R.menu.content_popup_menu)
-        popupMenu.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                R.id.content_info -> {
-                    ContentInfoDialog(requireContext(), profile).show()
-                    true
-                }
-
-                R.id.remove_content -> {
-                    ContentDialog.confirm(
-                        requireContext(),
-                        R.string.settings_content_confirm_remove
-                    ) {
-                        var containerInUse: String? = null
-                        if (profile.type == ContentProfile.ContentType.CONTENT_TYPE_WINE ||
-                            profile.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON
-                        ) {
-                            val containerManager = ContainerManager(requireContext())
-                            containerManager.containers.forEach { container ->
-                                if (container.wineVersion == ContentsManager.getEntryName(profile)) {
-                                    containerInUse = container.name
-                                    return@forEach
-                                }
-                            }
-                        }
-
-                        if (containerInUse != null) {
-                            ContentDialog.alert(
-                                requireContext(),
-                                getString(
-                                    R.string.settings_content_unable_to_remove_in_use,
-                                    containerInUse
-                                ),
-                                null
-                            )
-                        } else {
-                            manager.removeContent(profile)
-                            manager.syncContents()
-                            loadContentList(scrollToTop = true)
-                        }
-                    }
-                    true
-                }
-
-                else -> false
-            }
-        }
-        popupMenu.show()
-    }
-
     private fun downloadRemoteContent(profile: ContentProfile) {
         val remoteUrl = profile.remoteUrl ?: return
-        val transferDialog = ContentTransferDialog(requireActivity())
-        transferDialog.show(
-            getString(R.string.settings_content_downloading_title),
-            profile.verName
+        updateDownloadProgress(
+            title = getString(R.string.settings_content_downloading_title),
+            message = profile.verName,
+            indeterminate = true,
         )
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -563,114 +518,50 @@ class ContentsFragment : Fragment() {
             val success = withContext(Dispatchers.IO) {
                 Downloader.downloadFileWinNativeFirst(remoteUrl, output) { downloadedBytes, totalBytes ->
                     if (totalBytes <= 0L) {
-                        transferDialog.update(
-                            getString(R.string.settings_content_downloading_title),
-                            profile.verName,
-                            indeterminate = true
+                        updateDownloadProgress(
+                            title = getString(R.string.settings_content_downloading_title),
+                            message = profile.verName,
+                            indeterminate = true,
                         )
                         return@downloadFileWinNativeFirst
                     }
-                    val progressUnits = ((downloadedBytes * ContentTransferDialog.PROGRESS_SCALE) / totalBytes)
-                        .toInt()
-                        .coerceIn(0, ContentTransferDialog.PROGRESS_SCALE)
-                    transferDialog.update(
-                        getString(R.string.settings_content_downloading_title),
-                        profile.verName,
-                        progress = progressUnits
+                    val fraction = (downloadedBytes.toFloat() / totalBytes.toFloat())
+                        .coerceIn(0f, 1f)
+                    updateDownloadProgress(
+                        title = getString(R.string.settings_content_downloading_title),
+                        message = profile.verName,
+                        progress = fraction,
                     )
                 }
             }
 
-            if (!isAdded || _binding == null) {
+            if (!isAdded || view == null) {
                 output.delete()
-                transferDialog.dismiss()
+                clearDownloadProgress()
                 return@launch
             }
 
             if (success) {
-                // Transition: show "Extracting..." before starting the install phase
-                transferDialog.update(
-                    getString(R.string.settings_content_extracting_title),
-                    profile.verName,
-                    indeterminate = true
+                updateDownloadProgress(
+                    title = getString(R.string.settings_content_extracting_title),
+                    message = profile.verName,
+                    indeterminate = true,
                 )
                 installSelectedContent(
                     Uri.parse(output.absolutePath),
-                    transferDialog,
                     getString(R.string.settings_content_download_complete),
                     remoteUrl
                 )
             } else if (isAdded) {
-                transferDialog.dismiss()
-                AppUtils.showToast(requireContext(), "Download failed.")
+                clearDownloadProgress()
+                AppUtils.showToast(requireContext(), R.string.settings_content_download_failed)
             }
         }
     }
-
-    private fun iconFor(type: ContentProfile.ContentType): Int =
-        when (type) {
-            ContentProfile.ContentType.CONTENT_TYPE_WINE,
-            ContentProfile.ContentType.CONTENT_TYPE_PROTON -> R.drawable.icon_wine
-
-            ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-            ContentProfile.ContentType.CONTENT_TYPE_VKD3D -> R.drawable.ic_drivers
-
-            ContentProfile.ContentType.CONTENT_TYPE_BOX64,
-            ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64,
-            ContentProfile.ContentType.CONTENT_TYPE_FEXCORE -> R.drawable.icon_cpu
-        }
 
     companion object {
         private const val STATE_CONTENT_TYPE = "state_content_type"
         private const val TAG = "ContentsFragment"
-        private const val VIEW_TYPE_HEADER = 0
-        private const val VIEW_TYPE_ITEM = 1
-
-        private val DiffCallback = object : DiffUtil.ItemCallback<ContentRow>() {
-            override fun areItemsTheSame(
-                oldItem: ContentRow,
-                newItem: ContentRow
-            ): Boolean {
-                return when {
-                    oldItem is ContentRow.Header && newItem is ContentRow.Header -> {
-                        oldItem.titleResId == newItem.titleResId
-                    }
-
-                    oldItem is ContentRow.Item && newItem is ContentRow.Item -> {
-                        oldItem.profile.type == newItem.profile.type &&
-                            oldItem.profile.verName == newItem.profile.verName &&
-                            oldItem.profile.verCode == newItem.profile.verCode
-                    }
-
-                    else -> false
-                }
-            }
-
-            override fun areContentsTheSame(
-                oldItem: ContentRow,
-                newItem: ContentRow
-            ): Boolean {
-                return when {
-                    oldItem is ContentRow.Header && newItem is ContentRow.Header -> {
-                        oldItem.titleResId == newItem.titleResId
-                    }
-
-                    oldItem is ContentRow.Item && newItem is ContentRow.Item -> {
-                        oldItem.profile.type == newItem.profile.type &&
-                            oldItem.profile.verName == newItem.profile.verName &&
-                            oldItem.profile.verCode == newItem.profile.verCode &&
-                            oldItem.profile.remoteUrl == newItem.profile.remoteUrl &&
-                            oldItem.profile.isInstalled == newItem.profile.isInstalled
-                    }
-
-                    else -> false
-                }
-            }
-        }
-    }
-
-    private sealed interface ContentRow {
-        data class Header(val titleResId: Int) : ContentRow
-        data class Item(val profile: ContentProfile) : ContentRow
+        private const val PREF_AUTO_CREATE_CONTAINER = "components_auto_create_container"
     }
 }

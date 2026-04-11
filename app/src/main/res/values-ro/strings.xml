@@ -99,6 +99,11 @@
     <string name="common_ui_open">Deschide</string>
     <string name="common_ui_connected">Conectat</string>
     <string name="common_ui_install">Instaleaza</string>
+    <string name="common_ui_application">Aplicație</string>
+    <string name="common_ui_check">Verifică</string>
+    <string name="common_ui_select">Selectează</string>
+    <string name="common_ui_not_configured">Neconfigurat</string>
+    <string name="common_ui_reinstall">Reinstalează</string>
     <string name="common_ui_exit_app_confirm">Iesi din WinNative?</string>
     <string name="common_ui_elements_count">%1$d elemente</string>
     <string name="common_ui_disabled_placeholder">-- Dezactivat --</string>
@@ -716,21 +721,50 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_debug_download_logs">Jurnale descarcari</string>
     <string name="settings_debug_download_logs_description">Inregistreaza evenimentele de rezolvare descarcari si alternativa WinNative</string>
     <string name="settings_debug_share_logs">Partajeaza jurnalele</string>
+    <string name="settings_debug_logs_subject">Jurnale WinNative (%1$s)</string>
+    <string name="settings_debug_no_logs_available">Nu sunt disponibile jurnale de depanare. Activează mai întâi opțiunile de depanare și lansează un joc.</string>
+    <string name="settings_debug_capture_failed">Capturarea jurnalelor a eșuat: %1$s</string>
+    <string name="settings_debug_log_to_file_desc">Înregistrează erorile, avertismentele și blocările procesului WinNative în fișier</string>
+    <string name="settings_debug_section_emulation">Emulare</string>
+    <string name="settings_debug_section_subsystems">Subsisteme</string>
+    <string name="settings_debug_section_tools">Instrumente</string>
+    <string name="settings_debug_no_channels_selected">Niciun canal selectat</string>
+    <string name="settings_debug_no_channels_available">Niciun canal disponibil</string>
+    <string name="settings_debug_channel_toggle_hint">Apasă pentru a comuta canalele. Canalele activate sunt incluse în ieșirea de depanare Wine.</string>
+    <string name="settings_debug_remove_channel_desc">Elimină %1$s</string>
+
+    <string name="settings_other_language_title">Limbă</string>
+    <string name="settings_other_language_summary">Alege limba de afișare</string>
+    <string name="settings_other_language_system_default">Implicit sistem</string>
+
+    <string name="settings_other_section_integration">Integrare</string>
+    <string name="settings_other_checking_for_updates">Se verifică actualizările\u2026</string>
+    <string name="settings_other_update_check_cooldown">Așteaptă %1$ds înainte de a verifica din nou</string>
+    <string name="settings_other_persistable_permission_failed">Nu se pot obține permisiuni persistente: %1$s</string>
+    <string name="settings_other_keep_app_open">Te rugăm să păstrezi aplicația deschisă până se termină.</string>
 
     <!-- Settings > Content Packages -->
     <string name="settings_content_install">Instaleaza continut</string>
     <string name="settings_content_type">Tip continut</string>
     <string name="settings_content_components">Componente</string>
-    <string name="settings_content_install_confirm_message">Instaleaza doar pachete de incredere. Aceste fisiere pot contine continut executabil si pot afecta dispozitivul sau datele tale.
-
-Pachetele acceptate folosesc extensia .wcp si sunt comprimate ca xz sau zst.</string>
+    <string name="settings_content_auto_create_container">Creează container automat</string>
+    <string name="settings_content_remove_title">Elimini componenta?</string>
+    <string name="settings_content_empty_subtitle">Instalează un pachet sau schimbă tipul pentru a începe.</string>
+    <string name="settings_content_container_created">Container creat: %1$s</string>
+    <string name="settings_content_download_failed">Descărcare eșuată.</string>
+    <string name="common_ui_working">Se lucrează…</string>
+    <string name="settings_content_desc_wine">Stratul de compatibilitate Windows utilizat pentru a rula jocuri și aplicații. Ai nevoie de cel puțin o versiune Wine sau FEXCore instalată.</string>
+    <string name="settings_content_desc_proton">Build-ul Valve bazat pe Wine cu patch-uri suplimentare pentru jocuri. Util pentru unele titluri, dar Wine standard funcționează de obicei bine.</string>
+    <string name="settings_content_desc_dxvk">Traduce DirectX 9, 10 și 11 în Vulkan. De obicei îmbunătățește performanța în jocurile Windows mai vechi.</string>
+    <string name="settings_content_desc_vkd3d">Traduce DirectX 12 în Vulkan. Necesar pentru multe jocuri Windows mai noi.</string>
+    <string name="settings_content_desc_box64">Traduce codul Windows x86 / x64 astfel încât să poată rula pe dispozitive ARM. Box64 sau FEXCore este necesar pentru majoritatea jocurilor.</string>
+    <string name="settings_content_desc_wowbox64">O build Box64 pentru modul Wine WoW64. Necesară doar la utilizarea unui prefix pe 64 de biți cu suport pentru aplicații pe 32 de biți.</string>
+    <string name="settings_content_desc_fexcore">Un traducător x86 / x64 alternativ. Încearcă-l dacă un joc are probleme sau performanță slabă cu Box64.</string>
     <string name="settings_content_unable_to_install">Nu se poate instala continutul.</string>
     <string name="settings_content_install_failed">Instalare esuata</string>
     <string name="settings_content_file_cannot_be_recognized">Fisierul nu poate fi recunoscut.</string>
     <string name="settings_content_profile_not_found">Profil negasit in continut.</string>
     <string name="settings_content_profile_cannot_be_recognized">Profilul nu poate fi recunoscut</string>
-    <string name="settings_content_info">Informatii continut</string>
-    <string name="settings_content_version_code">Cod versiune</string>
     <string name="settings_content_file_list">Lista fisiere</string>
     <string name="settings_content_install_directory">Director de instalare</string>
     <string name="settings_content_installed_success">Continut instalat cu succes!</string>

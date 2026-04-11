@@ -99,6 +99,11 @@
     <string name="common_ui_open">Öffnen</string>
     <string name="common_ui_connected">Verbunden</string>
     <string name="common_ui_install">Installieren</string>
+    <string name="common_ui_application">Anwendung</string>
+    <string name="common_ui_check">Prüfen</string>
+    <string name="common_ui_select">Auswählen</string>
+    <string name="common_ui_not_configured">Nicht konfiguriert</string>
+    <string name="common_ui_reinstall">Neu installieren</string>
     <string name="common_ui_exit_app_confirm">WinNative beenden?</string>
     <string name="common_ui_elements_count">%1$d Elemente</string>
     <string name="common_ui_disabled_placeholder">-- Deaktiviert --</string>
@@ -716,21 +721,50 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="settings_debug_download_logs">Download-Protokolle</string>
     <string name="settings_debug_download_logs_description">Download-Resolver- und WinNative-Fallback-Ereignisse protokollieren</string>
     <string name="settings_debug_share_logs">Protokolle teilen</string>
+    <string name="settings_debug_logs_subject">WinNative-Protokolle (%1$s)</string>
+    <string name="settings_debug_no_logs_available">Keine Debug-Protokolle verfügbar. Bitte zuerst Debug-Optionen aktivieren und ein Spiel starten.</string>
+    <string name="settings_debug_capture_failed">Protokolle konnten nicht erfasst werden: %1$s</string>
+    <string name="settings_debug_log_to_file_desc">WinNative-Prozessfehler, -Warnungen und -Abstürze in Datei protokollieren</string>
+    <string name="settings_debug_section_emulation">Emulation</string>
+    <string name="settings_debug_section_subsystems">Subsysteme</string>
+    <string name="settings_debug_section_tools">Werkzeuge</string>
+    <string name="settings_debug_no_channels_selected">Keine Kanäle ausgewählt</string>
+    <string name="settings_debug_no_channels_available">Keine Kanäle verfügbar</string>
+    <string name="settings_debug_channel_toggle_hint">Zum Umschalten von Kanälen tippen. Aktivierte Kanäle werden in die Wine-Debug-Ausgabe aufgenommen.</string>
+    <string name="settings_debug_remove_channel_desc">%1$s entfernen</string>
+
+    <string name="settings_other_language_title">Sprache</string>
+    <string name="settings_other_language_summary">Anzeigesprache auswählen</string>
+    <string name="settings_other_language_system_default">Systemstandard</string>
+
+    <string name="settings_other_section_integration">Integration</string>
+    <string name="settings_other_checking_for_updates">Suche nach Updates\u2026</string>
+    <string name="settings_other_update_check_cooldown">Bitte %1$ds warten, bevor Sie erneut prüfen</string>
+    <string name="settings_other_persistable_permission_failed">Dauerhafte Berechtigungen konnten nicht übernommen werden: %1$s</string>
+    <string name="settings_other_keep_app_open">Bitte halten Sie die App geöffnet, bis dies abgeschlossen ist.</string>
 
     <!-- Settings > Content Packages -->
     <string name="settings_content_install">Inhalt installieren</string>
     <string name="settings_content_type">Inhaltstyp</string>
     <string name="settings_content_components">Komponenten</string>
-    <string name="settings_content_install_confirm_message">Installiere nur vertrauenswürdige Pakete. Diese Dateien können ausführbare Inhalte enthalten und dein Gerät oder deine Daten beeinträchtigen.
-
-Unterstützte Pakete verwenden die Erweiterung .wcp und sind als xz oder zst komprimiert.</string>
+    <string name="settings_content_auto_create_container">Container automatisch erstellen</string>
+    <string name="settings_content_remove_title">Komponente entfernen?</string>
+    <string name="settings_content_empty_subtitle">Installiere ein Paket oder wechsle den Typ, um zu beginnen.</string>
+    <string name="settings_content_container_created">Container erstellt: %1$s</string>
+    <string name="settings_content_download_failed">Download fehlgeschlagen.</string>
+    <string name="common_ui_working">Arbeite…</string>
+    <string name="settings_content_desc_wine">Die Windows-Kompatibilitätsschicht zum Ausführen von Spielen und Apps. Du benötigst mindestens eine installierte Wine- oder FEXCore-Version.</string>
+    <string name="settings_content_desc_proton">Valves Wine-basierter Build mit zusätzlichen Patches für Spiele. Nützlich für einige Titel, aber Standard-Wine funktioniert meistens gut.</string>
+    <string name="settings_content_desc_dxvk">Übersetzt DirectX 9, 10 und 11 nach Vulkan. Dies verbessert normalerweise die Leistung älterer Windows-Spiele.</string>
+    <string name="settings_content_desc_vkd3d">Übersetzt DirectX 12 nach Vulkan. Wird für viele neuere Windows-Spiele benötigt.</string>
+    <string name="settings_content_desc_box64">Übersetzt x86/x64-Windows-Code, damit er auf ARM-Geräten läuft. Box64 oder FEXCore wird für die meisten Spiele benötigt.</string>
+    <string name="settings_content_desc_wowbox64">Ein Box64-Build für den Wine-WoW64-Modus. Nur nötig bei einem 64-Bit-Prefix mit 32-Bit-App-Unterstützung.</string>
+    <string name="settings_content_desc_fexcore">Ein alternativer x86/x64-Übersetzer. Probiere ihn aus, wenn ein Spiel Probleme oder schlechte Leistung mit Box64 hat.</string>
     <string name="settings_content_unable_to_install">Inhalt kann nicht installiert werden.</string>
     <string name="settings_content_install_failed">Installation fehlgeschlagen</string>
     <string name="settings_content_file_cannot_be_recognized">Datei kann nicht erkannt werden.</string>
     <string name="settings_content_profile_not_found">Profil im Inhalt nicht gefunden.</string>
     <string name="settings_content_profile_cannot_be_recognized">Profil kann nicht erkannt werden</string>
-    <string name="settings_content_info">Inhaltsinfo</string>
-    <string name="settings_content_version_code">Versionscode</string>
     <string name="settings_content_file_list">Dateiliste</string>
     <string name="settings_content_install_directory">Installationsverzeichnis</string>
     <string name="settings_content_installed_success">Inhalt erfolgreich installiert!</string>

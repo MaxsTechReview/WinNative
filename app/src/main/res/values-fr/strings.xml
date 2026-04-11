@@ -99,6 +99,11 @@
     <string name="common_ui_open">Ouvrir</string>
     <string name="common_ui_connected">Connecté</string>
     <string name="common_ui_install">Installer</string>
+    <string name="common_ui_application">Application</string>
+    <string name="common_ui_check">Vérifier</string>
+    <string name="common_ui_select">Sélectionner</string>
+    <string name="common_ui_not_configured">Non configuré</string>
+    <string name="common_ui_reinstall">Réinstaller</string>
     <string name="common_ui_exit_app_confirm">Quitter WinNative ?</string>
     <string name="common_ui_elements_count">%1$d éléments</string>
     <string name="common_ui_disabled_placeholder">-- Désactivé --</string>
@@ -716,21 +721,50 @@ Par ex. <b>META</b> pour la <i>touche META</i>, \n
     <string name="settings_debug_download_logs">Journaux de téléchargement</string>
     <string name="settings_debug_download_logs_description">Journaliser les événements du résolveur de téléchargement et du repli WinNative</string>
     <string name="settings_debug_share_logs">Partager les journaux</string>
+    <string name="settings_debug_logs_subject">Journaux WinNative (%1$s)</string>
+    <string name="settings_debug_no_logs_available">Aucun journal de débogage disponible. Activez d\'abord les options de débogage puis lancez un jeu.</string>
+    <string name="settings_debug_capture_failed">Échec de la capture des journaux : %1$s</string>
+    <string name="settings_debug_log_to_file_desc">Journaliser les erreurs, avertissements et plantages du processus WinNative dans un fichier</string>
+    <string name="settings_debug_section_emulation">Émulation</string>
+    <string name="settings_debug_section_subsystems">Sous-systèmes</string>
+    <string name="settings_debug_section_tools">Outils</string>
+    <string name="settings_debug_no_channels_selected">Aucun canal sélectionné</string>
+    <string name="settings_debug_no_channels_available">Aucun canal disponible</string>
+    <string name="settings_debug_channel_toggle_hint">Appuyez pour activer/désactiver les canaux. Les canaux activés sont inclus dans la sortie de débogage de Wine.</string>
+    <string name="settings_debug_remove_channel_desc">Supprimer %1$s</string>
+
+    <string name="settings_other_language_title">Langue</string>
+    <string name="settings_other_language_summary">Choisir la langue d\'affichage</string>
+    <string name="settings_other_language_system_default">Paramètre système</string>
+
+    <string name="settings_other_section_integration">Intégration</string>
+    <string name="settings_other_checking_for_updates">Recherche de mises à jour\u2026</string>
+    <string name="settings_other_update_check_cooldown">Veuillez patienter %1$ds avant de vérifier à nouveau</string>
+    <string name="settings_other_persistable_permission_failed">Impossible d\'obtenir des autorisations persistantes : %1$s</string>
+    <string name="settings_other_keep_app_open">Veuillez garder l\'application ouverte jusqu\'à la fin de l\'opération.</string>
 
     <!-- Settings > Content Packages -->
     <string name="settings_content_install">Installer du contenu</string>
     <string name="settings_content_type">Type de contenu</string>
     <string name="settings_content_components">Composants</string>
-    <string name="settings_content_install_confirm_message">Installez uniquement des paquets de confiance. Ces fichiers peuvent inclure du contenu exécutable et affecter votre appareil ou vos données.
-
-Les paquets pris en charge utilisent l\'extension .wcp et sont compressés en xz ou zst.</string>
+    <string name="settings_content_auto_create_container">Créer le conteneur automatiquement</string>
+    <string name="settings_content_remove_title">Supprimer le composant ?</string>
+    <string name="settings_content_empty_subtitle">Installez un paquet ou changez de type pour commencer.</string>
+    <string name="settings_content_container_created">Conteneur créé : %1$s</string>
+    <string name="settings_content_download_failed">Échec du téléchargement.</string>
+    <string name="common_ui_working">En cours…</string>
+    <string name="settings_content_desc_wine">La couche de compatibilité Windows utilisée pour exécuter jeux et applications. Vous devez avoir au moins une version de Wine ou FEXCore installée.</string>
+    <string name="settings_content_desc_proton">Build basé sur Wine de Valve avec des correctifs supplémentaires pour les jeux. Utile pour certains titres, mais Wine standard fonctionne généralement bien.</string>
+    <string name="settings_content_desc_dxvk">Traduit DirectX 9, 10 et 11 vers Vulkan. Cela améliore généralement les performances des anciens jeux Windows.</string>
+    <string name="settings_content_desc_vkd3d">Traduit DirectX 12 vers Vulkan. Nécessaire pour de nombreux jeux Windows récents.</string>
+    <string name="settings_content_desc_box64">Traduit le code Windows x86 / x64 pour qu\'il puisse s\'exécuter sur des appareils ARM. Box64 ou FEXCore est requis pour la plupart des jeux.</string>
+    <string name="settings_content_desc_wowbox64">Un build Box64 pour le mode Wine WoW64. Nécessaire uniquement avec un préfixe 64 bits prenant en charge les applications 32 bits.</string>
+    <string name="settings_content_desc_fexcore">Un traducteur x86 / x64 alternatif. Essayez-le si un jeu présente des problèmes ou de mauvaises performances avec Box64.</string>
     <string name="settings_content_unable_to_install">Impossible d\'installer le contenu.</string>
     <string name="settings_content_install_failed">Échec de l\'installation</string>
     <string name="settings_content_file_cannot_be_recognized">Le fichier ne peut pas être reconnu.</string>
     <string name="settings_content_profile_not_found">Profil introuvable dans le contenu.</string>
     <string name="settings_content_profile_cannot_be_recognized">Le profil ne peut pas être reconnu</string>
-    <string name="settings_content_info">Informations sur le contenu</string>
-    <string name="settings_content_version_code">Code de version</string>
     <string name="settings_content_file_list">Liste des fichiers</string>
     <string name="settings_content_install_directory">Répertoire d\'installation</string>
     <string name="settings_content_installed_success">Contenu installé avec succès !</string>

@@ -100,6 +100,11 @@
     <string name="common_ui_open">Open</string>
     <string name="common_ui_connected">Connected</string>
     <string name="common_ui_install">Install</string>
+    <string name="common_ui_application">Application</string>
+    <string name="common_ui_check">Check</string>
+    <string name="common_ui_select">Select</string>
+    <string name="common_ui_not_configured">Not configured</string>
+    <string name="common_ui_reinstall">Reinstall</string>
     <string name="common_ui_exit_app_confirm">Exit WinNative?</string>
     <string name="common_ui_elements_count">%1$d elements</string>
     <string name="common_ui_disabled_placeholder">-- Disabled --</string>
@@ -733,21 +738,50 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_debug_download_logs">Download Logs</string>
     <string name="settings_debug_download_logs_description">Log download resolver and WinNative fallback events</string>
     <string name="settings_debug_share_logs">Share Logs</string>
+    <string name="settings_debug_logs_subject">WinNative Logs (%1$s)</string>
+    <string name="settings_debug_no_logs_available">No debug logs available. Enable debugging options first and launch a game.</string>
+    <string name="settings_debug_capture_failed">Failed to capture logs: %1$s</string>
+    <string name="settings_debug_log_to_file_desc">Log WinNative process errors, warnings and crashes to file</string>
+    <string name="settings_debug_section_emulation">Emulation</string>
+    <string name="settings_debug_section_subsystems">Subsystems</string>
+    <string name="settings_debug_section_tools">Tools</string>
+    <string name="settings_debug_no_channels_selected">No channels selected</string>
+    <string name="settings_debug_no_channels_available">No channels available</string>
+    <string name="settings_debug_channel_toggle_hint">Tap to toggle channels. Enabled channels are included in Wine debug output.</string>
+    <string name="settings_debug_remove_channel_desc">Remove %1$s</string>
+
+    <string name="settings_other_language_title">Language</string>
+    <string name="settings_other_language_summary">Choose the display language</string>
+    <string name="settings_other_language_system_default">System default</string>
+
+    <string name="settings_other_section_integration">Integration</string>
+    <string name="settings_other_checking_for_updates">Checking for updates\u2026</string>
+    <string name="settings_other_update_check_cooldown">Please wait %1$ds before checking again</string>
+    <string name="settings_other_persistable_permission_failed">Unable to take persistable permissions: %1$s</string>
+    <string name="settings_other_keep_app_open">Please keep the app open while this finishes.</string>
 
     <!-- Settings > Content Packages -->
     <string name="settings_content_install">Install Content</string>
     <string name="settings_content_type">Content Type</string>
     <string name="settings_content_components">Components</string>
-    <string name="settings_content_install_confirm_message">Only install trusted packages. These files can include executable content and may affect your device or data.
-
-Supported packages use the .wcp extension and are compressed as xz or zst.</string>
+    <string name="settings_content_auto_create_container">Auto-create container</string>
+    <string name="settings_content_remove_title">Remove component?</string>
+    <string name="settings_content_empty_subtitle">Install a package or switch type to get started.</string>
+    <string name="settings_content_container_created">Created container: %1$s</string>
+    <string name="settings_content_download_failed">Download failed.</string>
+    <string name="common_ui_working">Working…</string>
+    <string name="settings_content_desc_wine">The Windows compatibility layer used to run games and apps. You need at least one Wine or FEXCore version installed.</string>
+    <string name="settings_content_desc_proton">Valve\'s Wine-based build with extra patches for games. Useful for some titles, but standard Wine usually works fine.</string>
+    <string name="settings_content_desc_dxvk">Translates DirectX 9, 10, and 11 to Vulkan. This usually improves performance in older Windows games.</string>
+    <string name="settings_content_desc_vkd3d">Translates DirectX 12 to Vulkan. Needed for many newer Windows games.</string>
+    <string name="settings_content_desc_box64">Translates x86 / x64 Windows code so it can run on ARM devices. Box64 or FEXCore is required for most games.</string>
+    <string name="settings_content_desc_wowbox64">A Box64 build for Wine WoW64 mode. Only needed when using a 64-bit prefix with 32-bit app support.</string>
+    <string name="settings_content_desc_fexcore">An alternative x86 / x64 translator. Try it if a game has issues or poor performance with Box64.</string>
     <string name="settings_content_unable_to_install">Unable to install content.</string>
     <string name="settings_content_install_failed">Install Failed</string>
     <string name="settings_content_file_cannot_be_recognized">File cannot be recognized.</string>
     <string name="settings_content_profile_not_found">Profile not found in content.</string>
     <string name="settings_content_profile_cannot_be_recognized">Profile cannot be recognized</string>
-    <string name="settings_content_info">Content Info</string>
-    <string name="settings_content_version_code">Version Code</string>
     <string name="settings_content_file_list">File List</string>
     <string name="settings_content_install_directory">Install Directory</string>
     <string name="settings_content_installed_success">Content installed successfully!</string>

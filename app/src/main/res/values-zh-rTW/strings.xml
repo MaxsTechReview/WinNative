@@ -99,6 +99,11 @@
     <string name="common_ui_open">開啟</string>
     <string name="common_ui_connected">已連線</string>
     <string name="common_ui_install">安裝</string>
+    <string name="common_ui_application">應用程式</string>
+    <string name="common_ui_check">檢查</string>
+    <string name="common_ui_select">選擇</string>
+    <string name="common_ui_not_configured">未設定</string>
+    <string name="common_ui_reinstall">重新安裝</string>
     <string name="common_ui_exit_app_confirm">離開 WinNative？</string>
     <string name="common_ui_elements_count">%1$d 個元素</string>
     <string name="common_ui_disabled_placeholder">-- 已停用 --</string>
@@ -716,21 +721,50 @@
     <string name="settings_debug_download_logs">下載日誌</string>
     <string name="settings_debug_download_logs_description">記錄下載解析器和 WinNative 備援事件</string>
     <string name="settings_debug_share_logs">分享日誌</string>
+    <string name="settings_debug_logs_subject">WinNative 日誌 (%1$s)</string>
+    <string name="settings_debug_no_logs_available">沒有可用的除錯日誌。請先啟用除錯選項並啟動遊戲。</string>
+    <string name="settings_debug_capture_failed">無法擷取日誌：%1$s</string>
+    <string name="settings_debug_log_to_file_desc">將 WinNative 程序錯誤、警告與當機記錄到檔案</string>
+    <string name="settings_debug_section_emulation">模擬</string>
+    <string name="settings_debug_section_subsystems">子系統</string>
+    <string name="settings_debug_section_tools">工具</string>
+    <string name="settings_debug_no_channels_selected">未選擇頻道</string>
+    <string name="settings_debug_no_channels_available">沒有可用的頻道</string>
+    <string name="settings_debug_channel_toggle_hint">點擊以切換頻道。已啟用的頻道將納入 Wine 除錯輸出。</string>
+    <string name="settings_debug_remove_channel_desc">移除 %1$s</string>
+
+    <string name="settings_other_language_title">語言</string>
+    <string name="settings_other_language_summary">選擇顯示語言</string>
+    <string name="settings_other_language_system_default">系統預設</string>
+
+    <string name="settings_other_section_integration">整合</string>
+    <string name="settings_other_checking_for_updates">正在檢查更新\u2026</string>
+    <string name="settings_other_update_check_cooldown">請等待 %1$d 秒後再次檢查</string>
+    <string name="settings_other_persistable_permission_failed">無法取得持續性權限：%1$s</string>
+    <string name="settings_other_keep_app_open">請在此操作完成前保持應用程式開啟。</string>
 
     <!-- Settings > Content Packages -->
     <string name="settings_content_install">安裝內容</string>
     <string name="settings_content_type">內容類型</string>
     <string name="settings_content_components">元件</string>
-    <string name="settings_content_install_confirm_message">僅安裝信任的套件。這些檔案可能包含可執行內容，並可能影響您的裝置或資料。
-
-支援的套件使用 .wcp 副檔名，並以 xz 或 zst 壓縮。</string>
+    <string name="settings_content_auto_create_container">自動建立容器</string>
+    <string name="settings_content_remove_title">移除元件？</string>
+    <string name="settings_content_empty_subtitle">安裝套件或切換類型以開始。</string>
+    <string name="settings_content_container_created">已建立容器：%1$s</string>
+    <string name="settings_content_download_failed">下載失敗。</string>
+    <string name="common_ui_working">處理中…</string>
+    <string name="settings_content_desc_wine">用於執行遊戲與應用的 Windows 相容層。您至少需要安裝一個 Wine 或 FEXCore 版本。</string>
+    <string name="settings_content_desc_proton">Valve 基於 Wine 的建置版本，附帶針對遊戲的額外修補程式。對某些遊戲有用，但標準 Wine 通常也能正常運作。</string>
+    <string name="settings_content_desc_dxvk">將 DirectX 9、10 與 11 轉譯為 Vulkan。通常可提升舊版 Windows 遊戲的效能。</string>
+    <string name="settings_content_desc_vkd3d">將 DirectX 12 轉譯為 Vulkan。許多較新的 Windows 遊戲需要此元件。</string>
+    <string name="settings_content_desc_box64">轉譯 x86 / x64 Windows 程式碼以便在 ARM 裝置上執行。大多數遊戲需要 Box64 或 FEXCore。</string>
+    <string name="settings_content_desc_wowbox64">用於 Wine WoW64 模式的 Box64 建置。僅在使用支援 32 位元應用程式的 64 位元前綴時需要。</string>
+    <string name="settings_content_desc_fexcore">替代的 x86 / x64 轉譯器。如果遊戲在 Box64 上出現問題或效能不佳，請嘗試使用。</string>
     <string name="settings_content_unable_to_install">無法安裝內容。</string>
     <string name="settings_content_install_failed">安裝失敗</string>
     <string name="settings_content_file_cannot_be_recognized">無法識別檔案。</string>
     <string name="settings_content_profile_not_found">在內容中找不到設定檔。</string>
     <string name="settings_content_profile_cannot_be_recognized">無法識別設定檔</string>
-    <string name="settings_content_info">內容資訊</string>
-    <string name="settings_content_version_code">版本代碼</string>
     <string name="settings_content_file_list">檔案清單</string>
     <string name="settings_content_install_directory">安裝目錄</string>
     <string name="settings_content_installed_success">內容已成功安裝！</string>

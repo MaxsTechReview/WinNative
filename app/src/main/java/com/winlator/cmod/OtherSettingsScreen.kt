@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Monitor
 import androidx.compose.material.icons.filled.Mouse
@@ -86,6 +87,8 @@ private val TextSecondary = Color(0xFF7A8FA8)
 // State
 data class OtherSettingsState(
     val checkForUpdates: Boolean = true,
+    val languageLabels: List<String> = emptyList(),
+    val languageIndex: Int = 0,
     val refreshRateLabels: List<String> = emptyList(),
     val refreshRateIndex: Int = 0,
     val soundFontFiles: List<String> = emptyList(),
@@ -108,6 +111,7 @@ fun OtherSettingsScreen(
     state: OtherSettingsState,
     onCheckForUpdatesChanged: (Boolean) -> Unit,
     onCheckForUpdatesNow: () -> Unit,
+    onLanguageSelected: (Int) -> Unit,
     onRefreshRateSelected: (Int) -> Unit,
     onSoundFontSelected: (Int) -> Unit,
     onInstallSoundFont: () -> Unit,
@@ -147,7 +151,7 @@ fun OtherSettingsScreen(
             .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        SectionLabel("Application")
+        SectionLabel(stringResource(R.string.common_ui_application))
 
         UpdatesCard(
             checked = state.checkForUpdates,
@@ -155,7 +159,16 @@ fun OtherSettingsScreen(
             onCheckNow = onCheckForUpdatesNow,
         )
 
-        SectionLabel("Display", modifier = Modifier.padding(top = 8.dp))
+        SettingsDropdownCard(
+            title = stringResource(R.string.settings_other_language_title),
+            subtitle = stringResource(R.string.settings_other_language_summary),
+            icon = Icons.Filled.Language,
+            options = state.languageLabels,
+            selectedIndex = state.languageIndex,
+            onOptionSelected = onLanguageSelected,
+        )
+
+        SectionLabel(stringResource(R.string.session_display_title), modifier = Modifier.padding(top = 8.dp))
 
         SettingsDropdownCard(
             title = stringResource(R.string.settings_general_refresh_rate),
@@ -220,7 +233,7 @@ fun OtherSettingsScreen(
             onCheckedChange = onXinputDisabledChanged,
         )
 
-        SectionLabel("Integration", modifier = Modifier.padding(top = 8.dp))
+        SectionLabel(stringResource(R.string.settings_other_section_integration), modifier = Modifier.padding(top = 8.dp))
 
         SettingsToggleCard(
             title = stringResource(R.string.settings_general_enable_file_provider),
@@ -376,7 +389,7 @@ private fun UpdatesCard(
                 )
             }
             Spacer(Modifier.width(8.dp))
-            SmallActionButton(label = "Check", textColor = Accent, onClick = onCheckNow)
+            SmallActionButton(label = stringResource(R.string.common_ui_check), textColor = Accent, onClick = onCheckNow)
             Spacer(Modifier.width(6.dp))
             Switch(
                 checked = checked,
@@ -652,9 +665,9 @@ private fun SoundFontCard(
                     }
                 }
                 Spacer(Modifier.width(8.dp))
-                SmallActionButton(label = "Install", textColor = Accent, onClick = onInstall)
+                SmallActionButton(label = stringResource(R.string.common_ui_install), textColor = Accent, onClick = onInstall)
                 Spacer(Modifier.width(6.dp))
-                SmallActionButton(label = "Remove", textColor = TextSecondary, onClick = onRemove)
+                SmallActionButton(label = stringResource(R.string.common_ui_remove), textColor = TextSecondary, onClick = onRemove)
             }
         }
     }
@@ -698,7 +711,7 @@ private fun FolderPathCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(label, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 Text(
-                    text = path.ifEmpty { "Not configured" },
+                    text = path.ifEmpty { stringResource(R.string.common_ui_not_configured) },
                     color = TextSecondary,
                     fontSize = 11.sp,
                     maxLines = 2,
@@ -840,12 +853,12 @@ private fun ReinstallImagefsConfirmDialog(
                     horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
                 ) {
                     SmallActionButton(
-                        label = "Cancel",
+                        label = stringResource(R.string.common_ui_cancel),
                         textColor = TextSecondary,
                         onClick = onDismiss,
                     )
                     SmallActionButton(
-                        label = "Reinstall",
+                        label = stringResource(R.string.common_ui_reinstall),
                         textColor = Accent,
                         onClick = onConfirm,
                     )
@@ -912,7 +925,7 @@ private fun ImagefsInstallProgressDialog(percent: Int) {
                         )
                         Spacer(Modifier.height(2.dp))
                         Text(
-                            text = "Please keep the app open while this finishes.",
+                            text = stringResource(R.string.settings_other_keep_app_open),
                             color = TextSecondary,
                             fontSize = 11.sp,
                         )

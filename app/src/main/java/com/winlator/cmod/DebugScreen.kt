@@ -130,18 +130,18 @@ fun DebugScreen(
             .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        SectionLabel("Application")
+        SectionLabel(stringResource(R.string.common_ui_application))
 
         SettingsToggleCard(
-            title = "Application",
-            subtitle = "Log WinNative process errors, warnings and crashes to file",
+            title = stringResource(R.string.common_ui_application),
+            subtitle = stringResource(R.string.settings_debug_log_to_file_desc),
             icon = Icons.Filled.BugReport,
             accentColor = Warning,
             checked = state.appDebug,
             onCheckedChange = onAppDebugChanged,
         )
 
-        SectionLabel("Emulation", modifier = Modifier.padding(top = 8.dp))
+        SectionLabel(stringResource(R.string.settings_debug_section_emulation), modifier = Modifier.padding(top = 8.dp))
 
         SettingsToggleCard(
             title = stringResource(R.string.settings_debug_wine_logs_title),
@@ -175,7 +175,7 @@ fun DebugScreen(
             onCheckedChange = onFexcoreLogsChanged,
         )
 
-        SectionLabel("Subsystems", modifier = Modifier.padding(top = 8.dp))
+        SectionLabel(stringResource(R.string.settings_debug_section_subsystems), modifier = Modifier.padding(top = 8.dp))
 
         SettingsToggleCard(
             title = stringResource(R.string.settings_debug_steam_logs_title),
@@ -201,7 +201,7 @@ fun DebugScreen(
             onCheckedChange = onDownloadLogsChanged,
         )
 
-        SectionLabel("Tools", modifier = Modifier.padding(top = 8.dp))
+        SectionLabel(stringResource(R.string.settings_debug_section_tools), modifier = Modifier.padding(top = 8.dp))
 
         ShareLogsButton(onClick = onShareLogs)
 
@@ -335,13 +335,13 @@ private fun WineChannelsCard(
                 }
                 Spacer(Modifier.width(8.dp))
                 SmallActionButton(
-                    label = "Select",
+                    label = stringResource(R.string.common_ui_select),
                     textColor = Accent,
                     onClick = { if (enabled) onEdit() },
                 )
                 Spacer(Modifier.width(6.dp))
                 SmallActionButton(
-                    label = "Reset",
+                    label = stringResource(R.string.common_ui_reset),
                     textColor = TextSecondary,
                     onClick = { if (enabled) onReset() },
                 )
@@ -356,7 +356,7 @@ private fun WineChannelsCard(
             ) {
                 if (channels.isEmpty()) {
                     Text(
-                        text = "No channels selected",
+                        text = stringResource(R.string.settings_debug_no_channels_selected),
                         color = TextSecondary,
                         fontSize = 11.sp,
                     )
@@ -401,7 +401,7 @@ private fun ChannelChip(label: String, onRemove: () -> Unit) {
         ) {
             Icon(
                 imageVector = Icons.Filled.Close,
-                contentDescription = "Remove $label",
+                contentDescription = stringResource(R.string.settings_debug_remove_channel_desc, label),
                 tint = TextSecondary,
                 modifier = Modifier.size(12.dp),
             )
@@ -492,7 +492,7 @@ private fun WineChannelsDialog(
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "Tap to toggle channels. Enabled channels are included in Wine debug output.",
+                        text = stringResource(R.string.settings_debug_channel_toggle_hint),
                         color = TextSecondary,
                         fontSize = 12.sp,
                     )
@@ -516,12 +516,12 @@ private fun WineChannelsDialog(
                         horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
                     ) {
                         SmallActionButton(
-                            label = "Cancel",
+                            label = stringResource(R.string.common_ui_cancel),
                             textColor = TextSecondary,
                             onClick = onDismiss,
                         )
                         SmallActionButton(
-                            label = "Confirm",
+                            label = stringResource(R.string.common_ui_confirm),
                             textColor = Accent,
                             onClick = {
                                 val ordered = options.filter { it in selected.value }
@@ -543,7 +543,7 @@ private fun ColumnScope.ChannelGrid(
 ) {
     if (options.isEmpty()) {
         Text(
-            text = "No channels available",
+            text = stringResource(R.string.settings_debug_no_channels_available),
             color = TextSecondary,
             fontSize = 13.sp,
             modifier = Modifier.padding(vertical = 24.dp),

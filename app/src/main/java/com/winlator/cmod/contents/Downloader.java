@@ -472,6 +472,27 @@ public class Downloader {
         }
     }
 
+    public static long fetchContentLength(String address) {
+        if (address == null || address.isEmpty()) return -1L;
+        Request request = new Request.Builder()
+                .url(address)
+                .head()
+                .build();
+        try (Response response = STRING_CLIENT.newCall(request).execute()) {
+            if (!response.isSuccessful()) return -1L;
+            String header = response.header("Content-Length");
+            if (header == null || header.isEmpty()) return -1L;
+            try {
+                return Long.parseLong(header);
+            } catch (NumberFormatException nfe) {
+                return -1L;
+            }
+        } catch (Exception e) {
+            if (logEnabled()) Log.w(TAG, "HEAD failed for " + address, e);
+            return -1L;
+        }
+    }
+
     /**
      * Downloads a URL as a String (used for JSON fetches and directory listings).
      * Shares the connection pool with file downloads so directory crawling

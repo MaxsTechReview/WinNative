@@ -199,7 +199,7 @@ class DebugFragment : Fragment() {
         val files = com.winlator.cmod.core.LogManager.getShareableLogFiles(ctx)
 
         if (files.isEmpty()) {
-            AppUtils.showToast(ctx, "No debug logs available. Enable debugging options first and launch a game.")
+            AppUtils.showToast(ctx, R.string.settings_debug_no_logs_available)
             return
         }
 
@@ -230,14 +230,14 @@ class DebugFragment : Fragment() {
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "application/zip"
                 putExtra(Intent.EXTRA_STREAM, uri)
-                putExtra(Intent.EXTRA_SUBJECT, "WinNative Logs ($timestamp)")
+                putExtra(Intent.EXTRA_SUBJECT, getString(R.string.settings_debug_logs_subject, timestamp))
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            startActivity(Intent.createChooser(shareIntent, "Share Logs"))
+            startActivity(Intent.createChooser(shareIntent, getString(R.string.settings_debug_share_logs)))
 
             Handler(Looper.getMainLooper()).postDelayed({ cleanupSharedLogs() }, 3 * 60 * 1000L)
         } catch (e: Exception) {
-            AppUtils.showToast(ctx, "Failed to capture logs: ${e.message}")
+            AppUtils.showToast(ctx, getString(R.string.settings_debug_capture_failed, e.message ?: ""))
         }
     }
 

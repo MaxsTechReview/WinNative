@@ -99,6 +99,11 @@
     <string name="common_ui_open">打开</string>
     <string name="common_ui_connected">已连接</string>
     <string name="common_ui_install">安装</string>
+    <string name="common_ui_application">应用程序</string>
+    <string name="common_ui_check">检查</string>
+    <string name="common_ui_select">选择</string>
+    <string name="common_ui_not_configured">未配置</string>
+    <string name="common_ui_reinstall">重新安装</string>
     <string name="common_ui_exit_app_confirm">退出 WinNative？</string>
     <string name="common_ui_elements_count">%1$d 个元素</string>
     <string name="common_ui_disabled_placeholder">-- 已禁用 --</string>
@@ -716,21 +721,50 @@
     <string name="settings_debug_download_logs">下载日志</string>
     <string name="settings_debug_download_logs_description">记录下载解析器和 WinNative 回退事件</string>
     <string name="settings_debug_share_logs">分享日志</string>
+    <string name="settings_debug_logs_subject">WinNative 日志 (%1$s)</string>
+    <string name="settings_debug_no_logs_available">没有可用的调试日志。请先启用调试选项并启动游戏。</string>
+    <string name="settings_debug_capture_failed">无法捕获日志：%1$s</string>
+    <string name="settings_debug_log_to_file_desc">将 WinNative 进程错误、警告和崩溃记录到文件</string>
+    <string name="settings_debug_section_emulation">模拟</string>
+    <string name="settings_debug_section_subsystems">子系统</string>
+    <string name="settings_debug_section_tools">工具</string>
+    <string name="settings_debug_no_channels_selected">未选择通道</string>
+    <string name="settings_debug_no_channels_available">没有可用的通道</string>
+    <string name="settings_debug_channel_toggle_hint">点击以切换通道。已启用的通道将包含在 Wine 调试输出中。</string>
+    <string name="settings_debug_remove_channel_desc">移除 %1$s</string>
+
+    <string name="settings_other_language_title">语言</string>
+    <string name="settings_other_language_summary">选择显示语言</string>
+    <string name="settings_other_language_system_default">系统默认</string>
+
+    <string name="settings_other_section_integration">集成</string>
+    <string name="settings_other_checking_for_updates">正在检查更新\u2026</string>
+    <string name="settings_other_update_check_cooldown">请等待 %1$d 秒后再次检查</string>
+    <string name="settings_other_persistable_permission_failed">无法获取持久化权限：%1$s</string>
+    <string name="settings_other_keep_app_open">请在此操作完成前保持应用打开。</string>
 
     <!-- Settings > Content Packages -->
     <string name="settings_content_install">安装内容</string>
     <string name="settings_content_type">内容类型</string>
     <string name="settings_content_components">组件</string>
-    <string name="settings_content_install_confirm_message">请仅安装可信的包。这些文件可能包含可执行内容，并可能影响您的设备或数据。
-
-支持的包使用 .wcp 扩展名，以 xz 或 zst 格式压缩。</string>
+    <string name="settings_content_auto_create_container">自动创建容器</string>
+    <string name="settings_content_remove_title">移除组件？</string>
+    <string name="settings_content_empty_subtitle">安装一个包或切换类型以开始。</string>
+    <string name="settings_content_container_created">已创建容器：%1$s</string>
+    <string name="settings_content_download_failed">下载失败。</string>
+    <string name="common_ui_working">处理中…</string>
+    <string name="settings_content_desc_wine">用于运行游戏和应用的 Windows 兼容层。您至少需要安装一个 Wine 或 FEXCore 版本。</string>
+    <string name="settings_content_desc_proton">Valve 基于 Wine 的构建版本，带有针对游戏的额外补丁。对某些游戏有用，但标准 Wine 通常也能正常工作。</string>
+    <string name="settings_content_desc_dxvk">将 DirectX 9、10 和 11 转换为 Vulkan。通常可提升旧 Windows 游戏的性能。</string>
+    <string name="settings_content_desc_vkd3d">将 DirectX 12 转换为 Vulkan。许多较新的 Windows 游戏需要此组件。</string>
+    <string name="settings_content_desc_box64">转换 x86 / x64 Windows 代码，使其可在 ARM 设备上运行。大多数游戏都需要 Box64 或 FEXCore。</string>
+    <string name="settings_content_desc_wowbox64">用于 Wine WoW64 模式的 Box64 构建。仅在使用支持 32 位应用的 64 位前缀时需要。</string>
+    <string name="settings_content_desc_fexcore">备用的 x86 / x64 翻译器。如果游戏在 Box64 上出现问题或性能不佳，可以尝试使用。</string>
     <string name="settings_content_unable_to_install">无法安装内容。</string>
     <string name="settings_content_install_failed">安装失败</string>
     <string name="settings_content_file_cannot_be_recognized">无法识别此文件。</string>
     <string name="settings_content_profile_not_found">内容中未找到配置文件。</string>
     <string name="settings_content_profile_cannot_be_recognized">无法识别配置文件</string>
-    <string name="settings_content_info">内容信息</string>
-    <string name="settings_content_version_code">版本号</string>
     <string name="settings_content_file_list">文件列表</string>
     <string name="settings_content_install_directory">安装目录</string>
     <string name="settings_content_installed_success">内容已成功安装！</string>

@@ -33,6 +33,7 @@ import androidx.preference.PreferenceManager
 import com.winlator.cmod.contentdialog.ContentDialog
 import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.core.FileUtils
+import com.winlator.cmod.core.LocaleHelper
 import com.winlator.cmod.core.PreloaderDialog
 import com.winlator.cmod.core.RefreshRateUtils
 import com.winlator.cmod.core.UpdateChecker
@@ -107,10 +108,22 @@ class OtherSettingsFragment : Fragment() {
                         onCheckForUpdatesNow = {
                             val started = UpdateChecker.checkForUpdateManual(ctx)
                             if (started) {
-                                AppUtils.showToast(ctx, "Checking for updates…")
+                                AppUtils.showToast(ctx, R.string.settings_other_checking_for_updates)
                             } else {
                                 val seconds = UpdateChecker.manualCheckCooldownSeconds()
-                                AppUtils.showToast(ctx, "Please wait ${seconds}s before checking again")
+                                AppUtils.showToast(
+                                    ctx,
+                                    getString(R.string.settings_other_update_check_cooldown, seconds)
+                                )
+                            }
+                        },
+                        onLanguageSelected = { index ->
+                            val currentIndex = LocaleHelper.indexForTag(
+                                LocaleHelper.getAppliedLanguageTag()
+                            )
+                            if (index != currentIndex) {
+                                LocaleHelper.applyLanguageTag(LocaleHelper.tagForIndex(index))
+                                // AppCompatDelegate recreates attached activities automatically.
                             }
                         },
                         onRefreshRateSelected = { index ->
@@ -217,6 +230,13 @@ class OtherSettingsFragment : Fragment() {
     private fun refresh() {
         val ctx = context ?: return
 
+        // Language entries: "System default" + native names, and currently-applied index
+        val languageLabels = buildList {
+            add(getString(R.string.settings_other_language_system_default))
+            addAll(LocaleHelper.NATIVE_LANGUAGE_NAMES)
+        }
+        val languageIndex = LocaleHelper.indexForTag(LocaleHelper.getAppliedLanguageTag())
+
         // Refresh rate entries + saved selection
         val refreshRateLabels = RefreshRateUtils.buildRefreshRateEntryLabels(
             requireActivity(),
@@ -248,6 +268,8 @@ class OtherSettingsFragment : Fragment() {
 
         uiState = OtherSettingsState(
             checkForUpdates     = preferences.getBoolean("check_for_updates", true),
+            languageLabels      = languageLabels,
+            languageIndex       = languageIndex,
             refreshRateLabels   = refreshRateLabels,
             refreshRateIndex    = refreshRateIndex,
             soundFontFiles      = soundFontFiles,
@@ -293,7 +315,10 @@ class OtherSettingsFragment : Fragment() {
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
             )
         } catch (e: SecurityException) {
-            AppUtils.showToast(context, "Unable to take persistable permissions: ${e.message}")
+            AppUtils.showToast(
+                context,
+                getString(R.string.settings_other_persistable_permission_failed, e.message ?: "")
+            )
         }
     }
 

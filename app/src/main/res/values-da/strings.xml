@@ -99,6 +99,11 @@
     <string name="common_ui_open">Åbn</string>
     <string name="common_ui_connected">Forbundet</string>
     <string name="common_ui_install">Installer</string>
+    <string name="common_ui_application">Applikation</string>
+    <string name="common_ui_check">Tjek</string>
+    <string name="common_ui_select">Vælg</string>
+    <string name="common_ui_not_configured">Ikke konfigureret</string>
+    <string name="common_ui_reinstall">Geninstaller</string>
     <string name="common_ui_exit_app_confirm">Afslut WinNative?</string>
     <string name="common_ui_elements_count">%1$d elementer</string>
     <string name="common_ui_disabled_placeholder">-- Deaktiveret --</string>
@@ -716,21 +721,50 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_debug_download_logs">Download-logfiler</string>
     <string name="settings_debug_download_logs_description">Log download-resolver og WinNative-fallback-hændelser</string>
     <string name="settings_debug_share_logs">Del logfiler</string>
+    <string name="settings_debug_logs_subject">WinNative-logfiler (%1$s)</string>
+    <string name="settings_debug_no_logs_available">Ingen fejlfindingslogfiler tilgængelige. Aktiver fejlfindingsindstillinger først og start et spil.</string>
+    <string name="settings_debug_capture_failed">Kunne ikke indfange logfiler: %1$s</string>
+    <string name="settings_debug_log_to_file_desc">Log WinNative-procesfejl, advarsler og nedbrud til fil</string>
+    <string name="settings_debug_section_emulation">Emulering</string>
+    <string name="settings_debug_section_subsystems">Undersystemer</string>
+    <string name="settings_debug_section_tools">Værktøjer</string>
+    <string name="settings_debug_no_channels_selected">Ingen kanaler valgt</string>
+    <string name="settings_debug_no_channels_available">Ingen kanaler tilgængelige</string>
+    <string name="settings_debug_channel_toggle_hint">Tryk for at skifte kanaler. Aktiverede kanaler medtages i Wine-fejloutput.</string>
+    <string name="settings_debug_remove_channel_desc">Fjern %1$s</string>
+
+    <string name="settings_other_language_title">Sprog</string>
+    <string name="settings_other_language_summary">Vælg visningssprog</string>
+    <string name="settings_other_language_system_default">Systemstandard</string>
+
+    <string name="settings_other_section_integration">Integration</string>
+    <string name="settings_other_checking_for_updates">Tjekker for opdateringer\u2026</string>
+    <string name="settings_other_update_check_cooldown">Vent venligst %1$ds før du tjekker igen</string>
+    <string name="settings_other_persistable_permission_failed">Kan ikke tage vedvarende tilladelser: %1$s</string>
+    <string name="settings_other_keep_app_open">Hold venligst appen åben mens dette færdiggøres.</string>
 
     <!-- Settings > Content Packages -->
     <string name="settings_content_install">Installer indhold</string>
     <string name="settings_content_type">Indholdstype</string>
     <string name="settings_content_components">Komponenter</string>
-    <string name="settings_content_install_confirm_message">Installer kun betroede pakker. Disse filer kan indeholde eksekverbart indhold og kan påvirke din enhed eller data.
-
-Understøttede pakker bruger .wcp-udvidelsen og er komprimeret som xz eller zst.</string>
+    <string name="settings_content_auto_create_container">Auto-opret container</string>
+    <string name="settings_content_remove_title">Fjern komponent?</string>
+    <string name="settings_content_empty_subtitle">Installer en pakke eller skift type for at komme i gang.</string>
+    <string name="settings_content_container_created">Container oprettet: %1$s</string>
+    <string name="settings_content_download_failed">Download mislykkedes.</string>
+    <string name="common_ui_working">Arbejder…</string>
+    <string name="settings_content_desc_wine">Windows-kompatibilitetslaget der bruges til at køre spil og apps. Du skal have mindst én Wine- eller FEXCore-version installeret.</string>
+    <string name="settings_content_desc_proton">Valves Wine-baserede build med ekstra patches til spil. Nyttig til nogle titler, men standard-Wine fungerer normalt fint.</string>
+    <string name="settings_content_desc_dxvk">Oversætter DirectX 9, 10 og 11 til Vulkan. Dette forbedrer normalt ydeevnen i ældre Windows-spil.</string>
+    <string name="settings_content_desc_vkd3d">Oversætter DirectX 12 til Vulkan. Nødvendig for mange nyere Windows-spil.</string>
+    <string name="settings_content_desc_box64">Oversætter x86 / x64 Windows-kode så det kan køre på ARM-enheder. Box64 eller FEXCore kræves til de fleste spil.</string>
+    <string name="settings_content_desc_wowbox64">Et Box64-build til Wine WoW64-tilstand. Kun nødvendig ved brug af et 64-bit-præfiks med 32-bit app-understøttelse.</string>
+    <string name="settings_content_desc_fexcore">En alternativ x86 / x64-oversætter. Prøv den hvis et spil har problemer eller dårlig ydeevne med Box64.</string>
     <string name="settings_content_unable_to_install">Kan ikke installere indhold.</string>
     <string name="settings_content_install_failed">Installation mislykkedes</string>
     <string name="settings_content_file_cannot_be_recognized">Filen kan ikke genkendes.</string>
     <string name="settings_content_profile_not_found">Profil ikke fundet i indhold.</string>
     <string name="settings_content_profile_cannot_be_recognized">Profil kan ikke genkendes</string>
-    <string name="settings_content_info">Indholdsinfo</string>
-    <string name="settings_content_version_code">Versionskode</string>
     <string name="settings_content_file_list">Filliste</string>
     <string name="settings_content_install_directory">Installationsmappe</string>
     <string name="settings_content_installed_success">Indhold installeret!</string>
