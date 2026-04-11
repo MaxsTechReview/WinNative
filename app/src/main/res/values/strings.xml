@@ -380,12 +380,19 @@
     <string name="box64_env_var_help__dynarec_strongmem">
         Simulation of Strong Memory model&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt; : Don\'t try anything special&lt;br /&gt;
-        &lt;b&gt;1&lt;/b&gt; : Enable some Memory Barrier when writing to memory (on some MOV opcode)&lt;br /&gt;
-        &lt;b&gt;2&lt;/b&gt; : All 1 plus a Memory Barrier on every write to memory using MOV&lt;br /&gt;
-        &lt;b&gt;3&lt;/b&gt; : All 2 plus Memory Barrier when reading from memory and on some SSE/SSE2 opcodes
+        &lt;b&gt;1&lt;/b&gt; : Enable some memory barriers when writing to memory to partially emulate x86 strong memory ordering&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : All 1 plus memory barriers on SIMD instructions&lt;br /&gt;
+        &lt;b&gt;3&lt;/b&gt; : All 2 plus more memory barriers on a regular basis&lt;br /&gt;
+        &lt;b&gt;4&lt;/b&gt; : Mimic x86 TSO similarly to QEMU, mainly for evaluation and hard compatibility cases
     </string>
     <string name="box64_env_var_help__dynarec_forward">Defines the max allowed forward value when building Block</string>
     <string name="box64_env_var_help__dynarec_callret">Optimization of CALL/RET opcodes</string>
+    <string name="box64_env_var_help__dynarec_sep">
+        Optimize CALL/RET further with Secondary Entry Points (SEP). Has no effect unless CALLRET is enabled.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Do not add SEP at CALL/RET return sites&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Add SEP on returns from known binary-backed memory&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Add SEP on returns for all memory types
+    </string>
     <string name="box64_env_var_help__dynarec_wait">Defines whether or not Dynarec will wait for the FillBlock to be ready</string>
     <string name="box64_env_var_help__dynarec_weakbarrier">
         Tweak memory barriers to reduce performance impact of strong memory emulation&lt;br /&gt;&lt;br /&gt;
@@ -405,6 +412,9 @@
         &lt;b&gt;0&lt;/b&gt; : Do not allow continue running a block that is unprotected and potentially dirty.&lt;br /&gt;
         &lt;b&gt;1&lt;/b&gt; : Allow continue to run a dynablock that write data in the same page as code. It can gets faster in loading time of some game but can also get unexpected crashes.&lt;br /&gt;
         &lt;b&gt;2&lt;/b&gt; : Will also, when it detect an HotPage, flag that page as NEVERCLEAN, and so it will not be write protected but Block build from that page will always be tested. It can be faster that way (but some SMC case might not be trapped).</string>
+    <string name="box64_env_var_help__dynarec_nohotpage">Disable hot-page detection for pages that execute code while also receiving writes.</string>
+    <string name="box64_env_var_help__dynarec_div0">Generate x86 division-by-zero exceptions in dynarec paths. Leave disabled unless a specific game needs it.</string>
+    <string name="box64_env_var_help__dynarec_hotpage_alt">Use the legacy hot-page detection path from pre-v0.3.9 Box64 builds.</string>
     <string name="box64_env_var_help__dynarec_nativeflags">
         Enable or disable the use of native flags.&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt; : Do not use native flags.&lt;br /&gt;
@@ -416,11 +426,19 @@
         &lt;b&gt;2&lt;/b&gt; : Use WFI to emulate x86 PAUSE instruction.&lt;br /&gt;
         &lt;b&gt;3&lt;/b&gt; : Use SEVL+WFE to emulate x86 PAUSE instruction.
     </string>
+    <string name="box64_env_var_help__dynarec_purge">Purge old dynablocks that have not been executed recently to keep memory usage under control.</string>
+    <string name="box64_env_var_help__dynarec_purge_age">Tick-age threshold used by dynablock purging when BOX64_DYNAREC_PURGE is enabled.</string>
+    <string name="box64_env_var_help__dynarec_volatile_metadata">Use PE volatile metadata to improve strong memory emulation for 64-bit Windows games when metadata is available.</string>
     <string name="box64_env_var_help__avx">
-        AVX and AVX2 implemented, along with BMI1, BMI2, ADX, FMA, F16C and RDANDR extension!&lt;br /&gt;&lt;br /&gt;
+        AVX and AVX2 are implemented on Arm64, along with BMI1, BMI2, ADX, FMA, F16C and RDRAND extensions.&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt; : Disable AVX extension&lt;br /&gt;
-        &lt;b&gt;1&lt;/b&gt; : enable AVX, BMI1, F16C and VAES extension.&lt;br /&gt;
-        &lt;b&gt;2&lt;/b&gt; : All 1 plus enable AVX2, BMI2, FMA, ADX,VPCLMULQDQ and RDRAND.&lt;br /&gt;\
+        &lt;b&gt;1&lt;/b&gt; : Enable AVX, BMI1, F16C and VAES extensions.&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : All 1 plus enable AVX2, BMI2, FMA, ADX, VPCLMULQDQ and RDRAND.&lt;br /&gt;
+    </string>
+    <string name="box64_env_var_help__cputype">
+        Select the CPU vendor model exposed through CPUID.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Emulate an Intel CPU model&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Emulate an AMD CPU model
     </string>
     <string name="box64_env_var_help__maxcpu">Maximum number of CPUs presented to programs by Box64</string>
     <string name="box64_env_var_help__unityplayer">Detect UnityPlayer.dll and apply strongmem settings</string>
@@ -431,11 +449,17 @@
     <string name="fexcore_env_var_help__vectortsoenabled">Makes vector load/stores atomic when TSO is enabled.</string>
     <string name="fexcore_env_var_help__halfbarriertsoenabled">Uses half-barrier atomics for unaligned loads/stores under TSO.</string>
     <string name="fexcore_env_var_help__memcpysettsoenabled">Makes REP MOVS / REP STOS atomic under TSO.</string>
+    <string name="fexcore_env_var_help__strictinprocesssplitlocks">Uses a strict in-process lock for split-lock atomics so they do not tear inside the process.</string>
+    <string name="fexcore_env_var_help__kernelunalignedatomicbackpatching">Backpatches kernel-handled unaligned atomics to reduce kernel context switches.</string>
     <string name="fexcore_env_var_help__multiblock">Enables multiblock code compilation. Can cause longer JIT compilation and stutter.</string>
+    <string name="fexcore_env_var_help__maxinst">Maximum number of guest instructions allowed in a compiled block.</string>
     <string name="fexcore_env_var_help__hostfeatures">Controls CPU feature forcing.</string>
     <string name="fexcore_env_var_help__smalltscscale">Scales TSC on low-frequency systems.</string>
+    <string name="fexcore_env_var_help__hidehybrid">Hides hybrid CPU core arrangement from the guest.</string>
     <string name="fexcore_env_var_help__smc_checks">Self-Modifying Code checks.</string>
+    <string name="fexcore_env_var_help__smcchecks">Self-Modifying Code checks.</string>
     <string name="fexcore_env_var_help__volatilemetadata">Uses volatile metadata from PE files for TSO when available.</string>
+    <string name="fexcore_env_var_help__extendedvolatilemetadata">Adds custom ARM64EC or WoW64 volatile-metadata rules for targeted compatibility fixes.</string>
     <string name="fexcore_env_var_help__monohacks">Special SMC + JIT block hacks for Mono detection.</string>
     <string name="fexcore_env_var_help__hidehypervisorbit">Hides CPUID hypervisor bit (useful for apps that crash with it).</string>
     <string name="fexcore_env_var_help__disablel2cache">Disables FEXCore JIT L2 cache lookup, saving memory but introducing stutters.</string>
