@@ -99,7 +99,7 @@ class SetupWizardDriversDialogFragment : DialogFragment() {
         super.onViewCreated(view, savedInstanceState)
         if (savedInstanceState == null) {
             childFragmentManager.beginTransaction()
-                .replace(containerViewId, AdrenotoolsFragment())
+                .replace(containerViewId, DriversFragment())
                 .commit()
         }
     }

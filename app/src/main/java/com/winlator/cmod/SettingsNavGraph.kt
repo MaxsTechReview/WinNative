@@ -88,7 +88,7 @@ fun SettingsHost(
                     AndroidFragment<ContentsFragment>()
                 }
                 composable(SettingsRoutes.fromNavItem(SettingsNavItem.DRIVERS)) {
-                    AndroidFragment<AdrenotoolsFragment>()
+                    AndroidFragment<DriversFragment>()
                 }
                 composable(SettingsRoutes.fromNavItem(SettingsNavItem.STORES)) {
                     AndroidFragment<StoresFragment>()

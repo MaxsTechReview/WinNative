@@ -352,10 +352,16 @@ class SetupWizardActivity : FragmentActivity() {
             nameHint = "Vk3dk-arm64ec-3.0b"
         ),
         PackageSpec(
-            label = "FEX 2603",
+            label = "DXVK 2.4.1 pre-reg",
+            type = ContentProfile.ContentType.CONTENT_TYPE_DXVK,
+            url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-Dxvk/Dxvk-2.4.1-pre-reg.wcp",
+            nameHint = "Dxvk-2.4.1-pre-reg"
+        ),
+        PackageSpec(
+            label = "FEX 2604",
             type = ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
-            url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-FEX/FEX-2603.wcp",
-            nameHint = "FEX-2603"
+            url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-FEX/FEX-2604.wcp",
+            nameHint = "FEX-2604"
         ),
         PackageSpec(
             label = "Box64 0.4.1 fix",
@@ -383,7 +389,9 @@ class SetupWizardActivity : FragmentActivity() {
         persistContainerId = ::saveDefaultX86ContainerId
     )
 
-    private val recommendedUrls: Set<String> by lazy {
+    private val recommendedUrlsState = mutableStateOf<Set<String>>(emptySet())
+
+    private val fallbackRecommendedUrls: Set<String> by lazy {
         buildSet {
             recommendedComponents.forEach { add(it.url) }
             add(x86ProtonSpec.fallbackUrl)
@@ -391,8 +399,11 @@ class SetupWizardActivity : FragmentActivity() {
         }
     }
 
-    private fun isRecommendedSpec(spec: RemotePackageSpec): Boolean =
-        spec.remoteUrl in recommendedUrls
+    private fun isRecommendedSpec(spec: RemotePackageSpec): Boolean {
+        val remote = recommendedUrlsState.value
+        return if (remote.isNotEmpty()) spec.remoteUrl in remote
+        else spec.remoteUrl in fallbackRecommendedUrls
+    }
 
     private val arm64ProtonSpec = RuntimeSpec(
         label = "Recommended ARM64EC",
@@ -860,9 +871,17 @@ class SetupWizardActivity : FragmentActivity() {
         val json = Downloader.downloadString(resolveJsonDownloadUrl(DEFAULT_JSON_URL))
         if (!json.isNullOrBlank()) {
             prefs(this).edit().putString(KEY_DEFAULT_JSON_CACHE, json).apply()
-            return parseRecommendedPackages(json)
+            val specs = parseRecommendedPackages(json)
+            if (specs.isNotEmpty()) {
+                recommendedUrlsState.value = specs.map { it.remoteUrl }.toSet()
+            }
+            return specs
         }
-        return getCachedRecommendedPackages()
+        val cached = getCachedRecommendedPackages()
+        if (cached.isNotEmpty()) {
+            recommendedUrlsState.value = cached.map { it.remoteUrl }.toSet()
+        }
+        return cached
     }
 
     private fun refreshRecommendedPackageCache() {
@@ -1949,7 +1968,7 @@ class SetupWizardActivity : FragmentActivity() {
                                     val fm = supportFragmentManager
                                     if (fm.findFragmentById(driversFragmentId) == null) {
                                         fm.beginTransaction()
-                                            .replace(driversFragmentId, AdrenotoolsFragment())
+                                            .replace(driversFragmentId, DriversFragment())
                                             .commitNowAllowingStateLoss()
                                     }
                                 }

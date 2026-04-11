@@ -83,6 +83,26 @@ public class AdrenotoolsManager {
         return driverVersion;
     }
 
+    /**
+     * Returns the original GitHub asset filename a driver was installed from, or an empty
+     * string if the driver was installed before source-asset tracking existed (or from a
+     * local file picker, where no asset name is available). Used to detect duplicate
+     * downloads in the Drivers screen.
+     */
+    public String getSourceAsset(String adrenoToolsDriverId) {
+        File driverPath = new File(adrenotoolsContentDir, adrenoToolsDriverId);
+        try {
+            File metaProfile = new File(driverPath, "meta.json");
+            String jsonStr = FileUtils.readString(metaProfile);
+            if (jsonStr == null) return "";
+            JSONObject jsonObject = new JSONObject(jsonStr);
+            return jsonObject.optString("sourceAsset", "");
+        }
+        catch (JSONException e) {
+            return "";
+        }
+    }
+
     public String getDriverPath(String adrenotoolsDriverId) {
         return adrenotoolsContentDir.getAbsolutePath() + "/" + adrenotoolsDriverId + "/";
     }
@@ -183,13 +203,22 @@ public class AdrenotoolsManager {
     }
     
     public String installDriver(Uri driverUri) {
+        return installDriver(driverUri, null);
+    }
+
+    /**
+     * Installs a driver ZIP and, if {@code sourceAssetName} is non-null, stamps it into the
+     * driver's meta.json as the {@code sourceAsset} field so the Drivers screen can later
+     * detect that a remote GitHub asset with that filename is already installed.
+     */
+    public String installDriver(Uri driverUri, String sourceAssetName) {
         File tmpDir = new File(adrenotoolsContentDir, "tmp");
         if (tmpDir.exists()) tmpDir.delete();
         tmpDir.mkdirs();
         ZipInputStream zis;
         InputStream is;
         String name = "";
-        
+
         try {
             is = mContext.getContentResolver().openInputStream(driverUri);
             zis = new ZipInputStream(is);
@@ -203,8 +232,12 @@ public class AdrenotoolsManager {
             if (new File(tmpDir, "meta.json").exists()) {
                 name = getDriverName(tmpDir.getName());
                 File dst = new File(adrenotoolsContentDir, name);
-                if (!dst.exists() && !name.equals(""))
+                if (!dst.exists() && !name.equals("")) {
                     tmpDir.renameTo(dst);
+                    if (sourceAssetName != null && !sourceAssetName.isEmpty()) {
+                        stampSourceAsset(dst, sourceAssetName);
+                    }
+                }
                 else {
                     name = "";
                     FileUtils.delete(tmpDir);
@@ -219,8 +252,21 @@ public class AdrenotoolsManager {
             Log.d("AdrenotoolsManager", "Failed to install driver, a valid driver has not been selected");
             tmpDir.delete();
         }
-        
+
         return name;
+    }
+
+    private void stampSourceAsset(File driverDir, String sourceAssetName) {
+        File metaFile = new File(driverDir, "meta.json");
+        try {
+            String jsonStr = FileUtils.readString(metaFile);
+            JSONObject jsonObject = new JSONObject(jsonStr != null ? jsonStr : "{}");
+            jsonObject.put("sourceAsset", sourceAssetName);
+            FileUtils.writeString(metaFile, jsonObject.toString(2));
+        }
+        catch (JSONException e) {
+            Log.w("AdrenotoolsManager", "Failed to stamp sourceAsset into meta.json: " + e.getMessage());
+        }
     }
     
     public void setDriverById(EnvVars envVars, ImageFs imagefs, String adrenotoolsDriverId) {
