@@ -673,7 +673,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
         // Final Master Merge: Apply all user-selected drivers and custom settings last
         // to ensure they correctly overwrite default system libraries.
-        if (this.envVars != null) envVars.putAll(this.envVars);
+        mergeExternalEnvVars(envVars, envVars.get("LD_PRELOAD"), envVars.get("FAKE_EVDEV_DIR"));
 
         String arch = "x86_64";
         if (shortcut != null && !shortcut.getArchitecture().isEmpty()) {
