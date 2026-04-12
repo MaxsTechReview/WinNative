@@ -28,9 +28,32 @@ import java.util.Locale;
 
 public class FEXCorePresetManager {
     private static final String TAG = "FEXCorePresetManager";
+    private static final String[] MANAGED_ENV_VAR_NAMES = {
+            "FEX_TSOENABLED",
+            "FEX_VECTORTSOENABLED",
+            "FEX_HALFBARRIERTSOENABLED",
+            "FEX_MEMCPYSETTSOENABLED",
+            "FEX_STRICTINPROCESSSPLITLOCKS",
+            "FEX_KERNELUNALIGNEDATOMICBACKPATCHING",
+            "FEX_X87REDUCEDPRECISION",
+            "FEX_MULTIBLOCK",
+            "FEX_MAXINST",
+            "FEX_HOSTFEATURES",
+            "FEX_SMALLTSCSCALE",
+            "FEX_HIDEHYBRID",
+            "FEX_SMC_CHECKS",
+            "FEX_SMCCHECKS",
+            "FEX_VOLATILEMETADATA",
+            "FEX_EXTENDEDVOLATILEMETADATA",
+            "FEX_MONOHACKS",
+            "FEX_HIDEHYPERVISORBIT",
+            "FEX_DISABLEL2CACHE",
+            "FEX_DYNAMICL1CACHE"
+    };
 
     public static EnvVars getEnvVars(Context context, String id) {
         EnvVars envVars = new EnvVars();
+        if (id == null || id.isEmpty()) id = FEXCorePreset.INTERMEDIATE;
 
         if (id.equals(FEXCorePreset.STABILITY)) {
             envVars.put("FEX_TSOENABLED", "1");
@@ -63,6 +86,8 @@ public class FEXCorePresetManager {
             envVars.put("FEX_HALFBARRIERTSOENABLED", "0");
             envVars.put("FEX_X87REDUCEDPRECISION", "1");
             envVars.put("FEX_MULTIBLOCK", "1");
+            envVars.put("FEX_DISABLEL2CACHE", "0");
+            envVars.put("FEX_DYNAMICL1CACHE", "0");
         }
         else if (id.startsWith(FEXCorePreset.CUSTOM)) {
             for (String[] preset : customPresetsIterator(context)) {
@@ -75,6 +100,18 @@ public class FEXCorePresetManager {
 
         Log.d(TAG, "getEnvVars resolved presetId='" + id + "' -> envVars='" + envVars.toString() + "'");
         return envVars;
+    }
+
+    public static ArrayList<String> removeManagedEnvVarOverrides(EnvVars envVars) {
+        ArrayList<String> removedNames = new ArrayList<>();
+        if (envVars == null) return removedNames;
+
+        for (String name : MANAGED_ENV_VAR_NAMES) {
+            if (!envVars.has(name)) continue;
+            envVars.remove(name);
+            removedNames.add(name);
+        }
+        return removedNames;
     }
 
     public static ArrayList<FEXCorePreset> getPresets(Context context) {

@@ -186,7 +186,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
             Log.d("GuestLauncher", "execShellCommand LD_PRELOAD=" + ldPreload.toString());
         }
         envVars.put("WINEESYNC_WINLATOR", "1");
-        mergeExternalEnvVars(envVars, envVars.get("LD_PRELOAD"), envVars.get("FAKE_EVDEV_DIR"));
+        mergeExternalEnvVars(envVars, envVars.get("LD_PRELOAD"), envVars.get("FAKE_EVDEV_DIR"), false);
 
         // box64 may be at /usr/bin or /usr/local/bin depending on installation
         String box64Path = rootDir.getPath() + "/usr/bin/box64";
@@ -490,23 +490,34 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         return baseValue + ":" + overrideValue;
     }
 
-    private void mergeExternalEnvVars(EnvVars envVars, String protectedLdPreload, String protectedFakeEvdevDir) {
+    private void mergeExternalEnvVars(EnvVars envVars, String protectedLdPreload, String protectedFakeEvdevDir, boolean stripManagedFexEnvVars) {
         if (this.envVars == null) {
             return;
         }
 
-        if (this.envVars.has("MANGOHUD")) {
-            this.envVars.remove("MANGOHUD");
+        EnvVars externalEnvVars = new EnvVars(this.envVars.toString());
+
+        if (externalEnvVars.has("MANGOHUD")) {
+            externalEnvVars.remove("MANGOHUD");
         }
 
-        if (this.envVars.has("MANGOHUD_CONFIG")) {
-            this.envVars.remove("MANGOHUD_CONFIG");
+        if (externalEnvVars.has("MANGOHUD_CONFIG")) {
+            externalEnvVars.remove("MANGOHUD_CONFIG");
         }
 
-        String overrideLdPreload = this.envVars.get("LD_PRELOAD");
-        String overrideFakeEvdevDir = this.envVars.get("FAKE_EVDEV_DIR");
+        if (stripManagedFexEnvVars) {
+            ArrayList<String> strippedFexOverrides = FEXCorePresetManager.removeManagedEnvVarOverrides(externalEnvVars);
+            if (!strippedFexOverrides.isEmpty()) {
+                Log.w("GuestProgramLauncherComponent",
+                        "Ignoring managed FEX env var overrides from container/shortcut envVars so preset '" +
+                                fexcorePreset + "' remains authoritative: " + strippedFexOverrides);
+            }
+        }
 
-        envVars.putAll(this.envVars);
+        String overrideLdPreload = externalEnvVars.get("LD_PRELOAD");
+        String overrideFakeEvdevDir = externalEnvVars.get("FAKE_EVDEV_DIR");
+
+        envVars.putAll(externalEnvVars);
 
         if (protectedLdPreload != null && !protectedLdPreload.isEmpty()) {
             envVars.put("LD_PRELOAD", mergePreloadValue(protectedLdPreload, overrideLdPreload));
@@ -668,10 +679,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         Log.d("GuestLauncher", "Final LD_PRELOAD: " + ld_preload);
         envVars.put("LD_PRELOAD", ld_preload);
 
-        // Preserve the launcher-owned preload/input paths while restoring the
-        // full env built upstream in XServerDisplayActivity (driver, DXVK, Vulkan, etc).
-        mergeExternalEnvVars(envVars, envVars.get("LD_PRELOAD"), envVars.get("FAKE_EVDEV_DIR"));
-
         String emulator = container.getEmulator();
         String emulator64 = container.getEmulator64();
         if (shortcut != null) {
@@ -685,6 +692,12 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
                 emulator64 = shortcut.getExtra("emulator64", container.getEmulator64());
             }
         }
+
+        boolean usesFexcore = "fexcore".equalsIgnoreCase(emulator) || "fexcore".equalsIgnoreCase(emulator64);
+
+        // Preserve the launcher-owned preload/input paths while restoring the
+        // full env built upstream in XServerDisplayActivity (driver, DXVK, Vulkan, etc).
+        mergeExternalEnvVars(envVars, envVars.get("LD_PRELOAD"), envVars.get("FAKE_EVDEV_DIR"), usesFexcore);
 
         repairRuntimeExecutablePermissions(context, imageFs);
 
