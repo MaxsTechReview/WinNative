@@ -94,6 +94,12 @@ private fun Modifier.noRippleClickable(
 // State
 // ============================================================================
 
+data class ComponentFileMapping(
+    val source: String,
+    val target: String,
+    val resolvedTarget: String,
+)
+
 data class ComponentItem(
     val key: String,
     val type: ContentProfile.ContentType,
@@ -101,6 +107,9 @@ data class ComponentItem(
     val isInstalled: Boolean,
     val hasRemote: Boolean,
     val sizeBytes: Long? = null,
+    val detailedDescription: String? = null,
+    val detailedFiles: List<ComponentFileMapping> = emptyList(),
+    val installPath: String? = null,
 )
 
 data class ComponentsDownloadProgress(
@@ -132,6 +141,7 @@ fun ComponentsScreen(
     onToggleAutoCreateContainer: (Boolean) -> Unit,
 ) {
     var itemPendingRemoval by remember { mutableStateOf<ComponentItem?>(null) }
+    var itemToShowDetails by remember { mutableStateOf<ComponentItem?>(null) }
 
     itemPendingRemoval?.let { item ->
         ConfirmDialog(
@@ -144,6 +154,13 @@ fun ComponentsScreen(
                 onRemoveItem(item)
                 itemPendingRemoval = null
             },
+        )
+    }
+
+    itemToShowDetails?.let { item ->
+        DetailsDialog(
+            item = item,
+            onDismiss = { itemToShowDetails = null },
         )
     }
 
@@ -200,6 +217,7 @@ fun ComponentsScreen(
                             item = item,
                             onDownload = { onDownloadItem(item) },
                             onRemove = { itemPendingRemoval = item },
+                            onClick = { itemToShowDetails = item },
                         )
                     }
                 }
@@ -214,6 +232,7 @@ fun ComponentsScreen(
                             item = item,
                             onDownload = { onDownloadItem(item) },
                             onRemove = { itemPendingRemoval = item },
+                            onClick = { itemToShowDetails = item },
                         )
                     }
                 }
@@ -221,6 +240,151 @@ fun ComponentsScreen(
         }
 
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+// ============================================================================
+// Details Dialog
+// ============================================================================
+
+@Composable
+private fun DetailsDialog(
+    item: ComponentItem,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                .padding(20.dp),
+        ) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(IconBoxBg),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(id = iconFor(item.type)),
+                            contentDescription = null,
+                            tint = Accent,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = item.verName,
+                            color = TextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = item.type.toString(),
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                item.detailedDescription?.let { desc ->
+                    Text(
+                        text = stringResource(R.string.common_ui_description).uppercase(),
+                        color = TextSecondary,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = desc,
+                        color = TextPrimary,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                    )
+                    Spacer(Modifier.height(16.dp))
+                }
+
+                if (item.detailedFiles.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.common_ui_files).uppercase(),
+                        color = TextSecondary,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(CardDarker)
+                            .padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        item.detailedFiles.forEach { file ->
+                            Column {
+                                Text(
+                                    text = file.source,
+                                    color = TextPrimary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                Text(
+                                    text = "→ ${file.target}",
+                                    color = TextSecondary,
+                                    fontSize = 10.sp,
+                                )
+                                Text(
+                                    text = file.resolvedTarget,
+                                    color = SuccessGreen.copy(alpha = 0.8f),
+                                    fontSize = 9.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                }
+
+                item.installPath?.let { path ->
+                    Text(
+                        text = stringResource(R.string.common_ui_install_path).uppercase(),
+                        color = TextSecondary,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = path,
+                        color = TextSecondary,
+                        fontSize = 10.sp,
+                    )
+                    Spacer(Modifier.height(16.dp))
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    DialogActionButton(
+                        label = stringResource(R.string.common_ui_close),
+                        textColor = Accent,
+                        onClick = onDismiss,
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -482,13 +646,15 @@ private fun ComponentItemCard(
     item: ComponentItem,
     onDownload: () -> Unit,
     onRemove: () -> Unit,
+    onClick: () -> Unit,
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
+            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+            .noRippleClickable(onClick = onClick),
     ) {
         Row(
             modifier = Modifier

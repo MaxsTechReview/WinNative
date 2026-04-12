@@ -3680,15 +3680,24 @@ class UnifiedActivity : AppCompatActivity() {
         val epicGame by produceState<EpicGame?>(initialValue = null, key1 = epicId) {
             value = if (isEpic) db.epicGameDao().getById(epicId) else null
         }
-        // Use pre-cached shortcuts list instead of loading from disk per-item
-        val customLibraryIconPath = remember(app.id, gogGame?.id, iconRefreshKey, shortcuts) {
-            val shortcut = if (gogGame != null) {
+
+        val gameShortcut = remember(app.id, gogGame?.id, shortcuts) {
+            if (gogGame != null) {
                 shortcuts.find {
                     it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == gogGame.id
                 }
             } else {
                 findShortcutForGame(shortcuts, app, isCustom, isEpic, epicId)
             }
+        }
+
+        val gameArch = remember(gameShortcut) {
+            gameShortcut?.getArchitecture() ?: ""
+        }
+
+        // Use pre-cached shortcuts list instead of loading from disk per-item
+        val customLibraryIconPath = remember(app.id, gogGame?.id, iconRefreshKey, shortcuts) {
+            val shortcut = gameShortcut
             val customPath = shortcut?.getExtra("customLibraryIconPath")
                 ?.ifBlank { shortcut.getExtra("customCoverArtPath") }
             customPath?.takeIf { it.isNotBlank() && java.io.File(it).exists() }
@@ -3858,6 +3867,23 @@ class UnifiedActivity : AppCompatActivity() {
                             .clip(RoundedCornerShape(8.dp))
                     ) {
                         ArtContent(Modifier.fillMaxSize())
+
+                        if (gameArch.isNotEmpty()) {
+                            val archLabel = if (gameArch == "x86_64") "x64" else "x86"
+                            Text(
+                                text = archLabel,
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .background(
+                                        color = Color.Black.copy(alpha = 0.6f),
+                                        shape = RoundedCornerShape(topStart = 4.dp)
+                                    )
+                                    .padding(horizontal = 4.dp, vertical = 1.dp),
+                                color = Color.White,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
 
                     Spacer(Modifier.width(14.dp))
@@ -3898,6 +3924,23 @@ class UnifiedActivity : AppCompatActivity() {
                         .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
                 ) {
                     ArtContent(Modifier.fillMaxSize())
+
+                    if (gameArch.isNotEmpty()) {
+                        val archLabel = if (gameArch == "x86_64") "x64" else "x86"
+                        Text(
+                            text = archLabel,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .background(
+                                    color = Color.Black.copy(alpha = 0.6f),
+                                    shape = RoundedCornerShape(topStart = 4.dp)
+                                )
+                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
                 Text(

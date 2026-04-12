@@ -521,6 +521,14 @@ public class ContentsManager {
         }
     }
 
+    public String resolveTemplatePath(String path) {
+        return getPathFromTemplate(path);
+    }
+
+    public String getInstallPath(ContentProfile profile) {
+        return getInstallDir(context, profile).getAbsolutePath();
+    }
+
     private String getPathFromTemplate(String path) {
         createDirTemplateMap();
         String realPath = path;

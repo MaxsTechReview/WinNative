@@ -20,6 +20,7 @@ import java.nio.file.Files;
 
 import com.winlator.cmod.xenvironment.ImageFs;
 import com.winlator.cmod.utils.PeIconExtractor;
+import com.winlator.cmod.core.PEHelper;
 
     public class Shortcut {
         public final Container container;
@@ -30,6 +31,7 @@ import com.winlator.cmod.utils.PeIconExtractor;
         public final File iconFile;
         public final String wmClass;
         private final JSONObject extraData = new JSONObject();
+        private String architecture;
         private Bitmap coverArt; // Changed to private to use getter method
         private String customCoverArtPath; // Path to custom cover art
 
@@ -113,6 +115,26 @@ import com.winlator.cmod.utils.PeIconExtractor;
             loadCoverArt();
 
             Container.checkObsoleteOrMissingProperties(extraData);
+        }
+
+        public String getArchitecture() {
+            if (architecture == null || architecture.isEmpty()) detectArchitecture();
+            return architecture;
+        }
+
+        private void detectArchitecture() {
+            architecture = getExtra("architecture");
+            if (architecture.isEmpty() && this.path != null && !this.path.isEmpty() && !this.path.equalsIgnoreCase("explorer.exe")) {
+                ImageFs imageFs = ImageFs.find(container.getManager().getContext());
+                File exeFile = com.winlator.cmod.core.WineUtils.getNativePath(imageFs, this.path);
+                if (exeFile != null && exeFile.exists() && !exeFile.isDirectory()) {
+                    architecture = PEHelper.getArchitecture(exeFile);
+                    if (!architecture.isEmpty()) {
+                        putExtra("architecture", architecture);
+                        saveData();
+                    }
+                }
+            }
         }
 
         private void loadCoverArt() {

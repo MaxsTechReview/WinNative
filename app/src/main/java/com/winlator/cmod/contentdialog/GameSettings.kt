@@ -1505,7 +1505,18 @@ private fun DXVKConfigCard(
                     label = stringResource(R.string.container_wine_dxvk_version),
                     entries = state.dxvkVersionEntries.value,
                     selectedIndex = state.dxvkSelectedVersion.intValue,
-                    onSelected = { state.dxvkSelectedVersion.intValue = it }
+                    onSelected = { 
+                        state.dxvkSelectedVersion.intValue = it
+                        val selectedVersion = state.dxvkVersionEntries.value.getOrElse(it) { "" }
+                        val isGplAsync = selectedVersion.contains("gplasync", ignoreCase = true)
+                        val isAsync = selectedVersion.contains("async", ignoreCase = true)
+                        if (isAsync || isGplAsync) {
+                            state.dxvkAsync.value = true
+                        }
+                        if (isGplAsync) {
+                            state.dxvkAsyncCache.value = true
+                        }
+                    }
                 )
 
                 // Async toggle - greyed out when version doesn't support it

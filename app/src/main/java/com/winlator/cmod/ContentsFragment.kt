@@ -266,6 +266,17 @@ class ContentsFragment : Fragment() {
     private fun ContentProfile.toItem(): ComponentItem {
         val installedSuffix = if (isInstalled) "1" else "0"
         val cachedSize = remoteUrl?.let { sizeCache[it] }
+
+        val detailedFiles = fileList?.map { file ->
+            ComponentFileMapping(
+                source = file.source,
+                target = file.target,
+                resolvedTarget = manager.resolveTemplatePath(file.target),
+            )
+        } ?: emptyList()
+
+        val installPath = if (isInstalled) manager.getInstallPath(this) else null
+
         return ComponentItem(
             key = "${type}:${verName}:${verCode}:${installedSuffix}:${remoteUrl ?: ""}",
             type = type,
@@ -273,6 +284,9 @@ class ContentsFragment : Fragment() {
             isInstalled = isInstalled,
             hasRemote = remoteUrl != null,
             sizeBytes = cachedSize,
+            detailedDescription = desc,
+            detailedFiles = detailedFiles,
+            installPath = installPath,
         )
     }
 

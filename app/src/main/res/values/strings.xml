@@ -55,6 +55,8 @@
     <string name="common_ui_close">Close</string>
     <string name="common_ui_confirm">Confirm</string>
     <string name="common_ui_unnamed">Unnamed</string>
+    <string name="common_ui_files">Files</string>
+    <string name="common_ui_install_path">Install Path</string>
     <string name="common_ui_download">Download</string>
     <string name="common_ui_uninstall">Uninstall</string>
     <string name="common_ui_other">Other</string>

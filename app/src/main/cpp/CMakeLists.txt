@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22.1)
 
 project(Winlator)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -Wno-unused-function -Wimplicit-function-declaration")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -Wno-unused-function -Wimplicit-function-declaration -Wno-unused-parameter")
 
 add_subdirectory(patchelf)
 add_subdirectory(adrenotools)
