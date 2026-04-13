@@ -21,6 +21,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.togetherWith
@@ -162,6 +164,7 @@ import com.winlator.cmod.gog.service.GOGConstants
 import com.winlator.cmod.gog.service.GOGService
 import com.winlator.cmod.gog.ui.auth.GOGOAuthActivity
 import com.winlator.cmod.utils.ControllerHelper
+import com.winlator.cmod.xenvironment.ImageFs
 import com.winlator.cmod.ui.FourByTwoGridView
 import com.winlator.cmod.ui.CarouselView
 import com.winlator.cmod.ui.ListView
@@ -616,6 +619,18 @@ class UnifiedActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         instance = this
         super.onCreate(savedInstanceState)
+
+        if (!SetupWizardActivity.isSetupComplete(this) || !ImageFs.find(this).isValid) {
+            startActivity(
+                Intent(this, SetupWizardActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+            )
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+            finish()
+            return
+        }
+
         supportFragmentManager.registerFragmentLifecycleCallbacks(inputControlsFragmentTracker, true)
         db = PluviaDatabase.getInstance(this)
         EpicAuthManager.updateLoginStatus(this)
@@ -682,14 +697,62 @@ class UnifiedActivity : AppCompatActivity() {
                     startDestination = initialSettingsNavigation?.let {
                         buildSettingsRoute(it.item, it.profileId, it.editContainerId)
                     } ?: "hub",
-                    modifier = Modifier.navigationBarsPadding(),
+                    modifier = Modifier.fillMaxSize(),
                     enterTransition = {
-                        fadeIn(tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                        val fromRoute = initialState.destination.route
+                        val toRoute = targetState.destination.route
+                        if (
+                            (
+                                (fromRoute == "hub" && toRoute?.startsWith("settings") == true) ||
+                                    (fromRoute?.startsWith("settings") == true && toRoute == "hub")
+                                )
+                        ) {
+                            fadeIn(tween(220, easing = FastOutSlowInEasing))
+                        } else {
+                            EnterTransition.None
+                        }
                     },
-                    exitTransition = { fadeOut(tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)) },
-                    popEnterTransition = { fadeIn(tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)) },
+                    exitTransition = {
+                        val fromRoute = initialState.destination.route
+                        val toRoute = targetState.destination.route
+                        if (
+                            (
+                                (fromRoute == "hub" && toRoute?.startsWith("settings") == true) ||
+                                    (fromRoute?.startsWith("settings") == true && toRoute == "hub")
+                                )
+                        ) {
+                            fadeOut(tween(220, easing = FastOutSlowInEasing))
+                        } else {
+                            ExitTransition.None
+                        }
+                    },
+                    popEnterTransition = {
+                        val fromRoute = initialState.destination.route
+                        val toRoute = targetState.destination.route
+                        if (
+                            (
+                                (fromRoute == "hub" && toRoute?.startsWith("settings") == true) ||
+                                    (fromRoute?.startsWith("settings") == true && toRoute == "hub")
+                                )
+                        ) {
+                            fadeIn(tween(220, easing = FastOutSlowInEasing))
+                        } else {
+                            EnterTransition.None
+                        }
+                    },
                     popExitTransition = {
-                        fadeOut(tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                        val fromRoute = initialState.destination.route
+                        val toRoute = targetState.destination.route
+                        if (
+                            (
+                                (fromRoute == "hub" && toRoute?.startsWith("settings") == true) ||
+                                    (fromRoute?.startsWith("settings") == true && toRoute == "hub")
+                                )
+                        ) {
+                            fadeOut(tween(220, easing = FastOutSlowInEasing))
+                        } else {
+                            ExitTransition.None
+                        }
                     }
                 ) {
                     composable("hub") {
@@ -712,7 +775,7 @@ class UnifiedActivity : AppCompatActivity() {
                         val editContainerId = backStackEntry.arguments?.getInt("editContainerId") ?: 0
 
                         // Idempotent pop: the first Back press pops, any further presses during
-                        // the 300ms exit animation are absorbed here so NavHost state stays
+                        // the 220ms exit animation are absorbed here so NavHost state stays
                         // consistent (see isPoppingSettings field for full context).
                         val popSettingsOnce: () -> Unit = {
                             if (!isPoppingSettings) {
@@ -1036,6 +1099,7 @@ class UnifiedActivity : AppCompatActivity() {
         Box(Modifier.fillMaxSize().background(BgDark)) {
             Scaffold(
                 containerColor = BgDark,
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 topBar = { TopBar(tabs, selectedIdx, { selectedIdx = it }, persona, context, scope, isControllerConnected, isPS, isLibraryTab, searchQueryTfv, { searchQueryTfv = it }, onFilterClicked = { scope.launch { drawerState.open() } }) {
                     if (selectedLibrarySource == "GOG") {
                         globalSettingsGogGame = gogApps.find { it.id == selectedGogGameId }
@@ -1271,10 +1335,9 @@ class UnifiedActivity : AppCompatActivity() {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
                 .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))
+                .padding(start = 8.dp, end = 8.dp, top = 8.dp)
                 .height(64.dp)
-                .padding(horizontal = 8.dp)
         ) {
             // Center Block: Tabs (absolutely centered, unaffected by left/right content)
             Row(

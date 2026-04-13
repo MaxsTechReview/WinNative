@@ -43,7 +43,15 @@
         <!-- Setup Wizard (first launch entry point) -->
         <activity
             android:name="com.winlator.cmod.SetupWizardActivity"
-            android:theme="@style/AppThemeFullscreen.Dark"
+            android:theme="@style/AppThemeFullscreenDarkNoAnimation"
+            android:screenOrientation="sensorLandscape"
+            android:exported="false"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation" />
+
+        <!-- Unified Activity -->
+        <activity
+            android:name="com.winlator.cmod.UnifiedActivity"
+            android:theme="@style/AppThemeUnifiedDarkNoAnimation"
             android:screenOrientation="sensorLandscape"
             android:exported="true"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation">
@@ -52,14 +60,6 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-
-        <!-- Unified Activity -->
-        <activity
-            android:name="com.winlator.cmod.UnifiedActivity"
-            android:theme="@style/AppThemeFullscreen.Dark"
-            android:screenOrientation="sensorLandscape"
-            android:exported="false"
-            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation" />
 
         <activity
             android:name="com.winlator.cmod.steam.SteamLoginActivity"

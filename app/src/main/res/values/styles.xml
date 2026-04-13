@@ -55,6 +55,34 @@
         <item name="android:windowTranslucentNavigation">true</item>
     </style>
 
+    <style name="AppWindowAnimationNoAnimation">
+        <item name="android:activityOpenEnterAnimation">@anim/no_animation</item>
+        <item name="android:activityOpenExitAnimation">@anim/no_animation</item>
+        <item name="android:activityCloseEnterAnimation">@anim/no_animation</item>
+        <item name="android:activityCloseExitAnimation">@anim/no_animation</item>
+        <item name="android:taskOpenEnterAnimation">@anim/no_animation</item>
+        <item name="android:taskOpenExitAnimation">@anim/no_animation</item>
+        <item name="android:taskCloseEnterAnimation">@anim/no_animation</item>
+        <item name="android:taskCloseExitAnimation">@anim/no_animation</item>
+        <item name="android:taskToFrontEnterAnimation">@anim/no_animation</item>
+        <item name="android:taskToFrontExitAnimation">@anim/no_animation</item>
+        <item name="android:taskToBackEnterAnimation">@anim/no_animation</item>
+        <item name="android:taskToBackExitAnimation">@anim/no_animation</item>
+    </style>
+
+    <style name="AppThemeFullscreenDarkNoAnimation" parent="@style/AppThemeFullscreen.Dark">
+        <item name="android:windowAnimationStyle">@style/AppWindowAnimationNoAnimation</item>
+    </style>
+
+    <style name="AppThemeUnifiedDarkNoAnimation" parent="@style/AppTheme.Dark">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowBackground">#000000</item>
+        <item name="android:colorBackground">#000000</item>
+        <item name="android:statusBarColor">#141B24</item>
+        <item name="android:navigationBarColor">#141B24</item>
+        <item name="android:windowAnimationStyle">@style/AppWindowAnimationNoAnimation</item>
+    </style>
+
     <!-- Base ComboBox Styles -->
     <style name="ComboBox">
         <item name="android:layout_width">192dp</item>

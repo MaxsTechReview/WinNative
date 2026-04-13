@@ -1331,9 +1331,12 @@ class SetupWizardActivity : FragmentActivity() {
     }
 
     private fun launchApp() {
-        startActivity(Intent(this, UnifiedActivity::class.java))
+        startActivity(
+            Intent(this, UnifiedActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+        )
         @Suppress("DEPRECATION")
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        overridePendingTransition(0, 0)
         finish()
     }
 
