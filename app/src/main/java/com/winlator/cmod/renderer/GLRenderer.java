@@ -6,9 +6,9 @@ import android.graphics.BitmapFactory;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.winlator.cmod.R;
+import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.math.Mathf;
 import com.winlator.cmod.math.XForm;
 import com.winlator.cmod.renderer.material.CursorMaterial;
@@ -411,7 +411,7 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
             cpuSaverMode = enable;
             viewportNeedsUpdate = true;
             final String msg = enable ? "Direct Rendering+ Enabled" : "Direct Rendering+ Disabled";
-            xServerView.post(() -> Toast.makeText(xServerView.getContext(), msg, Toast.LENGTH_SHORT).show());
+            xServerView.post(() -> AppUtils.showToast(xServerView.getContext(), msg, android.widget.Toast.LENGTH_SHORT));
             xServerView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
             xServerView.requestRender();
         }

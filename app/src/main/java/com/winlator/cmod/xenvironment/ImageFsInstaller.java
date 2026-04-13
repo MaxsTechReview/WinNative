@@ -182,7 +182,7 @@ public abstract class ImageFsInstaller {
                 imageFs.createImgVersionFile(LATEST_VERSION);
             } else {
                 activity.runOnUiThread(() ->
-                    android.widget.Toast.makeText(activity, R.string.setup_wizard_unable_to_install_system_files, android.widget.Toast.LENGTH_LONG).show()
+                    AppUtils.showToast(activity, R.string.setup_wizard_unable_to_install_system_files, android.widget.Toast.LENGTH_LONG)
                 );
             }
 

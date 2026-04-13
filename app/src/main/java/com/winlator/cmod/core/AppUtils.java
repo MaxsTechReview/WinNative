@@ -11,6 +11,7 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.os.Build;
+import android.os.Handler;
 import android.os.Looper;
 import android.text.Html;
 import android.util.TypedValue;
@@ -186,6 +187,10 @@ public abstract class AppUtils {
         return showToast(context, context.getString(textResId), iconBitmap);
     }
 
+    public static Toast showToast(Context context, int textResId, int toastDuration) {
+        return showToast(context, context.getString(textResId), toastDuration);
+    }
+
     public static void showToast(Context context, int textResId, long durationMs) {
         showToast(context, context.getString(textResId), durationMs);
     }
@@ -194,28 +199,25 @@ public abstract class AppUtils {
         return showToast(context, text, null);
     }
 
+    public static Toast showToast(final Context context, final String text, final int toastDuration) {
+        return showToast(context, text, null, toastDuration);
+    }
+
     public static Toast showToast(final Context context, final String text, final Bitmap iconBitmap) {
+        return showToast(context, text, iconBitmap, text.length() >= 40 ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT);
+    }
+
+    public static Toast showToast(final Context context, final String text, final Bitmap iconBitmap, final int toastDuration) {
         if (!isUiThread()) {
-            if (context instanceof Activity) {
-                ((Activity)context).runOnUiThread(() -> showToast(context, text, iconBitmap));
-            }
+            new Handler(Looper.getMainLooper()).post(() -> showToast(context, text, iconBitmap, toastDuration));
             return null;
         }
 
         dismissActiveToasts();
-
-        if (iconBitmap != null && context instanceof Activity) {
-            Activity activity = (Activity)context;
-            if (activity.isFinishing() || activity.isDestroyed()) {
-                return null;
-            }
-
-            showPopupToast(activity, text, iconBitmap, text.length() >= 40 ? 3500L : 2000L);
-            return null;
-        }
-
-        Toast toast = Toast.makeText(context, text, text.length() >= 40 ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT);
+        Toast toast = new Toast(context.getApplicationContext() != null ? context.getApplicationContext() : context);
+        toast.setDuration(toastDuration);
         toast.setGravity(Gravity.CENTER | Gravity.BOTTOM, 0, 50);
+        toast.setView(createToastView(context, text, iconBitmap));
         toast.show();
         globalToastReference = new WeakReference<>(toast);
         return toast;
@@ -223,9 +225,7 @@ public abstract class AppUtils {
 
     public static void showToast(final Context context, final String text, final long durationMs) {
         if (!isUiThread()) {
-            if (context instanceof Activity) {
-                ((Activity)context).runOnUiThread(() -> showToast(context, text, durationMs));
-            }
+            new Handler(Looper.getMainLooper()).post(() -> showToast(context, text, durationMs));
             return;
         }
 
@@ -243,6 +243,21 @@ public abstract class AppUtils {
         showPopupToast(activity, text, null, durationMs);
     }
 
+    private static View createToastView(Context context, String text, Bitmap iconBitmap) {
+        View view = LayoutInflater.from(context).inflate(R.layout.custom_toast, null);
+        ((TextView)view.findViewById(R.id.TextView)).setText(text);
+
+        ImageView iconView = view.findViewById(R.id.IconView);
+        if (iconBitmap != null) {
+            iconView.setImageBitmap(iconBitmap);
+        }
+        else {
+            iconView.setImageResource(R.drawable.icon_info);
+        }
+        iconView.setVisibility(View.VISIBLE);
+        return view;
+    }
+
     private static void dismissActiveToasts() {
         if (globalToastReference != null) {
             Toast toast = globalToastReference.get();
@@ -258,17 +273,7 @@ public abstract class AppUtils {
     }
 
     private static void showPopupToast(Activity activity, String text, Bitmap iconBitmap, long durationMs) {
-        View view = LayoutInflater.from(activity).inflate(R.layout.custom_toast, null);
-        ((TextView)view.findViewById(R.id.TextView)).setText(text);
-
-        ImageView iconView = view.findViewById(R.id.IconView);
-        if (iconBitmap != null) {
-            iconView.setImageBitmap(iconBitmap);
-            iconView.setVisibility(View.VISIBLE);
-        }
-        else {
-            iconView.setVisibility(View.GONE);
-        }
+        View view = createToastView(activity, text, iconBitmap);
 
         PopupWindow popupWindow = new PopupWindow(
             view,

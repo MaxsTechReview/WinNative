@@ -103,7 +103,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 state.desktopWallpaperSelected.value = true
             } catch (e: Throwable) {
                 Log.e(TAG, "Error copying wallpaper", e)
-                Toast.makeText(context, "Error saving wallpaper", Toast.LENGTH_SHORT).show()
+                AppUtils.showToast(context, "Error saving wallpaper", Toast.LENGTH_SHORT)
             }
         }
 
@@ -551,7 +551,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val c = container
         val name = state.name.value.trim()
         if (name.isEmpty()) {
-            Toast.makeText(context, "Name cannot be empty", Toast.LENGTH_SHORT).show()
+            AppUtils.showToast(context, "Name cannot be empty", Toast.LENGTH_SHORT)
             return
         }
 

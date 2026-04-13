@@ -100,6 +100,7 @@ import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.contents.AdrenotoolsManager
 import com.winlator.cmod.contents.ContentProfile
 import com.winlator.cmod.contents.ContentsManager
+import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.contents.Downloader
 import com.winlator.cmod.core.DefaultVersion
 import com.winlator.cmod.core.FileUtils
@@ -229,7 +230,7 @@ class SetupWizardActivity : FragmentActivity() {
             } else {
                 "Download a Wine/Proton package and create a container before launching games."
             }
-            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            AppUtils.showToast(context, message, Toast.LENGTH_LONG)
 
             val intent = when {
                 !isSetupComplete(context) -> Intent(context, SetupWizardActivity::class.java)

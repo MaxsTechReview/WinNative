@@ -112,7 +112,7 @@ class ShortcutSettingsComposeDialog private constructor(
             if (isExe) {
                 state.launchExePath.value = path
             } else {
-                Toast.makeText(context, R.string.common_ui_select_valid_exe_file, Toast.LENGTH_SHORT).show()
+                AppUtils.showToast(context, R.string.common_ui_select_valid_exe_file, Toast.LENGTH_SHORT)
             }
         }
 

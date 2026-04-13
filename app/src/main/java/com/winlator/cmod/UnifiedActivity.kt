@@ -923,9 +923,9 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                     scope.launch {
                         val authResult = EpicAuthManager.authenticateWithCode(context, code)
                         if (authResult.isSuccess) {
-                            android.widget.Toast.makeText(context, R.string.stores_accounts_logged_in_epic, android.widget.Toast.LENGTH_SHORT).show()
+                            com.winlator.cmod.core.AppUtils.showToast(context, R.string.stores_accounts_logged_in_epic, android.widget.Toast.LENGTH_SHORT)
                         } else {
-                            android.widget.Toast.makeText(context, getString(R.string.stores_accounts_epic_login_failed, authResult.exceptionOrNull()?.message), android.widget.Toast.LENGTH_LONG).show()
+                            com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.stores_accounts_epic_login_failed, authResult.exceptionOrNull()?.message), android.widget.Toast.LENGTH_LONG)
                         }
                     }
                 }
@@ -942,9 +942,9 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                         val authResult = GOGAuthManager.authenticateWithCode(context, code)
                         if (authResult.isSuccess) {
                             GOGService.start(context)
-                            android.widget.Toast.makeText(context, R.string.stores_accounts_logged_in_gog, android.widget.Toast.LENGTH_SHORT).show()
+                            com.winlator.cmod.core.AppUtils.showToast(context, R.string.stores_accounts_logged_in_gog, android.widget.Toast.LENGTH_SHORT)
                         } else {
-                            android.widget.Toast.makeText(context, getString(R.string.stores_accounts_gog_login_failed, authResult.exceptionOrNull()?.message), android.widget.Toast.LENGTH_LONG).show()
+                            com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.stores_accounts_gog_login_failed, authResult.exceptionOrNull()?.message), android.widget.Toast.LENGTH_LONG)
                         }
                     }
                 }
@@ -2397,13 +2397,13 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                         
                         zos.close()
                         withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            android.widget.Toast.makeText(context, R.string.saves_import_export_exported, android.widget.Toast.LENGTH_SHORT).show()
+                            com.winlator.cmod.core.AppUtils.showToast(context, R.string.saves_import_export_exported, android.widget.Toast.LENGTH_SHORT)
                             onDismissRequest()
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
                         withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            android.widget.Toast.makeText(context, getString(R.string.saves_import_export_exported_failed, e.message), android.widget.Toast.LENGTH_SHORT).show()
+                            com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.saves_import_export_exported_failed, e.message), android.widget.Toast.LENGTH_SHORT)
                         }
                     }
                 }
@@ -2456,13 +2456,13 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                         }
                         zis.close()
                         withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            android.widget.Toast.makeText(context, R.string.saves_import_export_imported, android.widget.Toast.LENGTH_SHORT).show()
+                            com.winlator.cmod.core.AppUtils.showToast(context, R.string.saves_import_export_imported, android.widget.Toast.LENGTH_SHORT)
                             onDismissRequest()
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
                         withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            android.widget.Toast.makeText(context, getString(R.string.saves_import_export_imported_failed, e.message), android.widget.Toast.LENGTH_SHORT).show()
+                            com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.saves_import_export_imported_failed, e.message), android.widget.Toast.LENGTH_SHORT)
                         }
                     }
                 }
@@ -2627,7 +2627,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                         onCloudSyncToggle = { enabled ->
                             cloudSyncEnabled = enabled
                             setShortcutCloudSyncEnabled(shortcut, enabled)
-                            android.widget.Toast.makeText(
+                            com.winlator.cmod.core.AppUtils.showToast(
                                 context,
                                 if (enabled) {
                                     context.getString(R.string.cloud_sync_enabled_summary)
@@ -2635,7 +2635,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                     context.getString(R.string.cloud_sync_disabled_summary)
                                 },
                                 android.widget.Toast.LENGTH_SHORT,
-                            ).show()
+                            )
                         },
                         onBackup = {
                             if (!isWorking) {
@@ -2645,11 +2645,11 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                         this@UnifiedActivity, gameSource, gameIdStr, app.name,
                                     )
                                     isWorking = false
-                                    android.widget.Toast.makeText(
+                                    com.winlator.cmod.core.AppUtils.showToast(
                                         context,
                                         result.message,
                                         android.widget.Toast.LENGTH_SHORT,
-                                    ).show()
+                                    )
                                 }
                             }
                         },
@@ -2661,11 +2661,11 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                         this@UnifiedActivity, gameSource, gameIdStr, app.name,
                                     )
                                     isWorking = false
-                                    android.widget.Toast.makeText(
+                                    com.winlator.cmod.core.AppUtils.showToast(
                                         context,
                                         result.message,
                                         android.widget.Toast.LENGTH_SHORT,
-                                    ).show()
+                                    )
                                 }
                             }
                         },
@@ -2687,7 +2687,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                     java.io.File(context.filesDir, "custom_icons/${app.name.replace("/", "_")}.png").delete()
                                     PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(app.id))
                                     withContext(Dispatchers.Main) {
-                                        android.widget.Toast.makeText(context, getString(R.string.library_games_game_removed, app.name), android.widget.Toast.LENGTH_SHORT).show()
+                                        com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.library_games_game_removed, app.name), android.widget.Toast.LENGTH_SHORT)
                                         onDismissRequest()
                                     }
                                 }
@@ -2695,15 +2695,15 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                 scope.launch(Dispatchers.IO) {
                                     val result = EpicService.deleteGame(context, epicId)
                                     withContext(Dispatchers.Main) {
-                                        if (result.isSuccess) android.widget.Toast.makeText(context, getString(R.string.library_games_game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
-                                        else android.widget.Toast.makeText(context, getString(R.string.library_games_failed_to_uninstall_reason, result.exceptionOrNull()?.message ?: "Unknown error"), android.widget.Toast.LENGTH_LONG).show()
+                                        if (result.isSuccess) com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.library_games_game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT)
+                                        else com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.library_games_failed_to_uninstall_reason, result.exceptionOrNull()?.message ?: "Unknown error"), android.widget.Toast.LENGTH_LONG)
                                         onDismissRequest()
                                     }
                                 }
                             } else {
                                 SteamService.uninstallApp(app.id) { success ->
-                                    if (success) android.widget.Toast.makeText(context, getString(R.string.library_games_game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
-                                    else android.widget.Toast.makeText(context, getString(R.string.library_games_failed_to_uninstall), android.widget.Toast.LENGTH_SHORT).show()
+                                    if (success) com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.library_games_game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT)
+                                    else com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.library_games_failed_to_uninstall), android.widget.Toast.LENGTH_SHORT)
                                     onDismissRequest()
                                 }
                             }
@@ -2836,12 +2836,12 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                 pinnedShortcutOverride = if (removed) false else hasPinnedShortcut
                                 shortcutRefreshKey++
                                 currentTab = GameSettingsScreen.Menu
-                                android.widget.Toast.makeText(
+                                com.winlator.cmod.core.AppUtils.showToast(
                                     context,
                                     if (removed) context.getString(R.string.shortcuts_list_removed)
                                     else context.getString(R.string.common_ui_unknown_error),
                                     android.widget.Toast.LENGTH_SHORT,
-                                ).show()
+                                )
                             }
                         },
                         onCancel = { currentTab = GameSettingsScreen.Menu },
@@ -2858,11 +2858,11 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                     scope.launch(Dispatchers.IO) {
                                         GOGService.syncCloudSaves(context, "GOG_${app.id}", "auto")
                                     }
-                                    android.widget.Toast.makeText(
+                                    com.winlator.cmod.core.AppUtils.showToast(
                                         context,
                                         getString(R.string.google_cloud_sync_started),
                                         android.widget.Toast.LENGTH_SHORT,
-                                    ).show()
+                                    )
                                 },
                             ),
                             GameSettingsActionItem(
@@ -2891,7 +2891,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                         onCloudSyncToggle = { enabled ->
                             cloudSyncEnabled = enabled
                             setShortcutCloudSyncEnabled(shortcut, enabled)
-                            android.widget.Toast.makeText(
+                            com.winlator.cmod.core.AppUtils.showToast(
                                 context,
                                 if (enabled) {
                                     context.getString(R.string.cloud_sync_enabled_summary)
@@ -2899,7 +2899,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                     context.getString(R.string.cloud_sync_disabled_summary)
                                 },
                                 android.widget.Toast.LENGTH_SHORT,
-                            ).show()
+                            )
                         },
                         onBackup = {
                             if (!isWorking) {
@@ -2912,11 +2912,11 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                         app.title,
                                     )
                                     isWorking = false
-                                    android.widget.Toast.makeText(
+                                    com.winlator.cmod.core.AppUtils.showToast(
                                         context,
                                         result.message,
                                         android.widget.Toast.LENGTH_SHORT,
-                                    ).show()
+                                    )
                                 }
                             }
                         },
@@ -2931,11 +2931,11 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                         app.title,
                                     )
                                     isWorking = false
-                                    android.widget.Toast.makeText(
+                                    com.winlator.cmod.core.AppUtils.showToast(
                                         context,
                                         result.message,
                                         android.widget.Toast.LENGTH_SHORT,
-                                    ).show()
+                                    )
                                 }
                             }
                         },
@@ -2953,7 +2953,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                     LibraryItem("GOG_${app.id}", app.title, com.winlator.cmod.steam.enums.GameSource.GOG),
                                 )
                                 withContext(Dispatchers.Main) {
-                                    android.widget.Toast.makeText(context, getString(R.string.library_games_game_uninstalled, app.title), android.widget.Toast.LENGTH_SHORT).show()
+                                    com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.library_games_game_uninstalled, app.title), android.widget.Toast.LENGTH_SHORT)
                                     onDismissRequest()
                                 }
                             }
@@ -3126,12 +3126,12 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                         }
                         zos.close()
                         withContext(Dispatchers.Main) {
-                            android.widget.Toast.makeText(context, R.string.saves_import_export_exported, android.widget.Toast.LENGTH_SHORT).show()
+                            com.winlator.cmod.core.AppUtils.showToast(context, R.string.saves_import_export_exported, android.widget.Toast.LENGTH_SHORT)
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
                         withContext(Dispatchers.Main) {
-                            android.widget.Toast.makeText(context, getString(R.string.saves_import_export_exported_failed, e.message), android.widget.Toast.LENGTH_SHORT).show()
+                            com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.saves_import_export_exported_failed, e.message), android.widget.Toast.LENGTH_SHORT)
                         }
                     }
                 }
@@ -3167,12 +3167,12 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                         }
                         zis.close()
                         withContext(Dispatchers.Main) {
-                            android.widget.Toast.makeText(context, R.string.saves_import_export_imported, android.widget.Toast.LENGTH_SHORT).show()
+                            com.winlator.cmod.core.AppUtils.showToast(context, R.string.saves_import_export_imported, android.widget.Toast.LENGTH_SHORT)
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
                         withContext(Dispatchers.Main) {
-                            android.widget.Toast.makeText(context, getString(R.string.saves_import_export_imported_failed, e.message), android.widget.Toast.LENGTH_SHORT).show()
+                            com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.saves_import_export_imported_failed, e.message), android.widget.Toast.LENGTH_SHORT)
                         }
                     }
                 }
@@ -3513,7 +3513,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                                         scope.launch(Dispatchers.IO) {
                                                             GOGService.syncCloudSaves(context, "GOG_${gogGame!!.id}", "auto")
                                                         }
-                                                        android.widget.Toast.makeText(context, getString(R.string.google_cloud_sync_started), android.widget.Toast.LENGTH_SHORT).show()
+                                                        com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.google_cloud_sync_started), android.widget.Toast.LENGTH_SHORT)
                                                     },
                                                 ),
                                                 GameSettingsActionItem(
@@ -3590,7 +3590,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                     onCloudSyncToggle = { enabled ->
                                         cloudSyncEnabled = enabled
                                         setShortcutCloudSyncEnabled(detailShortcut, enabled)
-                                        android.widget.Toast.makeText(
+                                        com.winlator.cmod.core.AppUtils.showToast(
                                             context,
                                             if (enabled) {
                                                 context.getString(R.string.cloud_sync_enabled_summary)
@@ -3598,7 +3598,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                                 context.getString(R.string.cloud_sync_disabled_summary)
                                             },
                                             android.widget.Toast.LENGTH_SHORT,
-                                        ).show()
+                                        )
                                     },
                                     onBackup = {
                                         if (!isWorking) {
@@ -3611,11 +3611,11 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                                     app.name,
                                                 )
                                                 isWorking = false
-                                                android.widget.Toast.makeText(
+                                                com.winlator.cmod.core.AppUtils.showToast(
                                                     context,
                                                     result.message,
                                                     android.widget.Toast.LENGTH_SHORT,
-                                                ).show()
+                                                )
                                             }
                                         }
                                     },
@@ -3630,11 +3630,11 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                                     app.name,
                                                 )
                                                 isWorking = false
-                                                android.widget.Toast.makeText(
+                                                com.winlator.cmod.core.AppUtils.showToast(
                                                     context,
                                                     result.message,
                                                     android.widget.Toast.LENGTH_SHORT,
-                                                ).show()
+                                                )
                                             }
                                         }
                                     },
@@ -3671,7 +3671,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                                         LibraryItem("GOG_${gogGame!!.id}", gogGame.title, com.winlator.cmod.steam.enums.GameSource.GOG),
                                                     )
                                                     withContext(Dispatchers.Main) {
-                                                        android.widget.Toast.makeText(context, getString(R.string.library_games_game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
+                                                        com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.library_games_game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT)
                                                         onDismissRequest()
                                                     }
                                                 }
@@ -3683,7 +3683,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                                     java.io.File(context.filesDir, "custom_icons/${app.name.replace("/", "_")}.png").delete()
                                                     PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(app.id))
                                                     withContext(Dispatchers.Main) {
-                                                        android.widget.Toast.makeText(context, getString(R.string.library_games_game_removed, app.name), android.widget.Toast.LENGTH_SHORT).show()
+                                                        com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.library_games_game_removed, app.name), android.widget.Toast.LENGTH_SHORT)
                                                         onDismissRequest()
                                                     }
                                                 }
@@ -3691,15 +3691,15 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                                 scope.launch(Dispatchers.IO) {
                                                     val result = EpicService.deleteGame(context, epicId)
                                                     withContext(Dispatchers.Main) {
-                                                        if (result.isSuccess) android.widget.Toast.makeText(context, getString(R.string.library_games_game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
-                                                        else android.widget.Toast.makeText(context, getString(R.string.library_games_failed_to_uninstall_reason, result.exceptionOrNull()?.message ?: ""), android.widget.Toast.LENGTH_LONG).show()
+                                                        if (result.isSuccess) com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.library_games_game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT)
+                                                        else com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.library_games_failed_to_uninstall_reason, result.exceptionOrNull()?.message ?: ""), android.widget.Toast.LENGTH_LONG)
                                                         onDismissRequest()
                                                     }
                                                 }
                                             } else {
                                                 SteamService.uninstallApp(app.id) { success ->
-                                                    if (success) android.widget.Toast.makeText(context, getString(R.string.library_games_game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT).show()
-                                                    else android.widget.Toast.makeText(context, getString(R.string.library_games_failed_to_uninstall), android.widget.Toast.LENGTH_SHORT).show()
+                                                    if (success) com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.library_games_game_uninstalled, app.name), android.widget.Toast.LENGTH_SHORT)
+                                                    else com.winlator.cmod.core.AppUtils.showToast(context, getString(R.string.library_games_failed_to_uninstall), android.widget.Toast.LENGTH_SHORT)
                                                     onDismissRequest()
                                                 }
                                             }
@@ -4722,7 +4722,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                 EpicCloudSavesManager.syncCloudSaves(context, app.id, "auto")
                             }
                             onDismissRequest()
-                            android.widget.Toast.makeText(context, context.getString(R.string.google_cloud_sync_started), android.widget.Toast.LENGTH_SHORT).show()
+                            com.winlator.cmod.core.AppUtils.showToast(context, context.getString(R.string.google_cloud_sync_started), android.widget.Toast.LENGTH_SHORT)
                         },
                     )
                 }
@@ -5034,7 +5034,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                             GOGService.syncCloudSaves(context, "GOG_${app.id}", "auto")
                         }
                         onDismissRequest()
-                        android.widget.Toast.makeText(context, context.getString(R.string.google_cloud_sync_started), android.widget.Toast.LENGTH_SHORT).show()
+                        com.winlator.cmod.core.AppUtils.showToast(context, context.getString(R.string.google_cloud_sync_started), android.widget.Toast.LENGTH_SHORT)
                     },
                 )
                 CompactActionButton(
@@ -6204,7 +6204,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
         val gameInstallPath = SteamService.getAppDirPath(app.id)
         val gameDir = java.io.File(gameInstallPath)
         if (!gameDir.exists()) {
-            android.widget.Toast.makeText(context, "Game not installed: ${app.name}", android.widget.Toast.LENGTH_SHORT).show()
+            com.winlator.cmod.core.AppUtils.showToast(context, "Game not installed: ${app.name}", android.widget.Toast.LENGTH_SHORT)
             return
         }
 
@@ -6298,7 +6298,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
         val gameInstallPath = app.installPath.takeIf { it.isNotEmpty() } ?: EpicConstants.getGameInstallPath(context, app.appName)
         val gameDir = java.io.File(gameInstallPath)
         if (!gameDir.exists()) {
-            android.widget.Toast.makeText(context, "Game not installed: ${app.title}", android.widget.Toast.LENGTH_SHORT).show()
+            com.winlator.cmod.core.AppUtils.showToast(context, "Game not installed: ${app.title}", android.widget.Toast.LENGTH_SHORT)
             return
         }
 
@@ -6431,7 +6431,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
         val gameInstallPath = app.installPath.takeIf { it.isNotEmpty() } ?: GOGConstants.getGameInstallPath(app.title)
         val gameDir = java.io.File(gameInstallPath)
         if (!gameDir.exists()) {
-            android.widget.Toast.makeText(context, "Game not installed: ${app.title}", android.widget.Toast.LENGTH_SHORT).show()
+            com.winlator.cmod.core.AppUtils.showToast(context, "Game not installed: ${app.title}", android.widget.Toast.LENGTH_SHORT)
             return
         }
 
@@ -6660,7 +6660,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
         }
 
         if (shortcut == null) {
-            android.widget.Toast.makeText(context, "Custom game shortcut not found: $gameName", android.widget.Toast.LENGTH_SHORT).show()
+            com.winlator.cmod.core.AppUtils.showToast(context, "Custom game shortcut not found: $gameName", android.widget.Toast.LENGTH_SHORT)
             return
         }
 
@@ -7146,7 +7146,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                             .replace("_", " ").replace("-", " ")
                     }
                 } else {
-                    android.widget.Toast.makeText(context, "Please select a .exe file", android.widget.Toast.LENGTH_SHORT).show()
+                    com.winlator.cmod.core.AppUtils.showToast(context, "Please select a .exe file", android.widget.Toast.LENGTH_SHORT)
                 }
             }
         }
@@ -7288,7 +7288,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                         OutlinedButton(
                             onClick = {
                                 if (selectedExePath == null || gameName.isBlank() || gameFolder == null) {
-                                    android.widget.Toast.makeText(context, context.getString(R.string.library_games_select_exe_provide_name), android.widget.Toast.LENGTH_SHORT).show()
+                                    com.winlator.cmod.core.AppUtils.showToast(context, context.getString(R.string.library_games_select_exe_provide_name), android.widget.Toast.LENGTH_SHORT)
                                     return@OutlinedButton
                                 }
                                 isAdding = true
@@ -7296,7 +7296,7 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
                                     addCustomGame(context, gameName.trim(), selectedExePath!!, gameFolder!!)
                                     withContext(Dispatchers.Main) {
                                         isAdding = false
-                                        android.widget.Toast.makeText(context, "$gameName added!", android.widget.Toast.LENGTH_SHORT).show()
+                                        com.winlator.cmod.core.AppUtils.showToast(context, "$gameName added!", android.widget.Toast.LENGTH_SHORT)
                                         onDismiss()
                                     }
                                 }
@@ -7406,11 +7406,11 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
             return true
         }
 
-        android.widget.Toast.makeText(
+        com.winlator.cmod.core.AppUtils.showToast(
             context,
             "Grant All files access to browse Downloads directly.",
             android.widget.Toast.LENGTH_LONG
-        ).show()
+        )
 
         val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
             data = android.net.Uri.parse("package:$packageName")

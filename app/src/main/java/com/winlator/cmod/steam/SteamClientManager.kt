@@ -6,6 +6,7 @@ import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import com.winlator.cmod.container.ContainerManager
+import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.core.FileUtils
 import com.winlator.cmod.core.TarCompressorUtils
 import com.winlator.cmod.xenvironment.ImageFs
@@ -89,7 +90,7 @@ object SteamClientManager {
             if (!success) {
                 val finalError = error ?: "All download sources failed"
                 Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(context, "Steam download failed: $finalError. Try disabling VPN.", Toast.LENGTH_LONG).show()
+                    AppUtils.showToast(context, "Steam download failed: $finalError. Try disabling VPN.", Toast.LENGTH_LONG)
                 }
             }
 
@@ -181,7 +182,7 @@ object SteamClientManager {
 
         Log.e(TAG, "Failed to download $fileName from all sources")
         Handler(Looper.getMainLooper()).post {
-            Toast.makeText(context, failureMessage, Toast.LENGTH_LONG).show()
+            AppUtils.showToast(context, failureMessage, Toast.LENGTH_LONG)
         }
         return false
     }
@@ -279,7 +280,7 @@ object SteamClientManager {
         if (!isSteamDownloaded(context)) {
             Log.d(TAG, "Steam files not found, downloading...")
             Handler(Looper.getMainLooper()).post {
-                Toast.makeText(context, "Downloading Steam client...", Toast.LENGTH_SHORT).show()
+                AppUtils.showToast(context, "Downloading Steam client...", Toast.LENGTH_SHORT)
             }
 
             if (!ensureArchiveReady(context, "steam.tzst", "Failed to download Steam client")) {
@@ -293,7 +294,7 @@ object SteamClientManager {
         if (success) {
             Log.d(TAG, "Steam client extracted successfully")
             Handler(Looper.getMainLooper()).post {
-                Toast.makeText(context, "Steam client ready", Toast.LENGTH_SHORT).show()
+                AppUtils.showToast(context, "Steam client ready", Toast.LENGTH_SHORT)
             }
         } else {
             Log.e(TAG, "Failed to extract steam.tzst")

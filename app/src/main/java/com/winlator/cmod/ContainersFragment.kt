@@ -22,6 +22,7 @@ import com.winlator.cmod.container.Container
 import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.contentdialog.ContainerSettingsComposeDialog
 import com.winlator.cmod.contents.ContentsManager
+import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.core.FileUtils
 import com.winlator.cmod.core.PreloaderDialog
 import com.winlator.cmod.google.ContainerBackupManager
@@ -100,7 +101,7 @@ class ContainersFragment : Fragment() {
     private fun openAddContainer() {
         val context = context ?: return
         if (!ImageFs.find(context).isValid) {
-            Toast.makeText(context, R.string.setup_wizard_system_image_not_installed, Toast.LENGTH_LONG).show()
+            AppUtils.showToast(context, R.string.setup_wizard_system_image_not_installed, Toast.LENGTH_LONG)
             return
         }
 
@@ -112,7 +113,7 @@ class ContainersFragment : Fragment() {
             requireActivity().runOnUiThread {
                 if (!isAdded) return@runOnUiThread
                 if (!installed) {
-                    Toast.makeText(ctx, R.string.container_no_wine_installed, Toast.LENGTH_LONG).show()
+                    AppUtils.showToast(ctx, R.string.container_no_wine_installed, Toast.LENGTH_LONG)
                     return@runOnUiThread
                 }
                 ContainerSettingsComposeDialog(requireActivity(), null, ::loadContainersList).show()

@@ -9,6 +9,7 @@ import androidx.room.withTransaction
 import com.winlator.cmod.BuildConfig
 import com.winlator.cmod.LibraryShortcutUtils
 import com.winlator.cmod.R
+import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.utils.NetworkMonitor
 import com.winlator.cmod.PluviaApp
 import com.winlator.cmod.google.CloudSyncManager
@@ -1812,7 +1813,7 @@ class SteamService : Service(), IChallengeUrlChanged {
                 Timber.w("Download aborted: No downloadable depots found for appId: $appId")
                 instance?.let { service ->
                     service.scope.launch(Dispatchers.Main) {
-                        Toast.makeText(service.applicationContext, "No downloadable content found for this game", Toast.LENGTH_LONG).show()
+                        AppUtils.showToast(service.applicationContext, "No downloadable content found for this game", Toast.LENGTH_LONG)
                     }
                 }
                 return null
@@ -1911,7 +1912,7 @@ class SteamService : Service(), IChallengeUrlChanged {
             dest.delete()
             withContext(Dispatchers.Main) {
                 val msg = "Download failed with ${lastError?.message ?: "unknown error"}. Please disable VPN or try a different network."
-                android.widget.Toast.makeText(context.applicationContext, msg, android.widget.Toast.LENGTH_LONG).show()
+                AppUtils.showToast(context.applicationContext, msg, android.widget.Toast.LENGTH_LONG)
             }
             throw IOException(
                 "Failed to download $fileName. Please check your network connection or try a VPN.",
@@ -2214,7 +2215,7 @@ class SteamService : Service(), IChallengeUrlChanged {
                         Timber.e("Failed to create download directory (mkdirs returned false): $appDirPath")
                         instance?.let { service ->
                             service.scope.launch(Dispatchers.Main) {
-                                Toast.makeText(service.applicationContext, "Failed to create download directory. Check permissions.", Toast.LENGTH_LONG).show()
+                                AppUtils.showToast(service.applicationContext, "Failed to create download directory. Check permissions.", Toast.LENGTH_LONG)
                             }
                         }
                         return null
@@ -2364,7 +2365,7 @@ class SteamService : Service(), IChallengeUrlChanged {
                     // Show success message to user
                     instance?.let { service ->
                         service.scope.launch(Dispatchers.Main) {
-                            Toast.makeText(service.applicationContext, "Download complete", Toast.LENGTH_SHORT).show()
+                            AppUtils.showToast(service.applicationContext, "Download complete", Toast.LENGTH_SHORT)
                         }
                     }
                     
@@ -2534,7 +2535,7 @@ class SteamService : Service(), IChallengeUrlChanged {
                                     Timber.i("Retry attempt $attempt/$maxRetries for appId: $appId")
                                     di.updateStatusMessage("Retrying download (attempt $attempt/$maxRetries)...")
                                     withContext(Dispatchers.Main) {
-                                        Toast.makeText(instance?.applicationContext ?: return@withContext, "Retrying download (attempt $attempt/$maxRetries)...", Toast.LENGTH_SHORT).show()
+                                        AppUtils.showToast(instance?.applicationContext ?: return@withContext, "Retrying download (attempt $attempt/$maxRetries)...", Toast.LENGTH_SHORT)
                                     }
                                     kotlinx.coroutines.delay(3000L * attempt) // Exponential backoff
                                 }
@@ -2771,7 +2772,7 @@ class SteamService : Service(), IChallengeUrlChanged {
                             // Show success message to user
                             instance?.let { service ->
                                 service.scope.launch(Dispatchers.Main) {
-                                    Toast.makeText(service.applicationContext, "Download complete", Toast.LENGTH_SHORT).show()
+                                    AppUtils.showToast(service.applicationContext, "Download complete", Toast.LENGTH_SHORT)
                                     Unit
                                 }
                             }
@@ -2840,7 +2841,7 @@ class SteamService : Service(), IChallengeUrlChanged {
                         // Show error to user
                         instance?.let { service ->
                             service.scope.launch(Dispatchers.Main) {
-                                Toast.makeText(service.applicationContext, "Download failed: $errorMsg", Toast.LENGTH_LONG).show()
+                                AppUtils.showToast(service.applicationContext, "Download failed: $errorMsg", Toast.LENGTH_LONG)
                                 Unit
                             }
                         }
@@ -2945,7 +2946,7 @@ class SteamService : Service(), IChallengeUrlChanged {
             // Show success message to user for no-op/resume completion
             instance?.let { service ->
                 service.scope.launch(Dispatchers.Main) {
-                    Toast.makeText(service.applicationContext, "Download complete", Toast.LENGTH_SHORT).show()
+                    AppUtils.showToast(service.applicationContext, "Download complete", Toast.LENGTH_SHORT)
                     Unit
                 }
             }
@@ -3201,11 +3202,11 @@ class SteamService : Service(), IChallengeUrlChanged {
 
                 instance?.let { service ->
                     service.scope.launch(Dispatchers.Main) {
-                        Toast.makeText(
+                        AppUtils.showToast(
                             service.applicationContext,
                             "Download error for depot ${item.appId}: ${error.message}",
                             Toast.LENGTH_LONG,
-                        ).show()
+                        )
                     }
                 }
                 Unit
