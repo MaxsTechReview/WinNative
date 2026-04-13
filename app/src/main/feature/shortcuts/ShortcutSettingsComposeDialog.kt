@@ -32,33 +32,33 @@ import com.winlator.cmod.feature.library.GameSettingsStateHolder
 import com.winlator.cmod.feature.library.WinComponentItem
 import com.winlator.cmod.feature.settings.DXVKConfigUtils
 import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils
-import com.winlator.cmod.feature.settings.OtherSettingsFragment
 import com.winlator.cmod.feature.settings.WineD3DConfigUtils
 import com.winlator.cmod.feature.setup.SetupWizardActivity
-import com.winlator.cmod.feature.shortcuts.ShortcutsFragment
-import com.winlator.cmod.runtime.audio.midi.MidiManager
 import com.winlator.cmod.runtime.compat.box64.Box64Preset
 import com.winlator.cmod.runtime.compat.box64.Box64PresetManager
-import com.winlator.cmod.runtime.compat.fexcore.FEXCoreManager
-import com.winlator.cmod.runtime.compat.fexcore.FEXCorePreset
-import com.winlator.cmod.runtime.compat.fexcore.FEXCorePresetManager
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.container.Shortcut
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
-import com.winlator.cmod.runtime.display.XServerDisplayActivity
-import com.winlator.cmod.runtime.display.winhandler.WinHandler
-import com.winlator.cmod.runtime.input.controls.InputControlsManager
+import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.runtime.wine.DefaultVersion
 import com.winlator.cmod.runtime.wine.EnvVars
-import com.winlator.cmod.runtime.wine.WineInfo
-import com.winlator.cmod.shared.android.AppUtils
-import com.winlator.cmod.shared.android.RefreshRateUtils
-import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.util.KeyValueSet
+import com.winlator.cmod.shared.android.RefreshRateUtils
 import com.winlator.cmod.shared.util.StringUtils
+import com.winlator.cmod.runtime.wine.WineInfo
+import com.winlator.cmod.runtime.compat.fexcore.FEXCoreManager
+import com.winlator.cmod.runtime.compat.fexcore.FEXCorePreset
+import com.winlator.cmod.runtime.compat.fexcore.FEXCorePresetManager
+import com.winlator.cmod.feature.settings.OtherSettingsFragment
+import com.winlator.cmod.feature.shortcuts.ShortcutsFragment
+import com.winlator.cmod.runtime.display.XServerDisplayActivity
+import com.winlator.cmod.runtime.input.controls.InputControlsManager
+import com.winlator.cmod.runtime.audio.midi.MidiManager
+import com.winlator.cmod.runtime.display.winhandler.WinHandler
 import java.io.File
 import java.lang.reflect.Field
 import java.util.Arrays
@@ -68,7 +68,7 @@ import java.util.concurrent.Executors
 class ShortcutSettingsComposeDialog private constructor(
     private val activity: Activity,
     private val shortcut: Shortcut,
-    private val fragment: ShortcutsFragment?,
+    private val fragment: ShortcutsFragment?
 ) {
     private val context: Context = activity
 
@@ -77,7 +77,6 @@ class ShortcutSettingsComposeDialog private constructor(
 
     constructor(activity: Activity, shortcut: Shortcut) :
         this(activity, shortcut, null)
-
     private val dialog: Dialog
     private val state = GameSettingsStateHolder()
 
@@ -86,24 +85,24 @@ class ShortcutSettingsComposeDialog private constructor(
     private var contentsManager: ContentsManager = ContentsManager(context)
     private var isArm64EC = false
 
+
     // Preset ID lists (parallel to display name lists)
     private var box64PresetIds = mutableListOf<String>()
     private var fexcorePresetIds = mutableListOf<String>()
 
     // SDL2 Compatibility env vars — must match ContainerDetailFragment.SDL2_ENV_VARS.
-    private val sdl2EnvVars =
-        listOf(
-            "SDL_JOYSTICK_WGI" to "0",
-            "SDL_XINPUT_ENABLED" to "1",
-            "SDL_JOYSTICK_RAWINPUT" to "0",
-            "SDL_JOYSTICK_HIDAPI" to "0",
-            "SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD" to "1",
-            "SDL_DIRECTINPUT_ENABLED" to "0",
-            "SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS" to "1",
-            "SDL_HINT_FORCE_RAISEWINDOW" to "0",
-            "SDL_ALLOW_TOPMOST" to "0",
-            "SDL_MOUSE_FOCUS_CLICKTHROUGH" to "1",
-        )
+    private val sdl2EnvVars = listOf(
+        "SDL_JOYSTICK_WGI" to "0",
+        "SDL_XINPUT_ENABLED" to "1",
+        "SDL_JOYSTICK_RAWINPUT" to "0",
+        "SDL_JOYSTICK_HIDAPI" to "0",
+        "SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD" to "1",
+        "SDL_DIRECTINPUT_ENABLED" to "0",
+        "SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS" to "1",
+        "SDL_HINT_FORCE_RAISEWINDOW" to "0",
+        "SDL_ALLOW_TOPMOST" to "0",
+        "SDL_MOUSE_FOCUS_CLICKTHROUGH" to "1"
+    )
 
     // Container list for container selection
     private var containerList = mutableListOf<Container>()
@@ -112,14 +111,13 @@ class ShortcutSettingsComposeDialog private constructor(
     private val exePickerLauncher: ActivityResultLauncher<Array<String>>? =
         (activity as? ComponentActivity)?.activityResultRegistry?.register(
             "shortcut_exe_picker",
-            ActivityResultContracts.OpenDocument(),
+            ActivityResultContracts.OpenDocument()
         ) { uri: Uri? ->
             if (uri == null) return@register
             val path = FileUtils.getFilePathFromUri(context, uri) ?: return@register
             val fileName = FileUtils.getUriFileName(context, uri)
-            val isExe =
-                path.lowercase().endsWith(".exe") ||
-                    (fileName != null && fileName.lowercase().endsWith(".exe"))
+            val isExe = path.lowercase().endsWith(".exe") ||
+                (fileName != null && fileName.lowercase().endsWith(".exe"))
             if (isExe) {
                 state.launchExePath.value = path
             } else {
@@ -128,61 +126,56 @@ class ShortcutSettingsComposeDialog private constructor(
         }
 
     init {
-        dialog =
-            Dialog(activity, R.style.ContentDialog).apply {
-                requestWindowFeature(Window.FEATURE_NO_TITLE)
-                setCancelable(true)
-                setCanceledOnTouchOutside(false)
-                setOwnerActivity(activity)
-                window?.apply {
-                    setBackgroundDrawableResource(android.R.color.transparent)
-                    setLayout(
-                        WindowManager.LayoutParams.MATCH_PARENT,
-                        WindowManager.LayoutParams.MATCH_PARENT,
-                    )
-                    setDimAmount(0.5f)
-                    addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-                    setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
-                    // Blur-behind is applied in show() post-attach to avoid flicker.
-                }
+        dialog = Dialog(activity, R.style.ContentDialog).apply {
+            requestWindowFeature(Window.FEATURE_NO_TITLE)
+            setCancelable(true)
+            setCanceledOnTouchOutside(false)
+            setOwnerActivity(activity)
+            window?.apply {
+                setBackgroundDrawableResource(android.R.color.transparent)
+                setLayout(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT
+                )
+                setDimAmount(0.5f)
+                addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+                setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+                // Blur-behind is applied in show() post-attach to avoid flicker.
             }
+        }
 
         loadInitialData()
         loadResourceArrays()
 
-        val composeView =
-            ComposeView(activity).apply {
-                layoutParams =
-                    ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                    )
-                setViewTreeLifecycleOwner(activity as LifecycleOwner)
-                setViewTreeSavedStateRegistryOwner(activity as SavedStateRegistryOwner)
-                setContent {
-                    GameSettingsContent(
-                        state = state,
-                        callbacks = createCallbacks(),
-                    )
-                }
+        val composeView = ComposeView(activity).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            setViewTreeLifecycleOwner(activity as LifecycleOwner)
+            setViewTreeSavedStateRegistryOwner(activity as SavedStateRegistryOwner)
+            setContent {
+                GameSettingsContent(
+                    state = state,
+                    callbacks = createCallbacks()
+                )
             }
+        }
         dialog.setContentView(composeView)
 
         // Auto-dismiss when activity is destroyed
-        (activity as LifecycleOwner).lifecycle.addObserver(
-            object : DefaultLifecycleObserver {
-                override fun onDestroy(owner: LifecycleOwner) {
-                    if (dialog.isShowing) dialog.dismiss()
-                }
-            },
-        )
+        (activity as LifecycleOwner).lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onDestroy(owner: LifecycleOwner) {
+                if (dialog.isShowing) dialog.dismiss()
+            }
+        })
 
         // Load content-dependent data on background thread
         loadContentsAsync()
     }
 
-    private fun createCallbacks(): GameSettingsCallbacks =
-        object : GameSettingsCallbacks {
+    private fun createCallbacks(): GameSettingsCallbacks {
+        return object : GameSettingsCallbacks {
             override fun onConfirm() {
                 saveSettings()
                 dismiss()
@@ -193,12 +186,11 @@ class ShortcutSettingsComposeDialog private constructor(
             }
 
             override fun onAddToHomeScreen() {
-                val result =
-                    if (fragment != null) {
-                        fragment.addShortcutToScreen(shortcut)
-                    } else {
-                        addShortcutToScreen(shortcut)
-                    }
+                val result = if (fragment != null) {
+                    fragment.addShortcutToScreen(shortcut)
+                } else {
+                    addShortcutToScreen(shortcut)
+                }
                 if (result == ShortcutsFragment.PinShortcutResult.REUSED_EXISTING) {
                     AppUtils.showToast(context, R.string.shortcuts_list_readded_existing, shortcut.icon)
                 } else if (result == ShortcutsFragment.PinShortcutResult.FAILED) {
@@ -206,8 +198,8 @@ class ShortcutSettingsComposeDialog private constructor(
                         context,
                         context.getString(
                             R.string.library_games_failed_to_create_shortcut,
-                            shortcut.name,
-                        ),
+                            shortcut.name
+                        )
                     )
                 }
             }
@@ -243,11 +235,7 @@ class ShortcutSettingsComposeDialog private constructor(
                 exePickerLauncher?.launch(arrayOf("*/*"))
             }
 
-            override fun onUpdateWinComponent(
-                isDirectX: Boolean,
-                index: Int,
-                newValue: Int,
-            ) {
+            override fun onUpdateWinComponent(isDirectX: Boolean, index: Int, newValue: Int) {
                 if (isDirectX) {
                     val components = state.directXComponents.value.toMutableList()
                     if (index in components.indices) {
@@ -263,6 +251,7 @@ class ShortcutSettingsComposeDialog private constructor(
                 }
             }
         }
+    }
 
     // ------------------------------------------------------------------
     // Data Loading
@@ -276,10 +265,9 @@ class ShortcutSettingsComposeDialog private constructor(
         state.launchExePath.value = resolveInitialLaunchExePath()
 
         // Input
-        val inputType =
-            Integer.parseInt(
-                getShortcutSetting("inputType", container.getInputType().toString()),
-            )
+        val inputType = Integer.parseInt(
+            getShortcutSetting("inputType", container.getInputType().toString())
+        )
         state.enableXInput.value =
             (inputType and WinHandler.FLAG_INPUT_TYPE_XINPUT.toInt()) == WinHandler.FLAG_INPUT_TYPE_XINPUT.toInt()
         state.enableDInput.value =
@@ -291,20 +279,24 @@ class ShortcutSettingsComposeDialog private constructor(
 
         // Display - Show FPS
         state.showFPS.value = getShortcutSetting(
-            "showFPS",
-            if (container.isShowFPS) "1" else "0",
+            "showFPS", if (container.isShowFPS) "1" else "0"
         ) == "1"
 
         // Steam options
         val gameSource = shortcut.getExtra("game_source", "")
         state.isSteamGame.value = gameSource == "STEAM" || gameSource == "steam"
         if (state.isSteamGame.value) {
-            state.useColdClient.value = getShortcutSetting("useColdClient", if (container.isUseColdClient) "1" else "0") == "1"
-            state.launchRealSteam.value = getShortcutSetting("launchRealSteam", if (container.isLaunchRealSteam) "1" else "0") == "1"
+            state.useColdClient.value = getShortcutSetting(
+                "useColdClient", if (container.isUseColdClient) "1" else "0") == "1"
+            state.launchRealSteam.value = getShortcutSetting(
+                "launchRealSteam", if (container.isLaunchRealSteam) "1" else "0") == "1"
             state.useSteamInput.value = shortcut.getExtra("useSteamInput", "0") == "1"
-            state.forceDlc.value = getShortcutSetting("forceDlc", if (container.isForceDlc) "1" else "0") == "1"
-            state.steamOfflineMode.value = getShortcutSetting("steamOfflineMode", if (container.isSteamOfflineMode) "1" else "0") == "1"
-            state.unpackFiles.value = getShortcutSetting("unpackFiles", if (container.isUnpackFiles) "1" else "0") == "1"
+            state.forceDlc.value = getShortcutSetting(
+                "forceDlc", if (container.isForceDlc) "1" else "0") == "1"
+            state.steamOfflineMode.value = getShortcutSetting(
+                "steamOfflineMode", if (container.isSteamOfflineMode) "1" else "0") == "1"
+            state.unpackFiles.value = getShortcutSetting(
+                "unpackFiles", if (container.isUnpackFiles) "1" else "0") == "1"
         }
 
         // Desktop Theme
@@ -313,11 +305,10 @@ class ShortcutSettingsComposeDialog private constructor(
 
         // Advanced - System
         state.execArgs.value = shortcut.getExtra("execArgs", "")
-        val fullscreenStretched =
-            getShortcutSetting(
-                "fullscreenStretched",
-                if (container.isFullscreenStretched) "1" else "0",
-            )
+        val fullscreenStretched = getShortcutSetting(
+            "fullscreenStretched",
+            if (container.isFullscreenStretched) "1" else "0"
+        )
         state.fullscreenStretched.value = fullscreenStretched == "1"
 
         // LC_ALL
@@ -393,7 +384,7 @@ class ShortcutSettingsComposeDialog private constructor(
         selectByIdentifier(
             graphicsDriverArr,
             getShortcutSetting("graphicsDriver", container.getGraphicsDriver()),
-            state.selectedGraphicsDriver,
+            state.selectedGraphicsDriver
         )
 
         // DX Wrapper
@@ -403,7 +394,7 @@ class ShortcutSettingsComposeDialog private constructor(
         selectByIdentifier(
             dxWrapperArr,
             getShortcutSetting("dxwrapper", container.getDXWrapper()),
-            state.selectedDxWrapper,
+            state.selectedDxWrapper
         )
 
         // Audio driver
@@ -413,7 +404,7 @@ class ShortcutSettingsComposeDialog private constructor(
         selectByIdentifier(
             audioDriverArr,
             getShortcutSetting("audioDriver", container.getAudioDriver()),
-            state.selectedAudioDriver,
+            state.selectedAudioDriver
         )
 
         // MIDI sound fonts
@@ -425,12 +416,9 @@ class ShortcutSettingsComposeDialog private constructor(
             context.resources.getStringArray(R.array.emulator_entries).toList()
         state.emulatorEntries.value = emulatorArr
 
-        val wineVersionStr =
-            if (shortcut.usesContainerDefaults()) {
-                container.getWineVersion()
-            } else {
-                shortcut.getExtra("wineVersion", container.getWineVersion())
-            }
+        val wineVersionStr = if (shortcut.usesContainerDefaults())
+            container.getWineVersion()
+        else shortcut.getExtra("wineVersion", container.getWineVersion())
         val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersionStr)
         isArm64EC = wineInfo.isArm64EC
         state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
@@ -439,12 +427,12 @@ class ShortcutSettingsComposeDialog private constructor(
         selectByIdentifier(
             state.emulator32Entries.value,
             getShortcutSetting("emulator", container.getEmulator()),
-            state.selectedEmulator,
+            state.selectedEmulator
         )
         selectByIdentifier(
             state.emulator64Entries.value,
             getShortcutSetting("emulator64", container.getEmulator64()),
-            state.selectedEmulator64,
+            state.selectedEmulator64
         )
 
         // Locales
@@ -465,14 +453,12 @@ class ShortcutSettingsComposeDialog private constructor(
         val startupArr =
             context.resources.getStringArray(R.array.startup_selection_entries).toList()
         state.startupSelectionEntries.value = startupArr
-        state.selectedStartupSelection.intValue =
-            Integer
-                .parseInt(
-                    getShortcutSetting(
-                        "startupSelection",
-                        container.getStartupSelection().toString(),
-                    ),
-                ).coerceIn(0, startupArr.size - 1)
+        state.selectedStartupSelection.intValue = Integer.parseInt(
+            getShortcutSetting(
+                "startupSelection",
+                container.getStartupSelection().toString()
+            )
+        ).coerceIn(0, startupArr.size - 1)
 
         // Controls profiles
         loadControlsProfiles()
@@ -533,12 +519,9 @@ class ShortcutSettingsComposeDialog private constructor(
 
     private fun populateContentsDependentData() {
         val container = shortcut.container
-        val wineVersionStr =
-            if (shortcut.usesContainerDefaults()) {
-                container.getWineVersion()
-            } else {
-                shortcut.getExtra("wineVersion", container.getWineVersion())
-            }
+        val wineVersionStr = if (shortcut.usesContainerDefaults())
+            container.getWineVersion()
+        else shortcut.getExtra("wineVersion", container.getWineVersion())
 
         val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersionStr)
         val archChanged = isArm64EC != wineInfo.isArm64EC
@@ -554,12 +537,12 @@ class ShortcutSettingsComposeDialog private constructor(
             selectByIdentifier(
                 state.emulator32Entries.value,
                 getShortcutSetting("emulator", container.getEmulator()),
-                state.selectedEmulator,
+                state.selectedEmulator
             )
             selectByIdentifier(
                 state.emulator64Entries.value,
                 getShortcutSetting("emulator64", container.getEmulator64()),
-                state.selectedEmulator64,
+                state.selectedEmulator64
             )
         }
 
@@ -632,7 +615,8 @@ class ShortcutSettingsComposeDialog private constructor(
     }
 
     // Shortcut extras apply only to the shortcut's own container.
-    private fun shouldUseShortcutOverrides(container: Container): Boolean = container === shortcut.container
+    private fun shouldUseShortcutOverrides(container: Container): Boolean =
+        container === shortcut.container
 
     private fun loadBox64Presets(container: Container = shortcut.container) {
         val presets = Box64PresetManager.getPresets("box64", context)
@@ -645,12 +629,10 @@ class ShortcutSettingsComposeDialog private constructor(
         state.box64PresetEntries.value = names
         box64PresetIds = ids
 
-        val savedPreset =
-            if (shouldUseShortcutOverrides(container)) {
-                getShortcutSetting("box64Preset", container.getBox64Preset())
-            } else {
-                container.getBox64Preset()
-            }
+        val savedPreset = if (shouldUseShortcutOverrides(container))
+            getShortcutSetting("box64Preset", container.getBox64Preset())
+        else
+            container.getBox64Preset()
         val idx = ids.indexOfFirst { it == savedPreset }
         state.selectedBox64Preset.intValue = if (idx >= 0) idx else 0
     }
@@ -666,30 +648,24 @@ class ShortcutSettingsComposeDialog private constructor(
         state.fexcorePresetEntries.value = names
         fexcorePresetIds = ids
 
-        val savedPreset =
-            if (shouldUseShortcutOverrides(container)) {
-                getShortcutSetting("fexcorePreset", container.getFEXCorePreset())
-            } else {
-                container.getFEXCorePreset()
-            }
+        val savedPreset = if (shouldUseShortcutOverrides(container))
+            getShortcutSetting("fexcorePreset", container.getFEXCorePreset())
+        else
+            container.getFEXCorePreset()
         val idx = ids.indexOfFirst { it == savedPreset }
         state.selectedFexcorePreset.intValue = if (idx >= 0) idx else 0
     }
 
     private fun loadBox64Versions(container: Container = shortcut.container) {
-        val itemList: MutableList<String> =
-            if (isArm64EC) {
-                context.resources.getStringArray(R.array.wowbox64_version_entries).toMutableList()
-            } else {
-                context.resources.getStringArray(R.array.box64_version_entries).toMutableList()
-            }
+        val itemList: MutableList<String> = if (isArm64EC) {
+            context.resources.getStringArray(R.array.wowbox64_version_entries).toMutableList()
+        } else {
+            context.resources.getStringArray(R.array.box64_version_entries).toMutableList()
+        }
 
-        val profileType =
-            if (isArm64EC) {
-                ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64
-            } else {
-                ContentProfile.ContentType.CONTENT_TYPE_BOX64
-            }
+        val profileType = if (isArm64EC)
+            ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64
+        else ContentProfile.ContentType.CONTENT_TYPE_BOX64
 
         for (profile in contentsManager.getProfiles(profileType)) {
             val entryName = ContentsManager.getEntryName(profile)
@@ -699,12 +675,10 @@ class ShortcutSettingsComposeDialog private constructor(
 
         state.box64VersionEntries.value = itemList
 
-        val currentVersion =
-            if (shouldUseShortcutOverrides(container)) {
-                getShortcutSetting("box64Version", container.getBox64Version())
-            } else {
-                container.getBox64Version()
-            }
+        val currentVersion = if (shouldUseShortcutOverrides(container))
+            getShortcutSetting("box64Version", container.getBox64Version())
+        else
+            container.getBox64Version()
         if (currentVersion != null) {
             selectByValue(itemList, currentVersion, state.selectedBox64Version)
         } else {
@@ -729,30 +703,20 @@ class ShortcutSettingsComposeDialog private constructor(
         }
 
         state.fexcoreVersionEntries.value = items
-        val savedVersion =
-            if (shouldUseShortcutOverrides(container)) {
-                getShortcutSetting("fexcoreVersion", container.getFEXCoreVersion())
-            } else {
-                container.getFEXCoreVersion()
-            }
+        val savedVersion = if (shouldUseShortcutOverrides(container))
+            getShortcutSetting("fexcoreVersion", container.getFEXCoreVersion())
+        else
+            container.getFEXCoreVersion()
         selectByValue(items, savedVersion, state.selectedFexcoreVersion)
     }
 
     private fun updateEmulatorFrameVisibility() {
         val emulator32Entries = state.emulator32Entries.value
         val emulator64Entries = state.emulator64Entries.value
-        val emulator32 =
-            if (state.selectedEmulator.intValue in emulator32Entries.indices) {
-                StringUtils.parseIdentifier(emulator32Entries[state.selectedEmulator.intValue])
-            } else {
-                ""
-            }
-        val emulator64 =
-            if (state.selectedEmulator64.intValue in emulator64Entries.indices) {
-                StringUtils.parseIdentifier(emulator64Entries[state.selectedEmulator64.intValue])
-            } else {
-                ""
-            }
+        val emulator32 = if (state.selectedEmulator.intValue in emulator32Entries.indices)
+            StringUtils.parseIdentifier(emulator32Entries[state.selectedEmulator.intValue]) else ""
+        val emulator64 = if (state.selectedEmulator64.intValue in emulator64Entries.indices)
+            StringUtils.parseIdentifier(emulator64Entries[state.selectedEmulator64.intValue]) else ""
 
         // Wowbox64 reuses Box64 presets.
         val usesWowbox64 = emulator32.equals("wowbox64", true) || emulator64.equals("wowbox64", true)
@@ -765,35 +729,28 @@ class ShortcutSettingsComposeDialog private constructor(
 
     private fun formatWineVersionDisplay(wineInfo: WineInfo): String {
         val base = wineInfo.toString()
-        val archLabel =
-            when (wineInfo.arch?.lowercase()) {
-                "arm64ec" -> "ARM64EC"
-                "x86_64" -> "x86_64"
-                "x86" -> "x86"
-                else -> wineInfo.arch ?: ""
-            }
+        val archLabel = when (wineInfo.arch?.lowercase()) {
+            "arm64ec" -> "ARM64EC"
+            "x86_64" -> "x86_64"
+            "x86" -> "x86"
+            else -> wineInfo.arch ?: ""
+        }
         return if (archLabel.isNotEmpty()) "$base ($archLabel)" else base
     }
 
     // ARM64EC → 64=FEXCore, 32=FEXCore|Wowbox64. x86_64 → 64=Box64, 32=Wowbox64.
     private fun rebuildEmulatorLists() {
         val fullList = state.emulatorEntries.value
-
-        fun entryById(id: String): String? =
-            fullList.firstOrNull {
-                StringUtils.parseIdentifier(it).equals(id, ignoreCase = true)
-            }
+        fun entryById(id: String): String? = fullList.firstOrNull {
+            StringUtils.parseIdentifier(it).equals(id, ignoreCase = true)
+        }
 
         val prev32 = state.emulator32Entries.value
         val prev64 = state.emulator64Entries.value
-        val prev32Id =
-            prev32
-                .getOrNull(state.selectedEmulator.intValue)
-                ?.let { StringUtils.parseIdentifier(it) } ?: ""
-        val prev64Id =
-            prev64
-                .getOrNull(state.selectedEmulator64.intValue)
-                ?.let { StringUtils.parseIdentifier(it) } ?: ""
+        val prev32Id = prev32.getOrNull(state.selectedEmulator.intValue)
+            ?.let { StringUtils.parseIdentifier(it) } ?: ""
+        val prev64Id = prev64.getOrNull(state.selectedEmulator64.intValue)
+            ?.let { StringUtils.parseIdentifier(it) } ?: ""
 
         if (isArm64EC) {
             state.emulator64Entries.value = listOfNotNull(entryById("fexcore"))
@@ -805,17 +762,15 @@ class ShortcutSettingsComposeDialog private constructor(
         }
 
         val new32 = state.emulator32Entries.value
-        val new32Idx =
-            new32.indexOfFirst {
-                StringUtils.parseIdentifier(it).equals(prev32Id, ignoreCase = true)
-            }
+        val new32Idx = new32.indexOfFirst {
+            StringUtils.parseIdentifier(it).equals(prev32Id, ignoreCase = true)
+        }
         state.selectedEmulator.intValue = if (new32Idx >= 0) new32Idx else 0
 
         val new64 = state.emulator64Entries.value
-        val new64Idx =
-            new64.indexOfFirst {
-                StringUtils.parseIdentifier(it).equals(prev64Id, ignoreCase = true)
-            }
+        val new64Idx = new64.indexOfFirst {
+            StringUtils.parseIdentifier(it).equals(prev64Id, ignoreCase = true)
+        }
         state.selectedEmulator64.intValue = if (new64Idx >= 0) new64Idx else 0
     }
 
@@ -830,12 +785,11 @@ class ShortcutSettingsComposeDialog private constructor(
             val key = component[0]
             val value = component[1]
             val label = StringUtils.getString(context, key) ?: key
-            val selectedIdx =
-                try {
-                    Integer.parseInt(value)
-                } catch (e: NumberFormatException) {
-                    0
-                }
+            val selectedIdx = try {
+                Integer.parseInt(value)
+            } catch (e: NumberFormatException) {
+                0
+            }
             val item = WinComponentItem(key, label, selectedIdx)
             if (key.startsWith("direct")) {
                 directX.add(item)
@@ -850,11 +804,10 @@ class ShortcutSettingsComposeDialog private constructor(
 
     private fun loadEnvVars() {
         val container = shortcut.container
-        val envVarsStr =
-            getShortcutSetting(
-                "envVars",
-                container?.getEnvVars() ?: Container.DEFAULT_ENV_VARS,
-            )
+        val envVarsStr = getShortcutSetting(
+            "envVars",
+            container?.getEnvVars() ?: Container.DEFAULT_ENV_VARS
+        )
         val envVars = EnvVars(envVarsStr)
         val items = mutableListOf<EnvVarItem>()
         for (key in envVars) {
@@ -865,10 +818,9 @@ class ShortcutSettingsComposeDialog private constructor(
         // Hide SDL2 keys from the user-visible list when the toggle is on.
         state.sdl2Compatibility.value = envVars.get("SDL_XINPUT_ENABLED") == "1"
         if (state.sdl2Compatibility.value) {
-            state.envVars.value =
-                items.filterNot { item ->
-                    sdl2EnvVars.any { it.first == item.key }
-                }
+            state.envVars.value = items.filterNot { item ->
+                sdl2EnvVars.any { it.first == item.key }
+            }
         }
 
         // Exclusive Input off → force both APIs on and lock them.
@@ -881,10 +833,9 @@ class ShortcutSettingsComposeDialog private constructor(
     private fun selectScreenSize(screenSize: String) {
         val entries = state.screenSizeEntries.value
         // Try to match by identifier
-        val idx =
-            entries.indexOfFirst {
-                StringUtils.parseIdentifier(it) == StringUtils.parseIdentifier(screenSize)
-            }
+        val idx = entries.indexOfFirst {
+            StringUtils.parseIdentifier(it) == StringUtils.parseIdentifier(screenSize)
+        }
         if (idx >= 0) {
             state.selectedScreenSize.intValue = idx
         } else {
@@ -906,12 +857,10 @@ class ShortcutSettingsComposeDialog private constructor(
         // Compare against the target container (post-switch) so unchanged
         // values aren't written as overrides.
         val selectedContainerIdxEarly = state.selectedContainer.intValue
-        val container: Container =
-            if (selectedContainerIdxEarly in containerList.indices) {
-                containerList[selectedContainerIdxEarly]
-            } else {
-                shortcut.container
-            }
+        val container: Container = if (selectedContainerIdxEarly in containerList.indices)
+            containerList[selectedContainerIdxEarly]
+        else
+            shortcut.container
         val name = state.name.value.trim()
         val nameChanged = shortcut.name != name && name.isNotEmpty()
 
@@ -931,64 +880,44 @@ class ShortcutSettingsComposeDialog private constructor(
                 hasContainerOverride or saveOverride("screenSize", screenSize, container.getScreenSize())
 
             // Graphics driver
-            val graphicsDriver =
-                getIdentifierFromEntries(
-                    state.graphicsDriverEntries.value,
-                    state.selectedGraphicsDriver.intValue,
-                )
+            val graphicsDriver = getIdentifierFromEntries(
+                state.graphicsDriverEntries.value, state.selectedGraphicsDriver.intValue
+            )
             hasContainerOverride =
                 hasContainerOverride or saveOverride("graphicsDriver", graphicsDriver, container.getGraphicsDriver())
 
             val graphicsDriverConfig = buildGraphicsDriverConfigFromState()
-            hasContainerOverride = hasContainerOverride or
-                saveOverride(
-                    "graphicsDriverConfig",
-                    graphicsDriverConfig,
-                    container.getGraphicsDriverConfig(),
-                )
+            hasContainerOverride = hasContainerOverride or saveOverride(
+                "graphicsDriverConfig", graphicsDriverConfig, container.getGraphicsDriverConfig()
+            )
 
             // DX Wrapper
-            val dxwrapper =
-                getIdentifierFromEntries(
-                    state.dxWrapperEntries.value,
-                    state.selectedDxWrapper.intValue,
-                )
+            val dxwrapper = getIdentifierFromEntries(
+                state.dxWrapperEntries.value, state.selectedDxWrapper.intValue
+            )
             hasContainerOverride =
                 hasContainerOverride or saveOverride("dxwrapper", dxwrapper, container.getDXWrapper())
 
-            val dxwrapperConfig =
-                if (dxwrapper.contains("dxvk")) {
-                    buildDxvkConfigFromState()
-                } else {
-                    buildWineD3DConfigFromState()
-                }
-            hasContainerOverride = hasContainerOverride or
-                saveOverride(
-                    "dxwrapperConfig",
-                    dxwrapperConfig,
-                    container.getDXWrapperConfig(),
-                )
+            val dxwrapperConfig = if (dxwrapper.contains("dxvk"))
+                buildDxvkConfigFromState() else buildWineD3DConfigFromState()
+            hasContainerOverride = hasContainerOverride or saveOverride(
+                "dxwrapperConfig", dxwrapperConfig, container.getDXWrapperConfig()
+            )
 
             // Audio
-            val audioDriver =
-                getIdentifierFromEntries(
-                    state.audioDriverEntries.value,
-                    state.selectedAudioDriver.intValue,
-                )
+            val audioDriver = getIdentifierFromEntries(
+                state.audioDriverEntries.value, state.selectedAudioDriver.intValue
+            )
             hasContainerOverride =
                 hasContainerOverride or saveOverride("audioDriver", audioDriver, container.getAudioDriver())
 
             // Emulators
-            val emulator =
-                getIdentifierFromEntries(
-                    state.emulator32Entries.value,
-                    state.selectedEmulator.intValue,
-                )
-            val emulator64 =
-                getIdentifierFromEntries(
-                    state.emulator64Entries.value,
-                    state.selectedEmulator64.intValue,
-                )
+            val emulator = getIdentifierFromEntries(
+                state.emulator32Entries.value, state.selectedEmulator.intValue
+            )
+            val emulator64 = getIdentifierFromEntries(
+                state.emulator64Entries.value, state.selectedEmulator64.intValue
+            )
             hasContainerOverride =
                 hasContainerOverride or saveOverride("emulator", emulator, container.getEmulator())
             hasContainerOverride =
@@ -998,11 +927,8 @@ class ShortcutSettingsComposeDialog private constructor(
             val midiSoundFontEntries = state.midiSoundFontEntries.value
             val midiIdx = state.selectedMidiSoundFont.intValue
             val midiSoundFont =
-                if (midiIdx <= 0 || midiIdx >= midiSoundFontEntries.size) {
-                    ""
-                } else {
-                    midiSoundFontEntries[midiIdx]
-                }
+                if (midiIdx <= 0 || midiIdx >= midiSoundFontEntries.size) ""
+                else midiSoundFontEntries[midiIdx]
             hasContainerOverride =
                 hasContainerOverride or saveOverride("midiSoundFont", midiSoundFont, container.getMIDISoundFont())
 
@@ -1011,12 +937,11 @@ class ShortcutSettingsComposeDialog private constructor(
                 hasContainerOverride or saveOverride("lc_all", state.lcAll.value, container.getLC_ALL())
 
             // Fullscreen stretched
-            hasContainerOverride = hasContainerOverride or
-                saveOverride(
-                    "fullscreenStretched",
-                    if (state.fullscreenStretched.value) "1" else "0",
-                    if (container.isFullscreenStretched) "1" else "0",
-                )
+            hasContainerOverride = hasContainerOverride or saveOverride(
+                "fullscreenStretched",
+                if (state.fullscreenStretched.value) "1" else "0",
+                if (container.isFullscreenStretched) "1" else "0"
+            )
 
             // Win components
             val wincomponents = buildWinComponentsString()
@@ -1033,71 +958,52 @@ class ShortcutSettingsComposeDialog private constructor(
             val fexcoreVersionIdx = state.selectedFexcoreVersion.intValue
             val fexcoreVersion =
                 if (fexcoreVersionIdx in fexcoreVersionEntries.indices) fexcoreVersionEntries[fexcoreVersionIdx] else ""
-            hasContainerOverride = hasContainerOverride or
-                saveOverride(
-                    "fexcoreVersion",
-                    fexcoreVersion,
-                    container.getFEXCoreVersion(),
-                )
+            hasContainerOverride = hasContainerOverride or saveOverride(
+                "fexcoreVersion", fexcoreVersion, container.getFEXCoreVersion()
+            )
 
             val fexcorePreset =
-                if (state.selectedFexcorePreset.intValue in fexcorePresetIds.indices) {
+                if (state.selectedFexcorePreset.intValue in fexcorePresetIds.indices)
                     fexcorePresetIds[state.selectedFexcorePreset.intValue]
-                } else {
-                    FEXCorePreset.COMPATIBILITY
-                }
-            hasContainerOverride = hasContainerOverride or
-                saveOverride(
-                    "fexcorePreset",
-                    fexcorePreset,
-                    container.getFEXCorePreset(),
-                )
+                else FEXCorePreset.COMPATIBILITY
+            hasContainerOverride = hasContainerOverride or saveOverride(
+                "fexcorePreset", fexcorePreset, container.getFEXCorePreset()
+            )
 
             // Box64
             val box64VersionEntries = state.box64VersionEntries.value
             val box64VersionIdx = state.selectedBox64Version.intValue
             val box64Version =
                 if (box64VersionIdx in box64VersionEntries.indices) box64VersionEntries[box64VersionIdx] else ""
-            hasContainerOverride = hasContainerOverride or
-                saveOverride(
-                    "box64Version",
-                    box64Version,
-                    container.getBox64Version(),
-                )
+            hasContainerOverride = hasContainerOverride or saveOverride(
+                "box64Version", box64Version, container.getBox64Version()
+            )
 
             val box64Preset =
-                if (state.selectedBox64Preset.intValue in box64PresetIds.indices) {
+                if (state.selectedBox64Preset.intValue in box64PresetIds.indices)
                     box64PresetIds[state.selectedBox64Preset.intValue]
-                } else {
-                    Box64Preset.COMPATIBILITY
-                }
-            hasContainerOverride = hasContainerOverride or
-                saveOverride(
-                    "box64Preset",
-                    box64Preset,
-                    container.getBox64Preset(),
-                )
+                else Box64Preset.COMPATIBILITY
+            hasContainerOverride = hasContainerOverride or saveOverride(
+                "box64Preset", box64Preset, container.getBox64Preset()
+            )
 
             // Startup selection
             val startupSelection = state.selectedStartupSelection.intValue
-            hasContainerOverride = hasContainerOverride or
-                saveOverride(
-                    "startupSelection",
-                    startupSelection.toString(),
-                    container.getStartupSelection().toInt().toString(),
-                )
+            hasContainerOverride = hasContainerOverride or saveOverride(
+                "startupSelection",
+                startupSelection.toString(),
+                container.getStartupSelection().toInt().toString()
+            )
 
             // Controls profile
             val profiles = inputControlsManager.getProfiles(true)
             val controlsProfile =
-                if (state.selectedControlsProfile.intValue > 0) {
+                if (state.selectedControlsProfile.intValue > 0)
                     profiles[state.selectedControlsProfile.intValue - 1].id
-                } else {
-                    0
-                }
+                else 0
             shortcut.putExtra(
                 "controlsProfile",
-                if (controlsProfile > 0) controlsProfile.toString() else null,
+                if (controlsProfile > 0) controlsProfile.toString() else null
             )
 
             // CPU list
@@ -1112,27 +1018,20 @@ class ShortcutSettingsComposeDialog private constructor(
 
             // Input type
             var finalInputType = 0
-            if (state.enableXInput.value) {
-                finalInputType =
-                    finalInputType or WinHandler.FLAG_INPUT_TYPE_XINPUT.toInt()
-            }
-            if (state.enableDInput.value) {
-                finalInputType =
-                    finalInputType or WinHandler.FLAG_INPUT_TYPE_DINPUT.toInt()
-            }
+            if (state.enableXInput.value) finalInputType =
+                finalInputType or WinHandler.FLAG_INPUT_TYPE_XINPUT.toInt()
+            if (state.enableDInput.value) finalInputType =
+                finalInputType or WinHandler.FLAG_INPUT_TYPE_DINPUT.toInt()
             finalInputType = finalInputType or (
-                if (state.selectedDInputMapperType.intValue == 0) {
+                if (state.selectedDInputMapperType.intValue == 0)
                     WinHandler.FLAG_DINPUT_MAPPER_STANDARD.toInt()
-                } else {
-                    WinHandler.FLAG_DINPUT_MAPPER_XINPUT.toInt()
-                }
+                else WinHandler.FLAG_DINPUT_MAPPER_XINPUT.toInt()
             )
-            hasContainerOverride = hasContainerOverride or
-                saveOverride(
-                    "inputType",
-                    finalInputType.toString(),
-                    container.getInputType().toString(),
-                )
+            hasContainerOverride = hasContainerOverride or saveOverride(
+                "inputType",
+                finalInputType.toString(),
+                container.getInputType().toString()
+            )
 
             // Exclusive Input — flip hasContainerOverride so runtime's
             // getShortcutSetting doesn't mask the extra via container-defaults.
@@ -1143,7 +1042,7 @@ class ShortcutSettingsComposeDialog private constructor(
             // Touchscreen mode
             shortcut.putExtra(
                 "simTouchScreen",
-                if (state.simTouchScreen.value) "1" else "0",
+                if (state.simTouchScreen.value) "1" else "0"
             )
 
             // Launch EXE path
@@ -1158,12 +1057,9 @@ class ShortcutSettingsComposeDialog private constructor(
 
             // Exec args
             val execArgs = state.execArgs.value
-            hasContainerOverride = hasContainerOverride or
-                saveOverride(
-                    "execArgs",
-                    execArgs,
-                    container.getExecArgs(),
-                )
+            hasContainerOverride = hasContainerOverride or saveOverride(
+                "execArgs", execArgs, container.getExecArgs()
+            )
 
             // Refresh rate
             val refreshRateEntries = state.refreshRateEntries.value
@@ -1179,12 +1075,11 @@ class ShortcutSettingsComposeDialog private constructor(
             }
 
             // Show FPS
-            hasContainerOverride = hasContainerOverride or
-                saveOverride(
-                    "showFPS",
-                    if (state.showFPS.value) "1" else "0",
-                    if (container.isShowFPS) "1" else "0",
-                )
+            hasContainerOverride = hasContainerOverride or saveOverride(
+                "showFPS",
+                if (state.showFPS.value) "1" else "0",
+                if (container.isShowFPS) "1" else "0"
+            )
 
             // Desktop Theme — stored as compound "THEME,TYPE,COLOR" string
             if (state.desktopThemeEntries.value.isNotEmpty()) {
@@ -1197,69 +1092,59 @@ class ShortcutSettingsComposeDialog private constructor(
                 val parts = existing.split(",").toMutableList()
                 if (parts.isNotEmpty()) parts[0] = themeName
                 val desktopTheme = parts.joinToString(",")
-                hasContainerOverride = hasContainerOverride or
-                    saveOverride(
-                        "desktopTheme",
-                        desktopTheme,
-                        container.getDesktopTheme(),
-                    )
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    "desktopTheme", desktopTheme, container.getDesktopTheme()
+                )
             }
 
             // Steam options
             if (state.isSteamGame.value) {
-                hasContainerOverride = hasContainerOverride or
-                    saveOverride(
-                        "useColdClient",
-                        if (state.useColdClient.value) "1" else "0",
-                        if (container.isUseColdClient) "1" else "0",
-                    )
-                hasContainerOverride = hasContainerOverride or
-                    saveOverride(
-                        "launchRealSteam",
-                        if (state.launchRealSteam.value) "1" else "0",
-                        if (container.isLaunchRealSteam) "1" else "0",
-                    )
-                hasContainerOverride = hasContainerOverride or
-                    saveOverride(
-                        "useSteamInput",
-                        if (state.useSteamInput.value) "1" else "0",
-                        container.getExtra("useSteamInput", "0"),
-                    )
-                hasContainerOverride = hasContainerOverride or
-                    saveOverride(
-                        "forceDlc",
-                        if (state.forceDlc.value) "1" else "0",
-                        if (container.isForceDlc) "1" else "0",
-                    )
-                hasContainerOverride = hasContainerOverride or
-                    saveOverride(
-                        "steamOfflineMode",
-                        if (state.steamOfflineMode.value) "1" else "0",
-                        if (container.isSteamOfflineMode) "1" else "0",
-                    )
-                hasContainerOverride = hasContainerOverride or
-                    saveOverride(
-                        "unpackFiles",
-                        if (state.unpackFiles.value) "1" else "0",
-                        if (container.isUnpackFiles) "1" else "0",
-                    )
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    "useColdClient",
+                    if (state.useColdClient.value) "1" else "0",
+                    if (container.isUseColdClient) "1" else "0"
+                )
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    "launchRealSteam",
+                    if (state.launchRealSteam.value) "1" else "0",
+                    if (container.isLaunchRealSteam) "1" else "0"
+                )
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    "useSteamInput",
+                    if (state.useSteamInput.value) "1" else "0",
+                    container.getExtra("useSteamInput", "0")
+                )
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    "forceDlc",
+                    if (state.forceDlc.value) "1" else "0",
+                    if (container.isForceDlc) "1" else "0"
+                )
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    "steamOfflineMode",
+                    if (state.steamOfflineMode.value) "1" else "0",
+                    if (container.isSteamOfflineMode) "1" else "0"
+                )
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    "unpackFiles",
+                    if (state.unpackFiles.value) "1" else "0",
+                    if (container.isUnpackFiles) "1" else "0"
+                )
 
                 val steamTypeEntries = state.steamTypeEntries.value
                 val stIdx = state.selectedSteamType.intValue
                 if (stIdx in steamTypeEntries.indices) {
-                    hasContainerOverride = hasContainerOverride or
-                        saveOverride(
-                            "steamType",
-                            steamTypeEntries[stIdx],
-                            container.getSteamType(),
-                        )
+                    hasContainerOverride = hasContainerOverride or saveOverride(
+                        "steamType",
+                        steamTypeEntries[stIdx],
+                        container.getSteamType()
+                    )
                 }
             }
 
             // Container defaults flag
             shortcut.putExtra(
                 EXTRA_USE_CONTAINER_DEFAULTS,
-                if (hasContainerOverride) "0" else "1",
+                if (hasContainerOverride) "0" else "1"
             )
 
             Log.d(
@@ -1279,7 +1164,7 @@ class ShortcutSettingsComposeDialog private constructor(
                     " startupSelection='${shortcut.getExtra("startupSelection")}'" +
                     " envVars='${shortcut.getExtra("envVars")}'" +
                     " cpuList='${shortcut.getExtra("cpuList")}'" +
-                    " cpuListWoW64='${shortcut.getExtra("cpuListWoW64")}'",
+                    " cpuListWoW64='${shortcut.getExtra("cpuListWoW64")}'"
             )
 
             // Container change
@@ -1292,8 +1177,7 @@ class ShortcutSettingsComposeDialog private constructor(
                 val newDesktopDir = container.getDesktopDir()
                 if (!newDesktopDir.exists()) newDesktopDir.mkdirs()
                 val newShortcutFile = File(newDesktopDir, shortcut.file.name)
-                com.winlator.cmod.shared.io.FileUtils
-                    .copy(shortcut.file, newShortcutFile)
+                com.winlator.cmod.shared.io.FileUtils.copy(shortcut.file, newShortcutFile)
                 shortcut.file.delete()
             } else {
                 shortcut.saveData()
@@ -1312,39 +1196,33 @@ class ShortcutSettingsComposeDialog private constructor(
         val shortcutIds = ShortcutsFragment.buildPinnedShortcutIds(shortcut.container.id, shortcutUuid, shortcutPath)
         if (shortcutIds.isEmpty()) return ShortcutsFragment.PinShortcutResult.FAILED
 
-        val shortcutManager =
-            context.getSystemService(ShortcutManager::class.java)
-                ?: return ShortcutsFragment.PinShortcutResult.FAILED
+        val shortcutManager = context.getSystemService(ShortcutManager::class.java)
+            ?: return ShortcutsFragment.PinShortcutResult.FAILED
         if (!shortcutManager.isRequestPinShortcutSupported) return ShortcutsFragment.PinShortcutResult.FAILED
 
-        val shortcutIcon =
-            if (shortcut.icon != null) {
-                Icon.createWithBitmap(shortcut.icon)
-            } else {
-                Icon.createWithResource(context, R.drawable.icon_shortcut)
-            }
+        val shortcutIcon = if (shortcut.icon != null) Icon.createWithBitmap(shortcut.icon)
+        else Icon.createWithResource(context, R.drawable.icon_shortcut)
 
-        val info =
-            ShortcutInfo
-                .Builder(context, shortcutIds.last())
-                .setShortLabel(shortcut.name)
-                .setLongLabel(shortcut.name)
-                .setIcon(shortcutIcon)
-                .setIntent(
-                    ShortcutsFragment.buildShortcutLaunchIntent(
-                        context,
-                        shortcut.container.id,
-                        shortcutPath,
-                        shortcut.name,
-                        shortcutUuid,
-                    ),
-                ).build()
+        val info = ShortcutInfo.Builder(context, shortcutIds.last())
+            .setShortLabel(shortcut.name)
+            .setLongLabel(shortcut.name)
+            .setIcon(shortcutIcon)
+            .setIntent(
+                ShortcutsFragment.buildShortcutLaunchIntent(
+                    context,
+                    shortcut.container.id,
+                    shortcutPath,
+                    shortcut.name,
+                    shortcutUuid
+                )
+            )
+            .build()
 
         return ShortcutsFragment.pinOrUpdateShortcut(
             shortcutManager,
             info,
             shortcutIds,
-            null,
+            null
         )
     }
 
@@ -1361,20 +1239,18 @@ class ShortcutSettingsComposeDialog private constructor(
         return ""
     }
 
-    private fun getShortcutSetting(
-        key: String,
-        containerValue: String,
-    ): String = shortcut.getSettingExtra(key, containerValue)
+    private fun getShortcutSetting(key: String, containerValue: String): String {
+        return shortcut.getSettingExtra(key, containerValue)
+    }
 
-    private fun getIdentifierFromEntries(
-        entries: List<String>,
-        index: Int,
-    ): String = if (index in entries.indices) StringUtils.parseIdentifier(entries[index]) else ""
+    private fun getIdentifierFromEntries(entries: List<String>, index: Int): String {
+        return if (index in entries.indices) StringUtils.parseIdentifier(entries[index]) else ""
+    }
 
     private fun selectByIdentifier(
         entries: List<String>,
         identifier: String,
-        target: androidx.compose.runtime.MutableIntState,
+        target: androidx.compose.runtime.MutableIntState
     ) {
         val idx =
             entries.indexOfFirst { StringUtils.parseIdentifier(it) == identifier }
@@ -1384,7 +1260,7 @@ class ShortcutSettingsComposeDialog private constructor(
     private fun selectByValue(
         entries: List<String>,
         value: String,
-        target: androidx.compose.runtime.MutableIntState,
+        target: androidx.compose.runtime.MutableIntState
     ) {
         val idx = entries.indexOfFirst { it == value }
         target.intValue = if (idx >= 0) idx else 0
@@ -1393,7 +1269,7 @@ class ShortcutSettingsComposeDialog private constructor(
     private fun saveOverride(
         extraName: String,
         newValue: String,
-        containerValue: String,
+        containerValue: String
     ): Boolean {
         val normNew = newValue ?: ""
         val normContainer = containerValue ?: ""
@@ -1419,7 +1295,7 @@ class ShortcutSettingsComposeDialog private constructor(
                 // Ensure even numbers
                 val width = (w.toInt() / 2) * 2
                 val height = (h.toInt() / 2) * 2
-                "${width}x$height"
+                "${width}x${height}"
             } else {
                 Container.DEFAULT_SCREEN_SIZE
             }
@@ -1443,22 +1319,20 @@ class ShortcutSettingsComposeDialog private constructor(
         // Keep the SDL2 keys in sync with the toggle.
         val sdl2Keys = sdl2EnvVars.map { it.first }.toSet()
         val filtered = state.envVars.value.filterNot { it.key in sdl2Keys }
-        val merged =
-            if (state.sdl2Compatibility.value) {
-                filtered + sdl2EnvVars.map { EnvVarItem(it.first, it.second) }
-            } else {
-                filtered
-            }
+        val merged = if (state.sdl2Compatibility.value) {
+            filtered + sdl2EnvVars.map { EnvVarItem(it.first, it.second) }
+        } else {
+            filtered
+        }
         return merged.joinToString(" ") { "${it.key}=${it.value}" }
     }
 
     private fun buildCpuListString(checked: List<Boolean>): String {
         val allChecked = checked.all { it }
         if (allChecked) return "" // empty means all cores
-        return checked
-            .mapIndexedNotNull { i, isChecked ->
-                if (isChecked) "$i" else null
-            }.joinToString(",")
+        return checked.mapIndexedNotNull { i, isChecked ->
+            if (isChecked) "$i" else null
+        }.joinToString(",")
     }
 
     private fun buildGraphicsDriverConfigFromState(): String {
@@ -1466,10 +1340,9 @@ class ShortcutSettingsComposeDialog private constructor(
         val version = state.gfxDriverVersionEntries.value.getOrElse(state.gfxSelectedDriverVersion.intValue) { "" }
         val blacklisted = state.gfxBlacklistedExtensions.value.joinToString(",")
         val gpuName = state.gfxGpuNameEntries.value.getOrElse(state.gfxSelectedGpuName.intValue) { "Device" }
-        val maxDeviceMemory =
-            StringUtils.parseNumber(
-                state.gfxMaxDeviceMemoryEntries.value.getOrElse(state.gfxSelectedMaxDeviceMemory.intValue) { "0" },
-            )
+        val maxDeviceMemory = StringUtils.parseNumber(
+            state.gfxMaxDeviceMemoryEntries.value.getOrElse(state.gfxSelectedMaxDeviceMemory.intValue) { "0" }
+        )
         val presentMode = state.gfxPresentModeEntries.value.getOrElse(state.gfxSelectedPresentMode.intValue) { "mailbox" }
         val syncFrame = if (state.gfxSyncFrame.value) "1" else "0"
         val disablePresentWait = if (state.gfxDisablePresentWait.value) "1" else "0"
@@ -1479,20 +1352,19 @@ class ShortcutSettingsComposeDialog private constructor(
         val bcnEmulationCache = state.gfxBcnEmulationCacheEntries.value.getOrElse(state.gfxSelectedBcnEmulationCache.intValue) { "0" }
 
         return "vulkanVersion=$vulkanVersion;version=$version;blacklistedExtensions=$blacklisted;" +
-            "maxDeviceMemory=$maxDeviceMemory;presentMode=$presentMode;syncFrame=$syncFrame;" +
-            "disablePresentWait=$disablePresentWait;resourceType=$resourceType;" +
-            "bcnEmulation=$bcnEmulation;bcnEmulationType=$bcnEmulationType;" +
-            "bcnEmulationCache=$bcnEmulationCache;gpuName=$gpuName"
+                "maxDeviceMemory=$maxDeviceMemory;presentMode=$presentMode;syncFrame=$syncFrame;" +
+                "disablePresentWait=$disablePresentWait;resourceType=$resourceType;" +
+                "bcnEmulation=$bcnEmulation;bcnEmulationType=$bcnEmulationType;" +
+                "bcnEmulationCache=$bcnEmulationCache;gpuName=$gpuName"
     }
 
     private fun buildDxvkConfigFromState(): String {
         val entries = state.dxvkVersionEntries.value
         val idx = state.dxvkSelectedVersion.intValue
         val version = if (idx in entries.indices) entries[idx] else DefaultVersion.DXVK
-        val framerate =
-            StringUtils.parseNumber(
-                state.dxvkFramerateEntries.value.getOrElse(state.dxvkSelectedFramerate.intValue) { "0" },
-            )
+        val framerate = StringUtils.parseNumber(
+            state.dxvkFramerateEntries.value.getOrElse(state.dxvkSelectedFramerate.intValue) { "0" }
+        )
         val isGplAsync = version.contains("gplasync")
         val isAsync = version.contains("async")
         val async = if (state.dxvkAsync.value && (isAsync || isGplAsync)) "1" else "0"
@@ -1503,22 +1375,19 @@ class ShortcutSettingsComposeDialog private constructor(
         val vkd3dVersion = if (vkd3dIdx in vkd3dEntries.indices) vkd3dEntries[vkd3dIdx] else "None"
 
         val vkd3dLevel = state.dxvkVkd3dFeatureLevelEntries.value.getOrElse(state.dxvkSelectedVkd3dFeatureLevel.intValue) { "12_0" }
-        val ddrawWrapper =
-            StringUtils.parseIdentifier(
-                state.dxvkDdrawWrapperEntries.value.getOrElse(state.dxvkSelectedDdrawWrapper.intValue) { Container.DEFAULT_DDRAWRAPPER },
-            )
+        val ddrawWrapper = StringUtils.parseIdentifier(
+            state.dxvkDdrawWrapperEntries.value.getOrElse(state.dxvkSelectedDdrawWrapper.intValue) { Container.DEFAULT_DDRAWRAPPER }
+        )
 
         return "version=$version,framerate=$framerate,async=$async,asyncCache=$asyncCache," +
-            "vkd3dVersion=$vkd3dVersion,vkd3dLevel=$vkd3dLevel,ddrawrapper=$ddrawWrapper"
+                "vkd3dVersion=$vkd3dVersion,vkd3dLevel=$vkd3dLevel,ddrawrapper=$ddrawWrapper"
     }
 
     private fun loadGraphicsDriverConfigState(container: Container = shortcut.container) {
-        val configStr =
-            if (shouldUseShortcutOverrides(container)) {
-                getShortcutSetting("graphicsDriverConfig", container.getGraphicsDriverConfig())
-            } else {
-                container.getGraphicsDriverConfig()
-            }
+        val configStr = if (shouldUseShortcutOverrides(container))
+            getShortcutSetting("graphicsDriverConfig", container.getGraphicsDriverConfig())
+        else
+            container.getGraphicsDriverConfig()
         val config = GraphicsDriverConfigUtils.parseGraphicsDriverConfig(configStr)
 
         // Load dropdown entries from resource arrays
@@ -1571,19 +1440,14 @@ class ShortcutSettingsComposeDialog private constructor(
             val defaults = context.resources.getStringArray(R.array.wrapper_graphics_driver_version_entries)
             for (ver in defaults) {
                 try {
-                    if (com.winlator.cmod.runtime.system.GPUInformation
-                            .isDriverSupported(ver, context)
-                    ) {
+                    if (com.winlator.cmod.runtime.system.GPUInformation.isDriverSupported(ver, context))
                         versions.add(ver)
-                    }
                 } catch (e: Throwable) {
                     Log.w(TAG, "Error checking driver support: $ver", e)
                 }
             }
             try {
-                val adrenoManager =
-                    com.winlator.cmod.runtime.content
-                        .AdrenotoolsManager(context)
+                val adrenoManager = com.winlator.cmod.runtime.content.AdrenotoolsManager(context)
                 val installed = adrenoManager.enumarateInstalledDrivers()
                 if (installed != null) versions.addAll(installed)
             } catch (e: Throwable) {
@@ -1597,12 +1461,10 @@ class ShortcutSettingsComposeDialog private constructor(
         state.gfxDriverVersionEntries.value = versions
 
         // Set initial selection from config
-        val configStr =
-            if (shouldUseShortcutOverrides(container)) {
-                getShortcutSetting("graphicsDriverConfig", container.getGraphicsDriverConfig())
-            } else {
-                container.getGraphicsDriverConfig()
-            }
+        val configStr = if (shouldUseShortcutOverrides(container))
+            getShortcutSetting("graphicsDriverConfig", container.getGraphicsDriverConfig())
+        else
+            container.getGraphicsDriverConfig()
         val config = GraphicsDriverConfigUtils.parseGraphicsDriverConfig(configStr)
         val initialVersion = config["version"] ?: ""
         if (initialVersion.isNotEmpty()) {
@@ -1618,9 +1480,7 @@ class ShortcutSettingsComposeDialog private constructor(
         val versions = state.gfxDriverVersionEntries.value
         val version = versions.getOrElse(versionIndex) { return }
         try {
-            val extensions =
-                com.winlator.cmod.runtime.system.GPUInformation
-                    .enumerateExtensions(version, context)
+            val extensions = com.winlator.cmod.runtime.system.GPUInformation.enumerateExtensions(version, context)
             if (extensions != null) {
                 state.gfxAvailableExtensions.value = extensions.toList()
 
@@ -1646,12 +1506,10 @@ class ShortcutSettingsComposeDialog private constructor(
     }
 
     private fun loadDxvkConfigState(container: Container = shortcut.container) {
-        val configStr =
-            if (shouldUseShortcutOverrides(container)) {
-                getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig())
-            } else {
-                container.getDXWrapperConfig()
-            }
+        val configStr = if (shouldUseShortcutOverrides(container))
+            getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig())
+        else
+            container.getDXWrapperConfig()
         val config = DXVKConfigUtils.parseConfig(configStr)
 
         // Feature levels
@@ -1695,12 +1553,10 @@ class ShortcutSettingsComposeDialog private constructor(
         state.dxvkVersionEntries.value = originalItems
 
         // Set selection from config
-        val configStr =
-            if (shouldUseShortcutOverrides(container)) {
-                getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig())
-            } else {
-                container.getDXWrapperConfig()
-            }
+        val configStr = if (shouldUseShortcutOverrides(container))
+            getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig())
+        else
+            container.getDXWrapperConfig()
         val config = DXVKConfigUtils.parseConfig(configStr)
         selectByIdentifier(originalItems, config.get("version"), state.dxvkSelectedVersion)
     }
@@ -1719,12 +1575,10 @@ class ShortcutSettingsComposeDialog private constructor(
         state.dxvkVkd3dVersionEntries.value = items
 
         // Set selection from config
-        val configStr =
-            if (shouldUseShortcutOverrides(container)) {
-                getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig())
-            } else {
-                container.getDXWrapperConfig()
-            }
+        val configStr = if (shouldUseShortcutOverrides(container))
+            getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig())
+        else
+            container.getDXWrapperConfig()
         val config = DXVKConfigUtils.parseConfig(configStr)
         selectByIdentifier(items, config.get("vkd3dVersion"), state.dxvkSelectedVkd3dVersion)
     }
@@ -1732,12 +1586,11 @@ class ShortcutSettingsComposeDialog private constructor(
     private fun selectByNumber(
         entries: List<String>,
         number: String,
-        target: androidx.compose.runtime.MutableIntState,
+        target: androidx.compose.runtime.MutableIntState
     ) {
-        val idx =
-            entries.indexOfFirst {
-                StringUtils.parseNumber(it) == number
-            }
+        val idx = entries.indexOfFirst {
+            StringUtils.parseNumber(it) == number
+        }
         target.intValue = if (idx >= 0) idx else 0
     }
 
@@ -1749,26 +1602,18 @@ class ShortcutSettingsComposeDialog private constructor(
             // Filter DXVK versions to major >= 2
             val allVersions = state.dxvkVersionEntries.value
             val semver = Regex("(\\d+)\\.(\\d+)(?:\\.(\\d+))?")
-            val filtered =
-                allVersions.filter { v ->
-                    val match = semver.find(v)
-                    if (match != null) {
-                        val major = match.groupValues[1].toIntOrNull() ?: 0
-                        major >= 2
-                    } else {
-                        true
-                    }
-                }
+            val filtered = allVersions.filter { v ->
+                val match = semver.find(v)
+                if (match != null) {
+                    val major = match.groupValues[1].toIntOrNull() ?: 0
+                    major >= 2
+                } else true
+            }
             state.dxvkVersionEntries.value = filtered
 
             // Re-select current or default
             val currentDxvk = state.dxvkVersionEntries.value.getOrElse(state.dxvkSelectedVersion.intValue) { "" }
-            val curMajor =
-                semver
-                    .find(currentDxvk)
-                    ?.groupValues
-                    ?.get(1)
-                    ?.toIntOrNull()
+            val curMajor = semver.find(currentDxvk)?.groupValues?.get(1)?.toIntOrNull()
             if (curMajor != null && curMajor >= 2) {
                 selectByIdentifier(filtered, currentDxvk, state.dxvkSelectedVersion)
             } else {
@@ -1793,12 +1638,12 @@ class ShortcutSettingsComposeDialog private constructor(
         selectByIdentifier(
             state.emulator32Entries.value,
             newContainer.getEmulator(),
-            state.selectedEmulator,
+            state.selectedEmulator
         )
         selectByIdentifier(
             state.emulator64Entries.value,
             newContainer.getEmulator64(),
-            state.selectedEmulator64,
+            state.selectedEmulator64
         )
 
         state.emulatorsEnabled.value = true
@@ -1825,17 +1670,17 @@ class ShortcutSettingsComposeDialog private constructor(
         selectByIdentifier(
             state.graphicsDriverEntries.value,
             container.getGraphicsDriver(),
-            state.selectedGraphicsDriver,
+            state.selectedGraphicsDriver
         )
         selectByIdentifier(
             state.dxWrapperEntries.value,
             container.getDXWrapper(),
-            state.selectedDxWrapper,
+            state.selectedDxWrapper
         )
         selectByIdentifier(
             state.audioDriverEntries.value,
             container.getAudioDriver(),
-            state.selectedAudioDriver,
+            state.selectedAudioDriver
         )
 
         val midiFont = container.getMIDISoundFont()
@@ -1852,21 +1697,13 @@ class ShortcutSettingsComposeDialog private constructor(
         state.showFPS.value = container.isShowFPS
 
         val startupEntries = state.startupSelectionEntries.value
-        state.selectedStartupSelection.intValue =
-            container
-                .getStartupSelection()
-                .toInt()
-                .coerceIn(0, (startupEntries.size - 1).coerceAtLeast(0))
+        state.selectedStartupSelection.intValue = container.getStartupSelection().toInt()
+            .coerceIn(0, (startupEntries.size - 1).coerceAtLeast(0))
 
         // Desktop theme is stored as compound "THEME,TYPE,COLOR".
         val desktopThemeArr = state.desktopThemeEntries.value
         if (desktopThemeArr.isNotEmpty()) {
-            val themePart =
-                container
-                    .getDesktopTheme()
-                    .split(",")
-                    .firstOrNull()
-                    ?.trim() ?: ""
+            val themePart = container.getDesktopTheme().split(",").firstOrNull()?.trim() ?: ""
             val themeIdx = desktopThemeArr.indexOfFirst { it.equals(themePart, ignoreCase = true) }
             state.selectedDesktopTheme.intValue = if (themeIdx >= 0) themeIdx else 0
         }
@@ -1877,12 +1714,7 @@ class ShortcutSettingsComposeDialog private constructor(
             val key = component[0]
             val value = component[1]
             val label = StringUtils.getString(context, key) ?: key
-            val selectedIdx =
-                try {
-                    Integer.parseInt(value)
-                } catch (e: NumberFormatException) {
-                    0
-                }
+            val selectedIdx = try { Integer.parseInt(value) } catch (e: NumberFormatException) { 0 }
             val item = WinComponentItem(key, label, selectedIdx)
             if (key.startsWith("direct")) directX.add(item) else general.add(item)
         }
@@ -1893,12 +1725,9 @@ class ShortcutSettingsComposeDialog private constructor(
         val items = mutableListOf<EnvVarItem>()
         for (key in envVars) items.add(EnvVarItem(key, envVars.get(key)))
         state.sdl2Compatibility.value = envVars.get("SDL_XINPUT_ENABLED") == "1"
-        state.envVars.value =
-            if (state.sdl2Compatibility.value) {
-                items.filterNot { item -> sdl2EnvVars.any { it.first == item.key } }
-            } else {
-                items
-            }
+        state.envVars.value = if (state.sdl2Compatibility.value) {
+            items.filterNot { item -> sdl2EnvVars.any { it.first == item.key } }
+        } else items
 
         val cpuCount = state.cpuCount.intValue
         state.cpuChecked.value = parseCpuList(container.getCPUList(true), cpuCount)
@@ -1931,10 +1760,7 @@ class ShortcutSettingsComposeDialog private constructor(
         }
     }
 
-    private fun parseCpuList(
-        cpuList: String,
-        cpuCount: Int,
-    ): List<Boolean> {
+    private fun parseCpuList(cpuList: String, cpuCount: Int): List<Boolean> {
         val checked = MutableList(cpuCount) { true }
         if (cpuList.isNotEmpty()) {
             for (i in checked.indices) checked[i] = false
@@ -1947,12 +1773,10 @@ class ShortcutSettingsComposeDialog private constructor(
     }
 
     private fun loadWineD3DConfigState(container: Container = shortcut.container) {
-        val configStr =
-            if (shouldUseShortcutOverrides(container)) {
-                getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig())
-            } else {
-                container.getDXWrapperConfig()
-            }
+        val configStr = if (shouldUseShortcutOverrides(container))
+            getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig())
+        else
+            container.getDXWrapperConfig()
         val config = WineD3DConfigUtils.parseConfig(configStr)
 
         // Video memory size from resources
@@ -1977,11 +1801,7 @@ class ShortcutSettingsComposeDialog private constructor(
         // Set selections from config
         state.wined3dSelectedCsmt.intValue = if (config.get("csmt") == "3") 0 else 1
         state.wined3dSelectedStrictShaderMath.intValue = if (config.get("strict_shader_math") == "1") 0 else 1
-        selectByValue(
-            state.wined3dOffscreenRenderingModeEntries.value,
-            config.get("OffscreenRenderingMode"),
-            state.wined3dSelectedOffscreenRenderingMode,
-        )
+        selectByValue(state.wined3dOffscreenRenderingModeEntries.value, config.get("OffscreenRenderingMode"), state.wined3dSelectedOffscreenRenderingMode)
         selectByValue(state.wined3dGpuNameEntries.value, config.get("gpuName"), state.wined3dSelectedGpuName)
         selectByValue(state.wined3dRendererEntries.value, config.get("renderer"), state.wined3dSelectedRenderer)
         selectByNumber(state.wined3dVideoMemorySizeEntries.value, config.get("videoMemorySize"), state.wined3dSelectedVideoMemorySize)
@@ -1990,20 +1810,18 @@ class ShortcutSettingsComposeDialog private constructor(
     private fun buildWineD3DConfigFromState(): String {
         val csmt = if (state.wined3dSelectedCsmt.intValue == 0) "3" else "0"
         val gpuName = state.wined3dGpuNameEntries.value.getOrElse(state.wined3dSelectedGpuName.intValue) { "" }
-        val videoMemorySize =
-            StringUtils.parseNumber(
-                state.wined3dVideoMemorySizeEntries.value.getOrElse(state.wined3dSelectedVideoMemorySize.intValue) { "0" },
-            )
+        val videoMemorySize = StringUtils.parseNumber(
+            state.wined3dVideoMemorySizeEntries.value.getOrElse(state.wined3dSelectedVideoMemorySize.intValue) { "0" }
+        )
         val strictShaderMath = if (state.wined3dSelectedStrictShaderMath.intValue == 0) "1" else "0"
-        val offscreenRenderingMode =
-            state.wined3dOffscreenRenderingModeEntries.value.getOrElse(
-                state.wined3dSelectedOffscreenRenderingMode.intValue,
-            ) { "fbo" }
+        val offscreenRenderingMode = state.wined3dOffscreenRenderingModeEntries.value.getOrElse(
+            state.wined3dSelectedOffscreenRenderingMode.intValue
+        ) { "fbo" }
         val renderer = state.wined3dRendererEntries.value.getOrElse(state.wined3dSelectedRenderer.intValue) { "gl" }
 
         return "csmt=$csmt,gpuName=$gpuName,videoMemorySize=$videoMemorySize," +
-            "strict_shader_math=$strictShaderMath,OffscreenRenderingMode=$offscreenRenderingMode," +
-            "renderer=$renderer"
+                "strict_shader_math=$strictShaderMath,OffscreenRenderingMode=$offscreenRenderingMode," +
+                "renderer=$renderer"
     }
 
     private fun renameShortcut(newName: String) {
@@ -2033,12 +1851,10 @@ class ShortcutSettingsComposeDialog private constructor(
 
         fragment?.loadShortcutsList()
         fragment?.updateShortcutOnScreen(
-            newName,
-            newName,
-            shortcut.container.id,
+            newName, newName, shortcut.container.id,
             File(parent, "$newName.desktop").absolutePath,
             Icon.createWithBitmap(shortcut.icon),
-            shortcut.getExtra("uuid"),
+            shortcut.getExtra("uuid")
         )
     }
 
@@ -2120,19 +1936,17 @@ class ShortcutSettingsComposeDialog private constructor(
             if (!desktopDir.exists()) desktopDir.mkdirs()
             val safeName = appName.replace("/", "_").replace("\\", "_")
             val shortcutFile = File(desktopDir, "$safeName.desktop")
-            val iconKey =
-                when (source) {
-                    "STEAM" -> "steam_icon_$appId"
-                    "EPIC" -> "epic_icon_$appId"
-                    "GOG" -> "gog_icon_$gogId"
-                    else -> ""
-                }
-            val exec =
-                if (source == "STEAM") {
-                    "wine \"C:\\\\Program Files (x86)\\\\Steam\\\\steamclient_loader_x64.exe\""
-                } else {
-                    "wine \"D:\\\\\""
-                }
+            val iconKey = when (source) {
+                "STEAM" -> "steam_icon_$appId"
+                "EPIC" -> "epic_icon_$appId"
+                "GOG" -> "gog_icon_$gogId"
+                else -> ""
+            }
+            val exec = if (source == "STEAM") {
+                "wine \"C:\\\\Program Files (x86)\\\\Steam\\\\steamclient_loader_x64.exe\""
+            } else {
+                "wine \"D:\\\\\""
+            }
             val sb = StringBuilder()
             sb.append("[Desktop Entry]\n")
             sb.append("Type=Application\n")
