@@ -126,12 +126,6 @@
             android:foregroundServiceType="dataSync" />
 
         <service
-            android:name="com.winlator.cmod.service.DownloadService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
-
-        <service
             android:name="com.winlator.cmod.epic.service.EpicService"
             android:enabled="true"
             android:exported="false"

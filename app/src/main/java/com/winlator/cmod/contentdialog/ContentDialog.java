@@ -62,8 +62,6 @@ public class ContentDialog extends Dialog {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
         isDarkMode = sharedPreferences.getBoolean("dark_mode", false);
 
-//        contentView.setBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark: R.drawable.content_dialog_background);
-
         if (isDarkMode) {
             this.getContext().setTheme(R.style.ContentDialog_Dark);
         }

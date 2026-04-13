@@ -51,13 +51,6 @@
         <item>2.3.1</item>
         <item>2.3.1-arm64ec-gplasync</item>
     </string-array>
-    <string-array name="dxvk_max_device_memory_entries">
-        <item>0 (Default)</item>
-        <item>512 MB</item>
-        <item>1024 MB</item>
-        <item>2048 MB</item>
-        <item>4096 MB</item>
-    </string-array>
     <string-array name="device_memory_entries">
     <item>0 (Default)</item>
     <item>512 MB</item>
@@ -224,91 +217,6 @@
         <item>@integer/keycode_button_l3</item> 
     </integer-array>
 
-    <string-array name="touchscreenInputModesEntries">
-        <item>Trackpad</item>
-        <item>Simulated touchscreen</item>
-        <item>Direct touch</item>
-    </string-array>
-    <string-array name="touchscreenInputModesValues">
-        <item>1</item>
-        <item>2</item>
-        <item>3</item>
-    </string-array>
-    <string-array name="transformCapturedPointerEntries">
-        <item>No</item>
-        <item>Clockwise</item>
-        <item>Counter clockwise</item>
-        <item>Upside down</item>
-        <item>Automatic (for touchpad)</item>
-    </string-array>
-    <string-array name="transformCapturedPointerValues">
-        <item>no</item>
-        <item>c</item>
-        <item>cc</item>
-        <item>ud</item>
-        <item>at</item>
-    </string-array>
-    <string-array name="displayResolutionVariants">
-        <item>native</item>
-        <item>scaled</item>
-        <item>exact</item>
-        <item>custom</item>
-    </string-array>
-    <string-array name="displayResolution">
-        <item>320x200</item>
-        <item>320x240</item>
-        <item>352x288</item>
-        <item>400x240</item>
-        <item>640x350</item>
-        <item>640x480</item>
-        <item>800x480</item>
-        <item>800x600</item>
-        <item>1024x768</item>
-        <item>1280x720</item>
-        <item>1280x960</item>
-        <item>1280x1024</item>
-        <item>1400x1050</item>
-        <item>1600x1024</item>
-        <item>1600x1200</item>
-        <item>1366x768</item>
-        <item>1680x1050</item>
-        <item>1920x1080</item>
-        <item>1920x1200</item>
-        <item>2048x1536</item>
-        <item>2560x1600</item>
-        <item>2560x2048</item>
-        <item>3840x2160</item>
-        <item>7680x4320</item>
-    </string-array>
-    <string-array name="userActionsValues">
-        <item>no action</item>
-        <item>toggle soft keyboard</item>
-        <item>toggle additional key bar</item>
-        <item>open preferences</item>
-        <item>release pointer and keyboard capture</item>
-        <item>toggle fullscreen</item>
-        <item>restart activity</item>
-        <item>exit</item>
-    </string-array>
-    <string-array name="userActionsVolumeDownValues">
-        <item>@array/userActionsValues</item>
-        <item>send volume down</item>
-    </string-array>
-    <string-array name="userActionsVolumeUpValues">
-        <item>@array/userActionsValues</item>
-        <item>send volume up</item>
-    </string-array>
-    <string-array name="userActionsMediaKeyValues">
-        <item>@array/userActionsValues</item>
-        <item>send media action</item>
-    </string-array>
-    <string-array name="forceOrientationVariants">
-        <item>auto</item>
-        <item>portrait</item>
-        <item>landscape</item>
-        <item>reverse portrait</item>
-        <item>reverse landscape</item>
-    </string-array>
     <string-array name="emulator_entries">
         <item>FEXCore</item>
         <item>Box64</item>
@@ -316,77 +224,4 @@
     </string-array>
     <string-array name="wine_entries">
     </string-array>
-<string-array name="bionic_graphics_driver_entries">
-        <item>Wrapper</item>
-        <item>Wrapper-v2</item>
-        <item>Wrapper-leegao</item>
-        <item>Wrapper-legacy</item>
-    </string-array>
-    <string-array name="turnip_version_entries">
-        <item>25.1.0</item>
-        <item>25.2.0</item>
-        <item>25.3.0</item>
-        <item>25.0.0</item>
-        <item>24.1.0</item>
-    </string-array>
-    <string-array name="virgl_version_entries">
-        <item>23.1.9</item>
-    </string-array>
-    <string-array name="zink_version_entries">
-        <item>22.2.5</item>
-    </string-array>
-    <string-array name="vortek_version_entries">
-        <item>2.1</item>
-    </string-array>
-    <string-array name="adreno_version_entries">
-        <item>819.2</item>
-        <item>805</item>
-    </string-array>
-    <string-array name="sd8elite_version_entries">
-        <item>800.51</item>
-        <item>2-842.6</item>
-    </string-array>
-    <string-array name="surface_format_entries">
-        <item>BGRA8</item>
-        <item>RGBA8</item>
-    </string-array>
-    <string-array name="box64_bionic_version_entries">
-        <item>0.4.1-fix</item>
-        <item>0.3.7 (Default)</item>
-        <item>0.4.0</item>
-        <item>0.3.8</item>
-        <item>0.3.6</item>
-        <item>0.3.2</item>
-    </string-array>
-    <string-array name="offscreen_rendering_modes">
-        <item>Backbuffer</item>
-        <item>FBO</item>
-    </string-array>
-    <string-array name="mouse_warp_override_entries">
-        <item>Disable</item>
-        <item>Enable</item>
-        <item>Force</item>
-    </string-array>
-    <string-array name="win_component_entries">
-        <item>Builtin (Wine)</item>
-        <item>Native (Windows)</item>
-    </string-array>
-    <string-array name="fexcore_preset_entries">
-        <item>Fastest</item>
-        <item>Fast</item>
-        <item>Slow</item>
-        <item>Slowest</item>
-    </string-array>
-    <string-array name="x87mode_preset_entries">
-        <item>Fast</item>
-        <item>Slow</item>
-    </string-array>
-    <string-array name="multiblock_values">
-        <item>Enabled</item>
-        <item>Disabled</item>
-    </string-array>
-    <string-array name="container_variant_entries">
-        <item>glibc</item>
-        <item>bionic</item>
-    </string-array>
-    </resources>
+</resources>

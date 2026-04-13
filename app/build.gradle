@@ -1,17 +1,17 @@
 plugins {
-    id 'com.android.application'
-    id 'org.jetbrains.kotlin.android'
-    id 'org.jetbrains.kotlin.plugin.compose'
-    id 'com.google.devtools.ksp'
-    id 'com.google.dagger.hilt.android'
-    id 'org.jetbrains.kotlin.plugin.serialization'
+    alias(libs.plugins.androidApplication)
+    alias(libs.plugins.kotlinAndroid)
+    alias(libs.plugins.kotlinCompose)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.hiltAndroid)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 task checkSubmodules {
-    // Resolve the file path during the configuration phase so we don't 
+    // Resolve the file path during the configuration phase so we don't
     // pass the Gradle Project object into the execution closure (which breaks the Configuration Cache).
     def submodulePath = file("src/main/cpp/adrenotools").absolutePath
-    
+
     doFirst {
         def adrenotoolsDir = new File(submodulePath)
         if (adrenotoolsDir.exists() && adrenotoolsDir.isDirectory() && (adrenotoolsDir.list()?.length ?: 0) == 0) {
@@ -29,12 +29,11 @@ ksp {
 android {
     namespace 'com.winlator.cmod'
     compileSdk 35
-    buildToolsVersion "35.0.0"
 
     defaultConfig {
         applicationId "com.winnative.cmod"
-        minSdkVersion 26
-        targetSdkVersion 28
+        minSdk 26
+        targetSdk 28
         versionCode 21
         versionName "7.1.4x-cmod"
 
@@ -50,7 +49,7 @@ android {
         }
 
         resConfigs "en", "da", "de", "es", "fr", "it", "ko", "pl", "pt-rBR", "ro", "uk", "zh-rCN", "zh-rTW"
-        
+
         buildConfigField("boolean", "GOLD", "false")
         buildConfigField("String", "POSTHOG_API_KEY", "\"\"")
         buildConfigField("String", "POSTHOG_HOST", "\"\"")
@@ -142,14 +141,6 @@ android {
         buildConfig true
     }
 
-    sourceSets {
-        main {
-            res.srcDirs = [
-                    'src/main/res'
-            ]
-        }
-    }
-
     applicationVariants.configureEach { variant ->
         if (variant.buildType.name == "debug") {
             variant.outputs.configureEach { output ->
@@ -157,98 +148,62 @@ android {
             }
         }
     }
-
 }
 
-
 dependencies {
+    implementation libs.okhttp
+    implementation libs.okhttpDnsOverHttps
+    implementation libs.okhttpLoggingInterceptor
+    implementation libs.serializationJson
 
-    // Network & JSON
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
-    implementation 'com.squareup.okhttp3:okhttp-dnsoverhttps:4.12.0'
-    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
-    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0'
-    
-    // Supabase (Real backend from WinNative)
-    implementation "io.github.jan-tennert.supabase:postgrest-kt:3.1.1"
-    implementation "io.github.jan-tennert.supabase:realtime-kt:3.1.1"
-    implementation "io.github.jan-tennert.supabase:auth-kt:3.1.1"
-    implementation "io.ktor:ktor-client-android:3.1.0"
-    
-    // Auth
-    implementation 'com.auth0.android:jwtdecode:2.0.2'
-    implementation 'androidx.browser:browser:1.8.0'
-    implementation 'androidx.security:security-crypto:1.1.0-alpha06'
+    implementation libs.jwtDecode
+    implementation libs.securityCrypto
 
-    // Hilt
-    implementation 'com.google.dagger:hilt-android:2.55'
-    ksp 'com.google.dagger:hilt-android-compiler:2.55'
-    implementation 'androidx.hilt:hilt-navigation-compose:1.2.0'
+    implementation libs.hiltAndroid
+    ksp libs.hiltCompiler
 
-    // Room
-    implementation 'androidx.room:room-ktx:2.6.1'
-    implementation 'androidx.room:room-runtime:2.6.1'
-    implementation 'androidx.room:room-paging:2.6.1'
-    ksp 'androidx.room:room-compiler:2.6.1'
+    implementation libs.roomKtx
+    implementation libs.roomRuntime
+    ksp libs.roomCompiler
 
-    // Compose
-    implementation platform('androidx.compose:compose-bom:2026.03.00')
-    implementation 'androidx.compose.ui:ui'
-    implementation 'androidx.compose.ui:ui-graphics'
-    implementation 'androidx.compose.ui:ui-tooling-preview'
-    implementation 'androidx.compose.material3:material3'
-    implementation 'androidx.compose.material:material-icons-extended'
-    implementation 'androidx.activity:activity-compose:1.10.1'
-    implementation 'androidx.navigation:navigation-compose:2.8.8'
-    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.7'
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7'
-    implementation 'androidx.compose.ui:ui-text-google-fonts'
+    implementation platform(libs.composeBom)
+    implementation libs.composeUi
+    implementation libs.composeUiGraphics
+    implementation libs.composeUiToolingPreview
+    implementation libs.composeMaterial3
+    implementation libs.composeMaterialIconsExtended
+    implementation libs.activityCompose
+    implementation libs.navigationCompose
+    implementation libs.lifecycleRuntimeCompose
+    implementation libs.lifecycleViewmodelCompose
+    implementation libs.composeUiTextGoogleFonts
+    implementation libs.coilCompose
 
-    // Coil
-    implementation 'io.coil-kt:coil-compose:2.6.0'
+    implementation libs.coroutinesAndroid
+    implementation libs.timber
+    implementation libs.zxingCore
+    implementation libs.commonsIo
+    implementation libs.commonsLang3
+    implementation libs.protobufJava
+    implementation libs.zstdJni
+    implementation libs.bouncyCastle
+    implementation libs.flexbox
 
-    // Serialization & Coroutines
-    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0'
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1'
-
-    // Timber & Others
-    implementation 'com.jakewharton.timber:timber:5.0.1'
-    implementation 'androidx.datastore:datastore-preferences:1.1.3'
-    implementation 'com.google.zxing:core:3.5.3'
-    implementation 'commons-io:commons-io:2.18.0'
-    implementation 'org.apache.commons:commons-lang3:3.17.0'
-    implementation 'io.ktor:ktor-client-cio:3.1.0'
-    implementation 'com.google.protobuf:protobuf-java:4.30.2'
-    implementation 'com.github.luben:zstd-jni:1.5.6-9@aar'
-    implementation 'org.bouncycastle:bcprov-jdk18on:1.80'
-    implementation 'com.google.android.flexbox:flexbox:3.0.0'
-
-    // Winlator’s dependencies
-    implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'androidx.preference:preference:1.2.1'
-    implementation 'com.google.android.material:material:1.12.0'
-    implementation 'org.tukaani:xz:1.7'
-    implementation 'org.apache.commons:commons-compress:1.26.1'
-    implementation 'androidx.activity:activity-ktx:1.10.1'
-    implementation 'androidx.fragment:fragment-ktx:1.8.6'
-    implementation 'androidx.fragment:fragment-compose:1.8.6'
+    implementation libs.appcompat
+    implementation libs.preference
+    implementation libs.material
+    implementation libs.xz
+    implementation libs.commonsCompress
+    implementation libs.activityKtx
+    implementation libs.fragmentKtx
+    implementation libs.fragmentCompose
     implementation files('libs/MidiSynth/MidiSynth.jar')
-    implementation 'androidx.recyclerview:recyclerview:1.4.0'
-    implementation 'com.squareup.retrofit2:retrofit:2.11.0'
-    implementation 'com.squareup.retrofit2:converter-gson:2.11.0'
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
-    implementation 'com.google.code.gson:gson:2.11.0'
-    implementation 'androidx.core:core-ktx:1.15.0'
-    implementation 'com.github.bumptech.glide:glide:4.16.0'
-    implementation 'com.kohlschutter.junixsocket:junixsocket-common:2.10.1'
-    implementation 'com.kohlschutter.junixsocket:junixsocket-native-common:2.10.1'
-    annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
+    implementation libs.recyclerview
+    implementation libs.coreKtx
 
-    // JavaSteam
-    implementation 'in.dragonbra:javasteam:1.8.1-SNAPSHOT'
-    implementation 'in.dragonbra:javasteam-depotdownloader:1.8.1-SNAPSHOT'
+    implementation libs.javaSteam
+    implementation libs.javaSteamDepotDownloader
 
-    // Google Play Games Services SDK
-    implementation 'com.google.android.gms:play-services-games-v2:19.0.0'
-    implementation 'com.google.android.gms:play-services-auth:21.3.0'
+    implementation libs.playServicesGamesV2
+    implementation libs.playServicesAuth
 }

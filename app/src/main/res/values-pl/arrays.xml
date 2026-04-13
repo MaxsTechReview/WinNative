@@ -23,12 +23,6 @@
         <item>Adreno (Adreno)</item>
         <item>SD 8 Elite (SD 8 Elite)</item>
     </string-array>
-    <string-array name="bionic_graphics_driver_entries">
-        <item>Wrapper</item>
-        <item>Wrapper-v2</item>
-        <item>Wrapper-leegao</item>
-        <item>Wrapper-legacy</item>
-    </string-array>
     <string-array name="wrapper_graphics_driver_version_entries">
         <item>System</item>
         <item>v762</item>
@@ -41,30 +35,6 @@
         <item>turnip25.3.0_R11</item>
         <item>turnip26.0.0_R4</item>
         <item>turnip26.0.0_R8</item>
-    </string-array>
-    <string-array name="turnip_version_entries">
-        <item>25.1.0</item>
-        <item>25.2.0</item>
-        <item>25.3.0</item>
-        <item>25.0.0</item>
-        <item>24.1.0</item>
-    </string-array>
-    <string-array name="virgl_version_entries">
-        <item>23.1.9</item>
-    </string-array>
-    <string-array name="zink_version_entries">
-        <item>22.2.5</item>
-    </string-array>
-    <string-array name="vortek_version_entries">
-        <item>2.1</item>
-    </string-array>
-    <string-array name="adreno_version_entries">
-        <item>819.2</item>
-        <item>805</item>
-    </string-array>
-    <string-array name="sd8elite_version_entries">
-        <item>800.51</item>
-        <item>2-842.6</item>
     </string-array>
     <string-array name="audio_driver_entries">
         <item>ALSA</item>
@@ -100,16 +70,6 @@
         <item>2.13</item>
         <item>2.14.1</item>
         <item>3.0b</item>
-    </string-array>
-    <string-array name="dxvk_max_device_memory_entries">
-        <item>0 (Domyślnie)</item>
-        <item>512 MB</item>
-        <item>1024 MB</item>
-        <item>2048 MB</item>
-        <item>4096 MB</item>
-        <item>8192 MB</item>
-        <item>12288 MB</item>
-        <item>16384 MB</item>
     </string-array>
     <string-array name="present_mode_entries">
         <item>Nigdy</item>
@@ -174,13 +134,6 @@
         <item>0.3.4</item>
         <item>0.3.8</item>
     </string-array>
-    <string-array name="box64_bionic_version_entries">
-        <item>0.3.7 (Domyślnie)</item>
-        <item>0.4.0</item>
-        <item>0.3.8</item>
-        <item>0.3.6</item>
-        <item>0.3.2</item>
-    </string-array>
     <string-array name="wowbox64_version_entries">
         <item>0.4.0</item>
         <item>0.3.7</item>
@@ -210,39 +163,8 @@
         <item>Podstawowy (Tylko niezbędne usługi)</item>
         <item>Agresywny (Zatrzymaj usługi przy starcie)</item>
     </string-array>
-    <string-array name="offscreen_rendering_modes">
-        <item>Backbuffer</item>
-        <item>FBO</item>
-    </string-array>
-    <string-array name="mouse_warp_override_entries">
-        <item>Wyłącz</item>
-        <item>Włącz</item>
-        <item>Wymuś</item>
-    </string-array>
-    <string-array name="win_component_entries">
-        <item>Wbudowany (Wine)</item>
-        <item>Natywny (Windows)</item>
-    </string-array>
-    <string-array name="fexcore_preset_entries">
-        <item>Najszybszy</item>
-        <item>Szybki</item>
-        <item>Wolny</item>
-        <item>Najwolniejszy</item>
-    </string-array>
-    <string-array name="x87mode_preset_entries">
-        <item>Szybki</item>
-        <item>Wolny</item>
-    </string-array>
-    <string-array name="multiblock_values">
-        <item>Włączone</item>
-        <item>Wyłączone</item>
-    </string-array>
     <string-array name="emulator_entries">
         <item>FEXCore</item>
         <item>Box64</item>
-    </string-array>
-    <string-array name="container_variant_entries">
-        <item>glibc</item>
-        <item>bionic</item>
     </string-array>
 </resources>
