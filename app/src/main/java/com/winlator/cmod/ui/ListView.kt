@@ -3,8 +3,13 @@ package com.winlator.cmod.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.ui.Alignment
@@ -15,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
@@ -43,6 +49,15 @@ fun <T> ListView(
     onSelectedIndexChanged: (Int) -> Unit = {},
     itemContent: @Composable (item: T, index: Int, isSelected: Boolean) -> Unit,
 ) {
+    val layoutDirection = LocalLayoutDirection.current
+    val navBottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val effectiveContentPadding = PaddingValues(
+        start = contentPadding.calculateStartPadding(layoutDirection),
+        top = contentPadding.calculateTopPadding(),
+        end = contentPadding.calculateEndPadding(layoutDirection),
+        bottom = contentPadding.calculateBottomPadding() + navBottomInset
+    )
+
     // Scroll to selected index when changed externally (d-pad)
     LaunchedEffect(selectedIndex) {
         if (selectedIndex in items.indices) {
@@ -53,7 +68,7 @@ fun <T> ListView(
     LazyColumn(
         state = listState,
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = contentPadding,
+        contentPadding = effectiveContentPadding,
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.fillMaxSize()
     ) {

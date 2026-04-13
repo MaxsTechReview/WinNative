@@ -3,7 +3,12 @@ package com.winlator.cmod.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -19,6 +24,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -51,15 +57,25 @@ fun <T> FourByTwoGridView(
     clipContent: Boolean = true,
     viewMode: ViewMode = ViewMode.Grid,
     itemContent: @Composable (item: T, index: Int, rowHeight: Dp) -> Unit,
-) {
-    when (viewMode) {
-        ViewMode.Grid -> {
-            BoxWithConstraints(modifier.fillMaxSize()) {
-                // Visible rows = 2; subtract one gap between them plus any content-padding inset
-                val verticalInset = contentPadding.calculateTopPadding() + contentPadding.calculateBottomPadding()
-                val targetRowHeight = (maxHeight - spacing - verticalInset) / 2
-                val rowHeight by animateDpAsState(
-                    targetValue = targetRowHeight,
+    ) {
+        when (viewMode) {
+            ViewMode.Grid -> {
+                BoxWithConstraints(modifier.fillMaxSize()) {
+                    val layoutDirection = LocalLayoutDirection.current
+                    val navBottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                    val effectiveContentPadding = PaddingValues(
+                        start = contentPadding.calculateStartPadding(layoutDirection),
+                        top = contentPadding.calculateTopPadding(),
+                        end = contentPadding.calculateEndPadding(layoutDirection),
+                        bottom = contentPadding.calculateBottomPadding() + navBottomInset
+                    )
+                    // Visible rows = 2; subtract one gap between them plus any content-padding inset
+                    val verticalInset =
+                        effectiveContentPadding.calculateTopPadding() +
+                        effectiveContentPadding.calculateBottomPadding()
+                    val targetRowHeight = (maxHeight - spacing - verticalInset) / 2
+                    val rowHeight by animateDpAsState(
+                        targetValue = targetRowHeight,
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioNoBouncy,
                         stiffness = Spring.StiffnessHigh
@@ -72,7 +88,7 @@ fun <T> FourByTwoGridView(
                     columns = GridCells.Fixed(columns),
                     horizontalArrangement = Arrangement.spacedBy(spacing),
                     verticalArrangement = Arrangement.spacedBy(spacing),
-                    contentPadding = contentPadding,
+                    contentPadding = effectiveContentPadding,
                     modifier = Modifier
                         .fillMaxSize()
                         .then(if (!clipContent) Modifier.graphicsLayer { clip = false } else Modifier)

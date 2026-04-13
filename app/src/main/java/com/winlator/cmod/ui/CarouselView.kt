@@ -8,8 +8,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
@@ -61,6 +64,7 @@ fun <T> CarouselView(
         modifier = modifier.fillMaxSize()
     ) {
         val spacing = 14.dp
+        val navBottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         val baseCardWidth = maxWidth * 0.22f
         val baseCardHeight = baseCardWidth * 1.2f
         val sidePadding = ((maxWidth - baseCardWidth) / 2).coerceAtLeast(0.dp)
@@ -113,7 +117,12 @@ fun <T> CarouselView(
         LazyRow(
             state = listState,
             horizontalArrangement = Arrangement.spacedBy(spacing),
-            contentPadding = PaddingValues(start = sidePadding, end = sidePadding, top = 24.dp, bottom = 24.dp),
+            contentPadding = PaddingValues(
+                start = sidePadding,
+                end = sidePadding,
+                top = 24.dp,
+                bottom = 24.dp + navBottomInset
+            ),
             flingBehavior = flingBehavior,
             modifier = Modifier.fillMaxSize()
         ) {

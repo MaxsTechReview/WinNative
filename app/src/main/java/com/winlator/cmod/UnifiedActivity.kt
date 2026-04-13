@@ -5323,7 +5323,12 @@ class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
             }
         }
 
-        Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
             val isController = ControllerHelper.isControllerConnected()
             val isPS = ControllerHelper.isPlayStationController()
 
