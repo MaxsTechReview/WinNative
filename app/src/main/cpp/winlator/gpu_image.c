@@ -89,7 +89,7 @@ AHardwareBuffer* createHardwareBuffer(int width, int height) {
 
 // JNI method to extract a hardware buffer from a socketpair
 JNIEXPORT jlong JNICALL
-Java_com_winlator_cmod_renderer_GPUImage_hardwareBufferFromSocket(JNIEnv *env, jclass obj, jint fd) {
+Java_com_winlator_cmod_runtime_display_renderer_GPUImage_hardwareBufferFromSocket(JNIEnv *env, jclass obj, jint fd) {
     AHardwareBuffer *ahb;
     
     uint8_t buf = 1;
@@ -109,7 +109,7 @@ Java_com_winlator_cmod_renderer_GPUImage_hardwareBufferFromSocket(JNIEnv *env, j
 
 // JNI method to create a hardware buffer
 JNIEXPORT jlong JNICALL
-Java_com_winlator_cmod_renderer_GPUImage_createHardwareBuffer(JNIEnv *env, jclass obj, jshort width, jshort height) {
+Java_com_winlator_cmod_runtime_display_renderer_GPUImage_createHardwareBuffer(JNIEnv *env, jclass obj, jshort width, jshort height) {
     AHardwareBuffer *buffer = createHardwareBuffer(width, height);
     if (!buffer) {
         printf("Failed to create hardware buffer\n");
@@ -120,7 +120,7 @@ Java_com_winlator_cmod_renderer_GPUImage_createHardwareBuffer(JNIEnv *env, jclas
 
 // JNI method to create an EGL image
 JNIEXPORT jlong JNICALL
-Java_com_winlator_cmod_renderer_GPUImage_createImageKHR(JNIEnv *env, jclass obj, jlong hardwareBufferPtr, jint textureId) {
+Java_com_winlator_cmod_runtime_display_renderer_GPUImage_createImageKHR(JNIEnv *env, jclass obj, jlong hardwareBufferPtr, jint textureId) {
     AHardwareBuffer* hardwareBuffer = (AHardwareBuffer*)hardwareBufferPtr;
     if (!hardwareBuffer) {
         printf("Invalid AHardwareBuffer pointer\n");
@@ -131,7 +131,7 @@ Java_com_winlator_cmod_renderer_GPUImage_createImageKHR(JNIEnv *env, jclass obj,
 
 // JNI method to destroy a hardware buffer
 JNIEXPORT void JNICALL
-Java_com_winlator_cmod_renderer_GPUImage_destroyHardwareBuffer(JNIEnv *env, jclass obj, jlong hardwareBufferPtr) {
+Java_com_winlator_cmod_runtime_display_renderer_GPUImage_destroyHardwareBuffer(JNIEnv *env, jclass obj, jlong hardwareBufferPtr) {
     AHardwareBuffer* hardwareBuffer = (AHardwareBuffer*)hardwareBufferPtr;
     if (hardwareBuffer) {
         AHardwareBuffer_unlock(hardwareBuffer, NULL);
@@ -141,7 +141,7 @@ Java_com_winlator_cmod_renderer_GPUImage_destroyHardwareBuffer(JNIEnv *env, jcla
 
 // JNI method to lock a hardware buffer
 JNIEXPORT jobject JNICALL
-Java_com_winlator_cmod_renderer_GPUImage_lockHardwareBuffer(JNIEnv *env, jclass obj, jlong hardwareBufferPtr) {
+Java_com_winlator_cmod_runtime_display_renderer_GPUImage_lockHardwareBuffer(JNIEnv *env, jclass obj, jlong hardwareBufferPtr) {
     AHardwareBuffer* hardwareBuffer = (AHardwareBuffer*)hardwareBufferPtr;
     if (!hardwareBuffer) {
         printf("Invalid AHardwareBuffer pointer\n");
@@ -184,7 +184,7 @@ Java_com_winlator_cmod_renderer_GPUImage_lockHardwareBuffer(JNIEnv *env, jclass 
 
 // JNI method to destroy an EGL image
 JNIEXPORT void JNICALL
-Java_com_winlator_cmod_renderer_GPUImage_destroyImageKHR(JNIEnv *env, jclass obj, jlong imageKHRPtr) {
+Java_com_winlator_cmod_runtime_display_renderer_GPUImage_destroyImageKHR(JNIEnv *env, jclass obj, jlong imageKHRPtr) {
     EGLImageKHR imageKHR = (EGLImageKHR)imageKHRPtr;
     if (imageKHR) {
         EGLDisplay eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);

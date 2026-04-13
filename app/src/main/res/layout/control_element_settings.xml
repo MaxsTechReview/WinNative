@@ -115,7 +115,7 @@
                 style="@style/OtherSettingsSectionLabel"
                 android:text="@string/session_display_columns" />
 
-            <com.winlator.cmod.widget.NumberPicker
+            <com.winlator.cmod.shared.ui.widget.NumberPicker
                 android:id="@+id/NPColumns"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

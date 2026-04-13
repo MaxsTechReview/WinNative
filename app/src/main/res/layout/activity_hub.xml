@@ -148,7 +148,7 @@
             android:visibility="gone">
 
             <!-- Wave Background Placeholder (Implemented in code or simple shape) -->
-            <com.winlator.cmod.ui.WaveView
+            <com.winlator.cmod.shared.ui.WaveView
                 android:id="@+id/wave_view"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />

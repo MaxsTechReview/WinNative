@@ -26,6 +26,7 @@ app/src/main/assets/proton-9.0-x86_64.txz
 build/
 app/build/
 app/.cxx/
+app/release/
 
 # Python artifacts
 __pycache__/

@@ -100,14 +100,14 @@ static void *reaper_thread_main(void *arg) {
 }
 
 JNIEXPORT jint JNICALL
-Java_com_winlator_cmod_core_ProcessHelper_reapDeadChildrenNow(JNIEnv *env, jclass clazz) {
+Java_com_winlator_cmod_runtime_system_ProcessHelper_reapDeadChildrenNow(JNIEnv *env, jclass clazz) {
     (void)env;
     (void)clazz;
     return reap_dead_children_now();
 }
 
 JNIEXPORT void JNICALL
-Java_com_winlator_cmod_core_ProcessHelper_startNativeReaperWindow(JNIEnv *env, jclass clazz, jint durationMs) {
+Java_com_winlator_cmod_runtime_system_ProcessHelper_startNativeReaperWindow(JNIEnv *env, jclass clazz, jint durationMs) {
     (void)env;
     (void)clazz;
 

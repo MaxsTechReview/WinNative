@@ -30,7 +30,7 @@ static char *get_native_library_dir(JNIEnv *env, jobject context) {
 
     if (context == NULL) return NULL;
 
-    jclass class_ = (*env)->FindClass(env,"com/winlator/cmod/core/AppUtils");
+    jclass class_ = (*env)->FindClass(env,"com/winlator/cmod/runtime/wine/AppUtils");
     if (class_ == NULL) { (*env)->ExceptionClear(env); return NULL; }
 
     jmethodID getNativeLibraryDir = (*env)->GetStaticMethodID(env, class_, "getNativeLibDir",
@@ -87,7 +87,7 @@ static char *get_library_name(JNIEnv *env, jobject context, const char *driver_n
 
     if (context == NULL) return NULL;
 
-    jclass adrenotoolsManager = (*env)->FindClass(env, "com/winlator/cmod/contents/AdrenotoolsManager");
+    jclass adrenotoolsManager = (*env)->FindClass(env, "com/winlator/cmod/runtime/content/AdrenotoolsManager");
     if (adrenotoolsManager == NULL) { (*env)->ExceptionClear(env); return NULL; }
 
     jmethodID constructor = (*env)->GetMethodID(env, adrenotoolsManager, "<init>", "(Landroid/content/Context;)V");
@@ -241,7 +241,7 @@ static VkResult enumerate_physical_devices() {
 }
 
 JNIEXPORT jstring JNICALL
-Java_com_winlator_cmod_core_GPUInformation_getVulkanVersion(JNIEnv *env, jclass obj, jstring driverName, jobject context) {
+Java_com_winlator_cmod_runtime_system_GPUInformation_getVulkanVersion(JNIEnv *env, jclass obj, jstring driverName, jobject context) {
     VkPhysicalDeviceProperties props = {};
     char *driverVersion;
 
@@ -273,7 +273,7 @@ Java_com_winlator_cmod_core_GPUInformation_getVulkanVersion(JNIEnv *env, jclass 
 }
 
 JNIEXPORT jint JNICALL
-Java_com_winlator_cmod_core_GPUInformation_getVendorID(JNIEnv *env, jclass obj, jstring driverName, jobject context) {
+Java_com_winlator_cmod_runtime_system_GPUInformation_getVendorID(JNIEnv *env, jclass obj, jstring driverName, jobject context) {
     VkPhysicalDeviceProperties props = {};
     uint32_t vendorID;
 
@@ -299,7 +299,7 @@ Java_com_winlator_cmod_core_GPUInformation_getVendorID(JNIEnv *env, jclass obj, 
 }
 
 JNIEXPORT jstring JNICALL
-Java_com_winlator_cmod_core_GPUInformation_getRenderer(JNIEnv *env, jclass obj, jstring driverName, jobject context) {
+Java_com_winlator_cmod_runtime_system_GPUInformation_getRenderer(JNIEnv *env, jclass obj, jstring driverName, jobject context) {
     VkPhysicalDeviceProperties props = {};
 
     if  (create_instance(driverName, env, context) != VK_SUCCESS) {
@@ -324,7 +324,7 @@ Java_com_winlator_cmod_core_GPUInformation_getRenderer(JNIEnv *env, jclass obj, 
 }
 
 JNIEXPORT jobjectArray JNICALL
-Java_com_winlator_cmod_core_GPUInformation_enumerateExtensions(JNIEnv *env, jclass obj, jstring driverName, jobject context) {
+Java_com_winlator_cmod_runtime_system_GPUInformation_enumerateExtensions(JNIEnv *env, jclass obj, jstring driverName, jobject context) {
     jobjectArray extensions;
     VkResult result;
     uint32_t extensionCount;

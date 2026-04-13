@@ -141,6 +141,18 @@ android {
         buildConfig true
     }
 
+    sourceSets {
+        main {
+            java.srcDirs = [
+                    'src/main/app',
+                    'src/main/feature',
+                    'src/main/sharedmemory',
+                    'src/main/runtime',
+                    'src/main/shared'
+            ]
+        }
+    }
+
     applicationVariants.configureEach { variant ->
         if (variant.buildType.name == "debug") {
             variant.outputs.configureEach { output ->

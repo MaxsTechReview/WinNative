@@ -76,7 +76,7 @@ static void close_native_xz_stream(native_xz_stream_t *stream) {
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_winlator_cmod_core_NativeXzInputStream_nativeOpen(JNIEnv *env, jclass clazz, jstring path) {
+Java_com_winlator_cmod_shared_io_NativeXzInputStream_nativeOpen(JNIEnv *env, jclass clazz, jstring path) {
     (void)clazz;
 
     if (path == NULL) {
@@ -128,7 +128,7 @@ Java_com_winlator_cmod_core_NativeXzInputStream_nativeOpen(JNIEnv *env, jclass c
 }
 
 JNIEXPORT jint JNICALL
-Java_com_winlator_cmod_core_NativeXzInputStream_nativeRead(JNIEnv *env, jclass clazz, jlong handle,
+Java_com_winlator_cmod_shared_io_NativeXzInputStream_nativeRead(JNIEnv *env, jclass clazz, jlong handle,
                                                            jbyteArray output, jint offset, jint length) {
     (void)clazz;
 
@@ -212,7 +212,7 @@ Java_com_winlator_cmod_core_NativeXzInputStream_nativeRead(JNIEnv *env, jclass c
 }
 
 JNIEXPORT void JNICALL
-Java_com_winlator_cmod_core_NativeXzInputStream_nativeClose(JNIEnv *env, jclass clazz, jlong handle) {
+Java_com_winlator_cmod_shared_io_NativeXzInputStream_nativeClose(JNIEnv *env, jclass clazz, jlong handle) {
     (void)env;
     (void)clazz;
     close_native_xz_stream((native_xz_stream_t *)(intptr_t)handle);

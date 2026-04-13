@@ -6,7 +6,7 @@
     android:orientation="vertical"
     android:gravity="center_horizontal">
 
-    <com.winlator.cmod.widget.CPUListView
+    <com.winlator.cmod.runtime.system.ui.CPUListView
         android:id="@+id/CPUListView"
         android:layout_width="360dp"
         android:layout_height="wrap_content"

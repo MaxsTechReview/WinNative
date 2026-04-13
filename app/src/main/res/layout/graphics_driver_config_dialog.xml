@@ -48,7 +48,7 @@
                 android:layout_marginTop="10dp"
                 android:text="@string/container_graphics_available_extensions" />
 
-            <com.winlator.cmod.widget.MultiSelectionComboBox
+            <com.winlator.cmod.shared.ui.widget.MultiSelectionComboBox
                 android:id="@+id/MSCAvailableExtensions"
                 style="@style/OtherSettingsMultiSelectComboBox"
                 android:layout_width="match_parent"

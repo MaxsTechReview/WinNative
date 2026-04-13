@@ -1,0 +1,1348 @@
+package com.winlator.cmod.feature.settings
+import android.app.Activity
+import android.app.Dialog
+import android.net.Uri
+import android.util.Log
+import android.view.ViewGroup
+import android.view.Window
+import android.view.WindowManager
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.ComposeView
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.preference.PreferenceManager
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.winlator.cmod.R
+import com.winlator.cmod.feature.library.DriveItem
+import com.winlator.cmod.feature.library.EnvVarItem
+import com.winlator.cmod.feature.library.GameSettingsCallbacks
+import com.winlator.cmod.feature.library.GameSettingsContent
+import com.winlator.cmod.feature.library.GameSettingsStateHolder
+import com.winlator.cmod.feature.library.WinComponentItem
+import com.winlator.cmod.runtime.compat.box64.Box64Preset
+import com.winlator.cmod.runtime.compat.box64.Box64PresetManager
+import com.winlator.cmod.runtime.container.Container
+import com.winlator.cmod.runtime.container.ContainerManager
+import com.winlator.cmod.runtime.content.ContentProfile
+import com.winlator.cmod.runtime.content.ContentsManager
+import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.io.AssetPaths
+import com.winlator.cmod.runtime.wine.DefaultVersion
+import com.winlator.cmod.runtime.wine.EnvVars
+import com.winlator.cmod.shared.io.FileUtils
+import com.winlator.cmod.shared.util.KeyValueSet
+import com.winlator.cmod.shared.ui.dialog.PreloaderDialog
+import com.winlator.cmod.shared.util.StringUtils
+import com.winlator.cmod.runtime.wine.WineInfo
+import com.winlator.cmod.runtime.wine.WineRegistryEditor
+import com.winlator.cmod.runtime.wine.WineThemeManager
+import com.winlator.cmod.runtime.compat.fexcore.FEXCorePreset
+import com.winlator.cmod.runtime.compat.fexcore.FEXCorePresetManager
+import com.winlator.cmod.runtime.audio.midi.MidiManager
+import com.winlator.cmod.runtime.display.winhandler.WinHandler
+import com.winlator.cmod.runtime.display.environment.ImageFs
+import org.json.JSONObject
+import java.io.File
+import java.util.Locale
+import java.util.concurrent.Executors
+
+/**
+ * Compose replacement for the legacy `ContainerDetailFragment`. Reuses
+ * [GameSettingsContent] via [GameSettingsStateHolder.isContainerEditMode].
+ * Pass a null container to create a new one; pass an existing container to
+ * edit it in place. `onFinished` fires after save or cancel.
+ */
+class ContainerSettingsComposeDialog @JvmOverloads constructor(
+    private val activity: Activity,
+    private val container: Container?,
+    private val onFinished: Runnable? = null
+) {
+
+    private val context = activity
+    private val dialog: Dialog
+    private val state = GameSettingsStateHolder()
+    private val manager = ContainerManager(context)
+    private val contentsManager = ContentsManager(context)
+    private var isArm64EC = false
+    private val preloaderDialog: PreloaderDialog = PreloaderDialog(activity)
+
+    // Parallel id/display lists for presets and wine versions.
+    private var box64PresetIds = mutableListOf<String>()
+    private var fexcorePresetIds = mutableListOf<String>()
+    private var wineVersionIdentifiers = mutableListOf<String>()
+
+    // Drives working copy, mirrored into state.drivesList via syncDrivesState.
+    private val drivesWorking = mutableListOf<Pair<String, String>>()
+    private var pendingDriveIndex: Int = -1
+    private val directoryPickerLauncher: ActivityResultLauncher<Uri?>? =
+        (activity as? ComponentActivity)?.activityResultRegistry?.register(
+            "container_drive_picker",
+            ActivityResultContracts.OpenDocumentTree()
+        ) { uri: Uri? ->
+            if (uri == null) return@register
+            val path = FileUtils.getFilePathFromUri(context, uri) ?: return@register
+            val idx = pendingDriveIndex
+            if (idx in drivesWorking.indices) {
+                val letter = drivesWorking[idx].first
+                drivesWorking[idx] = letter to path
+                syncDrivesState()
+            }
+            pendingDriveIndex = -1
+        }
+
+    private val wallpaperPickerLauncher: ActivityResultLauncher<Array<String>>? =
+        (activity as? ComponentActivity)?.activityResultRegistry?.register(
+            "container_wallpaper_picker",
+            ActivityResultContracts.OpenDocument()
+        ) { uri: Uri? ->
+            if (uri == null) return@register
+            try {
+                val destFile = WineThemeManager.getUserWallpaperFile(context)
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    destFile.outputStream().use { output -> input.copyTo(output) }
+                }
+                state.desktopWallpaperSelected.value = true
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error copying wallpaper", e)
+                AppUtils.showToast(context, "Error saving wallpaper", Toast.LENGTH_SHORT)
+            }
+        }
+
+    init {
+        dialog = Dialog(activity, R.style.ContentDialog).apply {
+            requestWindowFeature(Window.FEATURE_NO_TITLE)
+            setCancelable(true)
+            setCanceledOnTouchOutside(false)
+            setOwnerActivity(activity)
+            window?.apply {
+                setBackgroundDrawableResource(android.R.color.transparent)
+                setLayout(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT
+                )
+                setDimAmount(0.5f)
+                addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+                setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+            }
+            // Centralize cleanup so back-button dismissal follows the same
+            // path as Save/Cancel and still fires onFinished (important for
+            // the setup wizard launcher that blocks on UnifiedActivity finishing).
+            setOnDismissListener {
+                AppUtils.hideKeyboard(activity)
+                directoryPickerLauncher?.unregister()
+                wallpaperPickerLauncher?.unregister()
+                onFinished?.run()
+            }
+        }
+
+        state.isContainerEditMode.value = true
+        state.wineVersionEditable.value = (container == null)
+
+        loadInitialData()
+        loadResourceArrays()
+
+        val composeView = ComposeView(activity).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            setViewTreeLifecycleOwner(activity as LifecycleOwner)
+            setViewTreeSavedStateRegistryOwner(activity as SavedStateRegistryOwner)
+            setContent {
+                GameSettingsContent(state = state, callbacks = createCallbacks())
+            }
+        }
+        dialog.setContentView(composeView)
+
+        (activity as LifecycleOwner).lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onDestroy(owner: LifecycleOwner) {
+                if (dialog.isShowing) dialog.dismiss()
+            }
+        })
+
+        loadContentsAsync()
+    }
+
+    private fun createCallbacks(): GameSettingsCallbacks {
+        return object : GameSettingsCallbacks {
+            override fun onConfirm() {
+                // Dismisses synchronously for edits; for new-container
+                // creation, dismisses from the createContainerAsync callback.
+                saveSettings()
+            }
+
+            override fun onDismiss() {
+                dismiss()
+            }
+
+            override fun onGraphicsDriverConfig() {}
+            override fun onDxWrapperConfig() {}
+            override fun onAddEnvVar() {}
+            override fun onAddToHomeScreen() {}
+
+            override fun onRemoveEnvVar(index: Int) {
+                val list = state.envVars.value.toMutableList()
+                if (index in list.indices) {
+                    list.removeAt(index)
+                    state.envVars.value = list
+                }
+            }
+
+            override fun onUpdateWinComponent(isDirectX: Boolean, index: Int, newValue: Int) {
+                if (isDirectX) {
+                    val components = state.directXComponents.value.toMutableList()
+                    if (index in components.indices) {
+                        components[index] = components[index].copy(selectedIndex = newValue)
+                        state.directXComponents.value = components
+                    }
+                } else {
+                    val components = state.generalComponents.value.toMutableList()
+                    if (index in components.indices) {
+                        components[index] = components[index].copy(selectedIndex = newValue)
+                        state.generalComponents.value = components
+                    }
+                }
+            }
+
+            override fun onGfxDriverVersionChanged(versionIndex: Int) {
+                loadExtensionsForVersion(versionIndex)
+                val versions = state.gfxDriverVersionEntries.value
+                state.graphicsDriverVersion.value = versions.getOrElse(versionIndex) { "" }
+            }
+
+            override fun onDxvkVkd3dVersionChanged(versionIndex: Int) {
+                handleDxvkVkd3dVersionChanged(versionIndex)
+            }
+
+            override fun onEmulatorChanged() {
+                updateEmulatorFrameVisibility()
+            }
+
+            override fun onWineVersionChanged(versionIndex: Int) {
+                if (container != null) return // locked on existing containers
+                val identifier = wineVersionIdentifiers.getOrNull(versionIndex) ?: return
+                val wineInfo = WineInfo.fromIdentifier(context, contentsManager, identifier)
+                isArm64EC = wineInfo.isArm64EC()
+                state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
+                // Box64 list depends on arch (box64 vs wowbox64 entries).
+                rebuildEmulatorLists()
+                loadBox64Versions()
+                loadFexcoreVersions()
+                loadBox64Presets()
+                loadFexcorePresets()
+                updateEmulatorFrameVisibility()
+            }
+
+            override fun onAddDrive() {
+                if (drivesWorking.size >= Container.MAX_DRIVE_LETTERS.toInt()) return
+                val used = drivesWorking.map { it.first }.toSet()
+                // Drive letters start at D: (ASCII 68) per Container.drivesIterator.
+                for (code in 68..(68 + Container.MAX_DRIVE_LETTERS.toInt() - 1)) {
+                    val letter = code.toChar().toString()
+                    if (letter !in used) {
+                        drivesWorking.add(letter to "")
+                        syncDrivesState()
+                        pendingDriveIndex = drivesWorking.size - 1
+                        directoryPickerLauncher?.launch(null)
+                        break
+                    }
+                }
+            }
+
+            override fun onRemoveDrive(index: Int) {
+                if (index in drivesWorking.indices) {
+                    drivesWorking.removeAt(index)
+                    syncDrivesState()
+                }
+            }
+
+            override fun onPickDrivePath(index: Int) {
+                if (index !in drivesWorking.indices) return
+                pendingDriveIndex = index
+                directoryPickerLauncher?.launch(null)
+            }
+
+            override fun onPickWallpaper() {
+                wallpaperPickerLauncher?.launch(arrayOf("image/*"))
+            }
+        }
+    }
+
+    private fun syncDrivesState() {
+        state.drivesList.value = drivesWorking.map { DriveItem(it.first, it.second) }
+    }
+
+    private fun loadInitialData() {
+        val c = container
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+
+        if (c != null) {
+            state.name.value = c.getName()
+        } else {
+            state.name.value = context.getString(R.string.common_ui_container) +
+                "-" + manager.getNextContainerId()
+        }
+
+        val inputType = c?.getInputType() ?: WinHandler.DEFAULT_INPUT_TYPE.toInt()
+        state.enableXInput.value =
+            (inputType and WinHandler.FLAG_INPUT_TYPE_XINPUT.toInt()) == WinHandler.FLAG_INPUT_TYPE_XINPUT.toInt()
+        state.enableDInput.value =
+            (inputType and WinHandler.FLAG_INPUT_TYPE_DINPUT.toInt()) == WinHandler.FLAG_INPUT_TYPE_DINPUT.toInt()
+        state.selectedDInputMapperType.intValue =
+            if ((inputType and WinHandler.FLAG_DINPUT_MAPPER_STANDARD.toInt()) == WinHandler.FLAG_DINPUT_MAPPER_STANDARD.toInt()) 0 else 1
+
+        // Exclusive Input is a global pref, not stored on the container.
+        state.containerExclusiveInput.value = prefs.getBoolean("xinput_toggle", false)
+        if (!state.containerExclusiveInput.value) {
+            state.enableXInput.value = true
+            state.enableDInput.value = true
+        }
+
+        state.showFPS.value = c?.isShowFPS() ?: false
+        state.fullscreenStretched.value = c?.isFullscreenStretched() ?: false
+
+        // Steam fields are shortcut-only in the UI; leave any existing steam
+        // state on the container untouched — saveSettings() skips them.
+        state.isSteamGame.value = false
+
+        state.execArgs.value = c?.getExecArgs() ?: ""
+        state.lcAll.value = c?.getLC_ALL() ?: (
+            Locale.getDefault().language + "_" + Locale.getDefault().country + ".UTF-8"
+            )
+
+        val cpuCount = Runtime.getRuntime().availableProcessors()
+        state.cpuCount.intValue = cpuCount
+        state.cpuChecked.value = parseCpuList(c?.getCPUList(true) ?: "", cpuCount)
+        state.cpuCheckedWoW64.value = parseCpuList(c?.getCPUListWoW64(true) ?: "", cpuCount)
+
+        val wincomponentsStr = c?.getWinComponents() ?: Container.DEFAULT_WINCOMPONENTS
+        val directX = mutableListOf<WinComponentItem>()
+        val general = mutableListOf<WinComponentItem>()
+        for (component in KeyValueSet(wincomponentsStr)) {
+            val key = component[0]
+            val value = component[1]
+            val label = StringUtils.getString(context, key) ?: key
+            val selectedIdx = try { Integer.parseInt(value) } catch (e: NumberFormatException) { 0 }
+            val item = WinComponentItem(key, label, selectedIdx)
+            if (key.startsWith("direct")) directX.add(item) else general.add(item)
+        }
+        state.directXComponents.value = directX
+        state.generalComponents.value = general
+
+        val envVarsStr = c?.getEnvVars() ?: Container.DEFAULT_ENV_VARS
+        val envVars = EnvVars(envVarsStr)
+        val items = mutableListOf<EnvVarItem>()
+        for (key in envVars) items.add(EnvVarItem(key, envVars.get(key)))
+        state.sdl2Compatibility.value = envVars.get("SDL_XINPUT_ENABLED") == "1"
+        state.envVars.value = if (state.sdl2Compatibility.value) {
+            items.filterNot { it.key in SDL2_KEYS }
+        } else items
+
+        drivesWorking.clear()
+        val drivesStr = c?.getDrives() ?: Container.DEFAULT_DRIVES
+        for (drive in Container.drivesIterator(drivesStr)) {
+            drivesWorking.add(drive[0] to drive[1])
+        }
+        syncDrivesState()
+
+        val desktopThemeValue = c?.getDesktopTheme() ?: WineThemeManager.DEFAULT_DESKTOP_THEME
+        val themeInfo = WineThemeManager.ThemeInfo(desktopThemeValue)
+        state.desktopBackgroundColor.value = String.format("#%06X", themeInfo.backgroundColor and 0x00FFFFFF)
+
+        // Mouse warp override lives in .wine/user.reg, not on the container.
+        var mouseWarp = "disable"
+        val rootDir = c?.getRootDir()
+        if (rootDir != null) {
+            val userRegFile = File(rootDir, ".wine/user.reg")
+            if (userRegFile.exists()) {
+                try {
+                    WineRegistryEditor(userRegFile).use { reg ->
+                        mouseWarp = reg.getStringValue(
+                            "Software\\Wine\\DirectInput",
+                            "MouseWarpOverride",
+                            "disable"
+                        )
+                    }
+                } catch (e: Throwable) {
+                    Log.w(TAG, "Error reading MouseWarpOverride", e)
+                }
+            }
+        }
+        pendingMouseWarpValue = mouseWarp.lowercase()
+    }
+
+    private var pendingMouseWarpValue = "disable"
+
+    private fun loadResourceArrays() {
+        val c = container
+
+        val screenSizeArr = context.resources.getStringArray(R.array.screen_size_entries).toList()
+        state.screenSizeEntries.value = screenSizeArr
+        selectScreenSize(c?.getScreenSize() ?: Container.DEFAULT_SCREEN_SIZE)
+
+        val graphicsDriverArr = context.resources.getStringArray(R.array.graphics_driver_entries).toList()
+        state.graphicsDriverEntries.value = graphicsDriverArr
+        selectByIdentifier(
+            graphicsDriverArr,
+            c?.getGraphicsDriver() ?: Container.DEFAULT_GRAPHICS_DRIVER,
+            state.selectedGraphicsDriver
+        )
+
+        val dxWrapperArr = context.resources.getStringArray(R.array.dxwrapper_entries).toList()
+        state.dxWrapperEntries.value = dxWrapperArr
+        selectByIdentifier(
+            dxWrapperArr,
+            c?.getDXWrapper() ?: Container.DEFAULT_DXWRAPPER,
+            state.selectedDxWrapper
+        )
+
+        val audioDriverArr = context.resources.getStringArray(R.array.audio_driver_entries).toList()
+        state.audioDriverEntries.value = audioDriverArr
+        selectByIdentifier(
+            audioDriverArr,
+            c?.getAudioDriver() ?: Container.DEFAULT_AUDIO_DRIVER,
+            state.selectedAudioDriver
+        )
+
+        loadMidiSoundFonts()
+
+        val emulatorArr = context.resources.getStringArray(R.array.emulator_entries).toList()
+        state.emulatorEntries.value = emulatorArr
+
+        val wineVersionStr = c?.getWineVersion() ?: WineInfo.MAIN_WINE_VERSION.identifier()
+        val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersionStr)
+        isArm64EC = wineInfo.isArm64EC()
+        state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
+
+        rebuildEmulatorLists()
+        selectByIdentifier(
+            state.emulator32Entries.value,
+            c?.getEmulator() ?: Container.DEFAULT_EMULATOR,
+            state.selectedEmulator
+        )
+        selectByIdentifier(
+            state.emulator64Entries.value,
+            c?.getEmulator64() ?: Container.DEFAULT_EMULATOR64,
+            state.selectedEmulator64
+        )
+
+        state.localeOptions.value = context.resources.getStringArray(R.array.some_lc_all).toList()
+        state.winComponentEntries.value =
+            context.resources.getStringArray(R.array.wincomponent_entries).toList()
+        state.dInputMapperTypeEntries.value =
+            context.resources.getStringArray(R.array.dinput_mapper_type_entries).toList()
+
+        val startupArr = context.resources.getStringArray(R.array.startup_selection_entries).toList()
+        state.startupSelectionEntries.value = startupArr
+        state.selectedStartupSelection.intValue =
+            (c?.getStartupSelection()?.toInt() ?: Container.STARTUP_SELECTION_ESSENTIAL.toInt())
+                .coerceIn(0, startupArr.size - 1)
+
+        val desktopThemeArr =
+            context.resources.getStringArray(R.array.desktop_theme_entries).toList()
+        state.desktopThemeEntries.value = desktopThemeArr
+        val savedDesktopTheme = c?.getDesktopTheme() ?: WineThemeManager.DEFAULT_DESKTOP_THEME
+        val themeInfo = WineThemeManager.ThemeInfo(savedDesktopTheme)
+        state.selectedDesktopTheme.intValue =
+            themeInfo.theme.ordinal.coerceIn(0, (desktopThemeArr.size - 1).coerceAtLeast(0))
+
+        val bgTypeArr =
+            context.resources.getStringArray(R.array.desktop_background_type_entries).toList()
+        state.desktopBackgroundTypeEntries.value = bgTypeArr
+        state.selectedDesktopBackgroundType.intValue =
+            themeInfo.backgroundType.ordinal.coerceIn(0, (bgTypeArr.size - 1).coerceAtLeast(0))
+
+        state.desktopWallpaperSelected.value =
+            WineThemeManager.getUserWallpaperFile(context).isFile
+
+        val mouseWarpArr = listOf(
+            context.getString(R.string.common_ui_disable),
+            context.getString(R.string.common_ui_enable),
+            context.getString(R.string.common_ui_force)
+        )
+        state.mouseWarpOverrideEntries.value = mouseWarpArr
+        state.selectedMouseWarpOverride.intValue = when (pendingMouseWarpValue) {
+            "enable" -> 1
+            "force" -> 2
+            else -> 0
+        }
+
+        loadBox64Presets()
+        loadFexcorePresets()
+        loadGraphicsDriverConfigState()
+        // DXVK/WineD3D loaders iterate contents profiles; deferred to
+        // populateContentsDependentData() after contentsManager.syncContents.
+        updateEmulatorFrameVisibility()
+    }
+
+    private fun loadContentsAsync() {
+        Executors.newSingleThreadExecutor().execute {
+            try {
+                contentsManager.syncContents()
+                activity.runOnUiThread {
+                    try {
+                        populateContentsDependentData()
+                    } finally {
+                        state.isLoaded.value = true
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error syncing contents", e)
+                activity.runOnUiThread {
+                    state.isLoaded.value = true
+                }
+            }
+        }
+    }
+
+    private fun populateContentsDependentData() {
+        val c = container
+
+        // Wine version list depends on content profile enumeration.
+        val versions = mutableListOf<String>()
+        val identifiers = mutableListOf<String>()
+        for (ver in context.resources.getStringArray(R.array.wine_entries)) {
+            versions.add(ver)
+            identifiers.add(ver)
+        }
+        for (profile in contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_WINE)) {
+            val name = ContentsManager.getEntryName(profile)
+            versions.add(name)
+            identifiers.add(name)
+        }
+        for (profile in contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_PROTON)) {
+            val name = ContentsManager.getEntryName(profile)
+            versions.add(name)
+            identifiers.add(name)
+        }
+        state.wineVersionEntries.value = versions
+        wineVersionIdentifiers = identifiers
+
+        val currentWine = c?.getWineVersion() ?: WineInfo.MAIN_WINE_VERSION.identifier()
+        val idx = identifiers.indexOfFirst { it == currentWine }
+        state.selectedWineVersion.intValue = if (idx >= 0) idx else 0
+
+        val wineInfo = WineInfo.fromIdentifier(context, contentsManager, currentWine)
+        val archChanged = isArm64EC != wineInfo.isArm64EC()
+        isArm64EC = wineInfo.isArm64EC()
+        state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
+
+        rebuildEmulatorLists()
+        if (archChanged) {
+            selectByIdentifier(
+                state.emulator32Entries.value,
+                c?.getEmulator() ?: Container.DEFAULT_EMULATOR,
+                state.selectedEmulator
+            )
+            selectByIdentifier(
+                state.emulator64Entries.value,
+                c?.getEmulator64() ?: Container.DEFAULT_EMULATOR64,
+                state.selectedEmulator64
+            )
+        }
+
+        loadBox64Versions()
+        loadFexcoreVersions()
+        loadDxvkConfigState()
+        loadWineD3DConfigState()
+        updateEmulatorFrameVisibility()
+    }
+
+    private fun saveSettings() {
+        val c = container
+        val name = state.name.value.trim()
+        if (name.isEmpty()) {
+            AppUtils.showToast(context, "Name cannot be empty", Toast.LENGTH_SHORT)
+            return
+        }
+
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        prefs.edit().putBoolean("xinput_toggle", state.containerExclusiveInput.value).apply()
+
+        val screenSize = getScreenSizeFromState()
+        val graphicsDriver = getIdentifierFromEntries(
+            state.graphicsDriverEntries.value, state.selectedGraphicsDriver.intValue
+        )
+        var graphicsDriverConfig = buildGraphicsDriverConfigFromState()
+        val parsedGfx = GraphicsDriverConfigDialog.parseGraphicsDriverConfig(graphicsDriverConfig)
+        if (parsedGfx.get("version").isNullOrEmpty()) {
+            val defaultVersion = try {
+                if (com.winlator.cmod.runtime.system.GPUInformation.isDriverSupported(DefaultVersion.WRAPPER_ADRENO, context))
+                    DefaultVersion.WRAPPER_ADRENO else DefaultVersion.WRAPPER
+            } catch (e: Throwable) {
+                DefaultVersion.WRAPPER
+            }
+            parsedGfx.put("version", defaultVersion)
+            graphicsDriverConfig = GraphicsDriverConfigDialog.toGraphicsDriverConfig(parsedGfx)
+        }
+        val dxwrapper = getIdentifierFromEntries(
+            state.dxWrapperEntries.value, state.selectedDxWrapper.intValue
+        )
+        val dxwrapperConfig = if (dxwrapper.contains("dxvk"))
+            buildDxvkConfigFromState() else buildWineD3DConfigFromState()
+        val audioDriver = getIdentifierFromEntries(
+            state.audioDriverEntries.value, state.selectedAudioDriver.intValue
+        )
+        val emulator = getIdentifierFromEntries(
+            state.emulator32Entries.value, state.selectedEmulator.intValue
+        )
+        val emulator64 = getIdentifierFromEntries(
+            state.emulator64Entries.value, state.selectedEmulator64.intValue
+        )
+
+        val midiSoundFontEntries = state.midiSoundFontEntries.value
+        val midiIdx = state.selectedMidiSoundFont.intValue
+        val midiSoundFont =
+            if (midiIdx <= 0 || midiIdx >= midiSoundFontEntries.size) ""
+            else midiSoundFontEntries[midiIdx]
+
+        val envVarsStr = buildEnvVarsString()
+        val wincomponents = buildWinComponentsString()
+        val drivesString = com.winlator.cmod.runtime.wine.WineUtils.normalizePersistentDrives(
+            context,
+            buildDrivesString()
+        )
+
+        val cpuList = buildCpuListString(state.cpuChecked.value)
+        val cpuListWoW64 = buildCpuListString(state.cpuCheckedWoW64.value)
+
+        var finalInputType = 0
+        if (state.enableXInput.value) finalInputType =
+            finalInputType or WinHandler.FLAG_INPUT_TYPE_XINPUT.toInt()
+        if (state.enableDInput.value) finalInputType =
+            finalInputType or WinHandler.FLAG_INPUT_TYPE_DINPUT.toInt()
+        finalInputType = finalInputType or (
+            if (state.selectedDInputMapperType.intValue == 0)
+                WinHandler.FLAG_DINPUT_MAPPER_STANDARD.toInt()
+            else WinHandler.FLAG_DINPUT_MAPPER_XINPUT.toInt()
+            )
+
+        val startupSelection = state.selectedStartupSelection.intValue.toByte()
+
+        val box64VersionEntries = state.box64VersionEntries.value
+        val box64Version = box64VersionEntries.getOrElse(state.selectedBox64Version.intValue) { DefaultVersion.BOX64 }
+        val box64Preset = box64PresetIds.getOrElse(state.selectedBox64Preset.intValue) { Box64Preset.COMPATIBILITY }
+
+        val fexcoreVersionEntries = state.fexcoreVersionEntries.value
+        val fexcoreVersion = fexcoreVersionEntries.getOrElse(state.selectedFexcoreVersion.intValue) { DefaultVersion.FEXCORE }
+        val fexcorePreset = fexcorePresetIds.getOrElse(state.selectedFexcorePreset.intValue) { FEXCorePreset.COMPATIBILITY }
+
+        val desktopTheme = buildDesktopThemeString()
+
+        val selectedWineStr = resolveSelectedWineVersionIdentifier()
+
+        if (c != null) {
+            c.setName(name)
+            c.setScreenSize(screenSize)
+            c.setEnvVars(envVarsStr)
+            c.setCPUList(cpuList)
+            c.setCPUListWoW64(cpuListWoW64)
+            c.setGraphicsDriver(graphicsDriver)
+            c.setGraphicsDriverConfig(graphicsDriverConfig)
+            c.setDXWrapper(dxwrapper)
+            c.setDXWrapperConfig(dxwrapperConfig)
+            c.setAudioDriver(audioDriver)
+            c.setEmulator(emulator)
+            c.setEmulator64(emulator64)
+            c.setWinComponents(wincomponents)
+            c.setDrives(drivesString)
+            c.setShowFPS(state.showFPS.value)
+            c.setFullscreenStretched(state.fullscreenStretched.value)
+            c.setInputType(finalInputType)
+            c.setStartupSelection(startupSelection)
+            c.setBox64Version(box64Version)
+            c.setBox64Preset(box64Preset)
+            c.setFEXCoreVersion(fexcoreVersion)
+            c.setFEXCorePreset(fexcorePreset)
+            c.setDesktopTheme(desktopTheme)
+            c.setMidiSoundFont(midiSoundFont)
+            c.setLC_ALL(state.lcAll.value)
+            c.setExecArgs(state.execArgs.value)
+            // Steam fields are intentionally not written — container edit UI
+            // doesn't expose them, and saveData() round-trips the loaded
+            // values from c's in-memory state.
+            c.saveData()
+            saveMouseWarpOverride(c)
+            dismiss()
+        } else {
+            try {
+                val data = JSONObject()
+                data.put("name", name)
+                data.put("screenSize", screenSize)
+                data.put("envVars", envVarsStr)
+                data.put("cpuList", cpuList)
+                data.put("cpuListWoW64", cpuListWoW64)
+                data.put("graphicsDriver", graphicsDriver)
+                data.put("graphicsDriverConfig", graphicsDriverConfig)
+                data.put("dxwrapper", dxwrapper)
+                data.put("dxwrapperConfig", dxwrapperConfig)
+                data.put("audioDriver", audioDriver)
+                data.put("emulator", emulator)
+                data.put("emulator64", emulator64)
+                data.put("wincomponents", wincomponents)
+                data.put("drives", drivesString)
+                data.put("showFPS", state.showFPS.value)
+                data.put("fullscreenStretched", state.fullscreenStretched.value)
+                data.put("inputType", finalInputType)
+                data.put("startupSelection", startupSelection.toInt())
+                data.put("box64Version", box64Version)
+                data.put("box64Preset", box64Preset)
+                data.put("fexcoreVersion", fexcoreVersion)
+                data.put("fexcorePreset", fexcorePreset)
+                data.put("desktopTheme", desktopTheme)
+                data.put("wineVersion", selectedWineStr)
+                data.put("midiSoundFont", midiSoundFont)
+                data.put("lc_all", state.lcAll.value)
+                data.put("execArgs", state.execArgs.value)
+
+                preloaderDialog.show(R.string.containers_list_creating)
+                ImageFs.find(File(context.filesDir, "imagefs"))
+
+                manager.createContainerAsync(data, contentsManager) { newContainer ->
+                    if (newContainer != null) {
+                        saveMouseWarpOverride(newContainer)
+                    } else {
+                        AppUtils.showToast(context, R.string.setup_wizard_unable_to_install_system_files)
+                    }
+                    preloaderDialog.close()
+                    dismiss()
+                }
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error creating container", e)
+                preloaderDialog.close()
+                AppUtils.showToast(context, "Error: " + e.message)
+            }
+        }
+    }
+
+    private fun resolveSelectedWineVersionIdentifier(): String {
+        wineVersionIdentifiers.getOrNull(state.selectedWineVersion.intValue)?.let { return it }
+
+        // Profiles were already synced in loadContentsAsync(); query what's available
+        // without re-scanning disk on the main thread.
+        val installedProfiles = (
+            contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_WINE).orEmpty() +
+                contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_PROTON).orEmpty()
+            )
+            .filter { it.isInstalled }
+            .sortedWith(
+                compareByDescending<ContentProfile> { it.verCode }
+                    .thenByDescending { it.verName.lowercase(Locale.ROOT) }
+            )
+
+        return installedProfiles.firstOrNull()
+            ?.let(ContentsManager::getEntryName)
+            ?: WineInfo.MAIN_WINE_VERSION.identifier()
+    }
+
+    private fun saveMouseWarpOverride(c: Container) {
+        val rootDir = c.getRootDir() ?: return
+        val userRegFile = File(rootDir, ".wine/user.reg")
+        if (!userRegFile.exists()) return
+        try {
+            WineRegistryEditor(userRegFile).use { reg ->
+                val value = when (state.selectedMouseWarpOverride.intValue) {
+                    1 -> "enable"
+                    2 -> "force"
+                    else -> "disable"
+                }
+                reg.setStringValue("Software\\Wine\\DirectInput", "MouseWarpOverride", value)
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "Error writing MouseWarpOverride", e)
+        }
+    }
+
+    private fun loadMidiSoundFonts() {
+        val tempSpinner = android.widget.Spinner(context)
+        MidiManager.loadSFSpinner(tempSpinner)
+        val adapter = tempSpinner.adapter
+        val filesName = mutableListOf<String>()
+        if (adapter != null) {
+            for (i in 0 until adapter.count) filesName.add(adapter.getItem(i).toString())
+        }
+        state.midiSoundFontEntries.value = filesName
+        val savedFont = container?.getMIDISoundFont() ?: ""
+        state.selectedMidiSoundFont.intValue =
+            if (savedFont.isEmpty()) 0 else filesName.indexOfFirst { it == savedFont }.coerceAtLeast(0)
+    }
+
+    private fun loadBox64Presets() {
+        val presets = Box64PresetManager.getPresets("box64", context)
+        val names = mutableListOf<String>()
+        val ids = mutableListOf<String>()
+        for (p in presets) {
+            names.add(p.name); ids.add(p.id)
+        }
+        state.box64PresetEntries.value = names
+        box64PresetIds = ids
+        val saved = container?.getBox64Preset()
+            ?: PreferenceManager.getDefaultSharedPreferences(context)
+                .getString("box64_preset", Box64Preset.COMPATIBILITY)
+        val idx = ids.indexOfFirst { it == saved }
+        state.selectedBox64Preset.intValue = if (idx >= 0) idx else 0
+    }
+
+    private fun loadFexcorePresets() {
+        val presets = FEXCorePresetManager.getPresets(context)
+        val names = mutableListOf<String>()
+        val ids = mutableListOf<String>()
+        for (p in presets) {
+            names.add(p.name); ids.add(p.id)
+        }
+        state.fexcorePresetEntries.value = names
+        fexcorePresetIds = ids
+        val saved = container?.getFEXCorePreset()
+            ?: PreferenceManager.getDefaultSharedPreferences(context)
+                .getString("fexcore_preset", FEXCorePreset.INTERMEDIATE)
+        val idx = ids.indexOfFirst { it == saved }
+        state.selectedFexcorePreset.intValue = if (idx >= 0) idx else 0
+    }
+
+    private fun loadBox64Versions() {
+        val itemList: MutableList<String> = if (isArm64EC) {
+            context.resources.getStringArray(R.array.wowbox64_version_entries).toMutableList()
+        } else {
+            context.resources.getStringArray(R.array.box64_version_entries).toMutableList()
+        }
+        val profileType = if (isArm64EC)
+            ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64
+        else ContentProfile.ContentType.CONTENT_TYPE_BOX64
+        for (profile in contentsManager.getProfiles(profileType)) {
+            val entryName = ContentsManager.getEntryName(profile)
+            val firstDash = entryName.indexOf('-')
+            if (firstDash >= 0) itemList.add(entryName.substring(firstDash + 1))
+        }
+        state.box64VersionEntries.value = itemList
+        val current = container?.getBox64Version()
+            ?: (if (isArm64EC) DefaultVersion.WOWBOX64 else DefaultVersion.BOX64)
+        selectByValue(itemList, current, state.selectedBox64Version)
+        updateEmulatorFrameVisibility()
+    }
+
+    private fun loadFexcoreVersions() {
+        val items = mutableListOf<String>()
+        items.addAll(context.resources.getStringArray(R.array.fexcore_version_entries))
+        for (profile in contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_FEXCORE)) {
+            val entryName = ContentsManager.getEntryName(profile)
+            val firstDash = entryName.indexOf('-')
+            if (firstDash >= 0) items.add(entryName.substring(firstDash + 1))
+        }
+        state.fexcoreVersionEntries.value = items
+        val saved = container?.getFEXCoreVersion() ?: DefaultVersion.FEXCORE
+        selectByValue(items, saved, state.selectedFexcoreVersion)
+    }
+
+    private fun updateEmulatorFrameVisibility() {
+        val e32 = state.emulator32Entries.value.getOrNull(state.selectedEmulator.intValue)
+            ?.let { StringUtils.parseIdentifier(it) } ?: ""
+        val e64 = state.emulator64Entries.value.getOrNull(state.selectedEmulator64.intValue)
+            ?.let { StringUtils.parseIdentifier(it) } ?: ""
+        val usesWowbox64 = e32.equals("wowbox64", true) || e64.equals("wowbox64", true)
+        state.showBox64Frame.value =
+            e32.equals("box64", true) || e64.equals("box64", true) || usesWowbox64
+        state.showFexcoreFrame.value =
+            e32.equals("fexcore", true) || e64.equals("fexcore", true)
+    }
+
+    private fun formatWineVersionDisplay(wineInfo: WineInfo): String {
+        val base = wineInfo.toString()
+        val archLabel = when (wineInfo.arch?.lowercase()) {
+            "arm64ec" -> "ARM64EC"
+            "x86_64" -> "x86_64"
+            "x86" -> "x86"
+            else -> wineInfo.arch ?: ""
+        }
+        return if (archLabel.isNotEmpty()) "$base ($archLabel)" else base
+    }
+
+    private fun rebuildEmulatorLists() {
+        val fullList = state.emulatorEntries.value
+        fun entryById(id: String): String? = fullList.firstOrNull {
+            StringUtils.parseIdentifier(it).equals(id, ignoreCase = true)
+        }
+
+        val prev32 = state.emulator32Entries.value
+        val prev64 = state.emulator64Entries.value
+        val prev32Id = prev32.getOrNull(state.selectedEmulator.intValue)
+            ?.let { StringUtils.parseIdentifier(it) } ?: ""
+        val prev64Id = prev64.getOrNull(state.selectedEmulator64.intValue)
+            ?.let { StringUtils.parseIdentifier(it) } ?: ""
+
+        if (isArm64EC) {
+            state.emulator64Entries.value = listOfNotNull(entryById("fexcore"))
+            state.emulator32Entries.value =
+                listOfNotNull(entryById("fexcore"), entryById("wowbox64"))
+        } else {
+            state.emulator64Entries.value = listOfNotNull(entryById("box64"))
+            state.emulator32Entries.value = listOfNotNull(entryById("wowbox64"))
+        }
+
+        val new32 = state.emulator32Entries.value
+        val new32Idx = new32.indexOfFirst {
+            StringUtils.parseIdentifier(it).equals(prev32Id, ignoreCase = true)
+        }
+        state.selectedEmulator.intValue = if (new32Idx >= 0) new32Idx else 0
+
+        val new64 = state.emulator64Entries.value
+        val new64Idx = new64.indexOfFirst {
+            StringUtils.parseIdentifier(it).equals(prev64Id, ignoreCase = true)
+        }
+        state.selectedEmulator64.intValue = if (new64Idx >= 0) new64Idx else 0
+    }
+
+    private fun loadGraphicsDriverConfigState() {
+        val configStr = container?.getGraphicsDriverConfig() ?: Container.DEFAULT_GRAPHICSDRIVERCONFIG
+        val config = GraphicsDriverConfigDialog.parseGraphicsDriverConfig(configStr)
+
+        state.gfxVulkanVersionEntries.value =
+            context.resources.getStringArray(R.array.vulkan_version_entries).toList()
+        state.gfxMaxDeviceMemoryEntries.value =
+            context.resources.getStringArray(R.array.device_memory_entries).toList()
+        state.gfxPresentModeEntries.value =
+            context.resources.getStringArray(R.array.present_mode_entries).toList()
+        state.gfxResourceTypeEntries.value =
+            context.resources.getStringArray(R.array.resource_type_entries).toList()
+        state.gfxBcnEmulationEntries.value =
+            context.resources.getStringArray(R.array.bcn_emulation_entries).toList()
+        state.gfxBcnEmulationTypeEntries.value =
+            context.resources.getStringArray(R.array.bcn_emulation_type_entries).toList()
+        state.gfxBcnEmulationCacheEntries.value =
+            context.resources.getStringArray(R.array.bcn_emulation_cache_entries).toList()
+
+        val gpuNames = mutableListOf("Device")
+        try {
+            val gpuNameList = FileUtils.readString(context, AssetPaths.GPU_CARDS)
+            if (!gpuNameList.isNullOrEmpty()) {
+                val jarray = org.json.JSONArray(gpuNameList)
+                for (i in 0 until jarray.length()) {
+                    gpuNames.add(jarray.getJSONObject(i).getString("name"))
+                }
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "Error loading gpu_cards.json", e)
+        }
+        state.gfxGpuNameEntries.value = gpuNames
+
+        loadGraphicsDriverVersions()
+
+        selectByValue(state.gfxVulkanVersionEntries.value, config.get("vulkanVersion") ?: "1.3", state.gfxSelectedVulkanVersion)
+        selectByValue(state.gfxGpuNameEntries.value, config.get("gpuName") ?: "Device", state.gfxSelectedGpuName)
+        selectByNumber(state.gfxMaxDeviceMemoryEntries.value, config.get("maxDeviceMemory") ?: "0", state.gfxSelectedMaxDeviceMemory)
+        selectByValue(state.gfxPresentModeEntries.value, config.get("presentMode") ?: "mailbox", state.gfxSelectedPresentMode)
+        selectByValue(state.gfxResourceTypeEntries.value, config.get("resourceType") ?: "auto", state.gfxSelectedResourceType)
+        selectByValue(state.gfxBcnEmulationEntries.value, config.get("bcnEmulation") ?: "none", state.gfxSelectedBcnEmulation)
+        selectByValue(state.gfxBcnEmulationTypeEntries.value, config.get("bcnEmulationType") ?: "compute", state.gfxSelectedBcnEmulationType)
+        selectByValue(state.gfxBcnEmulationCacheEntries.value, config.get("bcnEmulationCache") ?: "0", state.gfxSelectedBcnEmulationCache)
+        state.gfxSyncFrame.value = config.get("syncFrame") == "1"
+        state.gfxDisablePresentWait.value = config.get("disablePresentWait") == "1"
+        state.graphicsDriverVersion.value = config.get("version") ?: ""
+    }
+
+    private fun loadGraphicsDriverVersions() {
+        val versions = mutableListOf<String>()
+        try {
+            val defaults = context.resources.getStringArray(R.array.wrapper_graphics_driver_version_entries)
+            for (ver in defaults) {
+                try {
+                    if (com.winlator.cmod.runtime.system.GPUInformation.isDriverSupported(ver, context))
+                        versions.add(ver)
+                } catch (e: Throwable) {
+                    Log.w(TAG, "Driver support check failed: $ver", e)
+                }
+            }
+            try {
+                val adreno = com.winlator.cmod.runtime.content.AdrenotoolsManager(context)
+                val installed = adreno.enumarateInstalledDrivers()
+                if (installed != null) versions.addAll(installed)
+            } catch (e: Throwable) {
+                Log.w(TAG, "Error loading Adrenotools drivers", e)
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "Error loading wrapper versions", e)
+        }
+        if (versions.isEmpty()) versions.add("System")
+        state.gfxDriverVersionEntries.value = versions
+
+        val configStr2 = container?.getGraphicsDriverConfig() ?: Container.DEFAULT_GRAPHICSDRIVERCONFIG
+        val config = GraphicsDriverConfigDialog.parseGraphicsDriverConfig(configStr2)
+        val initialVersion = config.get("version") ?: ""
+        if (initialVersion.isNotEmpty()) {
+            val idx = versions.indexOfFirst { it.equals(initialVersion, ignoreCase = true) }
+            if (idx >= 0) state.gfxSelectedDriverVersion.intValue = idx
+        }
+        loadExtensionsForVersion(state.gfxSelectedDriverVersion.intValue)
+    }
+
+    private fun loadExtensionsForVersion(versionIndex: Int) {
+        val versions = state.gfxDriverVersionEntries.value
+        val version = versions.getOrElse(versionIndex) { return }
+        try {
+            val extensions = com.winlator.cmod.runtime.system.GPUInformation.enumerateExtensions(version, context)
+            if (extensions != null) {
+                state.gfxAvailableExtensions.value = extensions.toList()
+                val configStr = container?.getGraphicsDriverConfig() ?: Container.DEFAULT_GRAPHICSDRIVERCONFIG
+                val config = GraphicsDriverConfigDialog.parseGraphicsDriverConfig(configStr)
+                val savedVersion = config.get("version") ?: ""
+                if (version == savedVersion) {
+                    val bl = config.get("blacklistedExtensions") ?: ""
+                    state.gfxBlacklistedExtensions.value =
+                        if (bl.isNotEmpty()) bl.split(",").toSet() else emptySet()
+                } else {
+                    state.gfxBlacklistedExtensions.value = emptySet()
+                }
+            } else {
+                state.gfxAvailableExtensions.value = emptyList()
+                state.gfxBlacklistedExtensions.value = emptySet()
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "Error loading extensions for $version", e)
+            state.gfxAvailableExtensions.value = emptyList()
+            state.gfxBlacklistedExtensions.value = emptySet()
+        }
+    }
+
+    private fun loadDxvkConfigState() {
+        val configStr = container?.getDXWrapperConfig() ?: Container.DEFAULT_DXWRAPPERCONFIG
+        val config = DXVKConfigDialog.parseConfig(configStr)
+        state.dxvkVkd3dFeatureLevelEntries.value = DXVKConfigDialog.VKD3D_FEATURE_LEVEL.toList()
+        state.dxvkDdrawWrapperEntries.value =
+            context.resources.getStringArray(R.array.ddrawrapper_entries).toList()
+        state.dxvkFramerateEntries.value =
+            context.resources.getStringArray(R.array.dxvk_framerate_entries).toList()
+        loadDxvkVersions()
+        loadVkd3dVersions()
+        selectByIdentifier(state.dxvkVkd3dFeatureLevelEntries.value, config.get("vkd3dLevel"), state.dxvkSelectedVkd3dFeatureLevel)
+        selectByIdentifier(state.dxvkDdrawWrapperEntries.value, config.get("ddrawrapper"), state.dxvkSelectedDdrawWrapper)
+        selectByIdentifier(state.dxvkFramerateEntries.value, config.get("framerate"), state.dxvkSelectedFramerate)
+        val selectedVersion = state.dxvkVersionEntries.value.getOrElse(state.dxvkSelectedVersion.intValue) { DefaultVersion.DXVK }
+        val asyncCapable = selectedVersion.contains("async", ignoreCase = true)
+        state.dxvkAsync.value = config.get("async")?.let { it == "1" } ?: asyncCapable
+        state.dxvkAsyncCache.value = config.get("asyncCache")?.let { it == "1" } ?: asyncCapable
+    }
+
+    private fun loadDxvkVersions() {
+        val originalItems = context.resources.getStringArray(R.array.dxvk_version_entries).toMutableList()
+        for (profile in contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_DXVK)) {
+            val entryName = ContentsManager.getEntryName(profile)
+            val firstDash = entryName.indexOf('-')
+            originalItems.add(entryName.substring(firstDash + 1))
+        }
+        if (!isArm64EC) originalItems.removeAll { it.contains("arm64ec") }
+        state.dxvkVersionEntries.value = originalItems
+        val configStr = container?.getDXWrapperConfig() ?: Container.DEFAULT_DXWRAPPERCONFIG
+        val config = DXVKConfigDialog.parseConfig(configStr)
+        selectByIdentifier(originalItems, config.get("version"), state.dxvkSelectedVersion)
+    }
+
+    private fun loadVkd3dVersions() {
+        val items = mutableListOf<String>()
+        items.addAll(context.resources.getStringArray(R.array.vkd3d_version_entries))
+        for (profile in contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_VKD3D)) {
+            items.add(profile.verName + "-" + profile.verCode)
+        }
+        state.dxvkVkd3dVersionEntries.value = items
+        val configStr = container?.getDXWrapperConfig() ?: Container.DEFAULT_DXWRAPPERCONFIG
+        val config = DXVKConfigDialog.parseConfig(configStr)
+        selectByIdentifier(items, config.get("vkd3dVersion"), state.dxvkSelectedVkd3dVersion)
+    }
+
+    private fun loadWineD3DConfigState() {
+        val configStr = container?.getDXWrapperConfig() ?: Container.DEFAULT_DXWRAPPERCONFIG
+        val config = WineD3DConfigDialog.parseConfig(configStr)
+        state.wined3dVideoMemorySizeEntries.value =
+            context.resources.getStringArray(R.array.video_memory_size_entries).toList()
+
+        val gpuNames = mutableListOf<String>()
+        try {
+            val gpuNameList = FileUtils.readString(context, AssetPaths.GPU_CARDS)
+            if (!gpuNameList.isNullOrEmpty()) {
+                val jarray = org.json.JSONArray(gpuNameList)
+                for (i in 0 until jarray.length()) {
+                    gpuNames.add(jarray.getJSONObject(i).getString("name"))
+                }
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "Error loading gpu_cards.json for WineD3D", e)
+        }
+        state.wined3dGpuNameEntries.value = gpuNames
+
+        state.wined3dSelectedCsmt.intValue = if (config.get("csmt") == "3") 0 else 1
+        state.wined3dSelectedStrictShaderMath.intValue = if (config.get("strict_shader_math") == "1") 0 else 1
+        selectByValue(state.wined3dOffscreenRenderingModeEntries.value, config.get("OffscreenRenderingMode"), state.wined3dSelectedOffscreenRenderingMode)
+        selectByValue(state.wined3dGpuNameEntries.value, config.get("gpuName"), state.wined3dSelectedGpuName)
+        selectByValue(state.wined3dRendererEntries.value, config.get("renderer"), state.wined3dSelectedRenderer)
+        selectByNumber(state.wined3dVideoMemorySizeEntries.value, config.get("videoMemorySize"), state.wined3dSelectedVideoMemorySize)
+    }
+
+    private fun buildGraphicsDriverConfigFromState(): String {
+        val vulkanVersion = state.gfxVulkanVersionEntries.value.getOrElse(state.gfxSelectedVulkanVersion.intValue) { "1.3" }
+        val version = state.gfxDriverVersionEntries.value.getOrElse(state.gfxSelectedDriverVersion.intValue) { "" }
+        val blacklisted = state.gfxBlacklistedExtensions.value.joinToString(",")
+        val gpuName = state.gfxGpuNameEntries.value.getOrElse(state.gfxSelectedGpuName.intValue) { "Device" }
+        val maxDeviceMemory = StringUtils.parseNumber(
+            state.gfxMaxDeviceMemoryEntries.value.getOrElse(state.gfxSelectedMaxDeviceMemory.intValue) { "0" }
+        )
+        val presentMode = state.gfxPresentModeEntries.value.getOrElse(state.gfxSelectedPresentMode.intValue) { "mailbox" }
+        val syncFrame = if (state.gfxSyncFrame.value) "1" else "0"
+        val disablePresentWait = if (state.gfxDisablePresentWait.value) "1" else "0"
+        val resourceType = state.gfxResourceTypeEntries.value.getOrElse(state.gfxSelectedResourceType.intValue) { "auto" }
+        val bcnEmulation = state.gfxBcnEmulationEntries.value.getOrElse(state.gfxSelectedBcnEmulation.intValue) { "none" }
+        val bcnEmulationType = state.gfxBcnEmulationTypeEntries.value.getOrElse(state.gfxSelectedBcnEmulationType.intValue) { "compute" }
+        val bcnEmulationCache = state.gfxBcnEmulationCacheEntries.value.getOrElse(state.gfxSelectedBcnEmulationCache.intValue) { "0" }
+        return "vulkanVersion=$vulkanVersion;version=$version;blacklistedExtensions=$blacklisted;" +
+            "maxDeviceMemory=$maxDeviceMemory;presentMode=$presentMode;syncFrame=$syncFrame;" +
+            "disablePresentWait=$disablePresentWait;resourceType=$resourceType;" +
+            "bcnEmulation=$bcnEmulation;bcnEmulationType=$bcnEmulationType;" +
+            "bcnEmulationCache=$bcnEmulationCache;gpuName=$gpuName"
+    }
+
+    private fun buildDxvkConfigFromState(): String {
+        val entries = state.dxvkVersionEntries.value
+        val idx = state.dxvkSelectedVersion.intValue
+        val version = if (idx in entries.indices) entries[idx] else DefaultVersion.DXVK
+        val framerate = StringUtils.parseNumber(
+            state.dxvkFramerateEntries.value.getOrElse(state.dxvkSelectedFramerate.intValue) { "0" }
+        )
+        val isGplAsync = version.contains("gplasync")
+        val isAsync = version.contains("async")
+        val async = if (state.dxvkAsync.value && (isAsync || isGplAsync)) "1" else "0"
+        val asyncCache = if (state.dxvkAsyncCache.value && (isAsync || isGplAsync)) "1" else "0"
+        val vkd3dEntries = state.dxvkVkd3dVersionEntries.value
+        val vkd3dIdx = state.dxvkSelectedVkd3dVersion.intValue
+        val vkd3dVersion = if (vkd3dIdx in vkd3dEntries.indices) vkd3dEntries[vkd3dIdx] else "None"
+        val vkd3dLevel = state.dxvkVkd3dFeatureLevelEntries.value.getOrElse(state.dxvkSelectedVkd3dFeatureLevel.intValue) { "12_0" }
+        val ddrawWrapper = StringUtils.parseIdentifier(
+            state.dxvkDdrawWrapperEntries.value.getOrElse(state.dxvkSelectedDdrawWrapper.intValue) { Container.DEFAULT_DDRAWRAPPER }
+        )
+        return "version=$version,framerate=$framerate,async=$async,asyncCache=$asyncCache," +
+            "vkd3dVersion=$vkd3dVersion,vkd3dLevel=$vkd3dLevel,ddrawrapper=$ddrawWrapper"
+    }
+
+    private fun buildWineD3DConfigFromState(): String {
+        val csmt = if (state.wined3dSelectedCsmt.intValue == 0) "3" else "0"
+        val gpuName = state.wined3dGpuNameEntries.value.getOrElse(state.wined3dSelectedGpuName.intValue) { "" }
+        val videoMemorySize = StringUtils.parseNumber(
+            state.wined3dVideoMemorySizeEntries.value.getOrElse(state.wined3dSelectedVideoMemorySize.intValue) { "0" }
+        )
+        val strictShaderMath = if (state.wined3dSelectedStrictShaderMath.intValue == 0) "1" else "0"
+        val offscreenRenderingMode = state.wined3dOffscreenRenderingModeEntries.value.getOrElse(
+            state.wined3dSelectedOffscreenRenderingMode.intValue
+        ) { "fbo" }
+        val renderer = state.wined3dRendererEntries.value.getOrElse(state.wined3dSelectedRenderer.intValue) { "gl" }
+        return "csmt=$csmt,gpuName=$gpuName,videoMemorySize=$videoMemorySize," +
+            "strict_shader_math=$strictShaderMath,OffscreenRenderingMode=$offscreenRenderingMode," +
+            "renderer=$renderer"
+    }
+
+    private fun handleDxvkVkd3dVersionChanged(versionIndex: Int) {
+        val vkd3dEntries = state.dxvkVkd3dVersionEntries.value
+        val selectedVkd3d = if (versionIndex in vkd3dEntries.indices) vkd3dEntries[versionIndex] else "None"
+        if (selectedVkd3d != "None") {
+            val allVersions = state.dxvkVersionEntries.value
+            val semver = Regex("(\\d+)\\.(\\d+)(?:\\.(\\d+))?")
+            val filtered = allVersions.filter { v ->
+                val match = semver.find(v)
+                if (match != null) (match.groupValues[1].toIntOrNull() ?: 0) >= 2 else true
+            }
+            state.dxvkVersionEntries.value = filtered
+            val currentDxvk = filtered.getOrElse(state.dxvkSelectedVersion.intValue) { "" }
+            val curMajor = semver.find(currentDxvk)?.groupValues?.get(1)?.toIntOrNull()
+            if (curMajor != null && curMajor >= 2) {
+                selectByIdentifier(filtered, currentDxvk, state.dxvkSelectedVersion)
+            } else {
+                selectByIdentifier(filtered, DefaultVersion.DXVK, state.dxvkSelectedVersion)
+            }
+        } else {
+            loadDxvkVersions()
+        }
+    }
+
+    private fun selectScreenSize(screenSize: String) {
+        val entries = state.screenSizeEntries.value
+        val idx = entries.indexOfFirst {
+            StringUtils.parseIdentifier(it) == StringUtils.parseIdentifier(screenSize)
+        }
+        if (idx >= 0) {
+            state.selectedScreenSize.intValue = idx
+        } else {
+            state.selectedScreenSize.intValue = 0 // "Custom"
+            val parts = screenSize.split("x")
+            if (parts.size == 2) {
+                state.customWidth.value = parts[0]
+                state.customHeight.value = parts[1]
+            }
+        }
+    }
+
+    private fun getScreenSizeFromState(): String {
+        val entries = state.screenSizeEntries.value
+        val idx = state.selectedScreenSize.intValue
+        if (idx !in entries.indices) return Container.DEFAULT_SCREEN_SIZE
+        val selectedValue = entries[idx]
+        return if (selectedValue.equals("custom", ignoreCase = true)) {
+            val w = state.customWidth.value.trim()
+            val h = state.customHeight.value.trim()
+            if (w.matches(Regex("[0-9]+")) && h.matches(Regex("[0-9]+"))) {
+                val width = (w.toInt() / 2) * 2
+                val height = (h.toInt() / 2) * 2
+                "${width}x${height}"
+            } else Container.DEFAULT_SCREEN_SIZE
+        } else StringUtils.parseIdentifier(selectedValue)
+    }
+
+    private fun buildWinComponentsString(): String {
+        val parts = mutableListOf<String>()
+        for (comp in state.directXComponents.value) parts.add("${comp.key}=${comp.selectedIndex}")
+        for (comp in state.generalComponents.value) parts.add("${comp.key}=${comp.selectedIndex}")
+        return parts.joinToString(",")
+    }
+
+    private fun buildEnvVarsString(): String {
+        val filtered = state.envVars.value.filterNot { it.key in SDL2_KEYS }
+        val merged = if (state.sdl2Compatibility.value) {
+            filtered + SDL2_ENV_VARS.map { EnvVarItem(it.first, it.second) }
+        } else filtered
+        return merged.joinToString(" ") { "${it.key}=${it.value}" }
+    }
+
+    private fun buildCpuListString(checked: List<Boolean>): String {
+        val allChecked = checked.all { it }
+        if (allChecked) return ""
+        return checked.mapIndexedNotNull { i, c -> if (c) "$i" else null }.joinToString(",")
+    }
+
+    private fun buildDrivesString(): String {
+        val sb = StringBuilder()
+        for ((letter, path) in drivesWorking) {
+            if (path.isNotBlank()) sb.append(letter).append(":").append(path)
+        }
+        return sb.toString()
+    }
+
+    private fun buildDesktopThemeString(): String {
+        val themeEntries = state.desktopThemeEntries.value
+        val themeIdx = state.selectedDesktopTheme.intValue
+        val theme = if (themeIdx in themeEntries.indices) themeEntries[themeIdx].uppercase() else "LIGHT"
+
+        val typeEntries = state.desktopBackgroundTypeEntries.value
+        val typeIdx = state.selectedDesktopBackgroundType.intValue
+        val type = if (typeIdx in typeEntries.indices) typeEntries[typeIdx].uppercase() else "COLOR"
+
+        val color = state.desktopBackgroundColor.value
+        val base = "$theme,$type,$color"
+        return if (type == "IMAGE") {
+            val userWallpaperFile = WineThemeManager.getUserWallpaperFile(context)
+            val stamp = if (userWallpaperFile.isFile) userWallpaperFile.lastModified().toString() else "0"
+            "$base,$stamp"
+        } else base
+    }
+
+    private fun parseCpuList(cpuList: String, cpuCount: Int): List<Boolean> {
+        val checked = MutableList(cpuCount) { true }
+        if (cpuList.isNotEmpty()) {
+            for (i in checked.indices) checked[i] = false
+            cpuList.split(",").forEach { cpuStr ->
+                val idx = cpuStr.trim().replace("CPU", "").toIntOrNull()
+                if (idx != null && idx in checked.indices) checked[idx] = true
+            }
+        }
+        return checked
+    }
+
+    private fun getIdentifierFromEntries(entries: List<String>, index: Int): String {
+        return if (index in entries.indices) StringUtils.parseIdentifier(entries[index]) else ""
+    }
+
+    private fun selectByIdentifier(
+        entries: List<String>,
+        identifier: String?,
+        target: androidx.compose.runtime.MutableIntState
+    ) {
+        if (identifier == null) {
+            target.intValue = 0; return
+        }
+        val idx = entries.indexOfFirst { StringUtils.parseIdentifier(it) == identifier }
+        target.intValue = if (idx >= 0) idx else 0
+    }
+
+    private fun selectByValue(
+        entries: List<String>,
+        value: String?,
+        target: androidx.compose.runtime.MutableIntState
+    ) {
+        if (value == null) {
+            target.intValue = 0; return
+        }
+        val idx = entries.indexOfFirst { it == value }
+        target.intValue = if (idx >= 0) idx else 0
+    }
+
+    private fun selectByNumber(
+        entries: List<String>,
+        number: String?,
+        target: androidx.compose.runtime.MutableIntState
+    ) {
+        if (number == null) {
+            target.intValue = 0; return
+        }
+        val idx = entries.indexOfFirst { StringUtils.parseNumber(it) == number }
+        target.intValue = if (idx >= 0) idx else 0
+    }
+
+    fun show() {
+        dialog.show()
+        dialog.window?.apply {
+            val dm = activity.resources.displayMetrics
+            val screenWidthDp = dm.widthPixels / dm.density
+            val dialogWidthDp = screenWidthDp * 0.88f
+            val isCompactLayout = dialogWidthDp < 720f
+            if (screenWidthDp < 600f) {
+                val dialogWidth = (dm.widthPixels * 0.96f).toInt()
+                val dialogHeight = (dm.heightPixels * 0.90f).toInt()
+                setLayout(dialogWidth, dialogHeight)
+            } else {
+                val dialogWidth = (dm.widthPixels * 0.88f).toInt()
+                val heightFactor = if (isCompactLayout) 0.90f else 0.88f
+                val dialogHeight = (dm.heightPixels * heightFactor).toInt()
+                setLayout(dialogWidth, dialogHeight)
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                val params = attributes
+                params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+                params.blurBehindRadius = 10
+                attributes = params
+            }
+        }
+    }
+
+    fun dismiss() {
+        // Cleanup (launcher unregister, keyboard hide, onFinished) runs in
+        // the Dialog.OnDismissListener so back-button dismissal takes the
+        // same path as Save/Cancel.
+        dialog.dismiss()
+    }
+
+    companion object {
+        private const val TAG = "ContainerSettingsCompose"
+
+        private val SDL2_ENV_VARS = listOf(
+            "SDL_JOYSTICK_WGI" to "0",
+            "SDL_XINPUT_ENABLED" to "1",
+            "SDL_JOYSTICK_RAWINPUT" to "0",
+            "SDL_JOYSTICK_HIDAPI" to "0",
+            "SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD" to "1",
+            "SDL_DIRECTINPUT_ENABLED" to "0",
+            "SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS" to "1",
+            "SDL_HINT_FORCE_RAISEWINDOW" to "0",
+            "SDL_ALLOW_TOPMOST" to "0",
+            "SDL_MOUSE_FOCUS_CLICKTHROUGH" to "1"
+        )
+        private val SDL2_KEYS = SDL2_ENV_VARS.map { it.first }.toSet()
+    }
+}

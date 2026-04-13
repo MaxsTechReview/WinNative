@@ -34,7 +34,7 @@
             android:layout_height="34dp"
             android:visibility="gone" />
 
-        <com.winlator.cmod.widget.MultiSelectionComboBox
+        <com.winlator.cmod.shared.ui.widget.MultiSelectionComboBox
             style="@style/OtherSettingsMultiSelectComboBox"
             android:id="@+id/MultiSelectionComboBox"
             android:layout_width="match_parent"
