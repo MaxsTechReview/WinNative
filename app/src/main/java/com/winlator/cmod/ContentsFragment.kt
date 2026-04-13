@@ -33,6 +33,7 @@ import com.winlator.cmod.contents.ContentsManager
 import com.winlator.cmod.contents.Downloader
 import com.winlator.cmod.core.AppUtils
 import com.winlator.cmod.core.FileUtils
+import com.winlator.cmod.utils.StorageUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -47,8 +48,10 @@ class ContentsFragment : Fragment() {
 
     private var profilesByKey = emptyMap<String, ContentProfile>()
 
-    private val sizeCache = mutableMapOf<String, Long>()
-    private val sizeFetchesInFlight = mutableSetOf<String>()
+    private val remoteSizeCache = mutableMapOf<String, Long>()
+    private val remoteSizeFetchesInFlight = mutableSetOf<String>()
+    private val installedSizeCache = mutableMapOf<String, Long>()
+    private val installedSizeFetchesInFlight = mutableSetOf<String>()
 
     private var downloadProgress: ComponentsDownloadProgress? = null
 
@@ -226,7 +229,8 @@ class ContentsFragment : Fragment() {
             autoCreateContainer = autoCreateContainer,
         )
 
-        scheduleSizeFetches(availableItems)
+        scheduleRemoteSizeFetches(availableItems)
+        scheduleInstalledSizeFetches(installedItems)
     }
 
     private fun updateDownloadProgress(
@@ -265,7 +269,11 @@ class ContentsFragment : Fragment() {
 
     private fun ContentProfile.toItem(): ComponentItem {
         val installedSuffix = if (isInstalled) "1" else "0"
-        val cachedSize = remoteUrl?.let { sizeCache[it] }
+        val cachedSize = if (isInstalled) {
+            installedSizeCache[ContentsManager.getInstallDir(requireContext(), this).absolutePath]
+        } else {
+            remoteUrl?.let { remoteSizeCache[it] }
+        }
         return ComponentItem(
             key = "${type}:${verName}:${verCode}:${installedSuffix}:${remoteUrl ?: ""}",
             type = type,
@@ -276,15 +284,15 @@ class ContentsFragment : Fragment() {
         )
     }
 
-    private fun scheduleSizeFetches(items: List<ComponentItem>) {
+    private fun scheduleRemoteSizeFetches(items: List<ComponentItem>) {
         val urlsToFetch = items
             .mapNotNull { item -> profilesByKey[item.key]?.remoteUrl }
-            .filter { url -> url !in sizeCache && url !in sizeFetchesInFlight }
+            .filter { url -> url !in remoteSizeCache && url !in remoteSizeFetchesInFlight }
             .distinct()
 
         if (urlsToFetch.isEmpty()) return
 
-        sizeFetchesInFlight.addAll(urlsToFetch)
+        remoteSizeFetchesInFlight.addAll(urlsToFetch)
 
         viewLifecycleOwner.lifecycleScope.launch {
             urlsToFetch.forEach { url ->
@@ -292,8 +300,32 @@ class ContentsFragment : Fragment() {
                     Downloader.fetchContentLength(url)
                 }
                 if (!isAdded || view == null) return@launch
-                sizeCache[url] = size
-                sizeFetchesInFlight.remove(url)
+                remoteSizeCache[url] = size
+                remoteSizeFetchesInFlight.remove(url)
+                publishState()
+            }
+        }
+    }
+
+    private fun scheduleInstalledSizeFetches(items: List<ComponentItem>) {
+        val installDirsToFetch = items
+            .mapNotNull { item -> profilesByKey[item.key] }
+            .map { profile -> ContentsManager.getInstallDir(requireContext(), profile).absolutePath }
+            .filter { path -> path !in installedSizeCache && path !in installedSizeFetchesInFlight }
+            .distinct()
+
+        if (installDirsToFetch.isEmpty()) return
+
+        installedSizeFetchesInFlight.addAll(installDirsToFetch)
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            installDirsToFetch.forEach { installDir ->
+                val size = withContext(Dispatchers.IO) {
+                    StorageUtils.getFolderSize(installDir)
+                }
+                if (!isAdded || view == null) return@launch
+                installedSizeCache[installDir] = size
+                installedSizeFetchesInFlight.remove(installDir)
                 publishState()
             }
         }

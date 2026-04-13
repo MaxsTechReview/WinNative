@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.winlator.cmod.R
+import com.winlator.cmod.ui.outlinedSwitchColors
 import com.winlator.cmod.steam.enums.LoginResult
 import com.winlator.cmod.steam.enums.LoginScreen
 import com.winlator.cmod.steam.ui.SteamLoginViewModel
@@ -307,12 +308,9 @@ class SteamLoginActivity : ComponentActivity() {
                         viewModel.setRememberSession(it)
                     },
                     enabled = !state.isLoggingIn,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = Accent,
-                        uncheckedThumbColor = TextSecondary,
-                        uncheckedTrackColor = CardBorder,
-                        uncheckedBorderColor = CardBorder,
+                    colors = outlinedSwitchColors(
+                        accentColor = Accent,
+                        textSecondaryColor = TextSecondary,
                     ),
                 )
             }

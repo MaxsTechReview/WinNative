@@ -27,6 +27,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Locale;
 
 public class InputControlsManager {
     private static final int ASSET_PROFILE_SYNC_REVISION = 1;
@@ -177,33 +178,32 @@ public class InputControlsManager {
         if (file.isFile() && file.delete()) profiles.remove(profile);
     }
 
-    public ControlsProfile importProfile(JSONObject data) {
+    public synchronized ControlsProfile importProfile(JSONObject data) {
         try {
-            if (!data.has("name")) {
+            if (!profilesLoaded || profiles == null) {
+                loadProfiles(false);
+            }
+            String profileName = data.optString("name", "").trim();
+            if (profileName.isEmpty()) {
                 Log.e("ICManager", "importProfile: data missing 'name' field: " + data.toString());
                 return null;
             }
-            int newId = ++maxProfileId;
-            File newFile = ControlsProfile.getProfileFile(context, newId);
-            data.put("id", newId);
-            FileUtils.writeString(newFile, data.toString());
-            ControlsProfile newProfile = loadProfile(context, newFile);
+
+            ControlsProfile existingProfile = findProfileByName(profileName);
+            int targetId = existingProfile != null ? existingProfile.id : ++maxProfileId;
+            File targetFile = ControlsProfile.getProfileFile(context, targetId);
+            data.put("id", targetId);
+            FileUtils.writeString(targetFile, data.toString());
+            ControlsProfile newProfile = loadProfile(context, targetFile);
 
             if (newProfile == null) {
-                Log.e("ICManager", "importProfile: loadProfile returned null for " + newFile.getPath());
+                Log.e("ICManager", "importProfile: loadProfile returned null for " + targetFile.getPath());
                 // If writing was successful, still return a basic profile object
-                newProfile = new ControlsProfile(context, newId);
+                newProfile = new ControlsProfile(context, targetId);
                 newProfile.setName(data.optString("name", "Imported Profile"));
             }
 
-            int foundIndex = -1;
-            for (int i = 0; i < profiles.size(); i++) {
-                ControlsProfile profile = profiles.get(i);
-                if (profile.getName().equals(newProfile.getName())) {
-                    foundIndex = i;
-                    break;
-                }
-            }
+            int foundIndex = existingProfile != null ? profiles.indexOf(existingProfile) : -1;
 
             if (foundIndex != -1) {
                 profiles.set(foundIndex, newProfile);
@@ -215,6 +215,25 @@ public class InputControlsManager {
             Log.e("ICManager", "importProfile: JSONException", e);
             return null;
         }
+    }
+
+    private ControlsProfile findProfileByName(String name) {
+        String normalizedName = normalizeProfileName(name);
+        for (ControlsProfile profile : profiles) {
+            if (normalizeProfileName(profile.getName()).equals(normalizedName)) {
+                return profile;
+            }
+        }
+        return null;
+    }
+
+    private String normalizeProfileName(String name) {
+        if (name == null) return "";
+        String trimmed = name.trim();
+        if (trimmed.toLowerCase(Locale.ROOT).endsWith(".icp")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 4);
+        }
+        return trimmed.trim().toLowerCase(Locale.ROOT);
     }
 
     public File exportProfile(ControlsProfile profile) {

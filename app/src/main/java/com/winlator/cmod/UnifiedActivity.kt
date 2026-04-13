@@ -127,6 +127,7 @@ import com.winlator.cmod.steam.data.DepotInfo
 import com.winlator.cmod.steam.data.DownloadInfo
 import com.winlator.cmod.steam.enums.DownloadPhase
 import com.winlator.cmod.db.PluviaDatabase
+import com.winlator.cmod.ui.outlinedSwitchColors
 import com.winlator.cmod.utils.StorageUtils
 import com.winlator.cmod.utils.PeIconExtractor
 import com.winlator.cmod.service.DownloadService
@@ -5678,11 +5679,10 @@ class UnifiedActivity : AppCompatActivity() {
                     Switch(
                         checked = cloudSyncEnabled,
                         onCheckedChange = onCloudSyncToggle,
-                        colors = SwitchDefaults.colors(
+                        colors = outlinedSwitchColors(
+                            accentColor = Accent,
+                            textSecondaryColor = TextSecondary,
                             checkedThumbColor = TextPrimary,
-                            checkedTrackColor = Accent,
-                            uncheckedThumbColor = TextPrimary,
-                            uncheckedTrackColor = TextSecondary.copy(alpha = 0.5f),
                         )
                     )
                 }

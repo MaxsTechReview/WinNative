@@ -262,6 +262,7 @@
     <string name="input_controls_editor_profile_name">Profile Name</string>
     <string name="input_controls_editor_no_profile_selected">No profile selected</string>
     <string name="input_controls_editor_no_profile_found">No profile found</string>
+    <string name="input_controls_editor_tap_to_switch">Tap to switch</string>
     <string name="input_controls_editor_confirm_remove_profile">Do you want to remove this profile?</string>
     <string name="input_controls_editor_confirm_duplicate_profile">Do you want to duplicate this profile?</string>
     <string name="input_controls_editor_title">Controls Editor</string>
@@ -269,6 +270,7 @@
     <string name="input_controls_editor_profile_exported_to">Profile exported to</string>
     <string name="input_controls_editor_unable_to_import">Unable to import profile</string>
     <string name="input_controls_editor_import_profile">Import Profile</string>
+    <string name="input_controls_editor_download_profile">Download Profile</string>
     <string name="input_controls_editor_export_profile">Export Profile</string>
     <string name="input_controls_editor_range">Range</string>
     <string name="input_controls_editor_confirm_download_profiles">Do you want to download the selected profiles?</string>

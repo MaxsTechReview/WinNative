@@ -299,8 +299,8 @@ class ContainersFragment : Fragment() {
             val totalBytes = driveCBytes + cacheBytes
             val internalStorage = FileUtils.getInternalStorageSize().coerceAtLeast(1L)
             val usedPercent = ((totalBytes.toDouble() / internalStorage.toDouble()) * 100.0)
-                .roundToInt()
-                .coerceIn(0, 100)
+                .toFloat()
+                .coerceIn(0f, 100f)
 
             if (!isAdded) return@Thread
             Handler(Looper.getMainLooper()).post {

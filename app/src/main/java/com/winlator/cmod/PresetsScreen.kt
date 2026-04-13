@@ -87,6 +87,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.winlator.cmod.ui.outlinedSwitchColors
 
 private val BgDark        = Color(0xFF18181D)
 private val CardDark      = Color(0xFF1C1C2A)
@@ -996,19 +997,9 @@ private fun EnvVarToggleControl(
             checked = checked,
             enabled = editable,
             onCheckedChange = { onValueChanged(if (it) "1" else "0") },
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = Accent,
-                uncheckedThumbColor = TextSecondary.copy(alpha = 0.6f),
-                uncheckedTrackColor = SurfaceDark,
-                uncheckedBorderColor = Color.Transparent,
-                checkedBorderColor = Color.Transparent,
-                disabledCheckedThumbColor = Color.White.copy(alpha = 0.7f),
-                disabledCheckedTrackColor = Accent.copy(alpha = 0.5f),
-                disabledUncheckedThumbColor = TextSecondary.copy(alpha = 0.4f),
-                disabledUncheckedTrackColor = SurfaceDark,
-                disabledCheckedBorderColor = Color.Transparent,
-                disabledUncheckedBorderColor = Color.Transparent,
+            colors = outlinedSwitchColors(
+                accentColor = Accent,
+                textSecondaryColor = TextSecondary,
             ),
             // scale() preserves the switch's native proportions and just shrinks
             // the whole thing; using .size() with a custom width/height ends up

@@ -9,13 +9,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -43,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -53,6 +55,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.container.Container
+import java.util.Locale
 
 private val ContainersBg = Color(0xFF18181D)
 private val ContainersCard = Color(0xFF1C1C2A)
@@ -90,7 +93,7 @@ data class ContainerStorageInfoUiState(
     val driveCBytes: Long = 0L,
     val cacheBytes: Long = 0L,
     val totalBytes: Long = 0L,
-    val usedPercent: Int = 0,
+    val usedPercent: Float = 0f,
     val isLoading: Boolean = true,
 )
 
@@ -406,6 +409,7 @@ private fun ContainersDialogShell(
     onDismiss: () -> Unit,
     title: String? = null,
     iconRes: Int? = null,
+    iconImage: ImageVector? = null,
     maxWidth: androidx.compose.ui.unit.Dp = 460.dp,
     content: @Composable () -> Unit,
 ) {
@@ -419,7 +423,7 @@ private fun ContainersDialogShell(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .navigationBarsPadding()
+                .safeDrawingPadding()
                 .imePadding()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             contentAlignment = Alignment.Center,
@@ -441,7 +445,15 @@ private fun ContainersDialogShell(
                 ) {
                     if (title != null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (iconRes != null) {
+                            if (iconImage != null) {
+                                Icon(
+                                    imageVector = iconImage,
+                                    contentDescription = null,
+                                    tint = ContainersTextPrimary,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                                Spacer(Modifier.width(12.dp))
+                            } else if (iconRes != null) {
                                 Icon(
                                     painter = painterResource(iconRes),
                                     contentDescription = null,
@@ -478,16 +490,22 @@ private fun ContainersDialogButton(
     label: String,
     primary: Boolean,
     textColor: Color,
+    backgroundColor: Color? = null,
+    borderColor: Color? = null,
     onClick: () -> Unit,
 ) {
+    val resolvedBackground = backgroundColor ?: if (primary) ContainersAccent else ContainersSubcard
+    val resolvedBorder = borderColor ?: if (primary) ContainersAccent.copy(alpha = 0.5f) else ContainersOutline
+
     Box(
         modifier = Modifier
             .widthIn(min = 84.dp)
+            .heightIn(min = 40.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(if (primary) ContainersAccent else ContainersSubcard)
+            .background(resolvedBackground)
             .border(
                 1.dp,
-                if (primary) ContainersAccent.copy(alpha = 0.5f) else ContainersOutline,
+                resolvedBorder,
                 RoundedCornerShape(10.dp),
             )
             .clickable(
@@ -495,12 +513,12 @@ private fun ContainersDialogButton(
                 indication = null,
                 onClick = onClick,
             )
-            .padding(horizontal = 18.dp, vertical = 10.dp),
+            .padding(horizontal = 18.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
-            color = if (primary) ContainersTextPrimary else textColor,
+            color = textColor,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
         )
@@ -545,8 +563,10 @@ private fun ContainersConfirmDialog(
             )
             ContainersDialogButton(
                 label = confirmLabel,
-                primary = confirmColor == ContainersAccent,
+                primary = false,
                 textColor = confirmColor,
+                backgroundColor = confirmColor.copy(alpha = 0.12f),
+                borderColor = confirmColor.copy(alpha = 0.3f),
                 onClick = onConfirm,
             )
         }
@@ -596,8 +616,10 @@ private fun ContainersBackupsDialog(
             )
             ContainersDialogButton(
                 label = stringResource(R.string.google_cloud_backup),
-                primary = true,
-                textColor = ContainersTextPrimary,
+                primary = false,
+                textColor = ContainersAccent,
+                backgroundColor = ContainersAccent.copy(alpha = 0.12f),
+                borderColor = ContainersAccent.copy(alpha = 0.3f),
                 onClick = onBackup,
             )
         }
@@ -702,8 +724,10 @@ private fun ContainersMessageDialog(
         ) {
             ContainersDialogButton(
                 label = stringResource(R.string.common_ui_ok),
-                primary = true,
-                textColor = ContainersTextPrimary,
+                primary = false,
+                textColor = ContainersAccent,
+                backgroundColor = ContainersAccent.copy(alpha = 0.12f),
+                borderColor = ContainersAccent.copy(alpha = 0.3f),
                 onClick = onDismiss,
             )
         }
@@ -719,7 +743,7 @@ private fun ContainerStorageInfoDialog(
     ContainersDialogShell(
         onDismiss = onDismiss,
         title = stringResource(R.string.container_config_storage_info),
-        iconRes = R.drawable.icon_info,
+        iconImage = Icons.Outlined.Info,
         maxWidth = 500.dp,
     ) {
         Row(
@@ -751,14 +775,14 @@ private fun ContainerStorageInfoDialog(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(
-                        progress = { state.usedPercent.coerceIn(0, 100) / 100f },
+                        progress = { state.usedPercent.coerceIn(0f, 100f) / 100f },
                         modifier = Modifier.size(132.dp),
                         color = ContainersAccent.copy(alpha = 0.38f),
                         trackColor = ContainersAccent.copy(alpha = 0.12f),
                         strokeWidth = 18.dp,
                     )
                     Text(
-                        text = "${state.usedPercent}%",
+                        text = formatUsedPercent(state.usedPercent),
                         color = ContainersTextPrimary,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
@@ -794,7 +818,9 @@ private fun ContainerStorageInfoDialog(
             ContainersDialogButton(
                 label = stringResource(R.string.common_ui_ok),
                 primary = true,
-                textColor = ContainersTextPrimary,
+                textColor = ContainersAccent,
+                backgroundColor = ContainersAccent.copy(alpha = 0.12f),
+                borderColor = ContainersAccent.copy(alpha = 0.3f),
                 onClick = onDismiss,
             )
         }
@@ -826,6 +852,15 @@ private fun StorageMetric(
 
 private fun formatBytes(bytes: Long): String {
     return com.winlator.cmod.core.StringUtils.formatBytes(bytes)
+}
+
+private fun formatUsedPercent(percent: Float): String {
+    val clamped = percent.coerceIn(0f, 100f)
+    return when {
+        clamped > 0f && clamped < 1f -> "<1%"
+        clamped < 10f -> String.format(Locale.US, "%.1f%%", clamped)
+        else -> "${clamped.toInt()}%"
+    }
 }
 
 @Composable

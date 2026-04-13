@@ -68,6 +68,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import com.winlator.cmod.ui.outlinedSwitchColors
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -470,13 +471,9 @@ private fun SettingsToggleCard(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
                 modifier = Modifier.scale(0.78f),
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = accentColor,
-                    uncheckedThumbColor = TextSecondary.copy(alpha = 0.6f),
-                    uncheckedTrackColor = SurfaceDark,
-                    uncheckedBorderColor = Color.Transparent,
-                    checkedBorderColor = Color.Transparent,
+                colors = outlinedSwitchColors(
+                    accentColor = accentColor,
+                    textSecondaryColor = TextSecondary,
                 ),
             )
         }

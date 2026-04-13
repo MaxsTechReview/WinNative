@@ -815,12 +815,17 @@ private fun ConfirmDialog(
 // Helpers
 // ============================================================================
 
+@Composable
 private fun formatSizeLabel(item: ComponentItem): String? {
-    if (item.isInstalled) return null
+    if (item.isInstalled) {
+        val bytes = item.sizeBytes ?: return "${stringResource(R.string.common_ui_size)}: …"
+        if (bytes <= 0L) return null
+        return "${stringResource(R.string.common_ui_size)}: ${formatBytes(bytes)}"
+    }
     if (!item.hasRemote) return null
-    val bytes = item.sizeBytes ?: return "…"
+    val bytes = item.sizeBytes ?: return "${stringResource(R.string.common_ui_size)}: …"
     if (bytes <= 0L) return null
-    return formatBytes(bytes)
+    return "${stringResource(R.string.common_ui_size)}: ${formatBytes(bytes)}"
 }
 
 private fun formatBytes(bytes: Long): String {

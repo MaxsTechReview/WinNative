@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
 import com.winlator.cmod.core.AppUtils
+import com.winlator.cmod.ui.outlinedSwitchColors
 import kotlinx.coroutines.launch
 
 private val BgDark = Color(0xFF18181D)
@@ -271,11 +272,9 @@ private fun AutoBackupCard(
                 onCheckedChange = { onToggle(it) },
                 enabled = !busy,
                 modifier = Modifier.scale(0.78f),
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = StatusGreen,
-                    checkedTrackColor = StatusGreen.copy(alpha = 0.3f),
-                    uncheckedThumbColor = TextSecondary,
-                    uncheckedTrackColor = TextSecondary.copy(alpha = 0.2f)
+                colors = outlinedSwitchColors(
+                    accentColor = StatusGreen,
+                    textSecondaryColor = TextSecondary,
                 )
             )
         }

@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.winlator.cmod.ui.outlinedSwitchColors
 
 // Palette (mirrors StoresScreen)
 private val BgDark        = Color(0xFF18181D)
@@ -269,13 +270,9 @@ private fun SettingsToggleCard(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
                 modifier = Modifier.scale(0.78f),
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = accentColor,
-                    uncheckedThumbColor = TextSecondary.copy(alpha = 0.6f),
-                    uncheckedTrackColor = SurfaceDark,
-                    uncheckedBorderColor = Color.Transparent,
-                    checkedBorderColor = Color.Transparent,
+                colors = outlinedSwitchColors(
+                    accentColor = accentColor,
+                    textSecondaryColor = TextSecondary,
                 ),
             )
         }
