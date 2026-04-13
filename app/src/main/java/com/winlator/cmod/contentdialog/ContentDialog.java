@@ -28,6 +28,7 @@ import androidx.preference.PreferenceManager;
 import com.winlator.cmod.R;
 import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.Callback;
+import com.winlator.cmod.ui.dialog.WinNativeComposeDialogs;
 
 import java.util.ArrayList;
 
@@ -203,6 +204,7 @@ public class ContentDialog extends Dialog {
     }
 
     public static void alert(Context context, int msgResId, Runnable callback) {
+        if (WinNativeComposeDialogs.showAlert(context, context.getString(msgResId), callback)) return;
         ContentDialog dialog = new ContentDialog(context);
         dialog.setMessage(msgResId);
         dialog.setOnConfirmCallback(callback);
@@ -211,6 +213,7 @@ public class ContentDialog extends Dialog {
     }
 
     public static void alert(Context context, String msg, Runnable callback) {
+        if (WinNativeComposeDialogs.showAlert(context, msg, callback)) return;
         ContentDialog dialog = new ContentDialog(context);
         dialog.setMessage(msg);
         dialog.setOnConfirmCallback(callback);
@@ -219,6 +222,7 @@ public class ContentDialog extends Dialog {
     }
 
     public static void confirm(Context context, int msgResId, Runnable callback) {
+        if (WinNativeComposeDialogs.showConfirm(context, context.getString(msgResId), callback)) return;
         ContentDialog dialog = new ContentDialog(context);
         dialog.setMessage(msgResId);
         dialog.setOnConfirmCallback(callback);
@@ -226,6 +230,7 @@ public class ContentDialog extends Dialog {
     }
 
     public static void confirm(Context context, String msg, Runnable callback) {
+        if (WinNativeComposeDialogs.showConfirm(context, msg, callback)) return;
         ContentDialog dialog = new ContentDialog(context);
         dialog.setMessage(msg);
         dialog.setOnConfirmCallback(callback);
@@ -233,6 +238,7 @@ public class ContentDialog extends Dialog {
     }
 
     public static void prompt(Context context, int titleResId, String defaultText, Callback<String> callback) {
+        if (WinNativeComposeDialogs.showPrompt(context, context.getString(titleResId), defaultText, callback)) return;
         ContentDialog dialog = new ContentDialog(context);
 
         if (dialog.getWindow() != null) {
