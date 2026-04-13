@@ -252,7 +252,7 @@ public abstract class AppUtils {
             iconView.setImageBitmap(iconBitmap);
         }
         else {
-            iconView.setImageResource(R.drawable.icon_info);
+            iconView.setImageResource(R.mipmap.ic_launcher);
         }
         iconView.setVisibility(View.VISIBLE);
         return view;
