@@ -36,12 +36,13 @@
 extern "C" {
 #endif
 
-typedef void (*debug_reference_descriptor)(char *,
-                                           const struct pipe_reference *);
+typedef void (*debug_reference_descriptor)(char*, const struct pipe_reference*);
 
-static inline void debug_reference(UNUSED const struct pipe_reference *p,
-                                   UNUSED debug_reference_descriptor get_desc,
-                                   UNUSED int change) {}
+static inline void
+debug_reference(UNUSED const struct pipe_reference* p,
+                UNUSED debug_reference_descriptor get_desc, UNUSED int change)
+{
+}
 
 #ifdef __cplusplus
 }

@@ -23,6 +23,7 @@
  *
  **************************************************************************/
 
+
 /*
  * Including system's headers inside `extern "C" { ... }` is not safe, as system
  * headers may have C++ code in them, and C++ code inside extern "C"
@@ -43,5 +44,5 @@
  */
 
 #ifdef __cplusplus
-template <class T> class _IncludeInsideExternCNotPortable;
+template<class T> class _IncludeInsideExternCNotPortable;
 #endif
