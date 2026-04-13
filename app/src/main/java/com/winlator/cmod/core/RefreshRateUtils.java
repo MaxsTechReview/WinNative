@@ -27,7 +27,13 @@ public final class RefreshRateUtils {
 
     public static List<Integer> getSupportedRefreshRates(Activity activity) {
         TreeSet<Integer> rates = new TreeSet<>();
-        for (Display.Mode mode : activity.getWindowManager().getDefaultDisplay().getSupportedModes()) {
+        Display display = getDisplay(activity);
+        if (display == null) {
+            rates.add(Math.round(DEFAULT_REFRESH_RATE));
+            return new ArrayList<>(rates);
+        }
+
+        for (Display.Mode mode : display.getSupportedModes()) {
             float refreshRate = mode.getRefreshRate();
             if (refreshRate > 0f) {
                 rates.add(Math.round(refreshRate));
@@ -71,7 +77,12 @@ public final class RefreshRateUtils {
     }
 
     public static float resolvePreferredRefreshRate(Activity activity, int requestedHz) {
-        Display.Mode[] modes = activity.getWindowManager().getDefaultDisplay().getSupportedModes();
+        Display display = getDisplay(activity);
+        if (display == null) {
+            return DEFAULT_REFRESH_RATE;
+        }
+
+        Display.Mode[] modes = display.getSupportedModes();
         float maxRefreshRate = DEFAULT_REFRESH_RATE;
         float exactMatch = 0f;
         float closestMatch = 0f;
@@ -111,7 +122,11 @@ public final class RefreshRateUtils {
     }
 
     public static int resolvePreferredDisplayModeId(Activity activity, int requestedHz) {
-        Display display = activity.getWindowManager().getDefaultDisplay();
+        Display display = getDisplay(activity);
+        if (display == null) {
+            return 0;
+        }
+
         Display.Mode currentMode = display.getMode();
         Display.Mode[] modes = display.getSupportedModes();
 
@@ -161,6 +176,11 @@ public final class RefreshRateUtils {
     private static boolean isSameModeGroup(Display.Mode currentMode, Display.Mode candidateMode) {
         return currentMode.getPhysicalWidth() == candidateMode.getPhysicalWidth()
                 && currentMode.getPhysicalHeight() == candidateMode.getPhysicalHeight();
+    }
+
+    @Nullable
+    private static Display getDisplay(Activity activity) {
+        return activity.getWindow().getDecorView().getDisplay();
     }
 
     public static void applyPreferredRefreshRate(Activity activity) {

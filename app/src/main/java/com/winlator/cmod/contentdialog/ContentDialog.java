@@ -261,7 +261,7 @@ public class ContentDialog extends Dialog {
             if (!text.isEmpty()) callback.call(text);
         });
 
-        dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE | android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
         dialog.show();
         editText.requestFocus();
         editText.post(() -> {

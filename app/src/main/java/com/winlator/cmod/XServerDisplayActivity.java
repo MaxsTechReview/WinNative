@@ -39,16 +39,19 @@ import android.widget.TextView;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.compose.ui.platform.ComposeView;
 import androidx.core.view.GravityCompat;
+import androidx.core.view.WindowInsetsCompat;
 import com.winlator.cmod.steam.enums.Marker;
 import com.winlator.cmod.steam.utils.MarkerUtils;
 import com.winlator.cmod.steam.utils.SteamUtils;
@@ -151,7 +154,6 @@ import java.util.regex.Pattern;
 import cn.sherlock.com.sun.media.sound.SF2Soundbank;
 
 public class XServerDisplayActivity extends AppCompatActivity {
-    private static final byte EDIT_INPUT_CONTROLS_REQUEST_CODE = 3;
     public static String NOTIFICATION_CHANNEL_ID = "Winlator";
     public static int NOTIFICATION_ID = -1;
     private static final long STEAM_TERMINATION_GRACE_MS = 10000L;
@@ -539,7 +541,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
         contentsManager.syncContents();
 
         drawerLayout = findViewById(R.id.DrawerLayout);
-        drawerLayout.setOnApplyWindowInsetsListener((view, windowInsets) -> windowInsets.replaceSystemWindowInsets(0, 0, 0, 0));
+        drawerLayout.setOnApplyWindowInsetsListener((view, windowInsets) -> {
+            WindowInsetsCompat compatInsets = WindowInsetsCompat.toWindowInsetsCompat(windowInsets, view);
+            WindowInsetsCompat clearedInsets = new WindowInsetsCompat.Builder(compatInsets)
+                    .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.NONE)
+                    .build();
+            android.view.WindowInsets platformInsets = clearedInsets.toWindowInsets();
+            return platformInsets != null ? platformInsets : windowInsets;
+        });
         drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
 
         ComposeView navigationComposeView = findViewById(R.id.NavigationComposeView);
@@ -548,6 +557,12 @@ public class XServerDisplayActivity extends AppCompatActivity {
         navigationComposeView.setPointerIcon(PointerIcon.getSystemIcon(this, PointerIcon.TYPE_ARROW));
         navigationComposeView.setOnFocusChangeListener((v, hasFocus) -> navigationFocused = hasFocus);
         renderDrawerMenu();
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                handleNavigationBackPressed();
+            }
+        });
         drawerLayout.addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
             @Override
             public void onDrawerOpened(View drawerView) {
@@ -1496,18 +1511,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == EDIT_INPUT_CONTROLS_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
-            if (editInputControlsCallback != null) {
-                editInputControlsCallback.run();
-                editInputControlsCallback = null;
-            }
-        }
-    }
-
-
-    @Override
     public void onResume() {
         super.onResume();
         applyPreferredRefreshRate();
@@ -2103,8 +2106,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         handler.removeCallbacks(savePlaytimeRunnable);
     }
 
-    @Override
-    public void onBackPressed() {
+    private void handleNavigationBackPressed() {
         if (environment != null) {
             if (!drawerLayout.isDrawerOpen(GravityCompat.START)) {
                 renderDrawerMenu();
@@ -2290,7 +2292,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 renderDrawerMenu();
                 break;
             case R.id.main_menu_pip_mode:
-                enterPictureInPictureMode();
+                enterPictureInPictureMode(new android.app.PictureInPictureParams.Builder().build());
                 drawerLayout.closeDrawers();
                 break;
             case R.id.main_menu_task_manager:

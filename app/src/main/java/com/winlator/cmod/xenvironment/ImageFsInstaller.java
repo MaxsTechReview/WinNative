@@ -142,14 +142,8 @@ public abstract class ImageFsInstaller {
         ImageFs imageFs = ImageFs.find(activity);
         if (imageFs.isValid() && imageFs.getVersion() >= LATEST_VERSION) return;
 
-        // Show a simple progress dialog
-        final android.app.ProgressDialog dialog = new android.app.ProgressDialog(activity);
-        dialog.setTitle(activity.getString(R.string.setup_wizard_installing_system_files));
-        dialog.setMessage(activity.getString(R.string.common_ui_please_wait));
-        dialog.setProgressStyle(android.app.ProgressDialog.STYLE_HORIZONTAL);
-        dialog.setMax(100);
-        dialog.setCancelable(false);
-        activity.runOnUiThread(dialog::show);
+        final DownloadProgressDialog dialog = new DownloadProgressDialog(activity);
+        activity.runOnUiThread(() -> dialog.show(R.string.setup_wizard_installing_system_files));
 
         File rootDir = imageFs.getRootDir();
         Executors.newSingleThreadExecutor().execute(() -> {
@@ -192,7 +186,7 @@ public abstract class ImageFsInstaller {
                 );
             }
 
-            activity.runOnUiThread(dialog::dismiss);
+            dialog.closeOnUiThread();
         });
     }
 

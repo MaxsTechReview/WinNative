@@ -136,7 +136,7 @@ public class ContainerManager {
     }
 
     public void createContainerAsync(final JSONObject data, ContentsManager contentsManager, Callback<Container> callback) {
-        final Handler handler = new Handler();
+        final Handler handler = new Handler(Looper.getMainLooper());
         Executors.newSingleThreadExecutor().execute(() -> {
             final Container container = createContainer(data, contentsManager);
             handler.post(() -> callback.call(container));
@@ -148,7 +148,7 @@ public class ContainerManager {
     }
 
     public void duplicateContainerAsync(Container container, Callback<Integer> progressCallback, Runnable callback) {
-        final Handler handler = new Handler();
+        final Handler handler = new Handler(Looper.getMainLooper());
         Executors.newSingleThreadExecutor().execute(() -> {
             Callback<Integer> uiProgress = progressCallback != null
                     ? progress -> handler.post(() -> progressCallback.call(progress))
@@ -159,7 +159,7 @@ public class ContainerManager {
     }
 
     public void removeContainerAsync(Container container, Runnable callback) {
-        final Handler handler = new Handler();
+        final Handler handler = new Handler(Looper.getMainLooper());
         Executors.newSingleThreadExecutor().execute(() -> {
             removeContainer(container);
             handler.post(callback);

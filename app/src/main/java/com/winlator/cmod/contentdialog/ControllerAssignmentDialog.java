@@ -2,7 +2,6 @@ package com.winlator.cmod.contentdialog;
 
 import android.app.Activity;
 import android.content.Context;
-import android.graphics.Point;
 import android.view.ContextThemeWrapper;
 import android.view.InputDevice;
 import android.view.View;
@@ -80,7 +79,6 @@ public class ControllerAssignmentDialog {
         return Math.round(c.getResources().getDisplayMetrics().density * v);
     }
 
-    @SuppressWarnings("deprecation")
     public void showContentDialog() {
         dialog.show();
         Window w = dialog.getWindow();
@@ -92,9 +90,7 @@ public class ControllerAssignmentDialog {
             android.graphics.Rect b = metrics.getBounds();
             widthPx = b.width();
         } else {
-            Point p = new Point();
-            w.getWindowManager().getDefaultDisplay().getSize(p);
-            widthPx = p.x;
+            widthPx = dialog.getContext().getResources().getDisplayMetrics().widthPixels;
         }
 
         int capPx = dp(dialog.getContext(), 540);

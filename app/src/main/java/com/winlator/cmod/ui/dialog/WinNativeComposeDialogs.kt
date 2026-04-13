@@ -124,8 +124,7 @@ object WinNativeComposeDialogs {
         val dialog = buildDialog(activity)
         if (dialog.window != null) {
             dialog.window?.setSoftInputMode(
-                WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE or
-                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE,
+                WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE,
             )
         }
         dialog.setContentView(composeView(activity) {

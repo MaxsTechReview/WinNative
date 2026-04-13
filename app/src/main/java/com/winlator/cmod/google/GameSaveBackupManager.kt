@@ -7,6 +7,7 @@ import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.Scope
 import com.google.android.gms.games.PlayGames
+import com.winlator.cmod.core.ActivityResultHost
 import com.google.android.gms.tasks.Tasks
 import com.winlator.cmod.epic.service.EpicCloudSavesManager
 import com.winlator.cmod.gog.service.GOGService
@@ -644,7 +645,6 @@ object GameSaveBackupManager {
      * If the user hasn't granted Drive access yet, launches the consent UI and returns null
      * (the caller should retry after consent is granted).
      */
-    @Suppress("DEPRECATION")
     private suspend fun getDriveAccessToken(activity: Activity): String? = withContext(Dispatchers.IO) {
         try {
             val authRequest = AuthorizationRequest.builder()
@@ -668,11 +668,17 @@ object GameSaveBackupManager {
                 Timber.tag(TAG).i("Drive authorization requires user consent, launching...")
                 val pendingIntent = authResult.pendingIntent
                 if (pendingIntent != null) {
-                    activity.startIntentSenderForResult(
-                        pendingIntent.intentSender,
-                        REQUEST_CODE_DRIVE_AUTH,
-                        null, 0, 0, 0
-                    )
+                    withContext(Dispatchers.Main) {
+                        val host = activity as? ActivityResultHost
+                        if (host != null) {
+                            host.launchDriveAuthRequest(pendingIntent.intentSender)
+                        } else {
+                            Timber.tag(TAG).e(
+                                "Activity %s cannot launch Drive auth flow",
+                                activity::class.java.simpleName
+                            )
+                        }
+                    }
                 }
                 return@withContext null // Will retry after consent
             }

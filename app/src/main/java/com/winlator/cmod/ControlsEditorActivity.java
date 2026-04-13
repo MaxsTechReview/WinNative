@@ -21,6 +21,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.graphics.Color;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.winlator.cmod.R;
@@ -64,6 +65,14 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         container.findViewById(R.id.BTRemoveElement).setOnClickListener(this);
         container.findViewById(R.id.BTElementSettings).setOnClickListener(this);
         container.findViewById(R.id.BTColorPicker).setOnClickListener(this);
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                finish();
+                AppUtils.applyCloseActivityTransition(ControlsEditorActivity.this, R.anim.slide_in_down, R.anim.slide_out_up);
+            }
+        });
     }
 
     @Override
@@ -445,11 +454,4 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
             parent.addView(imageView);
         }
     }
-
-    @Override
-    public void onBackPressed() {
-        super.onBackPressed();
-        overridePendingTransition(R.anim.slide_in_down, R.anim.slide_out_up);  // Custom slide animations for exiting
-    }
-
 }

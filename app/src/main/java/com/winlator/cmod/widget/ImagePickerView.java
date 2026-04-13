@@ -1,7 +1,6 @@
 package com.winlator.cmod.widget;
 
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.BitmapFactory;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
@@ -13,9 +12,8 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatImageButton;
 import androidx.core.content.ContextCompat;
 
-import android.app.Activity;
 import com.winlator.cmod.R;
-import com.winlator.cmod.UnifiedActivity;
+import com.winlator.cmod.core.ActivityResultHost;
 import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.FileUtils;
 import com.winlator.cmod.core.UnitUtils;
@@ -61,11 +59,13 @@ public class ImagePickerView extends AppCompatImageButton implements View.OnClic
         final PopupWindow[] popupWindow = {null};
         View browseButton = view.findViewById(R.id.BTBrowse);
         browseButton.setOnClickListener((v) -> {
-            Activity activity = (Activity) context;
-            Intent intent = new Intent(Intent.ACTION_PICK);
-            intent.setType("image/*");
             popupWindow[0].dismiss();
-            activity.startActivityForResult(intent, UnifiedActivity.OPEN_IMAGE_REQUEST_CODE);
+            ActivityResultHost host = findActivityResultHost(context);
+            if (host != null) {
+                host.launchWallpaperImagePicker();
+            } else {
+                AppUtils.showToast(context, "Image picker is unavailable on this screen.");
+            }
         });
 
         View removeButton = view.findViewById(R.id.BTRemove);
@@ -78,5 +78,17 @@ public class ImagePickerView extends AppCompatImageButton implements View.OnClic
         }
 
         popupWindow[0] = AppUtils.showPopupWindow(anchor, view, 200, 230);
+    }
+
+    @Nullable
+    private ActivityResultHost findActivityResultHost(Context context) {
+        Context current = context;
+        while (current instanceof android.content.ContextWrapper) {
+            if (current instanceof ActivityResultHost) {
+                return (ActivityResultHost) current;
+            }
+            current = ((android.content.ContextWrapper) current).getBaseContext();
+        }
+        return current instanceof ActivityResultHost ? (ActivityResultHost) current : null;
     }
 }

@@ -12,6 +12,7 @@ import com.google.android.gms.common.api.Scope;
 import com.google.android.gms.games.PlayGames;
 import com.google.android.gms.tasks.Tasks;
 import com.winlator.cmod.container.Container;
+import com.winlator.cmod.core.ActivityResultHost;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -300,14 +301,12 @@ public final class ContainerBackupManager {
                 if (authResult.getPendingIntent() != null) {
                     activity.runOnUiThread(() -> {
                         try {
-                            activity.startIntentSenderForResult(
-                                    authResult.getPendingIntent().getIntentSender(),
-                                    GameSaveBackupManager.REQUEST_CODE_DRIVE_AUTH,
-                                    null,
-                                    0,
-                                    0,
-                                    0
-                            );
+                            if (activity instanceof ActivityResultHost) {
+                                ((ActivityResultHost) activity)
+                                        .launchDriveAuthRequest(authResult.getPendingIntent().getIntentSender());
+                            } else {
+                                Timber.tag(TAG).e("Activity %s cannot launch Drive auth flow", activity.getClass().getSimpleName());
+                            }
                         } catch (Exception error) {
                             Timber.tag(TAG).e(error, "Failed to launch Drive consent UI");
                         }

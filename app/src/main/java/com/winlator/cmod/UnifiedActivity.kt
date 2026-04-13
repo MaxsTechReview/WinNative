@@ -3,6 +3,7 @@ package com.winlator.cmod
 import android.app.Activity
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.IntentSender
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
@@ -13,6 +14,9 @@ import android.provider.DocumentsContract
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import kotlinx.coroutines.delay
@@ -67,6 +71,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -136,6 +144,7 @@ import com.winlator.cmod.service.DownloadService
 import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.container.Shortcut
 import com.winlator.cmod.contentdialog.ShortcutSettingsComposeDialog
+import com.winlator.cmod.core.ActivityResultHost
 import com.winlator.cmod.steam.events.EventDispatcher
 import com.winlator.cmod.steam.events.AndroidEvent
 import dagger.hilt.android.AndroidEntryPoint
@@ -178,7 +187,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.ui.text.style.TextAlign
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -211,7 +219,7 @@ enum class LibraryLayoutMode {
 }
 
 @AndroidEntryPoint
-class UnifiedActivity : AppCompatActivity() {
+class UnifiedActivity : AppCompatActivity(), ActivityResultHost {
     @Inject lateinit var db: PluviaDatabase
 
     private data class PendingNavigation(
@@ -274,12 +282,35 @@ class UnifiedActivity : AppCompatActivity() {
     private var joystickActive = false
     companion object {
         private const val MOVE_INTERVAL_MS = 250L
-        const val OPEN_IMAGE_REQUEST_CODE = 5
         private var instance: UnifiedActivity? = null
 
         fun refreshLibrary() {
             instance?.let { it.libraryRefreshSignal++ }
         }
+    }
+
+    private val wallpaperImagePickerLauncher =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            if (uri == null) return@registerForActivityResult
+
+            val bitmap = com.winlator.cmod.core.ImageUtils.getBitmapFromUri(this, uri, 1280)
+            if (bitmap != null) {
+                val wallpaperFile = com.winlator.cmod.core.WineThemeManager.getUserWallpaperFile(this)
+                com.winlator.cmod.core.ImageUtils.save(bitmap, wallpaperFile, Bitmap.CompressFormat.PNG, 100)
+            }
+        }
+
+    private val driveAuthLauncher =
+        registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+            GameSaveBackupManager.onDriveAuthResult(this, result.resultCode)
+        }
+
+    override fun launchWallpaperImagePicker() {
+        wallpaperImagePickerLauncher.launch("image/*")
+    }
+
+    override fun launchDriveAuthRequest(intentSender: IntentSender) {
+        driveAuthLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
     }
 
     private fun moveLibraryFocus(left: Boolean, right: Boolean, up: Boolean, down: Boolean) {
@@ -529,25 +560,6 @@ class UnifiedActivity : AppCompatActivity() {
         window.decorView.rootView.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, keyCode))
     }
 
-    @Deprecated("Deprecated in Java")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == com.winlator.cmod.google.CloudSyncManager.REQUEST_CODE_SAVED_GAMES_PERMISSIONS) {
-            com.winlator.cmod.google.CloudSyncManager.onSavedGamesPermissionResult(this)
-        }
-        if (requestCode == GameSaveBackupManager.REQUEST_CODE_DRIVE_AUTH) {
-            GameSaveBackupManager.onDriveAuthResult(this, resultCode)
-        }
-        // Wallpaper image picker
-        if (requestCode == OPEN_IMAGE_REQUEST_CODE && resultCode == Activity.RESULT_OK && data != null) {
-            val bitmap = com.winlator.cmod.core.ImageUtils.getBitmapFromUri(this, data.data, 1280)
-            if (bitmap != null) {
-                val wallpaperFile = com.winlator.cmod.core.WineThemeManager.getUserWallpaperFile(this)
-                com.winlator.cmod.core.ImageUtils.save(bitmap, wallpaperFile, Bitmap.CompressFormat.PNG, 100)
-            }
-        }
-    }
-
     private fun navigateToSettings(
         item: SettingsNavItem = SettingsNavItem.CONTAINERS,
         profileId: Int = 0,
@@ -625,8 +637,7 @@ class UnifiedActivity : AppCompatActivity() {
                 Intent(this, SetupWizardActivity::class.java)
                     .addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
             )
-            @Suppress("DEPRECATION")
-            overridePendingTransition(0, 0)
+            com.winlator.cmod.core.AppUtils.applyOpenActivityTransition(this, 0, 0)
             finish()
             return
         }
@@ -652,8 +663,9 @@ class UnifiedActivity : AppCompatActivity() {
             GOGService.start(this)
         }
 
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.navigationBarColor = 0xFF141B24.toInt()
+        enableEdgeToEdge(
+            navigationBarStyle = SystemBarStyle.dark(0xFF141B24.toInt())
+        )
         val initialSettingsNavigation = extractSettingsNavigation(intent)
         if (initialSettingsNavigation != null) {
             consumeSettingsIntent(intent)
@@ -2083,7 +2095,7 @@ class UnifiedActivity : AppCompatActivity() {
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Divider(color = CardBorder, thickness = 0.5.dp)
+                    HorizontalDivider(color = CardBorder, thickness = 0.5.dp)
                     content()
                 }
             }
@@ -2098,7 +2110,7 @@ class UnifiedActivity : AppCompatActivity() {
         Column(modifier = modifier) {
             actions.forEachIndexed { index, action ->
                 if (index > 0) {
-                    Divider(
+                    HorizontalDivider(
                         color = CardBorder.copy(alpha = 0.5f),
                         thickness = 0.5.dp,
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -2587,7 +2599,7 @@ class UnifiedActivity : AppCompatActivity() {
                             ),
                             GameSettingsActionItem(
                                 title = stringResource(R.string.common_ui_back),
-                                icon = Icons.Outlined.ArrowBack,
+                                icon = Icons.AutoMirrored.Outlined.ArrowBack,
                                 onClick = { currentTab = GameSettingsScreen.Menu },
                             ),
                         ),
@@ -2855,7 +2867,7 @@ class UnifiedActivity : AppCompatActivity() {
                             ),
                             GameSettingsActionItem(
                                 title = stringResource(R.string.common_ui_back),
-                                icon = Icons.Outlined.ArrowBack,
+                                icon = Icons.AutoMirrored.Outlined.ArrowBack,
                                 onClick = { currentTab = GameSettingsScreen.Menu },
                             ),
                         ),
@@ -3539,7 +3551,7 @@ class UnifiedActivity : AppCompatActivity() {
 
                                     Spacer(Modifier.weight(1f))
                                     TextButton(onClick = { currentScreen = LibraryDetailScreen.Main }) {
-                                        Icon(Icons.Outlined.ArrowBack, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
+                                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
                                         Spacer(Modifier.width(6.dp))
                                         Text(stringResource(R.string.common_ui_back), color = TextSecondary)
                                     }
@@ -3740,7 +3752,7 @@ class UnifiedActivity : AppCompatActivity() {
                         fontSize = 10.sp,
                     )
                     if (onClick != null) {
-                        Icon(Icons.Outlined.OpenInNew, contentDescription = null, modifier = Modifier.size(10.dp), tint = Accent.copy(alpha = 0.6f))
+                        Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null, modifier = Modifier.size(10.dp), tint = Accent.copy(alpha = 0.6f))
                     }
                 }
                 Text(
@@ -4607,7 +4619,7 @@ class UnifiedActivity : AppCompatActivity() {
                 ) {
                     dlcApps.forEachIndexed { index, dlc ->
                         if (index > 0) {
-                            Divider(
+                            HorizontalDivider(
                                 color = CardBorder.copy(alpha = 0.5f),
                                 thickness = 0.5.dp,
                                 modifier = Modifier.padding(horizontal = 16.dp),
@@ -5374,7 +5386,7 @@ class UnifiedActivity : AppCompatActivity() {
                         onClick = { if (queueSize > 1) { queueSize--; PrefManager.downloadQueueSize = queueSize } },
                         modifier = Modifier.size(24.dp)
                     ) {
-                        Icon(Icons.Outlined.KeyboardArrowLeft, contentDescription = "Decrease Queue", tint = TextPrimary, modifier = Modifier.size(18.dp))
+                        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, contentDescription = "Decrease Queue", tint = TextPrimary, modifier = Modifier.size(18.dp))
                     }
                     Text(
                         text = queueSize.toString(),
@@ -5387,7 +5399,7 @@ class UnifiedActivity : AppCompatActivity() {
                         onClick = { queueSize++; PrefManager.downloadQueueSize = queueSize; com.winlator.cmod.steam.service.SteamService.checkQueue() },
                         modifier = Modifier.size(24.dp)
                     ) {
-                        Icon(Icons.Outlined.KeyboardArrowRight, contentDescription = "Increase Queue", tint = TextPrimary, modifier = Modifier.size(18.dp))
+                        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = "Increase Queue", tint = TextPrimary, modifier = Modifier.size(18.dp))
                     }
                 }
 
@@ -5740,7 +5752,7 @@ class UnifiedActivity : AppCompatActivity() {
                 ) {
                     dlcApps.forEachIndexed { index, dlc ->
                         if (index > 0) {
-                            Divider(
+                            HorizontalDivider(
                                 color = CardBorder.copy(alpha = 0.5f),
                                 thickness = 0.5.dp,
                                 modifier = Modifier.padding(horizontal = 16.dp),
@@ -6019,7 +6031,7 @@ class UnifiedActivity : AppCompatActivity() {
 
             Spacer(Modifier.height(4.dp))
             TextButton(onClick = onBack) {
-                Icon(Icons.Outlined.ArrowBack, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.common_ui_back), color = TextSecondary)
             }
@@ -6670,8 +6682,7 @@ class UnifiedActivity : AppCompatActivity() {
         context.startActivity(intent)
         // Suppress the default activity transition so the preloader stays seamless
         if (context is android.app.Activity) {
-            @Suppress("DEPRECATION")
-            context.overridePendingTransition(0, 0)
+            com.winlator.cmod.core.AppUtils.applyOpenActivityTransition(context, 0, 0)
         }
     }
 

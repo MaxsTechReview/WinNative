@@ -10,7 +10,6 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Rect;
-import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.os.Looper;
 import android.text.Html;
@@ -21,8 +20,6 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import android.view.Window;
-import android.view.WindowInsets;
-import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
@@ -34,6 +31,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.core.content.ContextCompat;
+import androidx.core.content.pm.PackageInfoCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -67,10 +68,32 @@ public abstract class AppUtils {
     }
 
     public static void restartActivity(AppCompatActivity activity) {
-        Intent intent = activity.getIntent();
+        Intent intent = new Intent(activity.getIntent());
+        intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
         activity.finish();
         activity.startActivity(intent);
-        activity.overridePendingTransition(0, 0);
+    }
+
+    public static void applyOpenActivityTransition(Activity activity, int enterAnim, int exitAnim) {
+        applyActivityTransition(activity, false, enterAnim, exitAnim);
+    }
+
+    public static void applyCloseActivityTransition(Activity activity, int enterAnim, int exitAnim) {
+        applyActivityTransition(activity, true, enterAnim, exitAnim);
+    }
+
+    @SuppressWarnings("deprecation")
+    private static void applyActivityTransition(Activity activity, boolean closing, int enterAnim, int exitAnim) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            activity.overrideActivityTransition(
+                closing ? Activity.OVERRIDE_TRANSITION_CLOSE : Activity.OVERRIDE_TRANSITION_OPEN,
+                enterAnim,
+                exitAnim
+            );
+        }
+        else {
+            activity.overridePendingTransition(enterAnim, exitAnim);
+        }
     }
 
     public static void restartApplication(Context context) {
@@ -86,11 +109,20 @@ public abstract class AppUtils {
     }
 
     public static void showKeyboard(AppCompatActivity activity) {
-        final InputMethodManager imm = (InputMethodManager)activity.getSystemService(Context.INPUT_METHOD_SERVICE);
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) {
-            activity.getWindow().getDecorView().postDelayed(() -> imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0), 500L);
-        }
-        else imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
+        View targetView = activity.getCurrentFocus();
+        if (targetView == null) targetView = activity.getWindow().getDecorView();
+        final View finalTargetView = targetView;
+        finalTargetView.requestFocus();
+        finalTargetView.postDelayed(() -> {
+            WindowInsetsControllerCompat insetsController = WindowCompat.getInsetsController(activity.getWindow(), finalTargetView);
+            if (insetsController != null) {
+                insetsController.show(WindowInsetsCompat.Type.ime());
+            }
+            InputMethodManager imm = ContextCompat.getSystemService(activity, InputMethodManager.class);
+            if (imm != null) {
+                imm.showSoftInput(finalTargetView, InputMethodManager.SHOW_IMPLICIT);
+            }
+        }, 500L);
     }
 
     public static void hideKeyboard(Activity activity) {
@@ -109,56 +141,22 @@ public abstract class AppUtils {
     public static void hideSystemUI(final Activity activity) {
         Window window = activity.getWindow();
         final View decorView = window.getDecorView();
-
-        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.setDecorFitsSystemWindows(false);
-            final WindowInsetsController insetsController = decorView.getWindowInsetsController();
-            if (insetsController != null) {
-                insetsController.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
-                insetsController.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-            }
-        }
-        else {
-            final int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
-
-            decorView.setSystemUiVisibility(flags);
-            decorView.setOnSystemUiVisibilityChangeListener((visibility) -> {
-                if ((visibility & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0) decorView.setSystemUiVisibility(flags);
-            });
+        WindowCompat.setDecorFitsSystemWindows(window, false);
+        final WindowInsetsControllerCompat insetsController = WindowCompat.getInsetsController(window, decorView);
+        if (insetsController != null) {
+            insetsController.hide(WindowInsetsCompat.Type.systemBars());
+            insetsController.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
         }
     }
 
     public static void showSystemUI(final Activity activity) {
         Window window = activity.getWindow();
         final View decorView = window.getDecorView();
-
-        window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION);
-        window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.setDecorFitsSystemWindows(false);
-            final WindowInsetsController insetsController = decorView.getWindowInsetsController();
-            if (insetsController != null) {
-                insetsController.show(WindowInsets.Type.navigationBars());
-                insetsController.hide(WindowInsets.Type.statusBars());
-                insetsController.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-            }
-        }
-        else {
-            decorView.setOnSystemUiVisibilityChangeListener(null);
-            decorView.setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        WindowCompat.setDecorFitsSystemWindows(window, false);
+        final WindowInsetsControllerCompat insetsController = WindowCompat.getInsetsController(window, decorView);
+        if (insetsController != null) {
+            insetsController.show(WindowInsetsCompat.Type.systemBars());
+            insetsController.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
         }
     }
 
@@ -204,22 +202,20 @@ public abstract class AppUtils {
             return null;
         }
 
-        if (globalToastReference != null) {
-            Toast toast = globalToastReference.get();
-            if (toast != null) toast.cancel();
-            globalToastReference = null;
+        dismissActiveToasts();
+
+        if (iconBitmap != null && context instanceof Activity) {
+            Activity activity = (Activity)context;
+            if (activity.isFinishing() || activity.isDestroyed()) {
+                return null;
+            }
+
+            showPopupToast(activity, text, iconBitmap, text.length() >= 40 ? 3500L : 2000L);
+            return null;
         }
 
-        View view = LayoutInflater.from(context).inflate(R.layout.custom_toast, null);
-        ((TextView)view.findViewById(R.id.TextView)).setText(text);
-        if (iconBitmap != null) {
-            ((ImageView)view.findViewById(R.id.IconView)).setImageBitmap(iconBitmap);
-        }
-
-        Toast toast = new Toast(context);
+        Toast toast = Toast.makeText(context, text, text.length() >= 40 ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT);
         toast.setGravity(Gravity.CENTER | Gravity.BOTTOM, 0, 50);
-        toast.setDuration(text.length() >= 40 ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT);
-        toast.setView(view);
         toast.show();
         globalToastReference = new WeakReference<>(toast);
         return toast;
@@ -233,6 +229,21 @@ public abstract class AppUtils {
             return;
         }
 
+        dismissActiveToasts();
+
+        if (!(context instanceof Activity)) {
+            showToast(context, text);
+            return;
+        }
+
+        Activity activity = (Activity) context;
+        if (activity.isFinishing() || activity.isDestroyed()) {
+            return;
+        }
+        showPopupToast(activity, text, null, durationMs);
+    }
+
+    private static void dismissActiveToasts() {
         if (globalToastReference != null) {
             Toast toast = globalToastReference.get();
             if (toast != null) toast.cancel();
@@ -244,24 +255,26 @@ public abstract class AppUtils {
             if (popupWindow != null) popupWindow.dismiss();
             globalPopupToastReference = null;
         }
+    }
 
-        if (!(context instanceof Activity)) {
-            showToast(context, text);
-            return;
-        }
-
-        Activity activity = (Activity) context;
-        if (activity.isFinishing() || activity.isDestroyed()) {
-            return;
-        }
-        View view = LayoutInflater.from(context).inflate(R.layout.custom_toast, null);
+    private static void showPopupToast(Activity activity, String text, Bitmap iconBitmap, long durationMs) {
+        View view = LayoutInflater.from(activity).inflate(R.layout.custom_toast, null);
         ((TextView)view.findViewById(R.id.TextView)).setText(text);
 
+        ImageView iconView = view.findViewById(R.id.IconView);
+        if (iconBitmap != null) {
+            iconView.setImageBitmap(iconBitmap);
+            iconView.setVisibility(View.VISIBLE);
+        }
+        else {
+            iconView.setVisibility(View.GONE);
+        }
+
         PopupWindow popupWindow = new PopupWindow(
-                view,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                false
+            view,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            false
         );
         popupWindow.setTouchable(false);
         popupWindow.setOutsideTouchable(false);
@@ -276,7 +289,8 @@ public abstract class AppUtils {
                     popupWindow.dismiss();
                     globalPopupToastReference = null;
                 }
-            } catch (Exception ignored) {}
+            }
+            catch (Exception ignored) {}
         }, durationMs);
     }
 
@@ -347,7 +361,7 @@ public abstract class AppUtils {
     public static int getVersionCode(Context context) {
         try {
             PackageInfo pInfo = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
-            return pInfo.versionCode;
+            return (int) PackageInfoCompat.getLongVersionCode(pInfo);
         }
         catch (PackageManager.NameNotFoundException e) {
             return 0;

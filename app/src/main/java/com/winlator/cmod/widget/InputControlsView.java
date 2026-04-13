@@ -18,6 +18,7 @@ import android.graphics.Rect;
 import android.os.Handler;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.os.VibratorManager;
 import android.util.SparseArray;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -622,14 +623,15 @@ public class InputControlsView extends View {
 
                             // Trigger haptic feedback for input controls
                             if (hapticsEnabled) {
-                                Vibrator vibrator = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
+                                Vibrator vibrator;
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                    VibratorManager vibratorManager = getContext().getSystemService(VibratorManager.class);
+                                    vibrator = vibratorManager != null ? vibratorManager.getDefaultVibrator() : null;
+                                } else {
+                                    vibrator = getContext().getSystemService(Vibrator.class);
+                                }
                                 if (vibrator != null && vibrator.hasVibrator()) {
-                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                        vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE));
-                                    } else {
-                                        vibrator.vibrate(50); // Legacy method for older Android versions
-                                    }
-
+                                    vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE));
                                 }
 
                             }

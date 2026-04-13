@@ -1335,8 +1335,7 @@ class SetupWizardActivity : FragmentActivity() {
             Intent(this, UnifiedActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
         )
-        @Suppress("DEPRECATION")
-        overridePendingTransition(0, 0)
+        com.winlator.cmod.core.AppUtils.applyOpenActivityTransition(this, 0, 0)
         finish()
     }
 
