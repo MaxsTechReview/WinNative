@@ -10,9 +10,14 @@ object ControllerHelper {
             val device = InputDevice.getDevice(deviceId) ?: continue
             val sources = device.sources
             if (!device.isVirtual &&
-                ((sources and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD ||
-                ((sources and InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK &&
-                 (sources and InputDevice.SOURCE_MOUSE) == 0))) {
+                (
+                    (sources and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD ||
+                        (
+                            (sources and InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK &&
+                                (sources and InputDevice.SOURCE_MOUSE) == 0
+                        )
+                )
+            ) {
                 return true
             }
         }
@@ -32,7 +37,7 @@ object ControllerHelper {
         if (device.vendorId == SONY_VENDOR_ID) return true
         val name = device.name.lowercase()
         return name.contains("dualshock") || name.contains("playstation") ||
-               name.contains("dualsense") || name.contains("wireless controller")
+            name.contains("dualsense") || name.contains("wireless controller")
     }
 
     fun isPlayStationControllerById(deviceId: Int): Boolean {

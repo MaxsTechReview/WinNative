@@ -12,209 +12,236 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.TextView;
-
 import com.winlator.cmod.R;
 import com.winlator.cmod.runtime.display.XServerDisplayActivity;
-import com.winlator.cmod.shared.ui.dialog.ContentDialog;
-import com.winlator.cmod.runtime.system.CPUStatus;
-import com.winlator.cmod.shared.io.FileUtils;
-import com.winlator.cmod.runtime.system.ProcessHelper;
-import com.winlator.cmod.shared.util.StringUtils;
-import com.winlator.cmod.runtime.system.ui.CPUListView;
 import com.winlator.cmod.runtime.display.environment.ImageFs;
 import com.winlator.cmod.runtime.display.xserver.Window;
 import com.winlator.cmod.runtime.display.xserver.XLock;
 import com.winlator.cmod.runtime.display.xserver.XServer;
-
+import com.winlator.cmod.runtime.system.CPUStatus;
+import com.winlator.cmod.runtime.system.ProcessHelper;
+import com.winlator.cmod.runtime.system.ui.CPUListView;
+import com.winlator.cmod.shared.io.FileUtils;
+import com.winlator.cmod.shared.ui.dialog.ContentDialog;
+import com.winlator.cmod.shared.util.StringUtils;
 import java.io.File;
 import java.util.Timer;
 import java.util.TimerTask;
 
 public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfoListener {
-    private final XServerDisplayActivity activity;
-    private final LayoutInflater inflater;
-    private Timer timer;
-    private final Object lock = new Object();
+  private final XServerDisplayActivity activity;
+  private final LayoutInflater inflater;
+  private Timer timer;
+  private final Object lock = new Object();
 
-    public TaskManagerDialog(XServerDisplayActivity activity) {
-        super(activity, R.layout.task_manager_dialog);
-        this.activity = activity;
-        setCancelable(false);
-        setTitle(R.string.session_task_title);
-        setIcon(R.drawable.icon_task_manager);
+  public TaskManagerDialog(XServerDisplayActivity activity) {
+    super(activity, R.layout.task_manager_dialog);
+    this.activity = activity;
+    setCancelable(false);
+    setTitle(R.string.session_task_title);
+    setIcon(R.drawable.icon_task_manager);
 
-        Button cancelButton = findViewById(R.id.BTCancel);
-        cancelButton.setText(R.string.session_task_new_task);
-        cancelButton.setOnClickListener((v) -> {
+    Button cancelButton = findViewById(R.id.BTCancel);
+    cancelButton.setText(R.string.session_task_new_task);
+    cancelButton.setOnClickListener(
+        (v) -> {
+          dismiss();
+          ContentDialog.prompt(
+              activity,
+              R.string.session_task_new_task,
+              "taskmgr.exe",
+              (command) -> activity.getWinHandler().exec(command));
+        });
+
+    setOnDismissListener(
+        (dialog) -> {
+          if (timer != null) {
+            timer.cancel();
+            timer = null;
+          }
+
+          activity.getWinHandler().setOnGetProcessInfoListener(null);
+        });
+
+    FileUtils.clear(getIconDir(activity));
+    inflater = LayoutInflater.from(activity);
+  }
+
+  private void update() {
+    synchronized (lock) {
+      activity.getWinHandler().listProcesses();
+
+      final LinearLayout container = findViewById(R.id.LLProcessList);
+      if (container.getChildCount() == 0)
+        findViewById(R.id.TVEmptyText).setVisibility(View.VISIBLE);
+    }
+
+    updateCPUInfoView();
+    updateMemoryInfoView();
+  }
+
+  private void showListItemMenu(final View anchorView, final ProcessInfo processInfo) {
+    PopupMenu listItemMenu = new PopupMenu(activity, anchorView);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) listItemMenu.setForceShowIcon(true);
+
+    listItemMenu.inflate(R.menu.process_popup_menu);
+    listItemMenu.setOnMenuItemClickListener(
+        (menuItem) -> {
+          int itemId = menuItem.getItemId();
+          final WinHandler winHandler = activity.getWinHandler();
+          if (itemId == R.id.process_affinity) {
+            showProcessorAffinityDialog(processInfo);
+          } else if (itemId == R.id.bring_to_front) {
+            winHandler.bringToFront(processInfo.name);
             dismiss();
-            ContentDialog.prompt(activity, R.string.session_task_new_task, "taskmgr.exe", (command) -> activity.getWinHandler().exec(command));
-        });
-
-        setOnDismissListener((dialog) -> {
-            if (timer != null) {
-                timer.cancel();
-                timer = null;
-            }
-
-            activity.getWinHandler().setOnGetProcessInfoListener(null);
-        });
-
-        FileUtils.clear(getIconDir(activity));
-        inflater = LayoutInflater.from(activity);
-    }
-
-    private void update() {
-        synchronized (lock) {
-            activity.getWinHandler().listProcesses();
-
-            final LinearLayout container = findViewById(R.id.LLProcessList);
-            if (container.getChildCount() == 0) findViewById(R.id.TVEmptyText).setVisibility(View.VISIBLE);
-        }
-
-        updateCPUInfoView();
-        updateMemoryInfoView();
-    }
-
-    private void showListItemMenu(final View anchorView, final ProcessInfo processInfo) {
-        PopupMenu listItemMenu = new PopupMenu(activity, anchorView);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) listItemMenu.setForceShowIcon(true);
-
-        listItemMenu.inflate(R.menu.process_popup_menu);
-        listItemMenu.setOnMenuItemClickListener((menuItem) -> {
-            int itemId = menuItem.getItemId();
-            final WinHandler winHandler = activity.getWinHandler();
-            if (itemId == R.id.process_affinity) {
-                showProcessorAffinityDialog(processInfo);
-            }
-            else if (itemId == R.id.bring_to_front) {
-                winHandler.bringToFront(processInfo.name);
-                dismiss();
-            }
-            else if (itemId == R.id.process_end) {
-                ContentDialog.confirm(activity, R.string.session_task_confirm_end_process, () -> {
-                    winHandler.killProcess(processInfo.name);
+          } else if (itemId == R.id.process_end) {
+            ContentDialog.confirm(
+                activity,
+                R.string.session_task_confirm_end_process,
+                () -> {
+                  winHandler.killProcess(processInfo.name);
                 });
-            }
-            return true;
+          }
+          return true;
         });
-        listItemMenu.show();
-    }
+    listItemMenu.show();
+  }
 
-    private void showProcessorAffinityDialog(final ProcessInfo processInfo) {
-        ContentDialog dialog = new ContentDialog(activity, R.layout.cpu_list_dialog);
-        dialog.setTitle(processInfo.name);
-        dialog.setIcon(R.drawable.icon_cpu);
-        final CPUListView cpuListView = dialog.findViewById(R.id.CPUListView);
-        cpuListView.setCheckedCPUList(processInfo.getCPUList());
-        dialog.setOnConfirmCallback(() -> {
-            WinHandler winHandler = activity.getWinHandler();
-            winHandler.setProcessAffinity(processInfo.pid, ProcessHelper.getAffinityMask(cpuListView.getCheckedCPUList()));
-            update();
+  private void showProcessorAffinityDialog(final ProcessInfo processInfo) {
+    ContentDialog dialog = new ContentDialog(activity, R.layout.cpu_list_dialog);
+    dialog.setTitle(processInfo.name);
+    dialog.setIcon(R.drawable.icon_cpu);
+    final CPUListView cpuListView = dialog.findViewById(R.id.CPUListView);
+    cpuListView.setCheckedCPUList(processInfo.getCPUList());
+    dialog.setOnConfirmCallback(
+        () -> {
+          WinHandler winHandler = activity.getWinHandler();
+          winHandler.setProcessAffinity(
+              processInfo.pid, ProcessHelper.getAffinityMask(cpuListView.getCheckedCPUList()));
+          update();
         });
-        dialog.show();
-    }
+    dialog.show();
+  }
 
-    public static File getIconDir(Context context) {
-        File iconDir = new File(ImageFs.find(context).getRootDir(), "home/xuser/.local/share/icons/taskmgr");
-        if (!iconDir.isDirectory()) iconDir.mkdirs();
-        return iconDir;
-    }
+  public static File getIconDir(Context context) {
+    File iconDir =
+        new File(ImageFs.find(context).getRootDir(), "home/xuser/.local/share/icons/taskmgr");
+    if (!iconDir.isDirectory()) iconDir.mkdirs();
+    return iconDir;
+  }
 
-    @Override
-    public void show() {
-        update();
-        activity.getWinHandler().setOnGetProcessInfoListener(this);
+  @Override
+  public void show() {
+    update();
+    activity.getWinHandler().setOnGetProcessInfoListener(this);
 
-        timer = new Timer();
-        timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                activity.runOnUiThread(TaskManagerDialog.this::update);
+    timer = new Timer();
+    timer.schedule(
+        new TimerTask() {
+          @Override
+          public void run() {
+            activity.runOnUiThread(TaskManagerDialog.this::update);
+          }
+        },
+        0,
+        1000);
+    super.show();
+  }
+
+  @Override
+  public void onGetProcessInfo(int index, int numProcesses, ProcessInfo processInfo) {
+    activity.runOnUiThread(
+        () -> {
+          synchronized (lock) {
+            final LinearLayout container = findViewById(R.id.LLProcessList);
+            setBottomBarText(
+                activity.getString(R.string.session_task_processes) + ": " + numProcesses);
+
+            if (numProcesses == 0) {
+              container.removeAllViews();
+              findViewById(R.id.TVEmptyText).setVisibility(View.VISIBLE);
+              return;
             }
-        }, 0, 1000);
-        super.show();
-    }
 
-    @Override
-    public void onGetProcessInfo(int index, int numProcesses, ProcessInfo processInfo) {
-        activity.runOnUiThread(() -> {
-            synchronized (lock) {
-                final LinearLayout container = findViewById(R.id.LLProcessList);
-                setBottomBarText(activity.getString(R.string.session_task_processes)+": " + numProcesses);
+            findViewById(R.id.TVEmptyText).setVisibility(View.GONE);
 
-                if (numProcesses == 0) {
-                    container.removeAllViews();
-                    findViewById(R.id.TVEmptyText).setVisibility(View.VISIBLE);
-                    return;
-                }
+            int childCount = container.getChildCount();
+            View itemView =
+                index < childCount
+                    ? container.getChildAt(index)
+                    : inflater.inflate(R.layout.process_info_list_item, container, false);
+            ((TextView) itemView.findViewById(R.id.TVName))
+                .setText(processInfo.name + (processInfo.wow64Process ? " *32" : ""));
+            ((TextView) itemView.findViewById(R.id.TVPID)).setText(String.valueOf(processInfo.pid));
+            ((TextView) itemView.findViewById(R.id.TVMemoryUsage))
+                .setText(processInfo.getFormattedMemoryUsage());
+            itemView
+                .findViewById(R.id.BTMenu)
+                .setOnClickListener((v) -> showListItemMenu(v, processInfo));
 
-                findViewById(R.id.TVEmptyText).setVisibility(View.GONE);
+            XServer xServer = activity.getXServer();
+            Window window;
 
-                int childCount = container.getChildCount();
-                View itemView = index < childCount ? container.getChildAt(index) : inflater.inflate(R.layout.process_info_list_item, container, false);
-                ((TextView)itemView.findViewById(R.id.TVName)).setText(processInfo.name+(processInfo.wow64Process ? " *32" : ""));
-                ((TextView)itemView.findViewById(R.id.TVPID)).setText(String.valueOf(processInfo.pid));
-                ((TextView)itemView.findViewById(R.id.TVMemoryUsage)).setText(processInfo.getFormattedMemoryUsage());
-                itemView.findViewById(R.id.BTMenu).setOnClickListener((v) -> showListItemMenu(v, processInfo));
-
-                XServer xServer = activity.getXServer();
-                Window window;
-
-                try (XLock xlock = xServer.lock(XServer.Lockable.WINDOW_MANAGER)) {
-                    window = xServer.windowManager.findWindowWithProcessId(processInfo.pid);
-                }
-
-                ImageView ivIcon = itemView.findViewById(R.id.IVIcon);
-                ivIcon.setImageResource(R.drawable.taskmgr_process);
-                if (window != null) {
-                    Bitmap icon = xServer.pixmapManager.getWindowIcon(window);
-                    if (icon != null) ivIcon.setImageBitmap(icon);
-                }
-
-                if (index >= childCount) container.addView(itemView);
-
-                if (index == numProcesses-1 && childCount > numProcesses) {
-                    for (int i = childCount-1; i >= numProcesses; i--) container.removeViewAt(i);
-                }
+            try (XLock xlock = xServer.lock(XServer.Lockable.WINDOW_MANAGER)) {
+              window = xServer.windowManager.findWindowWithProcessId(processInfo.pid);
             }
+
+            ImageView ivIcon = itemView.findViewById(R.id.IVIcon);
+            ivIcon.setImageResource(R.drawable.taskmgr_process);
+            if (window != null) {
+              Bitmap icon = xServer.pixmapManager.getWindowIcon(window);
+              if (icon != null) ivIcon.setImageBitmap(icon);
+            }
+
+            if (index >= childCount) container.addView(itemView);
+
+            if (index == numProcesses - 1 && childCount > numProcesses) {
+              for (int i = childCount - 1; i >= numProcesses; i--) container.removeViewAt(i);
+            }
+          }
         });
+  }
+
+  private void updateCPUInfoView() {
+    LinearLayout llCPUInfo = findViewById(R.id.LLCPUInfo);
+    llCPUInfo.removeAllViews();
+    short[] clockSpeeds = CPUStatus.getCurrentClockSpeeds();
+    int totalClockSpeed = 0;
+    short maxClockSpeed = 0;
+
+    for (int i = 0; i < clockSpeeds.length; i++) {
+      TextView textView = new TextView(activity);
+      textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+      textView.setTextColor(0xFFDDDDDD);
+      short clockSpeed = CPUStatus.getMaxClockSpeed(i);
+      textView.setText(clockSpeeds[i] + "/" + clockSpeed + " MHz");
+      llCPUInfo.addView(textView);
+      totalClockSpeed += clockSpeeds[i];
+      maxClockSpeed = (short) Math.max(maxClockSpeed, clockSpeed);
     }
 
-    private void updateCPUInfoView() {
-        LinearLayout llCPUInfo = findViewById(R.id.LLCPUInfo);
-        llCPUInfo.removeAllViews();
-        short[] clockSpeeds = CPUStatus.getCurrentClockSpeeds();
-        int totalClockSpeed = 0;
-        short maxClockSpeed = 0;
+    int avgClockSpeed = totalClockSpeed / clockSpeeds.length;
+    TextView tvCPUTitle = findViewById(R.id.TVCPUTitle);
+    byte cpuUsagePercent = (byte) (((float) avgClockSpeed / maxClockSpeed) * 100.0f);
+    tvCPUTitle.setText(activity.getString(R.string.session_task_cpu_usage_format, cpuUsagePercent));
+  }
 
-        for (int i = 0; i < clockSpeeds.length; i++) {
-            TextView textView = new TextView(activity);
-            textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-            textView.setTextColor(0xFFDDDDDD);
-            short clockSpeed = CPUStatus.getMaxClockSpeed(i);
-            textView.setText(clockSpeeds[i]+"/"+clockSpeed+" MHz");
-            llCPUInfo.addView(textView);
-            totalClockSpeed += clockSpeeds[i];
-            maxClockSpeed = (short)Math.max(maxClockSpeed, clockSpeed);
-        }
+  private void updateMemoryInfoView() {
+    ActivityManager activityManager =
+        (ActivityManager) activity.getSystemService(Context.ACTIVITY_SERVICE);
+    ActivityManager.MemoryInfo memoryInfo = new ActivityManager.MemoryInfo();
+    activityManager.getMemoryInfo(memoryInfo);
+    long usedMem = memoryInfo.totalMem - memoryInfo.availMem;
+    byte memUsagePercent = (byte) (((double) usedMem / memoryInfo.totalMem) * 100.0f);
 
-        int avgClockSpeed = totalClockSpeed / clockSpeeds.length;
-        TextView tvCPUTitle = findViewById(R.id.TVCPUTitle);
-        byte cpuUsagePercent = (byte)(((float)avgClockSpeed / maxClockSpeed) * 100.0f);
-        tvCPUTitle.setText(activity.getString(R.string.session_task_cpu_usage_format, cpuUsagePercent));
-    }
+    TextView tvMemoryTitle = findViewById(R.id.TVMemoryTitle);
+    tvMemoryTitle.setText(
+        activity.getString(R.string.session_task_memory) + " (" + memUsagePercent + "%)");
 
-    private void updateMemoryInfoView() {
-        ActivityManager activityManager = (ActivityManager)activity.getSystemService(Context.ACTIVITY_SERVICE);
-        ActivityManager.MemoryInfo memoryInfo = new ActivityManager.MemoryInfo();
-        activityManager.getMemoryInfo(memoryInfo);
-        long usedMem = memoryInfo.totalMem - memoryInfo.availMem;
-        byte memUsagePercent = (byte)(((double)usedMem / memoryInfo.totalMem) * 100.0f);
-
-        TextView tvMemoryTitle = findViewById(R.id.TVMemoryTitle);
-        tvMemoryTitle.setText(activity.getString(R.string.session_task_memory)+" ("+memUsagePercent+"%)");
-
-        TextView tvMemoryInfo = findViewById(R.id.TVMemoryInfo);
-        tvMemoryInfo.setText(StringUtils.formatBytes(usedMem, false)+"/"+StringUtils.formatBytes(memoryInfo.totalMem));
-    }
+    TextView tvMemoryInfo = findViewById(R.id.TVMemoryInfo);
+    tvMemoryInfo.setText(
+        StringUtils.formatBytes(usedMem, false)
+            + "/"
+            + StringUtils.formatBytes(memoryInfo.totalMem));
+  }
 }

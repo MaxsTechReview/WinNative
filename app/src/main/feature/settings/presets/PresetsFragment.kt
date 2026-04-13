@@ -1,6 +1,5 @@
-/* Settings > Presets fragment — hosts PresetsScreen via ComposeView. */
+// Settings > Presets fragment — hosts PresetsScreen via ComposeView.
 package com.winlator.cmod.feature.settings
-import com.winlator.cmod.R
 import android.content.SharedPreferences
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
@@ -23,15 +22,16 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.text.HtmlCompat
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
+import com.winlator.cmod.R
 import com.winlator.cmod.runtime.compat.box64.Box64Preset
 import com.winlator.cmod.runtime.compat.box64.Box64PresetManager
-import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.runtime.compat.fexcore.FEXCorePreset
+import com.winlator.cmod.runtime.compat.fexcore.FEXCorePresetManager
 import com.winlator.cmod.runtime.wine.EnvVars
+import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.util.StringUtils
-import com.winlator.cmod.runtime.compat.fexcore.FEXCorePreset
-import com.winlator.cmod.runtime.compat.fexcore.FEXCorePresetManager
 import org.json.JSONArray
 import java.util.Locale
 
@@ -53,13 +53,15 @@ class PresetsFragment : Fragment() {
 
     private val definitionsCache = mutableMapOf<PresetEngine, List<EnvVarDefinition>>()
     private val selectedPresetIds = linkedMapOf<PresetEngine, String>()
+
     // Per-engine map of env-var name → current value. We keep snapshots of BOTH
     // engines so PresetsScreen's AnimatedContent can render each side of the
     // crossfade with its own data.
-    private val currentValues = mutableMapOf<PresetEngine, LinkedHashMap<String, String>>(
-        PresetEngine.BOX64 to linkedMapOf(),
-        PresetEngine.FEXCORE to linkedMapOf(),
-    )
+    private val currentValues =
+        mutableMapOf<PresetEngine, LinkedHashMap<String, String>>(
+            PresetEngine.BOX64 to linkedMapOf(),
+            PresetEngine.FEXCORE to linkedMapOf(),
+        )
     private var currentEngine = PresetEngine.BOX64
     private var pendingImportEngine: PresetEngine? = null
 
@@ -73,10 +75,13 @@ class PresetsFragment : Fragment() {
             runCatching {
                 requireContext().contentResolver.openInputStream(uri)?.use { stream ->
                     when (engine) {
-                        PresetEngine.BOX64 ->
+                        PresetEngine.BOX64 -> {
                             Box64PresetManager.importPreset("box64", requireContext(), stream)
-                        PresetEngine.FEXCORE ->
+                        }
+
+                        PresetEngine.FEXCORE -> {
                             FEXCorePresetManager.importPreset(requireContext(), stream)
+                        }
                     }
                 } ?: error("Missing input stream")
             }.onSuccess {
@@ -109,155 +114,189 @@ class PresetsFragment : Fragment() {
         val ctx = requireContext()
         refresh()
 
-        val composeView = ComposeView(ctx).apply {
-            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-            setContent {
-                MaterialTheme(
-                    colorScheme = darkColorScheme(
-                        primary    = Color(0xFF1A9FFF),
-                        background = Color(0xFF141B24),
-                        surface    = Color(0xFF1E252E),
-                    )
-                ) {
-                    PresetsScreen(
-                        state = presetsState,
-                        onEngineSelected = { engine ->
-                            if (engine != currentEngine) {
-                                currentEngine = engine
+        val composeView =
+            ComposeView(ctx).apply {
+                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+                setContent {
+                    MaterialTheme(
+                        colorScheme =
+                            darkColorScheme(
+                                primary = Color(0xFF1A9FFF),
+                                background = Color(0xFF141B24),
+                                surface = Color(0xFF1E252E),
+                            ),
+                    ) {
+                        PresetsScreen(
+                            state = presetsState,
+                            onEngineSelected = { engine ->
+                                if (engine != currentEngine) {
+                                    currentEngine = engine
+                                    refresh()
+                                }
+                            },
+                            onPresetSelected = { presetId ->
+                                setSelectedPreset(currentEngine, presetId)
                                 refresh()
-                            }
-                        },
-                        onPresetSelected = { presetId ->
-                            setSelectedPreset(currentEngine, presetId)
-                            refresh()
-                        },
-                        onEnvVarValueChanged = { name, value ->
-                            onEnvVarValueChanged(name, value)
-                        },
-                        onCreatePreset = { rawName ->
-                            val sanitized = sanitizePresetName(rawName)
-                            if (sanitized.isEmpty()) return@PresetsScreen
-                            savePreset(
-                                engine = currentEngine,
-                                presetId = null,
-                                presetName = sanitized,
-                                envVars = buildEnvVarsFromMap(currentEngine, buildDefaultValueMap(currentEngine)),
-                            )
-                            refresh(selectLatestPreset = true)
-                        },
-                        onRenamePreset = { rawName ->
-                            val selected = selectedPresetOption() ?: return@PresetsScreen
-                            if (!selected.isCustom) {
-                                AppUtils.showToast(requireContext(), R.string.container_presets_cannot_rename)
-                                return@PresetsScreen
-                            }
-                            val sanitized = sanitizePresetName(rawName)
-                            if (sanitized.isEmpty()) return@PresetsScreen
-                            savePreset(
-                                engine = currentEngine,
-                                presetId = selected.id,
-                                presetName = sanitized,
-                                envVars = buildEnvVarsFromMap(
-                                    currentEngine,
-                                    currentValues[currentEngine] ?: linkedMapOf(),
-                                ),
-                            )
-                            refresh()
-                        },
-                        onDuplicatePreset = {
-                            val selected = selectedPresetOption() ?: return@PresetsScreen
-                            when (currentEngine) {
-                                PresetEngine.BOX64 -> Box64PresetManager.duplicatePreset(
-                                    "box64", requireContext(), selected.id,
+                            },
+                            onEnvVarValueChanged = { name, value ->
+                                onEnvVarValueChanged(name, value)
+                            },
+                            onCreatePreset = { rawName ->
+                                val sanitized = sanitizePresetName(rawName)
+                                if (sanitized.isEmpty()) return@PresetsScreen
+                                savePreset(
+                                    engine = currentEngine,
+                                    presetId = null,
+                                    presetName = sanitized,
+                                    envVars = buildEnvVarsFromMap(currentEngine, buildDefaultValueMap(currentEngine)),
                                 )
-                                PresetEngine.FEXCORE -> FEXCorePresetManager.duplicatePreset(
-                                    requireContext(), selected.id,
+                                refresh(selectLatestPreset = true)
+                            },
+                            onRenamePreset = { rawName ->
+                                val selected = selectedPresetOption() ?: return@PresetsScreen
+                                if (!selected.isCustom) {
+                                    AppUtils.showToast(requireContext(), R.string.container_presets_cannot_rename)
+                                    return@PresetsScreen
+                                }
+                                val sanitized = sanitizePresetName(rawName)
+                                if (sanitized.isEmpty()) return@PresetsScreen
+                                savePreset(
+                                    engine = currentEngine,
+                                    presetId = selected.id,
+                                    presetName = sanitized,
+                                    envVars =
+                                        buildEnvVarsFromMap(
+                                            currentEngine,
+                                            currentValues[currentEngine] ?: linkedMapOf(),
+                                        ),
                                 )
-                            }
-                            refresh(selectLatestPreset = true)
-                        },
-                        onExportPreset = {
-                            val selected = selectedPresetOption() ?: return@PresetsScreen
-                            if (!selected.isCustom) {
-                                AppUtils.showToast(requireContext(), R.string.container_presets_cannot_export)
-                                return@PresetsScreen
-                            }
-                            when (currentEngine) {
-                                PresetEngine.BOX64 -> Box64PresetManager.exportPreset(
-                                    "box64", requireContext(), selected.id,
-                                )
-                                PresetEngine.FEXCORE -> FEXCorePresetManager.exportPreset(
-                                    requireContext(), selected.id,
-                                )
-                            }
-                        },
-                        onImportPreset = {
-                            pendingImportEngine = currentEngine
-                            importPresetPicker.launch(arrayOf("*/*"))
-                        },
-                        onRemovePreset = {
-                            val selected = selectedPresetOption() ?: return@PresetsScreen
-                            if (!selected.isCustom) {
-                                AppUtils.showToast(requireContext(), R.string.container_presets_cannot_remove)
-                                return@PresetsScreen
-                            }
-                            when (currentEngine) {
-                                PresetEngine.BOX64 -> Box64PresetManager.removePreset(
-                                    "box64", requireContext(), selected.id,
-                                )
-                                PresetEngine.FEXCORE -> FEXCorePresetManager.removePreset(
-                                    requireContext(), selected.id,
-                                )
-                            }
-                            refresh()
-                        },
-                        suggestedNewPresetName = { buildDefaultPresetName(currentEngine) },
-                    )
+                                refresh()
+                            },
+                            onDuplicatePreset = {
+                                val selected = selectedPresetOption() ?: return@PresetsScreen
+                                when (currentEngine) {
+                                    PresetEngine.BOX64 -> {
+                                        Box64PresetManager.duplicatePreset(
+                                            "box64",
+                                            requireContext(),
+                                            selected.id,
+                                        )
+                                    }
+
+                                    PresetEngine.FEXCORE -> {
+                                        FEXCorePresetManager.duplicatePreset(
+                                            requireContext(),
+                                            selected.id,
+                                        )
+                                    }
+                                }
+                                refresh(selectLatestPreset = true)
+                            },
+                            onExportPreset = {
+                                val selected = selectedPresetOption() ?: return@PresetsScreen
+                                if (!selected.isCustom) {
+                                    AppUtils.showToast(requireContext(), R.string.container_presets_cannot_export)
+                                    return@PresetsScreen
+                                }
+                                when (currentEngine) {
+                                    PresetEngine.BOX64 -> {
+                                        Box64PresetManager.exportPreset(
+                                            "box64",
+                                            requireContext(),
+                                            selected.id,
+                                        )
+                                    }
+
+                                    PresetEngine.FEXCORE -> {
+                                        FEXCorePresetManager.exportPreset(
+                                            requireContext(),
+                                            selected.id,
+                                        )
+                                    }
+                                }
+                            },
+                            onImportPreset = {
+                                pendingImportEngine = currentEngine
+                                importPresetPicker.launch(arrayOf("*/*"))
+                            },
+                            onRemovePreset = {
+                                val selected = selectedPresetOption() ?: return@PresetsScreen
+                                if (!selected.isCustom) {
+                                    AppUtils.showToast(requireContext(), R.string.container_presets_cannot_remove)
+                                    return@PresetsScreen
+                                }
+                                when (currentEngine) {
+                                    PresetEngine.BOX64 -> {
+                                        Box64PresetManager.removePreset(
+                                            "box64",
+                                            requireContext(),
+                                            selected.id,
+                                        )
+                                    }
+
+                                    PresetEngine.FEXCORE -> {
+                                        FEXCorePresetManager.removePreset(
+                                            requireContext(),
+                                            selected.id,
+                                        )
+                                    }
+                                }
+                                refresh()
+                            },
+                            suggestedNewPresetName = { buildDefaultPresetName(currentEngine) },
+                        )
+                    }
                 }
             }
-        }
 
         // Match the DriversFragment / DebugFragment pattern: outer ScrollView gives
         // Compose a bounded height so the screen scrolls predictably across every
         // display size. Don't add verticalScroll inside PresetsScreen while this
         // ScrollView is the parent.
         val density = resources.displayMetrics.density
-        val scrollView = ScrollView(ctx).apply {
-            isFillViewport = true
-            scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
-            scrollBarSize = (3 * density).toInt()
-            isScrollbarFadingEnabled = true
-            scrollBarDefaultDelayBeforeFade = 400
-            scrollBarFadeDuration = 250
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                setVerticalScrollbarThumbDrawable(GradientDrawable().apply {
-                    shape = GradientDrawable.RECTANGLE
-                    setColor(android.graphics.Color.argb(100, 26, 159, 255))
-                    cornerRadius = 4 * density
-                })
+        val scrollView =
+            ScrollView(ctx).apply {
+                isFillViewport = true
+                scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
+                scrollBarSize = (3 * density).toInt()
+                isScrollbarFadingEnabled = true
+                scrollBarDefaultDelayBeforeFade = 400
+                scrollBarFadeDuration = 250
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    setVerticalScrollbarThumbDrawable(
+                        GradientDrawable().apply {
+                            shape = GradientDrawable.RECTANGLE
+                            setColor(android.graphics.Color.argb(100, 26, 159, 255))
+                            cornerRadius = 4 * density
+                        },
+                    )
+                }
+                addView(
+                    composeView,
+                    ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ),
+                )
             }
-            addView(
-                composeView,
-                ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                ),
-            )
-        }
 
         return FrameLayout(ctx).apply {
             setBackgroundColor(android.graphics.Color.parseColor("#18181D"))
             addView(
                 scrollView,
-                FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                ).apply { marginEnd = (10 * density).toInt() },
+                FrameLayout
+                    .LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                    ).apply { marginEnd = (10 * density).toInt() },
             )
         }
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         (activity as? AppCompatActivity)?.supportActionBar?.setTitle(R.string.container_presets_title)
     }
@@ -280,12 +319,13 @@ class PresetsFragment : Fragment() {
     private fun refresh(selectLatestPreset: Boolean = false) {
         PresetEngine.values().forEach { engine ->
             val presets = loadPresets(engine)
-            val resolvedId = resolveSelectedPresetId(
-                engine = engine,
-                presets = presets,
-                preferredPresetId = selectedPresetIds[engine],
-                selectLatestPreset = selectLatestPreset && engine == currentEngine,
-            )
+            val resolvedId =
+                resolveSelectedPresetId(
+                    engine = engine,
+                    presets = presets,
+                    preferredPresetId = selectedPresetIds[engine],
+                    selectLatestPreset = selectLatestPreset && engine == currentEngine,
+                )
             setSelectedPreset(engine, resolvedId)
             loadCurrentValues(engine, resolvedId)
         }
@@ -298,22 +338,24 @@ class PresetsFragment : Fragment() {
      * mutated `currentValues` and don't need to round-trip through the managers.
      */
     private fun publishState() {
-        val engines = PresetEngine.values().associateWith { engine ->
-            val presets = loadPresets(engine)
-            val id = selectedPresetIds[engine] ?: engine.defaultPresetId
-            val selected = presets.firstOrNull { it.id == id }
-            PresetEngineData(
-                presets = presets,
-                selectedPresetId = id,
-                envVarDefinitions = loadEnvVarDefinitions(engine),
-                currentValues = (currentValues[engine] ?: linkedMapOf()).toMap(),
-                editable = selected?.isCustom == true,
+        val engines =
+            PresetEngine.values().associateWith { engine ->
+                val presets = loadPresets(engine)
+                val id = selectedPresetIds[engine] ?: engine.defaultPresetId
+                val selected = presets.firstOrNull { it.id == id }
+                PresetEngineData(
+                    presets = presets,
+                    selectedPresetId = id,
+                    envVarDefinitions = loadEnvVarDefinitions(engine),
+                    currentValues = (currentValues[engine] ?: linkedMapOf()).toMap(),
+                    editable = selected?.isCustom == true,
+                )
+            }
+        presetsState =
+            PresetsState(
+                currentEngine = currentEngine,
+                engines = engines,
             )
-        }
-        presetsState = PresetsState(
-            currentEngine = currentEngine,
-            engines = engines,
-        )
     }
 
     private fun resolveSelectedPresetId(
@@ -325,11 +367,12 @@ class PresetsFragment : Fragment() {
         if (presets.isEmpty()) {
             return engine.defaultPresetId
         }
-        val candidateId = if (selectLatestPreset) {
-            presets.lastOrNull()?.id
-        } else {
-            preferredPresetId
-        }
+        val candidateId =
+            if (selectLatestPreset) {
+                presets.lastOrNull()?.id
+            } else {
+                preferredPresetId
+            }
         return candidateId
             ?.takeIf { id -> presets.any { it.id == id } }
             ?: presets.firstOrNull { it.id == engine.defaultPresetId }?.id
@@ -339,29 +382,38 @@ class PresetsFragment : Fragment() {
     private fun loadPresets(engine: PresetEngine): List<PresetOption> {
         val ctx = requireContext()
         return when (engine) {
-            PresetEngine.BOX64 -> Box64PresetManager.getPresets("box64", ctx).map {
-                PresetOption(id = it.id, name = it.name, isCustom = it.isCustom())
+            PresetEngine.BOX64 -> {
+                Box64PresetManager.getPresets("box64", ctx).map {
+                    PresetOption(id = it.id, name = it.name, isCustom = it.isCustom())
+                }
             }
-            PresetEngine.FEXCORE -> FEXCorePresetManager.getPresets(ctx).map {
-                PresetOption(id = it.id, name = it.name, isCustom = it.isCustom())
+
+            PresetEngine.FEXCORE -> {
+                FEXCorePresetManager.getPresets(ctx).map {
+                    PresetOption(id = it.id, name = it.name, isCustom = it.isCustom())
+                }
             }
         }
     }
 
-    private fun loadCurrentValues(engine: PresetEngine, presetId: String) {
+    private fun loadCurrentValues(
+        engine: PresetEngine,
+        presetId: String,
+    ) {
         val map = currentValues.getOrPut(engine) { linkedMapOf() }
         map.clear()
-        val envVars = when (engine) {
-            PresetEngine.BOX64 -> Box64PresetManager.getEnvVars("box64", requireContext(), presetId)
-            PresetEngine.FEXCORE -> FEXCorePresetManager.getEnvVars(requireContext(), presetId)
-        }
+        val envVars =
+            when (engine) {
+                PresetEngine.BOX64 -> Box64PresetManager.getEnvVars("box64", requireContext(), presetId)
+                PresetEngine.FEXCORE -> FEXCorePresetManager.getEnvVars(requireContext(), presetId)
+            }
         loadEnvVarDefinitions(engine).forEach { definition ->
             map[definition.name] = envVars.get(definition.name).ifBlank { definition.defaultValue }
         }
     }
 
-    private fun loadEnvVarDefinitions(engine: PresetEngine): List<EnvVarDefinition> {
-        return definitionsCache.getOrPut(engine) {
+    private fun loadEnvVarDefinitions(engine: PresetEngine): List<EnvVarDefinition> =
+        definitionsCache.getOrPut(engine) {
             val jsonText = FileUtils.readString(requireContext(), engine.assetFile).orEmpty()
             val jsonArray = JSONArray(jsonText.ifBlank { "[]" })
             buildList {
@@ -370,12 +422,13 @@ class PresetsFragment : Fragment() {
                     val name = item.optString("name")
                     if (name.isBlank()) continue
 
-                    val values = buildList {
-                        val jsonValues = item.optJSONArray("values") ?: JSONArray()
-                        for (valueIndex in 0 until jsonValues.length()) {
-                            add(jsonValues.optString(valueIndex))
+                    val values =
+                        buildList {
+                            val jsonValues = item.optJSONArray("values") ?: JSONArray()
+                            for (valueIndex in 0 until jsonValues.length()) {
+                                add(jsonValues.optString(valueIndex))
+                            }
                         }
-                    }
 
                     val fullDescription = buildFullDescription(engine, name)
                     add(
@@ -383,25 +436,29 @@ class PresetsFragment : Fragment() {
                             name = name,
                             defaultValue = item.optString("defaultValue"),
                             values = values,
-                            controlType = when {
-                                item.optBoolean("toggleSwitch") || item.optBoolean("toggleswitch") -> PresetControlType.TOGGLE
-                                item.optBoolean("editText") -> PresetControlType.TEXT
-                                else -> PresetControlType.DROPDOWN
-                            },
+                            controlType =
+                                when {
+                                    item.optBoolean("toggleSwitch") || item.optBoolean("toggleswitch") -> PresetControlType.TOGGLE
+                                    item.optBoolean("editText") -> PresetControlType.TEXT
+                                    else -> PresetControlType.DROPDOWN
+                                },
                             summary = summarizeDescription(fullDescription),
                             fullDescription = fullDescription,
-                        )
+                        ),
                     )
                 }
             }
         }
-    }
 
-    private fun buildFullDescription(engine: PresetEngine, envVarName: String): String {
-        val suffix = when (engine) {
-            PresetEngine.BOX64 -> envVarName.removePrefix("BOX64_").lowercase(Locale.ENGLISH)
-            PresetEngine.FEXCORE -> envVarName.removePrefix("FEX_").lowercase(Locale.ENGLISH)
-        }
+    private fun buildFullDescription(
+        engine: PresetEngine,
+        envVarName: String,
+    ): String {
+        val suffix =
+            when (engine) {
+                PresetEngine.BOX64 -> envVarName.removePrefix("BOX64_").lowercase(Locale.ENGLISH)
+                PresetEngine.FEXCORE -> envVarName.removePrefix("FEX_").lowercase(Locale.ENGLISH)
+            }
         return StringUtils.getString(requireContext(), "${engine.helpKeyPrefix}$suffix").orEmpty()
     }
 
@@ -409,12 +466,14 @@ class PresetsFragment : Fragment() {
         if (fullDescription.isBlank()) {
             return getString(R.string.container_presets_no_description)
         }
-        val plainText = HtmlCompat.fromHtml(fullDescription, HtmlCompat.FROM_HTML_MODE_LEGACY)
-            .toString()
-            .lineSequence()
-            .map { it.trim() }
-            .firstOrNull { it.isNotBlank() }
-            .orEmpty()
+        val plainText =
+            HtmlCompat
+                .fromHtml(fullDescription, HtmlCompat.FROM_HTML_MODE_LEGACY)
+                .toString()
+                .lineSequence()
+                .map { it.trim() }
+                .firstOrNull { it.isNotBlank() }
+                .orEmpty()
         return plainText.ifBlank { getString(R.string.container_presets_no_description) }
     }
 
@@ -422,7 +481,10 @@ class PresetsFragment : Fragment() {
     // Persistence helpers
     // ========================================================================
 
-    private fun setSelectedPreset(engine: PresetEngine, presetId: String) {
+    private fun setSelectedPreset(
+        engine: PresetEngine,
+        presetId: String,
+    ) {
         selectedPresetIds[engine] = presetId
         preferences.edit().putString(engine.preferenceKey, presetId).apply()
     }
@@ -432,7 +494,10 @@ class PresetsFragment : Fragment() {
         return loadPresets(currentEngine).firstOrNull { it.id == id }
     }
 
-    private fun onEnvVarValueChanged(envVarName: String, value: String) {
+    private fun onEnvVarValueChanged(
+        envVarName: String,
+        value: String,
+    ) {
         val map = currentValues.getOrPut(currentEngine) { linkedMapOf() }
         map[envVarName] = value
         val selected = selectedPresetOption() ?: return
@@ -457,20 +522,33 @@ class PresetsFragment : Fragment() {
         envVars: EnvVars,
     ) {
         when (engine) {
-            PresetEngine.BOX64 -> Box64PresetManager.editPreset(
-                "box64", requireContext(), presetId, presetName, envVars,
-            )
-            PresetEngine.FEXCORE -> FEXCorePresetManager.editPreset(
-                requireContext(), presetId, presetName, envVars,
-            )
+            PresetEngine.BOX64 -> {
+                Box64PresetManager.editPreset(
+                    "box64",
+                    requireContext(),
+                    presetId,
+                    presetName,
+                    envVars,
+                )
+            }
+
+            PresetEngine.FEXCORE -> {
+                FEXCorePresetManager.editPreset(
+                    requireContext(),
+                    presetId,
+                    presetName,
+                    envVars,
+                )
+            }
         }
     }
 
     private fun buildDefaultPresetName(engine: PresetEngine): String {
-        val nextId = when (engine) {
-            PresetEngine.BOX64 -> Box64PresetManager.getNextPresetId(requireContext(), "box64")
-            PresetEngine.FEXCORE -> FEXCorePresetManager.getNextPresetId(requireContext())
-        }
+        val nextId =
+            when (engine) {
+                PresetEngine.BOX64 -> Box64PresetManager.getNextPresetId(requireContext(), "box64")
+                PresetEngine.FEXCORE -> FEXCorePresetManager.getNextPresetId(requireContext())
+            }
         return "${getString(R.string.container_presets_preset)}-$nextId"
     }
 
@@ -482,7 +560,10 @@ class PresetsFragment : Fragment() {
         return defaults
     }
 
-    private fun buildEnvVarsFromMap(engine: PresetEngine, values: Map<String, String>): EnvVars {
+    private fun buildEnvVarsFromMap(
+        engine: PresetEngine,
+        values: Map<String, String>,
+    ): EnvVars {
         val envVars = EnvVars()
         loadEnvVarDefinitions(engine).forEach { definition ->
             envVars.put(definition.name, values[definition.name] ?: definition.defaultValue)
@@ -490,37 +571,39 @@ class PresetsFragment : Fragment() {
         return envVars
     }
 
-    private fun sanitizePresetName(rawName: String): String {
-        return rawName.trim().replace(Regex("[,|]+"), "")
-    }
+    private fun sanitizePresetName(rawName: String): String = rawName.trim().replace(Regex("[,|]+"), "")
 
     // ========================================================================
     // Engine metadata
     // ========================================================================
 
     private val PresetEngine.preferenceKey: String
-        get() = when (this) {
-            PresetEngine.BOX64 -> "box64_preset"
-            PresetEngine.FEXCORE -> "fexcore_preset"
-        }
+        get() =
+            when (this) {
+                PresetEngine.BOX64 -> "box64_preset"
+                PresetEngine.FEXCORE -> "fexcore_preset"
+            }
 
     private val PresetEngine.defaultPresetId: String
-        get() = when (this) {
-            PresetEngine.BOX64 -> Box64Preset.COMPATIBILITY
-            PresetEngine.FEXCORE -> FEXCorePreset.INTERMEDIATE
-        }
+        get() =
+            when (this) {
+                PresetEngine.BOX64 -> Box64Preset.COMPATIBILITY
+                PresetEngine.FEXCORE -> FEXCorePreset.INTERMEDIATE
+            }
 
     private val PresetEngine.assetFile: String
-        get() = when (this) {
-            PresetEngine.BOX64 -> AssetPaths.BOX64_ENV_VARS
-            PresetEngine.FEXCORE -> AssetPaths.FEXCORE_ENV_VARS
-        }
+        get() =
+            when (this) {
+                PresetEngine.BOX64 -> AssetPaths.BOX64_ENV_VARS
+                PresetEngine.FEXCORE -> AssetPaths.FEXCORE_ENV_VARS
+            }
 
     private val PresetEngine.helpKeyPrefix: String
-        get() = when (this) {
-            PresetEngine.BOX64 -> "box64_env_var_help__"
-            PresetEngine.FEXCORE -> "fexcore_env_var_help__"
-        }
+        get() =
+            when (this) {
+                PresetEngine.BOX64 -> "box64_env_var_help__"
+                PresetEngine.FEXCORE -> "fexcore_env_var_help__"
+            }
 
     companion object {
         private const val STATE_ENGINE = "presets_engine"

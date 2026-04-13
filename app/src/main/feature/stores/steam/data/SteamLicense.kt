@@ -42,7 +42,6 @@ data class SteamLicense(
     val ownerAccountId: List<Int>,
     @ColumnInfo("master_package_id")
     val masterPackageID: Int,
-
     @ColumnInfo("app_ids")
     var appIds: List<Int> = emptyList(),
     @ColumnInfo("depot_ids")

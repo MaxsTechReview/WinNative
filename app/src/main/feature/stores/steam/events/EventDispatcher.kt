@@ -29,12 +29,13 @@ class EventDispatcher {
         once: Boolean,
     ) {
         val eventClass = E::class
-        val typedListener = Pair(
-            listener.toString(),
-            EventListener<Event<T>, T>({ event ->
-                listener(event as E)
-            }, once),
-        )
+        val typedListener =
+            Pair(
+                listener.toString(),
+                EventListener<Event<T>, T>({ event ->
+                    listener(event as E)
+                }, once),
+            )
         listeners.getOrPut(eventClass) { mutableListOf() }.add(typedListener as Pair<String, EventListener<Event<*>, *>>)
     }
 
@@ -59,23 +60,33 @@ class EventDispatcher {
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun onJava(eventClass: KClass<out Event<*>>, listener: JavaEventListener) {
-        val eventListener = EventListener<Event<Any?>, Any?>({ event ->
-            listener.onEvent(event!!)
-            null
-        }, false)
+    fun onJava(
+        eventClass: KClass<out Event<*>>,
+        listener: JavaEventListener,
+    ) {
+        val eventListener =
+            EventListener<Event<Any?>, Any?>({ event ->
+                listener.onEvent(event!!)
+                null
+            }, false)
         val typedListener = Pair(listener.toString(), eventListener as EventListener<Event<*>, *>)
         listeners.getOrPut(eventClass) { mutableListOf() }.add(typedListener)
     }
 
     @Suppress("UNCHECKED_CAST")
-    inline fun <reified E : Event<T>, reified T> emit(event: E, noinline resultAggregator: ((Array<T>) -> T)? = null): T? {
+    inline fun <reified E : Event<T>, reified T> emit(
+        event: E,
+        noinline resultAggregator: ((Array<T>) -> T)? = null,
+    ): T? {
         val eventClass = E::class
         return listeners[eventClass]?.let { eventListeners ->
-            val results = eventListeners.toList().map { eventListener ->
-                val result = eventListener.second.listener(event)
-                if (result == null && Unit is T) Unit as T else result as T
-            }.toTypedArray()
+            val results =
+                eventListeners
+                    .toList()
+                    .map { eventListener ->
+                        val result = eventListener.second.listener(event)
+                        if (result == null && Unit is T) Unit as T else result as T
+                    }.toTypedArray()
             eventListeners.removeIf { it.second.once }
             resultAggregator?.let { it(results) }
         }
@@ -85,9 +96,12 @@ class EventDispatcher {
     fun emitJava(event: Event<*>): Any? {
         val eventClass = event::class
         return listeners[eventClass]?.let { eventListeners ->
-            val results = eventListeners.toList().map { eventListener ->
-                eventListener.second.listener(event)
-            }.toTypedArray()
+            val results =
+                eventListeners
+                    .toList()
+                    .map { eventListener ->
+                        eventListener.second.listener(event)
+                    }.toTypedArray()
             eventListeners.removeIf { it.second.once }
             results.firstOrNull()
         }

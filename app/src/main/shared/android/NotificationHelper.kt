@@ -8,85 +8,94 @@ import android.content.Context.NOTIFICATION_SERVICE
 import android.content.Intent
 import androidx.core.app.NotificationCompat
 import com.winlator.cmod.BuildConfig
-import com.winlator.cmod.app.shell.UnifiedActivity
-import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 import com.winlator.cmod.R
+import com.winlator.cmod.app.shell.UnifiedActivity
 import com.winlator.cmod.feature.stores.steam.service.SteamService
+import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 import javax.inject.Inject
 import javax.inject.Singleton
 
-class NotificationHelper @Inject constructor(private val context: Context) {
+class NotificationHelper
+    @Inject
+    constructor(
+        private val context: Context,
+    ) {
+        companion object {
+            private const val CHANNEL_ID = "pluvia_foreground_service"
+            private const val CHANNEL_NAME = "WinNative Foreground Service"
+            private const val NOTIFICATION_ID = 1
 
-    companion object {
-        private const val CHANNEL_ID = "pluvia_foreground_service"
-        private const val CHANNEL_NAME = "WinNative Foreground Service"
-        private const val NOTIFICATION_ID = 1
-
-        const val ACTION_EXIT = BuildConfig.APPLICATION_ID + ".EXIT"
-    }
-
-    private val notificationManager: NotificationManager =
-        context.getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-
-    init {
-        createNotificationChannel()
-    }
-
-    private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            CHANNEL_NAME,
-            NotificationManager.IMPORTANCE_LOW,
-        ).apply {
-            description = "Allows to display WinNative foreground notifications"
-            setShowBadge(false)
+            const val ACTION_EXIT = BuildConfig.APPLICATION_ID + ".EXIT"
         }
 
-        notificationManager.createNotificationChannel(channel)
-    }
+        private val notificationManager: NotificationManager =
+            context.getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
-    fun notify(content: String) {
-        val notification = createForegroundNotification(content)
-        notificationManager.notify(NOTIFICATION_ID, notification)
-    }
-
-    fun cancel() {
-        notificationManager.cancel(NOTIFICATION_ID)
-    }
-
-    fun createForegroundNotification(content: String): Notification {
-        val intent = Intent(context, UnifiedActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        init {
+            createNotificationChannel()
         }
 
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            0,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
+        private fun createNotificationChannel() {
+            val channel =
+                NotificationChannel(
+                    CHANNEL_ID,
+                    CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_LOW,
+                ).apply {
+                    description = "Allows to display WinNative foreground notifications"
+                    setShowBadge(false)
+                }
 
-        val stopIntent = Intent(context, SteamService::class.java).apply {
-            action = ACTION_EXIT
+            notificationManager.createNotificationChannel(channel)
         }
-        val stopPendingIntent = PendingIntent.getForegroundService(
-            context,
-            0,
-            stopIntent,
-            PendingIntent.FLAG_IMMUTABLE,
-        )
 
-        val smallIconRes = R.drawable.ic_notification
+        fun notify(content: String) {
+            val notification = createForegroundNotification(content)
+            notificationManager.notify(NOTIFICATION_ID, notification)
+        }
 
-        return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle(context.getString(R.string.common_ui_app_name))
-            .setContentText(content)
-            .setSmallIcon(smallIconRes)
-            .setPriority(NotificationCompat.PRIORITY_MIN)
-            .setAutoCancel(false)
-            .setOngoing(true)
-            .setContentIntent(pendingIntent)
-            .addAction(0, "Exit", stopPendingIntent)
-            .build()
+        fun cancel() {
+            notificationManager.cancel(NOTIFICATION_ID)
+        }
+
+        fun createForegroundNotification(content: String): Notification {
+            val intent =
+                Intent(context, UnifiedActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                }
+
+            val pendingIntent =
+                PendingIntent.getActivity(
+                    context,
+                    0,
+                    intent,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+                )
+
+            val stopIntent =
+                Intent(context, SteamService::class.java).apply {
+                    action = ACTION_EXIT
+                }
+            val stopPendingIntent =
+                PendingIntent.getForegroundService(
+                    context,
+                    0,
+                    stopIntent,
+                    PendingIntent.FLAG_IMMUTABLE,
+                )
+
+            val smallIconRes = R.drawable.ic_notification
+
+            return NotificationCompat
+                .Builder(context, CHANNEL_ID)
+                .setContentTitle(context.getString(R.string.common_ui_app_name))
+                .setContentText(content)
+                .setSmallIcon(smallIconRes)
+                .setPriority(NotificationCompat.PRIORITY_MIN)
+                .setAutoCancel(false)
+                .setOngoing(true)
+                .setContentIntent(pendingIntent)
+                .addAction(0, "Exit", stopPendingIntent)
+                .build()
+        }
     }
-}

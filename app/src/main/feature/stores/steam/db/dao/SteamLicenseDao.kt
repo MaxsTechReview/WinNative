@@ -12,7 +12,6 @@ val SQLITE_MAX_VARS = 999
 
 @Dao
 interface SteamLicenseDao {
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(license: List<SteamLicense>)
 
@@ -20,10 +19,16 @@ interface SteamLicenseDao {
     suspend fun update(license: SteamLicense)
 
     @Query("UPDATE steam_license SET app_ids = :appIds WHERE packageId = :packageId")
-    suspend fun updateApps(packageId: Int, appIds: List<Int>)
+    suspend fun updateApps(
+        packageId: Int,
+        appIds: List<Int>,
+    )
 
     @Query("UPDATE steam_license SET depot_ids = :depotIds WHERE packageId = :packageId")
-    suspend fun updateDepots(packageId: Int, depotIds: List<Int>)
+    suspend fun updateDepots(
+        packageId: Int,
+        depotIds: List<Int>,
+    )
 
     @Query("SELECT * FROM steam_license")
     suspend fun getAllLicenses(): List<SteamLicense>
@@ -37,13 +42,13 @@ interface SteamLicenseDao {
 
     @Query(
         "SELECT * FROM steam_license " +
-                "WHERE packageId NOT IN (:packageIds)"
+            "WHERE packageId NOT IN (:packageIds)",
     )
     suspend fun _findStaleLicences(packageIds: List<Int>): List<SteamLicense>
 
     @Query(
         "DELETE FROM steam_license " +
-                "WHERE packageId IN (:packageIds)"
+            "WHERE packageId IN (:packageIds)",
     )
     suspend fun _deleteStaleLicenses(packageIds: List<Int>)
 

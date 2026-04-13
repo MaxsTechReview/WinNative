@@ -2,9 +2,9 @@ package com.winlator.cmod.feature.stores.steam.data
 import com.winlator.cmod.feature.stores.steam.enums.DownloadPhase
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import java.io.File
 import java.util.ArrayDeque
@@ -16,7 +16,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.abs
 
-class DownloadFailedException(message: String) : CancellationException(message)
+class DownloadFailedException(
+    message: String,
+) : CancellationException(message)
 
 class DownloadInfo(
     val jobCount: Int = 1,
@@ -24,27 +26,37 @@ class DownloadInfo(
     var downloadingAppIds: CopyOnWriteArrayList<Int>,
 ) {
     @Volatile var isDeleting: Boolean = false
+
     @Volatile var isCancelling: Boolean = false
     private var downloadJob: Job? = null
     private val downloadProgressListeners = CopyOnWriteArrayList<((Float) -> Unit)>()
     private val progresses: Array<Float> = Array(jobCount) { 0f }
 
-    private val weights    = FloatArray(jobCount) { 1f }
-    private var weightSum  = jobCount.toFloat()
+    private val weights = FloatArray(jobCount) { 1f }
+    private var weightSum = jobCount.toFloat()
 
     private var totalExpectedBytes = AtomicLong(0L)
     private var bytesDownloaded = AtomicLong(0L)
+
     @Volatile private var persistencePath: String? = null
     private val lastPersistTimestampMs = AtomicLong(0L)
     private val hasDirtyProgressSnapshot = AtomicBoolean(false)
     private val isPersistEnqueued = AtomicBoolean(false)
     private val snapshotWriteGeneration = AtomicLong(0L)
 
-    private data class SpeedSample(val timeMs: Long, val bytes: Long)
+    private data class SpeedSample(
+        val timeMs: Long,
+        val bytes: Long,
+    )
+
     private val speedSamples = ArrayDeque<SpeedSample>()
+
     @Volatile private var lastSpeedSampleMs = 0L
+
     @Volatile private var etaEmaSpeedBytesPerSec: Double = 0.0
+
     @Volatile private var hasEtaEmaSpeed: Boolean = false
+
     @Volatile private var isActive: Boolean = true
     private val status = MutableStateFlow(DownloadPhase.UNKNOWN)
     private val statusMessage = MutableStateFlow<String?>(null)
@@ -55,7 +67,9 @@ class DownloadInfo(
     private var errorMessage: String = ""
 
     private val emitLock = Any()
+
     @Volatile private var lastProgressEmitTimeMs = 0L
+
     @Volatile private var lastEmittedProgress = -1f
 
     val depotCumulativeUncompressedBytes = java.util.concurrent.ConcurrentHashMap<Int, AtomicLong>()
@@ -99,13 +113,18 @@ class DownloadInfo(
         return if (weightSum == 0f) 0f else totalProgress / weightSum
     }
 
-
-    fun setProgress(amount: Float, jobIndex: Int = 0) {
+    fun setProgress(
+        amount: Float,
+        jobIndex: Int = 0,
+    ) {
         progresses[jobIndex] = amount
         emitProgressChange()
     }
 
-    fun setWeight(jobIndex: Int, weightBytes: Long) {
+    fun setWeight(
+        jobIndex: Int,
+        weightBytes: Long,
+    ) {
         weights[jobIndex] = weightBytes.toFloat()
         weightSum = weights.sum()
     }
@@ -134,11 +153,12 @@ class DownloadInfo(
         if (force) {
             val expectedGeneration = snapshotWriteGeneration.get()
             try {
-                val persisted = persistDepotBytesInternal(
-                    appDirPath = appDirPath,
-                    depotBytes = depotCumulativeUncompressedBytes,
-                    expectedGeneration = expectedGeneration,
-                )
+                val persisted =
+                    persistDepotBytesInternal(
+                        appDirPath = appDirPath,
+                        depotBytes = depotCumulativeUncompressedBytes,
+                        expectedGeneration = expectedGeneration,
+                    )
                 if (persisted) {
                     lastPersistTimestampMs.set(nowMs)
                     hasDirtyProgressSnapshot.set(false)
@@ -162,11 +182,12 @@ class DownloadInfo(
             SNAPSHOT_PERSIST_EXECUTOR.execute {
                 try {
                     if (!hasDirtyProgressSnapshot.getAndSet(false)) return@execute
-                    val persisted = persistDepotBytesInternal(
-                        appDirPath = appDirPath,
-                        depotBytes = depotCumulativeUncompressedBytes,
-                        expectedGeneration = expectedGeneration,
-                    )
+                    val persisted =
+                        persistDepotBytesInternal(
+                            appDirPath = appDirPath,
+                            depotBytes = depotCumulativeUncompressedBytes,
+                            expectedGeneration = expectedGeneration,
+                        )
                     if (persisted) {
                         lastPersistTimestampMs.set(System.currentTimeMillis())
                     }
@@ -184,7 +205,10 @@ class DownloadInfo(
         persistProgressSnapshot()
     }
 
-    fun updateBytesDownloaded(deltaBytes: Long, timestampMs: Long = System.currentTimeMillis()) {
+    fun updateBytesDownloaded(
+        deltaBytes: Long,
+        timestampMs: Long = System.currentTimeMillis(),
+    ) {
         if (!isActive) return
         if (deltaBytes <= 0L) return
 
@@ -202,7 +226,10 @@ class DownloadInfo(
         statusMessage.value = message
     }
 
-    fun updateStatus(status: DownloadPhase, message: String? = null) {
+    fun updateStatus(
+        status: DownloadPhase,
+        message: String? = null,
+    ) {
         val previousStatus = this.status.value
         if (previousStatus == status && message == null) return
 
@@ -232,14 +259,20 @@ class DownloadInfo(
         currentFileName.value = name
     }
 
-    private fun addSpeedSample(timestampMs: Long, currentBytes: Long) {
+    private fun addSpeedSample(
+        timestampMs: Long,
+        currentBytes: Long,
+    ) {
         synchronized(speedSamples) {
             speedSamples.add(SpeedSample(timestampMs, currentBytes))
             trimOldSamples(timestampMs, SPEED_SAMPLE_RETENTION_MS)
         }
     }
 
-    private fun trimOldSamples(nowMs: Long, windowMs: Long) {
+    private fun trimOldSamples(
+        nowMs: Long,
+        windowMs: Long,
+    ) {
         val cutoff = nowMs - windowMs
         while (speedSamples.isNotEmpty() && speedSamples.first().timeMs < cutoff) {
             speedSamples.removeFirst()
@@ -272,7 +305,9 @@ class DownloadInfo(
     fun isActive(): Boolean = isActive
 
     fun getRetryCount(): Int = retryCount
+
     fun hasError(): Boolean = hasError
+
     fun getErrorMessage(): String = errorMessage
 
     fun markError(message: String) {
@@ -353,29 +388,35 @@ class DownloadInfo(
         val nowMs = System.currentTimeMillis()
         val rawSpeedBytesPerSec = getSpeedOverWindow(ETA_SPEED_WINDOW_MS)
 
-        val speedBytesPerSec = when {
-            rawSpeedBytesPerSec != null && rawSpeedBytesPerSec > 0.0 -> {
-                if (!hasEtaEmaSpeed || etaEmaSpeedBytesPerSec <= 0.0) {
-                    hasEtaEmaSpeed = true
-                    etaEmaSpeedBytesPerSec = rawSpeedBytesPerSec
-                    rawSpeedBytesPerSec
-                } else {
-                    val alpha = 0.2
-                    etaEmaSpeedBytesPerSec =
-                        alpha * rawSpeedBytesPerSec + (1.0 - alpha) * etaEmaSpeedBytesPerSec
+        val speedBytesPerSec =
+            when {
+                rawSpeedBytesPerSec != null && rawSpeedBytesPerSec > 0.0 -> {
+                    if (!hasEtaEmaSpeed || etaEmaSpeedBytesPerSec <= 0.0) {
+                        hasEtaEmaSpeed = true
+                        etaEmaSpeedBytesPerSec = rawSpeedBytesPerSec
+                        rawSpeedBytesPerSec
+                    } else {
+                        val alpha = 0.2
+                        etaEmaSpeedBytesPerSec =
+                            alpha * rawSpeedBytesPerSec + (1.0 - alpha) * etaEmaSpeedBytesPerSec
+                        etaEmaSpeedBytesPerSec
+                    }
+                }
+
+                rawSpeedBytesPerSec == 0.0 -> {
+                    return null
+                }
+
+                hasEtaEmaSpeed && etaEmaSpeedBytesPerSec > 0.0 -> {
+                    val lastSampleAgeMs = getLastSampleAgeMs(nowMs) ?: return null
+                    if (lastSampleAgeMs > ETA_SAMPLE_STALE_TIMEOUT_MS) return null
                     etaEmaSpeedBytesPerSec
                 }
+
+                else -> {
+                    return null
+                }
             }
-            rawSpeedBytesPerSec == 0.0 -> {
-                return null
-            }
-            hasEtaEmaSpeed && etaEmaSpeedBytesPerSec > 0.0 -> {
-                val lastSampleAgeMs = getLastSampleAgeMs(nowMs) ?: return null
-                if (lastSampleAgeMs > ETA_SAMPLE_STALE_TIMEOUT_MS) return null
-                etaEmaSpeedBytesPerSec
-            }
-            else -> return null
-        }
         if (speedBytesPerSec <= 0.0) return null
 
         val remainingBytes = total - downloaded
@@ -403,8 +444,8 @@ class DownloadInfo(
         var shouldEmit = false
         synchronized(emitLock) {
             if (currentProgress >= 1f || currentProgress <= 0f ||
-                (now - lastProgressEmitTimeMs >= 100L && abs(currentProgress - lastEmittedProgress) >= 0.001f)) {
-
+                (now - lastProgressEmitTimeMs >= 100L && abs(currentProgress - lastEmittedProgress) >= 0.001f)
+            ) {
                 lastProgressEmitTimeMs = now
                 lastEmittedProgress = currentProgress
                 shouldEmit = true
@@ -417,7 +458,6 @@ class DownloadInfo(
             }
         }
     }
-
 
     companion object {
         private const val SPEED_SAMPLE_RETENTION_MS = 120_000L
@@ -472,7 +512,10 @@ class DownloadInfo(
         }
     }
 
-    fun clearPersistedBytesDownloaded(appDirPath: String, sync: Boolean = false) {
+    fun clearPersistedBytesDownloaded(
+        appDirPath: String,
+        sync: Boolean = false,
+    ) {
         lastPersistTimestampMs.set(0L)
         hasDirtyProgressSnapshot.set(false)
         snapshotWriteGeneration.incrementAndGet()
@@ -505,7 +548,11 @@ class DownloadInfo(
             var first = true
             for ((depotId, atomicBytes) in depotBytes) {
                 if (!first) sb.append(',')
-                sb.append('"').append(depotId).append("\":").append(atomicBytes.get().coerceAtLeast(0L))
+                sb
+                    .append('"')
+                    .append(depotId)
+                    .append("\":")
+                    .append(atomicBytes.get().coerceAtLeast(0L))
                 first = false
             }
             sb.append('}')

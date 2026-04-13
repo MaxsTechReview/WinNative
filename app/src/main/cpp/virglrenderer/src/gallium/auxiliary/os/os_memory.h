@@ -25,19 +25,15 @@
  *
  **************************************************************************/
 
-
 /*
  * OS memory management abstractions
  */
 
-
 #ifndef _OS_MEMORY_H_
 #define _OS_MEMORY_H_
 
-
-#include "pipe/p_config.h"
 #include "pipe/p_compiler.h"
-
+#include "pipe/p_config.h"
 
 #if defined(PIPE_SUBSYSTEM_EMBEDDED)
 
@@ -45,35 +41,30 @@
 extern "C" {
 #endif
 
-void *
-os_malloc(size_t size);
+void *os_malloc(size_t size);
 
-void *
-os_calloc(size_t count, size_t size);
+void *os_calloc(size_t count, size_t size);
 
-void
-os_free(void *ptr);
+void os_free(void *ptr);
 
-void *
-os_realloc(void *ptr, size_t old_size, size_t new_size);
+void *os_realloc(void *ptr, size_t old_size, size_t new_size);
 
-void *
-os_malloc_aligned(size_t size, size_t alignment);
+void *os_malloc_aligned(size_t size, size_t alignment);
 
-void
-os_free_aligned(void *ptr);
+void os_free_aligned(void *ptr);
 
 #ifdef __cplusplus
 }
 #endif
 
-#elif defined(PIPE_OS_WINDOWS) && defined(DEBUG) && !defined(DEBUG_MEMORY_IMPLEMENTATION)
+#elif defined(PIPE_OS_WINDOWS) && defined(DEBUG) &&                            \
+    !defined(DEBUG_MEMORY_IMPLEMENTATION)
 
-#  include "os_memory_debug.h"
+#include "os_memory_debug.h"
 
 #else
 
-#  include "os_memory_stdc.h"
+#include "os_memory_stdc.h"
 
 #endif
 

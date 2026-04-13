@@ -49,7 +49,9 @@ interface EpicGameDao {
     suspend fun getByAppName(appName: String): EpicGame?
 
     // Note: '89efe5924d3d467c839449ab6ab52e7f' and 'ue' are the namespaces for Unreal Engine software/assets.
-    @Query("SELECT * FROM epic_games WHERE is_dlc = 0 AND namespace != 'ue' AND namespace != '89efe5924d3d467c839449ab6ab52e7f' ORDER BY title ASC")
+    @Query(
+        "SELECT * FROM epic_games WHERE is_dlc = 0 AND namespace != 'ue' AND namespace != '89efe5924d3d467c839449ab6ab52e7f' ORDER BY title ASC",
+    )
     fun getAll(): Flow<List<EpicGame>>
 
     @Query("SELECT * FROM epic_games")
@@ -64,7 +66,9 @@ interface EpicGameDao {
     @Query("SELECT * FROM epic_games WHERE base_game_app_name IS NOT NULL AND is_dlc = 1")
     fun getAllDlcTitles(): Flow<List<EpicGame>>
 
-    @Query("SELECT * FROM epic_games WHERE is_dlc = 0 AND namespace != 'ue' AND namespace != '89efe5924d3d467c839449ab6ab52e7f' AND title LIKE '%' || :searchQuery || '%' ORDER BY title ASC")
+    @Query(
+        "SELECT * FROM epic_games WHERE is_dlc = 0 AND namespace != 'ue' AND namespace != '89efe5924d3d467c839449ab6ab52e7f' AND title LIKE '%' || :searchQuery || '%' ORDER BY title ASC",
+    )
     fun searchByTitle(searchQuery: String): Flow<List<EpicGame>>
 
     // Only delete non-installed games from DB - Need to preserve any currently installed games.
@@ -83,26 +87,26 @@ interface EpicGameDao {
      */
     @Transaction
     suspend fun upsertPreservingInstallStatus(games: List<EpicGame>) {
-
         val catalogIds = games.map { it.catalogId }
         val existingGames = getGamesByCatalogIds(catalogIds)
         val existingMap = existingGames.associateBy { it.catalogId }
 
-        val toInsert = games.map { newGame ->
-            val existingGame = existingMap[newGame.catalogId]
-            if (existingGame != null) {
-                newGame.copy(
-                    id = existingGame.id,
-                    isInstalled = existingGame.isInstalled,
-                    installPath = existingGame.installPath,
-                    installSize = existingGame.installSize,
-                    lastPlayed = existingGame.lastPlayed,
-                    playTime = existingGame.playTime,
-                )
-            } else {
-                newGame
+        val toInsert =
+            games.map { newGame ->
+                val existingGame = existingMap[newGame.catalogId]
+                if (existingGame != null) {
+                    newGame.copy(
+                        id = existingGame.id,
+                        isInstalled = existingGame.isInstalled,
+                        installPath = existingGame.installPath,
+                        installSize = existingGame.installSize,
+                        lastPlayed = existingGame.lastPlayed,
+                        playTime = existingGame.playTime,
+                    )
+                } else {
+                    newGame
+                }
             }
-        }
         insertAll(toInsert)
     }
 }

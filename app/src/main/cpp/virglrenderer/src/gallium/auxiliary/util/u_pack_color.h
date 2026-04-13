@@ -30,17 +30,14 @@
  * Functions to produce packed colors/Z from floats.
  */
 
-
 #ifndef U_PACK_COLOR_H
 #define U_PACK_COLOR_H
-
 
 #include "pipe/p_compiler.h"
 #include "pipe/p_format.h"
 #include "util/u_debug.h"
 #include "util/u_format.h"
 #include "util/u_math.h"
-
 
 /**
  * Helper union for packing pixel values.
@@ -49,39 +46,28 @@
  * Must be big enough to hold data for all formats (currently 256 bits).
  */
 union util_color {
-   ubyte ub;
-   ushort us;
-   uint ui[4];
-   ushort h[4]; /* half float */
-   float f[4];
-   double d[4];
+  ubyte ub;
+  ushort us;
+  uint ui[4];
+  ushort h[4]; /* half float */
+  float f[4];
+  double d[4];
 };
 
 /**
  * Pack 4 ubytes into a 4-byte word
  */
-static inline unsigned
-pack_ub4(ubyte b0, ubyte b1, ubyte b2, ubyte b3)
-{
-   return ((((unsigned int)b0) << 0) |
-	   (((unsigned int)b1) << 8) |
-	   (((unsigned int)b2) << 16) |
-	   (((unsigned int)b3) << 24));
+static inline unsigned pack_ub4(ubyte b0, ubyte b1, ubyte b2, ubyte b3) {
+  return ((((unsigned int)b0) << 0) | (((unsigned int)b1) << 8) |
+          (((unsigned int)b2) << 16) | (((unsigned int)b3) << 24));
 }
-
 
 /**
  * Pack/convert 4 floats into one 4-byte word.
  */
-static inline unsigned
-pack_ui32_float4(float a, float b, float c, float d)
-{
-   return pack_ub4( float_to_ubyte(a),
-		    float_to_ubyte(b),
-		    float_to_ubyte(c),
-		    float_to_ubyte(d) );
+static inline unsigned pack_ui32_float4(float a, float b, float c, float d) {
+  return pack_ub4(float_to_ubyte(a), float_to_ubyte(b), float_to_ubyte(c),
+                  float_to_ubyte(d));
 }
-
-
 
 #endif /* U_PACK_COLOR_H */

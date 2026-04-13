@@ -10,11 +10,10 @@ import com.winlator.cmod.feature.stores.steam.enums.ControllerSupport
 import com.winlator.cmod.feature.stores.steam.enums.Language
 import com.winlator.cmod.feature.stores.steam.enums.OS
 import com.winlator.cmod.feature.stores.steam.enums.ReleaseState
-import java.util.EnumSet
 import kotlinx.serialization.json.Json
+import java.util.EnumSet
 
 class AppConverter {
-
     @TypeConverter
     fun toAppType(appType: Int): AppType = AppType.fromCode(appType)
 

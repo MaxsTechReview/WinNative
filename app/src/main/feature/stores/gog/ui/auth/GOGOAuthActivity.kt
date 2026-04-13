@@ -7,8 +7,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import com.winlator.cmod.feature.stores.gog.service.GOGConstants
 import com.winlator.cmod.feature.stores.epic.ui.component.dialog.AuthWebViewDialog
+import com.winlator.cmod.feature.stores.gog.service.GOGConstants
 import com.winlator.cmod.feature.stores.steam.utils.redactUrlForLogging
 import timber.log.Timber
 
@@ -18,7 +18,6 @@ import timber.log.Timber
  * Uses a per-session state parameter for CSRF protection.
  */
 class GOGOAuthActivity : ComponentActivity() {
-
     companion object {
         const val EXTRA_AUTH_CODE = "auth_code"
         const val EXTRA_ERROR = "error"
@@ -38,17 +37,18 @@ class GOGOAuthActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val (authUrl, state) = if (savedInstanceState != null) {
-            val savedState = savedInstanceState.getString(SAVED_OAUTH_STATE)
-            val savedUrl = savedInstanceState.getString(SAVED_AUTH_URL)
-            if (savedState != null && savedUrl != null) {
-                savedUrl to savedState
+        val (authUrl, state) =
+            if (savedInstanceState != null) {
+                val savedState = savedInstanceState.getString(SAVED_OAUTH_STATE)
+                val savedUrl = savedInstanceState.getString(SAVED_AUTH_URL)
+                if (savedState != null && savedUrl != null) {
+                    savedUrl to savedState
+                } else {
+                    GOGConstants.LoginUrlWithState()
+                }
             } else {
                 GOGConstants.LoginUrlWithState()
             }
-        } else {
-            GOGConstants.LoginUrlWithState()
-        }
         oauthState = state
         initialAuthUrl = authUrl
 
@@ -71,9 +71,10 @@ class GOGOAuthActivity : ComponentActivity() {
                             val extractedCode = extractAuthCode(currentUrl)
                             if (extractedCode != null) {
                                 Timber.d("Automatically extracted auth code from URL")
-                                val resultIntent = Intent().apply {
-                                    putExtra(EXTRA_AUTH_CODE, extractedCode)
-                                }
+                                val resultIntent =
+                                    Intent().apply {
+                                        putExtra(EXTRA_AUTH_CODE, extractedCode)
+                                    }
                                 setResult(Activity.RESULT_OK, resultIntent)
                                 finish()
                             }
@@ -84,17 +85,16 @@ class GOGOAuthActivity : ComponentActivity() {
         }
     }
 
-    private fun extractState(url: String): String? {
-        return try {
+    private fun extractState(url: String): String? =
+        try {
             Uri.parse(url).getQueryParameter("state")
         } catch (e: Exception) {
             Timber.w(e, "Failed to extract state from URL: %s", redactUrlForLogging(url))
             null
         }
-    }
 
-    private fun isValidRedirectUrl(url: String): Boolean {
-        return try {
+    private fun isValidRedirectUrl(url: String): Boolean =
+        try {
             val parsed = Uri.parse(url)
             val expected = Uri.parse(GOGConstants.GOG_REDIRECT_URI)
             parsed.scheme.equals(expected.scheme, ignoreCase = true) &&
@@ -104,15 +104,13 @@ class GOGOAuthActivity : ComponentActivity() {
             Timber.w(e, "Failed to parse redirect URL: %s", redactUrlForLogging(url))
             false
         }
-    }
 
-    private fun extractAuthCode(url: String): String? {
-        return try {
+    private fun extractAuthCode(url: String): String? =
+        try {
             val uri = Uri.parse(url)
             uri.getQueryParameter("code")
         } catch (e: Exception) {
             Timber.w(e, "Failed to extract auth code from URL: %s", redactUrlForLogging(url))
             null
         }
-    }
 }

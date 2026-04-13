@@ -9,7 +9,6 @@ import com.winlator.cmod.feature.stores.steam.data.DepotInfo
 
 @Dao
 interface AppInfoDao {
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(appInfo: AppInfo)
 

@@ -2,10 +2,10 @@ package com.winlator.cmod.app.service
 import android.content.Context
 import android.os.Environment
 import android.os.storage.StorageManager
-import com.winlator.cmod.shared.io.StorageUtils
-import com.winlator.cmod.feature.stores.steam.service.SteamService
 import com.winlator.cmod.feature.stores.epic.service.EpicService
 import com.winlator.cmod.feature.stores.gog.service.GOGService
+import com.winlator.cmod.feature.stores.steam.service.SteamService
+import com.winlator.cmod.shared.io.StorageUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -33,12 +33,14 @@ object DownloadService {
         baseExternalAppDirPath = extFiles?.parentFile?.path ?: ""
 
         val storageManager = context.getSystemService(StorageManager::class.java)
-        externalVolumePaths = context.getExternalFilesDirs(null)
-            .filterNotNull()
-            .filter { Environment.getExternalStorageState(it) == Environment.MEDIA_MOUNTED }
-            .filter { storageManager?.getStorageVolume(it)?.isPrimary != true }
-            .map { it.absolutePath }
-            .distinct()
+        externalVolumePaths =
+            context
+                .getExternalFilesDirs(null)
+                .filterNotNull()
+                .filter { Environment.getExternalStorageState(it) == Environment.MEDIA_MOUNTED }
+                .filter { storageManager?.getStorageVolume(it)?.isPrimary != true }
+                .map { it.absolutePath }
+                .distinct()
     }
 
     fun getAllDownloads(): List<Pair<String, com.winlator.cmod.feature.stores.steam.data.DownloadInfo>> {
@@ -61,10 +63,12 @@ object DownloadService {
                 val appId = id.removePrefix("STEAM_").toIntOrNull() ?: return
                 SteamService.pauseDownload(appId)
             }
+
             id.startsWith("EPIC_") -> {
                 val appId = id.removePrefix("EPIC_").toIntOrNull() ?: return
                 EpicService.pauseDownload(appId)
             }
+
             id.startsWith("GOG_") -> {
                 val gameId = id.removePrefix("GOG_")
                 GOGService.pauseDownload(gameId)
@@ -84,10 +88,12 @@ object DownloadService {
                 val appId = id.removePrefix("STEAM_").toIntOrNull() ?: return
                 SteamService.resumeDownload(appId)
             }
+
             id.startsWith("EPIC_") -> {
                 val appId = id.removePrefix("EPIC_").toIntOrNull() ?: return
                 EpicService.resumeDownload(appId)
             }
+
             id.startsWith("GOG_") -> {
                 val gameId = id.removePrefix("GOG_")
                 GOGService.resumeDownload(gameId)
@@ -113,10 +119,12 @@ object DownloadService {
                 val appId = id.removePrefix("STEAM_").toIntOrNull() ?: return
                 SteamService.cancelDownload(appId)
             }
+
             id.startsWith("EPIC_") -> {
                 val appId = id.removePrefix("EPIC_").toIntOrNull() ?: return
                 EpicService.cancelDownload(appId)
             }
+
             id.startsWith("GOG_") -> {
                 val gameId = id.removePrefix("GOG_")
                 GOGService.cancelDownload(gameId)
@@ -124,18 +132,22 @@ object DownloadService {
         }
     }
 
-    fun getSizeFromStoreDisplay (appId: Int): String {
+    fun getSizeFromStoreDisplay(appId: Int): String {
         val depots = SteamService.getDownloadableDepots(appId)
         val installBytes = depots.values.sumOf { it.manifests["public"]?.size ?: 0L }
         return StorageUtils.formatBinarySize(installBytes)
     }
 
-    suspend fun getSizeOnDiskDisplay (appId: Int, setResult: (String) -> Unit) {
+    suspend fun getSizeOnDiskDisplay(
+        appId: Int,
+        setResult: (String) -> Unit,
+    ) {
         withContext(Dispatchers.IO) {
             if (SteamService.isAppInstalled(appId)) {
-                val appSizeText = StorageUtils.formatBinarySize(
-                    StorageUtils.getFolderSize(SteamService.getAppDirPath(appId))
-                )
+                val appSizeText =
+                    StorageUtils.formatBinarySize(
+                        StorageUtils.getFolderSize(SteamService.getAppDirPath(appId)),
+                    )
 
                 Timber.d("Finding $appId size on disk $appSizeText")
                 setResult(appSizeText)

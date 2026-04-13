@@ -15,8 +15,10 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -24,15 +26,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
 import com.winlator.cmod.feature.stores.steam.utils.redactUrlForLogging
 import timber.log.Timber
 
@@ -62,10 +62,11 @@ fun AuthWebViewDialog(
                     onDismissRequest()
                 }
             },
-            properties = DialogProperties(
-                usePlatformDefaultWidth = false,
-                dismissOnClickOutside = false,
-            ),
+            properties =
+                DialogProperties(
+                    usePlatformDefaultWidth = false,
+                    dismissOnClickOutside = false,
+                ),
             content = {
                 Scaffold(
                     topBar = {
@@ -83,7 +84,12 @@ fun AuthWebViewDialog(
                                         webViewState.clear()
                                         onDismissRequest()
                                     },
-                                    content = { Icon(imageVector = Icons.Outlined.Close, contentDescription = stringResource(R.string.common_ui_close)) },
+                                    content = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Close,
+                                            contentDescription = stringResource(R.string.common_ui_close),
+                                        )
+                                    },
                                 )
                             },
                         )
@@ -93,10 +99,11 @@ fun AuthWebViewDialog(
                         modifier = Modifier.padding(paddingValues),
                         factory = { context ->
                             WebView(context).apply {
-                                layoutParams = ViewGroup.LayoutParams(
-                                    ViewGroup.LayoutParams.MATCH_PARENT,
-                                    ViewGroup.LayoutParams.MATCH_PARENT,
-                                )
+                                layoutParams =
+                                    ViewGroup.LayoutParams(
+                                        ViewGroup.LayoutParams.MATCH_PARENT,
+                                        ViewGroup.LayoutParams.MATCH_PARENT,
+                                    )
 
                                 // OAuth WebView settings (secure defaults for GOG/Epic etc.)
                                 settings.apply {
@@ -122,13 +129,16 @@ fun AuthWebViewDialog(
 
                                     override fun shouldOverrideUrlLoading(
                                         view: WebView?,
-                                        request: WebResourceRequest?
+                                        request: WebResourceRequest?,
                                     ): Boolean {
                                         handleUrl(request?.url?.toString())
                                         return super.shouldOverrideUrlLoading(view, request)
                                     }
 
-                                    override fun onPageFinished(view: WebView?, url: String?) {
+                                    override fun onPageFinished(
+                                        view: WebView?,
+                                        url: String?,
+                                    ) {
                                         super.onPageFinished(view, url)
                                         Timber.d("Auth WebView page finished loading: ${redactUrlForLogging(url)}")
                                         if (view != null && url != null) {
@@ -139,28 +149,37 @@ fun AuthWebViewDialog(
                                     override fun onReceivedError(
                                         view: WebView?,
                                         request: WebResourceRequest?,
-                                        error: WebResourceError?
+                                        error: WebResourceError?,
                                     ) {
                                         super.onReceivedError(view, request, error)
                                         Timber.e(
-                                            "Auth WebView error: ${error?.errorCode} - ${error?.description} for URL: ${redactUrlForLogging(request?.url?.toString())}"
+                                            "Auth WebView error: ${error?.errorCode} - ${error?.description} for URL: ${redactUrlForLogging(
+                                                request?.url?.toString(),
+                                            )}",
                                         )
                                     }
                                 }
 
-                                webChromeClient = object : WebChromeClient() {
-                                    override fun onReceivedTitle(view: WebView?, title: String?) {
-                                        title?.let { pageTitle ->
-                                            topBarTitle = pageTitle
-                                            Timber.d("Auth WebView title: $pageTitle")
+                                webChromeClient =
+                                    object : WebChromeClient() {
+                                        override fun onReceivedTitle(
+                                            view: WebView?,
+                                            title: String?,
+                                        ) {
+                                            title?.let { pageTitle ->
+                                                topBarTitle = pageTitle
+                                                Timber.d("Auth WebView title: $pageTitle")
+                                            }
+                                        }
+
+                                        override fun onProgressChanged(
+                                            view: WebView?,
+                                            newProgress: Int,
+                                        ) {
+                                            super.onProgressChanged(view, newProgress)
+                                            Timber.d("Auth WebView progress: $newProgress%")
                                         }
                                     }
-
-                                    override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                                        super.onProgressChanged(view, newProgress)
-                                        Timber.d("Auth WebView progress: $newProgress%")
-                                    }
-                                }
 
                                 if (webViewState.size() > 0) {
                                     restoreState(webViewState)

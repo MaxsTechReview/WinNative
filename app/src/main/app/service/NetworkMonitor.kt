@@ -15,7 +15,6 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Call [init] once from [PluviaApp.onCreate]; never unregistered.
  */
 object NetworkMonitor {
-
     private val _hasInternet = MutableStateFlow(false)
     val hasInternet: StateFlow<Boolean> = _hasInternet.asStateFlow()
 
@@ -36,15 +35,17 @@ object NetworkMonitor {
                 caps.hasTransport(NetworkCapabilities.TRANSPORT_LOWPAN)
 
         fun update() {
-            val validatedCaps = networkCaps.values.filter {
-                it.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-            }
+            val validatedCaps =
+                networkCaps.values.filter {
+                    it.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                }
             _hasInternet.value = validatedCaps.isNotEmpty()
             // only count WiFi/Ethernet that is also validated (excludes captive portals)
-            _isWifiConnected.value = validatedCaps.any {
-                it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
-                    it.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
-            }
+            _isWifiConnected.value =
+                validatedCaps.any {
+                    it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                        it.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+                }
         }
 
         // seed from current state before callback fires
@@ -58,11 +59,15 @@ object NetworkMonitor {
         }
 
         cm.registerNetworkCallback(
-            NetworkRequest.Builder()
+            NetworkRequest
+                .Builder()
                 .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                 .build(),
             object : ConnectivityManager.NetworkCallback() {
-                override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                override fun onCapabilitiesChanged(
+                    network: Network,
+                    caps: NetworkCapabilities,
+                ) {
                     if (skip(caps)) return
                     networkCaps[network] = caps
                     update()

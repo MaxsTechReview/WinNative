@@ -8,7 +8,6 @@ import java.nio.ByteOrder
  * Parser for JSON format Epic Games manifests (older format)
  */
 class JsonManifestParser {
-
     companion object {
         /**
          * Parse a complete JSON manifest
@@ -41,8 +40,8 @@ class JsonManifestParser {
         /**
          * Parse manifest metadata from JSON
          */
-        private fun parseManifestMeta(json: JSONObject): ManifestMeta {
-            return ManifestMeta(
+        private fun parseManifestMeta(json: JSONObject): ManifestMeta =
+            ManifestMeta(
                 featureLevel = blobToNum(json.optString("ManifestFileVersion", "013000000000")),
                 isFileData = json.optBoolean("bIsFileData", false),
                 appId = blobToNum(json.optString("AppID", "000000000000")),
@@ -53,14 +52,16 @@ class JsonManifestParser {
                 prereqIds = jsonArrayToStringList(json.optJSONArray("PrereqIds")),
                 prereqName = json.optString("PrereqName", ""),
                 prereqPath = json.optString("PrereqPath", ""),
-                prereqArgs = json.optString("PrereqArgs", "")
+                prereqArgs = json.optString("PrereqArgs", ""),
             )
-        }
 
         /**
          * Parse chunk data list from JSON
          */
-        private fun parseChunkDataList(json: JSONObject, manifestVersion: Int): ChunkDataList {
+        private fun parseChunkDataList(
+            json: JSONObject,
+            manifestVersion: Int,
+        ): ChunkDataList {
             val cdl = ChunkDataList(manifestVersion = manifestVersion)
 
             val fileSizeList = json.optJSONObject("ChunkFilesizeList") ?: JSONObject()
@@ -121,12 +122,13 @@ class JsonManifestParser {
                 for (j in 0 until chunkParts.length()) {
                     val partJson = chunkParts.getJSONObject(j)
 
-                    val part = ChunkPart(
-                        guid = guidFromJson(partJson.getString("Guid")),
-                        offset = blobToNum(partJson.getString("Offset")),
-                        size = blobToNum(partJson.getString("Size")),
-                        fileOffset = fileOffset
-                    )
+                    val part =
+                        ChunkPart(
+                            guid = guidFromJson(partJson.getString("Guid")),
+                            offset = blobToNum(partJson.getString("Offset")),
+                            size = blobToNum(partJson.getString("Size")),
+                            fileOffset = fileOffset,
+                        )
 
                     fm.chunkParts.add(part)
                     fileOffset += part.size.toLong()
@@ -225,7 +227,10 @@ class JsonManifestParser {
          * Format: Each 3 digits represents a byte value (000-255)
          * e.g., "098017161..." = [0x62, 0x11, 0xA1, ...]
          */
-        private fun blobToByteArray(blobStr: String, size: Int): ByteArray {
+        private fun blobToByteArray(
+            blobStr: String,
+            size: Int,
+        ): ByteArray {
             if (blobStr.isEmpty()) return ByteArray(size)
 
             val result = ByteArray(size)
@@ -278,7 +283,10 @@ class JsonManifestParser {
         /**
          * Convert number to byte array (little endian)
          */
-        private fun numToByteArray(num: Int, size: Int): ByteArray {
+        private fun numToByteArray(
+            num: Int,
+            size: Int,
+        ): ByteArray {
             val buffer = ByteBuffer.allocate(size).order(ByteOrder.LITTLE_ENDIAN)
 
             // Fill with the number in little endian

@@ -7,20 +7,19 @@ import timber.log.Timber
 import java.io.File
 
 object ContainerUtils {
-    fun getContainerId(appId: String): String {
-        return appId
-    }
+    fun getContainerId(appId: String): String = appId
 
     /**
      * Extracts the game ID from a container ID string
      */
     fun extractGameIdFromContainerId(containerId: String): Int {
         // Remove duplicate suffix like (1), (2) if present
-        val idWithoutSuffix = if (containerId.contains("(")) {
-            containerId.substringBefore("(")
-        } else {
-            containerId
-        }
+        val idWithoutSuffix =
+            if (containerId.contains("(")) {
+                containerId.substringBefore("(")
+            } else {
+                containerId
+            }
 
         // Split by underscores and find the last numeric part
         val parts = idWithoutSuffix.split("_")
@@ -35,17 +34,25 @@ object ContainerUtils {
         }
     }
 
-    fun hasContainer(context: Context, containerId: String): Boolean {
-        return getContainer(context, containerId) != null
-    }
+    fun hasContainer(
+        context: Context,
+        containerId: String,
+    ): Boolean = getContainer(context, containerId) != null
 
-    fun getContainer(context: Context, containerId: String): Container? {
+    fun getContainer(
+        context: Context,
+        containerId: String,
+    ): Container? {
         val containerManager = ContainerManager(context)
-        return containerManager.getContainerById(extractGameIdFromContainerId(containerId))
+        return containerManager
+            .getContainerById(extractGameIdFromContainerId(containerId))
             ?.takeIf { SetupWizardActivity.isContainerUsable(context, it) }
     }
 
-    fun getUsableContainerOrNull(context: Context, appId: String): Container? {
+    fun getUsableContainerOrNull(
+        context: Context,
+        appId: String,
+    ): Container? {
         val containerManager = ContainerManager(context)
         SetupWizardActivity.getPreferredGameContainer(context, containerManager)?.let { return it }
 
@@ -55,10 +62,12 @@ object ContainerUtils {
         }
     }
 
-    fun getOrCreateContainer(context: Context, appId: String): Container {
-        return getUsableContainerOrNull(context, appId)
+    fun getOrCreateContainer(
+        context: Context,
+        appId: String,
+    ): Container =
+        getUsableContainerOrNull(context, appId)
             ?: throw IllegalStateException("No installed Wine/Proton container available")
-    }
 
     fun getGameDrivePath(drives: String): String? {
         for (drive in Container.drivesIterator(drives)) {
@@ -69,7 +78,10 @@ object ContainerUtils {
         return null
     }
 
-    fun deleteContainer(context: Context, containerId: String) {
+    fun deleteContainer(
+        context: Context,
+        containerId: String,
+    ) {
         val containerManager = ContainerManager(context)
         val container = containerManager.getContainerById(extractGameIdFromContainerId(containerId))
         if (container != null) {
@@ -98,7 +110,12 @@ object ContainerUtils {
                 return emptyList()
             }
 
-            fun scanRecursive(dir: File, baseDir: File, depth: Int = 0, maxDepth: Int = 10) {
+            fun scanRecursive(
+                dir: File,
+                baseDir: File,
+                depth: Int = 0,
+                maxDepth: Int = 10,
+            ) {
                 if (depth > maxDepth) return
                 dir.listFiles()?.forEach { file ->
                     if (file.isDirectory) {
@@ -132,10 +149,11 @@ object ContainerUtils {
      * Filters executables to avoid obvious installers/utilities when unpacking DRM.
      */
     @JvmStatic
-    fun filterExesForUnpacking(exePaths: List<String>): List<String> = exePaths.filter { path ->
-        val fileName = path.substringAfterLast('/').substringAfterLast('\\').lowercase()
-        !isSystemExecutable(fileName)
-    }
+    fun filterExesForUnpacking(exePaths: List<String>): List<String> =
+        exePaths.filter { path ->
+            val fileName = path.substringAfterLast('/').substringAfterLast('\\').lowercase()
+            !isSystemExecutable(fileName)
+        }
 
     private fun getExecutablePriority(exePath: String): Int {
         val fileName = exePath.substringAfterLast('\\').lowercase()
@@ -153,11 +171,26 @@ object ContainerUtils {
     }
 
     private fun isSystemExecutable(fileName: String): Boolean {
-        val systemKeywords = listOf(
-            "unins", "setup", "install", "config", "crash", "handler",
-            "viewer", "compiler", "tool", "redist", "vcredist", "directx",
-            "steam", "origin", "uplay", "epic", "battlenet",
-        )
+        val systemKeywords =
+            listOf(
+                "unins",
+                "setup",
+                "install",
+                "config",
+                "crash",
+                "handler",
+                "viewer",
+                "compiler",
+                "tool",
+                "redist",
+                "vcredist",
+                "directx",
+                "steam",
+                "origin",
+                "uplay",
+                "epic",
+                "battlenet",
+            )
         return systemKeywords.any { fileName.contains(it) }
     }
 }

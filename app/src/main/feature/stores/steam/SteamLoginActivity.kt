@@ -13,9 +13,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -29,40 +26,42 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.winlator.cmod.R
-import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import com.winlator.cmod.feature.stores.steam.enums.LoginResult
 import com.winlator.cmod.feature.stores.steam.enums.LoginScreen
 import com.winlator.cmod.feature.stores.steam.ui.SteamLoginViewModel
 import com.winlator.cmod.feature.stores.steam.ui.components.QrCodeImage
 import com.winlator.cmod.feature.stores.steam.ui.data.UserLoginState
+import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import timber.log.Timber
 
 // Palette (matches Settings > Stores)
-private val BgDark        = Color(0xFF18181D)
-private val CardDark      = Color(0xFF1C1C2A)
-private val CardBorder    = Color(0xFF2A2A3A)
-private val IconBoxBg     = Color(0xFF242434)
-private val Accent        = Color(0xFF1A9FFF)
-private val TextPrimary   = Color(0xFFF0F4FF)
+private val BgDark = Color(0xFF18181D)
+private val CardDark = Color(0xFF1C1C2A)
+private val CardBorder = Color(0xFF2A2A3A)
+private val IconBoxBg = Color(0xFF242434)
+private val Accent = Color(0xFF1A9FFF)
+private val TextPrimary = Color(0xFFF0F4FF)
 private val TextSecondary = Color(0xFF7A8FA8)
-private val DangerRed     = Color(0xFFFF7A88)
+private val DangerRed = Color(0xFFFF7A88)
 
 class SteamLoginActivity : ComponentActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -76,14 +75,15 @@ class SteamLoginActivity : ComponentActivity() {
 
         setContent {
             MaterialTheme(
-                colorScheme = darkColorScheme(
-                    primary   = Accent,
-                    background = BgDark,
-                    surface   = CardDark,
-                    onSurface = TextPrimary,
-                    secondary = TextSecondary,
-                    outline   = CardBorder,
-                ),
+                colorScheme =
+                    darkColorScheme(
+                        primary = Accent,
+                        background = BgDark,
+                        surface = CardDark,
+                        onSurface = TextPrimary,
+                        secondary = TextSecondary,
+                        outline = CardBorder,
+                    ),
             ) {
                 val viewModel: SteamLoginViewModel = viewModel()
                 LoginContent(viewModel)
@@ -114,18 +114,21 @@ class SteamLoginActivity : ComponentActivity() {
         val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
 
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(BgDark)
-                .windowInsetsPadding(WindowInsets.navigationBars)
-                .pointerInput(Unit) { detectTapGestures { focusManager.clearFocus() } },
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(BgDark)
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .pointerInput(Unit) { detectTapGestures { focusManager.clearFocus() } },
         ) {
             AnimatedVisibility(
                 visible = entered,
-                enter = fadeIn(tween(360)) + slideInVertically(
-                    initialOffsetY = { it / 11 },
-                    animationSpec = tween(380, easing = FastOutSlowInEasing),
-                ),
+                enter =
+                    fadeIn(tween(360)) +
+                        slideInVertically(
+                            initialOffsetY = { it / 11 },
+                            animationSpec = tween(380, easing = FastOutSlowInEasing),
+                        ),
             ) {
                 AnimatedContent(
                     targetState = state.loginScreen,
@@ -133,14 +136,16 @@ class SteamLoginActivity : ComponentActivity() {
                     label = "screenSwitch",
                 ) { screen ->
                     when (screen) {
-                        LoginScreen.TWO_FACTOR ->
+                        LoginScreen.TWO_FACTOR -> {
                             TwoFactorLogin(state, viewModel)
-                        else ->
+                        }
+
+                        else -> {
                             LandscapeLogin(state, viewModel, passwordVisible) { passwordVisible = !passwordVisible }
+                        }
                     }
                 }
             }
-
         }
     }
 
@@ -160,14 +165,20 @@ class SteamLoginActivity : ComponentActivity() {
             // Back arrow — top-left, matching homescreen settings icon position
             IconButton(
                 onClick = ::finish,
-                modifier = Modifier
-                    .align(Alignment.Top)
-                    .statusBarsPadding()
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(CardDark.copy(alpha = 0.72f)),
+                modifier =
+                    Modifier
+                        .align(Alignment.Top)
+                        .statusBarsPadding()
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(CardDark.copy(alpha = 0.72f)),
             ) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back", tint = TextPrimary, modifier = Modifier.size(24.dp))
+                Icon(
+                    Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = "Back",
+                    tint = TextPrimary,
+                    modifier = Modifier.size(24.dp),
+                )
             }
 
             // Left: credentials
@@ -183,17 +194,23 @@ class SteamLoginActivity : ComponentActivity() {
                     modifier = Modifier.padding(bottom = 14.dp),
                 ) {
                     Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(11.dp))
-                            .background(Accent.copy(alpha = 0.12f))
-                            .border(1.dp, Accent.copy(alpha = 0.3f), RoundedCornerShape(11.dp)),
+                        modifier =
+                            Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(11.dp))
+                                .background(Accent.copy(alpha = 0.12f))
+                                .border(1.dp, Accent.copy(alpha = 0.3f), RoundedCornerShape(11.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(Icons.Outlined.Gamepad, null, tint = Accent, modifier = Modifier.size(22.dp))
                     }
                     Column {
-                        Text(stringResource(R.string.stores_accounts_steam_integration_title), color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            stringResource(R.string.stores_accounts_steam_integration_title),
+                            color = TextPrimary,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(stringResource(R.string.steam_login_sign_in_to_your_account), color = TextSecondary, fontSize = 11.sp)
                             if (!state.isSteamConnected) {
@@ -207,7 +224,12 @@ class SteamLoginActivity : ComponentActivity() {
 
             // Thin divider
             Box(
-                modifier = Modifier.width(1.dp).fillMaxHeight().padding(vertical = 24.dp).background(CardBorder),
+                modifier =
+                    Modifier
+                        .width(1.dp)
+                        .fillMaxHeight()
+                        .padding(vertical = 24.dp)
+                        .background(CardBorder),
             )
 
             // Right: QR
@@ -236,8 +258,9 @@ class SteamLoginActivity : ComponentActivity() {
         val showLoginError = hasAttemptedLogin && !state.isLoggingIn && state.loginResult == LoginResult.Failed
         val spacing = if (compact) 10.dp else 14.dp
         val passwordFocus = remember { FocusRequester() }
-        val canSubmit = state.username.isNotEmpty() && state.password.isNotEmpty()
-                && !state.isLoggingIn && state.isSteamConnected
+        val canSubmit =
+            state.username.isNotEmpty() && state.password.isNotEmpty() &&
+                !state.isLoggingIn && state.isSteamConnected
 
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing)) {
             OutlinedTextField(
@@ -268,18 +291,23 @@ class SteamLoginActivity : ComponentActivity() {
                         }
                     },
                     isError = showLoginError,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(passwordFocus)
-                        .onFocusChanged { if (!it.hasFocus && passwordVisible) onTogglePassword() },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .focusRequester(passwordFocus)
+                            .onFocusChanged { if (!it.hasFocus && passwordVisible) onTogglePassword() },
                     enabled = !state.isLoggingIn,
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = darkFieldColors(),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = {
-                        if (canSubmit) { hasAttemptedLogin = true; viewModel.onCredentialLogin() }
-                    }),
+                    keyboardActions =
+                        KeyboardActions(onDone = {
+                            if (canSubmit) {
+                                hasAttemptedLogin = true
+                                viewModel.onCredentialLogin()
+                            }
+                        }),
                 )
                 // Error overlaid at bottom of password field — no layout shift
                 androidx.compose.animation.AnimatedVisibility(
@@ -307,10 +335,11 @@ class SteamLoginActivity : ComponentActivity() {
                         viewModel.setRememberSession(it)
                     },
                     enabled = !state.isLoggingIn,
-                    colors = outlinedSwitchColors(
-                        accentColor = Accent,
-                        textSecondaryColor = TextSecondary,
-                    ),
+                    colors =
+                        outlinedSwitchColors(
+                            accentColor = Accent,
+                            textSecondaryColor = TextSecondary,
+                        ),
                 )
             }
 
@@ -318,39 +347,52 @@ class SteamLoginActivity : ComponentActivity() {
                 text = stringResource(R.string.common_ui_sign_in),
                 enabled = canSubmit,
                 loading = state.isLoggingIn,
-                onClick = { hasAttemptedLogin = true; viewModel.onCredentialLogin() },
+                onClick = {
+                    hasAttemptedLogin = true
+                    viewModel.onCredentialLogin()
+                },
             )
-
         }
     }
 
     // QR card
     @Composable
-    private fun QrCard(state: UserLoginState, viewModel: SteamLoginViewModel, isLandscape: Boolean) {
+    private fun QrCard(
+        state: UserLoginState,
+        viewModel: SteamLoginViewModel,
+        isLandscape: Boolean,
+    ) {
         val isLoading = state.qrCode == null && !state.isQrFailed
 
         // Border pulses while QR loads
         val pulse = rememberInfiniteTransition(label = "qrPulse")
         val borderAlpha by pulse.animateFloat(
-            initialValue = 0.14f, targetValue = 0.55f,
+            initialValue = 0.14f,
+            targetValue = 0.55f,
             animationSpec = infiniteRepeatable(tween(1100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
             label = "qrBorder",
         )
 
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(CardDark)
-                .border(1.dp, if (isLoading) Accent.copy(alpha = borderAlpha) else CardBorder, RoundedCornerShape(16.dp))
-                .padding(if (isLandscape) 16.dp else 20.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(CardDark)
+                    .border(1.dp, if (isLoading) Accent.copy(alpha = borderAlpha) else CardBorder, RoundedCornerShape(16.dp))
+                    .padding(if (isLandscape) 16.dp else 20.dp),
             contentAlignment = Alignment.Center,
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(stringResource(R.string.steam_login_sign_in_with_qr_code), color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    stringResource(R.string.steam_login_sign_in_with_qr_code),
+                    color = TextPrimary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
 
                 when {
                     state.qrCode != null -> {
@@ -366,12 +408,14 @@ class SteamLoginActivity : ComponentActivity() {
                             textAlign = TextAlign.Center,
                         )
                     }
+
                     state.isQrFailed -> {
                         Spacer(Modifier.height(4.dp))
                         Text(stringResource(R.string.steam_login_failed_to_load_qr_code), color = DangerRed, fontSize = 13.sp)
                         Spacer(Modifier.height(4.dp))
                         SmallActionButton(stringResource(R.string.steam_login_retry), Accent) { viewModel.onQrRetry() }
                     }
+
                     else -> {
                         CircularProgressIndicator(modifier = Modifier.size(28.dp), color = Accent, strokeWidth = 2.dp)
                         Text(stringResource(R.string.steam_login_generating_code), color = TextSecondary, fontSize = 12.sp)
@@ -383,7 +427,10 @@ class SteamLoginActivity : ComponentActivity() {
 
     // 2FA screen
     @Composable
-    private fun TwoFactorLogin(state: UserLoginState, viewModel: SteamLoginViewModel) {
+    private fun TwoFactorLogin(
+        state: UserLoginState,
+        viewModel: SteamLoginViewModel,
+    ) {
         val isSteamGuard = state.lastTwoFactorMethod == "steam_guard"
         val isEmailCode = state.lastTwoFactorMethod == "email_code"
 
@@ -392,90 +439,110 @@ class SteamLoginActivity : ComponentActivity() {
         LaunchedEffect(Unit) { cardVisible = true }
 
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .imePadding()
-                .verticalScroll(rememberScrollState()),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .imePadding()
+                    .verticalScroll(rememberScrollState()),
             contentAlignment = Alignment.Center,
         ) {
             AnimatedVisibility(
                 visible = cardVisible,
-                enter = fadeIn(tween(320)) + scaleIn(
-                    initialScale = 0.92f,
-                    animationSpec = tween(340, easing = FastOutSlowInEasing),
-                ),
+                enter =
+                    fadeIn(tween(320)) +
+                        scaleIn(
+                            initialScale = 0.92f,
+                            animationSpec = tween(340, easing = FastOutSlowInEasing),
+                        ),
             ) {
                 Box(
-                    modifier = Modifier
-                        .width(280.dp)
-                        .background(CardDark, RoundedCornerShape(16.dp))
-                        .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-                        .padding(horizontal = 24.dp, vertical = 24.dp),
+                    modifier =
+                        Modifier
+                            .width(280.dp)
+                            .background(CardDark, RoundedCornerShape(16.dp))
+                            .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                            .padding(horizontal = 24.dp, vertical = 24.dp),
                 ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            WaitingRipple()
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        WaitingRipple()
 
-                            Spacer(Modifier.height(14.dp))
+                        Spacer(Modifier.height(14.dp))
 
-                            Text(stringResource(R.string.steam_login_two_factor_auth), color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                            Spacer(Modifier.height(6.dp))
+                        Text(
+                            stringResource(R.string.steam_login_two_factor_auth),
+                            color = TextPrimary,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.height(6.dp))
 
-                            if (isSteamGuard) {
-                                Text(
-                                    stringResource(R.string.steam_login_approve_login_steam_app),
-                                    color = TextSecondary, fontSize = 12.sp,
-                                    textAlign = TextAlign.Center, lineHeight = 18.sp,
-                                )
-                            } else {
-                                val methodText = if (isEmailCode)
+                        if (isSteamGuard) {
+                            Text(
+                                stringResource(R.string.steam_login_approve_login_steam_app),
+                                color = TextSecondary,
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Center,
+                                lineHeight = 18.sp,
+                            )
+                        } else {
+                            val methodText =
+                                if (isEmailCode) {
                                     stringResource(R.string.steam_login_enter_code_sent_to, state.email ?: "")
-                                else stringResource(R.string.steam_login_enter_steam_guard_code)
-                                Text(
-                                    methodText, color = TextSecondary, fontSize = 12.sp,
-                                    textAlign = TextAlign.Center, lineHeight = 18.sp,
-                                )
-                                Spacer(Modifier.height(12.dp))
-                                OutlinedTextField(
-                                    value = state.twoFactorCode,
-                                    onValueChange = { viewModel.setTwoFactorCode(it) },
-                                    label = { Text(stringResource(R.string.steam_login_code), fontSize = 11.sp) },
-                                    modifier = Modifier.widthIn(max = 160.dp),
-                                    keyboardOptions = KeyboardOptions(
+                                } else {
+                                    stringResource(R.string.steam_login_enter_steam_guard_code)
+                                }
+                            Text(
+                                methodText,
+                                color = TextSecondary,
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Center,
+                                lineHeight = 18.sp,
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            OutlinedTextField(
+                                value = state.twoFactorCode,
+                                onValueChange = { viewModel.setTwoFactorCode(it) },
+                                label = { Text(stringResource(R.string.steam_login_code), fontSize = 11.sp) },
+                                modifier = Modifier.widthIn(max = 160.dp),
+                                keyboardOptions =
+                                    KeyboardOptions(
                                         keyboardType = KeyboardType.Text,
                                         imeAction = ImeAction.Done,
                                     ),
-                                    keyboardActions = KeyboardActions(
+                                keyboardActions =
+                                    KeyboardActions(
                                         onDone = {
                                             if (state.twoFactorCode.length >= 5 && !state.isLoggingIn) {
                                                 viewModel.submitTwoFactor()
                                             }
                                         },
                                     ),
-                                    enabled = !state.isLoggingIn,
-                                    singleLine = true,
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors = darkFieldColors(),
-                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                enabled = !state.isLoggingIn,
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp),
+                                colors = darkFieldColors(),
+                                textStyle =
+                                    androidx.compose.ui.text.TextStyle(
                                         fontSize = 14.sp,
                                         textAlign = TextAlign.Center,
                                         letterSpacing = 4.sp,
                                     ),
-                                )
-                                Spacer(Modifier.height(10.dp))
-                                TwoFactorSubmitButton(
-                                    enabled = state.twoFactorCode.length >= 5 && !state.isLoggingIn,
-                                    loading = state.isLoggingIn,
-                                    onClick = { viewModel.submitTwoFactor() },
-                                )
-                            }
+                            )
+                            Spacer(Modifier.height(10.dp))
+                            TwoFactorSubmitButton(
+                                enabled = state.twoFactorCode.length >= 5 && !state.isLoggingIn,
+                                loading = state.isLoggingIn,
+                                onClick = { viewModel.submitTwoFactor() },
+                            )
+                        }
 
-                            Spacer(Modifier.height(14.dp))
-                            SmallActionButton(stringResource(R.string.common_ui_cancel), TextSecondary) {
-                                viewModel.onShowLoginScreen(LoginScreen.CREDENTIAL)
-                            }
+                        Spacer(Modifier.height(14.dp))
+                        SmallActionButton(stringResource(R.string.common_ui_cancel), TextSecondary) {
+                            viewModel.onShowLoginScreen(LoginScreen.CREDENTIAL)
+                        }
                     }
                 }
             }
@@ -487,33 +554,54 @@ class SteamLoginActivity : ComponentActivity() {
     private fun WaitingRipple() {
         val inf = rememberInfiniteTransition(label = "ripple")
         val scale1 by inf.animateFloat(
-            initialValue = 1f, targetValue = 2.8f,
+            initialValue = 1f,
+            targetValue = 2.8f,
             animationSpec = infiniteRepeatable(tween(1600, easing = FastOutSlowInEasing), RepeatMode.Restart),
             label = "r1s",
         )
         val alpha1 by inf.animateFloat(
-            initialValue = 0.40f, targetValue = 0f,
+            initialValue = 0.40f,
+            targetValue = 0f,
             animationSpec = infiniteRepeatable(tween(1600, easing = FastOutSlowInEasing), RepeatMode.Restart),
             label = "r1a",
         )
         val scale2 by inf.animateFloat(
-            initialValue = 1f, targetValue = 2.8f,
+            initialValue = 1f,
+            targetValue = 2.8f,
             animationSpec = infiniteRepeatable(tween(1600, 620, easing = FastOutSlowInEasing), RepeatMode.Restart),
             label = "r2s",
         )
         val alpha2 by inf.animateFloat(
-            initialValue = 0.40f, targetValue = 0f,
+            initialValue = 0.40f,
+            targetValue = 0f,
             animationSpec = infiniteRepeatable(tween(1600, 620, easing = FastOutSlowInEasing), RepeatMode.Restart),
             label = "r2a",
         )
 
         Box(modifier = Modifier.size(72.dp), contentAlignment = Alignment.Center) {
-            Box(modifier = Modifier.size(52.dp).scale(scale1).clip(CircleShape).background(Accent.copy(alpha = alpha1)))
-            Box(modifier = Modifier.size(52.dp).scale(scale2).clip(CircleShape).background(Accent.copy(alpha = alpha2)))
             Box(
-                modifier = Modifier.size(52.dp).clip(CircleShape)
-                    .background(Accent.copy(alpha = 0.13f))
-                    .border(1.dp, Accent.copy(alpha = 0.4f), CircleShape),
+                modifier =
+                    Modifier
+                        .size(52.dp)
+                        .scale(scale1)
+                        .clip(CircleShape)
+                        .background(Accent.copy(alpha = alpha1)),
+            )
+            Box(
+                modifier =
+                    Modifier
+                        .size(52.dp)
+                        .scale(scale2)
+                        .clip(CircleShape)
+                        .background(Accent.copy(alpha = alpha2)),
+            )
+            Box(
+                modifier =
+                    Modifier
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background(Accent.copy(alpha = 0.13f))
+                        .border(1.dp, Accent.copy(alpha = 0.4f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(Icons.Outlined.Lock, null, tint = Accent, modifier = Modifier.size(22.dp))
@@ -521,10 +609,14 @@ class SteamLoginActivity : ComponentActivity() {
         }
     }
 
-
     // Primary login/submit button
     @Composable
-    private fun LoginButton(text: String, enabled: Boolean, loading: Boolean, onClick: () -> Unit) {
+    private fun LoginButton(
+        text: String,
+        enabled: Boolean,
+        loading: Boolean,
+        onClick: () -> Unit,
+    ) {
         var pressed by remember { mutableStateOf(false) }
         val scale by animateFloatAsState(
             targetValue = if (pressed) 0.97f else 1f,
@@ -538,20 +630,29 @@ class SteamLoginActivity : ComponentActivity() {
         )
 
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .scale(scale)
-                .height(48.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Accent.copy(alpha = bgAlpha))
-                .then(
-                    if (enabled) Modifier.pointerInput(onClick) {
-                        detectTapGestures(
-                            onPress = { pressed = true; tryAwaitRelease(); pressed = false },
-                            onTap = { onClick() },
-                        )
-                    } else Modifier
-                ),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .scale(scale)
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Accent.copy(alpha = bgAlpha))
+                    .then(
+                        if (enabled) {
+                            Modifier.pointerInput(onClick) {
+                                detectTapGestures(
+                                    onPress = {
+                                        pressed = true
+                                        tryAwaitRelease()
+                                        pressed = false
+                                    },
+                                    onTap = { onClick() },
+                                )
+                            }
+                        } else {
+                            Modifier
+                        },
+                    ),
             contentAlignment = Alignment.Center,
         ) {
             if (loading) {
@@ -569,7 +670,11 @@ class SteamLoginActivity : ComponentActivity() {
 
     // 2FA submit button — compact, matches card theme
     @Composable
-    private fun TwoFactorSubmitButton(enabled: Boolean, loading: Boolean, onClick: () -> Unit) {
+    private fun TwoFactorSubmitButton(
+        enabled: Boolean,
+        loading: Boolean,
+        onClick: () -> Unit,
+    ) {
         var pressed by remember { mutableStateOf(false) }
         val scale by animateFloatAsState(
             targetValue = if (pressed) 0.95f else 1f,
@@ -588,20 +693,29 @@ class SteamLoginActivity : ComponentActivity() {
         )
 
         Box(
-            modifier = Modifier
-                .scale(scale)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Accent.copy(alpha = bgAlpha))
-                .border(1.dp, Accent.copy(alpha = borderAlpha), RoundedCornerShape(10.dp))
-                .padding(horizontal = 28.dp, vertical = 10.dp)
-                .then(
-                    if (enabled) Modifier.pointerInput(onClick) {
-                        detectTapGestures(
-                            onPress = { pressed = true; tryAwaitRelease(); pressed = false },
-                            onTap = { onClick() },
-                        )
-                    } else Modifier
-                ),
+            modifier =
+                Modifier
+                    .scale(scale)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Accent.copy(alpha = bgAlpha))
+                    .border(1.dp, Accent.copy(alpha = borderAlpha), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 28.dp, vertical = 10.dp)
+                    .then(
+                        if (enabled) {
+                            Modifier.pointerInput(onClick) {
+                                detectTapGestures(
+                                    onPress = {
+                                        pressed = true
+                                        tryAwaitRelease()
+                                        pressed = false
+                                    },
+                                    onTap = { onClick() },
+                                )
+                            }
+                        } else {
+                            Modifier
+                        },
+                    ),
             contentAlignment = Alignment.Center,
         ) {
             if (loading) {
@@ -619,7 +733,11 @@ class SteamLoginActivity : ComponentActivity() {
 
     // Small action button (matches StoresScreen ActionButton)
     @Composable
-    private fun SmallActionButton(label: String, textColor: Color, onClick: () -> Unit) {
+    private fun SmallActionButton(
+        label: String,
+        textColor: Color,
+        onClick: () -> Unit,
+    ) {
         var pressed by remember { mutableStateOf(false) }
         val scale by animateFloatAsState(
             targetValue = if (pressed) 0.93f else 1f,
@@ -627,18 +745,22 @@ class SteamLoginActivity : ComponentActivity() {
             label = "smallBtnScale",
         )
         Box(
-            modifier = Modifier
-                .scale(scale)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFF222232))
-                .border(1.dp, textColor.copy(alpha = 0.28f), RoundedCornerShape(8.dp))
-                .pointerInput(onClick) {
-                    detectTapGestures(
-                        onPress = { pressed = true; tryAwaitRelease(); pressed = false },
-                        onTap = { onClick() },
-                    )
-                }
-                .padding(horizontal = 12.dp, vertical = 7.dp),
+            modifier =
+                Modifier
+                    .scale(scale)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF222232))
+                    .border(1.dp, textColor.copy(alpha = 0.28f), RoundedCornerShape(8.dp))
+                    .pointerInput(onClick) {
+                        detectTapGestures(
+                            onPress = {
+                                pressed = true
+                                tryAwaitRelease()
+                                pressed = false
+                            },
+                            onTap = { onClick() },
+                        )
+                    }.padding(horizontal = 12.dp, vertical = 7.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(label, color = textColor, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
@@ -655,19 +777,24 @@ class SteamLoginActivity : ComponentActivity() {
             label = "cancelScale",
         )
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .scale(scale)
-                .height(42.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(CardBorder.copy(alpha = 0.5f))
-                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-                .pointerInput(onClick) {
-                    detectTapGestures(
-                        onPress = { pressed = true; tryAwaitRelease(); pressed = false },
-                        onTap = { onClick() },
-                    )
-                },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .scale(scale)
+                    .height(42.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(CardBorder.copy(alpha = 0.5f))
+                    .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                    .pointerInput(onClick) {
+                        detectTapGestures(
+                            onPress = {
+                                pressed = true
+                                tryAwaitRelease()
+                                pressed = false
+                            },
+                            onTap = { onClick() },
+                        )
+                    },
             contentAlignment = Alignment.Center,
         ) {
             Text(stringResource(R.string.common_ui_cancel), color = TextSecondary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
@@ -676,19 +803,20 @@ class SteamLoginActivity : ComponentActivity() {
 
     // Dark text field color preset
     @Composable
-    private fun darkFieldColors() = OutlinedTextFieldDefaults.colors(
-        focusedContainerColor   = Color.Transparent,
-        unfocusedContainerColor = Color.Transparent,
-        disabledContainerColor  = Color.Transparent,
-        focusedBorderColor      = Accent,
-        unfocusedBorderColor    = CardBorder,
-        disabledBorderColor     = CardBorder.copy(alpha = 0.4f),
-        focusedLabelColor       = Accent,
-        unfocusedLabelColor     = TextSecondary,
-        disabledLabelColor      = TextSecondary.copy(alpha = 0.5f),
-        focusedTextColor        = TextPrimary,
-        unfocusedTextColor      = TextPrimary,
-        disabledTextColor       = TextSecondary,
-        cursorColor             = Accent,
-    )
+    private fun darkFieldColors() =
+        OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = Color.Transparent,
+            unfocusedContainerColor = Color.Transparent,
+            disabledContainerColor = Color.Transparent,
+            focusedBorderColor = Accent,
+            unfocusedBorderColor = CardBorder,
+            disabledBorderColor = CardBorder.copy(alpha = 0.4f),
+            focusedLabelColor = Accent,
+            unfocusedLabelColor = TextSecondary,
+            disabledLabelColor = TextSecondary.copy(alpha = 0.5f),
+            focusedTextColor = TextPrimary,
+            unfocusedTextColor = TextPrimary,
+            disabledTextColor = TextSecondary,
+            cursorColor = Accent,
+        )
 }

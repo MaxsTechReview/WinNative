@@ -1,4 +1,5 @@
 package com.winlator.cmod.feature.stores.steam.data
+
 data class OwnedGames(
     val appId: Int = 0,
     val name: String = "",

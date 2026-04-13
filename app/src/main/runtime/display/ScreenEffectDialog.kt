@@ -12,29 +12,30 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.preference.PreferenceManager
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.winlator.cmod.R
-import com.winlator.cmod.shared.android.AppUtils
-import com.winlator.cmod.shared.ui.dialog.ContentDialog
-import com.winlator.cmod.shared.util.KeyValueSet
 import com.winlator.cmod.runtime.display.renderer.GLRenderer
-import com.winlator.cmod.runtime.display.renderer.effects.ColorEffect
 import com.winlator.cmod.runtime.display.renderer.effects.CRTEffect
+import com.winlator.cmod.runtime.display.renderer.effects.ColorEffect
 import com.winlator.cmod.runtime.display.renderer.effects.FXAAEffect
 import com.winlator.cmod.runtime.display.renderer.effects.NTSCCombinedEffect
 import com.winlator.cmod.runtime.display.renderer.effects.ToonEffect
+import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.ui.dialog.ContentDialog
+import com.winlator.cmod.shared.util.KeyValueSet
 
-class ScreenEffectDialog(private val activity: XServerDisplayActivity) {
-
+class ScreenEffectDialog(
+    private val activity: XServerDisplayActivity,
+) {
     private val preferences = PreferenceManager.getDefaultSharedPreferences(activity)
     private val dialog: Dialog
 
     // Compose state
-    val brightness   = mutableFloatStateOf(0f)
-    val contrast     = mutableFloatStateOf(0f)
-    val gamma        = mutableFloatStateOf(1f)
-    val enableFXAA   = mutableStateOf(false)
-    val enableCRT    = mutableStateOf(false)
-    val enableToon   = mutableStateOf(false)
-    val enableNTSC   = mutableStateOf(false)
+    val brightness = mutableFloatStateOf(0f)
+    val contrast = mutableFloatStateOf(0f)
+    val gamma = mutableFloatStateOf(1f)
+    val enableFXAA = mutableStateOf(false)
+    val enableCRT = mutableStateOf(false)
+    val enableToon = mutableStateOf(false)
+    val enableNTSC = mutableStateOf(false)
     val profileNames = mutableStateOf<List<String>>(emptyList())
     val selectedProfileIndex = mutableIntStateOf(0)
 
@@ -59,53 +60,57 @@ class ScreenEffectDialog(private val activity: XServerDisplayActivity) {
         loadProfileList(activity.screenEffectProfile)
 
         // Build dialog
-        dialog = Dialog(activity, R.style.ContentDialog).apply {
-            requestWindowFeature(Window.FEATURE_NO_TITLE)
-            setCancelable(true)
-            setCanceledOnTouchOutside(true)
-            window?.apply {
-                setBackgroundDrawableResource(android.R.color.transparent)
-                setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT)
-                setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+        dialog =
+            Dialog(activity, R.style.ContentDialog).apply {
+                requestWindowFeature(Window.FEATURE_NO_TITLE)
+                setCancelable(true)
+                setCanceledOnTouchOutside(true)
+                window?.apply {
+                    setBackgroundDrawableResource(android.R.color.transparent)
+                    setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT)
+                    setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+                }
             }
-        }
 
-        val composeView = ComposeView(activity).apply {
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            setViewTreeLifecycleOwner(activity)
-            setViewTreeSavedStateRegistryOwner(activity)
-            setContent {
-                ScreenEffectDialogContent(
-                    state = ScreenEffectState(
-                        brightness = brightness.floatValue,
-                        contrast = contrast.floatValue,
-                        gamma = gamma.floatValue,
-                        enableFXAA = enableFXAA.value,
-                        enableCRT = enableCRT.value,
-                        enableToon = enableToon.value,
-                        enableNTSC = enableNTSC.value,
-                        profileNames = profileNames.value,
-                        selectedProfileIndex = selectedProfileIndex.intValue
-                    ),
-                    onBrightnessChange = { brightness.floatValue = it },
-                    onContrastChange   = { contrast.floatValue = it },
-                    onGammaChange      = { gamma.floatValue = it },
-                    onFXAAChange       = { enableFXAA.value = it },
-                    onCRTChange        = { enableCRT.value = it },
-                    onToonChange       = { enableToon.value = it },
-                    onNTSCChange       = { enableNTSC.value = it },
-                    onProfileSelected  = { onProfileSelected(it) },
-                    onAddProfile       = { promptAddProfile() },
-                    onRemoveProfile    = { promptDeleteProfile() },
-                    onReset            = { resetSettings() },
-                    onCancel           = { dismiss() },
-                    onConfirm          = { onConfirm() }
-                )
+        val composeView =
+            ComposeView(activity).apply {
+                layoutParams =
+                    ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                    )
+                setViewTreeLifecycleOwner(activity)
+                setViewTreeSavedStateRegistryOwner(activity)
+                setContent {
+                    ScreenEffectDialogContent(
+                        state =
+                            ScreenEffectState(
+                                brightness = brightness.floatValue,
+                                contrast = contrast.floatValue,
+                                gamma = gamma.floatValue,
+                                enableFXAA = enableFXAA.value,
+                                enableCRT = enableCRT.value,
+                                enableToon = enableToon.value,
+                                enableNTSC = enableNTSC.value,
+                                profileNames = profileNames.value,
+                                selectedProfileIndex = selectedProfileIndex.intValue,
+                            ),
+                        onBrightnessChange = { brightness.floatValue = it },
+                        onContrastChange = { contrast.floatValue = it },
+                        onGammaChange = { gamma.floatValue = it },
+                        onFXAAChange = { enableFXAA.value = it },
+                        onCRTChange = { enableCRT.value = it },
+                        onToonChange = { enableToon.value = it },
+                        onNTSCChange = { enableNTSC.value = it },
+                        onProfileSelected = { onProfileSelected(it) },
+                        onAddProfile = { promptAddProfile() },
+                        onRemoveProfile = { promptDeleteProfile() },
+                        onReset = { resetSettings() },
+                        onCancel = { dismiss() },
+                        onConfirm = { onConfirm() },
+                    )
+                }
             }
-        }
         dialog.setContentView(composeView)
     }
 
@@ -116,6 +121,7 @@ class ScreenEffectDialog(private val activity: XServerDisplayActivity) {
             setLayout(dm.widthPixels, WindowManager.LayoutParams.WRAP_CONTENT)
         }
     }
+
     fun dismiss() {
         AppUtils.hideKeyboard(activity)
         dialog.dismiss()
@@ -262,7 +268,7 @@ class ScreenEffectDialog(private val activity: XServerDisplayActivity) {
         fxaaEffect: FXAAEffect?,
         crtEffect: CRTEffect?,
         toonEffect: ToonEffect?,
-        ntscEffect: NTSCCombinedEffect?
+        ntscEffect: NTSCCombinedEffect?,
     ) {
         Log.d(TAG, "applyEffects() called")
 
@@ -270,10 +276,11 @@ class ScreenEffectDialog(private val activity: XServerDisplayActivity) {
         val contrastVal = contrast.floatValue
         val gammaVal = gamma.floatValue
 
-        val composer = renderer.effectComposer ?: run {
-            Log.e(TAG, "EffectComposer is null!")
-            return
-        }
+        val composer =
+            renderer.effectComposer ?: run {
+                Log.e(TAG, "EffectComposer is null!")
+                return
+            }
 
         // ColorEffect
         var ce = colorEffect ?: ColorEffect()

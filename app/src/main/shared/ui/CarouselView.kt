@@ -24,7 +24,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
-import kotlinx.coroutines.flow.filterNotNull
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -32,6 +31,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlin.math.abs
 
 /**
@@ -60,7 +60,7 @@ fun <T> CarouselView(
     val density = LocalDensity.current
 
     BoxWithConstraints(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize(),
     ) {
         val spacing = 14.dp
         val navBottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -92,17 +92,17 @@ fun <T> CarouselView(
                     } else {
                         val viewportCenter =
                             (listState.layoutInfo.viewportStartOffset + listState.layoutInfo.viewportEndOffset) / 2
-                        val centeredItem = visibleItems.minByOrNull { item ->
-                            abs((item.offset + item.size / 2) - viewportCenter)
-                        }
+                        val centeredItem =
+                            visibleItems.minByOrNull { item ->
+                                abs((item.offset + item.size / 2) - viewportCenter)
+                            }
                         centeredItem?.let { item ->
                             val distance = abs((item.offset + item.size / 2) - viewportCenter).toFloat()
                             Triple(item.index, distance, listState.isScrollInProgress)
                         }
                     }
                 }
-            }
-                .filterNotNull()
+            }.filterNotNull()
                 .distinctUntilChanged()
                 .collect { (centeredIndex, distance, isScrolling) ->
                     val shouldPromote = !isScrolling || distance <= snapThresholdPx
@@ -116,22 +116,24 @@ fun <T> CarouselView(
         LazyRow(
             state = listState,
             horizontalArrangement = Arrangement.spacedBy(spacing),
-            contentPadding = PaddingValues(
-                start = sidePadding,
-                end = sidePadding,
-                top = 24.dp,
-                bottom = 24.dp + navBottomInset
-            ),
+            contentPadding =
+                PaddingValues(
+                    start = sidePadding,
+                    end = sidePadding,
+                    top = 24.dp,
+                    bottom = 24.dp + navBottomInset,
+                ),
             flingBehavior = flingBehavior,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
         ) {
             itemsIndexed(items) { index, item ->
                 // Compute distance from viewport center as a 0..1 fraction
                 val distanceFraction by remember {
                     derivedStateOf {
                         val layoutInfo = listState.layoutInfo
-                        val itemInfo = layoutInfo.visibleItemsInfo.find { it.index == index }
-                            ?: return@derivedStateOf 1f
+                        val itemInfo =
+                            layoutInfo.visibleItemsInfo.find { it.index == index }
+                                ?: return@derivedStateOf 1f
                         val viewportCenter =
                             (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2f
                         val itemCenter = itemInfo.offset + itemInfo.size / 2f
@@ -144,42 +146,46 @@ fun <T> CarouselView(
                 // Smooth animated values driven by distance
                 val scale by animateFloatAsState(
                     targetValue = 1.12f - (0.22f * distanceFraction),
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    ),
-                    label = "carouselScale"
+                    animationSpec =
+                        spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow,
+                        ),
+                    label = "carouselScale",
                 )
                 val rise by animateFloatAsState(
                     targetValue = 1f - distanceFraction,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    ),
-                    label = "carouselRise"
+                    animationSpec =
+                        spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow,
+                        ),
+                    label = "carouselRise",
                 )
                 val itemAlpha by animateFloatAsState(
                     targetValue = 1f - (0.35f * distanceFraction),
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMedium
-                    ),
-                    label = "carouselAlpha"
+                    animationSpec =
+                        spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMedium,
+                        ),
+                    label = "carouselAlpha",
                 )
 
                 val risePx = with(density) { (16.dp * rise).toPx() }
                 val isSelected = index == selectedIndex
 
                 Box(
-                    modifier = Modifier
-                        .width(baseCardWidth)
-                        .height(baseCardHeight + 28.dp)
-                        .graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                            translationY = -risePx
-                            alpha = itemAlpha
-                        }
+                    modifier =
+                        Modifier
+                            .width(baseCardWidth)
+                            .height(baseCardHeight + 28.dp)
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                                translationY = -risePx
+                                alpha = itemAlpha
+                            },
                 ) {
                     itemContent(item, index, isSelected, baseCardWidth, baseCardHeight)
                 }
@@ -220,11 +226,12 @@ fun JoystickCarouselScroll(
                 val now = System.currentTimeMillis()
                 if (now - lastNavTime > cooldownMs) {
                     lastNavTime = now
-                    val newIndex = if (value > 0) {
-                        (currentIndex + 1).coerceAtMost(itemCount - 1)
-                    } else {
-                        (currentIndex - 1).coerceAtLeast(0)
-                    }
+                    val newIndex =
+                        if (value > 0) {
+                            (currentIndex + 1).coerceAtMost(itemCount - 1)
+                        } else {
+                            (currentIndex - 1).coerceAtLeast(0)
+                        }
                     if (newIndex != currentIndex) {
                         onIndexChanged(newIndex)
                     }

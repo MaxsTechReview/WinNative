@@ -14,13 +14,14 @@ val WinNativeTextPrimary = Color(0xFFF0F4FF)
 val WinNativeTextSecondary = Color(0xFF7A8FA8)
 val WinNativeDanger = Color(0xFFFF7A88)
 
-private val WinNativeColorScheme = darkColorScheme(
-    primary = WinNativeAccent,
-    background = WinNativeBackground,
-    surface = WinNativeSurface,
-    onSurface = WinNativeTextPrimary,
-    onBackground = WinNativeTextPrimary,
-)
+private val WinNativeColorScheme =
+    darkColorScheme(
+        primary = WinNativeAccent,
+        background = WinNativeBackground,
+        surface = WinNativeSurface,
+        onSurface = WinNativeTextPrimary,
+        onBackground = WinNativeTextPrimary,
+    )
 
 @Composable
 fun WinNativeTheme(content: @Composable () -> Unit) {

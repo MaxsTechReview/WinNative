@@ -23,7 +23,7 @@
 #elif defined(PIPE_CC_MSVC)
 #define PIPE_ATOMIC_MSVC_INTRINSIC
 #elif (defined(PIPE_CC_MSVC) && defined(PIPE_ARCH_X86))
-#define PIPE_ATOMIC_ASM_MSVC_X86                
+#define PIPE_ATOMIC_ASM_MSVC_X86
 #elif (defined(PIPE_CC_GCC) && defined(PIPE_ARCH_X86))
 #define PIPE_ATOMIC_ASM_GCC_X86
 #elif (defined(PIPE_CC_GCC) && defined(PIPE_ARCH_X86_64))
@@ -33,7 +33,6 @@
 #else
 #error "Unsupported platform"
 #endif
-
 
 #if defined(PIPE_ATOMIC_ASM_GCC_X86_64)
 #define PIPE_ATOMIC "GCC x86_64 assembly"
@@ -45,33 +44,24 @@ extern "C" {
 #define p_atomic_set(_v, _i) (*(_v) = (_i))
 #define p_atomic_read(_v) (*(_v))
 
-static inline boolean
-p_atomic_dec_zero(int32_t *v)
-{
-   unsigned char c;
+static inline boolean p_atomic_dec_zero(int32_t *v) {
+  unsigned char c;
 
-   __asm__ __volatile__("lock; decl %0; sete %1":"+m"(*v), "=qm"(c)
-			::"memory");
+  __asm__ __volatile__("lock; decl %0; sete %1" : "+m"(*v), "=qm"(c)::"memory");
 
-   return c != 0;
+  return c != 0;
 }
 
-static inline void
-p_atomic_inc(int32_t *v)
-{
-   __asm__ __volatile__("lock; incl %0":"+m"(*v));
+static inline void p_atomic_inc(int32_t *v) {
+  __asm__ __volatile__("lock; incl %0" : "+m"(*v));
 }
 
-static inline void
-p_atomic_dec(int32_t *v)
-{
-   __asm__ __volatile__("lock; decl %0":"+m"(*v));
+static inline void p_atomic_dec(int32_t *v) {
+  __asm__ __volatile__("lock; decl %0" : "+m"(*v));
 }
 
-static inline int32_t
-p_atomic_cmpxchg(int32_t *v, int32_t old, int32_t _new)
-{
-   return __sync_val_compare_and_swap(v, old, _new);
+static inline int32_t p_atomic_cmpxchg(int32_t *v, int32_t old, int32_t _new) {
+  return __sync_val_compare_and_swap(v, old, _new);
 }
 
 #ifdef __cplusplus
@@ -79,7 +69,6 @@ p_atomic_cmpxchg(int32_t *v, int32_t old, int32_t _new)
 #endif
 
 #endif /* PIPE_ATOMIC_ASM_GCC_X86_64 */
-
 
 #if defined(PIPE_ATOMIC_ASM_GCC_X86)
 
@@ -92,33 +81,24 @@ extern "C" {
 #define p_atomic_set(_v, _i) (*(_v) = (_i))
 #define p_atomic_read(_v) (*(_v))
 
-static inline boolean
-p_atomic_dec_zero(int32_t *v)
-{
-   unsigned char c;
+static inline boolean p_atomic_dec_zero(int32_t *v) {
+  unsigned char c;
 
-   __asm__ __volatile__("lock; decl %0; sete %1":"+m"(*v), "=qm"(c)
-			::"memory");
+  __asm__ __volatile__("lock; decl %0; sete %1" : "+m"(*v), "=qm"(c)::"memory");
 
-   return c != 0;
+  return c != 0;
 }
 
-static inline void
-p_atomic_inc(int32_t *v)
-{
-   __asm__ __volatile__("lock; incl %0":"+m"(*v));
+static inline void p_atomic_inc(int32_t *v) {
+  __asm__ __volatile__("lock; incl %0" : "+m"(*v));
 }
 
-static inline void
-p_atomic_dec(int32_t *v)
-{
-   __asm__ __volatile__("lock; decl %0":"+m"(*v));
+static inline void p_atomic_dec(int32_t *v) {
+  __asm__ __volatile__("lock; decl %0" : "+m"(*v));
 }
 
-static inline int32_t
-p_atomic_cmpxchg(int32_t *v, int32_t old, int32_t _new)
-{
-   return __sync_val_compare_and_swap(v, old, _new);
+static inline int32_t p_atomic_cmpxchg(int32_t *v, int32_t old, int32_t _new) {
+  return __sync_val_compare_and_swap(v, old, _new);
 }
 
 #ifdef __cplusplus
@@ -126,8 +106,6 @@ p_atomic_cmpxchg(int32_t *v, int32_t old, int32_t _new)
 #endif
 
 #endif
-
-
 
 /* Implementation using GCC-provided synchronization intrinsics
  */
@@ -142,28 +120,20 @@ extern "C" {
 #define p_atomic_set(_v, _i) (*(_v) = (_i))
 #define p_atomic_read(_v) (*(_v))
 
-static inline boolean
-p_atomic_dec_zero(int32_t *v)
-{
-   return (__sync_sub_and_fetch(v, 1) == 0);
+static inline boolean p_atomic_dec_zero(int32_t *v) {
+  return (__sync_sub_and_fetch(v, 1) == 0);
 }
 
-static inline void
-p_atomic_inc(int32_t *v)
-{
-   (void) __sync_add_and_fetch(v, 1);
+static inline void p_atomic_inc(int32_t *v) {
+  (void)__sync_add_and_fetch(v, 1);
 }
 
-static inline void
-p_atomic_dec(int32_t *v)
-{
-   (void) __sync_sub_and_fetch(v, 1);
+static inline void p_atomic_dec(int32_t *v) {
+  (void)__sync_sub_and_fetch(v, 1);
 }
 
-static inline int32_t
-p_atomic_cmpxchg(int32_t *v, int32_t old, int32_t _new)
-{
-   return __sync_val_compare_and_swap(v, old, _new);
+static inline int32_t p_atomic_cmpxchg(int32_t *v, int32_t old, int32_t _new) {
+  return __sync_val_compare_and_swap(v, old, _new);
 }
 
 #ifdef __cplusplus
@@ -172,24 +142,21 @@ p_atomic_cmpxchg(int32_t *v, int32_t old, int32_t _new)
 
 #endif
 
-
-
 /* Unlocked version for single threaded environments, such as some
  * windows kernel modules.
  */
-#if defined(PIPE_ATOMIC_OS_UNLOCKED) 
+#if defined(PIPE_ATOMIC_OS_UNLOCKED)
 
 #define PIPE_ATOMIC "Unlocked"
 
 #define p_atomic_set(_v, _i) (*(_v) = (_i))
 #define p_atomic_read(_v) (*(_v))
-#define p_atomic_dec_zero(_v) ((boolean) --(*(_v)))
-#define p_atomic_inc(_v) ((void) (*(_v))++)
-#define p_atomic_dec(_v) ((void) (*(_v))--)
+#define p_atomic_dec_zero(_v) ((boolean)--(*(_v)))
+#define p_atomic_inc(_v) ((void)(*(_v))++)
+#define p_atomic_dec(_v) ((void)(*(_v))--)
 #define p_atomic_cmpxchg(_v, old, _new) (*(_v) == old ? *(_v) = (_new) : *(_v))
 
 #endif
-
 
 /* Locally coded assembly for MSVC on x86:
  */
@@ -204,52 +171,44 @@ extern "C" {
 #define p_atomic_set(_v, _i) (*(_v) = (_i))
 #define p_atomic_read(_v) (*(_v))
 
-static inline boolean
-p_atomic_dec_zero(int32_t *v)
-{
-   unsigned char c;
+static inline boolean p_atomic_dec_zero(int32_t *v) {
+  unsigned char c;
 
-   __asm {
+  __asm {
       mov       eax, [v]
       lock dec  dword ptr [eax]
       sete      byte ptr [c]
-   }
+  }
 
-   return c != 0;
+  return c != 0;
 }
 
-static inline void
-p_atomic_inc(int32_t *v)
-{
-   __asm {
+static inline void p_atomic_inc(int32_t *v) {
+  __asm {
       mov       eax, [v]
       lock inc  dword ptr [eax]
-   }
+  }
 }
 
-static inline void
-p_atomic_dec(int32_t *v)
-{
-   __asm {
+static inline void p_atomic_dec(int32_t *v) {
+  __asm {
       mov       eax, [v]
       lock dec  dword ptr [eax]
-   }
+  }
 }
 
-static inline int32_t
-p_atomic_cmpxchg(int32_t *v, int32_t old, int32_t _new)
-{
-   int32_t orig;
+static inline int32_t p_atomic_cmpxchg(int32_t *v, int32_t old, int32_t _new) {
+  int32_t orig;
 
-   __asm {
+  __asm {
       mov ecx, [v]
       mov eax, [old]
       mov edx, [_new]
       lock cmpxchg [ecx], edx
       mov [orig], eax
-   }
+  }
 
-   return orig;
+  return orig;
 }
 
 #ifdef __cplusplus
@@ -257,7 +216,6 @@ p_atomic_cmpxchg(int32_t *v, int32_t old, int32_t _new)
 #endif
 
 #endif
-
 
 #if defined(PIPE_ATOMIC_MSVC_INTRINSIC)
 
@@ -276,28 +234,20 @@ extern "C" {
 #define p_atomic_set(_v, _i) (*(_v) = (_i))
 #define p_atomic_read(_v) (*(_v))
 
-static inline boolean
-p_atomic_dec_zero(int32_t *v)
-{
-   return _InterlockedDecrement((long *)v) == 0;
+static inline boolean p_atomic_dec_zero(int32_t *v) {
+  return _InterlockedDecrement((long *)v) == 0;
 }
 
-static inline void
-p_atomic_inc(int32_t *v)
-{
-   _InterlockedIncrement((long *)v);
+static inline void p_atomic_inc(int32_t *v) {
+  _InterlockedIncrement((long *)v);
 }
 
-static inline void
-p_atomic_dec(int32_t *v)
-{
-   _InterlockedDecrement((long *)v);
+static inline void p_atomic_dec(int32_t *v) {
+  _InterlockedDecrement((long *)v);
 }
 
-static inline int32_t
-p_atomic_cmpxchg(int32_t *v, int32_t old, int32_t _new)
-{
-   return _InterlockedCompareExchange((long *)v, _new, old);
+static inline int32_t p_atomic_cmpxchg(int32_t *v, int32_t old, int32_t _new) {
+  return _InterlockedCompareExchange((long *)v, _new, old);
 }
 
 #ifdef __cplusplus
@@ -319,19 +269,17 @@ extern "C" {
 #define p_atomic_set(_v, _i) (*(_v) = (_i))
 #define p_atomic_read(_v) (*(_v))
 
-static inline boolean
-p_atomic_dec_zero(int32_t *v)
-{
-   uint32_t n = atomic_dec_32_nv((uint32_t *) v);
+static inline boolean p_atomic_dec_zero(int32_t *v) {
+  uint32_t n = atomic_dec_32_nv((uint32_t *)v);
 
-   return n != 0;
+  return n != 0;
 }
 
-#define p_atomic_inc(_v) atomic_inc_32((uint32_t *) _v)
-#define p_atomic_dec(_v) atomic_dec_32((uint32_t *) _v)
+#define p_atomic_inc(_v) atomic_inc_32((uint32_t *)_v)
+#define p_atomic_dec(_v) atomic_dec_32((uint32_t *)_v)
 
-#define p_atomic_cmpxchg(_v, _old, _new) \
-	atomic_cas_32( (uint32_t *) _v, (uint32_t) _old, (uint32_t) _new)
+#define p_atomic_cmpxchg(_v, _old, _new)                                       \
+  atomic_cas_32((uint32_t *)_v, (uint32_t)_old, (uint32_t)_new)
 
 #ifdef __cplusplus
 }
@@ -339,11 +287,8 @@ p_atomic_dec_zero(int32_t *v)
 
 #endif
 
-
 #ifndef PIPE_ATOMIC
 #error "No pipe_atomic implementation selected"
 #endif
-
-
 
 #endif /* U_ATOMIC_H */

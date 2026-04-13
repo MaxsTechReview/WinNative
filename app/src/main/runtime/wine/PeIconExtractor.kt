@@ -12,21 +12,27 @@ import java.nio.ByteOrder
  * Parses PE resource section to find RT_GROUP_ICON / RT_ICON entries.
  */
 object PeIconExtractor {
-
     fun extractIcon(exeFile: File): Bitmap? {
         if (!exeFile.exists()) return null
         return try {
             RandomAccessFile(exeFile, "r").use { raf -> extractFromPe(raf) }
-        } catch (_: Exception) { null }
+        } catch (_: Exception) {
+            null
+        }
     }
 
-    fun extractAndSave(exeFile: File, outPng: File): Boolean {
+    fun extractAndSave(
+        exeFile: File,
+        outPng: File,
+    ): Boolean {
         val bmp = extractIcon(exeFile) ?: return false
         return try {
             outPng.parentFile?.mkdirs()
             outPng.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
             true
-        } catch (_: Exception) { false }
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private fun extractFromPe(raf: RandomAccessFile): Bitmap? {
@@ -103,7 +109,13 @@ object PeIconExtractor {
         if (count == 0) return null
 
         // Find the largest icon entry
-        data class GrpEntry(val w: Int, val h: Int, val bitCount: Int, val bytesInRes: Int, val id: Int)
+        data class GrpEntry(
+            val w: Int,
+            val h: Int,
+            val bitCount: Int,
+            val bytesInRes: Int,
+            val id: Int,
+        )
         val entries = mutableListOf<GrpEntry>()
         for (i in 0 until count) {
             val w = bb.get().toInt() and 0xFF
@@ -142,7 +154,12 @@ object PeIconExtractor {
         return BitmapFactory.decodeByteArray(ico, 0, ico.size)
     }
 
-    private fun buildIco(data: ByteArray, w: Int, h: Int, bitCount: Int): ByteArray {
+    private fun buildIco(
+        data: ByteArray,
+        w: Int,
+        h: Int,
+        bitCount: Int,
+    ): ByteArray {
         val bos = ByteArrayOutputStream()
         val buf = ByteBuffer.allocate(22).order(ByteOrder.LITTLE_ENDIAN)
         buf.putShort(0) // reserved
@@ -162,7 +179,11 @@ object PeIconExtractor {
     }
 
     // Resource directory parsing helpers
-    private fun findResourceType(bb: ByteBuffer, dirOffset: Int, typeId: Int): List<Int> {
+    private fun findResourceType(
+        bb: ByteBuffer,
+        dirOffset: Int,
+        typeId: Int,
+    ): List<Int> {
         bb.position(dirOffset + 12)
         val namedCount = bb.short.toInt() and 0xFFFF
         val idCount = bb.short.toInt() and 0xFFFF
@@ -177,7 +198,10 @@ object PeIconExtractor {
         return results
     }
 
-    private fun resolveToDataEntry(bb: ByteBuffer, subdirOffset: Int): Pair<Int, Int>? {
+    private fun resolveToDataEntry(
+        bb: ByteBuffer,
+        subdirOffset: Int,
+    ): Pair<Int, Int>? {
         // Navigate through sub-directories until we reach a data entry
         bb.position(subdirOffset + 12)
         val namedCount = bb.short.toInt() and 0xFFFF
@@ -199,7 +223,11 @@ object PeIconExtractor {
         }
     }
 
-    private fun resolveIconById(bb: ByteBuffer, iconSubdirs: List<Int>, targetId: Int): Pair<Int, Int>? {
+    private fun resolveIconById(
+        bb: ByteBuffer,
+        iconSubdirs: List<Int>,
+        targetId: Int,
+    ): Pair<Int, Int>? {
         for (subdirOff in iconSubdirs) {
             bb.position(subdirOff + 12)
             val namedCount = bb.short.toInt() and 0xFFFF
@@ -231,6 +259,10 @@ object PeIconExtractor {
     private fun readShort(raf: RandomAccessFile): Int {
         val b = ByteArray(2)
         raf.readFully(b)
-        return ByteBuffer.wrap(b).order(ByteOrder.LITTLE_ENDIAN).short.toInt() and 0xFFFF
+        return ByteBuffer
+            .wrap(b)
+            .order(ByteOrder.LITTLE_ENDIAN)
+            .short
+            .toInt() and 0xFFFF
     }
 }

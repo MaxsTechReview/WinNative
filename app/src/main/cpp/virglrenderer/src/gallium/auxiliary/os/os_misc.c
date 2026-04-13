@@ -25,19 +25,17 @@
  *
  **************************************************************************/
 
-
 #include "os_misc.h"
 
 #include <stdarg.h>
 
-
 #if defined(PIPE_SUBSYSTEM_WINDOWS_USER)
 
 #ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN      // Exclude rarely-used stuff from Windows headers
+#define WIN32_LEAN_AND_MEAN // Exclude rarely-used stuff from Windows headers
 #endif
-#include <windows.h>
 #include <stdio.h>
+#include <windows.h>
 
 #else
 
@@ -46,46 +44,36 @@
 
 #endif
 
+void os_log_message(const char *message) {
+  /* If the GALLIUM_LOG_FILE environment variable is set to a valid filename,
+   * write all messages to that file.
+   */
+  static FILE *fout = NULL;
 
-void
-os_log_message(const char *message)
-{
-   /* If the GALLIUM_LOG_FILE environment variable is set to a valid filename,
-    * write all messages to that file.
-    */
-   static FILE *fout = NULL;
-
-   if (!fout) {
-      /* one-time init */
-      const char *filename = os_get_option("GALLIUM_LOG_FILE");
-      if (filename)
-         fout = fopen(filename, "w");
-      if (!fout)
-         fout = stderr;
-   }
+  if (!fout) {
+    /* one-time init */
+    const char *filename = os_get_option("GALLIUM_LOG_FILE");
+    if (filename)
+      fout = fopen(filename, "w");
+    if (!fout)
+      fout = stderr;
+  }
 
 #if defined(PIPE_SUBSYSTEM_WINDOWS_USER)
-   OutputDebugStringA(message);
-   if(GetConsoleWindow() && !IsDebuggerPresent()) {
-      fflush(stdout);
-      fputs(message, fout);
-      fflush(fout);
-   }
-   else if (fout != stderr) {
-      fputs(message, fout);
-      fflush(fout);
-   }
+  OutputDebugStringA(message);
+  if (GetConsoleWindow() && !IsDebuggerPresent()) {
+    fflush(stdout);
+    fputs(message, fout);
+    fflush(fout);
+  } else if (fout != stderr) {
+    fputs(message, fout);
+    fflush(fout);
+  }
 #else /* !PIPE_SUBSYSTEM_WINDOWS */
-   fflush(stdout);
-   fputs(message, fout);
-   fflush(fout);
+  fflush(stdout);
+  fputs(message, fout);
+  fflush(fout);
 #endif
 }
 
-
-const char *
-os_get_option(const char *name)
-{
-   return getenv(name);
-}
-
+const char *os_get_option(const char *name) { return getenv(name); }

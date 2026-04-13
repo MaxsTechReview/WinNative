@@ -25,13 +25,10 @@
  *
  **************************************************************************/
 
-
 #ifndef U_FORMAT_S3TC_H_
 #define U_FORMAT_S3TC_H_
 
-
 #include "pipe/p_compiler.h"
-
 
 enum util_format_dxtn {
   UTIL_FORMAT_DXT1_RGB = 0x83F0,
@@ -40,11 +37,8 @@ enum util_format_dxtn {
   UTIL_FORMAT_DXT5_RGBA = 0x83F3
 };
 
-
 extern boolean util_format_s3tc_enabled;
 
-
-void
-util_format_s3tc_init(void);
+void util_format_s3tc_init(void);
 
 #endif

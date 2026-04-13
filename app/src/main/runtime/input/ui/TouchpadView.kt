@@ -16,22 +16,21 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.preference.PreferenceManager
 import com.winlator.cmod.R
-import com.winlator.cmod.shared.android.AppUtils
-import com.winlator.cmod.shared.math.Mathf
-import com.winlator.cmod.shared.math.XForm
 import com.winlator.cmod.runtime.display.renderer.ViewTransformation
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags
 import com.winlator.cmod.runtime.display.winhandler.WinHandler
 import com.winlator.cmod.runtime.display.xserver.Pointer
 import com.winlator.cmod.runtime.display.xserver.XServer
+import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.math.Mathf
+import com.winlator.cmod.shared.math.XForm
 
 class TouchpadView(
     context: Context,
     private val xServer: XServer,
     private val timeoutHandler: Handler?,
-    private val hideControlsRunnable: Runnable?
+    private val hideControlsRunnable: Runnable?,
 ) : View(context) {
-
     companion object {
         private const val MAX_FINGERS: Byte = 4
         private const val MAX_TWO_FINGERS_SCROLL_DISTANCE: Short = 350
@@ -65,18 +64,19 @@ class TouchpadView(
     private val preferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
     private val longPressHandler = Handler(Looper.getMainLooper())
     private var longPressActive = false
-    private val longPressRunnable = Runnable {
-        if (numFingers.toInt() == 1 && fingers[0] != null && fingers[0]!!.travelDistance() < MAX_TAP_TRAVEL_DISTANCE) {
-            longPressActive = true
-            if (xServer.isRelativeMouseMovement) {
-                xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTDOWN, 0, 0, 0)
-                xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTUP, 0, 0, 0)
-            } else {
-                xServer.injectPointerButtonPress(Pointer.Button.BUTTON_RIGHT)
-                xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
+    private val longPressRunnable =
+        Runnable {
+            if (numFingers.toInt() == 1 && fingers[0] != null && fingers[0]!!.travelDistance() < MAX_TAP_TRAVEL_DISTANCE) {
+                longPressActive = true
+                if (xServer.isRelativeMouseMovement) {
+                    xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTDOWN, 0, 0, 0)
+                    xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTUP, 0, 0, 0)
+                } else {
+                    xServer.injectPointerButtonPress(Pointer.Button.BUTTON_RIGHT)
+                    xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
+                }
             }
         }
-    }
 
     init {
         layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
@@ -85,22 +85,39 @@ class TouchpadView(
         isFocusable = true
         isFocusableInTouchMode = false
         pointerIcon = PointerIcon.load(resources, R.drawable.hidden_pointer_arrow)
-        updateXform(AppUtils.getScreenWidth(), AppUtils.getScreenHeight(), xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
+        updateXform(
+            AppUtils.getScreenWidth(),
+            AppUtils.getScreenHeight(),
+            xServer.screenInfo.width.toInt(),
+            xServer.screenInfo.height.toInt(),
+        )
 
         setOnGenericMotionListener { _, event ->
             if (event.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS) {
                 handleStylusHoverEvent(event)
-            } else false
+            } else {
+                false
+            }
         }
     }
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+    override fun onSizeChanged(
+        w: Int,
+        h: Int,
+        oldw: Int,
+        oldh: Int,
+    ) {
         super.onSizeChanged(w, h, oldw, oldh)
         updateXform(w, h, xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
         resolutionScale = 1000.0f / Math.min(xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
     }
 
-    private fun updateXform(outerWidth: Int, outerHeight: Int, innerWidth: Int, innerHeight: Int) {
+    private fun updateXform(
+        outerWidth: Int,
+        outerHeight: Int,
+        innerWidth: Int,
+        innerHeight: Int,
+    ) {
         val viewTransformation = ViewTransformation()
         viewTransformation.update(outerWidth, outerHeight, innerWidth, innerHeight)
         val invAspect = 1.0f / viewTransformation.aspect
@@ -112,7 +129,10 @@ class TouchpadView(
         }
     }
 
-    inner class Finger(x: Float, y: Float) {
+    inner class Finger(
+        x: Float,
+        y: Float,
+    ) {
         var x: Int
         var y: Int
         val startX: Int
@@ -127,7 +147,10 @@ class TouchpadView(
             this.y = transformedPoint[1].toInt().also { this.lastY = it }.also { this.startY = it }
         }
 
-        fun update(x: Float, y: Float) {
+        fun update(
+            x: Float,
+            y: Float,
+        ) {
             lastX = this.x
             lastY = this.y
             val transformedPoint = XForm.transformPoint(xform, x, y)
@@ -156,7 +179,7 @@ class TouchpadView(
         if (!mouseEnabled) return true
         val isTouchscreenMode = preferences.getBoolean("touchscreen_toggle", false)
         resetTouchscreenTimeout()
-        
+
         return when (event.getToolType(0)) {
             MotionEvent.TOOL_TYPE_STYLUS -> handleStylusEvent(event)
             else -> if (isTouchscreenMode) handleTouchscreenEvent(event) else handleTouchpadEvent(event)
@@ -185,11 +208,20 @@ class TouchpadView(
         val buttonState = event.buttonState
         when (action) {
             MotionEvent.ACTION_DOWN -> {
-                if ((buttonState and MotionEvent.BUTTON_SECONDARY) != 0) handleStylusRightClick(event)
-                else handleStylusLeftClick(event)
+                if ((buttonState and MotionEvent.BUTTON_SECONDARY) != 0) {
+                    handleStylusRightClick(event)
+                } else {
+                    handleStylusLeftClick(event)
+                }
             }
-            MotionEvent.ACTION_MOVE -> handleStylusMove(event)
-            MotionEvent.ACTION_UP -> handleStylusUp()
+
+            MotionEvent.ACTION_MOVE -> {
+                handleStylusMove(event)
+            }
+
+            MotionEvent.ACTION_UP -> {
+                handleStylusUp()
+            }
         }
         return true
     }
@@ -237,16 +269,19 @@ class TouchpadView(
                 }
 
                 if (simTouchScreen) {
-                    val clickDelay = Runnable {
-                        if (continueClick) {
-                            xServer.injectPointerMove(lastTouchedPosX, lastTouchedPosY)
-                            xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+                    val clickDelay =
+                        Runnable {
+                            if (continueClick) {
+                                xServer.injectPointerMove(lastTouchedPosX, lastTouchedPosY)
+                                xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+                            }
                         }
-                    }
                     if (pointerId == 0) {
                         continueClick = true
                         val finger = fingers[0]!!
-                        if (Math.hypot((finger.x - lastTouchedPosX).toDouble(), (finger.y - lastTouchedPosY).toDouble()) * resolutionScale > EFFECTIVE_TOUCH_DISTANCE) {
+                        if (Math.hypot((finger.x - lastTouchedPosX).toDouble(), (finger.y - lastTouchedPosY).toDouble()) * resolutionScale >
+                            EFFECTIVE_TOUCH_DISTANCE
+                        ) {
                             lastTouchedPosX = finger.x
                             lastTouchedPosY = finger.y
                         }
@@ -254,7 +289,9 @@ class TouchpadView(
                     } else if (pointerId == 1 && numFingers < 2) {
                         continueClick = true
                         val finger = fingers[1]!!
-                        if (Math.hypot((finger.x - lastTouchedPosX).toDouble(), (finger.y - lastTouchedPosY).toDouble()) * resolutionScale > EFFECTIVE_TOUCH_DISTANCE) {
+                        if (Math.hypot((finger.x - lastTouchedPosX).toDouble(), (finger.y - lastTouchedPosY).toDouble()) * resolutionScale >
+                            EFFECTIVE_TOUCH_DISTANCE
+                        ) {
                             lastTouchedPosX = finger.x
                             lastTouchedPosY = finger.y
                         }
@@ -264,11 +301,15 @@ class TouchpadView(
                     }
                 }
             }
+
             MotionEvent.ACTION_MOVE -> {
                 if (event.isFromSource(InputDevice.SOURCE_MOUSE)) {
                     val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
-                    if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
-                    else xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
+                    if (xServer.isRelativeMouseMovement) {
+                        xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
+                    } else {
+                        xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
+                    }
                 } else {
                     for (i in 0 until MAX_FINGERS.toInt()) {
                         val finger = fingers[i] ?: continue
@@ -284,6 +325,7 @@ class TouchpadView(
                     }
                 }
             }
+
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
                 longPressHandler.removeCallbacks(longPressRunnable)
                 fingers[pointerId]?.let {
@@ -294,6 +336,7 @@ class TouchpadView(
                     numFingers--
                 }
             }
+
             MotionEvent.ACTION_CANCEL -> {
                 longPressHandler.removeCallbacks(longPressRunnable)
                 longPressActive = false
@@ -315,15 +358,20 @@ class TouchpadView(
                 numFingers++
                 handleTouchDown(event)
             }
+
             MotionEvent.ACTION_MOVE -> {
                 for (i in 0 until MAX_FINGERS.toInt()) {
                     val finger = fingers[i] ?: continue
                     val pIdx = event.findPointerIndex(i)
                     if (pIdx >= 0) finger.update(event.getX(pIdx), event.getY(pIdx))
                 }
-                if (numFingers.toInt() == 2) handleTwoFingerScroll(event)
-                else handleTouchMove(event)
+                if (numFingers.toInt() == 2) {
+                    handleTwoFingerScroll(event)
+                } else {
+                    handleTouchMove(event)
+                }
             }
+
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
                 val finger = fingers[pointerId]
                 if (numFingers.toInt() == 2 && finger?.isTap() == true) {
@@ -334,6 +382,7 @@ class TouchpadView(
                 fingers[pointerId] = null
                 numFingers--
             }
+
             MotionEvent.ACTION_CANCEL -> {
                 for (i in 0 until MAX_FINGERS.toInt()) fingers[i] = null
                 numFingers = 0
@@ -345,24 +394,36 @@ class TouchpadView(
 
     private fun handleTouchDown(event: MotionEvent) {
         val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
-        if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
-        else xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
+        if (xServer.isRelativeMouseMovement) {
+            xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
+        } else {
+            xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
+        }
 
         if (numFingers.toInt() == 1) {
-            if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.LEFTDOWN, 0, 0, 0)
-            else xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+            if (xServer.isRelativeMouseMovement) {
+                xServer.winHandler.mouseEvent(MouseEventFlags.LEFTDOWN, 0, 0, 0)
+            } else {
+                xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+            }
         }
     }
 
     private fun handleTouchMove(event: MotionEvent) {
         val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
-        if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
-        else xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
+        if (xServer.isRelativeMouseMovement) {
+            xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
+        } else {
+            xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
+        }
     }
 
     private fun handleTouchUp() {
-        if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.LEFTUP, 0, 0, 0)
-        else xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+        if (xServer.isRelativeMouseMovement) {
+            xServer.winHandler.mouseEvent(MouseEventFlags.LEFTUP, 0, 0, 0)
+        } else {
+            xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+        }
     }
 
     private fun handleTwoFingerScroll(event: MotionEvent) {
@@ -381,8 +442,11 @@ class TouchpadView(
     private fun handleTwoFingerTap() {
         // FIX: Ensure clean right-click by clearing left button first
         if (xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) {
-            if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.LEFTUP, 0, 0, 0)
-            else xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+            if (xServer.isRelativeMouseMovement) {
+                xServer.winHandler.mouseEvent(MouseEventFlags.LEFTUP, 0, 0, 0)
+            } else {
+                xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+            }
         }
 
         if (xServer.isRelativeMouseMovement) {
@@ -408,13 +472,20 @@ class TouchpadView(
         when (numFingers.toInt()) {
             1 -> {
                 if (simTouchScreen) {
-                    postDelayed({ if (continueClick) xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT) }, CLICK_DELAYED_TIME.toLong())
-                } else if (finger1.isTap()) pressPointerButtonLeft(finger1)
+                    postDelayed(
+                        { if (continueClick) xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT) },
+                        CLICK_DELAYED_TIME.toLong(),
+                    )
+                } else if (finger1.isTap()) {
+                    pressPointerButtonLeft(finger1)
+                }
             }
+
             2 -> {
                 val finger2 = findSecondFinger(finger1)
                 if (finger2 != null && finger1.isTap()) pressPointerButtonRight(finger1)
             }
+
             4 -> {
                 fourFingersTapCallback?.let {
                     if (fingers.filterNotNull().all { it.isTap() }) it.run()
@@ -431,9 +502,10 @@ class TouchpadView(
         }
         var skipPointerMove = false
         val finger2 = if (numFingers.toInt() == 2) findSecondFinger(finger1) else null
-        
+
         if (finger2 != null) {
-            val currDistance = Math.hypot((finger1.x - finger2.x).toDouble(), (finger1.y - finger2.y).toDouble()).toFloat() * resolutionScale
+            val currDistance =
+                Math.hypot((finger1.x - finger2.x).toDouble(), (finger1.y - finger2.y).toDouble()).toFloat() * resolutionScale
             if (currDistance < MAX_TWO_FINGERS_SCROLL_DISTANCE) {
                 scrollAccumY += ((finger1.y + finger2.y) * 0.5f) - (finger1.lastY + finger2.lastY) * 0.5f
                 if (Math.abs(scrollAccumY) > 100) {
@@ -443,7 +515,9 @@ class TouchpadView(
                     scrollAccumY = 0f
                 }
                 scrolling = true
-            } else if (currDistance >= MAX_TWO_FINGERS_SCROLL_DISTANCE && !xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT) && finger2.travelDistance() < MAX_TAP_TRAVEL_DISTANCE) {
+            } else if (currDistance >= MAX_TWO_FINGERS_SCROLL_DISTANCE && !xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT) &&
+                finger2.travelDistance() < MAX_TAP_TRAVEL_DISTANCE
+            ) {
                 pressPointerButtonLeft(finger1)
                 skipPointerMove = true
             }
@@ -456,7 +530,9 @@ class TouchpadView(
                 if (System.currentTimeMillis() - finger1.touchTime > CLICK_DELAYED_TIME) xServer.injectPointerMove(finger1.x, finger1.y)
             } else if (xServer.isRelativeMouseMovement) {
                 xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, dx, dy, 0)
-            } else xServer.injectPointerMoveDelta(dx, dy)
+            } else {
+                xServer.injectPointerMoveDelta(dx, dy)
+            }
         }
     }
 
@@ -486,7 +562,9 @@ class TouchpadView(
     }
 
     private fun releasePointerButtonRight(finger: Finger) {
-        if (pointerButtonRightEnabled && finger == fingerPointerButtonRight && xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_RIGHT)) {
+        if (pointerButtonRightEnabled && finger == fingerPointerButtonRight &&
+            xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_RIGHT)
+        ) {
             postDelayed({
                 xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
                 fingerPointerButtonRight = null
@@ -494,64 +572,98 @@ class TouchpadView(
         }
     }
 
-    fun setSensitivity(sensitivity: Float) { this.sensitivity = sensitivity }
-    fun setPointerButtonLeftEnabled(enabled: Boolean) { this.pointerButtonLeftEnabled = enabled }
-    fun setPointerButtonRightEnabled(enabled: Boolean) { this.pointerButtonRightEnabled = enabled }
-    fun setFourFingersTapCallback(callback: Runnable?) { this.fourFingersTapCallback = callback }
+    fun setSensitivity(sensitivity: Float) {
+        this.sensitivity = sensitivity
+    }
+
+    fun setPointerButtonLeftEnabled(enabled: Boolean) {
+        this.pointerButtonLeftEnabled = enabled
+    }
+
+    fun setPointerButtonRightEnabled(enabled: Boolean) {
+        this.pointerButtonRightEnabled = enabled
+    }
+
+    fun setFourFingersTapCallback(callback: Runnable?) {
+        this.fourFingersTapCallback = callback
+    }
 
     fun onExternalMouseEvent(event: MotionEvent): Boolean {
         if (!event.isFromSource(InputDevice.SOURCE_MOUSE)) return false
         val actionButton = event.actionButton
         return when (event.action) {
             MotionEvent.ACTION_BUTTON_PRESS -> {
-                val button = when (actionButton) {
-                    MotionEvent.BUTTON_PRIMARY -> Pointer.Button.BUTTON_LEFT
-                    MotionEvent.BUTTON_SECONDARY -> Pointer.Button.BUTTON_RIGHT
-                    MotionEvent.BUTTON_TERTIARY -> Pointer.Button.BUTTON_MIDDLE
-                    else -> null
-                }
+                val button =
+                    when (actionButton) {
+                        MotionEvent.BUTTON_PRIMARY -> Pointer.Button.BUTTON_LEFT
+                        MotionEvent.BUTTON_SECONDARY -> Pointer.Button.BUTTON_RIGHT
+                        MotionEvent.BUTTON_TERTIARY -> Pointer.Button.BUTTON_MIDDLE
+                        else -> null
+                    }
                 button?.let {
-                    if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.getFlagFor(it, true), 0, 0, 0)
-                    else xServer.injectPointerButtonPress(it)
+                    if (xServer.isRelativeMouseMovement) {
+                        xServer.winHandler.mouseEvent(MouseEventFlags.getFlagFor(it, true), 0, 0, 0)
+                    } else {
+                        xServer.injectPointerButtonPress(it)
+                    }
                 }
                 true
             }
+
             MotionEvent.ACTION_BUTTON_RELEASE -> {
-                val button = when (actionButton) {
-                    MotionEvent.BUTTON_PRIMARY -> Pointer.Button.BUTTON_LEFT
-                    MotionEvent.BUTTON_SECONDARY -> Pointer.Button.BUTTON_RIGHT
-                    MotionEvent.BUTTON_TERTIARY -> Pointer.Button.BUTTON_MIDDLE
-                    else -> null
-                }
+                val button =
+                    when (actionButton) {
+                        MotionEvent.BUTTON_PRIMARY -> Pointer.Button.BUTTON_LEFT
+                        MotionEvent.BUTTON_SECONDARY -> Pointer.Button.BUTTON_RIGHT
+                        MotionEvent.BUTTON_TERTIARY -> Pointer.Button.BUTTON_MIDDLE
+                        else -> null
+                    }
                 button?.let {
-                    if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.getFlagFor(it, false), 0, 0, 0)
-                    else xServer.injectPointerButtonRelease(it)
+                    if (xServer.isRelativeMouseMovement) {
+                        xServer.winHandler.mouseEvent(MouseEventFlags.getFlagFor(it, false), 0, 0, 0)
+                    } else {
+                        xServer.injectPointerButtonRelease(it)
+                    }
                 }
                 true
             }
+
             MotionEvent.ACTION_MOVE, MotionEvent.ACTION_HOVER_MOVE -> {
                 val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
-                if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
-                else xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
+                if (xServer.isRelativeMouseMovement) {
+                    xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
+                } else {
+                    xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
+                }
                 true
             }
+
             MotionEvent.ACTION_SCROLL -> {
                 val scrollY = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
                 if (Math.abs(scrollY) >= 1.0f) {
                     val button = if (scrollY <= -1.0f) Pointer.Button.BUTTON_SCROLL_DOWN else Pointer.Button.BUTTON_SCROLL_UP
-                    if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.WHEEL, 0, 0, scrollY.toInt())
-                    else {
+                    if (xServer.isRelativeMouseMovement) {
+                        xServer.winHandler.mouseEvent(MouseEventFlags.WHEEL, 0, 0, scrollY.toInt())
+                    } else {
                         xServer.injectPointerButtonPress(button)
                         xServer.injectPointerButtonRelease(button)
                     }
                 }
                 true
             }
-            else -> false
+
+            else -> {
+                false
+            }
         }
     }
 
-    fun computeDeltaPoint(lastX: Float, lastY: Float, x: Float, y: Float): FloatArray {
+    fun computeDeltaPoint(
+        lastX: Float,
+        lastY: Float,
+        x: Float,
+        y: Float,
+    ): FloatArray {
         val result = floatArrayOf(0f, 0f)
         XForm.transformPoint(xform, lastX, lastY, result)
         val lX = result[0]
@@ -564,12 +676,11 @@ class TouchpadView(
         return result
     }
 
-    private fun createTransparentBg(): StateListDrawable {
-        return StateListDrawable().apply {
+    private fun createTransparentBg(): StateListDrawable =
+        StateListDrawable().apply {
             addState(intArrayOf(android.R.attr.state_focused), ColorDrawable(Color.TRANSPARENT))
             addState(intArrayOf(), ColorDrawable(Color.TRANSPARENT))
         }
-    }
 
     fun setSimTouchScreen(sim: Boolean) {
         this.simTouchScreen = sim
@@ -577,12 +688,14 @@ class TouchpadView(
     }
 
     fun isSimTouchScreen(): Boolean = simTouchScreen
-    
+
     fun toggleFullscreen() {
         Handler(Looper.getMainLooper()).postDelayed({
             updateXform(width, height, xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
         }, UPDATE_FORM_DELAYED_TIME.toLong())
     }
 
-    fun setMouseEnabled(enabled: Boolean) { this.mouseEnabled = enabled }
+    fun setMouseEnabled(enabled: Boolean) {
+        this.mouseEnabled = enabled
+    }
 }

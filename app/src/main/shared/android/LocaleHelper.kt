@@ -16,39 +16,41 @@ import androidx.core.os.LocaleListCompat
 object LocaleHelper {
     /** BCP-47 language tags supported by the app. Keep in sync with
      *  res/xml/locales_config.xml and the res/values-* folders. */
-    val SUPPORTED_LANGUAGE_TAGS: List<String> = listOf(
-        "en",
-        "da",
-        "de",
-        "es",
-        "fr",
-        "it",
-        "ko",
-        "pl",
-        "pt-BR",
-        "ro",
-        "uk",
-        "zh-CN",
-        "zh-TW",
-    )
+    val SUPPORTED_LANGUAGE_TAGS: List<String> =
+        listOf(
+            "en",
+            "da",
+            "de",
+            "es",
+            "fr",
+            "it",
+            "ko",
+            "pl",
+            "pt-BR",
+            "ro",
+            "uk",
+            "zh-CN",
+            "zh-TW",
+        )
 
     /** Native-language display names, indexed parallel to SUPPORTED_LANGUAGE_TAGS.
      *  Shown as-is in the dropdown so users can always recognize their own language. */
-    val NATIVE_LANGUAGE_NAMES: List<String> = listOf(
-        "English",
-        "Dansk",
-        "Deutsch",
-        "Español",
-        "Français",
-        "Italiano",
-        "한국어",
-        "Polski",
-        "Português (Brasil)",
-        "Română",
-        "Українська",
-        "简体中文",
-        "繁體中文",
-    )
+    val NATIVE_LANGUAGE_NAMES: List<String> =
+        listOf(
+            "English",
+            "Dansk",
+            "Deutsch",
+            "Español",
+            "Français",
+            "Italiano",
+            "한국어",
+            "Polski",
+            "Português (Brasil)",
+            "Română",
+            "Українська",
+            "简体中文",
+            "繁體中文",
+        )
 
     /** The language tag currently applied via AppCompatDelegate, or null if
      *  the app is following the system default. */
@@ -60,11 +62,12 @@ object LocaleHelper {
 
     /** Apply the given language tag app-wide. Pass null to follow the system. */
     fun applyLanguageTag(tag: String?) {
-        val list = if (tag.isNullOrEmpty()) {
-            LocaleListCompat.getEmptyLocaleList()
-        } else {
-            LocaleListCompat.forLanguageTags(tag)
-        }
+        val list =
+            if (tag.isNullOrEmpty()) {
+                LocaleListCompat.getEmptyLocaleList()
+            } else {
+                LocaleListCompat.forLanguageTags(tag)
+            }
         AppCompatDelegate.setApplicationLocales(list)
     }
 

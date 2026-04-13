@@ -25,22 +25,18 @@
  *
  **************************************************************************/
 
-
 /*
  * Miscellaneous OS services.
  */
 
-
 #ifndef _OS_MISC_H_
 #define _OS_MISC_H_
 
-
 #include "pipe/p_compiler.h"
 
-
 #if defined(PIPE_OS_UNIX)
-#  include <signal.h> /* for kill() */
-#  include <unistd.h> /* getpid() */
+#include <signal.h> /* for kill() */
+#include <unistd.h> /* getpid() */
 #endif
 
 #ifdef __GNUC__
@@ -55,52 +51,45 @@
 #define MAYBE_UNUSED
 #endif
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
-
 
 /*
  * Trap into the debugger.
  */
-#if (defined(PIPE_ARCH_X86) || defined(PIPE_ARCH_X86_64)) && defined(PIPE_CC_GCC)
-#  define os_break() __asm("int3")
+#if (defined(PIPE_ARCH_X86) || defined(PIPE_ARCH_X86_64)) &&                   \
+    defined(PIPE_CC_GCC)
+#define os_break() __asm("int3")
 #elif defined(PIPE_CC_MSVC)
-#  define os_break()  __debugbreak()
+#define os_break() __debugbreak()
 #elif defined(PIPE_OS_UNIX)
-#  define os_break() kill(getpid(), SIGTRAP)
+#define os_break() kill(getpid(), SIGTRAP)
 #else
-#  define os_break() abort()
+#define os_break() abort()
 #endif
-
 
 /*
  * Abort the program.
  */
 #if defined(DEBUG)
-#  define os_abort() os_break()
+#define os_abort() os_break()
 #else
-#  define os_abort() abort()
+#define os_abort() abort()
 #endif
-
 
 /*
  * Output a message. Message should preferably end in a newline.
  */
-void
-os_log_message(const char *message);
-
+void os_log_message(const char *message);
 
 /*
  * Get an option. Should return NULL if specified option is not set.
  */
-const char *
-os_get_option(const char *name);
+const char *os_get_option(const char *name);
 
-
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
-
 
 #endif /* _OS_MISC_H_ */

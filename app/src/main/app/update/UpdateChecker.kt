@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.regex.Pattern
 
 object UpdateChecker {
-
     private const val DOWNLOADS_PAGE_URL = "https://winnative.dev/Downloads/"
     private const val RELEASE_NOTES_URL = "${DOWNLOADS_PAGE_URL}release.txt"
 
@@ -38,9 +37,9 @@ object UpdateChecker {
     private const val PREF_INSTALL_TIMESTAMP = "app_install_timestamp"
     private const val PREF_LAST_UPDATE_CHECK = "last_update_check_time"
 
-    private const val CHECK_INTERVAL_MS = 60 * 60 * 1000L       // 1 hour
-    private const val MANUAL_CHECK_COOLDOWN_MS = 30 * 1000L      // 30 seconds
-    private const val POST_GAME_CHECK_DELAY_MS = 10 * 1000L      // 10 seconds
+    private const val CHECK_INTERVAL_MS = 60 * 60 * 1000L // 1 hour
+    private const val MANUAL_CHECK_COOLDOWN_MS = 30 * 1000L // 30 seconds
+    private const val POST_GAME_CHECK_DELAY_MS = 10 * 1000L // 10 seconds
 
     /** Tracks the last manual check time for 30s cooldown. */
     private val lastManualCheckTime = AtomicLong(0L)
@@ -56,11 +55,13 @@ object UpdateChecker {
     private var postGameHandler: Handler? = null
     private var postGameRunnable: Runnable? = null
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .followRedirects(true)
-        .build()
+    private val client =
+        OkHttpClient
+            .Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .followRedirects(true)
+            .build()
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -110,14 +111,15 @@ object UpdateChecker {
 
         val appContext = context.applicationContext
         backgroundHandler = Handler(Looper.getMainLooper())
-        backgroundRunnable = object : Runnable {
-            override fun run() {
-                if (isEnabled(appContext)) {
-                    checkForUpdate(appContext, force = false)
-                    backgroundHandler?.postDelayed(this, CHECK_INTERVAL_MS)
+        backgroundRunnable =
+            object : Runnable {
+                override fun run() {
+                    if (isEnabled(appContext)) {
+                        checkForUpdate(appContext, force = false)
+                        backgroundHandler?.postDelayed(this, CHECK_INTERVAL_MS)
+                    }
                 }
             }
-        }
         // First tick after 5 seconds (give the app time to finish initialising)
         backgroundHandler?.postDelayed(backgroundRunnable!!, 5_000L)
     }
@@ -136,7 +138,10 @@ object UpdateChecker {
      * Perform an automatic update check. Skipped if not due or already running.
      * @param force If true, bypasses the interval timer (first app open).
      */
-    fun checkForUpdate(context: Context, force: Boolean = false) {
+    fun checkForUpdate(
+        context: Context,
+        force: Boolean = false,
+    ) {
         if (!isEnabled(context)) return
         if (!force && !isDueForCheck(context)) return
         launchCheck(context)
@@ -174,9 +179,10 @@ object UpdateChecker {
         cancelPostGameCheck()
         val appContext = context.applicationContext
         postGameHandler = Handler(Looper.getMainLooper())
-        postGameRunnable = Runnable {
-            checkForUpdate(appContext, force = true)
-        }
+        postGameRunnable =
+            Runnable {
+                checkForUpdate(appContext, force = true)
+            }
         postGameHandler?.postDelayed(postGameRunnable!!, POST_GAME_CHECK_DELAY_MS)
     }
 
@@ -193,7 +199,8 @@ object UpdateChecker {
      * Resets the last-check timer so the next periodic tick runs immediately.
      */
     fun resetCheckTimer(context: Context) {
-        PreferenceManager.getDefaultSharedPreferences(context)
+        PreferenceManager
+            .getDefaultSharedPreferences(context)
             .edit()
             .putLong(PREF_LAST_UPDATE_CHECK, 0L)
             .apply()
@@ -213,7 +220,8 @@ object UpdateChecker {
                     }
                 }
                 // Record that we checked
-                PreferenceManager.getDefaultSharedPreferences(context)
+                PreferenceManager
+                    .getDefaultSharedPreferences(context)
                     .edit()
                     .putLong(PREF_LAST_UPDATE_CHECK, System.currentTimeMillis())
                     .apply()
@@ -230,7 +238,7 @@ object UpdateChecker {
         val serverModifiedFormatted: String,
         val serverVersionName: String?,
         val downloadUrl: String,
-        val releaseNotes: String?
+        val releaseNotes: String?,
     )
 
     /**
@@ -242,24 +250,28 @@ object UpdateChecker {
      */
     private fun fetchUpdateInfo(context: Context): UpdateInfo? {
         // 1.  Fetch the HTML page
-        val pageRequest = Request.Builder()
-            .url(DOWNLOADS_PAGE_URL)
-            .header("Cache-Control", "no-cache")
-            .build()
+        val pageRequest =
+            Request
+                .Builder()
+                .url(DOWNLOADS_PAGE_URL)
+                .header("Cache-Control", "no-cache")
+                .build()
 
-        val pageBody = client.newCall(pageRequest).execute().use { pageResponse ->
-            if (!pageResponse.isSuccessful) {
-                Timber.w("Update check page request failed: ${pageResponse.code}")
-                return null
+        val pageBody =
+            client.newCall(pageRequest).execute().use { pageResponse ->
+                if (!pageResponse.isSuccessful) {
+                    Timber.w("Update check page request failed: ${pageResponse.code}")
+                    return null
+                }
+                pageResponse.body?.string() ?: return null
             }
-            pageResponse.body?.string() ?: return null
-        }
 
         // 2.  Parse "Last Updated: March 29, 2026, 5:46 am EDT"
-        val pattern = Pattern.compile(
-            """Last\s+Updated:\s*(.+?)(?:\r?\n|<)""",
-            Pattern.CASE_INSENSITIVE
-        )
+        val pattern =
+            Pattern.compile(
+                """Last\s+Updated:\s*(.+?)(?:\r?\n|<)""",
+                Pattern.CASE_INSENSITIVE,
+            )
         val matcher = pattern.matcher(pageBody)
         if (!matcher.find()) {
             Timber.w("Could not find 'Last Updated' on downloads page")
@@ -267,10 +279,11 @@ object UpdateChecker {
         }
 
         val lastUpdatedStr = matcher.group(1)?.trim() ?: return null
-        val serverDate = parseLastUpdatedDate(lastUpdatedStr) ?: run {
-            Timber.w("Could not parse 'Last Updated' date: $lastUpdatedStr")
-            return null
-        }
+        val serverDate =
+            parseLastUpdatedDate(lastUpdatedStr) ?: run {
+                Timber.w("Could not parse 'Last Updated' date: $lastUpdatedStr")
+                return null
+            }
 
         // 3.  Compare with install timestamp
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
@@ -295,7 +308,7 @@ object UpdateChecker {
             serverModifiedFormatted = dateFormat.format(serverDate),
             serverVersionName = null,
             downloadUrl = downloadUrl,
-            releaseNotes = releaseNotes
+            releaseNotes = releaseNotes,
         )
     }
 
@@ -303,34 +316,41 @@ object UpdateChecker {
      * Parses date strings like "March 29, 2026, 5:46 am EDT".
      */
     private fun parseLastUpdatedDate(dateStr: String): Date? {
-        val formats = arrayOf(
-            "MMMM d, yyyy, h:mm a z",
-            "MMMM d, yyyy, h:mm a zzz",
-            "MMMM dd, yyyy, h:mm a z",
-            "MMMM dd, yyyy, h:mm a zzz",
-            "MMMM d, yyyy, hh:mm a z",
-            "MMMM d, yyyy, hh:mm a zzz",
-            "MMMM dd, yyyy, hh:mm a z",
-            "MMMM dd, yyyy, hh:mm a zzz",
-        )
+        val formats =
+            arrayOf(
+                "MMMM d, yyyy, h:mm a z",
+                "MMMM d, yyyy, h:mm a zzz",
+                "MMMM dd, yyyy, h:mm a z",
+                "MMMM dd, yyyy, h:mm a zzz",
+                "MMMM d, yyyy, hh:mm a z",
+                "MMMM d, yyyy, hh:mm a zzz",
+                "MMMM dd, yyyy, hh:mm a z",
+                "MMMM dd, yyyy, hh:mm a zzz",
+            )
         for (format in formats) {
             try {
                 val sdf = SimpleDateFormat(format, Locale.US)
                 return sdf.parse(dateStr)
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
         return null
     }
 
-    private fun fetchReleaseNotes(): String? {
-        return try {
-            val request = Request.Builder()
-                .url(RELEASE_NOTES_URL)
-                .build()
+    private fun fetchReleaseNotes(): String? =
+        try {
+            val request =
+                Request
+                    .Builder()
+                    .url(RELEASE_NOTES_URL)
+                    .build()
 
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
-                    response.body?.string()?.trim()?.takeIf { it.isNotEmpty() }
+                    response.body
+                        ?.string()
+                        ?.trim()
+                        ?.takeIf { it.isNotEmpty() }
                 } else {
                     null
                 }
@@ -339,78 +359,90 @@ object UpdateChecker {
             Timber.d(e, "Could not fetch release notes")
             null
         }
-    }
 
-    private fun showUpdateDialog(context: Context, info: UpdateInfo) {
+    private fun showUpdateDialog(
+        context: Context,
+        info: UpdateInfo,
+    ) {
         if (context is android.app.Activity && context.isFinishing) return
 
         val padding = (16 * context.resources.displayMetrics.density).toInt()
         val smallPad = (8 * context.resources.displayMetrics.density).toInt()
 
-        val container = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(padding, padding, padding, padding)
-        }
+        val container =
+            LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(padding, padding, padding, padding)
+            }
 
         // Released date
-        val releasedLabel = TextView(context).apply {
-            text = "Released: ${info.serverModifiedFormatted}"
-            setTextColor(0xFFB0B0B0.toInt())
-            textSize = 14f
-        }
+        val releasedLabel =
+            TextView(context).apply {
+                text = "Released: ${info.serverModifiedFormatted}"
+                setTextColor(0xFFB0B0B0.toInt())
+                textSize = 14f
+            }
         container.addView(releasedLabel)
 
         // Release notes
         if (!info.releaseNotes.isNullOrBlank()) {
-            val divider = android.view.View(context).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    (1 * context.resources.displayMetrics.density).toInt()
-                ).apply {
-                    topMargin = padding
-                    bottomMargin = smallPad
+            val divider =
+                android.view.View(context).apply {
+                    layoutParams =
+                        LinearLayout
+                            .LayoutParams(
+                                LinearLayout.LayoutParams.MATCH_PARENT,
+                                (1 * context.resources.displayMetrics.density).toInt(),
+                            ).apply {
+                                topMargin = padding
+                                bottomMargin = smallPad
+                            }
+                    setBackgroundColor(0xFF444444.toInt())
                 }
-                setBackgroundColor(0xFF444444.toInt())
-            }
             container.addView(divider)
 
-            val notesHeader = TextView(context).apply {
-                text = "Release Notes"
-                setTextColor(0xFFFFFFFF.toInt())
-                textSize = 15f
-                setTypeface(null, android.graphics.Typeface.BOLD)
-                setPadding(0, smallPad, 0, smallPad)
-            }
+            val notesHeader =
+                TextView(context).apply {
+                    text = "Release Notes"
+                    setTextColor(0xFFFFFFFF.toInt())
+                    textSize = 15f
+                    setTypeface(null, android.graphics.Typeface.BOLD)
+                    setPadding(0, smallPad, 0, smallPad)
+                }
             container.addView(notesHeader)
 
-            val notesBody = TextView(context).apply {
-                text = info.releaseNotes
-                setTextColor(0xFFCCCCCC.toInt())
-                textSize = 13f
-                movementMethod = ScrollingMovementMethod.getInstance()
-                maxLines = 12
-                isVerticalScrollBarEnabled = true
-            }
+            val notesBody =
+                TextView(context).apply {
+                    text = info.releaseNotes
+                    setTextColor(0xFFCCCCCC.toInt())
+                    textSize = 13f
+                    movementMethod = ScrollingMovementMethod.getInstance()
+                    maxLines = 12
+                    isVerticalScrollBarEnabled = true
+                }
 
-            val scrollView = ScrollView(context).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                addView(notesBody)
-            }
+            val scrollView =
+                ScrollView(context).apply {
+                    layoutParams =
+                        LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                        )
+                    addView(notesBody)
+                }
             container.addView(scrollView)
         }
 
-        val dialog = AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle("Update Available")
-            .setView(container)
-            .setPositiveButton("Download") { _, _ ->
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(info.downloadUrl))
-                context.startActivity(intent)
-            }
-            .setNegativeButton("Later", null)
-            .create()
+        val dialog =
+            AlertDialog
+                .Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle("Update Available")
+                .setView(container)
+                .setPositiveButton("Download") { _, _ ->
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(info.downloadUrl))
+                    context.startActivity(intent)
+                }.setNegativeButton("Later", null)
+                .create()
 
         dialog.show()
     }

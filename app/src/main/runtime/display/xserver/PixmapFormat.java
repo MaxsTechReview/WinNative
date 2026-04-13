@@ -1,13 +1,13 @@
 package com.winlator.cmod.runtime.display.xserver;
 
 public class PixmapFormat {
-    public final byte depth;
-    public final byte bitsPerPixel;
-    public final byte scanlinePad;
+  public final byte depth;
+  public final byte bitsPerPixel;
+  public final byte scanlinePad;
 
-    public PixmapFormat(int depth, int bitsPerPixel, int scanlinePad) {
-        this.depth = (byte)depth;
-        this.bitsPerPixel = (byte)bitsPerPixel;
-        this.scanlinePad = (byte)scanlinePad;
-    }
+  public PixmapFormat(int depth, int bitsPerPixel, int scanlinePad) {
+    this.depth = (byte) depth;
+    this.bitsPerPixel = (byte) bitsPerPixel;
+    this.scanlinePad = (byte) scanlinePad;
+  }
 }

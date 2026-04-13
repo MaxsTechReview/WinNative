@@ -1,13 +1,5 @@
 package com.winlator.cmod.feature.stores.gog.service
 import android.content.Context
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import java.security.MessageDigest
-import java.time.Instant
-import java.time.format.DateTimeFormatter
-import java.util.concurrent.TimeUnit
-import java.util.zip.GZIPOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -16,14 +8,24 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import timber.log.Timber
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.security.MessageDigest
+import java.time.Instant
+import java.time.format.DateTimeFormatter
+import java.util.concurrent.TimeUnit
+import java.util.zip.GZIPOutputStream
 
 class GOGCloudSavesManager(
     private val context: Context,
 ) {
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
+    private val httpClient =
+        OkHttpClient
+            .Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
 
     companion object {
         private const val CLOUD_STORAGE_BASE_URL = "https://cloudstorage.gog.com"
@@ -46,39 +48,40 @@ class GOGCloudSavesManager(
         var updateTime: String? = null,
         var updateTimestamp: Long? = null,
     ) {
-        suspend fun calculateMetadata() = withContext(Dispatchers.IO) {
-            try {
-                val file = File(absolutePath)
-                if (!file.exists() || !file.isFile) {
-                    Timber.w("File does not exist: $absolutePath")
-                    return@withContext
-                }
-
-                val timestamp = file.lastModified()
-                val instant = Instant.ofEpochMilli(timestamp)
-                updateTime = DateTimeFormatter.ISO_INSTANT.format(instant)
-                updateTimestamp = timestamp / 1000
-
-                FileInputStream(file).use { fis ->
-                    val digest = MessageDigest.getInstance("MD5")
-                    val buffer = java.io.ByteArrayOutputStream()
-
-                    GZIPOutputStream(buffer).use { gzipOut ->
-                        val fileBuffer = ByteArray(8192)
-                        var bytesRead: Int
-                        while (fis.read(fileBuffer).also { bytesRead = it } != -1) {
-                            gzipOut.write(fileBuffer, 0, bytesRead)
-                        }
+        suspend fun calculateMetadata() =
+            withContext(Dispatchers.IO) {
+                try {
+                    val file = File(absolutePath)
+                    if (!file.exists() || !file.isFile) {
+                        Timber.w("File does not exist: $absolutePath")
+                        return@withContext
                     }
 
-                    md5Hash = digest.digest(buffer.toByteArray()).joinToString("") { "%02x".format(it) }
-                }
+                    val timestamp = file.lastModified()
+                    val instant = Instant.ofEpochMilli(timestamp)
+                    updateTime = DateTimeFormatter.ISO_INSTANT.format(instant)
+                    updateTimestamp = timestamp / 1000
 
-                Timber.d("Calculated metadata for $relativePath: md5=$md5Hash, timestamp=$updateTimestamp")
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to calculate metadata for $absolutePath")
+                    FileInputStream(file).use { fis ->
+                        val digest = MessageDigest.getInstance("MD5")
+                        val buffer = java.io.ByteArrayOutputStream()
+
+                        GZIPOutputStream(buffer).use { gzipOut ->
+                            val fileBuffer = ByteArray(8192)
+                            var bytesRead: Int
+                            while (fis.read(fileBuffer).also { bytesRead = it } != -1) {
+                                gzipOut.write(fileBuffer, 0, bytesRead)
+                            }
+                        }
+
+                        md5Hash = digest.digest(buffer.toByteArray()).joinToString("") { "%02x".format(it) }
+                    }
+
+                    Timber.d("Calculated metadata for $relativePath: md5=$md5Hash, timestamp=$updateTimestamp")
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to calculate metadata for $absolutePath")
+                }
             }
-        }
     }
 
     data class CloudFile(
@@ -97,14 +100,13 @@ class GOGCloudSavesManager(
         val notExistingLocally: List<CloudFile> = emptyList(),
         val notExistingRemotely: List<SyncFile> = emptyList(),
     ) {
-        fun determineAction(): SyncAction {
-            return when {
+        fun determineAction(): SyncAction =
+            when {
                 updatedLocal.isEmpty() && updatedCloud.isNotEmpty() -> SyncAction.DOWNLOAD
                 updatedLocal.isNotEmpty() && updatedCloud.isEmpty() -> SyncAction.UPLOAD
                 updatedLocal.isEmpty() && updatedCloud.isEmpty() -> SyncAction.NONE
                 else -> SyncAction.CONFLICT
             }
-        }
     }
 
     suspend fun syncSaves(
@@ -114,290 +116,305 @@ class GOGCloudSavesManager(
         clientSecret: String,
         lastSyncTimestamp: Long = 0,
         preferredAction: String = "none",
-    ): Long = withContext(Dispatchers.IO) {
-        try {
-            Timber.tag("GOG-CloudSaves").i("Starting sync for path: $localPath")
-            Timber.tag("GOG-CloudSaves").i("Cloud dirname: $dirname")
-            Timber.tag("GOG-CloudSaves").i("Cloud client ID: $clientId")
-            Timber.tag("GOG-CloudSaves").i("Last sync timestamp: $lastSyncTimestamp")
-            Timber.tag("GOG-CloudSaves").i("Preferred action: $preferredAction")
+    ): Long =
+        withContext(Dispatchers.IO) {
+            try {
+                Timber.tag("GOG-CloudSaves").i("Starting sync for path: $localPath")
+                Timber.tag("GOG-CloudSaves").i("Cloud dirname: $dirname")
+                Timber.tag("GOG-CloudSaves").i("Cloud client ID: $clientId")
+                Timber.tag("GOG-CloudSaves").i("Last sync timestamp: $lastSyncTimestamp")
+                Timber.tag("GOG-CloudSaves").i("Preferred action: $preferredAction")
 
-            val syncDir = File(localPath)
-            if (!syncDir.exists()) {
-                Timber.tag("GOG-CloudSaves").i("Creating sync directory: $localPath")
-                syncDir.mkdirs()
-            }
-
-            val localFiles = scanLocalFiles(syncDir)
-            Timber.tag("GOG-CloudSaves").i("Found ${localFiles.size} local file(s)")
-
-            val credentials = GOGAuthManager.getGameCredentials(context, clientId, clientSecret).getOrNull() ?: run {
-                Timber.tag("GOG-CloudSaves").e("Failed to get game-specific credentials")
-                return@withContext 0L
-            }
-            Timber.tag("GOG-CloudSaves").d(
-                "Using game-specific credentials for userId: ${credentials.userId}, clientId: $clientId",
-            )
-
-            Timber.tag("GOG").d("[Cloud Saves] Fetching cloud file list for dirname: $dirname")
-            val cloudFiles = getCloudFiles(credentials.userId, clientId, dirname, credentials.accessToken)
-            Timber.tag("GOG").d("[Cloud Saves] Retrieved ${cloudFiles.size} total cloud files")
-            val downloadableCloud = cloudFiles.filter { !it.isDeleted }
-            Timber.tag("GOG").i(
-                "[Cloud Saves] Found ${downloadableCloud.size} downloadable cloud file(s) (excluding deleted)",
-            )
-            if (downloadableCloud.isNotEmpty()) {
-                downloadableCloud.forEach { file ->
-                    Timber.tag("GOG").d(
-                        "[Cloud Saves]   - Cloud file: ${file.relativePath} (md5: ${file.md5Hash}, modified: ${file.updateTime})",
-                    )
+                val syncDir = File(localPath)
+                if (!syncDir.exists()) {
+                    Timber.tag("GOG-CloudSaves").i("Creating sync directory: $localPath")
+                    syncDir.mkdirs()
                 }
-            }
 
-            when {
-                localFiles.isNotEmpty() && cloudFiles.isEmpty() -> {
-                    Timber.tag("GOG-CloudSaves").i("No files in cloud, uploading ${localFiles.size} file(s)")
-                    localFiles.forEach { file ->
-                        uploadFile(credentials.userId, clientId, dirname, file, credentials.accessToken)
+                val localFiles = scanLocalFiles(syncDir)
+                Timber.tag("GOG-CloudSaves").i("Found ${localFiles.size} local file(s)")
+
+                val credentials =
+                    GOGAuthManager.getGameCredentials(context, clientId, clientSecret).getOrNull() ?: run {
+                        Timber.tag("GOG-CloudSaves").e("Failed to get game-specific credentials")
+                        return@withContext 0L
                     }
-                    return@withContext currentTimestamp()
+                Timber.tag("GOG-CloudSaves").d(
+                    "Using game-specific credentials for userId: ${credentials.userId}, clientId: $clientId",
+                )
+
+                Timber.tag("GOG").d("[Cloud Saves] Fetching cloud file list for dirname: $dirname")
+                val cloudFiles = getCloudFiles(credentials.userId, clientId, dirname, credentials.accessToken)
+                Timber.tag("GOG").d("[Cloud Saves] Retrieved ${cloudFiles.size} total cloud files")
+                val downloadableCloud = cloudFiles.filter { !it.isDeleted }
+                Timber.tag("GOG").i(
+                    "[Cloud Saves] Found ${downloadableCloud.size} downloadable cloud file(s) (excluding deleted)",
+                )
+                if (downloadableCloud.isNotEmpty()) {
+                    downloadableCloud.forEach { file ->
+                        Timber.tag("GOG").d(
+                            "[Cloud Saves]   - Cloud file: ${file.relativePath} (md5: ${file.md5Hash}, modified: ${file.updateTime})",
+                        )
+                    }
                 }
 
-                localFiles.isEmpty() && downloadableCloud.isNotEmpty() -> {
-                    Timber.tag("GOG-CloudSaves").i("No files locally, downloading ${downloadableCloud.size} file(s)")
+                when {
+                    localFiles.isNotEmpty() && cloudFiles.isEmpty() -> {
+                        Timber.tag("GOG-CloudSaves").i("No files in cloud, uploading ${localFiles.size} file(s)")
+                        localFiles.forEach { file ->
+                            uploadFile(credentials.userId, clientId, dirname, file, credentials.accessToken)
+                        }
+                        return@withContext currentTimestamp()
+                    }
+
+                    localFiles.isEmpty() && downloadableCloud.isNotEmpty() -> {
+                        Timber.tag("GOG-CloudSaves").i("No files locally, downloading ${downloadableCloud.size} file(s)")
+                        downloadableCloud.forEach { file ->
+                            downloadFile(credentials.userId, clientId, dirname, file, syncDir, credentials.accessToken)
+                        }
+                        return@withContext currentTimestamp()
+                    }
+
+                    localFiles.isEmpty() && cloudFiles.isEmpty() -> {
+                        Timber.tag("GOG-CloudSaves").i("No files locally or in cloud, nothing to sync")
+                        return@withContext currentTimestamp()
+                    }
+                }
+
+                if (preferredAction == "download" && downloadableCloud.isNotEmpty()) {
+                    Timber.tag("GOG-CloudSaves").i(
+                        "Forcing download of ${downloadableCloud.size} file(s) (user requested)",
+                    )
                     downloadableCloud.forEach { file ->
                         downloadFile(credentials.userId, clientId, dirname, file, syncDir, credentials.accessToken)
                     }
                     return@withContext currentTimestamp()
                 }
 
-                localFiles.isEmpty() && cloudFiles.isEmpty() -> {
-                    Timber.tag("GOG-CloudSaves").i("No files locally or in cloud, nothing to sync")
+                if (preferredAction == "upload" && localFiles.isNotEmpty()) {
+                    Timber.tag("GOG-CloudSaves").i("Forcing upload of ${localFiles.size} file(s) (user requested)")
+                    localFiles.forEach { file ->
+                        uploadFile(credentials.userId, clientId, dirname, file, credentials.accessToken)
+                    }
                     return@withContext currentTimestamp()
                 }
-            }
 
-            if (preferredAction == "download" && downloadableCloud.isNotEmpty()) {
-                Timber.tag("GOG-CloudSaves").i(
-                    "Forcing download of ${downloadableCloud.size} file(s) (user requested)",
-                )
-                downloadableCloud.forEach { file ->
-                    downloadFile(credentials.userId, clientId, dirname, file, syncDir, credentials.accessToken)
-                }
-                return@withContext currentTimestamp()
-            }
-
-            if (preferredAction == "upload" && localFiles.isNotEmpty()) {
-                Timber.tag("GOG-CloudSaves").i("Forcing upload of ${localFiles.size} file(s) (user requested)")
-                localFiles.forEach { file ->
-                    uploadFile(credentials.userId, clientId, dirname, file, credentials.accessToken)
-                }
-                return@withContext currentTimestamp()
-            }
-
-            val classifier = classifyFiles(localFiles, cloudFiles, lastSyncTimestamp)
-            when (classifier.determineAction()) {
-                SyncAction.DOWNLOAD -> {
-                    Timber.tag("GOG-CloudSaves").i(
-                        "Downloading ${classifier.updatedCloud.size} updated cloud file(s)",
-                    )
-                    classifier.updatedCloud.forEach { file ->
-                        downloadFile(credentials.userId, clientId, dirname, file, syncDir, credentials.accessToken)
-                    }
-                    classifier.notExistingLocally.forEach { file ->
-                        if (!file.isDeleted) {
+                val classifier = classifyFiles(localFiles, cloudFiles, lastSyncTimestamp)
+                when (classifier.determineAction()) {
+                    SyncAction.DOWNLOAD -> {
+                        Timber.tag("GOG-CloudSaves").i(
+                            "Downloading ${classifier.updatedCloud.size} updated cloud file(s)",
+                        )
+                        classifier.updatedCloud.forEach { file ->
                             downloadFile(credentials.userId, clientId, dirname, file, syncDir, credentials.accessToken)
                         }
-                    }
-                }
-
-                SyncAction.UPLOAD -> {
-                    Timber.tag("GOG-CloudSaves").i(
-                        "Uploading ${classifier.updatedLocal.size} updated local file(s)",
-                    )
-                    classifier.updatedLocal.forEach { file ->
-                        uploadFile(credentials.userId, clientId, dirname, file, credentials.accessToken)
-                    }
-                    classifier.notExistingRemotely.forEach { file ->
-                        uploadFile(credentials.userId, clientId, dirname, file, credentials.accessToken)
-                    }
-                }
-
-                SyncAction.CONFLICT -> {
-                    Timber.tag("GOG-CloudSaves").w("Sync conflict detected - comparing timestamps")
-
-                    val localMap = classifier.updatedLocal.associateBy { it.relativePath }
-                    val cloudMap = classifier.updatedCloud.associateBy { it.relativePath }
-
-                    val toUpload = mutableListOf<SyncFile>()
-                    val toDownload = mutableListOf<CloudFile>()
-
-                    val commonPaths = localMap.keys.intersect(cloudMap.keys)
-                    commonPaths.forEach { path ->
-                        val localFile = localMap[path]!!
-                        val cloudFile = cloudMap[path]!!
-
-                        val localTime = localFile.updateTimestamp ?: 0L
-                        val cloudTime = cloudFile.updateTimestamp ?: 0L
-
-                        when {
-                            localTime > cloudTime -> {
-                                Timber.tag("GOG-CloudSaves").i(
-                                    "Local file is newer: $path (local: $localTime > cloud: $cloudTime)",
-                                )
-                                toUpload.add(localFile)
-                            }
-
-                            cloudTime > localTime -> {
-                                Timber.tag("GOG-CloudSaves").i(
-                                    "Cloud file is newer: $path (cloud: $cloudTime > local: $localTime)",
-                                )
-                                toDownload.add(cloudFile)
-                            }
-
-                            else -> {
-                                Timber.tag("GOG-CloudSaves").w("Files have same timestamp, skipping: $path")
+                        classifier.notExistingLocally.forEach { file ->
+                            if (!file.isDeleted) {
+                                downloadFile(credentials.userId, clientId, dirname, file, syncDir, credentials.accessToken)
                             }
                         }
                     }
 
-                    (localMap.keys - commonPaths).forEach { path ->
-                        toUpload.add(localMap[path]!!)
-                    }
-
-                    (cloudMap.keys - commonPaths).forEach { path ->
-                        toDownload.add(cloudMap[path]!!)
-                    }
-
-                    toUpload.addAll(classifier.notExistingRemotely)
-                    toDownload.addAll(classifier.notExistingLocally.filter { !it.isDeleted })
-
-                    if (toUpload.isNotEmpty()) {
+                    SyncAction.UPLOAD -> {
                         Timber.tag("GOG-CloudSaves").i(
-                            "Uploading ${toUpload.size} file(s) based on timestamp comparison",
+                            "Uploading ${classifier.updatedLocal.size} updated local file(s)",
                         )
-                        toUpload.forEach { file ->
+                        classifier.updatedLocal.forEach { file ->
+                            uploadFile(credentials.userId, clientId, dirname, file, credentials.accessToken)
+                        }
+                        classifier.notExistingRemotely.forEach { file ->
                             uploadFile(credentials.userId, clientId, dirname, file, credentials.accessToken)
                         }
                     }
 
-                    if (toDownload.isNotEmpty()) {
-                        Timber.tag("GOG-CloudSaves").i(
-                            "Downloading ${toDownload.size} file(s) based on timestamp comparison",
-                        )
-                        toDownload.forEach { file ->
-                            downloadFile(credentials.userId, clientId, dirname, file, syncDir, credentials.accessToken)
+                    SyncAction.CONFLICT -> {
+                        Timber.tag("GOG-CloudSaves").w("Sync conflict detected - comparing timestamps")
+
+                        val localMap = classifier.updatedLocal.associateBy { it.relativePath }
+                        val cloudMap = classifier.updatedCloud.associateBy { it.relativePath }
+
+                        val toUpload = mutableListOf<SyncFile>()
+                        val toDownload = mutableListOf<CloudFile>()
+
+                        val commonPaths = localMap.keys.intersect(cloudMap.keys)
+                        commonPaths.forEach { path ->
+                            val localFile = localMap[path]!!
+                            val cloudFile = cloudMap[path]!!
+
+                            val localTime = localFile.updateTimestamp ?: 0L
+                            val cloudTime = cloudFile.updateTimestamp ?: 0L
+
+                            when {
+                                localTime > cloudTime -> {
+                                    Timber.tag("GOG-CloudSaves").i(
+                                        "Local file is newer: $path (local: $localTime > cloud: $cloudTime)",
+                                    )
+                                    toUpload.add(localFile)
+                                }
+
+                                cloudTime > localTime -> {
+                                    Timber.tag("GOG-CloudSaves").i(
+                                        "Cloud file is newer: $path (cloud: $cloudTime > local: $localTime)",
+                                    )
+                                    toDownload.add(cloudFile)
+                                }
+
+                                else -> {
+                                    Timber.tag("GOG-CloudSaves").w("Files have same timestamp, skipping: $path")
+                                }
+                            }
                         }
+
+                        (localMap.keys - commonPaths).forEach { path ->
+                            toUpload.add(localMap[path]!!)
+                        }
+
+                        (cloudMap.keys - commonPaths).forEach { path ->
+                            toDownload.add(cloudMap[path]!!)
+                        }
+
+                        toUpload.addAll(classifier.notExistingRemotely)
+                        toDownload.addAll(classifier.notExistingLocally.filter { !it.isDeleted })
+
+                        if (toUpload.isNotEmpty()) {
+                            Timber.tag("GOG-CloudSaves").i(
+                                "Uploading ${toUpload.size} file(s) based on timestamp comparison",
+                            )
+                            toUpload.forEach { file ->
+                                uploadFile(credentials.userId, clientId, dirname, file, credentials.accessToken)
+                            }
+                        }
+
+                        if (toDownload.isNotEmpty()) {
+                            Timber.tag("GOG-CloudSaves").i(
+                                "Downloading ${toDownload.size} file(s) based on timestamp comparison",
+                            )
+                            toDownload.forEach { file ->
+                                downloadFile(credentials.userId, clientId, dirname, file, syncDir, credentials.accessToken)
+                            }
+                        }
+                    }
+
+                    SyncAction.NONE -> {
+                        Timber.tag("GOG-CloudSaves").i("No sync needed - files are up to date")
                     }
                 }
 
-                SyncAction.NONE -> {
-                    Timber.tag("GOG-CloudSaves").i("No sync needed - files are up to date")
-                }
-            }
-
-            Timber.tag("GOG-CloudSaves").i("Sync completed successfully")
-            currentTimestamp()
-        } catch (e: Exception) {
-            Timber.tag("GOG-CloudSaves").e(e, "Sync failed: ${e.message}")
-            0L
-        }
-    }
-
-    private suspend fun scanLocalFiles(directory: File): List<SyncFile> = withContext(Dispatchers.IO) {
-        val files = mutableListOf<SyncFile>()
-
-        fun scanRecursive(dir: File, basePath: String) {
-            dir.listFiles()?.forEach { file ->
-                if (file.isFile) {
-                    val relativePath = file.absolutePath.removePrefix(basePath).removePrefix("/").replace("\\", "/")
-                    files.add(SyncFile(relativePath, file.absolutePath))
-                } else if (file.isDirectory) {
-                    scanRecursive(file, basePath)
-                }
+                Timber.tag("GOG-CloudSaves").i("Sync completed successfully")
+                currentTimestamp()
+            } catch (e: Exception) {
+                Timber.tag("GOG-CloudSaves").e(e, "Sync failed: ${e.message}")
+                0L
             }
         }
 
-        scanRecursive(directory, directory.absolutePath)
-        files.forEach { it.calculateMetadata() }
-        files
-    }
+    private suspend fun scanLocalFiles(directory: File): List<SyncFile> =
+        withContext(Dispatchers.IO) {
+            val files = mutableListOf<SyncFile>()
+
+            fun scanRecursive(
+                dir: File,
+                basePath: String,
+            ) {
+                dir.listFiles()?.forEach { file ->
+                    if (file.isFile) {
+                        val relativePath =
+                            file.absolutePath
+                                .removePrefix(basePath)
+                                .removePrefix("/")
+                                .replace("\\", "/")
+                        files.add(SyncFile(relativePath, file.absolutePath))
+                    } else if (file.isDirectory) {
+                        scanRecursive(file, basePath)
+                    }
+                }
+            }
+
+            scanRecursive(directory, directory.absolutePath)
+            files.forEach { it.calculateMetadata() }
+            files
+        }
 
     private suspend fun getCloudFiles(
         userId: String,
         clientId: String,
         dirname: String,
         authToken: String,
-    ): List<CloudFile> = withContext(Dispatchers.IO) {
-        try {
-            val url = "$CLOUD_STORAGE_BASE_URL/v1/$userId/$clientId"
-            Timber.tag("GOG").d("[Cloud Saves] API Request: GET $url (dirname filter: $dirname)")
+    ): List<CloudFile> =
+        withContext(Dispatchers.IO) {
+            try {
+                val url = "$CLOUD_STORAGE_BASE_URL/v1/$userId/$clientId"
+                Timber.tag("GOG").d("[Cloud Saves] API Request: GET $url (dirname filter: $dirname)")
 
-            val request = Request.Builder()
-                .url(url)
-                .header("Authorization", "Bearer $authToken")
-                .header("User-Agent", USER_AGENT)
-                .header("Accept", "application/json")
-                .header("X-Object-Meta-User-Agent", USER_AGENT)
-                .build()
+                val request =
+                    Request
+                        .Builder()
+                        .url(url)
+                        .header("Authorization", "Bearer $authToken")
+                        .header("User-Agent", USER_AGENT)
+                        .header("Accept", "application/json")
+                        .header("X-Object-Meta-User-Agent", USER_AGENT)
+                        .build()
 
-            val response = httpClient.newCall(request).execute()
-            response.use {
-                if (!response.isSuccessful) {
-                    val errorBody = response.body?.string() ?: "No response body"
-                    Timber.tag("GOG").e("[Cloud Saves] Failed to fetch cloud files: HTTP ${response.code}")
-                    Timber.tag("GOG").e("[Cloud Saves] Response body: $errorBody")
-                    return@withContext emptyList()
-                }
+                val response = httpClient.newCall(request).execute()
+                response.use {
+                    if (!response.isSuccessful) {
+                        val errorBody = response.body?.string() ?: "No response body"
+                        Timber.tag("GOG").e("[Cloud Saves] Failed to fetch cloud files: HTTP ${response.code}")
+                        Timber.tag("GOG").e("[Cloud Saves] Response body: $errorBody")
+                        return@withContext emptyList()
+                    }
 
-                val responseBody = response.body?.string() ?: ""
-                if (responseBody.isEmpty()) {
-                    Timber.tag("GOG").d("[Cloud Saves] Empty response body from cloud storage API")
-                    return@withContext emptyList()
-                }
+                    val responseBody = response.body?.string() ?: ""
+                    if (responseBody.isEmpty()) {
+                        Timber.tag("GOG").d("[Cloud Saves] Empty response body from cloud storage API")
+                        return@withContext emptyList()
+                    }
 
-                val items = try {
-                    JSONArray(responseBody)
-                } catch (e: Exception) {
-                    Timber.tag("GOG").e(e, "[Cloud Saves] Failed to parse JSON array response")
-                    Timber.tag("GOG").e("[Cloud Saves] Response was: $responseBody")
-                    return@withContext emptyList()
-                }
-
-                Timber.tag("GOG").d("[Cloud Saves] Found ${items.length()} total items in cloud storage")
-
-                val files = mutableListOf<CloudFile>()
-                for (i in 0 until items.length()) {
-                    val fileObj = items.getJSONObject(i)
-                    val name = fileObj.optString("name", "")
-                    val hash = fileObj.optString("hash", "")
-                    val lastModified = fileObj.optString("last_modified")
-
-                    Timber.tag("GOG").d("[Cloud Saves]   Examining item $i: name='$name', dirname='$dirname'")
-
-                    if (name.isNotEmpty() && hash.isNotEmpty() && name.startsWith("$dirname/")) {
-                        val timestamp = try {
-                            Instant.parse(lastModified).epochSecond
-                        } catch (_: Exception) {
-                            null
+                    val items =
+                        try {
+                            JSONArray(responseBody)
+                        } catch (e: Exception) {
+                            Timber.tag("GOG").e(e, "[Cloud Saves] Failed to parse JSON array response")
+                            Timber.tag("GOG").e("[Cloud Saves] Response was: $responseBody")
+                            return@withContext emptyList()
                         }
 
-                        val relativePath = name.removePrefix("$dirname/")
-                        files.add(CloudFile(relativePath, hash, lastModified, timestamp))
-                        Timber.tag("GOG").d("[Cloud Saves]     Matched: relativePath='$relativePath'")
-                    } else {
-                        Timber.tag("GOG").d("[Cloud Saves]     Skipped (doesn't match dirname or missing data)")
-                    }
-                }
+                    Timber.tag("GOG").d("[Cloud Saves] Found ${items.length()} total items in cloud storage")
 
-                Timber.tag("GOG").i("[Cloud Saves] Retrieved ${files.size} cloud files for dirname '$dirname'")
-                files
+                    val files = mutableListOf<CloudFile>()
+                    for (i in 0 until items.length()) {
+                        val fileObj = items.getJSONObject(i)
+                        val name = fileObj.optString("name", "")
+                        val hash = fileObj.optString("hash", "")
+                        val lastModified = fileObj.optString("last_modified")
+
+                        Timber.tag("GOG").d("[Cloud Saves]   Examining item $i: name='$name', dirname='$dirname'")
+
+                        if (name.isNotEmpty() && hash.isNotEmpty() && name.startsWith("$dirname/")) {
+                            val timestamp =
+                                try {
+                                    Instant.parse(lastModified).epochSecond
+                                } catch (_: Exception) {
+                                    null
+                                }
+
+                            val relativePath = name.removePrefix("$dirname/")
+                            files.add(CloudFile(relativePath, hash, lastModified, timestamp))
+                            Timber.tag("GOG").d("[Cloud Saves]     Matched: relativePath='$relativePath'")
+                        } else {
+                            Timber.tag("GOG").d("[Cloud Saves]     Skipped (doesn't match dirname or missing data)")
+                        }
+                    }
+
+                    Timber.tag("GOG").i("[Cloud Saves] Retrieved ${files.size} cloud files for dirname '$dirname'")
+                    files
+                }
+            } catch (e: Exception) {
+                Timber.tag("GOG-CloudSaves").e(e, "Failed to get cloud files")
+                emptyList()
             }
-        } catch (e: Exception) {
-            Timber.tag("GOG-CloudSaves").e(e, "Failed to get cloud files")
-            emptyList()
         }
-    }
 
     private suspend fun uploadFile(
         userId: String,
@@ -410,18 +427,20 @@ class GOGCloudSavesManager(
             val localFile = File(file.absolutePath)
             val fileSize = localFile.length()
 
-            Timber.tag("GOG-CloudSaves").i("Uploading: ${file.relativePath} (${fileSize} bytes)")
+            Timber.tag("GOG-CloudSaves").i("Uploading: ${file.relativePath} ($fileSize bytes)")
 
             val url = "$CLOUD_STORAGE_BASE_URL/v1/$userId/$clientId/$dirname/${file.relativePath}"
             val requestBody = localFile.readBytes().toRequestBody("application/octet-stream".toMediaType())
 
-            val requestBuilder = Request.Builder()
-                .url(url)
-                .put(requestBody)
-                .header("Authorization", "Bearer $authToken")
-                .header("User-Agent", USER_AGENT)
-                .header("X-Object-Meta-User-Agent", USER_AGENT)
-                .header("Content-Type", "application/octet-stream")
+            val requestBuilder =
+                Request
+                    .Builder()
+                    .url(url)
+                    .put(requestBody)
+                    .header("Authorization", "Bearer $authToken")
+                    .header("User-Agent", USER_AGENT)
+                    .header("X-Object-Meta-User-Agent", USER_AGENT)
+                    .header("Content-Type", "application/octet-stream")
 
             file.updateTime?.let { timestamp ->
                 requestBuilder.header("X-Object-Meta-LocalLastModified", timestamp)
@@ -455,12 +474,14 @@ class GOGCloudSavesManager(
 
             val url = "$CLOUD_STORAGE_BASE_URL/v1/$userId/$clientId/$dirname/${file.relativePath}"
 
-            val request = Request.Builder()
-                .url(url)
-                .header("Authorization", "Bearer $authToken")
-                .header("User-Agent", USER_AGENT)
-                .header("X-Object-Meta-User-Agent", USER_AGENT)
-                .build()
+            val request =
+                Request
+                    .Builder()
+                    .url(url)
+                    .header("Authorization", "Bearer $authToken")
+                    .header("User-Agent", USER_AGENT)
+                    .header("X-Object-Meta-User-Agent", USER_AGENT)
+                    .build()
 
             val response = httpClient.newCall(request).execute()
             response.use {

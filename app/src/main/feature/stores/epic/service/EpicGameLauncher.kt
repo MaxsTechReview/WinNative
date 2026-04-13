@@ -15,19 +15,18 @@ import java.io.IOException
  * - Managing ownership token files for DRM-protected games
  */
 object EpicGameLauncher {
-
     /**
      * Build launch parameters for an Epic game
      *
      * Returns a list of command-line arguments to pass to the game executable
      * for Epic Games Services authentication
      *
-    */
+     */
     suspend fun buildLaunchParameters(
         context: Context,
         game: EpicGame,
         offline: Boolean = false,
-        languageCode: String = "en-US"
+        languageCode: String = "en-US",
     ): Result<List<String>> {
         return try {
             val params = mutableListOf<String>()
@@ -44,12 +43,13 @@ object EpicGameLauncher {
 
             Timber.tag("EPIC").d("Launching ${game.appName} online, getting game launch token...")
 
-            val tokenResult = EpicAuthManager.getGameLaunchToken(
-                context = context,
-                namespace = game.namespace,
-                catalogItemId = game.catalogId,
-                requiresOwnershipToken = game.requiresOT
-            )
+            val tokenResult =
+                EpicAuthManager.getGameLaunchToken(
+                    context = context,
+                    namespace = game.namespace,
+                    catalogItemId = game.catalogId,
+                    requiresOwnershipToken = game.requiresOT,
+                )
 
             if (tokenResult.isFailure) {
                 return Result.failure(tokenResult.exceptionOrNull() ?: Exception("Failed to get launch token"))
@@ -65,11 +65,12 @@ object EpicGameLauncher {
             Timber.tag("EPIC").d("Got Game Token for ${game.appName}")
 
             // Save ownership token to temp file if present
-            val ownershipTokenPath = if (gameToken.ownershipToken != null) {
-                saveOwnershipTokenToFile(context, game.namespace, game.catalogId, gameToken.ownershipToken)
-            } else {
-                null
-            }
+            val ownershipTokenPath =
+                if (gameToken.ownershipToken != null) {
+                    saveOwnershipTokenToFile(context, game.namespace, game.catalogId, gameToken.ownershipToken)
+                } else {
+                    null
+                }
 
             Timber.tag("EPIC").i("Game launch token obtained for ${game.appName}")
 
@@ -84,7 +85,7 @@ object EpicGameLauncher {
             params.add("-EpicPortal")
 
             // User information parameters
-            val displayName = "GameNativeUser" //! We should adjust this later and use the user's real displayName later
+            val displayName = "GameNativeUser" // ! We should adjust this later and use the user's real displayName later
             val accountId = gameToken?.accountId ?: "0"
 
             params.add("-epicusername=$displayName")
@@ -122,7 +123,7 @@ object EpicGameLauncher {
         context: Context,
         namespace: String,
         catalogItemId: String,
-        ownershipTokenHex: String
+        ownershipTokenHex: String,
     ): String {
         // Validate hex string
         if (ownershipTokenHex.isEmpty()) {
@@ -147,15 +148,16 @@ object EpicGameLauncher {
 
         try {
             // Convert hex string back to bytes
-            val tokenBytes = ownershipTokenHex.chunked(2)
-                .map { hexByte ->
-                    try {
-                        hexByte.toInt(16).toByte()
-                    } catch (e: NumberFormatException) {
-                        throw IllegalArgumentException("Invalid hex byte: $hexByte", e)
-                    }
-                }
-                .toByteArray()
+            val tokenBytes =
+                ownershipTokenHex
+                    .chunked(2)
+                    .map { hexByte ->
+                        try {
+                            hexByte.toInt(16).toByte()
+                        } catch (e: NumberFormatException) {
+                            throw IllegalArgumentException("Invalid hex byte: $hexByte", e)
+                        }
+                    }.toByteArray()
 
             tokenFile.writeBytes(tokenBytes)
             Timber.tag("EPIC").d("Ownership token saved to: ${tokenFile.absolutePath}")

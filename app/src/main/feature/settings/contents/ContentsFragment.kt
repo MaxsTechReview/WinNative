@@ -1,7 +1,6 @@
 /* Components screen — Jetpack Compose host.
  * Hosts ComponentsScreen; orchestrates install / download / remove flows. */
 package com.winlator.cmod.feature.settings
-import com.winlator.cmod.R
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
@@ -26,21 +25,21 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
+import com.winlator.cmod.R
 import com.winlator.cmod.runtime.container.ContainerManager
-import com.winlator.cmod.shared.ui.dialog.ContentDialog
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
 import com.winlator.cmod.runtime.content.Downloader
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.io.StorageUtils
+import com.winlator.cmod.shared.ui.dialog.ContentDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
 class ContentsFragment : Fragment() {
-
     private lateinit var manager: ContentsManager
 
     private var componentsState by mutableStateOf(ComponentsState())
@@ -67,7 +66,7 @@ class ContentsFragment : Fragment() {
                 )
                 installSelectedContent(
                     it,
-                    getString(R.string.settings_content_installed_success)
+                    getString(R.string.settings_content_installed_success),
                 )
             }
         }
@@ -82,88 +81,100 @@ class ContentsFragment : Fragment() {
             ?.let(ContentProfile.ContentType::getTypeByName)
             ?.let { currentContentType = it }
 
-        autoCreateContainer = PreferenceManager.getDefaultSharedPreferences(requireContext())
-            .getBoolean(PREF_AUTO_CREATE_CONTAINER, true)
+        autoCreateContainer =
+            PreferenceManager
+                .getDefaultSharedPreferences(requireContext())
+                .getBoolean(PREF_AUTO_CREATE_CONTAINER, true)
     }
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View {
         val ctx = requireContext()
         publishState()
 
-        val composeView = ComposeView(ctx).apply {
-            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-            setContent {
-                MaterialTheme(
-                    colorScheme = darkColorScheme(
-                        primary    = Color(0xFF1A9FFF),
-                        background = Color(0xFF141B24),
-                        surface    = Color(0xFF1E252E),
-                    )
-                ) {
-                    ComponentsScreen(
-                        state = componentsState,
-                        onTypeSelected = { type -> selectContentType(type) },
-                        onInstallFromFile = { promptInstallFromFile() },
-                        onDownloadItem = { item ->
-                            profilesByKey[item.key]?.let { downloadRemoteContent(it) }
-                        },
-                        onRemoveItem = { item ->
-                            profilesByKey[item.key]?.let { onRemoveRequested(it) }
-                        },
-                        onToggleAutoCreateContainer = { enabled ->
-                            autoCreateContainer = enabled
-                            PreferenceManager.getDefaultSharedPreferences(requireContext())
-                                .edit()
-                                .putBoolean(PREF_AUTO_CREATE_CONTAINER, enabled)
-                                .apply()
-                            publishState()
+        val composeView =
+            ComposeView(ctx).apply {
+                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+                setContent {
+                    MaterialTheme(
+                        colorScheme =
+                            darkColorScheme(
+                                primary = Color(0xFF1A9FFF),
+                                background = Color(0xFF141B24),
+                                surface = Color(0xFF1E252E),
+                            ),
+                    ) {
+                        ComponentsScreen(
+                            state = componentsState,
+                            onTypeSelected = { type -> selectContentType(type) },
+                            onInstallFromFile = { promptInstallFromFile() },
+                            onDownloadItem = { item ->
+                                profilesByKey[item.key]?.let { downloadRemoteContent(it) }
+                            },
+                            onRemoveItem = { item ->
+                                profilesByKey[item.key]?.let { onRemoveRequested(it) }
+                            },
+                            onToggleAutoCreateContainer = { enabled ->
+                                autoCreateContainer = enabled
+                                PreferenceManager
+                                    .getDefaultSharedPreferences(requireContext())
+                                    .edit()
+                                    .putBoolean(PREF_AUTO_CREATE_CONTAINER, enabled)
+                                    .apply()
+                                publishState()
+                            },
+                        )
+                    }
+                }
+            }
+
+        val density = resources.displayMetrics.density
+        val scrollView =
+            ScrollView(ctx).apply {
+                isFillViewport = true
+                scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
+                scrollBarSize = (3 * density).toInt()
+                isScrollbarFadingEnabled = true
+                scrollBarDefaultDelayBeforeFade = 400
+                scrollBarFadeDuration = 250
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    setVerticalScrollbarThumbDrawable(
+                        GradientDrawable().apply {
+                            shape = GradientDrawable.RECTANGLE
+                            setColor(android.graphics.Color.argb(100, 26, 159, 255))
+                            cornerRadius = 4 * density
                         },
                     )
                 }
+                addView(
+                    composeView,
+                    ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ),
+                )
             }
-        }
-
-        val density = resources.displayMetrics.density
-        val scrollView = ScrollView(ctx).apply {
-            isFillViewport = true
-            scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
-            scrollBarSize = (3 * density).toInt()
-            isScrollbarFadingEnabled = true
-            scrollBarDefaultDelayBeforeFade = 400
-            scrollBarFadeDuration = 250
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                setVerticalScrollbarThumbDrawable(GradientDrawable().apply {
-                    shape = GradientDrawable.RECTANGLE
-                    setColor(android.graphics.Color.argb(100, 26, 159, 255))
-                    cornerRadius = 4 * density
-                })
-            }
-            addView(
-                composeView,
-                ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                ),
-            )
-        }
 
         return FrameLayout(ctx).apply {
             setBackgroundColor(android.graphics.Color.parseColor("#18181D"))
             addView(
                 scrollView,
-                FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                ).apply { marginEnd = (10 * density).toInt() },
+                FrameLayout
+                    .LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                    ).apply { marginEnd = (10 * density).toInt() },
             )
         }
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         (activity as? AppCompatActivity)?.supportActionBar?.setTitle(R.string.settings_content_components)
     }
@@ -196,38 +207,45 @@ class ContentsFragment : Fragment() {
     private fun publishState() {
         val profiles = manager.getProfiles(currentContentType).orEmpty()
 
-        val installed = profiles.filter { it.isInstalled }
-            .sortedWith(
-                compareByDescending<ContentProfile> { it.isInstalled }
-                    .thenBy { it.verName.lowercase() }
-                    .thenByDescending { it.verCode }
-            )
-        val available = profiles.filterNot { it.isInstalled }
-            .sortedWith(
-                compareBy<ContentProfile> { it.verName.lowercase() }
-                    .thenByDescending { it.verCode }
-            )
+        val installed =
+            profiles
+                .filter { it.isInstalled }
+                .sortedWith(
+                    compareByDescending<ContentProfile> { it.isInstalled }
+                        .thenBy { it.verName.lowercase() }
+                        .thenByDescending { it.verCode },
+                )
+        val available =
+            profiles
+                .filterNot { it.isInstalled }
+                .sortedWith(
+                    compareBy<ContentProfile> { it.verName.lowercase() }
+                        .thenByDescending { it.verCode },
+                )
 
         val keyedProfiles = linkedMapOf<String, ContentProfile>()
-        val installedItems = installed.map { profile ->
-            val item = profile.toItem()
-            keyedProfiles[item.key] = profile
-            item
-        }
-        val availableItems = available.map { profile ->
-            val item = profile.toItem()
-            keyedProfiles[item.key] = profile
-            item
-        }
+        val installedItems =
+            installed.map { profile ->
+                val item = profile.toItem()
+                keyedProfiles[item.key] = profile
+                item
+            }
+        val availableItems =
+            available.map { profile ->
+                val item = profile.toItem()
+                keyedProfiles[item.key] = profile
+                item
+            }
 
         profilesByKey = keyedProfiles
-        componentsState = ComponentsState(
-            currentType = currentContentType,
-            installed = installedItems,
-            available = availableItems,
-            downloadProgress = downloadProgress,
-            autoCreateContainer = autoCreateContainer,
-        )
+        componentsState =
+            ComponentsState(
+                currentType = currentContentType,
+                installed = installedItems,
+                available = availableItems,
+                downloadProgress = downloadProgress,
+                autoCreateContainer = autoCreateContainer,
+            )
 
         scheduleRemoteSizeFetches(availableItems)
         scheduleInstalledSizeFetches(installedItems)
@@ -239,12 +257,13 @@ class ContentsFragment : Fragment() {
         progress: Float? = null,
         indeterminate: Boolean = false,
     ) {
-        val next = ComponentsDownloadProgress(
-            title = title,
-            message = message,
-            progress = progress ?: 0f,
-            indeterminate = indeterminate || progress == null,
-        )
+        val next =
+            ComponentsDownloadProgress(
+                title = title,
+                message = message,
+                progress = progress ?: 0f,
+                indeterminate = indeterminate || progress == null,
+            )
         runOnMain {
             downloadProgress = next
             publishState()
@@ -269,13 +288,14 @@ class ContentsFragment : Fragment() {
 
     private fun ContentProfile.toItem(): ComponentItem {
         val installedSuffix = if (isInstalled) "1" else "0"
-        val cachedSize = if (isInstalled) {
-            installedSizeCache[ContentsManager.getInstallDir(requireContext(), this).absolutePath]
-        } else {
-            remoteUrl?.let { remoteSizeCache[it] }
-        }
+        val cachedSize =
+            if (isInstalled) {
+                installedSizeCache[ContentsManager.getInstallDir(requireContext(), this).absolutePath]
+            } else {
+                remoteUrl?.let { remoteSizeCache[it] }
+            }
         return ComponentItem(
-            key = "${type}:${verName}:${verCode}:${installedSuffix}:${remoteUrl ?: ""}",
+            key = "$type:$verName:$verCode:$installedSuffix:${remoteUrl ?: ""}",
             type = type,
             verName = verName,
             isInstalled = isInstalled,
@@ -285,10 +305,11 @@ class ContentsFragment : Fragment() {
     }
 
     private fun scheduleRemoteSizeFetches(items: List<ComponentItem>) {
-        val urlsToFetch = items
-            .mapNotNull { item -> profilesByKey[item.key]?.remoteUrl }
-            .filter { url -> url !in remoteSizeCache && url !in remoteSizeFetchesInFlight }
-            .distinct()
+        val urlsToFetch =
+            items
+                .mapNotNull { item -> profilesByKey[item.key]?.remoteUrl }
+                .filter { url -> url !in remoteSizeCache && url !in remoteSizeFetchesInFlight }
+                .distinct()
 
         if (urlsToFetch.isEmpty()) return
 
@@ -296,9 +317,10 @@ class ContentsFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             urlsToFetch.forEach { url ->
-                val size = withContext(Dispatchers.IO) {
-                    Downloader.fetchContentLength(url)
-                }
+                val size =
+                    withContext(Dispatchers.IO) {
+                        Downloader.fetchContentLength(url)
+                    }
                 if (!isAdded || view == null) return@launch
                 remoteSizeCache[url] = size
                 remoteSizeFetchesInFlight.remove(url)
@@ -308,11 +330,12 @@ class ContentsFragment : Fragment() {
     }
 
     private fun scheduleInstalledSizeFetches(items: List<ComponentItem>) {
-        val installDirsToFetch = items
-            .mapNotNull { item -> profilesByKey[item.key] }
-            .map { profile -> ContentsManager.getInstallDir(requireContext(), profile).absolutePath }
-            .filter { path -> path !in installedSizeCache && path !in installedSizeFetchesInFlight }
-            .distinct()
+        val installDirsToFetch =
+            items
+                .mapNotNull { item -> profilesByKey[item.key] }
+                .map { profile -> ContentsManager.getInstallDir(requireContext(), profile).absolutePath }
+                .filter { path -> path !in installedSizeCache && path !in installedSizeFetchesInFlight }
+                .distinct()
 
         if (installDirsToFetch.isEmpty()) return
 
@@ -320,9 +343,10 @@ class ContentsFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             installDirsToFetch.forEach { installDir ->
-                val size = withContext(Dispatchers.IO) {
-                    StorageUtils.getFolderSize(installDir)
-                }
+                val size =
+                    withContext(Dispatchers.IO) {
+                        StorageUtils.getFolderSize(installDir)
+                    }
                 if (!isAdded || view == null) return@launch
                 installedSizeCache[installDir] = size
                 installedSizeFetchesInFlight.remove(installDir)
@@ -358,9 +382,9 @@ class ContentsFragment : Fragment() {
                 requireContext(),
                 getString(
                     R.string.settings_content_unable_to_remove_in_use,
-                    containerInUse
+                    containerInUse,
                 ),
-                null
+                null,
             )
             return
         }
@@ -375,14 +399,16 @@ class ContentsFragment : Fragment() {
             try {
                 val context = context ?: return@launch
                 val preferences = PreferenceManager.getDefaultSharedPreferences(context)
-                val contentsUrl = preferences.getString(
-                    "downloadable_contents_url",
-                    ContentsManager.REMOTE_PROFILES
-                ) ?: ContentsManager.REMOTE_PROFILES
+                val contentsUrl =
+                    preferences.getString(
+                        "downloadable_contents_url",
+                        ContentsManager.REMOTE_PROFILES,
+                    ) ?: ContentsManager.REMOTE_PROFILES
 
-                val json = withContext(Dispatchers.IO) {
-                    Downloader.downloadString(contentsUrl)
-                } ?: return@launch
+                val json =
+                    withContext(Dispatchers.IO) {
+                        Downloader.downloadString(contentsUrl)
+                    } ?: return@launch
 
                 withContext(Dispatchers.IO) {
                     manager.setRemoteProfiles(json)
@@ -400,117 +426,132 @@ class ContentsFragment : Fragment() {
     private fun installSelectedContent(
         uri: Uri,
         completionMessage: String,
-        sourceRemoteUrl: String? = null
+        sourceRemoteUrl: String? = null,
     ) {
-        val callback = object : ContentsManager.OnInstallFinishedCallback {
-            private var isExtracting = true
-            private var extractedProfile: ContentProfile? = null
+        val callback =
+            object : ContentsManager.OnInstallFinishedCallback {
+                private var isExtracting = true
+                private var extractedProfile: ContentProfile? = null
 
-            override fun onFailed(reason: ContentsManager.InstallFailedReason, e: Exception?) {
-                val conflictingProfile = extractedProfile
-                if (reason == ContentsManager.InstallFailedReason.ERROR_EXIST) {
-                    conflictingProfile?.let { profile ->
+                override fun onFailed(
+                    reason: ContentsManager.InstallFailedReason,
+                    e: Exception?,
+                ) {
+                    val conflictingProfile = extractedProfile
+                    if (reason == ContentsManager.InstallFailedReason.ERROR_EXIST) {
+                        conflictingProfile?.let { profile ->
+                            if (sourceRemoteUrl != null) {
+                                manager.registerRemoteProfileAlias(sourceRemoteUrl, profile)
+                            }
+                            manager.syncContents()
+                        }
+                    }
+
+                    val msgId =
+                        when (reason) {
+                            ContentsManager.InstallFailedReason.ERROR_BADTAR -> R.string.settings_content_file_cannot_be_recognized
+                            ContentsManager.InstallFailedReason.ERROR_NOPROFILE -> R.string.settings_content_profile_not_found
+                            ContentsManager.InstallFailedReason.ERROR_BADPROFILE -> R.string.settings_content_profile_cannot_be_recognized
+                            ContentsManager.InstallFailedReason.ERROR_MISSINGFILES -> R.string.settings_content_is_incomplete
+                            ContentsManager.InstallFailedReason.ERROR_UNTRUSTPROFILE -> R.string.settings_content_cannot_be_trusted
+                            else -> R.string.settings_content_unable_to_install
+                        }
+
+                    runOnMain {
+                        clearDownloadProgress()
+                        if (reason == ContentsManager.InstallFailedReason.ERROR_EXIST && conflictingProfile != null) {
+                            showConflictingContentDialog(conflictingProfile)
+                        } else {
+                            ContentDialog.alert(
+                                requireContext(),
+                                getString(R.string.settings_content_install_failed) + ": " + getString(msgId),
+                                null,
+                            )
+                        }
+                    }
+                }
+
+                override fun onSucceed(profile: ContentProfile) {
+                    if (isExtracting) {
+                        isExtracting = false
+                        extractedProfile = profile
+                        updateDownloadProgress(
+                            title = getString(R.string.settings_content_installing_title),
+                            message = profile.verName,
+                            indeterminate = true,
+                        )
+                        manager.finishInstallContent(profile, this)
+                        return
+                    }
+
+                    clearDownloadProgress()
+                    runOnMain {
                         if (sourceRemoteUrl != null) {
                             manager.registerRemoteProfileAlias(sourceRemoteUrl, profile)
                         }
+                        AppUtils.showToast(requireContext(), completionMessage)
                         manager.syncContents()
-                    }
-                }
+                        currentContentType = profile.type
+                        publishState()
 
-                val msgId = when (reason) {
-                    ContentsManager.InstallFailedReason.ERROR_BADTAR -> R.string.settings_content_file_cannot_be_recognized
-                    ContentsManager.InstallFailedReason.ERROR_NOPROFILE -> R.string.settings_content_profile_not_found
-                    ContentsManager.InstallFailedReason.ERROR_BADPROFILE -> R.string.settings_content_profile_cannot_be_recognized
-                    ContentsManager.InstallFailedReason.ERROR_MISSINGFILES -> R.string.settings_content_is_incomplete
-                    ContentsManager.InstallFailedReason.ERROR_UNTRUSTPROFILE -> R.string.settings_content_cannot_be_trusted
-                    else -> R.string.settings_content_unable_to_install
-                }
+                        if (autoCreateContainer &&
+                            (
+                                profile.type == ContentProfile.ContentType.CONTENT_TYPE_WINE ||
+                                    profile.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON
+                            )
+                        ) {
+                            val containerManager = ContainerManager(requireContext())
 
-                runOnMain {
-                    clearDownloadProgress()
-                    if (reason == ContentsManager.InstallFailedReason.ERROR_EXIST && conflictingProfile != null) {
-                        showConflictingContentDialog(conflictingProfile)
-                    } else {
-                        ContentDialog.alert(
-                            requireContext(),
-                            getString(R.string.settings_content_install_failed) + ": " + getString(msgId),
-                            null
-                        )
-                    }
-                }
-            }
+                            var desiredName =
+                                profile.verName
+                                    .replace("winlator", "", ignoreCase = true)
+                                    .replace("wine", "", ignoreCase = true)
+                                    .replace(Regex("[^a-zA-Z0-9.\\-]"), " ")
+                                    .trim()
+                                    .replace(Regex("\\s+"), " ")
 
-            override fun onSucceed(profile: ContentProfile) {
-                if (isExtracting) {
-                    isExtracting = false
-                    extractedProfile = profile
-                    updateDownloadProgress(
-                        title = getString(R.string.settings_content_installing_title),
-                        message = profile.verName,
-                        indeterminate = true,
-                    )
-                    manager.finishInstallContent(profile, this)
-                    return
-                }
+                            if (desiredName.isEmpty()) desiredName = getString(R.string.common_ui_container)
 
-                clearDownloadProgress()
-                runOnMain {
-                    if (sourceRemoteUrl != null) {
-                        manager.registerRemoteProfileAlias(sourceRemoteUrl, profile)
-                    }
-                    AppUtils.showToast(requireContext(), completionMessage)
-                    manager.syncContents()
-                    currentContentType = profile.type
-                    publishState()
+                            var uniqueName = desiredName
+                            var counter = 2
+                            while (containerManager.containers.any { it.name.equals(uniqueName, ignoreCase = true) }) {
+                                uniqueName = "$desiredName $counter"
+                                counter++
+                            }
 
-                    if (autoCreateContainer && (profile.type == ContentProfile.ContentType.CONTENT_TYPE_WINE || profile.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON)) {
-                        val containerManager = ContainerManager(requireContext())
+                            val data =
+                                org.json.JSONObject().apply {
+                                    put("name", uniqueName)
+                                    put("wineVersion", ContentsManager.getEntryName(profile))
+                                }
 
-                        var desiredName = profile.verName
-                            .replace("winlator", "", ignoreCase = true)
-                            .replace("wine", "", ignoreCase = true)
-                            .replace(Regex("[^a-zA-Z0-9.\\-]"), " ")
-                            .trim()
-                            .replace(Regex("\\s+"), " ")
+                            val preloaderDialog =
+                                com.winlator.cmod.shared.ui.dialog
+                                    .PreloaderDialog(activity)
+                            preloaderDialog.show(R.string.containers_list_creating)
 
-                        if (desiredName.isEmpty()) desiredName = getString(R.string.common_ui_container)
-
-                        var uniqueName = desiredName
-                        var counter = 2
-                        while (containerManager.containers.any { it.name.equals(uniqueName, ignoreCase = true) }) {
-                            uniqueName = "$desiredName $counter"
-                            counter++
-                        }
-
-                        val data = org.json.JSONObject().apply {
-                            put("name", uniqueName)
-                            put("wineVersion", ContentsManager.getEntryName(profile))
-                        }
-
-                        val preloaderDialog = com.winlator.cmod.shared.ui.dialog.PreloaderDialog(activity)
-                        preloaderDialog.show(R.string.containers_list_creating)
-
-                        containerManager.createContainerAsync(data, manager) { newContainer ->
-                            preloaderDialog.close()
-                            if (newContainer != null) {
-                                AppUtils.showToast(
-                                    requireContext(),
-                                    getString(R.string.settings_content_container_created, uniqueName)
-                                )
+                            containerManager.createContainerAsync(data, manager) { newContainer ->
+                                preloaderDialog.close()
+                                if (newContainer != null) {
+                                    AppUtils.showToast(
+                                        requireContext(),
+                                        getString(R.string.settings_content_container_created, uniqueName),
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
-        val extractionProgress = ContentsManager.OnExtractionProgressListener { filesExtracted, _ ->
-            updateDownloadProgress(
-                title = getString(R.string.settings_content_extracting_title),
-                message = getString(R.string.settings_content_extracting_detail, filesExtracted),
-                indeterminate = true,
-            )
-        }
+        val extractionProgress =
+            ContentsManager.OnExtractionProgressListener { filesExtracted, _ ->
+                updateDownloadProgress(
+                    title = getString(R.string.settings_content_extracting_title),
+                    message = getString(R.string.settings_content_extracting_detail, filesExtracted),
+                    indeterminate = true,
+                )
+            }
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             runCatching { manager.extraContentFile(uri, callback, extractionProgress) }
@@ -530,8 +571,8 @@ class ContentsFragment : Fragment() {
         dialog.setMessage(
             getString(
                 R.string.settings_content_conflicting_message,
-                conflictingPath
-            )
+                conflictingPath,
+            ),
         )
         dialog.findViewById<View>(R.id.BTCancel).isVisible = false
         dialog.show()
@@ -547,25 +588,27 @@ class ContentsFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             val output = File(requireContext().cacheDir, "temp_${System.currentTimeMillis()}")
-            val success = withContext(Dispatchers.IO) {
-                Downloader.downloadFileWinNativeFirst(remoteUrl, output) { downloadedBytes, totalBytes ->
-                    if (totalBytes <= 0L) {
+            val success =
+                withContext(Dispatchers.IO) {
+                    Downloader.downloadFileWinNativeFirst(remoteUrl, output) { downloadedBytes, totalBytes ->
+                        if (totalBytes <= 0L) {
+                            updateDownloadProgress(
+                                title = getString(R.string.settings_content_downloading_title),
+                                message = profile.verName,
+                                indeterminate = true,
+                            )
+                            return@downloadFileWinNativeFirst
+                        }
+                        val fraction =
+                            (downloadedBytes.toFloat() / totalBytes.toFloat())
+                                .coerceIn(0f, 1f)
                         updateDownloadProgress(
                             title = getString(R.string.settings_content_downloading_title),
                             message = profile.verName,
-                            indeterminate = true,
+                            progress = fraction,
                         )
-                        return@downloadFileWinNativeFirst
                     }
-                    val fraction = (downloadedBytes.toFloat() / totalBytes.toFloat())
-                        .coerceIn(0f, 1f)
-                    updateDownloadProgress(
-                        title = getString(R.string.settings_content_downloading_title),
-                        message = profile.verName,
-                        progress = fraction,
-                    )
                 }
-            }
 
             if (!isAdded || view == null) {
                 output.delete()
@@ -582,7 +625,7 @@ class ContentsFragment : Fragment() {
                 installSelectedContent(
                     Uri.parse(output.absolutePath),
                     getString(R.string.settings_content_download_complete),
-                    remoteUrl
+                    remoteUrl,
                 )
             } else if (isAdded) {
                 clearDownloadProgress()

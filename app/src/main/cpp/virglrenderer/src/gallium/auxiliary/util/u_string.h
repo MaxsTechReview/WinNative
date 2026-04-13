@@ -38,11 +38,10 @@
 #if !defined(_MSC_VER) && !defined(XF86_LIBC_H)
 #include <stdio.h>
 #endif
-#include <stddef.h>
 #include <stdarg.h>
+#include <stddef.h>
 
 #include "pipe/p_compiler.h"
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,12 +53,11 @@ extern "C" {
 
 #else
 
-static inline char *
-util_strchrnul(const char *s, char c)
-{
-   for (; *s && *s != c; ++s);
+static inline char *util_strchrnul(const char *s, char c) {
+  for (; *s && *s != c; ++s)
+    ;
 
-   return (char *)s;
+  return (char *)s;
 }
 
 #endif
@@ -69,108 +67,89 @@ util_strchrnul(const char *s, char c)
 int util_vsnprintf(char *, size_t, const char *, va_list);
 int util_snprintf(char *str, size_t size, const char *format, ...);
 
-static inline void
-util_vsprintf(char *str, const char *format, va_list ap)
-{
-   util_vsnprintf(str, (size_t)-1, format, ap);
+static inline void util_vsprintf(char *str, const char *format, va_list ap) {
+  util_vsnprintf(str, (size_t)-1, format, ap);
 }
 
-static inline void
-util_sprintf(char *str, const char *format, ...)
-{
-   va_list ap;
-   va_start(ap, format);
-   util_vsnprintf(str, (size_t)-1, format, ap);
-   va_end(ap);
+static inline void util_sprintf(char *str, const char *format, ...) {
+  va_list ap;
+  va_start(ap, format);
+  util_vsnprintf(str, (size_t)-1, format, ap);
+  va_end(ap);
 }
 
-static inline char *
-util_strchr(const char *s, char c)
-{
-   char *p = util_strchrnul(s, c);
+static inline char *util_strchr(const char *s, char c) {
+  char *p = util_strchrnul(s, c);
 
-   return *p ? p : NULL;
+  return *p ? p : NULL;
 }
 
-static inline char*
-util_strncat(char *dst, const char *src, size_t n)
-{
-   char *p = dst + strlen(dst);
-   const char *q = src;
-   size_t i;
+static inline char *util_strncat(char *dst, const char *src, size_t n) {
+  char *p = dst + strlen(dst);
+  const char *q = src;
+  size_t i;
 
-   for (i = 0; i < n && *q != '\0'; ++i)
-       *p++ = *q++;
-   *p = '\0';
+  for (i = 0; i < n && *q != '\0'; ++i)
+    *p++ = *q++;
+  *p = '\0';
 
-   return dst;
+  return dst;
 }
 
-static inline int
-util_strcmp(const char *s1, const char *s2)
-{
-   unsigned char u1, u2;
+static inline int util_strcmp(const char *s1, const char *s2) {
+  unsigned char u1, u2;
 
-   while (1) {
-      u1 = (unsigned char) *s1++;
-      u2 = (unsigned char) *s2++;
-      if (u1 != u2)
-	 return u1 - u2;
-      if (u1 == '\0')
-	 return 0;
-   }
-   return 0;
+  while (1) {
+    u1 = (unsigned char)*s1++;
+    u2 = (unsigned char)*s2++;
+    if (u1 != u2)
+      return u1 - u2;
+    if (u1 == '\0')
+      return 0;
+  }
+  return 0;
 }
 
-static inline int
-util_strncmp(const char *s1, const char *s2, size_t n)
-{
-   unsigned char u1, u2;
+static inline int util_strncmp(const char *s1, const char *s2, size_t n) {
+  unsigned char u1, u2;
 
-   while (n-- > 0) {
-      u1 = (unsigned char) *s1++;
-      u2 = (unsigned char) *s2++;
-      if (u1 != u2)
-	 return u1 - u2;
-      if (u1 == '\0')
-	 return 0;
-   }
-   return 0;
+  while (n-- > 0) {
+    u1 = (unsigned char)*s1++;
+    u2 = (unsigned char)*s2++;
+    if (u1 != u2)
+      return u1 - u2;
+    if (u1 == '\0')
+      return 0;
+  }
+  return 0;
 }
 
-static inline char *
-util_strstr(const char *haystack, const char *needle)
-{
-   const char *p = haystack;
-   size_t len = strlen(needle);
+static inline char *util_strstr(const char *haystack, const char *needle) {
+  const char *p = haystack;
+  size_t len = strlen(needle);
 
-   for (; (p = util_strchr(p, *needle)) != 0; p++) {
-      if (util_strncmp(p, needle, len) == 0) {
-	 return (char *)p;
-      }
-   }
-   return NULL;
+  for (; (p = util_strchr(p, *needle)) != 0; p++) {
+    if (util_strncmp(p, needle, len) == 0) {
+      return (char *)p;
+    }
+  }
+  return NULL;
 }
 
-static inline void *
-util_memmove(void *dest, const void *src, size_t n)
-{
-   char *p = (char *)dest;
-   const char *q = (const char *)src;
-   if (dest < src) {
-      while (n--)
-	 *p++ = *q++;
-   }
-   else
-   {
-      p += n;
-      q += n;
-      while (n--)
-	 *--p = *--q;
-   }
-   return dest;
+static inline void *util_memmove(void *dest, const void *src, size_t n) {
+  char *p = (char *)dest;
+  const char *q = (const char *)src;
+  if (dest < src) {
+    while (n--)
+      *p++ = *q++;
+  } else {
+    p += n;
+    q += n;
+    while (n--)
+      *--p = *--q;
+  }
+  return dest;
 }
-
 
 #else
 
@@ -187,43 +166,35 @@ util_memmove(void *dest, const void *src, size_t n)
 
 #endif
 
-
 /**
  * Printable string buffer
  */
-struct util_strbuf
-{
-   char *str;
-   char *ptr;
-   size_t left;
+struct util_strbuf {
+  char *str;
+  char *ptr;
+  size_t left;
 };
 
-
-static inline void
-util_strbuf_init(struct util_strbuf *sbuf, char *str, size_t size) 
-{
-   sbuf->str = str;
-   sbuf->str[0] = 0;
-   sbuf->ptr = sbuf->str;
-   sbuf->left = size;
+static inline void util_strbuf_init(struct util_strbuf *sbuf, char *str,
+                                    size_t size) {
+  sbuf->str = str;
+  sbuf->str[0] = 0;
+  sbuf->ptr = sbuf->str;
+  sbuf->left = size;
 }
 
-
-static inline void
-util_strbuf_printf(struct util_strbuf *sbuf, const char *format, ...)
-{
-   if(sbuf->left > 1) {
-      size_t written;
-      va_list ap;
-      va_start(ap, format);
-      written = util_vsnprintf(sbuf->ptr, sbuf->left, format, ap);
-      va_end(ap);
-      sbuf->ptr += written;
-      sbuf->left -= written;
-   }
+static inline void util_strbuf_printf(struct util_strbuf *sbuf,
+                                      const char *format, ...) {
+  if (sbuf->left > 1) {
+    size_t written;
+    va_list ap;
+    va_start(ap, format);
+    written = util_vsnprintf(sbuf->ptr, sbuf->left, format, ap);
+    va_end(ap);
+    sbuf->ptr += written;
+    sbuf->left -= written;
+  }
 }
-
-
 
 #ifdef __cplusplus
 }

@@ -13,15 +13,27 @@ class StatsAchievementsGenerator {
                 char.code < 32 || char.code > 126 -> {
                     sb.append(String.format("\\u%04x", char.code))
                 }
-                char == '\\' -> sb.append("\\")
-                char == '"' -> sb.append("\\\"")
-                else -> sb.append(char)
+
+                char == '\\' -> {
+                    sb.append("\\")
+                }
+
+                char == '"' -> {
+                    sb.append("\\\"")
+                }
+
+                else -> {
+                    sb.append(char)
+                }
             }
         }
         return sb.toString()
     }
 
-    fun generateStatsAchievements(schema: ByteArray, configDirectory: String): ProcessingResult {
+    fun generateStatsAchievements(
+        schema: ByteArray,
+        configDirectory: String,
+    ): ProcessingResult {
         val parsedSchema = vdfParser.binaryLoads(schema)
         val achievementsOut = mutableListOf<Achievement>()
         val statsOut = mutableListOf<Stat>()
@@ -60,6 +72,7 @@ class StatsAchievementsGenerator {
                                         achievementBuilder["displayName"] = mapOf("english" to displayValue.toString())
                                     }
                                 }
+
                                 "desc" -> {
                                     if (displayValue is Map<*, *>) {
                                         val langMap = mutableMapOf<String, String>()
@@ -71,14 +84,17 @@ class StatsAchievementsGenerator {
                                         achievementBuilder["description"] = mapOf("english" to displayValue.toString())
                                     }
                                 }
+
                                 "hidden" -> {
-                                    val value = try {
-                                        displayValue.toString().toInt()
-                                    } catch (e: NumberFormatException) {
-                                        displayValue
-                                    }
+                                    val value =
+                                        try {
+                                            displayValue.toString().toInt()
+                                        } catch (e: NumberFormatException) {
+                                            displayValue
+                                        }
                                     achievementBuilder["hidden"] = value
                                 }
+
                                 else -> {
                                     achievementBuilder[displayKey] = displayValue
                                 }
@@ -98,16 +114,17 @@ class StatsAchievementsGenerator {
                             achievementBuilder["progress"] = ach["progress"] as Any
                         }
 
-                        val achievement = Achievement(
-                            name = achievementBuilder["name"]?.toString() ?: "",
-                            displayName = achievementBuilder["displayName"] as? Map<String, String>,
-                            description = achievementBuilder["description"] as? Map<String, String>,
-                            hidden = (achievementBuilder["hidden"] as? Number)?.toInt() ?: 0,
-                            icon = achievementBuilder["icon"]?.toString(),
-                            iconGray = achievementBuilder["icon_gray"]?.toString(),
-                            icongray = achievementBuilder["icongray"]?.toString(),
-                            progress = achievementBuilder["progress"] as? Map<String, Any>
-                        )
+                        val achievement =
+                            Achievement(
+                                name = achievementBuilder["name"]?.toString() ?: "",
+                                displayName = achievementBuilder["displayName"] as? Map<String, String>,
+                                description = achievementBuilder["description"] as? Map<String, String>,
+                                hidden = (achievementBuilder["hidden"] as? Number)?.toInt() ?: 0,
+                                icon = achievementBuilder["icon"]?.toString(),
+                                iconGray = achievementBuilder["icon_gray"]?.toString(),
+                                icongray = achievementBuilder["icongray"]?.toString(),
+                                progress = achievementBuilder["progress"] as? Map<String, Any>,
+                            )
                         achievementsOut.add(achievement)
                     }
                 } else {
@@ -136,14 +153,15 @@ class StatsAchievementsGenerator {
                         statBuilder["default"] = stat["default"] as Any
                     }
 
-                    val statObj = Stat(
-                        id = statBuilder["id"]?.toString() ?: "",
-                        name = statBuilder["name"]?.toString() ?: "",
-                        type = statBuilder["type"]?.toString() ?: "int",
-                        default = statBuilder["default"]?.toString() ?: "0",
-                        global = statBuilder["global"]?.toString() ?: "0",
-                        min = statBuilder["min"]?.toString()
-                    )
+                    val statObj =
+                        Stat(
+                            id = statBuilder["id"]?.toString() ?: "",
+                            name = statBuilder["name"]?.toString() ?: "",
+                            type = statBuilder["type"]?.toString() ?: "int",
+                            default = statBuilder["default"]?.toString() ?: "0",
+                            global = statBuilder["global"]?.toString() ?: "0",
+                            min = statBuilder["min"]?.toString(),
+                        )
                     statsOut.add(statObj)
                 }
             }
@@ -242,65 +260,77 @@ class StatsAchievementsGenerator {
         if (achievementsFile.exists()) {
             achievementsFile.delete()
         }
-        val achievementsJsonContent = if (outputAchievements.isNotEmpty()) {
-            val jsonBuilder = StringBuilder()
-            jsonBuilder.append("[\n")
+        val achievementsJsonContent =
+            if (outputAchievements.isNotEmpty()) {
+                val jsonBuilder = StringBuilder()
+                jsonBuilder.append("[\n")
 
-            val orderedKeys = listOf(
-                "hidden", "displayName", "description", "icon", "icon_gray", "name",
-                "unlocked", "unlockTimestamp", "formattedUnlockTime"
-            )
+                val orderedKeys =
+                    listOf(
+                        "hidden",
+                        "displayName",
+                        "description",
+                        "icon",
+                        "icon_gray",
+                        "name",
+                        "unlocked",
+                        "unlockTimestamp",
+                        "formattedUnlockTime",
+                    )
 
-            for ((index, ach) in outputAchievements.withIndex()) {
-                if (index > 0) jsonBuilder.append(",\n")
-                jsonBuilder.append("  {\n")
+                for ((index, ach) in outputAchievements.withIndex()) {
+                    if (index > 0) jsonBuilder.append(",\n")
+                    jsonBuilder.append("  {\n")
 
-                val achMap = ach.toMap()
-                var firstKey = true
+                    val achMap = ach.toMap()
+                    var firstKey = true
 
-                for (key in orderedKeys) {
-                    val value = achMap[key]
-                    if (value != null) {
-                        if (!firstKey) jsonBuilder.append(",\n")
-                        firstKey = false
+                    for (key in orderedKeys) {
+                        val value = achMap[key]
+                        if (value != null) {
+                            if (!firstKey) jsonBuilder.append(",\n")
+                            firstKey = false
 
-                        when (key) {
-                            "displayName", "description" -> {
-                                jsonBuilder.append("    \"$key\": ")
-                                if (value is Map<*, *>) {
-                                    jsonBuilder.append("{\n")
-                                    val langEntries = value.entries.toList()
-                                    for ((langIndex, langEntry) in langEntries.withIndex()) {
-                                        if (langIndex > 0) jsonBuilder.append(",\n")
-                                        val escapedText = escapeUnicode(langEntry.value.toString())
-                                        jsonBuilder.append("      \"${langEntry.key}\": \"$escapedText\"")
+                            when (key) {
+                                "displayName", "description" -> {
+                                    jsonBuilder.append("    \"$key\": ")
+                                    if (value is Map<*, *>) {
+                                        jsonBuilder.append("{\n")
+                                        val langEntries = value.entries.toList()
+                                        for ((langIndex, langEntry) in langEntries.withIndex()) {
+                                            if (langIndex > 0) jsonBuilder.append(",\n")
+                                            val escapedText = escapeUnicode(langEntry.value.toString())
+                                            jsonBuilder.append("      \"${langEntry.key}\": \"$escapedText\"")
+                                        }
+                                        jsonBuilder.append("\n    }")
+                                    } else {
+                                        val escapedText = escapeUnicode(value.toString())
+                                        jsonBuilder.append("\"$escapedText\"")
                                     }
-                                    jsonBuilder.append("\n    }")
-                                } else {
-                                    val escapedText = escapeUnicode(value.toString())
-                                    jsonBuilder.append("\"$escapedText\"")
                                 }
-                            }
-                            "hidden", "unlockTimestamp" -> {
-                                jsonBuilder.append("    \"$key\": $value")
-                            }
-                            "unlocked" -> {
-                                jsonBuilder.append("    \"$key\": ${value.toString().lowercase()}")
-                            }
-                            else -> {
-                                jsonBuilder.append("    \"$key\": \"${escapeUnicode(value.toString())}\"")
+
+                                "hidden", "unlockTimestamp" -> {
+                                    jsonBuilder.append("    \"$key\": $value")
+                                }
+
+                                "unlocked" -> {
+                                    jsonBuilder.append("    \"$key\": ${value.toString().lowercase()}")
+                                }
+
+                                else -> {
+                                    jsonBuilder.append("    \"$key\": \"${escapeUnicode(value.toString())}\"")
+                                }
                             }
                         }
                     }
+                    jsonBuilder.append("\n  }")
                 }
-                jsonBuilder.append("\n  }")
-            }
 
-            jsonBuilder.append("\n]")
-            jsonBuilder.toString()
-        } else {
-            "[]"
-        }
+                jsonBuilder.append("\n]")
+                jsonBuilder.toString()
+            } else {
+                "[]"
+            }
         achievementsFile.writeText(achievementsJsonContent, Charsets.UTF_8)
 
         if (outputStats.isNotEmpty()) {

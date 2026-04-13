@@ -37,53 +37,57 @@ object SteamClientDownloadFailureDialog {
         onRetry: Runnable,
         onClose: Runnable,
     ) {
-        val dialog = Dialog(activity, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar).apply {
-            requestWindowFeature(Window.FEATURE_NO_TITLE)
-            setCancelable(false)
-            window?.apply {
-                setLayout(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.WRAP_CONTENT
-                )
-                setBackgroundDrawableResource(android.R.color.transparent)
-            }
-        }
-
-        val composeView = ComposeView(activity).apply {
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-            (activity as? ComponentActivity)?.let {
-                setViewTreeLifecycleOwner(it)
-                setViewTreeSavedStateRegistryOwner(it)
-            }
-            setContent {
-                MaterialTheme(
-                    colorScheme = darkColorScheme(
-                        primary = Color(0xFF57CBDE),
-                        surface = Color(0xFF1A2028),
-                        background = Color(0xFF141B24),
-                        onSurface = Color(0xFFF0F4FF),
-                        onBackground = Color(0xFFF0F4FF),
+        val dialog =
+            Dialog(activity, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar).apply {
+                requestWindowFeature(Window.FEATURE_NO_TITLE)
+                setCancelable(false)
+                window?.apply {
+                    setLayout(
+                        WindowManager.LayoutParams.MATCH_PARENT,
+                        WindowManager.LayoutParams.WRAP_CONTENT,
                     )
-                ) {
-                    SteamClientDownloadFailureDialogContent(
-                        title = title,
-                        message = message,
-                        onRetry = {
-                            dialog.dismiss()
-                            onRetry.run()
-                        },
-                        onClose = {
-                            dialog.dismiss()
-                            onClose.run()
-                        }
-                    )
+                    setBackgroundDrawableResource(android.R.color.transparent)
                 }
             }
-        }
+
+        val composeView =
+            ComposeView(activity).apply {
+                layoutParams =
+                    ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                    )
+                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+                (activity as? ComponentActivity)?.let {
+                    setViewTreeLifecycleOwner(it)
+                    setViewTreeSavedStateRegistryOwner(it)
+                }
+                setContent {
+                    MaterialTheme(
+                        colorScheme =
+                            darkColorScheme(
+                                primary = Color(0xFF57CBDE),
+                                surface = Color(0xFF1A2028),
+                                background = Color(0xFF141B24),
+                                onSurface = Color(0xFFF0F4FF),
+                                onBackground = Color(0xFFF0F4FF),
+                            ),
+                    ) {
+                        SteamClientDownloadFailureDialogContent(
+                            title = title,
+                            message = message,
+                            onRetry = {
+                                dialog.dismiss()
+                                onRetry.run()
+                            },
+                            onClose = {
+                                dialog.dismiss()
+                                onClose.run()
+                            },
+                        )
+                    }
+                }
+            }
 
         dialog.setContentView(composeView)
         dialog.show()
@@ -98,17 +102,19 @@ private fun SteamClientDownloadFailureDialogContent(
     onClose: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
         shape = RoundedCornerShape(20.dp),
         color = Color(0xFF1A2028),
         tonalElevation = 0.dp,
     ) {
         Column(
-            modifier = Modifier
-                .background(Color(0xFF1A2028))
-                .padding(20.dp),
+            modifier =
+                Modifier
+                    .background(Color(0xFF1A2028))
+                    .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(

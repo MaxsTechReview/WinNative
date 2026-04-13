@@ -1,6 +1,7 @@
 package com.winlator.cmod.feature.stores.steam.utils
 
 import android.content.res.AssetManager
+import timber.log.Timber
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
@@ -13,7 +14,6 @@ import java.util.stream.Stream
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
 import kotlin.io.path.name
-import timber.log.Timber
 
 object FileUtils {
     fun calculateDirectorySize(directory: File): Long {
@@ -34,7 +34,11 @@ object FileUtils {
         File(dirName).mkdirs()
     }
 
-    fun makeFile(fileName: String, errorTag: String? = "FileUtils", errorMsg: ((Exception) -> String)? = null) {
+    fun makeFile(
+        fileName: String,
+        errorTag: String? = "FileUtils",
+        errorMsg: ((Exception) -> String)? = null,
+    ) {
         try {
             val file = File(fileName)
             if (!file.exists()) file.createNewFile()
@@ -53,7 +57,11 @@ object FileUtils {
         makeDir(dirs)
     }
 
-    fun readFileAsString(path: String, errorTag: String = "FileUtils", errorMsg: ((Exception) -> String)? = null): String? {
+    fun readFileAsString(
+        path: String,
+        errorTag: String = "FileUtils",
+        errorMsg: ((Exception) -> String)? = null,
+    ): String? {
         var fileData: String? = null
         try {
             val reader = BufferedReader(FileReader(path))
@@ -71,7 +79,12 @@ object FileUtils {
         return fileData
     }
 
-    fun writeStringToFile(data: String, path: String, errorTag: String? = "FileUtils", errorMsg: ((Exception) -> String)? = null) {
+    fun writeStringToFile(
+        data: String,
+        path: String,
+        errorTag: String? = "FileUtils",
+        errorMsg: ((Exception) -> String)? = null,
+    ) {
         createPathIfNotExist(path)
         try {
             val output = FileOutputStream(path)
@@ -86,7 +99,11 @@ object FileUtils {
         }
     }
 
-    fun walkThroughPath(rootPath: Path, maxDepth: Int = 0, action: (Path) -> Unit) {
+    fun walkThroughPath(
+        rootPath: Path,
+        maxDepth: Int = 0,
+        action: (Path) -> Unit,
+    ) {
         if (!Files.exists(rootPath) || !Files.isDirectory(rootPath)) return
         Files.list(rootPath).use { fileList ->
             fileList.forEach {
@@ -102,7 +119,11 @@ object FileUtils {
         }
     }
 
-    fun findFiles(rootPath: Path, pattern: String, includeDirectories: Boolean = false): Stream<Path> {
+    fun findFiles(
+        rootPath: Path,
+        pattern: String,
+        includeDirectories: Boolean = false,
+    ): Stream<Path> {
         val patternParts = pattern.split("*").filter { it.isNotEmpty() }
         if (!Files.exists(rootPath)) return emptyList<Path>().stream()
         return Files.list(rootPath).filter { path ->
@@ -111,11 +132,12 @@ object FileUtils {
             } else {
                 val fileName = path.name
                 var startIndex = 0
-                !patternParts.map {
-                    val index = fileName.indexOf(it, startIndex)
-                    if (index >= 0) startIndex = index + it.length
-                    index
-                }.any { it < 0 }
+                !patternParts
+                    .map {
+                        val index = fileName.indexOf(it, startIndex)
+                        if (index >= 0) startIndex = index + it.length
+                        index
+                    }.any { it < 0 }
             }
         }
     }
@@ -152,15 +174,20 @@ object FileUtils {
         return results.stream()
     }
 
-    fun assetExists(assetManager: AssetManager, assetPath: String): Boolean {
-        return try {
+    fun assetExists(
+        assetManager: AssetManager,
+        assetPath: String,
+    ): Boolean =
+        try {
             assetManager.open(assetPath).use { true }
         } catch (_: IOException) {
             false
         }
-    }
 
-    fun findFileCaseInsensitive(baseDir: File, relativePath: String): File? {
+    fun findFileCaseInsensitive(
+        baseDir: File,
+        relativePath: String,
+    ): File? {
         val segments = relativePath.replace('\\', '/').split('/').filter { it.isNotEmpty() }
         var current = baseDir
         for (segment in segments) {

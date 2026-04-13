@@ -6,14 +6,13 @@ import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.Scope
 import com.google.android.gms.games.PlayGames
-import com.winlator.cmod.shared.android.ActivityResultHost
 import com.google.android.gms.tasks.Tasks
 import com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager
 import com.winlator.cmod.feature.stores.gog.service.GOGService
 import com.winlator.cmod.feature.stores.steam.enums.PathType
 import com.winlator.cmod.feature.stores.steam.service.SteamService
-import com.winlator.cmod.feature.stores.steam.utils.FileUtils as SteamFileUtils
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
+import com.winlator.cmod.shared.android.ActivityResultHost
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -36,6 +35,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import kotlin.coroutines.resume
+import com.winlator.cmod.feature.stores.steam.utils.FileUtils as SteamFileUtils
 
 /**
  * Manages backup and restore of individual game cloud saves to/from Google Drive.
@@ -47,7 +47,6 @@ import kotlin.coroutines.resume
  *   Restore: Download from Google Drive → unzip → upload back to provider
  */
 object GameSaveBackupManager {
-
     private const val TAG = "GameSaveBackup"
     private const val DRIVE_ROOT_FOLDER_NAME = "WinNative"
     private const val DRIVE_GAMES_FOLDER_NAME = "Games"
@@ -59,11 +58,13 @@ object GameSaveBackupManager {
 
     const val REQUEST_CODE_DRIVE_AUTH = 9002
 
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
-        .build()
+    private val httpClient =
+        OkHttpClient
+            .Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .build()
 
     enum class GameSource { STEAM, EPIC, GOG }
 
@@ -86,29 +87,30 @@ object GameSaveBackupManager {
         gameSource: GameSource,
         gameId: String,
         gameName: String,
-    ): BackupResult = withContext(Dispatchers.IO) {
-        try {
-            val context = activity.applicationContext
+    ): BackupResult =
+        withContext(Dispatchers.IO) {
+            try {
+                val context = activity.applicationContext
 
-            // Auth check
-            if (!isGoogleSyncEnabled(context)) {
-                return@withContext BackupResult(false, "Google sync is not enabled. Enable it in Settings > Google first.")
-            }
-            if (!awaitAuthenticatedSession(activity)) {
-                return@withContext BackupResult(false, "Not signed in to Google Play Games. Please sign in first.")
-            }
+                // Auth check
+                if (!isGoogleSyncEnabled(context)) {
+                    return@withContext BackupResult(false, "Google sync is not enabled. Enable it in Settings > Google first.")
+                }
+                if (!awaitAuthenticatedSession(activity)) {
+                    return@withContext BackupResult(false, "Not signed in to Google Play Games. Please sign in first.")
+                }
 
-            val accessToken = getDriveAccessToken(activity)
-            if (accessToken == null) {
-                return@withContext BackupResult(false, "Google Drive authorization required. Please try again after granting access.")
-            }
+                val accessToken = getDriveAccessToken(activity)
+                if (accessToken == null) {
+                    return@withContext BackupResult(false, "Google Drive authorization required. Please try again after granting access.")
+                }
 
-            performBackup(activity, accessToken, gameSource, gameId, gameName)
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "Backup failed for $gameSource/$gameId")
-            BackupResult(false, "Backup failed: ${e.message}")
+                performBackup(activity, accessToken, gameSource, gameId, gameName)
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Backup failed for $gameSource/$gameId")
+                BackupResult(false, "Backup failed: ${e.message}")
+            }
         }
-    }
 
     private suspend fun performBackup(
         activity: Activity,
@@ -144,11 +146,12 @@ object GameSaveBackupManager {
         }
 
         val existingFileId = findDriveFile(accessToken, folderId, fileName)
-        val uploaded = if (existingFileId != null) {
-            updateDriveFile(accessToken, existingFileId, zipBytes)
-        } else {
-            createDriveFile(accessToken, folderId, fileName, zipBytes)
-        }
+        val uploaded =
+            if (existingFileId != null) {
+                updateDriveFile(accessToken, existingFileId, zipBytes)
+            } else {
+                createDriveFile(accessToken, folderId, fileName, zipBytes)
+            }
 
         return if (uploaded) {
             Timber.tag(TAG).i("Drive upload complete: $fileName (${zipBytes.size} bytes)")
@@ -168,69 +171,73 @@ object GameSaveBackupManager {
         gameSource: GameSource,
         gameId: String,
         gameName: String,
-    ): BackupResult = withContext(Dispatchers.IO) {
-        try {
-            val context = activity.applicationContext
+    ): BackupResult =
+        withContext(Dispatchers.IO) {
+            try {
+                val context = activity.applicationContext
 
-            if (!isGoogleSyncEnabled(context)) {
-                return@withContext BackupResult(false, "Google sync is not enabled.")
-            }
-            if (!isAutoBackupEnabled(context)) {
-                return@withContext BackupResult(false, "Auto backup is not enabled.")
-            }
-            if (!awaitAuthenticatedSession(activity)) {
-                return@withContext BackupResult(false, "Not signed in to Google Play Games.")
-            }
+                if (!isGoogleSyncEnabled(context)) {
+                    return@withContext BackupResult(false, "Google sync is not enabled.")
+                }
+                if (!isAutoBackupEnabled(context)) {
+                    return@withContext BackupResult(false, "Auto backup is not enabled.")
+                }
+                if (!awaitAuthenticatedSession(activity)) {
+                    return@withContext BackupResult(false, "Not signed in to Google Play Games.")
+                }
 
-            val accessToken = getDriveAccessToken(activity)
-                ?: return@withContext BackupResult(false, "Google Drive authorization required.")
+                val accessToken =
+                    getDriveAccessToken(activity)
+                        ?: return@withContext BackupResult(false, "Google Drive authorization required.")
 
-            // Go straight to zipping local saves — no syncDownFromProvider
-            val saveSources = getLocalSaveSources(context, gameSource, gameId, forRestore = false)
-            if (saveSources.isEmpty()) {
-                return@withContext BackupResult(false, "No local save files found for auto backup.")
+                // Go straight to zipping local saves — no syncDownFromProvider
+                val saveSources = getLocalSaveSources(context, gameSource, gameId, forRestore = false)
+                if (saveSources.isEmpty()) {
+                    return@withContext BackupResult(false, "No local save files found for auto backup.")
+                }
+
+                val zipBytes = zipSaveSources(saveSources)
+                if (zipBytes.isEmpty()) {
+                    return@withContext BackupResult(false, "Save files are empty.")
+                }
+
+                val fileName = buildDriveFileName(gameSource, gameId, gameName)
+                val folderId =
+                    getOrCreateGameBackupsFolder(accessToken)
+                        ?: return@withContext BackupResult(false, "Failed to create WinNative/Games folder on Google Drive.")
+
+                val existingFileId = findDriveFile(accessToken, folderId, fileName)
+                val uploaded =
+                    if (existingFileId != null) {
+                        updateDriveFile(accessToken, existingFileId, zipBytes)
+                    } else {
+                        createDriveFile(accessToken, folderId, fileName, zipBytes)
+                    }
+
+                if (uploaded) {
+                    Timber.tag(TAG).i("Auto backup complete: $fileName (${zipBytes.size} bytes)")
+                    BackupResult(true, "Auto backup to Google Drive complete.")
+                } else {
+                    BackupResult(false, "Failed to upload auto backup to Google Drive.")
+                }
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Auto backup failed for $gameSource/$gameId")
+                BackupResult(false, "Auto backup failed: ${e.message}")
             }
-
-            val zipBytes = zipSaveSources(saveSources)
-            if (zipBytes.isEmpty()) {
-                return@withContext BackupResult(false, "Save files are empty.")
-            }
-
-            val fileName = buildDriveFileName(gameSource, gameId, gameName)
-            val folderId = getOrCreateGameBackupsFolder(accessToken)
-                ?: return@withContext BackupResult(false, "Failed to create WinNative/Games folder on Google Drive.")
-
-            val existingFileId = findDriveFile(accessToken, folderId, fileName)
-            val uploaded = if (existingFileId != null) {
-                updateDriveFile(accessToken, existingFileId, zipBytes)
-            } else {
-                createDriveFile(accessToken, folderId, fileName, zipBytes)
-            }
-
-            if (uploaded) {
-                Timber.tag(TAG).i("Auto backup complete: $fileName (${zipBytes.size} bytes)")
-                BackupResult(true, "Auto backup to Google Drive complete.")
-            } else {
-                BackupResult(false, "Failed to upload auto backup to Google Drive.")
-            }
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "Auto backup failed for $gameSource/$gameId")
-            BackupResult(false, "Auto backup failed: ${e.message}")
         }
-    }
 
-    fun isAutoBackupEnabled(context: Context): Boolean =
-        prefs(context).getBoolean("cloud_sync_auto_backup", false)
+    fun isAutoBackupEnabled(context: Context): Boolean = prefs(context).getBoolean("cloud_sync_auto_backup", false)
 
     /**
      * Triggers the Google Drive account selection / authorization consent flow.
      * Returns true if authorization was already granted (token obtained),
      * or false if the consent UI was launched (caller should wait for onDriveAuthResult).
      */
-    suspend fun requestDriveAuthorization(activity: Activity): Boolean = withContext(Dispatchers.IO) {
-        val token = getDriveAccessToken(activity)
-        token != null
-    }
+    suspend fun requestDriveAuthorization(activity: Activity): Boolean =
+        withContext(Dispatchers.IO) {
+            val token = getDriveAccessToken(activity)
+            token != null
+        }
 
     /**
      * Restore a game's cloud save from Google Drive.
@@ -240,29 +247,30 @@ object GameSaveBackupManager {
         gameSource: GameSource,
         gameId: String,
         gameName: String,
-    ): BackupResult = withContext(Dispatchers.IO) {
-        try {
-            val context = activity.applicationContext
+    ): BackupResult =
+        withContext(Dispatchers.IO) {
+            try {
+                val context = activity.applicationContext
 
-            // Auth check
-            if (!isGoogleSyncEnabled(context)) {
-                return@withContext BackupResult(false, "Google sync is not enabled. Enable it in Settings > Google first.")
-            }
-            if (!awaitAuthenticatedSession(activity)) {
-                return@withContext BackupResult(false, "Not signed in to Google Play Games. Please sign in first.")
-            }
+                // Auth check
+                if (!isGoogleSyncEnabled(context)) {
+                    return@withContext BackupResult(false, "Google sync is not enabled. Enable it in Settings > Google first.")
+                }
+                if (!awaitAuthenticatedSession(activity)) {
+                    return@withContext BackupResult(false, "Not signed in to Google Play Games. Please sign in first.")
+                }
 
-            val accessToken = getDriveAccessToken(activity)
-            if (accessToken == null) {
-                return@withContext BackupResult(false, "Google Drive authorization required. Please try again after granting access.")
-            }
+                val accessToken = getDriveAccessToken(activity)
+                if (accessToken == null) {
+                    return@withContext BackupResult(false, "Google Drive authorization required. Please try again after granting access.")
+                }
 
-            performRestore(activity, accessToken, gameSource, gameId, gameName)
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "Restore failed for $gameSource/$gameId")
-            BackupResult(false, "Restore failed: ${e.message}")
+                performRestore(activity, accessToken, gameSource, gameId, gameName)
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Restore failed for $gameSource/$gameId")
+                BackupResult(false, "Restore failed: ${e.message}")
+            }
         }
-    }
 
     private suspend fun performRestore(
         activity: Activity,
@@ -302,7 +310,10 @@ object GameSaveBackupManager {
         // Step 3: Upload back to provider
         val uploadOk = syncUpToProvider(context, gameSource, gameId)
         if (!uploadOk) {
-            return BackupResult(false, "Save files restored locally, but failed to upload to ${gameSource.name}. You can try syncing manually.")
+            return BackupResult(
+                false,
+                "Save files restored locally, but failed to upload to ${gameSource.name}. You can try syncing manually.",
+            )
         }
 
         return BackupResult(true, "Cloud save restored from Google Drive and uploaded to ${gameSource.name}.")
@@ -311,7 +322,10 @@ object GameSaveBackupManager {
     /**
      * Called from Activity's onActivityResult when Drive consent is completed.
      */
-    fun onDriveAuthResult(activity: Activity, resultCode: Int) {
+    fun onDriveAuthResult(
+        activity: Activity,
+        resultCode: Int,
+    ) {
         if (resultCode == Activity.RESULT_OK) {
             Timber.tag(TAG).i("Drive authorization consent granted")
         } else {
@@ -321,17 +335,23 @@ object GameSaveBackupManager {
 
     // ── Provider sync helpers ──
 
-    private suspend fun syncDownFromProvider(context: Context, source: GameSource, gameId: String): Boolean {
+    private suspend fun syncDownFromProvider(
+        context: Context,
+        source: GameSource,
+        gameId: String,
+    ): Boolean {
         return try {
             when (source) {
                 GameSource.STEAM -> {
                     val appId = gameId.toIntOrNull() ?: return false
                     SteamService.syncCloudSavesForBackup(context, appId, "download")
                 }
+
                 GameSource.EPIC -> {
                     val appId = gameId.toIntOrNull() ?: return false
                     EpicCloudSavesManager.syncCloudSaves(context, appId, "download")
                 }
+
                 GameSource.GOG -> {
                     GOGService.syncCloudSaves(context, "GOG_$gameId", "download")
                 }
@@ -342,17 +362,23 @@ object GameSaveBackupManager {
         }
     }
 
-    private suspend fun syncUpToProvider(context: Context, source: GameSource, gameId: String): Boolean {
+    private suspend fun syncUpToProvider(
+        context: Context,
+        source: GameSource,
+        gameId: String,
+    ): Boolean {
         return try {
             when (source) {
                 GameSource.STEAM -> {
                     val appId = gameId.toIntOrNull() ?: return false
                     SteamService.syncCloudSavesForBackup(context, appId, "upload")
                 }
+
                 GameSource.EPIC -> {
                     val appId = gameId.toIntOrNull() ?: return false
                     EpicCloudSavesManager.syncCloudSaves(context, appId, "upload")
                 }
+
                 GameSource.GOG -> {
                     GOGService.syncCloudSaves(context, "GOG_$gameId", "upload")
                 }
@@ -370,13 +396,12 @@ object GameSaveBackupManager {
         source: GameSource,
         gameId: String,
         forRestore: Boolean,
-    ): List<SaveBackupSource> {
-        return when (source) {
+    ): List<SaveBackupSource> =
+        when (source) {
             GameSource.STEAM -> getSteamSaveSources(context, gameId, forRestore)
             GameSource.EPIC -> getEpicSaveSources(context, gameId, forRestore)
             GameSource.GOG -> getGogSaveSources(context, gameId, forRestore)
         }
-    }
 
     private suspend fun getSteamSaveSources(
         context: Context,
@@ -388,15 +413,17 @@ object GameSaveBackupManager {
         val appDir = SteamService.getAppDirPath(appId)
         val goldbergSaves = File(appDir, "steam_settings/saves")
         if (forRestore || (goldbergSaves.exists() && !goldbergSaves.listFiles().isNullOrEmpty())) {
-            sources["steam/steam_settings/saves"] = SaveBackupSource(
-                zipRoot = "steam/steam_settings/saves",
-                localDir = goldbergSaves,
-            )
+            sources["steam/steam_settings/saves"] =
+                SaveBackupSource(
+                    zipRoot = "steam/steam_settings/saves",
+                    localDir = goldbergSaves,
+                )
         }
 
-        val accountId = SteamService.userSteamId?.accountID?.toLong()
-            ?: PrefManager.steamUserAccountId.takeIf { it != 0 }?.toLong()
-            ?: 0L
+        val accountId =
+            SteamService.userSteamId?.accountID?.toLong()
+                ?: PrefManager.steamUserAccountId.takeIf { it != 0 }?.toLong()
+                ?: 0L
         val prefixToPath: (String) -> String = { prefix ->
             PathType.from(prefix).toAbsPath(context, appId, accountId)
         }
@@ -409,17 +436,23 @@ object GameSaveBackupManager {
                     val (root, substitutedPath) = key
                     val localDir = File(Paths.get(prefixToPath(root.toString()), substitutedPath).toString())
                     val zipRoot = buildSteamZipRoot(root, substitutedPath)
-                    val exactFiles = files
-                        .map { it.getAbsPath(prefixToPath) }
-                        .map { it.toFile() }
-                        .filter { forRestore || it.exists() }
+                    val exactFiles =
+                        files
+                            .map { it.getAbsPath(prefixToPath) }
+                            .map { it.toFile() }
+                            .filter { forRestore || it.exists() }
                     if (forRestore || exactFiles.isNotEmpty()) {
                         sources[zipRoot] = SaveBackupSource(zipRoot, localDir, exactFiles)
                     }
                 }
         } else {
             val appInfo = SteamService.getAppInfoOf(appId)
-            val savePatterns = appInfo?.ufs?.saveFilePatterns.orEmpty().filter { it.root.isWindows }
+            val savePatterns =
+                appInfo
+                    ?.ufs
+                    ?.saveFilePatterns
+                    .orEmpty()
+                    .filter { it.root.isWindows }
             if (savePatterns.isNotEmpty()) {
                 savePatterns.groupBy { it.root to it.substitutedPath }.forEach { (key, patterns) ->
                     val (root, substitutedPath) = key
@@ -427,30 +460,33 @@ object GameSaveBackupManager {
                     val exactFiles = mutableListOf<File>()
                     patterns.forEach { pattern ->
                         if (localDir.exists()) {
-                            SteamFileUtils.findFilesRecursive(
-                                rootPath = localDir.toPath(),
-                                pattern = pattern.pattern,
-                                maxDepth = if (pattern.recursive != 0) 5 else 0,
-                            ).forEach { path ->
-                                exactFiles += path.toFile()
-                            }
+                            SteamFileUtils
+                                .findFilesRecursive(
+                                    rootPath = localDir.toPath(),
+                                    pattern = pattern.pattern,
+                                    maxDepth = if (pattern.recursive != 0) 5 else 0,
+                                ).forEach { path ->
+                                    exactFiles += path.toFile()
+                                }
                         }
                     }
                     if (forRestore || exactFiles.isNotEmpty()) {
-                        sources[buildSteamZipRoot(root, substitutedPath)] = SaveBackupSource(
-                            zipRoot = buildSteamZipRoot(root, substitutedPath),
-                            localDir = localDir,
-                            exactFiles = exactFiles.distinct(),
-                        )
+                        sources[buildSteamZipRoot(root, substitutedPath)] =
+                            SaveBackupSource(
+                                zipRoot = buildSteamZipRoot(root, substitutedPath),
+                                localDir = localDir,
+                                exactFiles = exactFiles.distinct(),
+                            )
                     }
                 }
             } else {
                 val steamUserDataDir = File(PathType.SteamUserData.toAbsPath(context, appId, accountId))
                 if (forRestore || (steamUserDataDir.exists() && !steamUserDataDir.listFiles().isNullOrEmpty())) {
-                    sources["steam/${PathType.SteamUserData.name}"] = SaveBackupSource(
-                        zipRoot = "steam/${PathType.SteamUserData.name}",
-                        localDir = steamUserDataDir,
-                    )
+                    sources["steam/${PathType.SteamUserData.name}"] =
+                        SaveBackupSource(
+                            zipRoot = "steam/${PathType.SteamUserData.name}",
+                            localDir = steamUserDataDir,
+                        )
                 }
             }
         }
@@ -501,10 +537,12 @@ object GameSaveBackupManager {
                 val exactFiles = source.exactFiles?.filter { it.exists() }.orEmpty()
                 if (exactFiles.isNotEmpty()) {
                     exactFiles.forEach { file ->
-                        val relativePath = source.localDir.toPath()
-                            .relativize(file.toPath())
-                            .toString()
-                            .replace(File.separatorChar, '/')
+                        val relativePath =
+                            source.localDir
+                                .toPath()
+                                .relativize(file.toPath())
+                                .toString()
+                                .replace(File.separatorChar, '/')
                         addFileToZip(zos, file, "$zipRoot/$relativePath")
                     }
                 } else if (source.localDir.exists()) {
@@ -515,7 +553,11 @@ object GameSaveBackupManager {
         return baos.toByteArray()
     }
 
-    private fun addFileToZip(zos: ZipOutputStream, file: File, entryName: String) {
+    private fun addFileToZip(
+        zos: ZipOutputStream,
+        file: File,
+        entryName: String,
+    ) {
         zos.putNextEntry(ZipEntry(entryName))
         FileInputStream(file).use { fis ->
             val buf = ByteArray(8192)
@@ -527,7 +569,11 @@ object GameSaveBackupManager {
         zos.closeEntry()
     }
 
-    private fun zipDirRecursive(zos: ZipOutputStream, dir: File, baseName: String) {
+    private fun zipDirRecursive(
+        zos: ZipOutputStream,
+        dir: File,
+        baseName: String,
+    ) {
         val children = dir.listFiles() ?: return
         for (child in children) {
             val entryName = if (baseName.isEmpty()) child.name else "$baseName/${child.name}"
@@ -549,15 +595,19 @@ object GameSaveBackupManager {
         }
     }
 
-    private fun unzipToSources(zipBytes: ByteArray, sources: List<SaveBackupSource>) {
+    private fun unzipToSources(
+        zipBytes: ByteArray,
+        sources: List<SaveBackupSource>,
+    ) {
         val sortedSources = sources.sortedByDescending { it.zipRoot.length }
         ZipInputStream(ByteArrayInputStream(zipBytes)).use { zis ->
             var entry: ZipEntry?
             while (zis.nextEntry.also { entry = it } != null) {
                 val entryName = entry!!.name
-                val source = sortedSources.firstOrNull {
-                    entryName == "${it.zipRoot}/" || entryName.startsWith("${it.zipRoot}/")
-                }
+                val source =
+                    sortedSources.firstOrNull {
+                        entryName == "${it.zipRoot}/" || entryName.startsWith("${it.zipRoot}/")
+                    }
                 if (source == null) {
                     zis.closeEntry()
                     continue
@@ -571,8 +621,9 @@ object GameSaveBackupManager {
                 }
 
                 val file = File(source.localDir, relativeName)
-                if (!file.canonicalPath.startsWith(source.localDir.canonicalPath + File.separator)
-                    && file.canonicalPath != source.localDir.canonicalPath) {
+                if (!file.canonicalPath.startsWith(source.localDir.canonicalPath + File.separator) &&
+                    file.canonicalPath != source.localDir.canonicalPath
+                ) {
                     throw SecurityException("Zip entry tries to escape target directory")
                 }
 
@@ -595,37 +646,39 @@ object GameSaveBackupManager {
 
     // ── Drive file naming ──
 
-    private fun buildDriveFileName(source: GameSource, gameId: String, gameName: String): String {
+    private fun buildDriveFileName(
+        source: GameSource,
+        gameId: String,
+        gameName: String,
+    ): String {
         val sanitizedName = gameName.replace(Regex("[^a-zA-Z0-9_ -]"), "").take(50).trim()
         val sanitizedId = gameId.replace(Regex("[^a-zA-Z0-9_-]"), "_")
-        return "${source.name.lowercase()}_${sanitizedId}_${sanitizedName}.zip"
+        return "${source.name.lowercase()}_${sanitizedId}_$sanitizedName.zip"
     }
 
     // ── Auth helpers ──
 
-    private fun prefs(context: Context) =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private fun prefs(context: Context) = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    private fun isGoogleSyncEnabled(context: Context): Boolean =
-        prefs(context).getBoolean(KEY_GOOGLE_SYNC_ENABLED, false)
+    private fun isGoogleSyncEnabled(context: Context): Boolean = prefs(context).getBoolean(KEY_GOOGLE_SYNC_ENABLED, false)
 
-    private suspend fun isAuthenticatedBlocking(activity: Activity): Boolean {
-        return try {
+    private suspend fun isAuthenticatedBlocking(activity: Activity): Boolean =
+        try {
             val task = PlayGames.getGamesSignInClient(activity).isAuthenticated
-            val result = withContext(Dispatchers.IO) {
-                try {
-                    Tasks.await(task, 10, TimeUnit.SECONDS)
-                } catch (e: TimeoutException) {
-                    Timber.tag(TAG).e("Timeout waiting for Google authentication state")
-                    null
+            val result =
+                withContext(Dispatchers.IO) {
+                    try {
+                        Tasks.await(task, 10, TimeUnit.SECONDS)
+                    } catch (e: TimeoutException) {
+                        Timber.tag(TAG).e("Timeout waiting for Google authentication state")
+                        null
+                    }
                 }
-            }
             result?.isAuthenticated == true
         } catch (error: Exception) {
             Timber.tag(TAG).e(error, "Failed to read Google authentication state")
             false
         }
-    }
 
     private suspend fun awaitAuthenticatedSession(activity: Activity): Boolean {
         repeat(AUTH_SESSION_RETRY_COUNT) { attempt ->
@@ -644,56 +697,60 @@ object GameSaveBackupManager {
      * If the user hasn't granted Drive access yet, launches the consent UI and returns null
      * (the caller should retry after consent is granted).
      */
-    private suspend fun getDriveAccessToken(activity: Activity): String? = withContext(Dispatchers.IO) {
-        try {
-            val authRequest = AuthorizationRequest.builder()
-                .setRequestedScopes(listOf(Scope(DRIVE_FILE_SCOPE)))
-                .build()
+    private suspend fun getDriveAccessToken(activity: Activity): String? =
+        withContext(Dispatchers.IO) {
+            try {
+                val authRequest =
+                    AuthorizationRequest
+                        .builder()
+                        .setRequestedScopes(listOf(Scope(DRIVE_FILE_SCOPE)))
+                        .build()
 
-            val authResult: AuthorizationResult = suspendCancellableCoroutine { cont ->
-                Identity.getAuthorizationClient(activity)
-                    .authorize(authRequest)
-                    .addOnSuccessListener { result ->
-                        cont.resume(result)
-                    }
-                    .addOnFailureListener { e ->
-                        Timber.tag(TAG).e(e, "AuthorizationClient.authorize failed")
-                        cont.resume(null)
-                    }
-            } ?: return@withContext null
+                val authResult: AuthorizationResult =
+                    suspendCancellableCoroutine { cont ->
+                        Identity
+                            .getAuthorizationClient(activity)
+                            .authorize(authRequest)
+                            .addOnSuccessListener { result ->
+                                cont.resume(result)
+                            }.addOnFailureListener { e ->
+                                Timber.tag(TAG).e(e, "AuthorizationClient.authorize failed")
+                                cont.resume(null)
+                            }
+                    } ?: return@withContext null
 
-            if (authResult.hasResolution()) {
-                // User needs to grant consent — launch the consent UI
-                Timber.tag(TAG).i("Drive authorization requires user consent, launching...")
-                val pendingIntent = authResult.pendingIntent
-                if (pendingIntent != null) {
-                    withContext(Dispatchers.Main) {
-                        val host = activity as? ActivityResultHost
-                        if (host != null) {
-                            host.launchDriveAuthRequest(pendingIntent.intentSender)
-                        } else {
-                            Timber.tag(TAG).e(
-                                "Activity %s cannot launch Drive auth flow",
-                                activity::class.java.simpleName
-                            )
+                if (authResult.hasResolution()) {
+                    // User needs to grant consent — launch the consent UI
+                    Timber.tag(TAG).i("Drive authorization requires user consent, launching...")
+                    val pendingIntent = authResult.pendingIntent
+                    if (pendingIntent != null) {
+                        withContext(Dispatchers.Main) {
+                            val host = activity as? ActivityResultHost
+                            if (host != null) {
+                                host.launchDriveAuthRequest(pendingIntent.intentSender)
+                            } else {
+                                Timber.tag(TAG).e(
+                                    "Activity %s cannot launch Drive auth flow",
+                                    activity::class.java.simpleName,
+                                )
+                            }
                         }
                     }
+                    return@withContext null // Will retry after consent
                 }
-                return@withContext null // Will retry after consent
-            }
 
-            val token = authResult.accessToken
-            if (token != null) {
-                Timber.tag(TAG).i("Got Drive access token via AuthorizationClient")
-            } else {
-                Timber.tag(TAG).e("AuthorizationResult has no access token")
+                val token = authResult.accessToken
+                if (token != null) {
+                    Timber.tag(TAG).i("Got Drive access token via AuthorizationClient")
+                } else {
+                    Timber.tag(TAG).e("AuthorizationResult has no access token")
+                }
+                token
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Failed to get Drive access token")
+                null
             }
-            token
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "Failed to get Drive access token")
-            null
         }
-    }
 
     // ── Google Drive REST API helpers ──
 
@@ -701,24 +758,38 @@ object GameSaveBackupManager {
      * Find or create the "WinNative" folder on Google Drive.
      */
     private fun getOrCreateGameBackupsFolder(accessToken: String): String? {
-        val rootFolderId = getOrCreateDriveFolder(accessToken, null, DRIVE_ROOT_FOLDER_NAME)
-            ?: return null
+        val rootFolderId =
+            getOrCreateDriveFolder(accessToken, null, DRIVE_ROOT_FOLDER_NAME)
+                ?: return null
         return getOrCreateDriveFolder(accessToken, rootFolderId, DRIVE_GAMES_FOLDER_NAME)
     }
 
-    private fun getOrCreateDriveFolder(accessToken: String, parentId: String?, folderName: String): String? {
-        val queryBuilder = StringBuilder()
-            .append("name='").append(escapeDriveQuery(folderName)).append("'")
-            .append(" and mimeType='application/vnd.google-apps.folder'")
-            .append(" and trashed=false")
+    private fun getOrCreateDriveFolder(
+        accessToken: String,
+        parentId: String?,
+        folderName: String,
+    ): String? {
+        val queryBuilder =
+            StringBuilder()
+                .append("name='")
+                .append(escapeDriveQuery(folderName))
+                .append("'")
+                .append(" and mimeType='application/vnd.google-apps.folder'")
+                .append(" and trashed=false")
         if (parentId != null) {
             queryBuilder.append(" and '").append(parentId).append("' in parents")
         }
-        val searchRequest = Request.Builder()
-            .url("https://www.googleapis.com/drive/v3/files?q=${java.net.URLEncoder.encode(queryBuilder.toString(), "UTF-8")}&fields=files(id,name)")
-            .addHeader("Authorization", "Bearer $accessToken")
-            .get()
-            .build()
+        val searchRequest =
+            Request
+                .Builder()
+                .url(
+                    "https://www.googleapis.com/drive/v3/files?q=${java.net.URLEncoder.encode(
+                        queryBuilder.toString(),
+                        "UTF-8",
+                    )}&fields=files(id,name)",
+                ).addHeader("Authorization", "Bearer $accessToken")
+                .get()
+                .build()
 
         httpClient.newCall(searchRequest).execute().use { response ->
             if (response.isSuccessful) {
@@ -733,19 +804,22 @@ object GameSaveBackupManager {
         }
 
         // Create the folder
-        val metadata = JSONObject().apply {
-            put("name", folderName)
-            put("mimeType", "application/vnd.google-apps.folder")
-            if (parentId != null) {
-                put("parents", org.json.JSONArray().put(parentId))
+        val metadata =
+            JSONObject().apply {
+                put("name", folderName)
+                put("mimeType", "application/vnd.google-apps.folder")
+                if (parentId != null) {
+                    put("parents", org.json.JSONArray().put(parentId))
+                }
             }
-        }
 
-        val createRequest = Request.Builder()
-            .url("https://www.googleapis.com/drive/v3/files?fields=id")
-            .addHeader("Authorization", "Bearer $accessToken")
-            .post(metadata.toString().toRequestBody("application/json".toMediaType()))
-            .build()
+        val createRequest =
+            Request
+                .Builder()
+                .url("https://www.googleapis.com/drive/v3/files?fields=id")
+                .addHeader("Authorization", "Bearer $accessToken")
+                .post(metadata.toString().toRequestBody("application/json".toMediaType()))
+                .build()
 
         httpClient.newCall(createRequest).execute().use { response ->
             if (response.isSuccessful) {
@@ -762,13 +836,19 @@ object GameSaveBackupManager {
     /**
      * Find a file by name inside a specific folder.
      */
-    private fun findDriveFile(accessToken: String, folderId: String, fileName: String): String? {
+    private fun findDriveFile(
+        accessToken: String,
+        folderId: String,
+        fileName: String,
+    ): String? {
         val query = "name='${escapeDriveQuery(fileName)}' and '$folderId' in parents and trashed=false"
-        val request = Request.Builder()
-            .url("https://www.googleapis.com/drive/v3/files?q=${java.net.URLEncoder.encode(query, "UTF-8")}&fields=files(id,name)")
-            .addHeader("Authorization", "Bearer $accessToken")
-            .get()
-            .build()
+        val request =
+            Request
+                .Builder()
+                .url("https://www.googleapis.com/drive/v3/files?q=${java.net.URLEncoder.encode(query, "UTF-8")}&fields=files(id,name)")
+                .addHeader("Authorization", "Bearer $accessToken")
+                .get()
+                .build()
 
         httpClient.newCall(request).execute().use { response ->
             if (response.isSuccessful) {
@@ -785,20 +865,28 @@ object GameSaveBackupManager {
     /**
      * Create a new file on Google Drive inside the specified folder.
      */
-    private fun createDriveFile(accessToken: String, folderId: String, fileName: String, data: ByteArray): Boolean {
-        val metadata = JSONObject().apply {
-            put("name", fileName)
-            put("parents", org.json.JSONArray().put(folderId))
-        }
+    private fun createDriveFile(
+        accessToken: String,
+        folderId: String,
+        fileName: String,
+        data: ByteArray,
+    ): Boolean {
+        val metadata =
+            JSONObject().apply {
+                put("name", fileName)
+                put("parents", org.json.JSONArray().put(folderId))
+            }
 
         val boundary = "winnative_boundary_${System.currentTimeMillis()}"
         val body = buildMultipartRelatedBody(boundary, metadata.toString(), data)
 
-        val request = Request.Builder()
-            .url("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id")
-            .addHeader("Authorization", "Bearer $accessToken")
-            .post(body.toRequestBody("multipart/related; boundary=$boundary".toMediaType()))
-            .build()
+        val request =
+            Request
+                .Builder()
+                .url("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id")
+                .addHeader("Authorization", "Bearer $accessToken")
+                .post(body.toRequestBody("multipart/related; boundary=$boundary".toMediaType()))
+                .build()
 
         httpClient.newCall(request).execute().use { response ->
             if (response.isSuccessful) {
@@ -810,9 +898,14 @@ object GameSaveBackupManager {
         return false
     }
 
-    private fun buildMultipartRelatedBody(boundary: String, jsonMetadata: String, fileData: ByteArray): ByteArray {
+    private fun buildMultipartRelatedBody(
+        boundary: String,
+        jsonMetadata: String,
+        fileData: ByteArray,
+    ): ByteArray {
         val baos = ByteArrayOutputStream()
         val crlf = "\r\n"
+
         fun write(s: String) = baos.write(s.toByteArray(Charsets.UTF_8))
 
         write("--$boundary$crlf")
@@ -833,12 +926,18 @@ object GameSaveBackupManager {
     /**
      * Update an existing file on Google Drive (overwrite contents).
      */
-    private fun updateDriveFile(accessToken: String, fileId: String, data: ByteArray): Boolean {
-        val request = Request.Builder()
-            .url("https://www.googleapis.com/upload/drive/v3/files/$fileId?uploadType=media")
-            .addHeader("Authorization", "Bearer $accessToken")
-            .patch(data.toRequestBody("application/zip".toMediaType()))
-            .build()
+    private fun updateDriveFile(
+        accessToken: String,
+        fileId: String,
+        data: ByteArray,
+    ): Boolean {
+        val request =
+            Request
+                .Builder()
+                .url("https://www.googleapis.com/upload/drive/v3/files/$fileId?uploadType=media")
+                .addHeader("Authorization", "Bearer $accessToken")
+                .patch(data.toRequestBody("application/zip".toMediaType()))
+                .build()
 
         httpClient.newCall(request).execute().use { response ->
             if (response.isSuccessful) {
@@ -853,12 +952,17 @@ object GameSaveBackupManager {
     /**
      * Download a file's content from Google Drive.
      */
-    private fun downloadDriveFile(accessToken: String, fileId: String): ByteArray? {
-        val request = Request.Builder()
-            .url("https://www.googleapis.com/drive/v3/files/$fileId?alt=media")
-            .addHeader("Authorization", "Bearer $accessToken")
-            .get()
-            .build()
+    private fun downloadDriveFile(
+        accessToken: String,
+        fileId: String,
+    ): ByteArray? {
+        val request =
+            Request
+                .Builder()
+                .url("https://www.googleapis.com/drive/v3/files/$fileId?alt=media")
+                .addHeader("Authorization", "Bearer $accessToken")
+                .get()
+                .build()
 
         httpClient.newCall(request).execute().use { response ->
             if (response.isSuccessful) {
@@ -869,10 +973,14 @@ object GameSaveBackupManager {
         return null
     }
 
-    private fun buildSteamZipRoot(root: PathType, substitutedPath: String): String {
-        val normalizedPath = substitutedPath
-            .replace(File.separatorChar, '/')
-            .trim('/')
+    private fun buildSteamZipRoot(
+        root: PathType,
+        substitutedPath: String,
+    ): String {
+        val normalizedPath =
+            substitutedPath
+                .replace(File.separatorChar, '/')
+                .trim('/')
         return if (normalizedPath.isEmpty()) {
             "steam/${root.name}"
         } else {
@@ -880,6 +988,5 @@ object GameSaveBackupManager {
         }
     }
 
-    private fun escapeDriveQuery(value: String): String =
-        value.replace("\\", "\\\\").replace("'", "\\'")
+    private fun escapeDriveQuery(value: String): String = value.replace("\\", "\\\\").replace("'", "\\'")
 }

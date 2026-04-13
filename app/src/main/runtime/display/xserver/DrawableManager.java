@@ -1,102 +1,100 @@
 package com.winlator.cmod.runtime.display.xserver;
 
 import android.util.SparseArray;
-
-import com.winlator.cmod.shared.util.Callback;
 import com.winlator.cmod.runtime.display.renderer.Texture;
+import com.winlator.cmod.shared.util.Callback;
 
-public class DrawableManager extends XResourceManager implements XResourceManager.OnResourceLifecycleListener {
-    private final XServer xServer;
-    private final SparseArray<Drawable> drawables = new SparseArray<>();
+public class DrawableManager extends XResourceManager
+    implements XResourceManager.OnResourceLifecycleListener {
+  private final XServer xServer;
+  private final SparseArray<Drawable> drawables = new SparseArray<>();
 
-    public DrawableManager(XServer xServer) {
-        this.xServer = xServer;
-        xServer.pixmapManager.addOnResourceLifecycleListener(this);
+  public DrawableManager(XServer xServer) {
+    this.xServer = xServer;
+    xServer.pixmapManager.addOnResourceLifecycleListener(this);
+  }
+
+  public Drawable getDrawable(int id) {
+    Drawable drawable = drawables.get(id);
+    if (drawable != null && drawable.getData() == null) {
+      throw new IllegalStateException("Drawable with id " + id + " has null data when fetched.");
+    }
+    return drawable;
+  }
+
+  public Drawable createDrawable(int id, short width, short height, byte depth) {
+    return createDrawable(id, width, height, xServer.pixmapManager.getVisualForDepth(depth));
+  }
+
+  public Drawable createDrawable(int id, short width, short height, Visual visual) {
+    if (id == 0) {
+      Drawable drawable = new Drawable(id, width, height, visual);
+      if (drawable.getData() == null) {
+        throw new IllegalStateException("Drawable with id 0 has null data at creation.");
+      }
+      return drawable;
+    }
+    if (drawables.indexOfKey(id) >= 0) return null;
+    Drawable drawable = new Drawable(id, width, height, visual);
+    if (drawable.getData() == null) {
+      throw new IllegalStateException("Drawable with id " + id + " has null data at creation.");
+    }
+    drawables.put(id, drawable);
+    return drawable;
+  }
+
+  public void removeDrawable(int id) {
+    Drawable drawable = drawables.get(id);
+    if (drawable == null) {
+      throw new IllegalStateException("Attempting to remove non-existent Drawable with id " + id);
+    }
+    if (drawable.getData() == null) {
+      throw new IllegalStateException("Drawable with id " + id + " has null data during removal.");
     }
 
-    public Drawable getDrawable(int id) {
-        Drawable drawable = drawables.get(id);
-        if (drawable != null && drawable.getData() == null) {
-            throw new IllegalStateException("Drawable with id " + id + " has null data when fetched.");
-        }
-        return drawable;
+    final Texture texture = drawable.getTexture();
+    if (texture != null) xServer.getRenderer().xServerView.queueEvent(texture::destroy);
+
+    Callback<Drawable> onDestroyListener = drawable.getOnDestroyListener();
+    if (onDestroyListener != null) onDestroyListener.call(drawable);
+
+    drawable.setOnDrawListener(null);
+    drawables.remove(id);
+  }
+
+  @Override
+  public void onFreeResource(XResource resource) {
+    if (resource instanceof Pixmap) {
+      Pixmap pixmap = (Pixmap) resource;
+      Drawable drawable = pixmap.drawable;
+      if (drawable.getData() == null) {
+        throw new IllegalStateException(
+            "Drawable for Pixmap with id " + pixmap.drawable.id + " has null data during free.");
+      }
+      removeDrawable(drawable.id);
     }
+  }
 
-
-    public Drawable createDrawable(int id, short width, short height, byte depth) {
-        return createDrawable(id, width, height, xServer.pixmapManager.getVisualForDepth(depth));
-    }
-
-    public Drawable createDrawable(int id, short width, short height, Visual visual) {
-        if (id == 0) {
-            Drawable drawable = new Drawable(id, width, height, visual);
-            if (drawable.getData() == null) {
-                throw new IllegalStateException("Drawable with id 0 has null data at creation.");
-            }
-            return drawable;
-        }
-        if (drawables.indexOfKey(id) >= 0) return null;
-        Drawable drawable = new Drawable(id, width, height, visual);
-        if (drawable.getData() == null) {
-            throw new IllegalStateException("Drawable with id " + id + " has null data at creation.");
-        }
-        drawables.put(id, drawable);
-        return drawable;
-    }
-
-    public void removeDrawable(int id) {
-        Drawable drawable = drawables.get(id);
-        if (drawable == null) {
-            throw new IllegalStateException("Attempting to remove non-existent Drawable with id " + id);
-        }
-        if (drawable.getData() == null) {
-            throw new IllegalStateException("Drawable with id " + id + " has null data during removal.");
-        }
-
-        final Texture texture = drawable.getTexture();
-        if (texture != null) xServer.getRenderer().xServerView.queueEvent(texture::destroy);
-
-        Callback<Drawable> onDestroyListener = drawable.getOnDestroyListener();
-        if (onDestroyListener != null) onDestroyListener.call(drawable);
-
-        drawable.setOnDrawListener(null);
-        drawables.remove(id);
-    }
-
-
-    @Override
-    public void onFreeResource(XResource resource) {
-        if (resource instanceof Pixmap) {
-            Pixmap pixmap = (Pixmap) resource;
-            Drawable drawable = pixmap.drawable;
-            if (drawable.getData() == null) {
-                throw new IllegalStateException("Drawable for Pixmap with id " + pixmap.drawable.id + " has null data during free.");
-            }
-            removeDrawable(drawable.id);
-        }
-    }
-
-
-    public Visual getVisual() {
-        return xServer.pixmapManager.visual;
-    }
+  public Visual getVisual() {
+    return xServer.pixmapManager.visual;
+  }
 }
 
-//package com.winlator.cmod.runtime.display.xserver;
+// package com.winlator.cmod.runtime.display.xserver;
 //
-//import android.util.SparseArray;
+// import android.util.SparseArray;
 //
-//import com.winlator.cmod.shared.util.Callback;
-//import com.winlator.cmod.runtime.display.renderer.GLRenderer;
-//import com.winlator.cmod.runtime.display.renderer.Texture;
-//import com.winlator.cmod.shared.ui.widget.XServerView;
+// import com.winlator.cmod.shared.util.Callback;
+// import com.winlator.cmod.runtime.display.renderer.GLRenderer;
+// import com.winlator.cmod.runtime.display.renderer.Texture;
+// import com.winlator.cmod.shared.ui.widget.XServerView;
 //
-//import java.util.Objects;
+// import java.util.Objects;
 //
-///**
+/// **
 // * Merged version of DrawableManager based on original Java code and new Smali changes.
 // */
-//public class DrawableManager extends XResourceManager
+// public class DrawableManager extends XResourceManager
 //        implements XResourceManager.OnResourceLifecycleListener {
 //
 //    private final XServer xServer;
@@ -146,7 +144,8 @@ public class DrawableManager extends XResourceManager implements XResourceManage
 //    }
 //
 //    /**
-//     * Removes a Drawable from the manager by ID, cleaning up texture and calling onDestroyListener.
+//     * Removes a Drawable from the manager by ID, cleaning up texture and calling
+// onDestroyListener.
 //     */
 //    public void removeDrawable(int id) {
 //        Drawable drawable = drawables.get(id);
@@ -198,4 +197,4 @@ public class DrawableManager extends XResourceManager implements XResourceManage
 //    public Visual getVisual() {
 //        return xServer.pixmapManager.visual;
 //    }
-//}
+// }

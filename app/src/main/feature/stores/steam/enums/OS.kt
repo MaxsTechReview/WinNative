@@ -1,8 +1,10 @@
 package com.winlator.cmod.feature.stores.steam.enums
-import java.util.EnumSet
 import timber.log.Timber
+import java.util.EnumSet
 
-enum class OS(val code: Int) {
+enum class OS(
+    val code: Int,
+) {
     none(0),
     windows(0x01),
     macos(0x02),
@@ -11,17 +13,18 @@ enum class OS(val code: Int) {
 
     companion object {
         fun from(keyValue: String?): EnumSet<OS> {
-            val osses = keyValue?.takeUnless { it.isEmpty() }
-                ?.split(',')
-                ?.map {
-                    try {
-                        OS.valueOf(it.trim())
-                    } catch (_: Exception) {
-                        Timber.w("Could not identify OS $it")
-                        none
-                    }
-                }
-                ?.toCollection(EnumSet.noneOf(OS::class.java))
+            val osses =
+                keyValue
+                    ?.takeUnless { it.isEmpty() }
+                    ?.split(',')
+                    ?.map {
+                        try {
+                            OS.valueOf(it.trim())
+                        } catch (_: Exception) {
+                            Timber.w("Could not identify OS $it")
+                            none
+                        }
+                    }?.toCollection(EnumSet.noneOf(OS::class.java))
 
             return osses ?: EnumSet.of(none)
         }
@@ -36,8 +39,6 @@ enum class OS(val code: Int) {
             return result
         }
 
-        fun code(value: EnumSet<OS>): Int {
-            return value.map { it.code }.reduceOrNull { first, second -> first or second } ?: none.code
-        }
+        fun code(value: EnumSet<OS>): Int = value.map { it.code }.reduceOrNull { first, second -> first or second } ?: none.code
     }
 }

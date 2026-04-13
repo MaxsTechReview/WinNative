@@ -1,10 +1,10 @@
 package com.winlator.cmod.feature.stores.steam.utils
 import android.annotation.SuppressLint
 import com.auth0.android.jwt.JWT
-import com.winlator.cmod.shared.io.FileUtils
-import com.winlator.cmod.shared.io.TarCompressorUtils
 import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.display.environment.components.GuestProgramLauncherComponent
+import com.winlator.cmod.shared.io.FileUtils
+import com.winlator.cmod.shared.io.TarCompressorUtils
 import `in`.dragonbra.javasteam.types.KeyValue
 import timber.log.Timber
 import java.io.File
@@ -53,10 +53,9 @@ class SteamTokenLogin(
         return "${crc.value.toString(16)}1"
     }
 
-    private fun execCommand(command: String): String {
-        return guestProgramLauncherComponent?.execShellCommand(command, false)
+    private fun execCommand(command: String): String =
+        guestProgramLauncherComponent?.execShellCommand(command, false)
             ?: throw IllegalStateException("GuestProgramLauncherComponent is required for command execution")
-    }
 
     private fun killWineServer() {
         try {
@@ -66,21 +65,20 @@ class SteamTokenLogin(
         }
     }
 
-    private fun encryptToken(token: String): String {
-        return execCommand("wine ${imageFs.rootDir}/opt/apps/steam-token.exe encrypt $login $token")
-    }
+    private fun encryptToken(token: String): String = execCommand("wine ${imageFs.rootDir}/opt/apps/steam-token.exe encrypt $login $token")
 
-    private fun decryptToken(vdfValue: String): String {
-        return execCommand("wine ${imageFs.rootDir}/opt/apps/steam-token.exe decrypt $login $vdfValue")
-    }
+    private fun decryptToken(vdfValue: String): String =
+        execCommand("wine ${imageFs.rootDir}/opt/apps/steam-token.exe decrypt $login $vdfValue")
 
-    private fun obfuscateToken(value: String, mtbf: Long): String {
-        return SteamTokenHelper.obfuscate(value.toByteArray(), mtbf)
-    }
+    private fun obfuscateToken(
+        value: String,
+        mtbf: Long,
+    ): String = SteamTokenHelper.obfuscate(value.toByteArray(), mtbf)
 
-    private fun deobfuscateToken(value: String, mtbf: Long): String {
-        return SteamTokenHelper.deobfuscate(value, mtbf)
-    }
+    private fun deobfuscateToken(
+        value: String,
+        mtbf: Long,
+    ): String = SteamTokenHelper.deobfuscate(value, mtbf)
 
     @SuppressLint("BinaryOperationInTimber")
     private fun createConfigVdf(): String {
@@ -126,7 +124,7 @@ class SteamTokenLogin(
                     }
                 }
             }
-        """.trimIndent()
+            """.trimIndent()
     }
 
     @SuppressLint("BinaryOperationInTimber")
@@ -151,7 +149,7 @@ class SteamTokenLogin(
                     }
                 }
             }
-        """.trimIndent()
+            """.trimIndent()
     }
 
     fun phase1SteamConfig(forceFreshClientToken: Boolean = false) {
@@ -168,9 +166,21 @@ class SteamTokenLogin(
             val vdfContent = FileUtils.readString(configVdfPath.toFile()) ?: ""
             if (vdfContent.contains("ConnectCache")) {
                 val vdfData = KeyValue.loadFromString(vdfContent)
-                val mtbf = vdfData?.get("Software")?.get("Valve")?.get("Steam")?.get("MTBF")?.value
-                val connectCacheValue = vdfData?.get("Software")?.get("Valve")?.get("Steam")
-                    ?.get("ConnectCache")?.get(hdr())?.value
+                val mtbf =
+                    vdfData
+                        ?.get("Software")
+                        ?.get("Valve")
+                        ?.get("Steam")
+                        ?.get("MTBF")
+                        ?.value
+                val connectCacheValue =
+                    vdfData
+                        ?.get("Software")
+                        ?.get("Valve")
+                        ?.get("Steam")
+                        ?.get("ConnectCache")
+                        ?.get(hdr())
+                        ?.value
 
                 if (mtbf != null && connectCacheValue != null) {
                     try {
@@ -251,8 +261,14 @@ class SteamTokenLogin(
             if (!forceFreshClientToken && localSteamDir.resolve("local.vdf").exists()) {
                 val vdfContent = FileUtils.readString(localSteamDir.resolve("local.vdf").toFile()) ?: ""
                 val vdfData = KeyValue.loadFromString(vdfContent)
-                val connectCacheValue = vdfData?.get("Software")?.get("Valve")?.get("Steam")
-                    ?.get("ConnectCache")?.get(hdr())?.value
+                val connectCacheValue =
+                    vdfData
+                        ?.get("Software")
+                        ?.get("Valve")
+                        ?.get("Steam")
+                        ?.get("ConnectCache")
+                        ?.get(hdr())
+                        ?.value
                 if (connectCacheValue != null) {
                     try {
                         val decodedToken = decryptToken(connectCacheValue.trimEnd(NULL_CHAR))

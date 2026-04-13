@@ -10,7 +10,6 @@ import java.util.Date
 import java.util.EnumSet
 
 class FriendConverter {
-
     @TypeConverter
     fun fromTimestamp(value: Long): Date = Date(value)
 
@@ -30,20 +29,16 @@ class FriendConverter {
     fun fromEPersonaState(state: EPersonaState): Int = state.code()
 
     @TypeConverter
-    fun fromEClientPersonaStateFlagSet(flags: EnumSet<EClientPersonaStateFlag>): Int =
-        EClientPersonaStateFlag.code(flags)
+    fun fromEClientPersonaStateFlagSet(flags: EnumSet<EClientPersonaStateFlag>): Int = EClientPersonaStateFlag.code(flags)
 
     @TypeConverter
-    fun toEClientPersonaStateFlagSet(flags: Int): EnumSet<EClientPersonaStateFlag> =
-        EClientPersonaStateFlag.from(flags)
+    fun toEClientPersonaStateFlagSet(flags: Int): EnumSet<EClientPersonaStateFlag> = EClientPersonaStateFlag.from(flags)
 
     @TypeConverter
-    fun fromEPersonaStateFlagSet(flags: EnumSet<EPersonaStateFlag>): Int =
-        EPersonaStateFlag.code(flags)
+    fun fromEPersonaStateFlagSet(flags: EnumSet<EPersonaStateFlag>): Int = EPersonaStateFlag.code(flags)
 
     @TypeConverter
-    fun toEPersonaStateFlagSet(flags: Int): EnumSet<EPersonaStateFlag> =
-        EPersonaStateFlag.from(flags)
+    fun toEPersonaStateFlagSet(flags: Int): EnumSet<EPersonaStateFlag> = EPersonaStateFlag.from(flags)
 
     @TypeConverter
     fun fromGameID(gameID: GameID): Long = gameID.convertToUInt64()

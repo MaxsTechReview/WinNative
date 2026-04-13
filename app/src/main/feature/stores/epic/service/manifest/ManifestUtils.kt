@@ -7,32 +7,28 @@ import java.security.MessageDigest
  * Utilities for working with Epic Games manifests
  */
 object ManifestUtils {
-
     /**
      * Load and parse a manifest from a file
      */
-    fun loadFromFile(file: File): EpicManifest {
-        return EpicManifest.readAll(file.readBytes())
-    }
+    fun loadFromFile(file: File): EpicManifest = EpicManifest.readAll(file.readBytes())
 
     /**
      * Load and parse a manifest from an input stream
      */
-    fun loadFromStream(stream: InputStream): EpicManifest {
-        return EpicManifest.readAll(stream.readBytes())
-    }
+    fun loadFromStream(stream: InputStream): EpicManifest = EpicManifest.readAll(stream.readBytes())
 
     /**
      * Load and parse a manifest from bytes
      */
-    fun loadFromBytes(data: ByteArray): EpicManifest {
-        return EpicManifest.readAll(data)
-    }
+    fun loadFromBytes(data: ByteArray): EpicManifest = EpicManifest.readAll(data)
 
     /**
      * Verify manifest hash matches expected value
      */
-    fun verifyManifestHash(manifestBytes: ByteArray, expectedHash: String): Boolean {
+    fun verifyManifestHash(
+        manifestBytes: ByteArray,
+        expectedHash: String,
+    ): Boolean {
         val md = MessageDigest.getInstance("SHA-1")
         val computedHash = md.digest(manifestBytes)
         val computedHashHex = computedHash.joinToString("") { "%02x".format(it) }
@@ -53,14 +49,16 @@ object ManifestUtils {
     /**
      * Get list of all unique chunks referenced by files
      */
-    fun getRequiredChunks(manifest: EpicManifest): List<ChunkInfo> {
-        return getRequiredChunksForFileList(manifest, manifest.fileManifestList?.elements ?: emptyList())
-    }
+    fun getRequiredChunks(manifest: EpicManifest): List<ChunkInfo> =
+        getRequiredChunksForFileList(manifest, manifest.fileManifestList?.elements ?: emptyList())
 
     /**
      * Get unique chunks referenced by the given file list
      */
-    fun getRequiredChunksForFileList(manifest: EpicManifest, files: List<FileManifest>): List<ChunkInfo> {
+    fun getRequiredChunksForFileList(
+        manifest: EpicManifest,
+        files: List<FileManifest>,
+    ): List<ChunkInfo> {
         val chunkGuids = mutableSetOf<String>()
         val chunks = mutableListOf<ChunkInfo>()
 
@@ -81,7 +79,10 @@ object ManifestUtils {
     /**
      * Get list of chunks required for specific files
      */
-    fun getChunksForFiles(manifest: EpicManifest, filePaths: List<String>): List<ChunkInfo> {
+    fun getChunksForFiles(
+        manifest: EpicManifest,
+        filePaths: List<String>,
+    ): List<ChunkInfo> {
         val chunkGuids = mutableSetOf<String>()
         val chunks = mutableListOf<ChunkInfo>()
 
@@ -104,22 +105,21 @@ object ManifestUtils {
     /**
      * Calculate total download size for manifest (all files).
      */
-    fun getTotalDownloadSize(manifest: EpicManifest): Long {
-        return getRequiredChunks(manifest).sumOf { it.fileSize }
-    }
+    fun getTotalDownloadSize(manifest: EpicManifest): Long = getRequiredChunks(manifest).sumOf { it.fileSize }
 
     /**
      * Calculate total installed size for manifest (all files).
      */
-    fun getTotalInstalledSize(manifest: EpicManifest): Long {
-        return manifest.fileManifestList?.elements?.sumOf { it.fileSize } ?: 0L
-    }
+    fun getTotalInstalledSize(manifest: EpicManifest): Long = manifest.fileManifestList?.elements?.sumOf { it.fileSize } ?: 0L
 
     /**
      * Calculate download and install size for the given install tags (required + selectedTags).
      * Use emptyList() for required-only. Same logic as download uses.
      */
-    fun getSizesForSelectedInstallTags(manifest: EpicManifest, selectedTags: List<String>): Pair<Long, Long> {
+    fun getSizesForSelectedInstallTags(
+        manifest: EpicManifest,
+        selectedTags: List<String>,
+    ): Pair<Long, Long> {
         val files = getFilesForSelectedInstallTags(manifest, selectedTags)
         val installSize = files.sumOf { it.fileSize }
         val chunks = getRequiredChunksForFileList(manifest, files)
@@ -130,25 +130,27 @@ object ManifestUtils {
     /**
      * Get list of all executable files
      */
-    fun getExecutableFiles(manifest: EpicManifest): List<FileManifest> {
-        return manifest.fileManifestList?.elements?.filter { it.isExecutable } ?: emptyList()
-    }
+    fun getExecutableFiles(manifest: EpicManifest): List<FileManifest> =
+        manifest.fileManifestList?.elements?.filter { it.isExecutable } ?: emptyList()
 
     /**
      * Find file by path in manifest
      */
-    fun findFile(manifest: EpicManifest, path: String): FileManifest? {
-        return manifest.fileManifestList?.getFileByPath(path)
-    }
+    fun findFile(
+        manifest: EpicManifest,
+        path: String,
+    ): FileManifest? = manifest.fileManifestList?.getFileByPath(path)
 
     /**
      * Get files matching install tags (optional content only; does not include required).
      */
-    fun getFilesWithTags(manifest: EpicManifest, tags: List<String>): List<FileManifest> {
-        return manifest.fileManifestList?.elements?.filter { file ->
+    fun getFilesWithTags(
+        manifest: EpicManifest,
+        tags: List<String>,
+    ): List<FileManifest> =
+        manifest.fileManifestList?.elements?.filter { file ->
             tags.any { tag -> file.installTags.contains(tag) }
         } ?: emptyList()
-    }
 
     /**
      * Get the file list to download when the user selects optional install tags (e.g. languages).
@@ -156,12 +158,16 @@ object ManifestUtils {
      * So: base game + selected optional content (e.g. German + French = required + German files + French files).
      * Use this when building the download set for "required + these tags" (like Legendary/Heroic).
      */
-    fun getFilesForSelectedInstallTags(manifest: EpicManifest, selectedTags: List<String>): List<FileManifest> {
+    fun getFilesForSelectedInstallTags(
+        manifest: EpicManifest,
+        selectedTags: List<String>,
+    ): List<FileManifest> {
         val all = manifest.fileManifestList?.elements ?: return emptyList()
         if (selectedTags.isEmpty()) return getRequiredInstallFiles(manifest)
-        val withLanguage = all.filter { file ->
-            file.installTags.isEmpty() || file.installTags.any { it in selectedTags }
-        }
+        val withLanguage =
+            all.filter { file ->
+                file.installTags.isEmpty() || file.installTags.any { it in selectedTags }
+            }
         // If selected language matched no files (e.g. manifest uses "de" not "German"), fall back to required-only
         return if (withLanguage.isEmpty()) getRequiredInstallFiles(manifest) else withLanguage
     }
@@ -169,7 +175,11 @@ object ManifestUtils {
     /**
      * Build chunk download URL
      */
-    fun buildChunkUrl(baseUrl: String, chunk: ChunkInfo, manifest: EpicManifest): String {
+    fun buildChunkUrl(
+        baseUrl: String,
+        chunk: ChunkInfo,
+        manifest: EpicManifest,
+    ): String {
         val chunkPath = chunk.getPath(manifest.getChunkDir())
         return "$baseUrl/$chunkPath"
     }
@@ -177,7 +187,10 @@ object ManifestUtils {
     /**
      * Compare two manifests and get list of changed files
      */
-    fun compareManifests(oldManifest: EpicManifest, newManifest: EpicManifest): ManifestComparison {
+    fun compareManifests(
+        oldManifest: EpicManifest,
+        newManifest: EpicManifest,
+    ): ManifestComparison {
         val oldFiles = oldManifest.fileManifestList?.elements?.associateBy { it.filename } ?: emptyMap()
         val newFiles = newManifest.fileManifestList?.elements?.associateBy { it.filename } ?: emptyMap()
 
@@ -207,14 +220,17 @@ object ManifestUtils {
             added = added,
             removed = removed,
             modified = modified,
-            unchanged = unchanged
+            unchanged = unchanged,
         )
     }
 
     /**
      * Get chunks needed for an update (delta download)
      */
-    fun getDeltaChunks(oldManifest: EpicManifest, newManifest: EpicManifest): List<ChunkInfo> {
+    fun getDeltaChunks(
+        oldManifest: EpicManifest,
+        newManifest: EpicManifest,
+    ): List<ChunkInfo> {
         val comparison = compareManifests(oldManifest, newManifest)
         val changedFiles = comparison.added + comparison.modified.map { it.second }
         return getChunksForFiles(newManifest, changedFiles.map { it.filename })
@@ -244,7 +260,7 @@ data class ManifestComparison(
     val added: List<FileManifest>,
     val removed: List<FileManifest>,
     val modified: List<Pair<FileManifest, FileManifest>>,
-    val unchanged: List<FileManifest>
+    val unchanged: List<FileManifest>,
 ) {
     val hasChanges: Boolean
         get() = added.isNotEmpty() || removed.isNotEmpty() || modified.isNotEmpty()
@@ -253,19 +269,21 @@ data class ManifestComparison(
         get() = added.size + removed.size + modified.size
 
     fun getAddedSize(): Long = added.sumOf { it.fileSize }
+
     fun getRemovedSize(): Long = removed.sumOf { it.fileSize }
+
     fun getModifiedOldSize(): Long = modified.sumOf { it.first.fileSize }
+
     fun getModifiedNewSize(): Long = modified.sumOf { it.second.fileSize }
 
-    override fun toString(): String {
-        return buildString {
+    override fun toString(): String =
+        buildString {
             appendLine("Manifest Comparison:")
             appendLine("  Added: ${added.size} files (${ManifestUtils.formatBytes(getAddedSize())})")
             appendLine("  Removed: ${removed.size} files (${ManifestUtils.formatBytes(getRemovedSize())})")
             appendLine("  Modified: ${modified.size} files")
             appendLine("  Unchanged: ${unchanged.size} files")
         }
-    }
 }
 
 /**
@@ -275,13 +293,15 @@ data class FileDownloadInfo(
     val file: FileManifest,
     val chunks: List<Pair<ChunkInfo, ChunkPart>>,
     val downloadSize: Long,
-    val installedSize: Long
+    val installedSize: Long,
 )
 
 /**
  * Builder for constructing download plans
  */
-class DownloadPlanBuilder(private val manifest: EpicManifest) {
+class DownloadPlanBuilder(
+    private val manifest: EpicManifest,
+) {
     private val selectedFiles = mutableSetOf<String>()
 
     /**
@@ -346,8 +366,8 @@ class DownloadPlanBuilder(private val manifest: EpicManifest) {
                         file = file,
                         chunks = chunksForFile,
                         downloadSize = chunksForFile.sumOf { it.first.fileSize },
-                        installedSize = file.fileSize
-                    )
+                        installedSize = file.fileSize,
+                    ),
                 )
             }
         }
@@ -356,7 +376,7 @@ class DownloadPlanBuilder(private val manifest: EpicManifest) {
             files = fileInfos,
             uniqueChunks = chunkMap.values.toList(),
             totalDownloadSize = chunkMap.values.sumOf { it.fileSize },
-            totalInstalledSize = fileInfos.sumOf { it.installedSize }
+            totalInstalledSize = fileInfos.sumOf { it.installedSize },
         )
     }
 }
@@ -368,18 +388,17 @@ data class DownloadPlan(
     val files: List<FileDownloadInfo>,
     val uniqueChunks: List<ChunkInfo>,
     val totalDownloadSize: Long,
-    val totalInstalledSize: Long
+    val totalInstalledSize: Long,
 ) {
     val fileCount: Int get() = files.size
     val chunkCount: Int get() = uniqueChunks.size
 
-    override fun toString(): String {
-        return buildString {
+    override fun toString(): String =
+        buildString {
             appendLine("Download Plan:")
             appendLine("  Files: $fileCount")
             appendLine("  Chunks: $chunkCount")
             appendLine("  Download Size: ${ManifestUtils.formatBytes(totalDownloadSize)}")
             appendLine("  Installed Size: ${ManifestUtils.formatBytes(totalInstalledSize)}")
         }
-    }
 }

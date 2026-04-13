@@ -1,5 +1,8 @@
 package com.winlator.cmod.feature.stores.steam.enums
-enum class Marker(val fileName: String) {
+
+enum class Marker(
+    val fileName: String,
+) {
     DOWNLOAD_COMPLETE_MARKER(".download_complete"),
     DOWNLOAD_IN_PROGRESS_MARKER(".download_in_progress"),
     STEAM_DLL_REPLACED(".steam_dll_replaced"),

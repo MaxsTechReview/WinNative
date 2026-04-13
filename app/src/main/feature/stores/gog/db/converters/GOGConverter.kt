@@ -7,15 +7,11 @@ import kotlinx.serialization.json.Json
  * Room TypeConverter for GOG-specific data types
  */
 class GOGConverter {
-
     @TypeConverter
-    fun fromStringList(value: List<String>): String {
-        return Json.encodeToString(value)
-    }
+    fun fromStringList(value: List<String>): String = Json.encodeToString(value)
 
     @TypeConverter
     fun toStringList(value: String): List<String> {
-
         if (value.isEmpty()) {
             return emptyList()
         }

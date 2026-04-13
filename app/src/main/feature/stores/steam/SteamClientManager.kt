@@ -5,10 +5,10 @@ import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import com.winlator.cmod.runtime.container.ContainerManager
+import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.io.TarCompressorUtils
-import com.winlator.cmod.runtime.display.environment.ImageFs
 import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
@@ -26,7 +26,11 @@ object SteamClientManager {
 
     interface DownloadProgressListener {
         fun onProgress(progress: Float)
-        fun onComplete(success: Boolean, error: String?)
+
+        fun onComplete(
+            success: Boolean,
+            error: String?,
+        )
     }
 
     interface ShellCommandRunner {
@@ -57,7 +61,10 @@ object SteamClientManager {
     }
 
     @JvmStatic
-    fun downloadSteam(context: Context, listener: DownloadProgressListener?) {
+    fun downloadSteam(
+        context: Context,
+        listener: DownloadProgressListener?,
+    ) {
         thread(name = "SteamDownloader") {
             val dest = File(context.filesDir, "steam.tzst")
             val tmp = File("${dest.absolutePath}.part")
@@ -101,7 +108,11 @@ object SteamClientManager {
         }
     }
 
-    private fun downloadFile(urlStr: String, dest: File, listener: DownloadProgressListener?) {
+    private fun downloadFile(
+        urlStr: String,
+        dest: File,
+        listener: DownloadProgressListener?,
+    ) {
         var conn: HttpURLConnection? = null
         try {
             conn = URL(urlStr).openConnection() as HttpURLConnection
@@ -142,10 +153,11 @@ object SteamClientManager {
     }
 
     private fun downloadUrlsFor(fileName: String): Array<String> {
-        val alternate = when (fileName) {
-            "steam-token.tzst" -> "steam-token-r2.tzst"
-            else -> null
-        }
+        val alternate =
+            when (fileName) {
+                "steam-token.tzst" -> "steam-token-r2.tzst"
+                else -> null
+            }
         return if (alternate != null) {
             arrayOf(
                 "$COMPONENTS_BASE_URL/$fileName",
@@ -156,7 +168,11 @@ object SteamClientManager {
         }
     }
 
-    private fun ensureArchiveReady(context: Context, fileName: String, failureMessage: String): Boolean {
+    private fun ensureArchiveReady(
+        context: Context,
+        fileName: String,
+        failureMessage: String,
+    ): Boolean {
         val dest = File(context.filesDir, fileName)
         if (dest.exists() && dest.length() > 0) return true
 
@@ -199,7 +215,7 @@ object SteamClientManager {
                 TarCompressorUtils.Type.ZSTD,
                 steamFile,
                 imageFs.rootDir,
-                null
+                null,
             )
             true
         } catch (e: Exception) {
@@ -219,7 +235,7 @@ object SteamClientManager {
                 TarCompressorUtils.Type.ZSTD,
                 steamFile,
                 imageFs.rootDir,
-                null
+                null,
             )
             true
         } catch (e: Exception) {
@@ -253,7 +269,7 @@ object SteamClientManager {
                 TarCompressorUtils.Type.ZSTD,
                 expFile,
                 imageFs.rootDir,
-                null
+                null,
             )
             true
         } catch (e: Exception) {
@@ -302,14 +318,11 @@ object SteamClientManager {
     }
 
     @JvmStatic
-    fun ensureRealSteamSupportReady(context: Context): Boolean {
-        return ensureArchiveReady(context, "steam-token.tzst", "Failed to download Steam token helper")
-    }
+    fun ensureRealSteamSupportReady(context: Context): Boolean =
+        ensureArchiveReady(context, "steam-token.tzst", "Failed to download Steam token helper")
 
     @JvmStatic
-    fun ensureColdClientSupportReady(context: Context): Boolean {
-        return extractColdClientSupport(context)
-    }
+    fun ensureColdClientSupportReady(context: Context): Boolean = extractColdClientSupport(context)
 
     @JvmStatic
     fun ensureSteamlessSupportReady(context: Context): Boolean {
@@ -323,7 +336,7 @@ object SteamClientManager {
                     TarCompressorUtils.Type.ZSTD,
                     context,
                     "extras.tzst",
-                    rootDir
+                    rootDir,
                 )
                 chmodIfExists(generateInterfacesExe)
                 chmodIfExists(steamlessCli)
@@ -343,7 +356,11 @@ object SteamClientManager {
     }
 
     @JvmStatic
-    fun runSteamless(context: Context, exePath: String, shellRunner: ShellCommandRunner): Boolean {
+    fun runSteamless(
+        context: Context,
+        exePath: String,
+        shellRunner: ShellCommandRunner,
+    ): Boolean {
         val rootDir = ImageFs.find(context).rootDir
         val steamlessCli = File(rootDir, "Steamless/Steamless.CLI.exe")
         if (!steamlessCli.exists()) return false
@@ -398,7 +415,10 @@ object SteamClientManager {
      */
     @JvmStatic
     @JvmOverloads
-    fun detectRequiredMonoVersion(context: Context, containerWinePath: String? = null): String? {
+    fun detectRequiredMonoVersion(
+        context: Context,
+        containerWinePath: String? = null,
+    ): String? {
         val imageFs = ImageFs.find(context)
         val contentsDir = File(context.filesDir, "contents")
 
@@ -436,10 +456,11 @@ object SteamClientManager {
             Log.d(TAG, "  candidate: ${c.path} (exists=${c.exists()})")
         }
 
-        val mscoree = candidates.firstOrNull { it.exists() } ?: run {
-            Log.w(TAG, "mscoree.dll not found in any Wine/Proton build")
-            return null
-        }
+        val mscoree =
+            candidates.firstOrNull { it.exists() } ?: run {
+                Log.w(TAG, "mscoree.dll not found in any Wine/Proton build")
+                return null
+            }
         Log.i(TAG, "Mono detection: using mscoree.dll at ${mscoree.path}")
 
         return extractMonoVersionFromDll(mscoree)
@@ -448,8 +469,8 @@ object SteamClientManager {
     /**
      * Extracts the Mono version string from an mscoree.dll file.
      */
-    private fun extractMonoVersionFromDll(mscoree: File): String? {
-        return try {
+    private fun extractMonoVersionFromDll(mscoree: File): String? =
+        try {
             val bytes = mscoree.readBytes()
 
             // Strategy 1: Search ISO-8859-1 for "wine-mono-X.Y.Z" (ASCII strings in DLL)
@@ -491,7 +512,6 @@ object SteamClientManager {
             Log.e(TAG, "Error reading mscoree.dll", e)
             null
         }
-    }
 
     /**
      * Returns the path to the correct Mono MSI for the current Wine build.
@@ -500,7 +520,10 @@ object SteamClientManager {
      */
     @JvmStatic
     @JvmOverloads
-    fun ensureMonoMsi(context: Context, containerWinePath: String? = null): File? {
+    fun ensureMonoMsi(
+        context: Context,
+        containerWinePath: String? = null,
+    ): File? {
         val version = detectRequiredMonoVersion(context, containerWinePath)
         if (version == null) {
             Log.w(TAG, "Cannot detect Mono version, skipping Mono install")
@@ -597,7 +620,10 @@ object SteamClientManager {
      */
     @JvmStatic
     @JvmOverloads
-    fun getMonoMsiWinePath(context: Context, containerWinePath: String? = null): String? {
+    fun getMonoMsiWinePath(
+        context: Context,
+        containerWinePath: String? = null,
+    ): String? {
         val msiFile = ensureMonoMsi(context, containerWinePath) ?: return null
         return "Z:\\opt\\mono-gecko-offline\\${msiFile.name}"
     }
@@ -623,8 +649,8 @@ object SteamClientManager {
      * Check if user is currently logged into Steam.
      */
     @JvmStatic
-    fun isSteamLoggedIn(): Boolean {
-        return try {
+    fun isSteamLoggedIn(): Boolean =
+        try {
             val serviceClass = Class.forName("com.winlator.cmod.feature.stores.steam.service.SteamService")
             val companion = serviceClass.getField("Companion").get(null)!!
             val method = companion.javaClass.getMethod("isLoggedIn")
@@ -633,5 +659,4 @@ object SteamClientManager {
             Log.d(TAG, "isLoggedIn check failed: ${e.message}")
             false
         }
-    }
 }

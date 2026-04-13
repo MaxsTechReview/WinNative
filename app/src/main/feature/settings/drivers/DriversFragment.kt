@@ -1,6 +1,4 @@
 package com.winlator.cmod.feature.settings
-import com.winlator.cmod.R
-import com.winlator.cmod.feature.setup.SetupWizardActivity
 import android.content.SharedPreferences
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
@@ -24,6 +22,8 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
+import com.winlator.cmod.R
+import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.runtime.content.AdrenotoolsManager
 import com.winlator.cmod.runtime.content.Downloader
 import com.winlator.cmod.shared.android.AppUtils
@@ -41,7 +41,6 @@ import java.time.format.FormatStyle
 import java.util.Locale
 
 class DriversFragment : Fragment() {
-
     private lateinit var adrenotoolsManager: AdrenotoolsManager
     private lateinit var preferences: SharedPreferences
 
@@ -67,7 +66,10 @@ class DriversFragment : Fragment() {
         preferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         (activity as? AppCompatActivity)?.supportActionBar?.setTitle(R.string.settings_drivers_manager)
     }
@@ -82,95 +84,101 @@ class DriversFragment : Fragment() {
         refreshInstalledDrivers()
         publishState()
 
-        val composeView = ComposeView(ctx).apply {
-            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-            setContent {
-                MaterialTheme(
-                    colorScheme = darkColorScheme(
-                        primary    = Color(0xFF1A9FFF),
-                        background = Color(0xFF141B24),
-                        surface    = Color(0xFF1E252E),
-                    )
-                ) {
-                    DriversScreen(
-                        state = driversState,
-                        onInstallFromFile = {
-                            driverPicker.launch(arrayOf("*/*"))
-                        },
-                        onSourceTapped = { source -> onSourceSelected(source) },
-                        onReleaseTapped = { release ->
-                            expandedReleaseId = if (expandedReleaseId == release.id) null else release.id
-                            publishState()
-                        },
-                        onDownloadAsset = { asset -> downloadReleaseAsset(asset) },
-                        onRemoveDriver = { driver ->
-                            adrenotoolsManager.removeDriver(driver.id)
-                            refreshInstalledDrivers()
-                            publishState()
-                        },
-                        onRepoAdded = { name, apiUrl ->
-                            val normalized = normalizeRepoInput(name, apiUrl)
-                            sources.add(normalized)
-                            saveRepos()
-                            publishState()
-                        },
-                        onRepoUpdated = { index, name, apiUrl ->
-                            if (index in sources.indices) {
+        val composeView =
+            ComposeView(ctx).apply {
+                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+                setContent {
+                    MaterialTheme(
+                        colorScheme =
+                            darkColorScheme(
+                                primary = Color(0xFF1A9FFF),
+                                background = Color(0xFF141B24),
+                                surface = Color(0xFF1E252E),
+                            ),
+                    ) {
+                        DriversScreen(
+                            state = driversState,
+                            onInstallFromFile = {
+                                driverPicker.launch(arrayOf("*/*"))
+                            },
+                            onSourceTapped = { source -> onSourceSelected(source) },
+                            onReleaseTapped = { release ->
+                                expandedReleaseId = if (expandedReleaseId == release.id) null else release.id
+                                publishState()
+                            },
+                            onDownloadAsset = { asset -> downloadReleaseAsset(asset) },
+                            onRemoveDriver = { driver ->
+                                adrenotoolsManager.removeDriver(driver.id)
+                                refreshInstalledDrivers()
+                                publishState()
+                            },
+                            onRepoAdded = { name, apiUrl ->
                                 val normalized = normalizeRepoInput(name, apiUrl)
-                                sources[index] = normalized
-                                releasesBySource.remove(sources[index].apiUrl)
+                                sources.add(normalized)
                                 saveRepos()
                                 publishState()
-                            }
-                        },
-                        onRepoDeleted = { index ->
-                            if (index in sources.indices) {
-                                val removed = sources.removeAt(index)
-                                releasesBySource.remove(removed.apiUrl)
-                                if (expandedSourceApiUrl == removed.apiUrl) expandedSourceApiUrl = null
-                                if (loadingSourceApiUrl == removed.apiUrl) loadingSourceApiUrl = null
-                                saveRepos()
-                                publishState()
-                            }
-                        },
-                        onRestoreDefaultRepos = { restoreDefaultRepos() },
-                    )
+                            },
+                            onRepoUpdated = { index, name, apiUrl ->
+                                if (index in sources.indices) {
+                                    val normalized = normalizeRepoInput(name, apiUrl)
+                                    sources[index] = normalized
+                                    releasesBySource.remove(sources[index].apiUrl)
+                                    saveRepos()
+                                    publishState()
+                                }
+                            },
+                            onRepoDeleted = { index ->
+                                if (index in sources.indices) {
+                                    val removed = sources.removeAt(index)
+                                    releasesBySource.remove(removed.apiUrl)
+                                    if (expandedSourceApiUrl == removed.apiUrl) expandedSourceApiUrl = null
+                                    if (loadingSourceApiUrl == removed.apiUrl) loadingSourceApiUrl = null
+                                    saveRepos()
+                                    publishState()
+                                }
+                            },
+                            onRestoreDefaultRepos = { restoreDefaultRepos() },
+                        )
+                    }
                 }
             }
-        }
 
         val density = resources.displayMetrics.density
-        val scrollView = ScrollView(ctx).apply {
-            isFillViewport = true
-            scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
-            scrollBarSize = (3 * density).toInt()
-            isScrollbarFadingEnabled = true
-            scrollBarDefaultDelayBeforeFade = 400
-            scrollBarFadeDuration = 250
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                setVerticalScrollbarThumbDrawable(GradientDrawable().apply {
-                    shape = GradientDrawable.RECTANGLE
-                    setColor(android.graphics.Color.argb(100, 26, 159, 255))
-                    cornerRadius = 4 * density
-                })
+        val scrollView =
+            ScrollView(ctx).apply {
+                isFillViewport = true
+                scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
+                scrollBarSize = (3 * density).toInt()
+                isScrollbarFadingEnabled = true
+                scrollBarDefaultDelayBeforeFade = 400
+                scrollBarFadeDuration = 250
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    setVerticalScrollbarThumbDrawable(
+                        GradientDrawable().apply {
+                            shape = GradientDrawable.RECTANGLE
+                            setColor(android.graphics.Color.argb(100, 26, 159, 255))
+                            cornerRadius = 4 * density
+                        },
+                    )
+                }
+                addView(
+                    composeView,
+                    ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ),
+                )
             }
-            addView(
-                composeView,
-                ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                ),
-            )
-        }
 
         return FrameLayout(ctx).apply {
             setBackgroundColor(android.graphics.Color.parseColor("#18181D"))
             addView(
                 scrollView,
-                FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                ).apply { marginEnd = (10 * density).toInt() },
+                FrameLayout
+                    .LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                    ).apply { marginEnd = (10 * density).toInt() },
             )
         }
     }
@@ -184,39 +192,42 @@ class DriversFragment : Fragment() {
     private fun publishState() {
         val existingApiUrls = sources.map { it.apiUrl }.toHashSet()
         val hasMissingDefaults = defaultRepoList().any { it.apiUrl !in existingApiUrls }
-        driversState = DriversState(
-            installedDrivers = installedDrivers,
-            sources = sources.toList(),
-            releasesBySource = releasesBySource.toMap(),
-            expandedSourceApiUrl = expandedSourceApiUrl,
-            expandedReleaseId = expandedReleaseId,
-            loadingSourceApiUrl = loadingSourceApiUrl,
-            hasMissingDefaults = hasMissingDefaults,
-            installedAssetNames = installedAssetNames,
-            downloadProgress = downloadProgress,
-        )
+        driversState =
+            DriversState(
+                installedDrivers = installedDrivers,
+                sources = sources.toList(),
+                releasesBySource = releasesBySource.toMap(),
+                expandedSourceApiUrl = expandedSourceApiUrl,
+                expandedReleaseId = expandedReleaseId,
+                loadingSourceApiUrl = loadingSourceApiUrl,
+                hasMissingDefaults = hasMissingDefaults,
+                installedAssetNames = installedAssetNames,
+                downloadProgress = downloadProgress,
+            )
     }
 
     private fun refreshInstalledDrivers() {
         val driverIds = adrenotoolsManager.enumarateInstalledDrivers()
-        installedDrivers = driverIds
-            .map { driverId ->
-                InstalledDriverItem(
-                    id = driverId,
-                    name = adrenotoolsManager.getDriverName(driverId).ifBlank { driverId },
-                    version = adrenotoolsManager.getDriverVersion(driverId),
-                )
-            }
-            .sortedBy { it.name.lowercase(Locale.getDefault()) }
-        installedAssetNames = driverIds
-            .mapNotNull { id -> adrenotoolsManager.getSourceAsset(id).takeIf { it.isNotBlank() } }
-            .toSet()
+        installedDrivers =
+            driverIds
+                .map { driverId ->
+                    InstalledDriverItem(
+                        id = driverId,
+                        name = adrenotoolsManager.getDriverName(driverId).ifBlank { driverId },
+                        version = adrenotoolsManager.getDriverVersion(driverId),
+                    )
+                }.sortedBy { it.name.lowercase(Locale.getDefault()) }
+        installedAssetNames =
+            driverIds
+                .mapNotNull { id -> adrenotoolsManager.getSourceAsset(id).takeIf { it.isNotBlank() } }
+                .toSet()
     }
 
-    private fun defaultRepoList(): List<DriverRepo> = listOf(
-        DriverRepo(name = GITHUB_REPO_NAME, repoUrl = GITHUB_REPO_URL, apiUrl = GITHUB_API_URL),
-        DriverRepo(name = XNICK_REPO_NAME,  repoUrl = XNICK_REPO_URL,  apiUrl = XNICK_API_URL),
-    )
+    private fun defaultRepoList(): List<DriverRepo> =
+        listOf(
+            DriverRepo(name = GITHUB_REPO_NAME, repoUrl = GITHUB_REPO_URL, apiUrl = GITHUB_API_URL),
+            DriverRepo(name = XNICK_REPO_NAME, repoUrl = XNICK_REPO_URL, apiUrl = XNICK_API_URL),
+        )
 
     private fun loadRepos() {
         val jsonStr = preferences.getString("custom_driver_repos", null)
@@ -231,10 +242,10 @@ class DriversFragment : Fragment() {
                     val obj = array.getJSONObject(i)
                     newSources.add(
                         DriverRepo(
-                            name    = obj.optString("name", "Unknown Repo"),
+                            name = obj.optString("name", "Unknown Repo"),
                             repoUrl = obj.optString("repoUrl", ""),
-                            apiUrl  = obj.optString("apiUrl", ""),
-                        )
+                            apiUrl = obj.optString("apiUrl", ""),
+                        ),
                     )
                 }
             } catch (e: Exception) {
@@ -271,7 +282,8 @@ class DriversFragment : Fragment() {
                 obj.put("apiUrl", source.apiUrl)
                 array.put(obj)
             }
-            preferences.edit()
+            preferences
+                .edit()
                 .putString("custom_driver_repos", array.toString())
                 .apply()
         } catch (e: Exception) {
@@ -279,7 +291,10 @@ class DriversFragment : Fragment() {
         }
     }
 
-    private fun normalizeRepoInput(name: String, rawUrl: String): DriverRepo {
+    private fun normalizeRepoInput(
+        name: String,
+        rawUrl: String,
+    ): DriverRepo {
         var url = rawUrl
         if (url.startsWith("https://github.com/") && !url.contains("api.github.com")) {
             url = url.replace("https://github.com/", "https://api.github.com/repos/")
@@ -313,9 +328,10 @@ class DriversFragment : Fragment() {
         publishState()
 
         viewLifecycleOwner.lifecycleScope.launch {
-            val releases = withContext(Dispatchers.IO) {
-                runCatching { fetchGithubReleases(source) }.getOrElse { emptyList() }
-            }
+            val releases =
+                withContext(Dispatchers.IO) {
+                    runCatching { fetchGithubReleases(source) }.getOrElse { emptyList() }
+                }
 
             if (!isAdded || view == null) return@launch
 
@@ -332,13 +348,14 @@ class DriversFragment : Fragment() {
     }
 
     private fun fetchGithubReleases(source: DriverRepo): List<DriverReleaseItem> {
-        val connection = (URL(source.apiUrl).openConnection() as HttpURLConnection).apply {
-            requestMethod = "GET"
-            connectTimeout = 15000
-            readTimeout = 15000
-            setRequestProperty("Accept", "application/vnd.github+json")
-            setRequestProperty("User-Agent", "WinNative")
-        }
+        val connection =
+            (URL(source.apiUrl).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 15000
+                readTimeout = 15000
+                setRequestProperty("Accept", "application/vnd.github+json")
+                setRequestProperty("User-Agent", "WinNative")
+            }
 
         return connection.useResponse { responseText ->
             val json = JSONArray(responseText)
@@ -360,7 +377,7 @@ class DriversFragment : Fragment() {
                             subtitle = buildReleaseSubtitle(tagName, publishedAt, assets.size),
                             notes = releaseNotes,
                             assets = assets,
-                        )
+                        ),
                     )
                 }
             }
@@ -382,20 +399,25 @@ class DriversFragment : Fragment() {
                         name = assetName,
                         downloadUrl = downloadUrl,
                         sizeLabel = formatBytes(assetObject.optLong("size")),
-                    )
+                    ),
                 )
             }
         }
     }
 
-    private fun buildReleaseSubtitle(tagName: String, publishedAt: String, assetCount: Int): String {
+    private fun buildReleaseSubtitle(
+        tagName: String,
+        publishedAt: String,
+        assetCount: Int,
+    ): String {
         val parts = mutableListOf<String>()
         if (tagName.isNotBlank()) parts += tagName
         if (publishedAt.isNotBlank()) {
             runCatching {
-                val formattedDate = OffsetDateTime.parse(publishedAt).format(
-                    DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-                )
+                val formattedDate =
+                    OffsetDateTime.parse(publishedAt).format(
+                        DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM),
+                    )
                 parts += formattedDate
             }
         }
@@ -419,12 +441,13 @@ class DriversFragment : Fragment() {
         }
     }
 
-    private fun String.toReleaseNotes(): String {
-        return lineSequence()
+    private fun String.toReleaseNotes(): String =
+        lineSequence()
             .map { line -> line.trim() }
             .dropWhile { it.isBlank() }
             .map { line ->
-                line.removePrefix("#")
+                line
+                    .removePrefix("#")
                     .removePrefix("##")
                     .removePrefix("###")
                     .removePrefix("- [ ] ")
@@ -432,58 +455,58 @@ class DriversFragment : Fragment() {
                     .removePrefix("- ")
                     .removePrefix("* ")
                     .trim()
-            }
-            .fold(mutableListOf<String>()) { acc, line ->
+            }.fold(mutableListOf<String>()) { acc, line ->
                 if (line.isBlank()) {
                     if (acc.isNotEmpty() && acc.last().isNotBlank()) acc += ""
                 } else {
                     acc += line
                 }
                 acc
-            }
-            .joinToString("\n")
+            }.joinToString("\n")
             .trim()
-    }
 
     private fun downloadReleaseAsset(asset: DriverAssetItem) {
         if (asset.name in installedAssetNames) return
         if (downloadProgress != null) return
 
         val downloadTitle = getString(R.string.settings_content_downloading_title)
-        downloadProgress = DownloadProgress(
-            title = downloadTitle,
-            assetName = asset.name,
-            progress = 0f,
-            indeterminate = true,
-        )
+        downloadProgress =
+            DownloadProgress(
+                title = downloadTitle,
+                assetName = asset.name,
+                progress = 0f,
+                indeterminate = true,
+            )
         publishState()
 
         viewLifecycleOwner.lifecycleScope.launch {
             val output = File(requireContext().cacheDir, "driver_${System.currentTimeMillis()}.zip")
-            val success = withContext(Dispatchers.IO) {
-                Downloader.downloadFile(asset.downloadUrl, output) { downloadedBytes, totalBytes ->
-                    if (totalBytes <= 0L) {
+            val success =
+                withContext(Dispatchers.IO) {
+                    Downloader.downloadFile(asset.downloadUrl, output) { downloadedBytes, totalBytes ->
+                        if (totalBytes <= 0L) {
+                            updateDownloadProgress(
+                                DownloadProgress(
+                                    title = downloadTitle,
+                                    assetName = asset.name,
+                                    indeterminate = true,
+                                ),
+                            )
+                            return@downloadFile
+                        }
+                        val fraction =
+                            (downloadedBytes.toFloat() / totalBytes.toFloat())
+                                .coerceIn(0f, 1f)
                         updateDownloadProgress(
                             DownloadProgress(
                                 title = downloadTitle,
                                 assetName = asset.name,
-                                indeterminate = true,
-                            )
+                                progress = fraction,
+                                indeterminate = false,
+                            ),
                         )
-                        return@downloadFile
                     }
-                    val fraction = (downloadedBytes.toFloat() / totalBytes.toFloat())
-                        .coerceIn(0f, 1f)
-                    updateDownloadProgress(
-                        DownloadProgress(
-                            title = downloadTitle,
-                            assetName = asset.name,
-                            progress = fraction,
-                            indeterminate = false,
-                        )
-                    )
                 }
-            }
 
             if (!isAdded || view == null) {
                 output.delete()
@@ -518,15 +541,16 @@ class DriversFragment : Fragment() {
                 title = installTitle,
                 assetName = sourceAssetName ?: installMessage,
                 indeterminate = true,
-            )
+            ),
         )
 
         viewLifecycleOwner.lifecycleScope.launch {
-            val installedDriverId = withContext(Dispatchers.IO) {
-                runCatching {
-                    adrenotoolsManager.installDriver(uri, sourceAssetName)
-                }.getOrDefault("")
-            }
+            val installedDriverId =
+                withContext(Dispatchers.IO) {
+                    runCatching {
+                        adrenotoolsManager.installDriver(uri, sourceAssetName)
+                    }.getOrDefault("")
+                }
 
             if (!isAdded || view == null) {
                 clearDownloadProgress()
@@ -560,17 +584,17 @@ class DriversFragment : Fragment() {
 
     companion object {
         private const val GITHUB_REPO_NAME = "StevenMXZ/freedreno_turnip-CI"
-        private const val GITHUB_REPO_URL  = "https://github.com/StevenMXZ/freedreno_turnip-CI/releases"
-        private const val GITHUB_API_URL   = "https://api.github.com/repos/StevenMXZ/freedreno_turnip-CI/releases"
+        private const val GITHUB_REPO_URL = "https://github.com/StevenMXZ/freedreno_turnip-CI/releases"
+        private const val GITHUB_API_URL = "https://api.github.com/repos/StevenMXZ/freedreno_turnip-CI/releases"
 
         private const val XNICK_REPO_NAME = "Xnick417x"
-        private const val XNICK_REPO_URL  = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases"
-        private const val XNICK_API_URL   = "https://api.github.com/repos/Xnick417x/Winlator-Bionic-Nightly-wcp/releases"
+        private const val XNICK_REPO_URL = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases"
+        private const val XNICK_API_URL = "https://api.github.com/repos/Xnick417x/Winlator-Bionic-Nightly-wcp/releases"
     }
 }
 
-private inline fun <T> HttpURLConnection.useResponse(block: (String) -> T): T {
-    return try {
+private inline fun <T> HttpURLConnection.useResponse(block: (String) -> T): T =
+    try {
         val inputStream = if (responseCode in 200..299) inputStream else errorStream
         val body = inputStream?.bufferedReader()?.use { it.readText() }.orEmpty()
         if (responseCode !in 200..299) {
@@ -580,4 +604,3 @@ private inline fun <T> HttpURLConnection.useResponse(block: (String) -> T): T {
     } finally {
         disconnect()
     }
-}

@@ -25,47 +25,48 @@
 #ifndef VIRGL_SERVER_H
 #define VIRGL_SERVER_H
 
+#include <android/log.h>
 #include <errno.h>
 #include <jni.h>
-#include <android/log.h>
 #include <stdio.h>
 
 #include "vrend_renderer.h"
 
-#include <GLES2/gl2.h>
 #include <EGL/egl.h>
+#include <GLES2/gl2.h>
 
-#define printf(...) __android_log_print(ANDROID_LOG_DEBUG, "System.out", __VA_ARGS__);
+#define printf(...)                                                            \
+  __android_log_print(ANDROID_LOG_DEBUG, "System.out", __VA_ARGS__);
 
 struct jni_info {
-   jobject obj;
-   JNIEnv *env;
-   jmethodID kill_connection;
-   jmethodID get_shared_egl_context;
-   jmethodID flush_frontbuffer;
+  jobject obj;
+  JNIEnv *env;
+  jmethodID kill_connection;
+  jmethodID get_shared_egl_context;
+  jmethodID flush_frontbuffer;
 };
 
 struct virgl_server_renderer {
-   struct util_hash_table *iovec_hash;
-   GLuint framebuffer;
-   int handle;
-   int ctx_id;
-   int fence_id;
-   int last_fence_id;
+  struct util_hash_table *iovec_hash;
+  GLuint framebuffer;
+  int handle;
+  int ctx_id;
+  int fence_id;
+  int last_fence_id;
 
-   EGLDisplay egl_display;
-   EGLConfig egl_conf;
-   EGLContext egl_ctx;
+  EGLDisplay egl_display;
+  EGLConfig egl_conf;
+  EGLContext egl_ctx;
 };
 
 struct virgl_client {
-   int fd;
-   struct virgl_server_renderer *renderer;
-   struct vrend_state *vrend_state;
-   struct util_hash_table *res_hash;
-   struct vrend_decode_ctx *dec_ctx[VREND_MAX_CTX];
-   struct vrend_blitter_ctx *vrend_blit_ctx;
-   bool initialized;
+  int fd;
+  struct virgl_server_renderer *renderer;
+  struct vrend_state *vrend_state;
+  struct util_hash_table *res_hash;
+  struct vrend_decode_ctx *dec_ctx[VREND_MAX_CTX];
+  struct vrend_blitter_ctx *vrend_blit_ctx;
+  bool initialized;
 };
 
 extern struct jni_info jni_info;
@@ -77,8 +78,10 @@ int virgl_server_resource_destroy(struct virgl_client *client, uint32_t length);
 int virgl_server_transfer_get(struct virgl_client *client, uint32_t length);
 int virgl_server_transfer_put(struct virgl_client *client, uint32_t length);
 int virgl_server_submit_cmd(struct virgl_client *client, uint32_t length);
-int virgl_server_resource_busy_wait(struct virgl_client *client, uint32_t length);
-int virgl_server_flush_frontbuffer(struct virgl_client *client, uint32_t length);
+int virgl_server_resource_busy_wait(struct virgl_client *client,
+                                    uint32_t length);
+int virgl_server_flush_frontbuffer(struct virgl_client *client,
+                                   uint32_t length);
 
 int virgl_block_read(int fd, void *buf, int size);
 
@@ -87,4 +90,3 @@ int virgl_server_renderer_create_fence(struct virgl_client *client);
 void virgl_server_destroy_renderer(struct virgl_client *client);
 
 #endif
-

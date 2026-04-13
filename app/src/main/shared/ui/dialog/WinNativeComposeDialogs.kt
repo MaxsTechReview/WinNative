@@ -50,9 +50,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.Dialog as ComposeDialog
 import com.winlator.cmod.R
-import com.winlator.cmod.shared.util.Callback
 import com.winlator.cmod.shared.theme.WinNativeAccent
 import com.winlator.cmod.shared.theme.WinNativeBackground
 import com.winlator.cmod.shared.theme.WinNativeDanger
@@ -62,52 +60,66 @@ import com.winlator.cmod.shared.theme.WinNativeSurface
 import com.winlator.cmod.shared.theme.WinNativeTextPrimary
 import com.winlator.cmod.shared.theme.WinNativeTextSecondary
 import com.winlator.cmod.shared.theme.WinNativeTheme
+import com.winlator.cmod.shared.util.Callback
+import androidx.compose.ui.window.Dialog as ComposeDialog
 
 object WinNativeComposeDialogs {
     @JvmStatic
-    fun showAlert(context: Context, message: CharSequence?, onConfirm: Runnable?): Boolean {
+    fun showAlert(
+        context: Context,
+        message: CharSequence?,
+        onConfirm: Runnable?,
+    ): Boolean {
         val activity = context.findActivity() ?: return false
         val dialog = buildDialog(activity)
-        dialog.setContentView(composeView(activity) {
-            WinNativeTheme {
-                WinNativeMessageDialog(
-                    title = null,
-                    message = message?.toString().orEmpty(),
-                    confirmLabel = activity.getString(R.string.common_ui_ok),
-                    confirmColor = WinNativeAccent,
-                    showCancel = false,
-                    onDismiss = { dialog.dismiss() },
-                    onConfirm = {
-                        dialog.dismiss()
-                        onConfirm?.run()
-                    },
-                )
-            }
-        })
+        dialog.setContentView(
+            composeView(activity) {
+                WinNativeTheme {
+                    WinNativeMessageDialog(
+                        title = null,
+                        message = message?.toString().orEmpty(),
+                        confirmLabel = activity.getString(R.string.common_ui_ok),
+                        confirmColor = WinNativeAccent,
+                        showCancel = false,
+                        onDismiss = { dialog.dismiss() },
+                        onConfirm = {
+                            dialog.dismiss()
+                            onConfirm?.run()
+                        },
+                    )
+                }
+            },
+        )
         dialog.show()
         return true
     }
 
     @JvmStatic
-    fun showConfirm(context: Context, message: CharSequence?, onConfirm: Runnable?): Boolean {
+    fun showConfirm(
+        context: Context,
+        message: CharSequence?,
+        onConfirm: Runnable?,
+    ): Boolean {
         val activity = context.findActivity() ?: return false
         val dialog = buildDialog(activity)
-        dialog.setContentView(composeView(activity) {
-            WinNativeTheme {
-                WinNativeMessageDialog(
-                    title = null,
-                    message = message?.toString().orEmpty(),
-                    confirmLabel = activity.getString(R.string.common_ui_ok),
-                    confirmColor = WinNativeAccent,
-                    showCancel = true,
-                    onDismiss = { dialog.dismiss() },
-                    onConfirm = {
-                        dialog.dismiss()
-                        onConfirm?.run()
-                    },
-                )
-            }
-        })
+        dialog.setContentView(
+            composeView(activity) {
+                WinNativeTheme {
+                    WinNativeMessageDialog(
+                        title = null,
+                        message = message?.toString().orEmpty(),
+                        confirmLabel = activity.getString(R.string.common_ui_ok),
+                        confirmColor = WinNativeAccent,
+                        showCancel = true,
+                        onDismiss = { dialog.dismiss() },
+                        onConfirm = {
+                            dialog.dismiss()
+                            onConfirm?.run()
+                        },
+                    )
+                }
+            },
+        )
         dialog.show()
         return true
     }
@@ -126,19 +138,21 @@ object WinNativeComposeDialogs {
                 WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE,
             )
         }
-        dialog.setContentView(composeView(activity) {
-            WinNativeTheme {
-                WinNativePromptDialog(
-                    title = title?.toString().orEmpty(),
-                    initialValue = defaultText.orEmpty(),
-                    onDismiss = { dialog.dismiss() },
-                    onConfirm = { value ->
-                        dialog.dismiss()
-                        callback.call(value)
-                    },
-                )
-            }
-        })
+        dialog.setContentView(
+            composeView(activity) {
+                WinNativeTheme {
+                    WinNativePromptDialog(
+                        title = title?.toString().orEmpty(),
+                        initialValue = defaultText.orEmpty(),
+                        onDismiss = { dialog.dismiss() },
+                        onConfirm = { value ->
+                            dialog.dismiss()
+                            callback.call(value)
+                        },
+                    )
+                }
+            },
+        )
         dialog.show()
         return true
     }
@@ -152,44 +166,48 @@ object WinNativeComposeDialogs {
     ): Boolean {
         val activity = context.findActivity() ?: return false
         val dialog = buildDialog(activity)
-        dialog.setContentView(composeView(activity) {
-            WinNativeTheme {
-                WinNativeShortcutPropertiesDialog(
-                    title = activity.getString(R.string.common_ui_properties),
-                    playCountText = playCountText,
-                    playtimeText = playtimeText,
-                    onDismiss = { dialog.dismiss() },
-                    onReset = {
-                        dialog.dismiss()
-                        onReset.run()
-                    },
-                )
-            }
-        })
+        dialog.setContentView(
+            composeView(activity) {
+                WinNativeTheme {
+                    WinNativeShortcutPropertiesDialog(
+                        title = activity.getString(R.string.common_ui_properties),
+                        playCountText = playCountText,
+                        playtimeText = playtimeText,
+                        onDismiss = { dialog.dismiss() },
+                        onReset = {
+                            dialog.dismiss()
+                            onReset.run()
+                        },
+                    )
+                }
+            },
+        )
         dialog.show()
         return true
     }
 
-    private fun buildDialog(activity: Activity): Dialog {
-        return Dialog(activity, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar).apply {
+    private fun buildDialog(activity: Activity): Dialog =
+        Dialog(activity, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar).apply {
             setCancelable(true)
             setCanceledOnTouchOutside(true)
         }
-    }
 
-    private fun composeView(activity: Activity, content: @Composable () -> Unit): ComposeView {
-        return ComposeView(activity).apply {
+    private fun composeView(
+        activity: Activity,
+        content: @Composable () -> Unit,
+    ): ComposeView =
+        ComposeView(activity).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
             setContent(content)
         }
-    }
 }
 
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is android.content.ContextWrapper -> baseContext.findActivity()
-    else -> null
-}
+private tailrec fun Context.findActivity(): Activity? =
+    when (this) {
+        is Activity -> this
+        is android.content.ContextWrapper -> baseContext.findActivity()
+        else -> null
+    }
 
 @Composable
 fun WinNativeDialogShell(
@@ -202,33 +220,37 @@ fun WinNativeDialogShell(
 ) {
     ComposeDialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false,
-        ),
+        properties =
+            DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+            ),
     ) {
         BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .safeDrawingPadding()
-                .imePadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .safeDrawingPadding()
+                    .imePadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
             Box(
-                modifier = Modifier
-                    .widthIn(max = maxWidth)
-                    .fillMaxWidth()
-                    .heightIn(max = maxHeight)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(WinNativeSurface)
-                    .border(1.dp, WinNativeOutline, RoundedCornerShape(16.dp))
-                    .padding(horizontal = 18.dp, vertical = 16.dp),
+                modifier =
+                    Modifier
+                        .widthIn(max = maxWidth)
+                        .fillMaxWidth()
+                        .heightIn(max = maxHeight)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(WinNativeSurface)
+                        .border(1.dp, WinNativeOutline, RoundedCornerShape(16.dp))
+                        .padding(horizontal = 18.dp, vertical = 16.dp),
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
                 ) {
                     if (!title.isNullOrEmpty()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -248,7 +270,8 @@ fun WinNativeDialogShell(
                                 )
                             }
                             if (iconImage != null || iconRes != null) {
-                                androidx.compose.foundation.layout.Spacer(Modifier.size(12.dp))
+                                androidx.compose.foundation.layout
+                                    .Spacer(Modifier.size(12.dp))
                             }
                             Text(
                                 text = title,
@@ -259,10 +282,11 @@ fun WinNativeDialogShell(
                         }
                         Spacer(Modifier.height(12.dp))
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(1.dp)
-                                .background(WinNativeOutline),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(WinNativeOutline),
                         )
                         Spacer(Modifier.height(14.dp))
                     }
@@ -282,17 +306,17 @@ fun WinNativeDialogButton(
     borderColor: Color = WinNativeOutline,
 ) {
     Box(
-        modifier = Modifier
-            .widthIn(min = 84.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(backgroundColor)
-            .border(1.dp, borderColor, RoundedCornerShape(10.dp))
-            .clickable(
-                interactionSource = MutableInteractionSource(),
-                indication = null,
-                onClick = onClick,
-            )
-            .padding(horizontal = 18.dp, vertical = 11.dp),
+        modifier =
+            Modifier
+                .widthIn(min = 84.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(backgroundColor)
+                .border(1.dp, borderColor, RoundedCornerShape(10.dp))
+                .clickable(
+                    interactionSource = MutableInteractionSource(),
+                    indication = null,
+                    onClick = onClick,
+                ).padding(horizontal = 18.dp, vertical = 11.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -327,10 +351,11 @@ private fun WinNativeMessageDialog(
         )
         Spacer(Modifier.height(16.dp))
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(WinNativeOutline),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(WinNativeOutline),
         )
         Spacer(Modifier.height(16.dp))
         Row(
@@ -374,28 +399,31 @@ private fun WinNativePromptDialog(
             onValueChange = { value = it },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            textStyle = androidx.compose.material3.MaterialTheme.typography.bodyMedium.copy(
-                color = WinNativeTextPrimary,
-            ),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = WinNativeAccent,
-                unfocusedBorderColor = WinNativeOutline,
-                focusedTextColor = WinNativeTextPrimary,
-                unfocusedTextColor = WinNativeTextPrimary,
-                focusedContainerColor = WinNativeBackground,
-                unfocusedContainerColor = WinNativeBackground,
-                focusedLabelColor = WinNativeTextSecondary,
-                unfocusedLabelColor = WinNativeTextSecondary,
-                cursorColor = WinNativeAccent,
-            ),
+            textStyle =
+                androidx.compose.material3.MaterialTheme.typography.bodyMedium.copy(
+                    color = WinNativeTextPrimary,
+                ),
+            colors =
+                OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = WinNativeAccent,
+                    unfocusedBorderColor = WinNativeOutline,
+                    focusedTextColor = WinNativeTextPrimary,
+                    unfocusedTextColor = WinNativeTextPrimary,
+                    focusedContainerColor = WinNativeBackground,
+                    unfocusedContainerColor = WinNativeBackground,
+                    focusedLabelColor = WinNativeTextSecondary,
+                    unfocusedLabelColor = WinNativeTextSecondary,
+                    cursorColor = WinNativeAccent,
+                ),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
         )
         Spacer(Modifier.height(16.dp))
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(WinNativeOutline),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(WinNativeOutline),
         )
         Spacer(Modifier.height(16.dp))
         Row(

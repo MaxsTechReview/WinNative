@@ -6,10 +6,10 @@ import android.os.Bundle
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import com.winlator.cmod.feature.stores.epic.service.EpicConstants
-import com.winlator.cmod.feature.stores.epic.ui.component.dialog.AuthWebViewDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import com.winlator.cmod.feature.stores.epic.service.EpicConstants
+import com.winlator.cmod.feature.stores.epic.ui.component.dialog.AuthWebViewDialog
 import com.winlator.cmod.feature.stores.steam.utils.redactUrlForLogging
 import timber.log.Timber
 
@@ -20,7 +20,6 @@ import timber.log.Timber
  * Uses a per-session state parameter for CSRF protection.
  */
 class EpicOAuthActivity : ComponentActivity() {
-
     companion object {
         const val EXTRA_AUTH_CODE = "auth_code"
         const val EXTRA_ERROR = "error"
@@ -45,20 +44,21 @@ class EpicOAuthActivity : ComponentActivity() {
         // Check if URL was passed from intent (e.g., from WineRequestComponent)
         val gameAuthUrl = intent.getStringExtra(EXTRA_GAME_AUTH_URL)
 
-        val (authUrl, state) = if (savedInstanceState != null) {
-            val savedState = savedInstanceState.getString(SAVED_OAUTH_STATE)
-            val savedUrl = savedInstanceState.getString(SAVED_AUTH_URL)
-            if (savedState != null && savedUrl != null) {
-                savedUrl to savedState
+        val (authUrl, state) =
+            if (savedInstanceState != null) {
+                val savedState = savedInstanceState.getString(SAVED_OAUTH_STATE)
+                val savedUrl = savedInstanceState.getString(SAVED_AUTH_URL)
+                if (savedState != null && savedUrl != null) {
+                    savedUrl to savedState
+                } else {
+                    EpicConstants.LoginUrlWithState()
+                }
+            } else if (gameAuthUrl != null) {
+                // Use the URL passed from intent (e.g., from WineRequestComponent)
+                gameAuthUrl to ""
             } else {
                 EpicConstants.LoginUrlWithState()
             }
-        } else if (gameAuthUrl != null) {
-            // Use the URL passed from intent (e.g., from WineRequestComponent)
-            gameAuthUrl to ""
-        } else {
-            EpicConstants.LoginUrlWithState()
-        }
         oauthState = state
         initialAuthUrl = authUrl
 
@@ -89,7 +89,7 @@ class EpicOAuthActivity : ComponentActivity() {
                             return@AuthWebViewDialog
                         }
                         webView.evaluateJavascript(
-                            "(function(){ try { var j = JSON.parse(document.body && document.body.innerText || '{}'); return j.authorizationCode || null; } catch(e){ return null; } })();"
+                            "(function(){ try { var j = JSON.parse(document.body && document.body.innerText || '{}'); return j.authorizationCode || null; } catch(e){ return null; } })();",
                         ) { result ->
                             val code = unquoteJsonString(result)
                             if (!code.isNullOrBlank()) {
@@ -109,8 +109,8 @@ class EpicOAuthActivity : ComponentActivity() {
         finish()
     }
 
-    private fun isValidRedirectUrl(url: String): Boolean {
-        return try {
+    private fun isValidRedirectUrl(url: String): Boolean =
+        try {
             val parsed = Uri.parse(url)
             val expected = Uri.parse(EpicConstants.EPIC_REDIRECT_URI)
             parsed.scheme.equals(expected.scheme, ignoreCase = true) &&
@@ -120,25 +120,22 @@ class EpicOAuthActivity : ComponentActivity() {
             Timber.w(e, "Failed to parse redirect URL: %s", redactUrlForLogging(url))
             false
         }
-    }
 
-    private fun extractState(url: String): String? {
-        return try {
+    private fun extractState(url: String): String? =
+        try {
             Uri.parse(url).getQueryParameter("state")
         } catch (e: Exception) {
             Timber.w(e, "Failed to extract state from URL: %s", redactUrlForLogging(url))
             null
         }
-    }
 
-    private fun extractAuthCode(url: String): String? {
-        return try {
+    private fun extractAuthCode(url: String): String? =
+        try {
             Uri.parse(url).getQueryParameter("code")
         } catch (e: Exception) {
             Timber.w(e, "Failed to extract auth code from URL: %s", redactUrlForLogging(url))
             null
         }
-    }
 
     /** evaluateJavascript returns a JSON-encoded string (e.g. "\"ef444d3a...\""). Strip quotes and unescape. */
     private fun unquoteJsonString(jsResult: String?): String? {

@@ -11,11 +11,11 @@
 #define XZ_H
 
 #ifdef __KERNEL__
-#	include <linux/stddef.h>
-#	include <linux/types.h>
+#include <linux/stddef.h>
+#include <linux/types.h>
 #else
-#	include <stddef.h>
-#	include <stdint.h>
+#include <stddef.h>
+#include <stdint.h>
 #endif
 
 #ifdef __cplusplus
@@ -24,7 +24,7 @@ extern "C" {
 
 /* "#define XZ_EXTERN static" can be used to make extern functions static. */
 #ifndef XZ_EXTERN
-#	define XZ_EXTERN extern
+#define XZ_EXTERN extern
 #endif
 
 /**
@@ -52,11 +52,7 @@ extern "C" {
  * with support for all operation modes, but the preboot code may
  * be built with fewer features to minimize code size.
  */
-enum xz_mode {
-	XZ_SINGLE,
-	XZ_PREALLOC,
-	XZ_DYNALLOC
-};
+enum xz_mode { XZ_SINGLE, XZ_PREALLOC, XZ_DYNALLOC };
 
 /**
  * enum xz_ret - Return codes
@@ -109,15 +105,15 @@ enum xz_mode {
  * is used instead of XZ_BUF_ERROR.
  */
 enum xz_ret {
-	XZ_OK,
-	XZ_STREAM_END,
-	XZ_UNSUPPORTED_CHECK,
-	XZ_MEM_ERROR,
-	XZ_MEMLIMIT_ERROR,
-	XZ_FORMAT_ERROR,
-	XZ_OPTIONS_ERROR,
-	XZ_DATA_ERROR,
-	XZ_BUF_ERROR
+  XZ_OK,
+  XZ_STREAM_END,
+  XZ_UNSUPPORTED_CHECK,
+  XZ_MEM_ERROR,
+  XZ_MEMLIMIT_ERROR,
+  XZ_FORMAT_ERROR,
+  XZ_OPTIONS_ERROR,
+  XZ_DATA_ERROR,
+  XZ_BUF_ERROR
 };
 
 /**
@@ -137,13 +133,13 @@ enum xz_ret {
  * the variables in_pos and out_pos are modified by the XZ code.
  */
 struct xz_buf {
-	const uint8_t *in;
-	size_t in_pos;
-	size_t in_size;
+  const uint8_t *in;
+  size_t in_pos;
+  size_t in_size;
 
-	uint8_t *out;
-	size_t out_pos;
-	size_t out_size;
+  uint8_t *out;
+  size_t out_pos;
+  size_t out_size;
 };
 
 /*
@@ -256,7 +252,7 @@ XZ_EXTERN enum xz_ret xz_dec_run(struct xz_dec *s, struct xz_buf *b);
  * at compile time.
  */
 XZ_EXTERN enum xz_ret xz_dec_catrun(struct xz_dec *s, struct xz_buf *b,
-				    int finish);
+                                    int finish);
 
 /**
  * xz_dec_reset() - Reset an already allocated decoder state
@@ -315,7 +311,7 @@ struct xz_dec_microlzma;
  * dict_size is invalid, NULL is returned.
  */
 XZ_EXTERN struct xz_dec_microlzma *xz_dec_microlzma_alloc(enum xz_mode mode,
-							  uint32_t dict_size);
+                                                          uint32_t dict_size);
 
 /**
  * xz_dec_microlzma_reset() - Reset the MicroLZMA decoder state
@@ -332,8 +328,8 @@ XZ_EXTERN struct xz_dec_microlzma *xz_dec_microlzma_alloc(enum xz_mode mode,
  *              When this is set to false, error detection is weaker.
  */
 XZ_EXTERN void xz_dec_microlzma_reset(struct xz_dec_microlzma *s,
-				      uint32_t comp_size, uint32_t uncomp_size,
-				      int uncomp_size_is_exact);
+                                      uint32_t comp_size, uint32_t uncomp_size,
+                                      int uncomp_size_is_exact);
 
 /**
  * xz_dec_microlzma_run() - Run the MicroLZMA decoder
@@ -372,7 +368,7 @@ XZ_EXTERN void xz_dec_microlzma_reset(struct xz_dec_microlzma *s,
  * provided from non-contiguous memory.
  */
 XZ_EXTERN enum xz_ret xz_dec_microlzma_run(struct xz_dec_microlzma *s,
-					   struct xz_buf *b);
+                                           struct xz_buf *b);
 
 /**
  * xz_dec_microlzma_end() - Free the memory allocated for the decoder state
@@ -388,11 +384,11 @@ XZ_EXTERN void xz_dec_microlzma_end(struct xz_dec_microlzma *s);
  * care about the functions below.
  */
 #ifndef XZ_INTERNAL_CRC32
-#	ifdef __KERNEL__
-#		define XZ_INTERNAL_CRC32 0
-#	else
-#		define XZ_INTERNAL_CRC32 1
-#	endif
+#ifdef __KERNEL__
+#define XZ_INTERNAL_CRC32 0
+#else
+#define XZ_INTERNAL_CRC32 1
+#endif
 #endif
 
 /*
@@ -400,15 +396,15 @@ XZ_EXTERN void xz_dec_microlzma_end(struct xz_dec_microlzma *s);
  * implementation is needed too.
  */
 #ifndef XZ_USE_CRC64
-#	undef XZ_INTERNAL_CRC64
-#	define XZ_INTERNAL_CRC64 0
+#undef XZ_INTERNAL_CRC64
+#define XZ_INTERNAL_CRC64 0
 #endif
 #ifndef XZ_INTERNAL_CRC64
-#	ifdef __KERNEL__
-#		error Using CRC64 in the kernel has not been implemented.
-#	else
-#		define XZ_INTERNAL_CRC64 1
-#	endif
+#ifdef __KERNEL__
+#error Using CRC64 in the kernel has not been implemented.
+#else
+#define XZ_INTERNAL_CRC64 1
+#endif
 #endif
 
 #if XZ_INTERNAL_CRC32

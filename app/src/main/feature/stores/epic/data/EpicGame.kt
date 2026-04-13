@@ -14,115 +14,81 @@ data class EpicGame(
     @PrimaryKey(autoGenerate = true)
     @ColumnInfo("id")
     val id: Int = 0,
-
     @ColumnInfo("catalog_id") // Epic's catalogId - Used as their primary key. Can be a UUID or straight normal string like "Quail"
     val catalogId: String = "",
-
     @ColumnInfo("app_name")
     val appName: String = "",
-
     @ColumnInfo("title")
     val title: String = "",
-
     @ColumnInfo("namespace")
     val namespace: String = "", // Required for many operations
-
     @ColumnInfo("developer")
     val developer: String = "",
-
     @ColumnInfo("publisher")
     val publisher: String = "",
-
     // Installation info
     @ColumnInfo("is_installed")
     val isInstalled: Boolean = false,
-
     @ColumnInfo("install_path")
     val installPath: String = "",
-
     @ColumnInfo("platform")
     val platform: String = "Windows",
-
     @ColumnInfo("version")
     val version: String = "",
-
     @ColumnInfo("executable")
     val executable: String = "",
-
     @ColumnInfo("install_size")
     val installSize: Long = 0,
-
     @ColumnInfo("download_size")
     val downloadSize: Long = 0,
-
     // Art assets - Full HTTPS URLs from Epic CDN
     // Extracted from game metadata's keyImages array (DieselGameBoxTall, DieselGameBox, etc.)
     @ColumnInfo("art_cover")
-    val artCover: String = "",  // DieselGameBoxTall - Tall cover art
-
+    val artCover: String = "", // DieselGameBoxTall - Tall cover art
     @ColumnInfo("art_square")
-    val artSquare: String = "",  // DieselGameBox - Square box art
-
+    val artSquare: String = "", // DieselGameBox - Square box art
     @ColumnInfo("art_logo")
-    val artLogo: String = "",  // DieselGameBoxLogo - Logo image
-
+    val artLogo: String = "", // DieselGameBoxLogo - Logo image
     @ColumnInfo("art_portrait")
-    val artPortrait: String = "",  // DieselStoreFrontWide or other portrait variants
-
+    val artPortrait: String = "", // DieselStoreFrontWide or other portrait variants
     // DRM and features
     @ColumnInfo("can_run_offline")
     val canRunOffline: Boolean = true,
-
     @ColumnInfo("requires_ot")
-    val requiresOT: Boolean = false,  // requires online token
-
+    val requiresOT: Boolean = false, // requires online token
     @ColumnInfo("cloud_save_enabled")
     val cloudSaveEnabled: Boolean = false,
-
     @ColumnInfo("save_folder")
     val saveFolder: String = "",
-
     // Third-party platform management (EA, Ubisoft)
     @ColumnInfo("third_party_managed_app")
     val thirdPartyManagedApp: String = "",
-
     @ColumnInfo("is_ea_managed")
     val isEAManaged: Boolean = false,
-
     // DLC info
     @ColumnInfo("is_dlc")
     val isDLC: Boolean = false,
-
     @ColumnInfo("base_game_app_name")
     val baseGameAppName: String = "", // Used if the entry is_dlc. it says app_name, but it actually means catalogId...
-
     // Metadata
     @ColumnInfo("description")
     val description: String = "",
-
     @ColumnInfo("release_date")
     val releaseDate: String = "",
-
     @ColumnInfo("genres")
     val genres: List<String> = emptyList(),
-
     @ColumnInfo("tags")
     val tags: List<String> = emptyList(),
-
     // Usage tracking
     @ColumnInfo("last_played")
     val lastPlayed: Long = 0,
-
     @ColumnInfo("play_time")
     val playTime: Long = 0,
-
     @ColumnInfo("type")
     val type: AppType = AppType.game,
-
     // Epic Online Services
     @ColumnInfo("eos_catalog_item_id")
     val eosCatalogItemId: String = "",
-
     @ColumnInfo("eos_app_id")
     val eosAppId: String = "",
 ) {
@@ -132,13 +98,14 @@ data class EpicGame(
      * These are full HTTPS URLs from Epic's CDN
      */
     val primaryImageUrl: String
-        get() = when {
-            artCover.isNotEmpty() -> artCover
-            artSquare.isNotEmpty() -> artSquare
-            artLogo.isNotEmpty() -> artLogo
-            artPortrait.isNotEmpty() -> artPortrait
-            else -> ""
-        }
+        get() =
+            when {
+                artCover.isNotEmpty() -> artCover
+                artSquare.isNotEmpty() -> artSquare
+                artLogo.isNotEmpty() -> artLogo
+                artPortrait.isNotEmpty() -> artPortrait
+                else -> ""
+            }
 
     /**
      * Icon URL for the game (uses square art or primary image)
@@ -210,7 +177,7 @@ data class EpicDLCInfo(
  * Used for Epic authentication during game launch
  */
 data class EpicGameToken(
-    val authCode: String,           // Exchange code for -AUTH_PASSWORD parameter
-    val accountId: String,          // User account ID for -epicuserid
-    val ownershipToken: String? = null,  // Optional DRM ownership token
+    val authCode: String, // Exchange code for -AUTH_PASSWORD parameter
+    val accountId: String, // User account ID for -epicuserid
+    val ownershipToken: String? = null, // Optional DRM ownership token
 )

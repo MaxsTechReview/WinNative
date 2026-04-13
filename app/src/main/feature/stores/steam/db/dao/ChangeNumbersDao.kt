@@ -17,7 +17,10 @@ interface ChangeNumbersDao {
     suspend fun insertAll(changeNumbers: List<ChangeNumbers>)
 
     @Transaction
-    suspend fun insert(appId: Int, changeNumber: Long) {
+    suspend fun insert(
+        appId: Int,
+        changeNumber: Long,
+    ) {
         insert(ChangeNumbers(appId, changeNumber))
     }
 
@@ -37,7 +40,10 @@ interface ChangeNumbersDao {
     suspend fun getAll(): List<ChangeNumbers>
 
     @Query("UPDATE app_change_numbers SET changeNumber = :newChangeNumber WHERE appId = :appId")
-    suspend fun updateChangeNumber(appId: Int, newChangeNumber: Long)
+    suspend fun updateChangeNumber(
+        appId: Int,
+        newChangeNumber: Long,
+    )
 
     @Query("DELETE from app_change_numbers")
     suspend fun deleteAll()

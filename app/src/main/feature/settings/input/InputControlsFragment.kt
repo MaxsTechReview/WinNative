@@ -1,6 +1,4 @@
 package com.winlator.cmod.feature.settings
-import com.winlator.cmod.R
-import com.winlator.cmod.runtime.input.ControlsEditorActivity
 import android.app.Activity
 import android.content.Intent
 import android.content.SharedPreferences
@@ -28,25 +26,26 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.text.HtmlCompat
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
-import com.winlator.cmod.shared.ui.dialog.ContentDialog
-import com.winlator.cmod.shared.android.AppUtils
-import com.winlator.cmod.shared.io.FileUtils
-import com.winlator.cmod.shared.io.HttpUtils
+import com.winlator.cmod.R
+import com.winlator.cmod.runtime.input.ControllerHelper
+import com.winlator.cmod.runtime.input.ControlsEditorActivity
 import com.winlator.cmod.runtime.input.controls.Binding
 import com.winlator.cmod.runtime.input.controls.ControlElement
 import com.winlator.cmod.runtime.input.controls.ControlsProfile
 import com.winlator.cmod.runtime.input.controls.ExternalController
 import com.winlator.cmod.runtime.input.controls.ExternalControllerBinding
 import com.winlator.cmod.runtime.input.controls.InputControlsManager
-import com.winlator.cmod.shared.math.Mathf
-import com.winlator.cmod.runtime.input.ControllerHelper
 import com.winlator.cmod.runtime.input.ui.InputControlsView
+import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.io.FileUtils
+import com.winlator.cmod.shared.io.HttpUtils
+import com.winlator.cmod.shared.math.Mathf
+import com.winlator.cmod.shared.ui.dialog.ContentDialog
 import org.json.JSONObject
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class InputControlsFragment : Fragment() {
-
     private lateinit var manager: InputControlsManager
     private lateinit var preferences: SharedPreferences
 
@@ -85,9 +84,10 @@ class InputControlsFragment : Fragment() {
                     return@registerForActivityResult
                 }
 
-                val imported = runCatching {
-                    manager.importProfile(JSONObject(jsonString))
-                }.getOrNull()
+                val imported =
+                    runCatching {
+                        manager.importProfile(JSONObject(jsonString))
+                    }.getOrNull()
 
                 if (imported != null) {
                     currentProfile = imported
@@ -117,11 +117,12 @@ class InputControlsFragment : Fragment() {
         preferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
 
         val selectedProfileId = arguments?.getInt(ARG_SELECTED_PROFILE_ID, 0) ?: 0
-        val profileId = if (selectedProfileId > 0) {
-            selectedProfileId
-        } else {
-            preferences.getInt(PREF_SELECTED_PROFILE_ID, 0)
-        }
+        val profileId =
+            if (selectedProfileId > 0) {
+                selectedProfileId
+            } else {
+                preferences.getInt(PREF_SELECTED_PROFILE_ID, 0)
+            }
         currentProfile = if (profileId > 0) manager.getProfile(profileId) else null
         refreshVisibleControllers()
         publishUiState()
@@ -131,92 +132,96 @@ class InputControlsFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
-    ): View {
-        return ComposeView(requireContext()).apply {
+    ): View =
+        ComposeView(requireContext()).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 MaterialTheme(
-                    colorScheme = darkColorScheme(
-                        primary = Color(0xFF1A9FFF),
-                        background = Color(0xFF18181D),
-                        surface = Color(0xFF1C1C2A),
-                    )
+                    colorScheme =
+                        darkColorScheme(
+                            primary = Color(0xFF1A9FFF),
+                            background = Color(0xFF18181D),
+                            surface = Color(0xFF1C1C2A),
+                        ),
                 ) {
                     InputControlsScreen(
                         state = screenState,
-                        actions = InputControlsScreenActions(
-                            onSelectProfile = ::showProfilePicker,
-                            onOpenEditor = ::openControlsEditor,
-                            onAddProfile = ::addProfile,
-                            onEditProfile = ::editProfile,
-                            onDuplicateProfile = ::duplicateProfile,
-                            onRemoveProfile = ::removeProfile,
-                            onDismissDialog = ::dismissComposeDialog,
-                            onConfirmDialog = ::confirmComposeDialog,
-                            onPromptDialogConfirm = ::confirmPromptDialog,
-                            onChoiceDialogSelect = ::selectChoiceDialog,
-                            onMultiChoiceDialogConfirm = ::confirmMultiChoiceDialog,
-                            onOverlayOpacityChanged = ::setOverlayOpacity,
-                            onGyroscopeEnabledChanged = { enabled ->
-                                preferences.edit().putBoolean("gyro_enabled", enabled).apply()
-                                publishUiState()
-                            },
-                            onGyroscopeModeSelected = { mode ->
-                                preferences.edit().putInt("gyro_mode", mode).apply()
-                                publishUiState()
-                            },
-                            onGyroscopeActivatorClick = ::showActivatorPicker,
-                            onRightStickGyroChanged = { enabled ->
-                                preferences.edit().putBoolean("process_gyro_with_left_trigger", enabled).apply()
-                                publishUiState()
-                            },
-                            onGyroscopeExpandedChanged = { expanded ->
-                                gyroscopeExpanded = expanded
-                                if (!expanded) detachGyroPreview()
-                                publishUiState()
-                            },
-                            onGyroXSensitivityChanged = { value -> setFloatPreference("gyro_x_sensitivity", value) },
-                            onGyroYSensitivityChanged = { value -> setFloatPreference("gyro_y_sensitivity", value) },
-                            onGyroSmoothingChanged = { value -> setFloatPreference("gyro_smoothing", value) },
-                            onGyroDeadzoneChanged = { value -> setFloatPreference("gyro_deadzone", value) },
-                            onInvertGyroXChanged = { enabled ->
-                                preferences.edit().putBoolean("invert_gyro_x", enabled).apply()
-                                publishUiState()
-                            },
-                            onInvertGyroYChanged = { enabled ->
-                                preferences.edit().putBoolean("invert_gyro_y", enabled).apply()
-                                publishUiState()
-                            },
-                            onResetGyroPreview = {
-                                gyroPreviewView?.resetStickPosition()
-                                gyroPreviewView?.invalidate()
-                            },
-                            onAttachGyroPreview = ::attachGyroPreview,
-                            onDetachGyroPreview = ::detachGyroPreview,
-                            onTriggerTypeSelected = { index ->
-                                preferences.edit().putInt("trigger_type", index).apply()
-                                publishUiState()
-                            },
-                            onTriggerCardExpandedChanged = { expanded ->
-                                triggerTypeExpanded = expanded
-                                publishUiState()
-                            },
-                            onImportProfile = { importProfileLauncher.launch(arrayOf("*/*")) },
-                            onDownloadProfile = ::downloadProfileList,
-                            onExportProfile = ::exportProfile,
-                            onControllerExpandedToggle = ::toggleControllerExpanded,
-                            onRemoveController = ::removeController,
-                            onBindingTypeClick = ::showBindingTypePicker,
-                            onBindingValueClick = ::showBindingValuePicker,
-                            onRemoveBinding = ::removeBinding,
-                        ),
+                        actions =
+                            InputControlsScreenActions(
+                                onSelectProfile = ::showProfilePicker,
+                                onOpenEditor = ::openControlsEditor,
+                                onAddProfile = ::addProfile,
+                                onEditProfile = ::editProfile,
+                                onDuplicateProfile = ::duplicateProfile,
+                                onRemoveProfile = ::removeProfile,
+                                onDismissDialog = ::dismissComposeDialog,
+                                onConfirmDialog = ::confirmComposeDialog,
+                                onPromptDialogConfirm = ::confirmPromptDialog,
+                                onChoiceDialogSelect = ::selectChoiceDialog,
+                                onMultiChoiceDialogConfirm = ::confirmMultiChoiceDialog,
+                                onOverlayOpacityChanged = ::setOverlayOpacity,
+                                onGyroscopeEnabledChanged = { enabled ->
+                                    preferences.edit().putBoolean("gyro_enabled", enabled).apply()
+                                    publishUiState()
+                                },
+                                onGyroscopeModeSelected = { mode ->
+                                    preferences.edit().putInt("gyro_mode", mode).apply()
+                                    publishUiState()
+                                },
+                                onGyroscopeActivatorClick = ::showActivatorPicker,
+                                onRightStickGyroChanged = { enabled ->
+                                    preferences.edit().putBoolean("process_gyro_with_left_trigger", enabled).apply()
+                                    publishUiState()
+                                },
+                                onGyroscopeExpandedChanged = { expanded ->
+                                    gyroscopeExpanded = expanded
+                                    if (!expanded) detachGyroPreview()
+                                    publishUiState()
+                                },
+                                onGyroXSensitivityChanged = { value -> setFloatPreference("gyro_x_sensitivity", value) },
+                                onGyroYSensitivityChanged = { value -> setFloatPreference("gyro_y_sensitivity", value) },
+                                onGyroSmoothingChanged = { value -> setFloatPreference("gyro_smoothing", value) },
+                                onGyroDeadzoneChanged = { value -> setFloatPreference("gyro_deadzone", value) },
+                                onInvertGyroXChanged = { enabled ->
+                                    preferences.edit().putBoolean("invert_gyro_x", enabled).apply()
+                                    publishUiState()
+                                },
+                                onInvertGyroYChanged = { enabled ->
+                                    preferences.edit().putBoolean("invert_gyro_y", enabled).apply()
+                                    publishUiState()
+                                },
+                                onResetGyroPreview = {
+                                    gyroPreviewView?.resetStickPosition()
+                                    gyroPreviewView?.invalidate()
+                                },
+                                onAttachGyroPreview = ::attachGyroPreview,
+                                onDetachGyroPreview = ::detachGyroPreview,
+                                onTriggerTypeSelected = { index ->
+                                    preferences.edit().putInt("trigger_type", index).apply()
+                                    publishUiState()
+                                },
+                                onTriggerCardExpandedChanged = { expanded ->
+                                    triggerTypeExpanded = expanded
+                                    publishUiState()
+                                },
+                                onImportProfile = { importProfileLauncher.launch(arrayOf("*/*")) },
+                                onDownloadProfile = ::downloadProfileList,
+                                onExportProfile = ::exportProfile,
+                                onControllerExpandedToggle = ::toggleControllerExpanded,
+                                onRemoveController = ::removeController,
+                                onBindingTypeClick = ::showBindingTypePicker,
+                                onBindingValueClick = ::showBindingValuePicker,
+                                onRemoveBinding = ::removeBinding,
+                            ),
                     )
                 }
             }
         }
-    }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         (activity as? AppCompatActivity)?.supportActionBar?.setTitle(R.string.common_ui_input_controls)
     }
@@ -261,22 +266,24 @@ class InputControlsFragment : Fragment() {
         activeBindingL2WasPressed = l2Pressed
         activeBindingR2WasPressed = r2Pressed
 
-        val axes = intArrayOf(
-            MotionEvent.AXIS_X,
-            MotionEvent.AXIS_Y,
-            MotionEvent.AXIS_Z,
-            MotionEvent.AXIS_RZ,
-            MotionEvent.AXIS_HAT_X,
-            MotionEvent.AXIS_HAT_Y,
-        )
-        val values = floatArrayOf(
-            controller.state.thumbLX,
-            controller.state.thumbLY,
-            controller.state.thumbRX,
-            controller.state.thumbRY,
-            controller.state.getDPadX().toFloat(),
-            controller.state.getDPadY().toFloat(),
-        )
+        val axes =
+            intArrayOf(
+                MotionEvent.AXIS_X,
+                MotionEvent.AXIS_Y,
+                MotionEvent.AXIS_Z,
+                MotionEvent.AXIS_RZ,
+                MotionEvent.AXIS_HAT_X,
+                MotionEvent.AXIS_HAT_Y,
+            )
+        val values =
+            floatArrayOf(
+                controller.state.thumbLX,
+                controller.state.thumbLY,
+                controller.state.thumbRX,
+                controller.state.thumbRY,
+                controller.state.getDPadX().toFloat(),
+                controller.state.getDPadY().toFloat(),
+            )
 
         for (index in axes.indices) {
             val sign = Mathf.sign(values[index])
@@ -291,53 +298,59 @@ class InputControlsFragment : Fragment() {
     private fun publishUiState() {
         val profile = currentProfile
         val bindingTypeEntries = resources.getStringArray(R.array.binding_type_entries)
-        val triggerDescription = HtmlCompat.fromHtml(
-            getString(R.string.session_gamepad_help_trigger_mode).trim(),
-            HtmlCompat.FROM_HTML_MODE_LEGACY,
-        ).toString().trim()
+        val triggerDescription =
+            HtmlCompat
+                .fromHtml(
+                    getString(R.string.session_gamepad_help_trigger_mode).trim(),
+                    HtmlCompat.FROM_HTML_MODE_LEGACY,
+                ).toString()
+                .trim()
 
-        screenState = InputControlsScreenState(
-            selectedProfileName = profile?.name,
-            selectedProfileElementCount = profile?.elementCountFromFile ?: 0,
-            overlayOpacity = (preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY) * 100).toInt(),
-            gyroscopeEnabled = preferences.getBoolean("gyro_enabled", false),
-            gyroscopeModeIndex = preferences.getInt("gyro_mode", 0),
-            gyroscopeActivatorLabel = currentGyroActivatorLabel(),
-            rightStickGyroEnabled = preferences.getBoolean("process_gyro_with_left_trigger", false),
-            gyroscopeExpanded = gyroscopeExpanded,
-            gyroXSensitivity = (preferences.getFloat("gyro_x_sensitivity", 1.0f) * 100).toInt(),
-            gyroYSensitivity = (preferences.getFloat("gyro_y_sensitivity", 1.0f) * 100).toInt(),
-            gyroSmoothing = (preferences.getFloat("gyro_smoothing", 0.9f) * 100).toInt(),
-            gyroDeadzone = (preferences.getFloat("gyro_deadzone", 0.05f) * 100).toInt(),
-            invertGyroX = preferences.getBoolean("invert_gyro_x", false),
-            invertGyroY = preferences.getBoolean("invert_gyro_y", false),
-            triggerTypeIndex = preferences.getInt("trigger_type", ExternalController.TRIGGER_IS_AXIS.toInt()),
-            triggerCardExpanded = triggerTypeExpanded,
-            triggerDescription = triggerDescription,
-            controllerCards = visibleControllers.map { controller ->
-                InputControllerCardState(
-                    controllerId = controller.id,
-                    name = controller.name,
-                    bindingCount = controller.controllerBindingCount,
-                    connected = controller.isConnected,
-                    expanded = profile != null && controller.id in expandedControllerIds,
-                    showBindings = profile != null,
-                    bindings = if (profile != null && controller.id in expandedControllerIds) {
-                        buildBindingState(controller, bindingTypeEntries)
-                    } else {
-                        emptyList()
+        screenState =
+            InputControlsScreenState(
+                selectedProfileName = profile?.name,
+                selectedProfileElementCount = profile?.elementCountFromFile ?: 0,
+                overlayOpacity = (preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY) * 100).toInt(),
+                gyroscopeEnabled = preferences.getBoolean("gyro_enabled", false),
+                gyroscopeModeIndex = preferences.getInt("gyro_mode", 0),
+                gyroscopeActivatorLabel = currentGyroActivatorLabel(),
+                rightStickGyroEnabled = preferences.getBoolean("process_gyro_with_left_trigger", false),
+                gyroscopeExpanded = gyroscopeExpanded,
+                gyroXSensitivity = (preferences.getFloat("gyro_x_sensitivity", 1.0f) * 100).toInt(),
+                gyroYSensitivity = (preferences.getFloat("gyro_y_sensitivity", 1.0f) * 100).toInt(),
+                gyroSmoothing = (preferences.getFloat("gyro_smoothing", 0.9f) * 100).toInt(),
+                gyroDeadzone = (preferences.getFloat("gyro_deadzone", 0.05f) * 100).toInt(),
+                invertGyroX = preferences.getBoolean("invert_gyro_x", false),
+                invertGyroY = preferences.getBoolean("invert_gyro_y", false),
+                triggerTypeIndex = preferences.getInt("trigger_type", ExternalController.TRIGGER_IS_AXIS.toInt()),
+                triggerCardExpanded = triggerTypeExpanded,
+                triggerDescription = triggerDescription,
+                controllerCards =
+                    visibleControllers.map { controller ->
+                        InputControllerCardState(
+                            controllerId = controller.id,
+                            name = controller.name,
+                            bindingCount = controller.controllerBindingCount,
+                            connected = controller.isConnected,
+                            expanded = profile != null && controller.id in expandedControllerIds,
+                            showBindings = profile != null,
+                            bindings =
+                                if (profile != null && controller.id in expandedControllerIds) {
+                                    buildBindingState(controller, bindingTypeEntries)
+                                } else {
+                                    emptyList()
+                                },
+                        )
                     },
-                )
-            },
-            dialog = dialogState,
-        )
+                dialog = dialogState,
+            )
     }
 
     private fun buildBindingState(
         controller: ExternalController,
         bindingTypeEntries: Array<String>,
-    ): List<InputControllerBindingState> {
-        return buildList {
+    ): List<InputControllerBindingState> =
+        buildList {
             for (index in 0 until controller.controllerBindingCount) {
                 val binding = controller.getControllerBindingAt(index)
                 val rawLabel = binding.toString()
@@ -346,18 +359,18 @@ class InputControlsFragment : Fragment() {
                 add(
                     InputControllerBindingState(
                         keyCode = binding.keyCodeForAxis,
-                        label = if (isPlayStation) {
-                            ExternalControllerBinding.getPlayStationLabel(rawLabel)
-                        } else {
-                            rawLabel
-                        },
+                        label =
+                            if (isPlayStation) {
+                                ExternalControllerBinding.getPlayStationLabel(rawLabel)
+                            } else {
+                                rawLabel
+                            },
                         typeLabel = bindingTypeEntries[bindingTypeIndex(binding)],
                         bindingLabel = binding.binding.toString(),
-                    )
+                    ),
                 )
             }
         }
-    }
 
     private fun refreshVisibleControllers() {
         val activeId = activeBindingController?.id
@@ -375,9 +388,10 @@ class InputControlsFragment : Fragment() {
             visibleControllers.addAll(ExternalController.getControllers())
         }
 
-        activeBindingController = activeId?.let { id ->
-            visibleControllers.firstOrNull { it.id == id }
-        }
+        activeBindingController =
+            activeId?.let { id ->
+                visibleControllers.firstOrNull { it.id == id }
+            }
         if (activeBindingController == null) {
             stopControllerInputCapture()
         }
@@ -392,7 +406,10 @@ class InputControlsFragment : Fragment() {
         publishUiState()
     }
 
-    private fun setFloatPreference(key: String, value: Int) {
+    private fun setFloatPreference(
+        key: String,
+        value: Int,
+    ) {
         preferences.edit().putFloat(key, value / 100.0f).apply()
         publishUiState()
     }
@@ -411,21 +428,23 @@ class InputControlsFragment : Fragment() {
             items = names,
             checkedIndex = checkedIndex,
         ) { which ->
-                currentProfile = profiles[which]
-                persistSelectedProfileId()
-                expandedControllerIds.clear()
-                stopControllerInputCapture()
-                refreshVisibleControllers()
-                publishUiState()
+            currentProfile = profiles[which]
+            persistSelectedProfileId()
+            expandedControllerIds.clear()
+            stopControllerInputCapture()
+            refreshVisibleControllers()
+            publishUiState()
         }
     }
 
     private fun openControlsEditor() {
         val profile = currentProfile
         if (profile != null) {
-            startActivity(Intent(requireContext(), ControlsEditorActivity::class.java).apply {
-                putExtra("profile_id", profile.id)
-            })
+            startActivity(
+                Intent(requireContext(), ControlsEditorActivity::class.java).apply {
+                    putExtra("profile_id", profile.id)
+                },
+            )
         } else {
             AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
         }
@@ -513,12 +532,19 @@ class InputControlsFragment : Fragment() {
             activity.runOnUiThread {
                 remoteProfileRequestInFlight.set(false)
                 if (content != null) {
-                    val items = content.split("\n").map { it.trim() }.filter { it.isNotEmpty() }.toTypedArray()
+                    val items =
+                        content
+                            .split("\n")
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
+                            .toTypedArray()
                     if (items.isNotEmpty()) {
                         val installedNames = installedProfileKeys()
-                        val disabledIndices = items.mapIndexedNotNull { index, item ->
-                            if (installedNames.contains(normalizeProfileKey(item))) index else null
-                        }.toSet()
+                        val disabledIndices =
+                            items
+                                .mapIndexedNotNull { index, item ->
+                                    if (installedNames.contains(normalizeProfileKey(item))) index else null
+                                }.toSet()
                         showMultiChoiceDialog(
                             title = getString(R.string.input_controls_editor_download_profile),
                             items = items,
@@ -539,13 +565,17 @@ class InputControlsFragment : Fragment() {
         }
     }
 
-    private fun downloadSelectedProfiles(items: Array<String>, positions: List<Int>) {
+    private fun downloadSelectedProfiles(
+        items: Array<String>,
+        positions: List<Int>,
+    ) {
         val activity = activity ?: return
         if (positions.isEmpty()) return
         val installedNames = installedProfileKeys()
-        val eligiblePositions = positions.filterNot { index ->
-            installedNames.contains(normalizeProfileKey(items[index]))
-        }
+        val eligiblePositions =
+            positions.filterNot { index ->
+                installedNames.contains(normalizeProfileKey(items[index]))
+            }
         if (eligiblePositions.isEmpty()) return
         if (!remoteProfileRequestInFlight.compareAndSet(false, true)) return
         currentProfile = null
@@ -560,9 +590,10 @@ class InputControlsFragment : Fragment() {
             HttpUtils.download(buildRemoteProfileUrl(itemName)) { content ->
                 try {
                     if (content != null) {
-                        val profileData = JSONObject(content).apply {
-                            put("downloadSource", itemName)
-                        }
+                        val profileData =
+                            JSONObject(content).apply {
+                                put("downloadSource", itemName)
+                            }
                         if (manager.importProfile(profileData) != null) {
                             importedCount.incrementAndGet()
                         } else {
@@ -604,7 +635,8 @@ class InputControlsFragment : Fragment() {
 
     private fun installedProfileKeys(): Set<String> {
         val context = context ?: return emptySet()
-        return manager.getProfiles(true)
+        return manager
+            .getProfiles(true)
             .flatMap { profile ->
                 buildList {
                     normalizeProfileKey(profile.name).takeIf { it.isNotEmpty() }?.let(::add)
@@ -613,22 +645,25 @@ class InputControlsFragment : Fragment() {
                         ?.takeIf { it.isNotEmpty() }
                         ?.let(::add)
                 }
-            }
-            .toSet()
+            }.toSet()
     }
 
     private fun normalizeProfileKey(value: String?): String {
         val trimmed = value?.trim().orEmpty()
         if (trimmed.isEmpty()) return ""
-        val withoutExtension = if (trimmed.endsWith(".icp", ignoreCase = true)) {
-            trimmed.dropLast(4)
-        } else {
-            trimmed
-        }
+        val withoutExtension =
+            if (trimmed.endsWith(".icp", ignoreCase = true)) {
+                trimmed.dropLast(4)
+            } else {
+                trimmed
+            }
         return withoutExtension.trim().lowercase()
     }
 
-    private fun readStoredDownloadSource(context: android.content.Context, profileId: Int): String? {
+    private fun readStoredDownloadSource(
+        context: android.content.Context,
+        profileId: Int,
+    ): String? {
         val file = ControlsProfile.getProfileFile(context, profileId)
         if (!file.isFile) return null
         val json = FileUtils.readString(file) ?: return null
@@ -714,44 +749,48 @@ class InputControlsFragment : Fragment() {
         val smoothGyroX = floatArrayOf(0f)
         val smoothGyroY = floatArrayOf(0f)
 
-        val listener = object : SensorEventListener {
-            override fun onSensorChanged(event: SensorEvent) {
-                var rawGyroX = event.values[0]
-                var rawGyroY = event.values[1]
+        val listener =
+            object : SensorEventListener {
+                override fun onSensorChanged(event: SensorEvent) {
+                    var rawGyroX = event.values[0]
+                    var rawGyroY = event.values[1]
 
-                if (kotlin.math.abs(rawGyroX) < gyroDeadzone) rawGyroX = 0f
-                if (kotlin.math.abs(rawGyroY) < gyroDeadzone) rawGyroY = 0f
-                if (invertGyroX) rawGyroX = -rawGyroX
-                if (invertGyroY) rawGyroY = -rawGyroY
+                    if (kotlin.math.abs(rawGyroX) < gyroDeadzone) rawGyroX = 0f
+                    if (kotlin.math.abs(rawGyroY) < gyroDeadzone) rawGyroY = 0f
+                    if (invertGyroX) rawGyroX = -rawGyroX
+                    if (invertGyroY) rawGyroY = -rawGyroY
 
-                rawGyroX *= gyroSensitivityX
-                rawGyroY *= gyroSensitivityY
-                smoothGyroX[0] = smoothGyroX[0] * smoothingFactor + rawGyroX * (1 - smoothingFactor)
-                smoothGyroY[0] = smoothGyroY[0] * smoothingFactor + rawGyroY * (1 - smoothingFactor)
+                    rawGyroX *= gyroSensitivityX
+                    rawGyroY *= gyroSensitivityY
+                    smoothGyroX[0] = smoothGyroX[0] * smoothingFactor + rawGyroX * (1 - smoothingFactor)
+                    smoothGyroY[0] = smoothGyroY[0] * smoothingFactor + rawGyroY * (1 - smoothingFactor)
 
-                val stickElement = preview.stickElement ?: return
-                val stickCenterX = stickElement.x
-                val stickCenterY = stickElement.y
-                val stickRadius = 100
+                    val stickElement = preview.stickElement ?: return
+                    val stickCenterX = stickElement.x
+                    val stickCenterY = stickElement.y
+                    val stickRadius = 100
 
-                var newX = stickElement.currentPosition.x + smoothGyroX[0]
-                var newY = stickElement.currentPosition.y + smoothGyroY[0]
+                    var newX = stickElement.currentPosition.x + smoothGyroX[0]
+                    var newY = stickElement.currentPosition.y + smoothGyroY[0]
 
-                val deltaX = newX - stickCenterX
-                val deltaY = newY - stickCenterY
-                val distance = kotlin.math.sqrt((deltaX * deltaX + deltaY * deltaY).toDouble()).toFloat()
-                if (distance > stickRadius) {
-                    val scaleFactor = stickRadius / distance
-                    newX = stickCenterX + deltaX * scaleFactor
-                    newY = stickCenterY + deltaY * scaleFactor
+                    val deltaX = newX - stickCenterX
+                    val deltaY = newY - stickCenterY
+                    val distance = kotlin.math.sqrt((deltaX * deltaX + deltaY * deltaY).toDouble()).toFloat()
+                    if (distance > stickRadius) {
+                        val scaleFactor = stickRadius / distance
+                        newX = stickCenterX + deltaX * scaleFactor
+                        newY = stickCenterY + deltaY * scaleFactor
+                    }
+
+                    preview.updateStickPosition(newX, newY)
+                    preview.invalidate()
                 }
 
-                preview.updateStickPosition(newX, newY)
-                preview.invalidate()
+                override fun onAccuracyChanged(
+                    sensor: Sensor,
+                    accuracy: Int,
+                ) = Unit
             }
-
-            override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) = Unit
-        }
 
         sensorManager.registerListener(listener, gyroscopeSensor, SensorManager.SENSOR_DELAY_GAME)
         gyroSensorManager = sensorManager
@@ -812,16 +851,20 @@ class InputControlsFragment : Fragment() {
         activeBindingR2WasPressed = false
     }
 
-    private fun onControllerButtonPressed(controller: ExternalController, keyCode: Int) {
+    private fun onControllerButtonPressed(
+        controller: ExternalController,
+        keyCode: Int,
+    ) {
         if (keyCode == KeyEvent.KEYCODE_UNKNOWN) return
         val profile = currentProfile ?: return
 
         var binding = controller.getControllerBinding(keyCode)
         if (binding == null) {
-            binding = ExternalControllerBinding().apply {
-                setKeyCode(keyCode)
-                setBinding(Binding.NONE)
-            }
+            binding =
+                ExternalControllerBinding().apply {
+                    setKeyCode(keyCode)
+                    setBinding(Binding.NONE)
+                }
             controller.addControllerBinding(binding)
             profile.putController(controller)
             profile.save()
@@ -829,7 +872,10 @@ class InputControlsFragment : Fragment() {
         }
     }
 
-    private fun showBindingTypePicker(controllerId: String, keyCode: Int) {
+    private fun showBindingTypePicker(
+        controllerId: String,
+        keyCode: Int,
+    ) {
         val (controller, binding) = findBinding(controllerId, keyCode) ?: return
         val entries = resources.getStringArray(R.array.binding_type_entries)
         showSingleChoiceDialog(
@@ -837,32 +883,38 @@ class InputControlsFragment : Fragment() {
             items = entries,
             checkedIndex = bindingTypeIndex(binding),
         ) { which ->
-            binding.binding = when (which) {
-                0 -> Binding.keyboardBindingValues().firstOrNull() ?: Binding.NONE
-                1 -> Binding.mouseBindingValues().firstOrNull() ?: Binding.NONE
-                2 -> Binding.gamepadBindingValues().firstOrNull() ?: Binding.NONE
-                else -> Binding.NONE
-            }
+            binding.binding =
+                when (which) {
+                    0 -> Binding.keyboardBindingValues().firstOrNull() ?: Binding.NONE
+                    1 -> Binding.mouseBindingValues().firstOrNull() ?: Binding.NONE
+                    2 -> Binding.gamepadBindingValues().firstOrNull() ?: Binding.NONE
+                    else -> Binding.NONE
+                }
             currentProfile?.putController(controller)
             currentProfile?.save()
             publishUiState()
         }
     }
 
-    private fun showBindingValuePicker(controllerId: String, keyCode: Int) {
+    private fun showBindingValuePicker(
+        controllerId: String,
+        keyCode: Int,
+    ) {
         val (controller, binding) = findBinding(controllerId, keyCode) ?: return
-        val entries = when {
-            binding.binding.isKeyboard -> Binding.keyboardBindingLabels()
-            binding.binding.isMouse -> Binding.mouseBindingLabels()
-            binding.binding.isGamepad -> Binding.gamepadBindingLabels()
-            else -> Binding.keyboardBindingLabels()
-        }
-        val values = when {
-            binding.binding.isKeyboard -> Binding.keyboardBindingValues()
-            binding.binding.isMouse -> Binding.mouseBindingValues()
-            binding.binding.isGamepad -> Binding.gamepadBindingValues()
-            else -> Binding.keyboardBindingValues()
-        }
+        val entries =
+            when {
+                binding.binding.isKeyboard -> Binding.keyboardBindingLabels()
+                binding.binding.isMouse -> Binding.mouseBindingLabels()
+                binding.binding.isGamepad -> Binding.gamepadBindingLabels()
+                else -> Binding.keyboardBindingLabels()
+            }
+        val values =
+            when {
+                binding.binding.isKeyboard -> Binding.keyboardBindingValues()
+                binding.binding.isMouse -> Binding.mouseBindingValues()
+                binding.binding.isGamepad -> Binding.gamepadBindingValues()
+                else -> Binding.keyboardBindingValues()
+            }
         val checkedIndex = values.indexOfFirst { it == binding.binding }.let { if (it >= 0) it else 0 }
         showSingleChoiceDialog(
             title = getString(R.string.input_controls_editor_binding),
@@ -876,7 +928,10 @@ class InputControlsFragment : Fragment() {
         }
     }
 
-    private fun removeBinding(controllerId: String, keyCode: Int) {
+    private fun removeBinding(
+        controllerId: String,
+        keyCode: Int,
+    ) {
         val (controller, binding) = findBinding(controllerId, keyCode) ?: return
         controller.removeControllerBinding(binding)
         currentProfile?.putController(controller)
@@ -884,9 +939,7 @@ class InputControlsFragment : Fragment() {
         publishUiState()
     }
 
-    private fun findVisibleController(controllerId: String): ExternalController? {
-        return visibleControllers.firstOrNull { it.id == controllerId }
-    }
+    private fun findVisibleController(controllerId: String): ExternalController? = visibleControllers.firstOrNull { it.id == controllerId }
 
     private fun findBinding(
         controllerId: String,
@@ -897,14 +950,13 @@ class InputControlsFragment : Fragment() {
         return controller to binding
     }
 
-    private fun bindingTypeIndex(binding: ExternalControllerBinding): Int {
-        return when {
+    private fun bindingTypeIndex(binding: ExternalControllerBinding): Int =
+        when {
             binding.binding.isKeyboard -> 0
             binding.binding.isMouse -> 1
             binding.binding.isGamepad -> 2
             else -> 0
         }
-    }
 
     private fun showSingleChoiceDialog(
         title: String,
@@ -925,11 +977,12 @@ class InputControlsFragment : Fragment() {
         pendingChoiceAction = null
         pendingMultiChoiceAction = null
         pendingPromptAction = onConfirmed
-        dialogState = InputControlsDialogUiState.Prompt(
-            title = title,
-            initialValue = initialValue,
-            confirmLabel = confirmLabel,
-        )
+        dialogState =
+            InputControlsDialogUiState.Prompt(
+                title = title,
+                initialValue = initialValue,
+                confirmLabel = confirmLabel,
+            )
         publishUiState()
     }
 
@@ -943,11 +996,12 @@ class InputControlsFragment : Fragment() {
         pendingChoiceAction = null
         pendingMultiChoiceAction = null
         pendingConfirmAction = onConfirmed
-        dialogState = InputControlsDialogUiState.Confirm(
-            message = message,
-            confirmLabel = confirmLabel,
-            tone = tone,
-        )
+        dialogState =
+            InputControlsDialogUiState.Confirm(
+                message = message,
+                confirmLabel = confirmLabel,
+                tone = tone,
+            )
         publishUiState()
     }
 
@@ -961,11 +1015,12 @@ class InputControlsFragment : Fragment() {
         pendingConfirmAction = null
         pendingMultiChoiceAction = null
         pendingChoiceAction = onSelected
-        dialogState = InputControlsDialogUiState.Choice(
-            title = title,
-            options = items.toList(),
-            selectedIndex = checkedIndex,
-        )
+        dialogState =
+            InputControlsDialogUiState.Choice(
+                title = title,
+                options = items.toList(),
+                selectedIndex = checkedIndex,
+            )
         publishUiState()
     }
 
@@ -980,12 +1035,13 @@ class InputControlsFragment : Fragment() {
         pendingConfirmAction = null
         pendingChoiceAction = null
         pendingMultiChoiceAction = onConfirmed
-        dialogState = InputControlsDialogUiState.MultiChoice(
-            title = title,
-            options = items.toList(),
-            disabledIndices = disabledIndices,
-            confirmLabel = confirmLabel,
-        )
+        dialogState =
+            InputControlsDialogUiState.MultiChoice(
+                title = title,
+                options = items.toList(),
+                disabledIndices = disabledIndices,
+                confirmLabel = confirmLabel,
+            )
         publishUiState()
     }
 
@@ -1033,12 +1089,12 @@ class InputControlsFragment : Fragment() {
             "https://raw.githubusercontent.com/Xnick417x/Winlator-Bionic-Nightly-wcp/main/Profiles/%s"
         private const val PREF_SELECTED_PROFILE_ID = "input_controls_selected_profile_id"
 
-        fun newInstance(profileId: Int = 0): InputControlsFragment {
-            return InputControlsFragment().apply {
-                arguments = Bundle().apply {
-                    putInt(ARG_SELECTED_PROFILE_ID, profileId)
-                }
+        fun newInstance(profileId: Int = 0): InputControlsFragment =
+            InputControlsFragment().apply {
+                arguments =
+                    Bundle().apply {
+                        putInt(ARG_SELECTED_PROFILE_ID, profileId)
+                    }
             }
-        }
     }
 }

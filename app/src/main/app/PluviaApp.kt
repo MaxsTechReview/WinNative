@@ -3,25 +3,24 @@ import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 import android.util.Log
+import com.google.android.gms.games.PlayGamesSdk
+import com.winlator.cmod.app.service.DownloadService
+import com.winlator.cmod.app.update.UpdateChecker
 import com.winlator.cmod.feature.setup.SetupWizardActivity
-import com.winlator.cmod.shared.android.RefreshRateUtils
-import com.winlator.cmod.feature.stores.steam.events.EventDispatcher
-import com.winlator.cmod.runtime.display.XServerDisplayActivity
-import org.bouncycastle.jce.provider.BouncyCastleProvider
-import java.security.Security
-import dagger.hilt.android.HiltAndroidApp
-
 import com.winlator.cmod.feature.stores.gog.service.GOGAuthManager
 import com.winlator.cmod.feature.stores.gog.service.GOGConstants
 import com.winlator.cmod.feature.stores.gog.service.GOGService
-import com.winlator.cmod.app.update.UpdateChecker
+import com.winlator.cmod.feature.stores.steam.events.EventDispatcher
 import com.winlator.cmod.feature.stores.steam.service.SteamService
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
-import com.winlator.cmod.app.service.DownloadService
-import com.google.android.gms.games.PlayGamesSdk
+import com.winlator.cmod.runtime.display.XServerDisplayActivity
+import com.winlator.cmod.shared.android.RefreshRateUtils
+import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+import java.security.Security
 
 @HiltAndroidApp
 class PluviaApp : Application() {
@@ -53,19 +52,23 @@ class PluviaApp : Application() {
 
         // Rotate logs on app cold start (.log → .old.log) so previous
         // session's logs are preserved until the next full launch.
-        com.winlator.cmod.runtime.system.LogManager.rotateLogsOnAppStart(this)
+        com.winlator.cmod.runtime.system.LogManager
+            .rotateLogsOnAppStart(this)
 
         // Start Application debug logging if enabled (writes PID logcat
         // in real-time so crash data is persisted even on unexpected termination)
-        com.winlator.cmod.runtime.system.LogManager.startAppLogging(this)
+        com.winlator.cmod.runtime.system.LogManager
+            .startAppLogging(this)
 
         DownloadService.populateDownloadService(this)
 
         // Initialize process-wide reactive network state
-        com.winlator.cmod.app.service.NetworkMonitor.init(this)
-        
+        com.winlator.cmod.app.service.NetworkMonitor
+            .init(this)
+
         // Initialize database
-        com.winlator.cmod.app.db.PluviaDatabase.init(this)
+        com.winlator.cmod.app.db.PluviaDatabase
+            .init(this)
 
         CoroutineScope(Dispatchers.IO).launch {
             SteamService.repairInstalledMetadataFromDisk()
@@ -97,43 +100,51 @@ class PluviaApp : Application() {
         @Volatile
         var currentForegroundActivity: Activity? = null
             private set
-            
+
         @JvmField
         val events = EventDispatcher()
     }
 
     private fun registerRefreshRateLifecycleCallbacks() {
-        registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
-            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
-                if (activity !is XServerDisplayActivity) {
-                    RefreshRateUtils.applyPreferredRefreshRate(activity)
+        registerActivityLifecycleCallbacks(
+            object : ActivityLifecycleCallbacks {
+                override fun onActivityCreated(
+                    activity: Activity,
+                    savedInstanceState: Bundle?,
+                ) {
+                    if (activity !is XServerDisplayActivity) {
+                        RefreshRateUtils.applyPreferredRefreshRate(activity)
+                    }
                 }
-            }
 
-            override fun onActivityResumed(activity: Activity) {
-                currentForegroundActivity = activity
-                if (activity !is XServerDisplayActivity) {
-                    RefreshRateUtils.applyPreferredRefreshRate(activity)
+                override fun onActivityResumed(activity: Activity) {
+                    currentForegroundActivity = activity
+                    if (activity !is XServerDisplayActivity) {
+                        RefreshRateUtils.applyPreferredRefreshRate(activity)
+                    }
                 }
-            }
 
-            override fun onActivityStarted(activity: Activity) {}
+                override fun onActivityStarted(activity: Activity) {}
 
-            override fun onActivityPaused(activity: Activity) {
-                if (currentForegroundActivity === activity) {
-                    currentForegroundActivity = null
+                override fun onActivityPaused(activity: Activity) {
+                    if (currentForegroundActivity === activity) {
+                        currentForegroundActivity = null
+                    }
                 }
-            }
 
-            override fun onActivityStopped(activity: Activity) {}
+                override fun onActivityStopped(activity: Activity) {}
 
-            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+                override fun onActivitySaveInstanceState(
+                    activity: Activity,
+                    outState: Bundle,
+                ) {}
 
-            override fun onActivityDestroyed(activity: Activity) {
-                if (currentForegroundActivity === activity) {
-                    currentForegroundActivity = null
+                override fun onActivityDestroyed(activity: Activity) {
+                    if (currentForegroundActivity === activity) {
+                        currentForegroundActivity = null
+                    }
                 }
-            }
-        })
+            },
+        )
     }
 }

@@ -2,617 +2,619 @@ package com.winlator.cmod.runtime.input.controls;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.util.Log;
 import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
-
 import androidx.annotation.Nullable;
 import androidx.core.view.InputDeviceCompat;
 import androidx.preference.PreferenceManager;
-
 import com.winlator.cmod.runtime.display.XServerDisplayActivity;
-
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Locale;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class ExternalController {
-    public static final byte IDX_BUTTON_A = 0;
-    public static final byte IDX_BUTTON_B = 1;
-    public static final byte IDX_BUTTON_L1 = 4;
-    public static final byte IDX_BUTTON_L2 = 10;
-    public static final byte IDX_BUTTON_L3 = 8;
-    public static final byte IDX_BUTTON_R1 = 5;
-    public static final byte IDX_BUTTON_R2 = 11;
-    public static final byte IDX_BUTTON_R3 = 9;
-    public static final byte IDX_BUTTON_SELECT = 6;
-    public static final byte IDX_BUTTON_START = 7;
-    public static final byte IDX_BUTTON_X = 2;
-    public static final byte IDX_BUTTON_Y = 3;
-    public static final byte TRIGGER_IS_BUTTON = 0;
-    public static final byte TRIGGER_IS_AXIS = 1;
-    public static final byte TRIGGER_IS_BOTH = 2;
-    public static final HashMap<Byte, Byte> buttonMappings = new HashMap<>();
-    private XServerDisplayActivity activity;
-    private Context context;
-    private String id;
-    private String name;
-    private int deviceId = -1;
-    private byte triggerType = TRIGGER_IS_AXIS;
-    private final ArrayList<ExternalControllerBinding> controllerBindings = new ArrayList<>();
-    public final GamepadState state = new GamepadState();
-    public final GamepadState remappedState = new GamepadState();
-    private boolean triggerLPressedViaButton = false;
-    private boolean triggerRPressedViaButton = false;
+  public static final byte IDX_BUTTON_A = 0;
+  public static final byte IDX_BUTTON_B = 1;
+  public static final byte IDX_BUTTON_L1 = 4;
+  public static final byte IDX_BUTTON_L2 = 10;
+  public static final byte IDX_BUTTON_L3 = 8;
+  public static final byte IDX_BUTTON_R1 = 5;
+  public static final byte IDX_BUTTON_R2 = 11;
+  public static final byte IDX_BUTTON_R3 = 9;
+  public static final byte IDX_BUTTON_SELECT = 6;
+  public static final byte IDX_BUTTON_START = 7;
+  public static final byte IDX_BUTTON_X = 2;
+  public static final byte IDX_BUTTON_Y = 3;
+  public static final byte TRIGGER_IS_BUTTON = 0;
+  public static final byte TRIGGER_IS_AXIS = 1;
+  public static final byte TRIGGER_IS_BOTH = 2;
+  public static final HashMap<Byte, Byte> buttonMappings = new HashMap<>();
+  private XServerDisplayActivity activity;
+  private Context context;
+  private String id;
+  private String name;
+  private int deviceId = -1;
+  private byte triggerType = TRIGGER_IS_AXIS;
+  private final ArrayList<ExternalControllerBinding> controllerBindings = new ArrayList<>();
+  public final GamepadState state = new GamepadState();
+  public final GamepadState remappedState = new GamepadState();
+  private boolean triggerLPressedViaButton = false;
+  private boolean triggerRPressedViaButton = false;
 
-    // Configurable deadzone, sensitivity, and inversion settings
-    private float deadzoneLeft = 0.1f;
-    private float deadzoneRight = 0.1f;
-    private float sensitivityLeft = 1.0f;
-    private float sensitivityRight = 1.0f;
-    private boolean invertLeftX = false;
-    private boolean invertLeftY = false;
-    private boolean invertRightX = false;
-    private boolean invertRightY = false;
-    private boolean useSquareDeadzoneLeft = false;
+  // Configurable deadzone, sensitivity, and inversion settings
+  private float deadzoneLeft = 0.1f;
+  private float deadzoneRight = 0.1f;
+  private float sensitivityLeft = 1.0f;
+  private float sensitivityRight = 1.0f;
+  private boolean invertLeftX = false;
+  private boolean invertLeftY = false;
+  private boolean invertRightX = false;
+  private boolean invertRightY = false;
+  private boolean useSquareDeadzoneLeft = false;
 
-    private SharedPreferences.OnSharedPreferenceChangeListener prefChangeListener = new SharedPreferences.OnSharedPreferenceChangeListener() {
+  private SharedPreferences.OnSharedPreferenceChangeListener prefChangeListener =
+      new SharedPreferences.OnSharedPreferenceChangeListener() {
         @Override
         public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-            if (key == null) return;
-            switch (key) {
-                case PreferenceKeys.DEADZONE_LEFT:
-                    deadzoneLeft = getFloatPref(sharedPreferences, PreferenceKeys.DEADZONE_LEFT, 0.1f);
-                    break;
-                case PreferenceKeys.DEADZONE_RIGHT:
-                    deadzoneRight = getFloatPref(sharedPreferences, PreferenceKeys.DEADZONE_RIGHT, 0.1f);
-                    break;
-                case PreferenceKeys.SENSITIVITY_LEFT:
-                    sensitivityLeft = getFloatPref(sharedPreferences, PreferenceKeys.SENSITIVITY_LEFT, 1.0f);
-                    break;
-                case PreferenceKeys.SENSITIVITY_RIGHT:
-                    sensitivityRight = getFloatPref(sharedPreferences, PreferenceKeys.SENSITIVITY_RIGHT, 1.0f);
-                    break;
-                case PreferenceKeys.INVERT_LEFT_X:
-                    invertLeftX = sharedPreferences.getBoolean(PreferenceKeys.INVERT_LEFT_X, false);
-                    break;
-                case PreferenceKeys.INVERT_LEFT_Y:
-                    invertLeftY = sharedPreferences.getBoolean(PreferenceKeys.INVERT_LEFT_Y, false);
-                    break;
-                case PreferenceKeys.INVERT_RIGHT_X:
-                    invertRightX = sharedPreferences.getBoolean(PreferenceKeys.INVERT_RIGHT_X, false);
-                    break;
-                case PreferenceKeys.INVERT_RIGHT_Y:
-                    invertRightY = sharedPreferences.getBoolean(PreferenceKeys.INVERT_RIGHT_Y, false);
-                    break;
-                case PreferenceKeys.SQUARE_DEADZONE_LEFT:
-                    useSquareDeadzoneLeft = sharedPreferences.getBoolean(PreferenceKeys.SQUARE_DEADZONE_LEFT, false);
-                    break;
-            }
+          if (key == null) return;
+          switch (key) {
+            case PreferenceKeys.DEADZONE_LEFT:
+              deadzoneLeft = getFloatPref(sharedPreferences, PreferenceKeys.DEADZONE_LEFT, 0.1f);
+              break;
+            case PreferenceKeys.DEADZONE_RIGHT:
+              deadzoneRight = getFloatPref(sharedPreferences, PreferenceKeys.DEADZONE_RIGHT, 0.1f);
+              break;
+            case PreferenceKeys.SENSITIVITY_LEFT:
+              sensitivityLeft =
+                  getFloatPref(sharedPreferences, PreferenceKeys.SENSITIVITY_LEFT, 1.0f);
+              break;
+            case PreferenceKeys.SENSITIVITY_RIGHT:
+              sensitivityRight =
+                  getFloatPref(sharedPreferences, PreferenceKeys.SENSITIVITY_RIGHT, 1.0f);
+              break;
+            case PreferenceKeys.INVERT_LEFT_X:
+              invertLeftX = sharedPreferences.getBoolean(PreferenceKeys.INVERT_LEFT_X, false);
+              break;
+            case PreferenceKeys.INVERT_LEFT_Y:
+              invertLeftY = sharedPreferences.getBoolean(PreferenceKeys.INVERT_LEFT_Y, false);
+              break;
+            case PreferenceKeys.INVERT_RIGHT_X:
+              invertRightX = sharedPreferences.getBoolean(PreferenceKeys.INVERT_RIGHT_X, false);
+              break;
+            case PreferenceKeys.INVERT_RIGHT_Y:
+              invertRightY = sharedPreferences.getBoolean(PreferenceKeys.INVERT_RIGHT_Y, false);
+              break;
+            case PreferenceKeys.SQUARE_DEADZONE_LEFT:
+              useSquareDeadzoneLeft =
+                  sharedPreferences.getBoolean(PreferenceKeys.SQUARE_DEADZONE_LEFT, false);
+              break;
+          }
         }
-    };
+      };
 
-    private static float getFloatPref(SharedPreferences prefs, String key, float defaultValue) {
-        try {
-            return prefs.getFloat(key, defaultValue);
-        } catch (ClassCastException e) {
-            // Migration: old int-based value stored as percentage
-            try {
-                int intVal = prefs.getInt(key, -1);
-                if (intVal != -1) {
-                    float floatVal = intVal / 100.0f;
-                    prefs.edit().putFloat(key, floatVal).apply();
-                    return floatVal;
-                }
-            } catch (ClassCastException e2) {
-                // ignore
-            }
-            return defaultValue;
+  private static float getFloatPref(SharedPreferences prefs, String key, float defaultValue) {
+    try {
+      return prefs.getFloat(key, defaultValue);
+    } catch (ClassCastException e) {
+      // Migration: old int-based value stored as percentage
+      try {
+        int intVal = prefs.getInt(key, -1);
+        if (intVal != -1) {
+          float floatVal = intVal / 100.0f;
+          prefs.edit().putFloat(key, floatVal).apply();
+          return floatVal;
         }
+      } catch (ClassCastException e2) {
+        // ignore
+      }
+      return defaultValue;
     }
+  }
 
-    private void loadPreferences() {
-        if (context == null) return;
+  private void loadPreferences() {
+    if (context == null) return;
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        this.deadzoneLeft = getFloatPref(prefs, PreferenceKeys.DEADZONE_LEFT, 0.1f);
-        this.deadzoneRight = getFloatPref(prefs, PreferenceKeys.DEADZONE_RIGHT, 0.1f);
-        this.sensitivityLeft = getFloatPref(prefs, PreferenceKeys.SENSITIVITY_LEFT, 1.0f);
-        this.sensitivityRight = getFloatPref(prefs, PreferenceKeys.SENSITIVITY_RIGHT, 1.0f);
-        this.invertLeftX = prefs.getBoolean(PreferenceKeys.INVERT_LEFT_X, false);
-        this.invertLeftY = prefs.getBoolean(PreferenceKeys.INVERT_LEFT_Y, false);
-        this.invertRightX = prefs.getBoolean(PreferenceKeys.INVERT_RIGHT_X, false);
-        this.invertRightY = prefs.getBoolean(PreferenceKeys.INVERT_RIGHT_Y, false);
-        this.useSquareDeadzoneLeft = prefs.getBoolean(PreferenceKeys.SQUARE_DEADZONE_LEFT, false);
+    SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+    this.deadzoneLeft = getFloatPref(prefs, PreferenceKeys.DEADZONE_LEFT, 0.1f);
+    this.deadzoneRight = getFloatPref(prefs, PreferenceKeys.DEADZONE_RIGHT, 0.1f);
+    this.sensitivityLeft = getFloatPref(prefs, PreferenceKeys.SENSITIVITY_LEFT, 1.0f);
+    this.sensitivityRight = getFloatPref(prefs, PreferenceKeys.SENSITIVITY_RIGHT, 1.0f);
+    this.invertLeftX = prefs.getBoolean(PreferenceKeys.INVERT_LEFT_X, false);
+    this.invertLeftY = prefs.getBoolean(PreferenceKeys.INVERT_LEFT_Y, false);
+    this.invertRightX = prefs.getBoolean(PreferenceKeys.INVERT_RIGHT_X, false);
+    this.invertRightY = prefs.getBoolean(PreferenceKeys.INVERT_RIGHT_Y, false);
+    this.useSquareDeadzoneLeft = prefs.getBoolean(PreferenceKeys.SQUARE_DEADZONE_LEFT, false);
+  }
+
+  public String getName() {
+    return this.name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  public String getId() {
+    return this.id;
+  }
+
+  public void setId(String id) {
+    this.id = id;
+  }
+
+  public byte getTriggerType() {
+    return triggerType;
+  }
+
+  public void setTriggerType(byte mode) {
+    this.triggerType = mode;
+  }
+
+  public void setContext(Context context) {
+    this.context = context;
+    if (context != null) {
+      loadPreferences();
+      SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+      prefs.registerOnSharedPreferenceChangeListener(prefChangeListener);
     }
+  }
 
-    public String getName() {
-        return this.name;
+  public void unregisterListener() {
+    if (context != null) {
+      SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+      prefs.unregisterOnSharedPreferenceChangeListener(prefChangeListener);
     }
+  }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getId() {
-        return this.id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public byte getTriggerType() {
-        return triggerType;
-    }
-
-    public void setTriggerType(byte mode) {
-        this.triggerType = mode;
-    }
-
-    public void setContext(Context context) {
-        this.context = context;
-        if (context != null) {
-            loadPreferences();
-            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-            prefs.registerOnSharedPreferenceChangeListener(prefChangeListener);
-        }
-    }
-
-    public void unregisterListener() {
-        if (context != null) {
-            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-            prefs.unregisterOnSharedPreferenceChangeListener(prefChangeListener);
-        }
-    }
-
-    public int getDeviceId() {
-        if (this.deviceId == -1) {
-            int[] deviceIds = InputDevice.getDeviceIds();
-            int length = deviceIds.length;
-            int i = 0;
-            while (true) {
-                if (i < length) {
-                    int deviceId = deviceIds[i];
-                    InputDevice device = InputDevice.getDevice(deviceId);
-                    if (device == null || !device.getDescriptor().equals(this.id)) {
-                        i++;
-                    } else {
-                        this.deviceId = deviceId;
-                        break;
-                    }
-                } else {
-                    break;
-                }
-            }
-        }
-        return this.deviceId;
-    }
-
-    public boolean isConnected() {
-        for (int deviceId : InputDevice.getDeviceIds()) {
-            InputDevice device = InputDevice.getDevice(deviceId);
-            if (device != null && device.getDescriptor().equals(this.id)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public ExternalControllerBinding getControllerBinding(int keyCode) {
-        Iterator<ExternalControllerBinding> it = this.controllerBindings.iterator();
-        while (it.hasNext()) {
-            ExternalControllerBinding controllerBinding = it.next();
-            if (controllerBinding.getKeyCodeForAxis() == keyCode) {
-                return controllerBinding;
-            }
-        }
-        return null;
-    }
-
-    public ExternalControllerBinding getControllerBindingAt(int index) {
-        return this.controllerBindings.get(index);
-    }
-
-    public void addControllerBinding(ExternalControllerBinding controllerBinding) {
-        if (getControllerBinding(controllerBinding.getKeyCodeForAxis()) == null) {
-            this.controllerBindings.add(controllerBinding);
-        }
-    }
-
-    public int getPosition(ExternalControllerBinding controllerBinding) {
-        return this.controllerBindings.indexOf(controllerBinding);
-    }
-
-    public void removeControllerBinding(ExternalControllerBinding controllerBinding) {
-        this.controllerBindings.remove(controllerBinding);
-    }
-
-    public void setButtonMapping(byte originalButton, byte mappedButton) {
-        buttonMappings.put(Byte.valueOf(originalButton), Byte.valueOf(mappedButton));
-    }
-
-    public byte getMappedButton(byte originalButton) {
-        byte mappedButton = buttonMappings.getOrDefault(Byte.valueOf(originalButton), Byte.valueOf(originalButton)).byteValue();
-        return mappedButton;
-    }
-
-    public int getControllerBindingCount() {
-        return this.controllerBindings.size();
-    }
-
-    public JSONObject toJSONObject() throws JSONException {
-        try {
-            if (this.controllerBindings.isEmpty()) {
-                return null;
-            }
-            JSONObject controllerJSONObject = new JSONObject();
-            controllerJSONObject.put("id", this.id);
-            controllerJSONObject.put("name", this.name);
-            JSONArray controllerBindingsJSONArray = new JSONArray();
-            Iterator<ExternalControllerBinding> it = this.controllerBindings.iterator();
-            while (it.hasNext()) {
-                ExternalControllerBinding controllerBinding = it.next();
-                controllerBindingsJSONArray.put(controllerBinding.toJSONObject());
-            }
-            controllerJSONObject.put("controllerBindings", controllerBindingsJSONArray);
-            return controllerJSONObject;
-        } catch (JSONException e) {
-            return null;
-        }
-    }
-
-    @Override
-    public boolean equals(@Nullable Object obj) {
-        if (obj instanceof ExternalController) {
-            ExternalController other = (ExternalController) obj;
-            if (this.id == null || other.id == null) {
-                return this.id == other.id;
-            }
-            return other.id.equals(this.id);
-        }
-        return super.equals(obj);
-    }
-
-    private void processJoystickInput(MotionEvent event, int historyPos) {
-        boolean z = false;
-        this.state.thumbLX = getCenteredAxis(event, 0, historyPos);
-        this.state.thumbLY = getCenteredAxis(event, 1, historyPos);
-        this.state.thumbRX = getCenteredAxis(event, 11, historyPos);
-        this.state.thumbRY = getCenteredAxis(event, 14, historyPos);
-        if (historyPos == -1) {
-            float axisX = getCenteredAxis(event, 15, historyPos);
-            float axisY = getCenteredAxis(event, 16, historyPos);
-            this.state.dpad[0] = axisY == -1.0f && Math.abs(this.state.thumbLY) < 0.15f;
-            this.state.dpad[1] = axisX == 1.0f && Math.abs(this.state.thumbLX) < 0.15f;
-            this.state.dpad[2] = axisY == 1.0f && Math.abs(this.state.thumbLY) < 0.15f;
-            boolean[] zArr = this.state.dpad;
-            if (axisX == -1.0f && Math.abs(this.state.thumbLX) < 0.15f) {
-                z = true;
-            }
-            zArr[3] = z;
-        }
-    }
-
-    private void processTriggerButton(MotionEvent event) {
-        // Read both possible trigger axes and use the larger value.
-        // DualSense uses AXIS_BRAKE(23)/AXIS_GAS(22) while Xbox uses AXIS_LTRIGGER(17)/AXIS_RTRIGGER(18).
-        // Some controllers report tiny noise on the unused axis, so comparing == 0.0f is unreliable.
-        float l = Math.max(event.getAxisValue(17), event.getAxisValue(23));
-        float r = Math.max(event.getAxisValue(18), event.getAxisValue(22));
-        this.state.triggerL = l;
-        this.state.triggerR = r;
-        this.state.setPressed(10, l > 0.9f);
-        this.state.setPressed(11, r > 0.9f);
-    }
-
-    public boolean isXboxController() {
-        InputDevice device = InputDevice.getDevice(getDeviceId());
-        if (device == null) {
-            return false;
-        }
-        int vendorId = device.getVendorId();
-        return vendorId == 1118;
-    }
-
-    private void processXboxTriggerButton(MotionEvent event) {
-        float l = Math.max(event.getAxisValue(17), event.getAxisValue(23));
-        float r = Math.max(event.getAxisValue(18), event.getAxisValue(22));
-        if (l > 0.0f) {
-            this.state.triggerL = 1.0f;
-            this.state.setPressed(10, true);
+  public int getDeviceId() {
+    if (this.deviceId == -1) {
+      int[] deviceIds = InputDevice.getDeviceIds();
+      int length = deviceIds.length;
+      int i = 0;
+      while (true) {
+        if (i < length) {
+          int deviceId = deviceIds[i];
+          InputDevice device = InputDevice.getDevice(deviceId);
+          if (device == null || !device.getDescriptor().equals(this.id)) {
+            i++;
+          } else {
+            this.deviceId = deviceId;
+            break;
+          }
         } else {
-            this.state.triggerL = 0.0f;
-            this.state.setPressed(10, false);
+          break;
         }
-        if (r > 0.0f) {
-            this.state.triggerR = 1.0f;
-            this.state.setPressed(11, true);
-        } else {
-            this.state.triggerR = 0.0f;
-            this.state.setPressed(11, false);
-        }
+      }
     }
+    return this.deviceId;
+  }
 
-    public boolean updateStateFromMotionEvent(MotionEvent event) {
-        if (isJoystickDevice(event)) {
-            processTriggerButton(event);
-            int historySize = event.getHistorySize();
-            for (int i = 0; i < historySize; i++) {
-                processJoystickInput(event, i);
-            }
-            processJoystickInput(event, -1);
-            return true;
-        }
-        return false;
-    }
-
-    public boolean updateStateFromKeyEvent(KeyEvent event) {
-        boolean z = false;
-        boolean pressed = event.getAction() == 0;
-        int keyCode = event.getKeyCode();
-        int buttonIdx = getButtonIdxByKeyCode(keyCode);
-        if (buttonIdx != -1) {
-            if (buttonIdx == 10 || buttonIdx == 11) {
-                // Trigger key events: don't call sendGamepadState to avoid
-                // overwriting analog trigger values from motion events
-                return false;
-            }
-            this.state.setPressed(buttonIdx, pressed);
-            return true;
-        }
-        switch (keyCode) {
-            case 19:
-                this.state.dpad[0] = pressed && Math.abs(this.state.thumbLY) < 0.15f;
-                break;
-            case 20:
-                boolean[] zArr = this.state.dpad;
-                if (pressed && Math.abs(this.state.thumbLY) < 0.15f) {
-                    z = true;
-                }
-                zArr[2] = z;
-                break;
-            case 21:
-                boolean[] zArr2 = this.state.dpad;
-                if (pressed && Math.abs(this.state.thumbLX) < 0.15f) {
-                    z = true;
-                }
-                zArr2[3] = z;
-                break;
-            case 22:
-                boolean[] zArr3 = this.state.dpad;
-                if (pressed && Math.abs(this.state.thumbLX) < 0.15f) {
-                    z = true;
-                }
-                zArr3[1] = z;
-                break;
-        }
+  public boolean isConnected() {
+    for (int deviceId : InputDevice.getDeviceIds()) {
+      InputDevice device = InputDevice.getDevice(deviceId);
+      if (device != null && device.getDescriptor().equals(this.id)) {
         return true;
+      }
     }
+    return false;
+  }
 
-    public static ArrayList<ExternalController> getControllers() {
-        int[] deviceIds = InputDevice.getDeviceIds();
-        ArrayList<ExternalController> controllers = new ArrayList<>();
-        for (int i = deviceIds.length - 1; i >= 0; i--) {
-            InputDevice device = InputDevice.getDevice(deviceIds[i]);
-            if (isGameController(device)) {
-                ExternalController controller = new ExternalController();
-                controller.setId(device.getDescriptor());
-                controller.setName(device.getName());
-                controllers.add(controller);
-            }
-        }
-        return controllers;
+  public ExternalControllerBinding getControllerBinding(int keyCode) {
+    Iterator<ExternalControllerBinding> it = this.controllerBindings.iterator();
+    while (it.hasNext()) {
+      ExternalControllerBinding controllerBinding = it.next();
+      if (controllerBinding.getKeyCodeForAxis() == keyCode) {
+        return controllerBinding;
+      }
     }
+    return null;
+  }
 
-    public static ExternalController getController(String id) {
-        Iterator<ExternalController> it = getControllers().iterator();
-        while (it.hasNext()) {
-            ExternalController controller = it.next();
-            if (controller.getId().equals(id)) {
-                return controller;
-            }
-        }
+  public ExternalControllerBinding getControllerBindingAt(int index) {
+    return this.controllerBindings.get(index);
+  }
+
+  public void addControllerBinding(ExternalControllerBinding controllerBinding) {
+    if (getControllerBinding(controllerBinding.getKeyCodeForAxis()) == null) {
+      this.controllerBindings.add(controllerBinding);
+    }
+  }
+
+  public int getPosition(ExternalControllerBinding controllerBinding) {
+    return this.controllerBindings.indexOf(controllerBinding);
+  }
+
+  public void removeControllerBinding(ExternalControllerBinding controllerBinding) {
+    this.controllerBindings.remove(controllerBinding);
+  }
+
+  public void setButtonMapping(byte originalButton, byte mappedButton) {
+    buttonMappings.put(Byte.valueOf(originalButton), Byte.valueOf(mappedButton));
+  }
+
+  public byte getMappedButton(byte originalButton) {
+    byte mappedButton =
+        buttonMappings
+            .getOrDefault(Byte.valueOf(originalButton), Byte.valueOf(originalButton))
+            .byteValue();
+    return mappedButton;
+  }
+
+  public int getControllerBindingCount() {
+    return this.controllerBindings.size();
+  }
+
+  public JSONObject toJSONObject() throws JSONException {
+    try {
+      if (this.controllerBindings.isEmpty()) {
         return null;
+      }
+      JSONObject controllerJSONObject = new JSONObject();
+      controllerJSONObject.put("id", this.id);
+      controllerJSONObject.put("name", this.name);
+      JSONArray controllerBindingsJSONArray = new JSONArray();
+      Iterator<ExternalControllerBinding> it = this.controllerBindings.iterator();
+      while (it.hasNext()) {
+        ExternalControllerBinding controllerBinding = it.next();
+        controllerBindingsJSONArray.put(controllerBinding.toJSONObject());
+      }
+      controllerJSONObject.put("controllerBindings", controllerBindingsJSONArray);
+      return controllerJSONObject;
+    } catch (JSONException e) {
+      return null;
+    }
+  }
+
+  @Override
+  public boolean equals(@Nullable Object obj) {
+    if (obj instanceof ExternalController) {
+      ExternalController other = (ExternalController) obj;
+      if (this.id == null || other.id == null) {
+        return this.id == other.id;
+      }
+      return other.id.equals(this.id);
+    }
+    return super.equals(obj);
+  }
+
+  private void processJoystickInput(MotionEvent event, int historyPos) {
+    boolean z = false;
+    this.state.thumbLX = getCenteredAxis(event, 0, historyPos);
+    this.state.thumbLY = getCenteredAxis(event, 1, historyPos);
+    this.state.thumbRX = getCenteredAxis(event, 11, historyPos);
+    this.state.thumbRY = getCenteredAxis(event, 14, historyPos);
+    if (historyPos == -1) {
+      float axisX = getCenteredAxis(event, 15, historyPos);
+      float axisY = getCenteredAxis(event, 16, historyPos);
+      this.state.dpad[0] = axisY == -1.0f && Math.abs(this.state.thumbLY) < 0.15f;
+      this.state.dpad[1] = axisX == 1.0f && Math.abs(this.state.thumbLX) < 0.15f;
+      this.state.dpad[2] = axisY == 1.0f && Math.abs(this.state.thumbLY) < 0.15f;
+      boolean[] zArr = this.state.dpad;
+      if (axisX == -1.0f && Math.abs(this.state.thumbLX) < 0.15f) {
+        z = true;
+      }
+      zArr[3] = z;
+    }
+  }
+
+  private void processTriggerButton(MotionEvent event) {
+    // Read both possible trigger axes and use the larger value.
+    // DualSense uses AXIS_BRAKE(23)/AXIS_GAS(22) while Xbox uses
+    // AXIS_LTRIGGER(17)/AXIS_RTRIGGER(18).
+    // Some controllers report tiny noise on the unused axis, so comparing == 0.0f is unreliable.
+    float l = Math.max(event.getAxisValue(17), event.getAxisValue(23));
+    float r = Math.max(event.getAxisValue(18), event.getAxisValue(22));
+    this.state.triggerL = l;
+    this.state.triggerR = r;
+    this.state.setPressed(10, l > 0.9f);
+    this.state.setPressed(11, r > 0.9f);
+  }
+
+  public boolean isXboxController() {
+    InputDevice device = InputDevice.getDevice(getDeviceId());
+    if (device == null) {
+      return false;
+    }
+    int vendorId = device.getVendorId();
+    return vendorId == 1118;
+  }
+
+  private void processXboxTriggerButton(MotionEvent event) {
+    float l = Math.max(event.getAxisValue(17), event.getAxisValue(23));
+    float r = Math.max(event.getAxisValue(18), event.getAxisValue(22));
+    if (l > 0.0f) {
+      this.state.triggerL = 1.0f;
+      this.state.setPressed(10, true);
+    } else {
+      this.state.triggerL = 0.0f;
+      this.state.setPressed(10, false);
+    }
+    if (r > 0.0f) {
+      this.state.triggerR = 1.0f;
+      this.state.setPressed(11, true);
+    } else {
+      this.state.triggerR = 0.0f;
+      this.state.setPressed(11, false);
+    }
+  }
+
+  public boolean updateStateFromMotionEvent(MotionEvent event) {
+    if (isJoystickDevice(event)) {
+      processTriggerButton(event);
+      int historySize = event.getHistorySize();
+      for (int i = 0; i < historySize; i++) {
+        processJoystickInput(event, i);
+      }
+      processJoystickInput(event, -1);
+      return true;
+    }
+    return false;
+  }
+
+  public boolean updateStateFromKeyEvent(KeyEvent event) {
+    boolean z = false;
+    boolean pressed = event.getAction() == 0;
+    int keyCode = event.getKeyCode();
+    int buttonIdx = getButtonIdxByKeyCode(keyCode);
+    if (buttonIdx != -1) {
+      if (buttonIdx == 10 || buttonIdx == 11) {
+        // Trigger key events: don't call sendGamepadState to avoid
+        // overwriting analog trigger values from motion events
+        return false;
+      }
+      this.state.setPressed(buttonIdx, pressed);
+      return true;
+    }
+    switch (keyCode) {
+      case 19:
+        this.state.dpad[0] = pressed && Math.abs(this.state.thumbLY) < 0.15f;
+        break;
+      case 20:
+        boolean[] zArr = this.state.dpad;
+        if (pressed && Math.abs(this.state.thumbLY) < 0.15f) {
+          z = true;
+        }
+        zArr[2] = z;
+        break;
+      case 21:
+        boolean[] zArr2 = this.state.dpad;
+        if (pressed && Math.abs(this.state.thumbLX) < 0.15f) {
+          z = true;
+        }
+        zArr2[3] = z;
+        break;
+      case 22:
+        boolean[] zArr3 = this.state.dpad;
+        if (pressed && Math.abs(this.state.thumbLX) < 0.15f) {
+          z = true;
+        }
+        zArr3[1] = z;
+        break;
+    }
+    return true;
+  }
+
+  public static ArrayList<ExternalController> getControllers() {
+    int[] deviceIds = InputDevice.getDeviceIds();
+    ArrayList<ExternalController> controllers = new ArrayList<>();
+    for (int i = deviceIds.length - 1; i >= 0; i--) {
+      InputDevice device = InputDevice.getDevice(deviceIds[i]);
+      if (isGameController(device)) {
+        ExternalController controller = new ExternalController();
+        controller.setId(device.getDescriptor());
+        controller.setName(device.getName());
+        controllers.add(controller);
+      }
+    }
+    return controllers;
+  }
+
+  public static ExternalController getController(String id) {
+    Iterator<ExternalController> it = getControllers().iterator();
+    while (it.hasNext()) {
+      ExternalController controller = it.next();
+      if (controller.getId().equals(id)) {
+        return controller;
+      }
+    }
+    return null;
+  }
+
+  public static ExternalController getController(int deviceId) {
+    int[] deviceIds = InputDevice.getDeviceIds();
+    for (int i = deviceIds.length - 1; i >= 0; i--) {
+      if (deviceIds[i] == deviceId || deviceId == 0) {
+        InputDevice device = InputDevice.getDevice(deviceIds[i]);
+        if (isGameController(device)) {
+          ExternalController controller = new ExternalController();
+          controller.setId(device.getDescriptor());
+          controller.setName(device.getName());
+          controller.deviceId = deviceIds[i];
+          return controller;
+        }
+      }
+    }
+    return null;
+  }
+
+  public static boolean isGameController(InputDevice device) {
+    if (device == null) {
+      return false;
+    }
+    int sources = device.getSources();
+    if (device.isVirtual()) {
+      return false;
+    }
+    return (sources & InputDeviceCompat.SOURCE_GAMEPAD) == 1025
+        || ((sources & InputDeviceCompat.SOURCE_JOYSTICK) == 16777232 && (sources & 8194) == 0);
+  }
+
+  public static String getPhysicalDeviceIdentifier(InputDevice device) {
+    if (device == null) return "";
+    String descriptor = device.getDescriptor();
+    if (descriptor != null && !descriptor.isEmpty()) return descriptor;
+
+    return String.format(
+        Locale.US, "%s:%d:%d", device.getName(), device.getVendorId(), device.getProductId());
+  }
+
+  public float getCenteredAxis(MotionEvent event, int axis, int historyPos) {
+    // D-pad hat axes: pass through as-is
+    if (axis == MotionEvent.AXIS_HAT_X || axis == MotionEvent.AXIS_HAT_Y) {
+      float value = event.getAxisValue(axis);
+      return Math.abs(value) == 1.0f ? value : 0.0f;
     }
 
-    public static ExternalController getController(int deviceId) {
-        int[] deviceIds = InputDevice.getDeviceIds();
-        for (int i = deviceIds.length - 1; i >= 0; i--) {
-            if (deviceIds[i] == deviceId || deviceId == 0) {
-                InputDevice device = InputDevice.getDevice(deviceIds[i]);
-                if (isGameController(device)) {
-                    ExternalController controller = new ExternalController();
-                    controller.setId(device.getDescriptor());
-                    controller.setName(device.getName());
-                    controller.deviceId = deviceIds[i];
-                    return controller;
-                }
-            }
-        }
-        return null;
+    InputDevice device = event.getDevice();
+    // Try source-specific range first, fall back to source-agnostic lookup.
+    // DualSense registers axes under combined SOURCE_GAMEPAD|SOURCE_JOYSTICK
+    // but events may arrive with just SOURCE_JOYSTICK, causing null range.
+    InputDevice.MotionRange range = device.getMotionRange(axis, event.getSource());
+    if (range == null) {
+      range = device.getMotionRange(axis);
+    }
+    if (range == null) return 0.0f;
+
+    float flat = range.getFlat();
+    float value =
+        historyPos < 0 ? event.getAxisValue(axis) : event.getHistoricalAxisValue(axis, historyPos);
+
+    if (Math.abs(value) <= flat) return 0.0f;
+
+    // Left stick (AXIS_X=0, AXIS_Y=1)
+    if (axis == MotionEvent.AXIS_X || axis == MotionEvent.AXIS_Y) {
+      float correctedValue =
+          useSquareDeadzoneLeft
+              ? applySquareDeadzone(
+                  event.getAxisValue(MotionEvent.AXIS_X),
+                  event.getAxisValue(MotionEvent.AXIS_Y),
+                  this.deadzoneLeft,
+                  this.sensitivityLeft,
+                  axis)
+              : applyDeadzoneAndSensitivity(value, this.deadzoneLeft, this.sensitivityLeft);
+
+      if (axis == MotionEvent.AXIS_X && invertLeftX) correctedValue = -correctedValue;
+      if (axis == MotionEvent.AXIS_Y && invertLeftY) correctedValue = -correctedValue;
+      return correctedValue;
     }
 
-    public static boolean isGameController(InputDevice device) {
-        if (device == null) {
-            return false;
-        }
-        int sources = device.getSources();
-        if (device.isVirtual()) {
-            return false;
-        }
-        return (sources & InputDeviceCompat.SOURCE_GAMEPAD) == 1025 || ((sources & InputDeviceCompat.SOURCE_JOYSTICK) == 16777232 && (sources & 8194) == 0);
+    // Right stick (AXIS_Z=11, AXIS_RZ=14)
+    if (axis == MotionEvent.AXIS_Z || axis == MotionEvent.AXIS_RZ) {
+      value = applyDeadzoneAndSensitivity(value, this.deadzoneRight, this.sensitivityRight);
+      if (axis == MotionEvent.AXIS_Z && invertRightX) value = -value;
+      if (axis == MotionEvent.AXIS_RZ && invertRightY) value = -value;
+      return value;
     }
 
-    public static String getPhysicalDeviceIdentifier(InputDevice device) {
-        if (device == null) return "";
-        String descriptor = device.getDescriptor();
-        if (descriptor != null && !descriptor.isEmpty()) return descriptor;
+    return 0.0f;
+  }
 
-        return String.format(
-                Locale.US,
-                "%s:%d:%d",
-                device.getName(),
-                device.getVendorId(),
-                device.getProductId()
-        );
+  private float applySquareDeadzone(float x, float y, float deadzone, float sensitivity, int axis) {
+    final float PiOverFour = (float) (Math.PI / 4);
+    double angle = Math.atan2(y, x) + Math.PI;
+
+    float scale;
+    if (angle <= PiOverFour || angle > 7 * PiOverFour) {
+      scale = (float) (1 / Math.cos(angle));
+    } else if (angle > PiOverFour && angle <= 3 * PiOverFour) {
+      scale = (float) (1 / Math.sin(angle));
+    } else if (angle > 3 * PiOverFour && angle <= 5 * PiOverFour) {
+      scale = (float) (-1 / Math.cos(angle));
+    } else {
+      scale = (float) (-1 / Math.sin(angle));
     }
 
-    public float getCenteredAxis(MotionEvent event, int axis, int historyPos) {
-        // D-pad hat axes: pass through as-is
-        if (axis == MotionEvent.AXIS_HAT_X || axis == MotionEvent.AXIS_HAT_Y) {
-            float value = event.getAxisValue(axis);
-            return Math.abs(value) == 1.0f ? value : 0.0f;
-        }
+    float scaledX = x * scale;
+    float scaledY = y * scale;
 
-        InputDevice device = event.getDevice();
-        // Try source-specific range first, fall back to source-agnostic lookup.
-        // DualSense registers axes under combined SOURCE_GAMEPAD|SOURCE_JOYSTICK
-        // but events may arrive with just SOURCE_JOYSTICK, causing null range.
-        InputDevice.MotionRange range = device.getMotionRange(axis, event.getSource());
-        if (range == null) {
-            range = device.getMotionRange(axis);
-        }
-        if (range == null) return 0.0f;
+    float normalizedX = (Math.abs(scaledX) - deadzone) / (1.0f - deadzone);
+    float normalizedY = (Math.abs(scaledY) - deadzone) / (1.0f - deadzone);
 
-        float flat = range.getFlat();
-        float value = historyPos < 0 ? event.getAxisValue(axis) : event.getHistoricalAxisValue(axis, historyPos);
-
-        if (Math.abs(value) <= flat) return 0.0f;
-
-        // Left stick (AXIS_X=0, AXIS_Y=1)
-        if (axis == MotionEvent.AXIS_X || axis == MotionEvent.AXIS_Y) {
-            float correctedValue = useSquareDeadzoneLeft
-                    ? applySquareDeadzone(
-                        event.getAxisValue(MotionEvent.AXIS_X),
-                        event.getAxisValue(MotionEvent.AXIS_Y),
-                        this.deadzoneLeft,
-                        this.sensitivityLeft,
-                        axis)
-                    : applyDeadzoneAndSensitivity(value, this.deadzoneLeft, this.sensitivityLeft);
-
-            if (axis == MotionEvent.AXIS_X && invertLeftX) correctedValue = -correctedValue;
-            if (axis == MotionEvent.AXIS_Y && invertLeftY) correctedValue = -correctedValue;
-            return correctedValue;
-        }
-
-        // Right stick (AXIS_Z=11, AXIS_RZ=14)
-        if (axis == MotionEvent.AXIS_Z || axis == MotionEvent.AXIS_RZ) {
-            value = applyDeadzoneAndSensitivity(value, this.deadzoneRight, this.sensitivityRight);
-            if (axis == MotionEvent.AXIS_Z && invertRightX) value = -value;
-            if (axis == MotionEvent.AXIS_RZ && invertRightY) value = -value;
-            return value;
-        }
-
-        return 0.0f;
+    if (axis == MotionEvent.AXIS_X) {
+      return Math.signum(x) * Math.min(Math.max(normalizedX, 0.0f), 1.0f) * sensitivity;
+    } else {
+      return Math.signum(y) * Math.min(Math.max(normalizedY, 0.0f), 1.0f) * sensitivity;
     }
+  }
 
-    private float applySquareDeadzone(float x, float y, float deadzone, float sensitivity, int axis) {
-        final float PiOverFour = (float)(Math.PI / 4);
-        double angle = Math.atan2(y, x) + Math.PI;
-
-        float scale;
-        if (angle <= PiOverFour || angle > 7 * PiOverFour) {
-            scale = (float)(1 / Math.cos(angle));
-        } else if (angle > PiOverFour && angle <= 3 * PiOverFour) {
-            scale = (float)(1 / Math.sin(angle));
-        } else if (angle > 3 * PiOverFour && angle <= 5 * PiOverFour) {
-            scale = (float)(-1 / Math.cos(angle));
-        } else {
-            scale = (float)(-1 / Math.sin(angle));
-        }
-
-        float scaledX = x * scale;
-        float scaledY = y * scale;
-
-        float normalizedX = (Math.abs(scaledX) - deadzone) / (1.0f - deadzone);
-        float normalizedY = (Math.abs(scaledY) - deadzone) / (1.0f - deadzone);
-
-        if (axis == MotionEvent.AXIS_X) {
-            return Math.signum(x) * Math.min(Math.max(normalizedX, 0.0f), 1.0f) * sensitivity;
-        } else {
-            return Math.signum(y) * Math.min(Math.max(normalizedY, 0.0f), 1.0f) * sensitivity;
-        }
+  private float applyDeadzoneAndSensitivity(float value, float deadzone, float sensitivity) {
+    if (Math.abs(value) < deadzone) {
+      return 0.0f;
     }
+    float normalized = (Math.abs(value) - deadzone) / (1.0f - deadzone);
+    normalized = Math.signum(value) * normalized;
+    return normalized * sensitivity;
+  }
 
-    private float applyDeadzoneAndSensitivity(float value, float deadzone, float sensitivity) {
-        if (Math.abs(value) < deadzone) {
-            return 0.0f;
-        }
-        float normalized = (Math.abs(value) - deadzone) / (1.0f - deadzone);
-        normalized = Math.signum(value) * normalized;
-        return normalized * sensitivity;
-    }
+  public static boolean isJoystickDevice(MotionEvent event) {
+    return (event.getSource() & InputDeviceCompat.SOURCE_JOYSTICK) == 16777232
+        && event.getAction() == 2;
+  }
 
-    public static boolean isJoystickDevice(MotionEvent event) {
-        return (event.getSource() & InputDeviceCompat.SOURCE_JOYSTICK) == 16777232 && event.getAction() == 2;
+  public static int getButtonIdxByKeyCode(int keyCode) {
+    switch (keyCode) {
+      case 96:
+        return 0;
+      case 97:
+        return 1;
+      case 99:
+        return 2;
+      case 100:
+        return 3;
+      case 102:
+        return 4;
+      case 103:
+        return 5;
+      case 104:
+        return 10;
+      case 105:
+        return 11;
+      case 106:
+        return 8;
+      case 107:
+        return 9;
+      case 108:
+        return 7;
+      case 109:
+        return 6;
+      default:
+        return -1;
     }
+  }
 
-    public static int getButtonIdxByKeyCode(int keyCode) {
-        switch (keyCode) {
-            case 96:
-                return 0;
-            case 97:
-                return 1;
-            case 99:
-                return 2;
-            case 100:
-                return 3;
-            case 102:
-                return 4;
-            case 103:
-                return 5;
-            case 104:
-                return 10;
-            case 105:
-                return 11;
-            case 106:
-                return 8;
-            case 107:
-                return 9;
-            case 108:
-                return 7;
-            case 109:
-                return 6;
-            default:
-                return -1;
-        }
+  public static int getButtonIdxByName(String name) {
+    switch (name) {
+      case "A":
+        return IDX_BUTTON_A;
+      case "B":
+        return IDX_BUTTON_B;
+      case "X":
+        return IDX_BUTTON_X;
+      case "Y":
+        return IDX_BUTTON_Y;
+      case "L1":
+        return IDX_BUTTON_L1;
+      case "R1":
+        return IDX_BUTTON_R1;
+      case "SELECT":
+        return IDX_BUTTON_SELECT;
+      case "START":
+        return IDX_BUTTON_START;
+      case "L3":
+        return IDX_BUTTON_L3;
+      case "R3":
+        return IDX_BUTTON_R3;
+      case "L2":
+        return IDX_BUTTON_L2;
+      case "R2":
+        return IDX_BUTTON_R2;
+      default:
+        return -1;
     }
-
-    public static int getButtonIdxByName(String name) {
-        switch (name) {
-            case "A":
-                return IDX_BUTTON_A;
-            case "B":
-                return IDX_BUTTON_B;
-            case "X":
-                return IDX_BUTTON_X;
-            case "Y":
-                return IDX_BUTTON_Y;
-            case "L1":
-                return IDX_BUTTON_L1;
-            case "R1":
-                return IDX_BUTTON_R1;
-            case "SELECT":
-                return IDX_BUTTON_SELECT;
-            case "START":
-                return IDX_BUTTON_START;
-            case "L3":
-                return IDX_BUTTON_L3;
-            case "R3":
-                return IDX_BUTTON_R3;
-            case "L2":
-                return IDX_BUTTON_L2;
-            case "R2":
-                return IDX_BUTTON_R2;
-            default:
-                return -1;
-        }
-    }
+  }
 }

@@ -1,4 +1,5 @@
 package com.winlator.cmod.feature.stores.steam.enums
+
 enum class SyncResult {
     Success,
     UpToDate,

@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hiltAndroid)
     alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.spotless)
 }
 
 task checkSubmodules {
@@ -218,4 +219,42 @@ dependencies {
 
     implementation libs.playServicesGamesV2
     implementation libs.playServicesAuth
+}
+
+spotless {
+    java {
+        target "src/main/**/*.java"
+        googleJavaFormat("1.35.0")
+        formatAnnotations()
+    }
+
+    kotlin {
+        target "src/main/**/*.kt"
+        ktlint("1.8.0")
+    }
+
+}
+
+tasks.register("formatJavaOnly") {
+    group = "formatting"
+    description = "Applies Java formatting only."
+    dependsOn("spotlessJavaApply")
+}
+
+tasks.register("checkJavaFormatOnly") {
+    group = "verification"
+    description = "Checks Java formatting only."
+    dependsOn("spotlessJavaCheck")
+}
+
+tasks.register("formatKotlinOnly") {
+    group = "formatting"
+    description = "Applies Kotlin formatting only."
+    dependsOn("spotlessKotlinApply")
+}
+
+tasks.register("checkKotlinFormatOnly") {
+    group = "verification"
+    description = "Checks Kotlin formatting only."
+    dependsOn("spotlessKotlinCheck")
 }

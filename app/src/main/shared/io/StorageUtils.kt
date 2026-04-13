@@ -1,24 +1,23 @@
 package com.winlator.cmod.shared.io
 import android.os.StatFs
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
+import timber.log.Timber
 import java.io.File
+import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.FileVisitResult
+import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.BasicFileAttributes
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.yield
-import timber.log.Timber
-import java.io.IOException
-import java.nio.file.Files
-import java.nio.file.Path
 
 object StorageUtils {
-
     fun getAvailableSpace(path: String): Long {
         var file: File? = File(path)
         while (file != null && !file.exists()) {
@@ -45,7 +44,10 @@ object StorageUtils {
         return 0L
     }
 
-    fun formatBinarySize(bytes: Long, decimalPlaces: Int = 2): String {
+    fun formatBinarySize(
+        bytes: Long,
+        decimalPlaces: Int = 2,
+    ): String {
         require(bytes > Long.MIN_VALUE) { "Out of range" }
         require(decimalPlaces >= 0) { "Negative decimal places unsupported" }
 
@@ -60,10 +62,11 @@ object StorageUtils {
         val digitGroups = (63 - absBytes.countLeadingZeroBits()) / 10
         val value = absBytes.toDouble() / (1L shl (digitGroups * 10))
 
-        val result = "%.${decimalPlaces}f %s".format(
-            if (isNegative) -value else value,
-            units[digitGroups - 1],
-        )
+        val result =
+            "%.${decimalPlaces}f %s".format(
+                if (isNegative) -value else value,
+                units[digitGroups - 1],
+            )
 
         return result
     }

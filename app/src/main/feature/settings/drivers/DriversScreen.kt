@@ -1,5 +1,4 @@
 package com.winlator.cmod.feature.settings
-import com.winlator.cmod.R
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -13,32 +12,32 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.requiredHeightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredHeightIn
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
@@ -81,17 +80,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.winlator.cmod.R
 
-private val BgDark        = Color(0xFF18181D)
-private val CardDark      = Color(0xFF1C1C2A)
-private val CardDarker    = Color(0xFF15151E)
-private val CardBorder    = Color(0xFF2A2A3A)
-private val IconBoxBg     = Color(0xFF242434)
-private val SurfaceDark   = Color(0xFF21212A)
-private val Accent        = Color(0xFF1A9FFF)
-private val SuccessGreen  = Color(0xFF5BD68F)
-private val DangerRed     = Color(0xFFFF7A88)
-private val TextPrimary   = Color(0xFFD6DAE0)
+private val BgDark = Color(0xFF18181D)
+private val CardDark = Color(0xFF1C1C2A)
+private val CardDarker = Color(0xFF15151E)
+private val CardBorder = Color(0xFF2A2A3A)
+private val IconBoxBg = Color(0xFF242434)
+private val SurfaceDark = Color(0xFF21212A)
+private val Accent = Color(0xFF1A9FFF)
+private val SuccessGreen = Color(0xFF5BD68F)
+private val DangerRed = Color(0xFFFF7A88)
+private val TextPrimary = Color(0xFFD6DAE0)
 private val TextSecondary = Color(0xFF7A8FA8)
 
 @Composable
@@ -235,11 +235,12 @@ fun DriversScreen(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentHeight()
-            .background(BgDark)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .background(BgDark)
+                .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         HeroHeader(
@@ -268,9 +269,10 @@ fun DriversScreen(
         }
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
             verticalAlignment = Alignment.Bottom,
         ) {
             SectionLabel(
@@ -327,12 +329,13 @@ private fun HeroHeader(
     onAddRepo: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -340,10 +343,11 @@ private fun HeroHeader(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(9.dp))
-                        .background(IconBoxBg),
+                    modifier =
+                        Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(IconBoxBg),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -405,13 +409,17 @@ private fun HeroHeader(
 }
 
 @Composable
-private fun CountPill(label: String, count: Int) {
+private fun CountPill(
+    label: String,
+    count: Int,
+) {
     Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(Accent.copy(alpha = 0.12f))
-            .border(1.dp, Accent.copy(alpha = 0.28f), RoundedCornerShape(6.dp))
-            .padding(horizontal = 7.dp, vertical = 2.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(Accent.copy(alpha = 0.12f))
+                .border(1.dp, Accent.copy(alpha = 0.28f), RoundedCornerShape(6.dp))
+                .padding(horizontal = 7.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -438,12 +446,13 @@ private fun HeroButton(
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(9.dp))
-            .background(Accent.copy(alpha = 0.12f))
-            .border(1.dp, Accent.copy(alpha = 0.32f), RoundedCornerShape(9.dp))
-            .noRippleClickable(onClick = onClick)
-            .padding(vertical = 7.dp),
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(9.dp))
+                .background(Accent.copy(alpha = 0.12f))
+                .border(1.dp, Accent.copy(alpha = 0.32f), RoundedCornerShape(9.dp))
+                .noRippleClickable(onClick = onClick)
+                .padding(vertical = 7.dp),
         contentAlignment = Alignment.Center,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -469,7 +478,10 @@ private fun HeroButton(
 // ============================================================================
 
 @Composable
-private fun SectionLabel(text: String, modifier: Modifier = Modifier) {
+private fun SectionLabel(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
     Text(
         text = text.uppercase(),
         color = TextSecondary,
@@ -491,23 +503,26 @@ private fun InstalledDriverCard(
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 11.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(IconBoxBg),
+                modifier =
+                    Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(IconBoxBg),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -528,9 +543,10 @@ private fun InstalledDriverCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = driver.version.ifBlank {
-                        stringResource(R.string.settings_drivers_repo_no_version)
-                    },
+                    text =
+                        driver.version.ifBlank {
+                            stringResource(R.string.settings_drivers_repo_no_version)
+                        },
                     color = TextSecondary,
                     fontSize = 11.sp,
                     maxLines = 1,
@@ -603,19 +619,21 @@ private fun RepoCard(
     var menuOpen by remember { mutableStateOf(false) }
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(CardDark)
-            .border(1.dp, borderColor, RoundedCornerShape(12.dp)),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardDark)
+                .border(1.dp, borderColor, RoundedCornerShape(12.dp)),
     ) {
         Column {
             // Header row — tappable
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .noRippleClickable(enabled = !isLoading, onClick = onTap)
-                    .padding(horizontal = 14.dp, vertical = 11.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .noRippleClickable(enabled = !isLoading, onClick = onTap)
+                        .padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 RepoIconBadge(loading = isLoading, expanded = isExpanded)
@@ -630,11 +648,12 @@ private fun RepoCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = when {
-                            isLoading -> stringResource(R.string.settings_drivers_repo_loading_releases)
-                            releases.isNotEmpty() -> stringResource(R.string.settings_drivers_repo_release_count, releases.size)
-                            else -> stringResource(R.string.settings_drivers_repo_tap_to_load)
-                        },
+                        text =
+                            when {
+                                isLoading -> stringResource(R.string.settings_drivers_repo_loading_releases)
+                                releases.isNotEmpty() -> stringResource(R.string.settings_drivers_repo_release_count, releases.size)
+                                else -> stringResource(R.string.settings_drivers_repo_tap_to_load)
+                            },
                         color = TextSecondary,
                         fontSize = 11.sp,
                         maxLines = 1,
@@ -666,7 +685,10 @@ private fun RepoCard(
                                     Text("Edit", color = TextPrimary, fontSize = 13.sp)
                                 }
                             },
-                            onClick = { menuOpen = false; onEdit() },
+                            onClick = {
+                                menuOpen = false
+                                onEdit()
+                            },
                         )
                         DropdownMenuItem(
                             text = {
@@ -681,7 +703,10 @@ private fun RepoCard(
                                     Text("Delete", color = DangerRed, fontSize = 13.sp)
                                 }
                             },
-                            onClick = { menuOpen = false; onDelete() },
+                            onClick = {
+                                menuOpen = false
+                                onDelete()
+                            },
                         )
                     }
                 }
@@ -691,26 +716,32 @@ private fun RepoCard(
                     imageVector = Icons.Outlined.ChevronRight,
                     contentDescription = null,
                     tint = if (isExpanded) Accent else TextSecondary,
-                    modifier = Modifier
-                        .size(20.dp)
-                        .rotate(chevronRotation),
+                    modifier =
+                        Modifier
+                            .size(20.dp)
+                            .rotate(chevronRotation),
                 )
             }
 
             AnimatedVisibility(
                 visible = isExpanded,
-                enter = fadeIn(tween(200)) + expandVertically(
-                    animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
-                ),
-                exit = fadeOut(tween(140)) + shrinkVertically(
-                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-                ),
+                enter =
+                    fadeIn(tween(200)) +
+                        expandVertically(
+                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                        ),
+                exit =
+                    fadeOut(tween(140)) +
+                        shrinkVertically(
+                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                        ),
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(CardDarker)
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .background(CardDarker)
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     if (isLoading && releases.isEmpty()) {
@@ -740,13 +771,17 @@ private fun RepoCard(
 }
 
 @Composable
-private fun RepoIconBadge(loading: Boolean, expanded: Boolean) {
+private fun RepoIconBadge(
+    loading: Boolean,
+    expanded: Boolean,
+) {
     val accentColor = if (expanded || loading) Accent else TextSecondary
     Box(
-        modifier = Modifier
-            .size(30.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(IconBoxBg),
+        modifier =
+            Modifier
+                .size(30.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(IconBoxBg),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -787,25 +822,28 @@ private fun ReleaseCard(
         label = "releaseChevron_${release.id}",
     )
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(CardDark)
-            .border(1.dp, borderColor, RoundedCornerShape(10.dp)),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(CardDark)
+                .border(1.dp, borderColor, RoundedCornerShape(10.dp)),
     ) {
         Column {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .noRippleClickable(onClick = onTap)
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .noRippleClickable(onClick = onTap)
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(Accent.copy(alpha = if (expanded) 1f else 0.55f)),
+                    modifier =
+                        Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(Accent.copy(alpha = if (expanded) 1f else 0.55f)),
                 )
                 Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -831,36 +869,43 @@ private fun ReleaseCard(
                     imageVector = Icons.Outlined.ChevronRight,
                     contentDescription = null,
                     tint = if (expanded) Accent else TextSecondary,
-                    modifier = Modifier
-                        .size(18.dp)
-                        .rotate(chevronRotation),
+                    modifier =
+                        Modifier
+                            .size(18.dp)
+                            .rotate(chevronRotation),
                 )
             }
 
             AnimatedVisibility(
                 visible = expanded,
-                enter = fadeIn(tween(200)) + expandVertically(
-                    animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
-                ),
-                exit = fadeOut(tween(140)) + shrinkVertically(
-                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-                ),
+                enter =
+                    fadeIn(tween(200)) +
+                        expandVertically(
+                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                        ),
+                exit =
+                    fadeOut(tween(140)) +
+                        shrinkVertically(
+                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                        ),
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp)
-                        .padding(bottom = 12.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp)
+                            .padding(bottom = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     if (release.notes.isNotBlank()) {
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(CardDarker)
-                                .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
-                                .padding(10.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(CardDarker)
+                                    .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                                    .padding(10.dp),
                         ) {
                             Text(
                                 text = release.notes,
@@ -890,12 +935,13 @@ private fun AssetRow(
     onDownload: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(SurfaceDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
-            .padding(horizontal = 12.dp, vertical = 9.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(SurfaceDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -942,11 +988,12 @@ private fun AssetRow(
 @Composable
 private fun InstalledPill() {
     Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(SuccessGreen.copy(alpha = 0.14f))
-            .border(1.dp, SuccessGreen.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(SuccessGreen.copy(alpha = 0.14f))
+                .border(1.dp, SuccessGreen.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -970,12 +1017,17 @@ private fun InstalledPill() {
 // ============================================================================
 
 @Composable
-private fun IconTapButton(icon: ImageVector, tint: Color, onClick: () -> Unit) {
+private fun IconTapButton(
+    icon: ImageVector,
+    tint: Color,
+    onClick: () -> Unit,
+) {
     Box(
-        modifier = Modifier
-            .size(30.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .noRippleClickable(onClick = onClick),
+        modifier =
+            Modifier
+                .size(30.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .noRippleClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -1001,12 +1053,13 @@ private fun SmallPillButton(
     val borderColor = if (enabled) tint.copy(alpha = 0.3f) else CardBorder
     val background = if (enabled) tint.copy(alpha = 0.14f) else CardDarker
     Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(background)
-            .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-            .then(if (enabled) Modifier.noRippleClickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(background)
+                .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                .then(if (enabled) Modifier.noRippleClickable(onClick = onClick) else Modifier)
+                .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
@@ -1028,14 +1081,19 @@ private fun SmallPillButton(
 }
 
 @Composable
-private fun DialogActionButton(label: String, textColor: Color, onClick: () -> Unit) {
+private fun DialogActionButton(
+    label: String,
+    textColor: Color,
+    onClick: () -> Unit,
+) {
     Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(CardDarker)
-            .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-            .noRippleClickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(CardDarker)
+                .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .noRippleClickable(onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -1054,22 +1112,24 @@ private fun DialogActionButton(label: String, textColor: Color, onClick: () -> U
 @Composable
 private fun EmptyRepoCard() {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-            .padding(horizontal = 16.dp, vertical = 18.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                .padding(horizontal = 16.dp, vertical = 18.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(IconBoxBg),
+                modifier =
+                    Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(IconBoxBg),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -1101,12 +1161,13 @@ private fun EmptyRepoCard() {
 @Composable
 private fun EmptyState() {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
-            .padding(horizontal = 20.dp, vertical = 28.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                .padding(horizontal = 20.dp, vertical = 28.dp),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1148,12 +1209,13 @@ private fun ConfirmDialog(
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(CardDark)
-                .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-                .padding(22.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(CardDark)
+                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .padding(22.dp),
         ) {
             Column {
                 Text(
@@ -1192,32 +1254,36 @@ private fun RepoEditDialog(
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false,
-        ),
+        properties =
+            DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+            ),
     ) {
         BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
             Box(
-                modifier = Modifier
-                    .widthIn(max = 440.dp)
-                    .fillMaxWidth()
-                    .heightIn(max = maxHeight)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                modifier =
+                    Modifier
+                        .widthIn(max = 440.dp)
+                        .fillMaxWidth()
+                        .heightIn(max = maxHeight)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(CardDark)
+                        .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
             ) {
                 Column(
-                    modifier = Modifier
-                        .wrapContentHeight()
-                        .verticalScroll(rememberScrollState()),
+                    modifier =
+                        Modifier
+                            .wrapContentHeight()
+                            .verticalScroll(rememberScrollState()),
                 ) {
                     Text(
                         text = if (existing == null) "Add Repository" else "Edit Repository",
@@ -1275,20 +1341,22 @@ private fun RepoEditDialog(
 private fun DownloadProgressDialog(progress: DownloadProgress) {
     Dialog(
         onDismissRequest = { /* non-dismissable while a transfer is in flight */ },
-        properties = DialogProperties(
-            dismissOnBackPress = false,
-            dismissOnClickOutside = false,
-            usePlatformDefaultWidth = false,
-        ),
+        properties =
+            DialogProperties(
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false,
+                usePlatformDefaultWidth = false,
+            ),
     ) {
         Box(
-            modifier = Modifier
-                .widthIn(max = 360.dp)
-                .fillMaxWidth(0.88f)
-                .clip(RoundedCornerShape(16.dp))
-                .background(CardDark)
-                .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-                .padding(horizontal = 18.dp, vertical = 16.dp),
+            modifier =
+                Modifier
+                    .widthIn(max = 360.dp)
+                    .fillMaxWidth(0.88f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(CardDark)
+                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                    .padding(horizontal = 18.dp, vertical = 16.dp),
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
@@ -1316,10 +1384,11 @@ private fun DownloadProgressDialog(progress: DownloadProgress) {
                 val barShape = RoundedCornerShape(3.dp)
                 if (progress.indeterminate) {
                     LinearProgressIndicator(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(barHeight)
-                            .clip(barShape),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(barHeight)
+                                .clip(barShape),
                         color = Accent,
                         trackColor = CardDarker,
                     )
@@ -1331,10 +1400,11 @@ private fun DownloadProgressDialog(progress: DownloadProgress) {
                     )
                     LinearProgressIndicator(
                         progress = { smoothed },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(barHeight)
-                            .clip(barShape),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(barHeight)
+                                .clip(barShape),
                         color = Accent,
                         trackColor = CardDarker,
                         drawStopIndicator = {},
@@ -1347,11 +1417,12 @@ private fun DownloadProgressDialog(progress: DownloadProgress) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    val percentText = if (progress.indeterminate) {
-                        "Working…"
-                    } else {
-                        "${(progress.progress * 100).toInt().coerceIn(0, 100)}%"
-                    }
+                    val percentText =
+                        if (progress.indeterminate) {
+                            "Working…"
+                        } else {
+                            "${(progress.progress * 100).toInt().coerceIn(0, 100)}%"
+                        }
                     Text(
                         text = percentText,
                         color = TextSecondary,
@@ -1393,13 +1464,14 @@ private fun LabeledField(
         // tappable bar instead of collapsing to the font's intrinsic line height
         // (which made typed text look squashed against the top of the box).
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .requiredHeightIn(min = 40.dp)
-                .clip(RoundedCornerShape(9.dp))
-                .background(CardDarker)
-                .border(borderWidth, borderColor, RoundedCornerShape(9.dp))
-                .padding(horizontal = 11.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .requiredHeightIn(min = 40.dp)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(CardDarker)
+                    .border(borderWidth, borderColor, RoundedCornerShape(9.dp))
+                    .padding(horizontal = 11.dp, vertical = 8.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
             BasicTextField(
@@ -1407,7 +1479,9 @@ private fun LabeledField(
                 onValueChange = onValueChange,
                 singleLine = true,
                 textStyle = TextStyle(color = TextPrimary, fontSize = 13.sp),
-                cursorBrush = androidx.compose.ui.graphics.SolidColor(Accent),
+                cursorBrush =
+                    androidx.compose.ui.graphics
+                        .SolidColor(Accent),
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
                 interactionSource = interactionSource,
                 modifier = Modifier.fillMaxWidth(),

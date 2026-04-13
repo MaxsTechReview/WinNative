@@ -10,16 +10,16 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -59,52 +59,56 @@ object CloudSyncConflictDialog {
         onUseCloud: Runnable,
         onUseLocal: Runnable,
     ) {
-        val dialog = Dialog(activity, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar).apply {
-            requestWindowFeature(Window.FEATURE_NO_TITLE)
-            setCancelable(false)
-            window?.apply {
-                setLayout(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.WRAP_CONTENT
-                )
-                setBackgroundDrawableResource(android.R.color.transparent)
-            }
-        }
-
-        val composeView = ComposeView(activity).apply {
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-            (activity as? ComponentActivity)?.let {
-                setViewTreeLifecycleOwner(it)
-                setViewTreeSavedStateRegistryOwner(it)
-            }
-            setContent {
-                MaterialTheme(
-                    colorScheme = darkColorScheme(
-                        primary = Color(0xFF57CBDE),
-                        surface = Color(0xFF1A2028),
-                        background = Color(0xFF141B24),
-                        onSurface = Color(0xFFF0F4FF),
-                        onBackground = Color(0xFFF0F4FF),
+        val dialog =
+            Dialog(activity, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar).apply {
+                requestWindowFeature(Window.FEATURE_NO_TITLE)
+                setCancelable(false)
+                window?.apply {
+                    setLayout(
+                        WindowManager.LayoutParams.MATCH_PARENT,
+                        WindowManager.LayoutParams.WRAP_CONTENT,
                     )
-                ) {
-                    CloudSyncConflictDialogContent(
-                        timestamps = timestamps,
-                        onUseCloud = {
-                            dialog.dismiss()
-                            onUseCloud.run()
-                        },
-                        onUseLocal = {
-                            dialog.dismiss()
-                            onUseLocal.run()
-                        }
-                    )
+                    setBackgroundDrawableResource(android.R.color.transparent)
                 }
             }
-        }
+
+        val composeView =
+            ComposeView(activity).apply {
+                layoutParams =
+                    ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                    )
+                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+                (activity as? ComponentActivity)?.let {
+                    setViewTreeLifecycleOwner(it)
+                    setViewTreeSavedStateRegistryOwner(it)
+                }
+                setContent {
+                    MaterialTheme(
+                        colorScheme =
+                            darkColorScheme(
+                                primary = Color(0xFF57CBDE),
+                                surface = Color(0xFF1A2028),
+                                background = Color(0xFF141B24),
+                                onSurface = Color(0xFFF0F4FF),
+                                onBackground = Color(0xFFF0F4FF),
+                            ),
+                    ) {
+                        CloudSyncConflictDialogContent(
+                            timestamps = timestamps,
+                            onUseCloud = {
+                                dialog.dismiss()
+                                onUseCloud.run()
+                            },
+                            onUseLocal = {
+                                dialog.dismiss()
+                                onUseLocal.run()
+                            },
+                        )
+                    }
+                }
+            }
 
         dialog.setContentView(composeView)
         dialog.show()
@@ -121,27 +125,30 @@ private fun CloudSyncConflictDialogContent(
     LaunchedEffect(Unit) { visible = true }
 
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
         shape = RoundedCornerShape(24.dp),
         color = Color(0xFF171E27),
         tonalElevation = 0.dp,
     ) {
         AnimatedVisibility(
             visible = visible,
-            enter = fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
-                expandVertically(animationSpec = tween(240, easing = FastOutSlowInEasing))
+            enter =
+                fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                    expandVertically(animationSpec = tween(240, easing = FastOutSlowInEasing)),
         ) {
             Column(
-                modifier = Modifier
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(Color(0xFF1B2430), Color(0xFF151B24))
-                        )
-                    )
-                    .border(1.dp, Color(0xFF263547), RoundedCornerShape(24.dp))
-                    .padding(20.dp),
+                modifier =
+                    Modifier
+                        .background(
+                            brush =
+                                Brush.verticalGradient(
+                                    colors = listOf(Color(0xFF1B2430), Color(0xFF151B24)),
+                                ),
+                        ).border(1.dp, Color(0xFF263547), RoundedCornerShape(24.dp))
+                        .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Surface(
@@ -172,14 +179,16 @@ private fun CloudSyncConflictDialogContent(
                 Surface(
                     shape = RoundedCornerShape(18.dp),
                     color = Color(0xFF121922),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(1.dp, Color(0xFF233141), RoundedCornerShape(18.dp))
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, Color(0xFF233141), RoundedCornerShape(18.dp)),
                 ) {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         Text(
@@ -211,20 +220,22 @@ private fun CloudSyncConflictDialogContent(
                     OutlinedButton(
                         onClick = onUseLocal,
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        ),
-                        border = BorderStroke(1.dp, Color(0xFF31455B))
+                        colors =
+                            ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.onSurface,
+                            ),
+                        border = BorderStroke(1.dp, Color(0xFF31455B)),
                     ) {
                         Text("Keep Local")
                     }
                     Button(
                         onClick = onUseCloud,
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF57CBDE),
-                            contentColor = Color(0xFF0E141B)
-                        )
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF57CBDE),
+                                contentColor = Color(0xFF0E141B),
+                            ),
                     ) {
                         Text("Sync from Cloud")
                     }

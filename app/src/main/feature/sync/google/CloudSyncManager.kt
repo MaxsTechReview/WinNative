@@ -68,7 +68,7 @@ object CloudSyncManager {
         val cloudStores: Set<String> = emptySet(),
         val lastSyncTime: Long? = null,
         val status: SyncStatus = SyncStatus.NOT_SIGNED_IN,
-        val detail: String = ""
+        val detail: String = "",
     )
 
     enum class SyncStatus {
@@ -77,18 +77,18 @@ object CloudSyncManager {
         SYNCED,
         BACKUP_PENDING,
         RESTORE_AVAILABLE,
-        ERROR
+        ERROR,
     }
 
     private data class StorePayload(
         val createdAt: Long,
         val stores: Map<String, ByteArray>,
-        val fingerprint: String
+        val fingerprint: String,
     )
 
     private data class SnapshotReadResult(
         val payload: StorePayload?,
-        val lastModifiedTime: Long?
+        val lastModifiedTime: Long?,
     )
 
     private data class SyncSummary(
@@ -96,36 +96,47 @@ object CloudSyncManager {
         val uploadedStores: Set<String> = emptySet(),
         val localStores: Set<String> = emptySet(),
         val cloudStores: Set<String> = emptySet(),
-        val lastSyncTime: Long? = null
+        val lastSyncTime: Long? = null,
     ) {
-        fun message(context: Context): String {
-            return when {
-                restoredStores.isNotEmpty() && uploadedStores.isNotEmpty() ->
+        fun message(context: Context): String =
+            when {
+                restoredStores.isNotEmpty() && uploadedStores.isNotEmpty() -> {
                     context.getString(R.string.google_cloud_logins_restored_and_synced, restoredStores.union(uploadedStores).joinToString())
-                restoredStores.isNotEmpty() ->
+                }
+
+                restoredStores.isNotEmpty() -> {
                     context.getString(R.string.google_cloud_logins_restored, restoredStores.joinToString())
-                uploadedStores.isNotEmpty() ->
+                }
+
+                uploadedStores.isNotEmpty() -> {
                     context.getString(R.string.google_cloud_logins_backed_up, uploadedStores.joinToString())
-                cloudStores.isNotEmpty() ->
+                }
+
+                cloudStores.isNotEmpty() -> {
                     context.getString(R.string.google_cloud_sync_ready)
-                else ->
+                }
+
+                else -> {
                     context.getString(R.string.google_cloud_no_logins_to_sync)
+                }
             }
-        }
     }
 
     private data class EffectiveSyncGate(
         val syncEnabled: Boolean,
         val authenticated: Boolean,
-        val adoptedExistingSession: Boolean
+        val adoptedExistingSession: Boolean,
     )
 
     private data class SyncEntryResult(
         val state: StoreLoginSyncState,
-        val autoRestoreSummary: SyncSummary? = null
+        val autoRestoreSummary: SyncSummary? = null,
     )
 
-    fun signIn(activity: Activity, callback: (Boolean, String) -> Unit) {
+    fun signIn(
+        activity: Activity,
+        callback: (Boolean, String) -> Unit,
+    ) {
         val gamesSignInClient = PlayGames.getGamesSignInClient(activity)
         Log.i(TAG, "Starting Google Play Games sign-in for store login sync")
         Timber.tag(TAG).i("Starting Google Play Games sign-in for store login sync")
@@ -144,7 +155,7 @@ object CloudSyncManager {
 
     private fun startCloudSyncSession(
         activity: Activity,
-        callback: (Boolean, String) -> Unit
+        callback: (Boolean, String) -> Unit,
     ) {
         scope.launch {
             prefs(activity).edit().putBoolean(KEY_GOOGLE_SYNC_ENABLED, true).apply()
@@ -152,44 +163,59 @@ object CloudSyncManager {
             if (!awaitAuthenticatedSession(activity)) {
                 callback(
                     false,
-                    activity.getString(R.string.google_cloud_sign_in_finishing)
+                    activity.getString(R.string.google_cloud_sign_in_finishing),
                 )
                 return@launch
             }
 
             Timber.tag(TAG).i("Play Games session ready; checking Saved Games state and auto-restoring missing store tokens")
-            val message = runCatching {
-                val summary = autoRestoreMissingStoresFromCloud(activity, reason = "manual_sign_in")
-                val state = readStateInternal(activity, authenticated = true)
-                when {
-                    summary.restoredStores.isNotEmpty() ->
-                        summary.message(activity)
-                    state.cloudStores.isNotEmpty() && state.cloudStores != state.localStores ->
-                        activity.getString(R.string.google_cloud_connected_restore_available, state.cloudStores.joinToString())
-                    state.localStores.isNotEmpty() ->
-                        activity.getString(R.string.google_cloud_connected_tap_backup, state.localStores.joinToString())
-                    else ->
-                        activity.getString(R.string.google_cloud_connected_ready)
+            val message =
+                runCatching {
+                    val summary = autoRestoreMissingStoresFromCloud(activity, reason = "manual_sign_in")
+                    val state = readStateInternal(activity, authenticated = true)
+                    when {
+                        summary.restoredStores.isNotEmpty() -> {
+                            summary.message(activity)
+                        }
+
+                        state.cloudStores.isNotEmpty() && state.cloudStores != state.localStores -> {
+                            activity.getString(R.string.google_cloud_connected_restore_available, state.cloudStores.joinToString())
+                        }
+
+                        state.localStores.isNotEmpty() -> {
+                            activity.getString(R.string.google_cloud_connected_tap_backup, state.localStores.joinToString())
+                        }
+
+                        else -> {
+                            activity.getString(R.string.google_cloud_connected_ready)
+                        }
+                    }
+                }.getOrElse { error ->
+                    rememberSyncError(activity, error)
                 }
-            }.getOrElse { error ->
-                rememberSyncError(activity, error)
-            }
             callback(true, message)
         }
     }
 
-    fun signOut(activity: Activity, callback: (Boolean, String) -> Unit) {
+    fun signOut(
+        activity: Activity,
+        callback: (Boolean, String) -> Unit,
+    ) {
         Log.i(TAG, "Disabling Google Play Games store login sync")
         Timber.tag(TAG).i("Disabling Google Play Games sync for this app")
 
-        prefs(activity).edit()
+        prefs(activity)
+            .edit()
             .putBoolean(KEY_GOOGLE_SYNC_ENABLED, false)
             .apply()
         clearSyncError(activity)
         callback(true, activity.getString(R.string.google_cloud_sync_disabled))
     }
 
-    fun isAuthenticated(activity: Activity, callback: (Boolean) -> Unit) {
+    fun isAuthenticated(
+        activity: Activity,
+        callback: (Boolean) -> Unit,
+    ) {
         val gamesSignInClient = PlayGames.getGamesSignInClient(activity)
         gamesSignInClient.isAuthenticated.addOnCompleteListener { task ->
             val authenticated = task.isSuccessful && task.result?.isAuthenticated == true
@@ -200,25 +226,24 @@ object CloudSyncManager {
     fun queueStoreLoginBackup(context: Context) {
         Timber.tag(TAG).i(
             "Ignoring automatic store login backup request for %s; backups are manual-only",
-            context.packageName
+            context.packageName,
         )
     }
 
     fun flushPendingBackup(activity: Activity) {
         Timber.tag(TAG).v(
             "Skipping automatic store login backup flush for %s; backups are manual-only",
-            activity::class.java.simpleName
+            activity::class.java.simpleName,
         )
     }
 
-    suspend fun syncOnGoogleScreenOpened(activity: Activity): StoreLoginSyncState {
-        return withContext(Dispatchers.IO) {
+    suspend fun syncOnGoogleScreenOpened(activity: Activity): StoreLoginSyncState =
+        withContext(Dispatchers.IO) {
             readSyncEntryState(
                 activity = activity,
-                entryReason = "google_screen_opened"
+                entryReason = "google_screen_opened",
             ).state
         }
-    }
 
     suspend fun bootstrapOnHomeScreenArrival(activity: Activity): String? {
         return withContext(Dispatchers.IO) {
@@ -227,18 +252,21 @@ object CloudSyncManager {
             var attempt = 0
 
             while (SystemClock.elapsedRealtime() < timeoutAt) {
-                val entryReason = if (attempt == 0) {
-                    "home_screen_bootstrap"
-                } else {
-                    "home_screen_bootstrap_retry_$attempt"
-                }
-                val entry = readSyncEntryState(
-                    activity = activity,
-                    entryReason = entryReason
-                )
-                val restoredToastMessage = entry.autoRestoreSummary
-                    ?.takeIf { it.restoredStores.isNotEmpty() }
-                    ?.message(activity)
+                val entryReason =
+                    if (attempt == 0) {
+                        "home_screen_bootstrap"
+                    } else {
+                        "home_screen_bootstrap_retry_$attempt"
+                    }
+                val entry =
+                    readSyncEntryState(
+                        activity = activity,
+                        entryReason = entryReason,
+                    )
+                val restoredToastMessage =
+                    entry.autoRestoreSummary
+                        ?.takeIf { it.restoredStores.isNotEmpty() }
+                        ?.message(activity)
                 if (restoredToastMessage != null) {
                     return@withContext restoredToastMessage
                 }
@@ -264,7 +292,7 @@ object CloudSyncManager {
                     googleSignedIn = false,
                     localStores = collectLocalStoreNames(activity),
                     status = SyncStatus.NOT_SIGNED_IN,
-                    detail = activity.getString(R.string.google_cloud_sign_in_to_sync)
+                    detail = activity.getString(R.string.google_cloud_sign_in_to_sync),
                 )
             }
             Timber.tag(TAG).d("Reading store login sync state; authenticated=%s", syncGate.authenticated)
@@ -286,25 +314,27 @@ object CloudSyncManager {
             clearSyncError(activity)
             Timber.tag(TAG).i("Starting manual store login restore")
             runCatching {
-                val summary = syncMutex.withLock {
-                    val remote = readRemotePayload(activity)
-                    val payload = remote.payload ?: return@withLock SyncSummary(
-                        localStores = collectLocalStoreNames(activity),
-                        cloudStores = emptySet()
-                    )
+                val summary =
+                    syncMutex.withLock {
+                        val remote = readRemotePayload(activity)
+                        val payload =
+                            remote.payload ?: return@withLock SyncSummary(
+                                localStores = collectLocalStoreNames(activity),
+                                cloudStores = emptySet(),
+                            )
 
-                    val restored = restoreMissingStores(activity, payload)
-                    if (restored.isNotEmpty()) {
-                        rehydrateRestoredStores(activity, restored)
+                        val restored = restoreMissingStores(activity, payload)
+                        if (restored.isNotEmpty()) {
+                            rehydrateRestoredStores(activity, restored)
+                        }
+                        val local = collectLocalPayload(activity)
+                        SyncSummary(
+                            restoredStores = restored,
+                            localStores = local.stores.keys,
+                            cloudStores = payload.stores.keys,
+                            lastSyncTime = remote.lastModifiedTime ?: payload.createdAt,
+                        )
                     }
-                    val local = collectLocalPayload(activity)
-                    SyncSummary(
-                        restoredStores = restored,
-                        localStores = local.stores.keys,
-                        cloudStores = payload.stores.keys,
-                        lastSyncTime = remote.lastModifiedTime ?: payload.createdAt
-                    )
-                }
 
                 clearSyncError(activity)
                 if (summary.cloudStores.isEmpty()) {
@@ -332,30 +362,34 @@ object CloudSyncManager {
             clearSyncError(activity)
             Timber.tag(TAG).i("Starting manual store login backup")
             runCatching {
-                val summary = syncMutex.withLock {
-                    val localPayload = collectLocalPayload(activity)
-                    val remotePayload = readRemotePayload(activity).payload
-                    if (localPayload.stores.isEmpty()) {
-                        return@withLock SyncSummary(
-                            localStores = emptySet(),
-                            cloudStores = remotePayload?.stores?.keys ?: emptySet(),
-                            lastSyncTime = readRemotePayload(activity).lastModifiedTime ?: prefs(activity).getLong(KEY_LAST_SYNC_TIME, 0L).takeIf { it > 0L }
+                val summary =
+                    syncMutex.withLock {
+                        val localPayload = collectLocalPayload(activity)
+                        val remotePayload = readRemotePayload(activity).payload
+                        if (localPayload.stores.isEmpty()) {
+                            return@withLock SyncSummary(
+                                localStores = emptySet(),
+                                cloudStores = remotePayload?.stores?.keys ?: emptySet(),
+                                lastSyncTime =
+                                    readRemotePayload(activity).lastModifiedTime
+                                        ?: prefs(activity).getLong(KEY_LAST_SYNC_TIME, 0L).takeIf { it > 0L },
+                            )
+                        }
+                        val shouldUpload = remotePayload == null || localPayload.fingerprint != remotePayload.fingerprint
+                        val uploaded = if (shouldUpload) backupPayload(activity, localPayload) else emptySet()
+                        val effectiveCloudStores =
+                            if (uploaded.isNotEmpty()) {
+                                localPayload.stores.keys
+                            } else {
+                                remotePayload?.stores?.keys ?: localPayload.stores.keys
+                            }
+                        SyncSummary(
+                            uploadedStores = uploaded,
+                            localStores = localPayload.stores.keys,
+                            cloudStores = effectiveCloudStores,
+                            lastSyncTime = prefs(activity).getLong(KEY_LAST_SYNC_TIME, 0L).takeIf { it > 0L },
                         )
                     }
-                    val shouldUpload = remotePayload == null || localPayload.fingerprint != remotePayload.fingerprint
-                    val uploaded = if (shouldUpload) backupPayload(activity, localPayload) else emptySet()
-                    val effectiveCloudStores = if (uploaded.isNotEmpty()) {
-                        localPayload.stores.keys
-                    } else {
-                        remotePayload?.stores?.keys ?: localPayload.stores.keys
-                    }
-                    SyncSummary(
-                        uploadedStores = uploaded,
-                        localStores = localPayload.stores.keys,
-                        cloudStores = effectiveCloudStores,
-                        lastSyncTime = prefs(activity).getLong(KEY_LAST_SYNC_TIME, 0L).takeIf { it > 0L }
-                    )
-                }
 
                 clearSyncError(activity)
                 if (summary.uploadedStores.isNotEmpty()) {
@@ -373,9 +407,9 @@ object CloudSyncManager {
 
     private suspend fun performSmartSync(
         activity: Activity,
-        preferRestoreForMissingStores: Boolean
-    ): SyncSummary {
-        return withContext(Dispatchers.IO) {
+        preferRestoreForMissingStores: Boolean,
+    ): SyncSummary =
+        withContext(Dispatchers.IO) {
             syncMutex.withLock {
                 val localBefore = collectLocalPayload(activity)
                 val remote = readRemotePayload(activity)
@@ -384,14 +418,15 @@ object CloudSyncManager {
                     "performSmartSync localStores=%s remoteStores=%s preferRestore=%s",
                     localBefore.stores.keys,
                     remotePayload?.stores?.keys ?: emptySet<String>(),
-                    preferRestoreForMissingStores
+                    preferRestoreForMissingStores,
                 )
 
-                val restoredStores = if (preferRestoreForMissingStores && remotePayload != null) {
-                    restoreMissingStores(activity, remotePayload)
-                } else {
-                    emptySet()
-                }
+                val restoredStores =
+                    if (preferRestoreForMissingStores && remotePayload != null) {
+                        restoreMissingStores(activity, remotePayload)
+                    } else {
+                        emptySet()
+                    }
                 if (restoredStores.isNotEmpty()) {
                     rehydrateRestoredStores(activity, restoredStores)
                 }
@@ -403,22 +438,24 @@ object CloudSyncManager {
                     restoredStores = restoredStores,
                     localStores = localAfterRestore.stores.keys,
                     cloudStores = effectiveCloudStores,
-                    lastSyncTime = remote.lastModifiedTime ?: remotePayload?.createdAt
+                    lastSyncTime = remote.lastModifiedTime ?: remotePayload?.createdAt,
                 )
             }
         }
-    }
 
     private suspend fun performBackupIfAuthenticated(activity: Activity) {
         withContext(Dispatchers.IO) {
             Timber.tag(TAG).v(
                 "performBackupIfAuthenticated skipped for %s; backups are manual-only",
-                activity::class.java.simpleName
+                activity::class.java.simpleName,
             )
         }
     }
 
-    private suspend fun rehydrateRestoredStores(context: Context, restoredStores: Set<String>) {
+    private suspend fun rehydrateRestoredStores(
+        context: Context,
+        restoredStores: Set<String>,
+    ) {
         if (STORE_STEAM in restoredStores) {
             rehydrateSteamSession(context)
         }
@@ -476,7 +513,7 @@ object CloudSyncManager {
     private suspend fun waitForCondition(
         timeoutMillis: Long,
         pollIntervalMillis: Long = 250L,
-        predicate: () -> Boolean
+        predicate: () -> Boolean,
     ): Boolean {
         val maxAttempts = (timeoutMillis / pollIntervalMillis).toInt().coerceAtLeast(1)
         repeat(maxAttempts) {
@@ -488,7 +525,10 @@ object CloudSyncManager {
         return predicate()
     }
 
-    private suspend fun backupPayload(activity: Activity, payload: StorePayload): Set<String> {
+    private suspend fun backupPayload(
+        activity: Activity,
+        payload: StorePayload,
+    ): Set<String> {
         val client = freshSnapshotsClient(activity) ?: return emptySet()
         Log.i(TAG, "Opening snapshot for backup: $SNAPSHOT_NAME")
         Timber.tag(TAG).i("Opening snapshot for backup: %s", SNAPSHOT_NAME)
@@ -500,17 +540,20 @@ object CloudSyncManager {
                 throw IllegalStateException("Unable to write snapshot contents")
             }
 
-            val metadata = SnapshotMetadataChange.Builder()
-                .setDescription("Store logins: ${payload.stores.keys.joinToString()}")
-                .setPlayedTimeMillis(0L)
-                .setProgressValue(payload.stores.size.toLong())
-                .build()
+            val metadata =
+                SnapshotMetadataChange
+                    .Builder()
+                    .setDescription("Store logins: ${payload.stores.keys.joinToString()}")
+                    .setPlayedTimeMillis(0L)
+                    .setProgressValue(payload.stores.size.toLong())
+                    .build()
 
             Tasks.await(client.commitAndClose(snapshot, metadata))
             clearSyncError(activity)
             Timber.tag(TAG).i("Snapshot commitAndClose succeeded for stores=%s", payload.stores.keys)
 
-            prefs(activity).edit()
+            prefs(activity)
+                .edit()
                 .putLong(KEY_LAST_SYNC_TIME, System.currentTimeMillis())
                 .apply()
 
@@ -535,7 +578,7 @@ object CloudSyncManager {
                 "Read snapshot bytes=%d remoteStores=%s lastModified=%d",
                 bytes.size,
                 payload?.stores?.keys ?: emptySet<String>(),
-                modifiedTime
+                modifiedTime,
             )
             Tasks.await(client.discardAndClose(snapshot))
             SnapshotReadResult(payload, modifiedTime)
@@ -549,7 +592,7 @@ object CloudSyncManager {
     private suspend fun openSnapshot(
         context: Context,
         client: SnapshotsClient,
-        createIfMissing: Boolean
+        createIfMissing: Boolean,
     ): Snapshot? {
         repeat(AUTH_SESSION_RETRY_COUNT) { attempt ->
             try {
@@ -558,15 +601,16 @@ object CloudSyncManager {
                     "SnapshotsClient.open(name=%s, createIfMissing=%s, attempt=%d)",
                     SNAPSHOT_NAME,
                     createIfMissing,
-                    attempt + 1
+                    attempt + 1,
                 )
-                val result = Tasks.await(
-                    client.open(
-                        SNAPSHOT_NAME,
-                        createIfMissing,
-                        SnapshotsClient.RESOLUTION_POLICY_MOST_RECENTLY_MODIFIED
+                val result =
+                    Tasks.await(
+                        client.open(
+                            SNAPSHOT_NAME,
+                            createIfMissing,
+                            SnapshotsClient.RESOLUTION_POLICY_MOST_RECENTLY_MODIFIED,
+                        ),
                     )
-                )
                 if (result.isConflict) {
                     Timber.tag(TAG).w("Snapshot conflict detected for %s", SNAPSHOT_NAME)
                 } else {
@@ -582,7 +626,7 @@ object CloudSyncManager {
                     Timber.tag(TAG).w(
                         error,
                         "Snapshot open hit transient sign-in state; retrying in %d ms",
-                        AUTH_SESSION_RETRY_DELAY_MS
+                        AUTH_SESSION_RETRY_DELAY_MS,
                     )
                     delay(AUTH_SESSION_RETRY_DELAY_MS)
                     return@repeat
@@ -595,20 +639,18 @@ object CloudSyncManager {
         return null
     }
 
-    private suspend fun freshSnapshotsClient(activity: Activity): SnapshotsClient? {
-        return PlayGames.getSnapshotsClient(activity)
-    }
+    private suspend fun freshSnapshotsClient(activity: Activity): SnapshotsClient? = PlayGames.getSnapshotsClient(activity)
 
     fun onSavedGamesPermissionResult(activity: Activity) {
         Timber.tag(TAG).w(
             "Ignoring legacy Saved Games permission callback after Play Games v2-only sync migration for %s",
-            activity::class.java.simpleName
+            activity::class.java.simpleName,
         )
     }
 
     private suspend fun readStateInternal(
         activity: Activity,
-        authenticated: Boolean
+        authenticated: Boolean,
     ): StoreLoginSyncState {
         val localStores = collectLocalStoreNames(activity)
         if (!authenticated) {
@@ -616,48 +658,73 @@ object CloudSyncManager {
                 googleSignedIn = false,
                 localStores = localStores,
                 status = SyncStatus.NOT_SIGNED_IN,
-                detail = if (localStores.isEmpty()) {
-                    activity.getString(R.string.google_cloud_sign_in_to_sync)
-                } else {
-                    activity.getString(R.string.google_cloud_sign_in_to_backup, localStores.joinToString())
-                }
+                detail =
+                    if (localStores.isEmpty()) {
+                        activity.getString(R.string.google_cloud_sign_in_to_sync)
+                    } else {
+                        activity.getString(R.string.google_cloud_sign_in_to_backup, localStores.joinToString())
+                    },
             )
         }
 
         return try {
             val remote = readRemotePayload(activity)
             val cloudStores = remote.payload?.stores?.keys ?: emptySet()
-            val status = when {
-                cloudStores.isEmpty() && localStores.isEmpty() -> SyncStatus.EMPTY
-                cloudStores.isNotEmpty() && cloudStores == localStores -> SyncStatus.SYNCED
-                cloudStores.isNotEmpty() && cloudStores.containsAll(localStores) -> SyncStatus.RESTORE_AVAILABLE
-                localStores.isNotEmpty() && localStores.containsAll(cloudStores) -> SyncStatus.BACKUP_PENDING
-                cloudStores.isNotEmpty() && localStores.isNotEmpty() -> SyncStatus.BACKUP_PENDING
-                localStores.isNotEmpty() -> SyncStatus.BACKUP_PENDING
-                else -> SyncStatus.EMPTY
-            }
-            val detail = when (status) {
-                SyncStatus.EMPTY -> activity.getString(R.string.google_cloud_no_backed_up_logins)
-                SyncStatus.BACKUP_PENDING -> when {
-                    cloudStores.isNotEmpty() && localStores.isNotEmpty() && cloudStores != localStores ->
-                        activity.getString(R.string.google_cloud_local_cloud_differ)
-                    localStores.isNotEmpty() ->
-                        activity.getString(R.string.google_cloud_local_ready_to_backup, localStores.joinToString())
-                    else ->
-                        activity.getString(R.string.google_cloud_backup_ready)
+            val status =
+                when {
+                    cloudStores.isEmpty() && localStores.isEmpty() -> SyncStatus.EMPTY
+                    cloudStores.isNotEmpty() && cloudStores == localStores -> SyncStatus.SYNCED
+                    cloudStores.isNotEmpty() && cloudStores.containsAll(localStores) -> SyncStatus.RESTORE_AVAILABLE
+                    localStores.isNotEmpty() && localStores.containsAll(cloudStores) -> SyncStatus.BACKUP_PENDING
+                    cloudStores.isNotEmpty() && localStores.isNotEmpty() -> SyncStatus.BACKUP_PENDING
+                    localStores.isNotEmpty() -> SyncStatus.BACKUP_PENDING
+                    else -> SyncStatus.EMPTY
                 }
-                SyncStatus.RESTORE_AVAILABLE -> activity.getString(R.string.google_cloud_restore_available, cloudStores.joinToString())
-                SyncStatus.SYNCED -> activity.getString(R.string.google_cloud_logins_synced)
-                SyncStatus.NOT_SIGNED_IN -> activity.getString(R.string.google_cloud_sign_in_to_sync)
-                SyncStatus.ERROR -> activity.getString(R.string.google_cloud_sync_problem)
-            }
+            val detail =
+                when (status) {
+                    SyncStatus.EMPTY -> {
+                        activity.getString(R.string.google_cloud_no_backed_up_logins)
+                    }
+
+                    SyncStatus.BACKUP_PENDING -> {
+                        when {
+                            cloudStores.isNotEmpty() && localStores.isNotEmpty() && cloudStores != localStores -> {
+                                activity.getString(R.string.google_cloud_local_cloud_differ)
+                            }
+
+                            localStores.isNotEmpty() -> {
+                                activity.getString(R.string.google_cloud_local_ready_to_backup, localStores.joinToString())
+                            }
+
+                            else -> {
+                                activity.getString(R.string.google_cloud_backup_ready)
+                            }
+                        }
+                    }
+
+                    SyncStatus.RESTORE_AVAILABLE -> {
+                        activity.getString(R.string.google_cloud_restore_available, cloudStores.joinToString())
+                    }
+
+                    SyncStatus.SYNCED -> {
+                        activity.getString(R.string.google_cloud_logins_synced)
+                    }
+
+                    SyncStatus.NOT_SIGNED_IN -> {
+                        activity.getString(R.string.google_cloud_sign_in_to_sync)
+                    }
+
+                    SyncStatus.ERROR -> {
+                        activity.getString(R.string.google_cloud_sync_problem)
+                    }
+                }
             StoreLoginSyncState(
                 googleSignedIn = true,
                 localStores = localStores,
                 cloudStores = cloudStores,
                 lastSyncTime = remote.lastModifiedTime ?: prefs(activity).getLong(KEY_LAST_SYNC_TIME, 0L).takeIf { it > 0L },
                 status = status,
-                detail = detail
+                detail = detail,
             )
         } catch (error: Exception) {
             val detail = rememberSyncError(activity, error)
@@ -666,14 +733,12 @@ object CloudSyncManager {
                 googleSignedIn = true,
                 localStores = localStores,
                 status = SyncStatus.ERROR,
-                detail = detail
+                detail = detail,
             )
         }
     }
 
-    private fun collectLocalStoreNames(context: Context): Set<String> {
-        return collectLocalPayload(context).stores.keys
-    }
+    private fun collectLocalStoreNames(context: Context): Set<String> = collectLocalPayload(context).stores.keys
 
     private fun collectLocalPayload(context: Context): StorePayload {
         PrefManager.init(context)
@@ -695,17 +760,18 @@ object CloudSyncManager {
             return null
         }
 
-        val json = JSONObject().apply {
-            put("username", PrefManager.username)
-            put("refreshToken", PrefManager.refreshToken)
-            put("accessToken", PrefManager.accessToken)
-            put("steamUserSteamId64", PrefManager.steamUserSteamId64)
-            put("steamUserAccountId", PrefManager.steamUserAccountId)
-            put("steamUserName", PrefManager.steamUserName)
-            put("steamUserAvatarHash", PrefManager.steamUserAvatarHash)
-            put("personaState", PrefManager.personaState)
-            put("clientId", PrefManager.clientId)
-        }
+        val json =
+            JSONObject().apply {
+                put("username", PrefManager.username)
+                put("refreshToken", PrefManager.refreshToken)
+                put("accessToken", PrefManager.accessToken)
+                put("steamUserSteamId64", PrefManager.steamUserSteamId64)
+                put("steamUserAccountId", PrefManager.steamUserAccountId)
+                put("steamUserName", PrefManager.steamUserName)
+                put("steamUserAvatarHash", PrefManager.steamUserAvatarHash)
+                put("personaState", PrefManager.personaState)
+                put("clientId", PrefManager.clientId)
+            }
         return json.toString().toByteArray(StandardCharsets.UTF_8)
     }
 
@@ -725,19 +791,30 @@ object CloudSyncManager {
         return if (file.exists()) file.readBytes() else null
     }
 
-    private fun restoreMissingStores(context: Context, payload: StorePayload): Set<String> {
+    private fun restoreMissingStores(
+        context: Context,
+        payload: StorePayload,
+    ): Set<String> {
         val restored = linkedSetOf<String>()
 
         for ((store, bytes) in payload.stores) {
             when (store) {
-                STORE_STEAM -> if (!SteamService.hasStoredCredentials(context) && restoreSteam(context, bytes)) {
-                    restored += STORE_STEAM
+                STORE_STEAM -> {
+                    if (!SteamService.hasStoredCredentials(context) && restoreSteam(context, bytes)) {
+                        restored += STORE_STEAM
+                    }
                 }
-                STORE_EPIC -> if (!EpicAuthManager.hasStoredCredentials(context) && restoreEpic(context, bytes)) {
-                    restored += STORE_EPIC
+
+                STORE_EPIC -> {
+                    if (!EpicAuthManager.hasStoredCredentials(context) && restoreEpic(context, bytes)) {
+                        restored += STORE_EPIC
+                    }
                 }
-                STORE_GOG -> if (!GOGAuthManager.hasStoredCredentials(context) && restoreGog(context, bytes)) {
-                    restored += STORE_GOG
+
+                STORE_GOG -> {
+                    if (!GOGAuthManager.hasStoredCredentials(context) && restoreGog(context, bytes)) {
+                        restored += STORE_GOG
+                    }
                 }
             }
         }
@@ -745,8 +822,11 @@ object CloudSyncManager {
         return restored
     }
 
-    private fun restoreSteam(context: Context, bytes: ByteArray): Boolean {
-        return runCatching {
+    private fun restoreSteam(
+        context: Context,
+        bytes: ByteArray,
+    ): Boolean =
+        runCatching {
             Timber.tag(TAG).i("Restoring Steam login tokens from cloud payload")
             val json = JSONObject(String(bytes, StandardCharsets.UTF_8))
             PrefManager.init(context)
@@ -766,10 +846,12 @@ object CloudSyncManager {
             Timber.tag(TAG).e(error, "Failed to restore Steam login tokens")
             false
         }
-    }
 
-    private fun restoreEpic(context: Context, bytes: ByteArray): Boolean {
-        return runCatching {
+    private fun restoreEpic(
+        context: Context,
+        bytes: ByteArray,
+    ): Boolean =
+        runCatching {
             Timber.tag(TAG).i("Restoring Epic login tokens from cloud payload")
             val file = File(context.filesDir, "epic/credentials.json")
             file.parentFile?.mkdirs()
@@ -781,10 +863,12 @@ object CloudSyncManager {
             Timber.tag(TAG).e(error, "Failed to restore Epic login tokens")
             false
         }
-    }
 
-    private fun restoreGog(context: Context, bytes: ByteArray): Boolean {
-        return runCatching {
+    private fun restoreGog(
+        context: Context,
+        bytes: ByteArray,
+    ): Boolean =
+        runCatching {
             Timber.tag(TAG).i("Restoring GOG login tokens from cloud payload")
             val file = File(GOGAuthManager.getAuthConfigPath(context))
             file.parentFile?.mkdirs()
@@ -796,26 +880,27 @@ object CloudSyncManager {
             Timber.tag(TAG).e(error, "Failed to restore GOG login tokens")
             false
         }
-    }
 
     private fun payloadToZip(payload: StorePayload): ByteArray {
         val output = ByteArrayOutputStream()
         ZipOutputStream(output).use { zip ->
-            val manifest = JSONObject().apply {
-                put("version", 1)
-                put("createdAt", payload.createdAt)
-                put("fingerprint", payload.fingerprint)
-                put("stores", JSONArray(payload.stores.keys.toList()))
-            }
+            val manifest =
+                JSONObject().apply {
+                    put("version", 1)
+                    put("createdAt", payload.createdAt)
+                    put("fingerprint", payload.fingerprint)
+                    put("stores", JSONArray(payload.stores.keys.toList()))
+                }
             writeZipEntry(zip, ZIP_MANIFEST, manifest.toString(2).toByteArray(StandardCharsets.UTF_8))
 
             payload.stores.forEach { (store, data) ->
-                val entryName = when (store) {
-                    STORE_STEAM -> ZIP_STEAM
-                    STORE_EPIC -> ZIP_EPIC
-                    STORE_GOG -> ZIP_GOG
-                    else -> null
-                }
+                val entryName =
+                    when (store) {
+                        STORE_STEAM -> ZIP_STEAM
+                        STORE_EPIC -> ZIP_EPIC
+                        STORE_GOG -> ZIP_GOG
+                        else -> null
+                    }
                 if (entryName != null) {
                     writeZipEntry(zip, entryName, data)
                 }
@@ -839,9 +924,18 @@ object CloudSyncManager {
                         createdAt = manifest.optLong("createdAt", 0L)
                         fingerprint = manifest.optString("fingerprint").takeIf { it.isNotBlank() }
                     }
-                    ZIP_STEAM -> stores[STORE_STEAM] = entryBytes
-                    ZIP_EPIC -> stores[STORE_EPIC] = entryBytes
-                    ZIP_GOG -> stores[STORE_GOG] = entryBytes
+
+                    ZIP_STEAM -> {
+                        stores[STORE_STEAM] = entryBytes
+                    }
+
+                    ZIP_EPIC -> {
+                        stores[STORE_EPIC] = entryBytes
+                    }
+
+                    ZIP_GOG -> {
+                        stores[STORE_GOG] = entryBytes
+                    }
                 }
                 zip.closeEntry()
                 entry = zip.nextEntry
@@ -856,11 +950,15 @@ object CloudSyncManager {
         return StorePayload(
             createdAt = if (createdAt > 0L) createdAt else System.currentTimeMillis(),
             stores = stores,
-            fingerprint = resolvedFingerprint
+            fingerprint = resolvedFingerprint,
         )
     }
 
-    private fun writeZipEntry(zip: ZipOutputStream, name: String, data: ByteArray) {
+    private fun writeZipEntry(
+        zip: ZipOutputStream,
+        name: String,
+        data: ByteArray,
+    ) {
         zip.putNextEntry(ZipEntry(name))
         zip.write(data)
         zip.closeEntry()
@@ -877,12 +975,11 @@ object CloudSyncManager {
         return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
-    private fun prefs(context: Context) =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private fun prefs(context: Context) = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     private suspend fun readSyncEntryState(
         activity: Activity,
-        entryReason: String
+        entryReason: String,
     ): SyncEntryResult {
         val syncGate = resolveEffectiveSyncGate(activity)
         if (!syncGate.syncEnabled) {
@@ -901,34 +998,34 @@ object CloudSyncManager {
         Timber.tag(TAG).i("%s; authenticated=%s", entryReason, syncGate.authenticated)
         return SyncEntryResult(
             state = readStateInternal(activity, syncGate.authenticated),
-            autoRestoreSummary = autoRestoreSummary
+            autoRestoreSummary = autoRestoreSummary,
         )
     }
 
-    private fun notSignedInState(activity: Activity): StoreLoginSyncState {
-        return StoreLoginSyncState(
+    private fun notSignedInState(activity: Activity): StoreLoginSyncState =
+        StoreLoginSyncState(
             googleSignedIn = false,
             localStores = collectLocalStoreNames(activity),
             status = SyncStatus.NOT_SIGNED_IN,
-            detail = activity.getString(R.string.google_cloud_sign_in_to_sync)
+            detail = activity.getString(R.string.google_cloud_sign_in_to_sync),
         )
-    }
 
     private suspend fun autoRestoreMissingStoresFromCloud(
         activity: Activity,
-        reason: String
+        reason: String,
     ): SyncSummary {
         Timber.tag(TAG).i("Checking for backed up store tokens to auto-restore (%s)", reason)
-        val summary = performSmartSyncWithAuthRetry(
-            activity,
-            preferRestoreForMissingStores = true
-        )
+        val summary =
+            performSmartSyncWithAuthRetry(
+                activity,
+                preferRestoreForMissingStores = true,
+            )
         clearSyncError(activity)
         if (summary.restoredStores.isNotEmpty()) {
             Timber.tag(TAG).i(
                 "Auto-restored backed up store tokens (%s): %s",
                 reason,
-                summary.restoredStores
+                summary.restoredStores,
             )
         }
         return summary
@@ -942,19 +1039,20 @@ object CloudSyncManager {
                 return EffectiveSyncGate(
                     syncEnabled = false,
                     authenticated = false,
-                    adoptedExistingSession = false
+                    adoptedExistingSession = false,
                 )
             }
             return EffectiveSyncGate(
                 syncEnabled = true,
                 authenticated = isAuthenticatedBlocking(activity),
-                adoptedExistingSession = false
+                adoptedExistingSession = false,
             )
         }
 
         val authenticated = isAuthenticatedBlocking(activity)
         if (authenticated) {
-            preferences.edit()
+            preferences
+                .edit()
                 .putBoolean(KEY_GOOGLE_SYNC_ENABLED, true)
                 .apply()
             clearSyncError(activity)
@@ -962,89 +1060,112 @@ object CloudSyncManager {
             return EffectiveSyncGate(
                 syncEnabled = true,
                 authenticated = true,
-                adoptedExistingSession = true
+                adoptedExistingSession = true,
             )
         }
 
         return EffectiveSyncGate(
             syncEnabled = false,
             authenticated = false,
-            adoptedExistingSession = false
+            adoptedExistingSession = false,
         )
     }
 
-    private fun isGoogleSyncEnabled(context: Context): Boolean =
-        prefs(context).getBoolean(KEY_GOOGLE_SYNC_ENABLED, false)
+    private fun isGoogleSyncEnabled(context: Context): Boolean = prefs(context).getBoolean(KEY_GOOGLE_SYNC_ENABLED, false)
 
     private fun clearSyncError(context: Context) {
-        prefs(context).edit()
+        prefs(context)
+            .edit()
             .remove(KEY_LAST_SYNC_ERROR)
             .apply()
     }
 
-    private fun rememberSyncError(context: Context, error: Throwable): String {
+    private fun rememberSyncError(
+        context: Context,
+        error: Throwable,
+    ): String {
         val detail = explainSyncError(context, error)
         Log.e(TAG, detail, error)
-        prefs(context).edit()
+        prefs(context)
+            .edit()
             .putString(KEY_LAST_SYNC_ERROR, detail)
             .apply()
         return detail
     }
 
-    private fun explainSyncError(context: Context, error: Throwable): String {
-        val apiStatusCode = generateSequence(error) { it.cause }
-            .filterIsInstance<ApiException>()
-            .map { it.statusCode }
-            .firstOrNull()
-        val chain = generateSequence(error) { it.cause }
-            .mapNotNull { throwable ->
-                val simpleName = throwable::class.java.simpleName.takeIf { it.isNotBlank() }
-                val message = throwable.message?.takeIf { it.isNotBlank() }
-                when {
-                    simpleName != null && message != null -> "$simpleName: $message"
-                    message != null -> message
-                    else -> simpleName
-                }
-            }
-            .toList()
+    private fun explainSyncError(
+        context: Context,
+        error: Throwable,
+    ): String {
+        val apiStatusCode =
+            generateSequence(error) { it.cause }
+                .filterIsInstance<ApiException>()
+                .map { it.statusCode }
+                .firstOrNull()
+        val chain =
+            generateSequence(error) { it.cause }
+                .mapNotNull { throwable ->
+                    val simpleName = throwable::class.java.simpleName.takeIf { it.isNotBlank() }
+                    val message = throwable.message?.takeIf { it.isNotBlank() }
+                    when {
+                        simpleName != null && message != null -> "$simpleName: $message"
+                        message != null -> message
+                        else -> simpleName
+                    }
+                }.toList()
         val rawMessage = chain.joinToString(" | ")
         val normalized = rawMessage.lowercase()
         return when {
             apiStatusCode == CommonStatusCodes.SIGN_IN_REQUIRED ||
-                "sign_in_required" in normalized || "apiexception: 4" in normalized ->
+                "sign_in_required" in normalized || "apiexception: 4" in normalized -> {
                 context.getString(R.string.google_cloud_error_auth_needed)
+            }
+
             apiStatusCode == CommonStatusCodes.DEVELOPER_ERROR ||
                 "developer_error" in normalized ||
-                "statuscode=10" in normalized ->
+                "statuscode=10" in normalized -> {
                 context.getString(R.string.google_cloud_error_developer)
+            }
+
             "sign-in check failed" in normalized ||
                 "cannot find the installed destination app" in normalized ||
-                "games service" in normalized ->
+                "games service" in normalized -> {
                 context.getString(R.string.google_cloud_error_build_rejected)
+            }
+
             apiStatusCode == CommonStatusCodes.NETWORK_ERROR ||
                 apiStatusCode == CommonStatusCodes.TIMEOUT ||
                 apiStatusCode == CommonStatusCodes.ERROR ||
                 "service_version_update_required" in normalized ||
-                "network" in normalized || "timeout" in normalized ->
+                "network" in normalized || "timeout" in normalized -> {
                 context.getString(R.string.google_cloud_error_network)
-            isMissingSnapshotError(error) ->
+            }
+
+            isMissingSnapshotError(error) -> {
                 context.getString(R.string.google_cloud_error_no_snapshot)
-            rawMessage.isNotBlank() ->
+            }
+
+            rawMessage.isNotBlank() -> {
                 context.getString(R.string.google_cloud_error_generic, rawMessage)
-            else ->
+            }
+
+            else -> {
                 context.getString(R.string.google_cloud_error_before_open)
+            }
         }
     }
 
     private fun isMissingSnapshotError(error: Throwable): Boolean {
-        val apiStatusCode = generateSequence(error) { it.cause }
-            .filterIsInstance<ApiException>()
-            .map { it.statusCode }
-            .firstOrNull()
-        val rawMessage = generateSequence(error) { it.cause }
-            .mapNotNull { it.message }
-            .joinToString(" ")
-            .lowercase()
+        val apiStatusCode =
+            generateSequence(error) { it.cause }
+                .filterIsInstance<ApiException>()
+                .map { it.statusCode }
+                .firstOrNull()
+        val rawMessage =
+            generateSequence(error) { it.cause }
+                .mapNotNull { it.message }
+                .joinToString(" ")
+                .lowercase()
         return apiStatusCode == 26504 ||
             "snapshot_not_found" in rawMessage ||
             "snapshot not found" in rawMessage ||
@@ -1052,14 +1173,16 @@ object CloudSyncManager {
     }
 
     private fun isSignInRequiredError(error: Throwable): Boolean {
-        val apiStatusCode = generateSequence(error) { it.cause }
-            .filterIsInstance<ApiException>()
-            .map { it.statusCode }
-            .firstOrNull()
-        val rawMessage = generateSequence(error) { it.cause }
-            .mapNotNull { it.message }
-            .joinToString(" ")
-            .lowercase()
+        val apiStatusCode =
+            generateSequence(error) { it.cause }
+                .filterIsInstance<ApiException>()
+                .map { it.statusCode }
+                .firstOrNull()
+        val rawMessage =
+            generateSequence(error) { it.cause }
+                .mapNotNull { it.message }
+                .joinToString(" ")
+                .lowercase()
         return apiStatusCode == CommonStatusCodes.SIGN_IN_REQUIRED ||
             "sign_in_required" in rawMessage ||
             "statuscode=4" in rawMessage
@@ -1079,7 +1202,7 @@ object CloudSyncManager {
 
     private suspend fun performSmartSyncWithAuthRetry(
         activity: Activity,
-        preferRestoreForMissingStores: Boolean
+        preferRestoreForMissingStores: Boolean,
     ): SyncSummary {
         repeat(AUTH_SESSION_RETRY_COUNT) { attempt ->
             try {
@@ -1089,7 +1212,7 @@ object CloudSyncManager {
                     Timber.tag(TAG).w(
                         error,
                         "Saved Games sync hit transient sign-in state; retrying in %d ms",
-                        AUTH_SESSION_RETRY_DELAY_MS
+                        AUTH_SESSION_RETRY_DELAY_MS,
                     )
                     delay(AUTH_SESSION_RETRY_DELAY_MS)
                     return@repeat
@@ -1100,17 +1223,19 @@ object CloudSyncManager {
         throw IllegalStateException("Play Games authentication did not become ready for Saved Games access.")
     }
 
-    private suspend fun isAuthenticatedBlocking(activity: Activity): Boolean {
-        return try {
+    private suspend fun isAuthenticatedBlocking(activity: Activity): Boolean =
+        try {
             val task = PlayGames.getGamesSignInClient(activity).isAuthenticated
-            val result = withContext(Dispatchers.IO) {
-                try {
-                    com.google.android.gms.tasks.Tasks.await(task, 10, java.util.concurrent.TimeUnit.SECONDS)
-                } catch (e: java.util.concurrent.TimeoutException) {
-                    Timber.tag(TAG).e("Timeout waiting for Google authentication state")
-                    null
+            val result =
+                withContext(Dispatchers.IO) {
+                    try {
+                        com.google.android.gms.tasks.Tasks
+                            .await(task, 10, java.util.concurrent.TimeUnit.SECONDS)
+                    } catch (e: java.util.concurrent.TimeoutException) {
+                        Timber.tag(TAG).e("Timeout waiting for Google authentication state")
+                        null
+                    }
                 }
-            }
             val authenticated = result?.isAuthenticated == true
             Timber.tag(TAG).i("Blocking Google auth check result=%s", authenticated)
             authenticated
@@ -1118,5 +1243,4 @@ object CloudSyncManager {
             Timber.tag(TAG).e(error, "Failed to read Google authentication state")
             false
         }
-    }
 }

@@ -1,7 +1,4 @@
 package com.winlator.cmod.feature.settings
-import com.winlator.cmod.R
-import com.winlator.cmod.runtime.display.XServerDisplayActivity
-import com.winlator.cmod.feature.shortcuts.ShortcutsFragment
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
@@ -20,20 +17,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
+import com.winlator.cmod.R
+import com.winlator.cmod.feature.settings.ContainerSettingsComposeDialog
+import com.winlator.cmod.feature.shortcuts.ShortcutsFragment
+import com.winlator.cmod.feature.sync.google.ContainerBackupManager
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.container.ContainerManager
-import com.winlator.cmod.feature.settings.ContainerSettingsComposeDialog
 import com.winlator.cmod.runtime.content.ContentsManager
+import com.winlator.cmod.runtime.display.XServerDisplayActivity
+import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.ui.dialog.PreloaderDialog
-import com.winlator.cmod.feature.sync.google.ContainerBackupManager
-import com.winlator.cmod.runtime.display.environment.ImageFs
 import java.io.File
 import kotlin.math.roundToInt
 
 class ContainersFragment : Fragment() {
-
     private lateinit var manager: ContainerManager
     private lateinit var preloaderDialog: PreloaderDialog
 
@@ -50,16 +49,17 @@ class ContainersFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
-    ): View {
-        return ComposeView(requireContext()).apply {
+    ): View =
+        ComposeView(requireContext()).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 MaterialTheme(
-                    colorScheme = darkColorScheme(
-                        primary = Color(0xFF1A9FFF),
-                        background = Color(0xFF18181D),
-                        surface = Color(0xFF1C1C2A),
-                    )
+                    colorScheme =
+                        darkColorScheme(
+                            primary = Color(0xFF1A9FFF),
+                            background = Color(0xFF18181D),
+                            surface = Color(0xFF1C1C2A),
+                        ),
                 ) {
                     ContainersScreen(
                         state = screenState,
@@ -81,9 +81,11 @@ class ContainersFragment : Fragment() {
                 }
             }
         }
-    }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         (activity as? AppCompatActivity)?.supportActionBar?.setTitle(R.string.common_ui_containers)
         loadContainersList()
@@ -125,9 +127,11 @@ class ContainersFragment : Fragment() {
 
     private fun runContainer(container: Container) {
         val ctx = context ?: return
-        startActivity(Intent(ctx, XServerDisplayActivity::class.java).apply {
-            putExtra("container_id", container.id)
-        })
+        startActivity(
+            Intent(ctx, XServerDisplayActivity::class.java).apply {
+                putExtra("container_id", container.id)
+            },
+        )
     }
 
     private fun editContainer(container: Container) {
@@ -143,11 +147,13 @@ class ContainersFragment : Fragment() {
     }
 
     private fun showContainerInfo(container: Container) {
-        screenState = screenState.copy(
-            dialog = ContainersDialogUiState.StorageInfo(
-                ContainerStorageInfoUiState(container = container),
-            ),
-        )
+        screenState =
+            screenState.copy(
+                dialog =
+                    ContainersDialogUiState.StorageInfo(
+                        ContainerStorageInfoUiState(container = container),
+                    ),
+            )
         startStorageScan(container)
     }
 
@@ -160,12 +166,14 @@ class ContainersFragment : Fragment() {
         preloaderDialog.show(R.string.container_backups_backing_up)
         ContainerBackupManager.backupContainer(requireActivity(), container) { result ->
             preloaderDialog.close()
-            screenState = screenState.copy(
-                dialog = ContainersDialogUiState.Message(
-                    title = getString(R.string.container_backups_title),
-                    message = result.message,
-                ),
-            )
+            screenState =
+                screenState.copy(
+                    dialog =
+                        ContainersDialogUiState.Message(
+                            title = getString(R.string.container_backups_title),
+                            message = result.message,
+                        ),
+                )
         }
     }
 
@@ -180,12 +188,14 @@ class ContainersFragment : Fragment() {
 
             if (!preparation.success) {
                 preloaderDialog.close()
-                screenState = screenState.copy(
-                    dialog = ContainersDialogUiState.Message(
-                        title = getString(R.string.container_backups_title),
-                        message = preparation.message,
-                    ),
-                )
+                screenState =
+                    screenState.copy(
+                        dialog =
+                            ContainersDialogUiState.Message(
+                                title = getString(R.string.container_backups_title),
+                                message = preparation.message,
+                            ),
+                    )
                 return@prepareRestore
             }
 
@@ -204,22 +214,26 @@ class ContainersFragment : Fragment() {
         backups: List<ContainerBackupManager.DriveBackupFile>?,
     ) {
         if (backups.isNullOrEmpty()) {
-            screenState = screenState.copy(
-                dialog = ContainersDialogUiState.Message(
-                    title = getString(R.string.container_backups_title),
-                    message = getString(R.string.container_backups_no_files),
-                ),
-            )
+            screenState =
+                screenState.copy(
+                    dialog =
+                        ContainersDialogUiState.Message(
+                            title = getString(R.string.container_backups_title),
+                            message = getString(R.string.container_backups_no_files),
+                        ),
+                )
             return
         }
 
         pendingBackups = backups
-        screenState = screenState.copy(
-            dialog = ContainersDialogUiState.BackupSelection(
-                container = container,
-                backupNames = backups.map { it.name },
-            ),
-        )
+        screenState =
+            screenState.copy(
+                dialog =
+                    ContainersDialogUiState.BackupSelection(
+                        container = container,
+                        backupNames = backups.map { it.name },
+                    ),
+            )
     }
 
     private fun executeContainerRestore(
@@ -230,12 +244,14 @@ class ContainersFragment : Fragment() {
         preloaderDialog.show(R.string.container_backups_restoring)
         ContainerBackupManager.restoreContainerFromDriveFile(requireActivity(), container, driveFile) { result ->
             preloaderDialog.close()
-            screenState = screenState.copy(
-                dialog = ContainersDialogUiState.Message(
-                    title = getString(R.string.container_backups_title),
-                    message = result.message,
-                ),
-            )
+            screenState =
+                screenState.copy(
+                    dialog =
+                        ContainersDialogUiState.Message(
+                            title = getString(R.string.container_backups_title),
+                            message = result.message,
+                        ),
+                )
         }
     }
 
@@ -301,26 +317,29 @@ class ContainersFragment : Fragment() {
             val cacheBytes = calculateDirectorySize(File(container.rootDir, ".cache"))
             val totalBytes = driveCBytes + cacheBytes
             val internalStorage = FileUtils.getInternalStorageSize().coerceAtLeast(1L)
-            val usedPercent = ((totalBytes.toDouble() / internalStorage.toDouble()) * 100.0)
-                .toFloat()
-                .coerceIn(0f, 100f)
+            val usedPercent =
+                ((totalBytes.toDouble() / internalStorage.toDouble()) * 100.0)
+                    .toFloat()
+                    .coerceIn(0f, 100f)
 
             if (!isAdded) return@Thread
             Handler(Looper.getMainLooper()).post {
                 if (!isAdded || storageScanToken != token) return@post
                 val dialog = screenState.dialog as? ContainersDialogUiState.StorageInfo ?: return@post
                 if (dialog.data.container.id != container.id) return@post
-                screenState = screenState.copy(
-                    dialog = ContainersDialogUiState.StorageInfo(
-                        dialog.data.copy(
-                            driveCBytes = driveCBytes,
-                            cacheBytes = cacheBytes,
-                            totalBytes = totalBytes,
-                            usedPercent = usedPercent,
-                            isLoading = false,
-                        ),
-                    ),
-                )
+                screenState =
+                    screenState.copy(
+                        dialog =
+                            ContainersDialogUiState.StorageInfo(
+                                dialog.data.copy(
+                                    driveCBytes = driveCBytes,
+                                    cacheBytes = cacheBytes,
+                                    totalBytes = totalBytes,
+                                    usedPercent = usedPercent,
+                                    isLoading = false,
+                                ),
+                            ),
+                    )
             }
         }.start()
     }

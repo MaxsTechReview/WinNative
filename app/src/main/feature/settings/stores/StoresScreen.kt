@@ -1,9 +1,7 @@
 /* Settings > Stores screen — Jetpack Compose / Material3.
  * Scrolling delegated to a View-level ScrollView in StoresFragment. */
 package com.winlator.cmod.feature.settings
-import com.winlator.cmod.R
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -17,14 +15,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,11 +26,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderShared
@@ -58,7 +57,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,25 +64,27 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import com.winlator.cmod.shared.ui.outlinedSwitchColors
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import com.winlator.cmod.R
+import com.winlator.cmod.shared.ui.outlinedSwitchColors
 
 // Palette
-private val BgDark        = Color(0xFF18181D)
-private val CardDark      = Color(0xFF1C1C2A)
-private val CardBorder    = Color(0xFF2A2A3A)
-private val IconBoxBg     = Color(0xFF242434)
-private val SurfaceDark   = Color(0xFF21212A)
-private val Accent        = Color(0xFF1A9FFF)
-private val TextPrimary   = Color(0xFFF0F4FF)
+private val BgDark = Color(0xFF18181D)
+private val CardDark = Color(0xFF1C1C2A)
+private val CardBorder = Color(0xFF2A2A3A)
+private val IconBoxBg = Color(0xFF242434)
+private val SurfaceDark = Color(0xFF21212A)
+private val Accent = Color(0xFF1A9FFF)
+private val TextPrimary = Color(0xFFF0F4FF)
 private val TextSecondary = Color(0xFF7A8FA8)
-private val Divider       = Color(0xFF343434)
-private val DangerRed     = Color(0xFFFF7A88)
-private val StatusGreen   = Color(0xFF3FB950)
+private val Divider = Color(0xFF343434)
+private val DangerRed = Color(0xFFFF7A88)
+private val StatusGreen = Color(0xFF3FB950)
 
 // State
 data class StoreState(
@@ -102,12 +102,13 @@ data class StoreState(
 )
 
 // Root
-private val downloadSpeedOptions = listOf(
-    8  to "Conservative",
-    16 to "Balanced",
-    24 to "Standard",
-    32 to "Performance",
-)
+private val downloadSpeedOptions =
+    listOf(
+        8 to "Conservative",
+        16 to "Balanced",
+        24 to "Standard",
+        32 to "Performance",
+    )
 
 @Composable
 fun StoresScreen(
@@ -128,11 +129,12 @@ fun StoresScreen(
     onPickGogFolder: () -> Unit,
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentHeight()
-            .background(BgDark)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .background(BgDark)
+                .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         SectionLabel("Connected Stores")
@@ -176,7 +178,7 @@ fun StoresScreen(
             targetState = state.sharedFolder,
             transitionSpec = {
                 fadeIn(tween(220)) togetherWith fadeOut(tween(160)) using
-                SizeTransform(clip = true, sizeAnimationSpec = { _, _ -> tween(240) })
+                    SizeTransform(clip = true, sizeAnimationSpec = { _, _ -> tween(240) })
             },
             label = "folderPaths",
         ) { shared ->
@@ -188,9 +190,9 @@ fun StoresScreen(
                 )
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FolderPathCard("Steam Downloads",  state.steamFolder,  onPickSteamFolder)
-                    FolderPathCard("Epic Downloads",   state.epicFolder,   onPickEpicFolder)
-                    FolderPathCard("GOG Downloads",    state.gogFolder,    onPickGogFolder)
+                    FolderPathCard("Steam Downloads", state.steamFolder, onPickSteamFolder)
+                    FolderPathCard("Epic Downloads", state.epicFolder, onPickEpicFolder)
+                    FolderPathCard("GOG Downloads", state.gogFolder, onPickGogFolder)
                 }
             }
         }
@@ -206,12 +208,13 @@ fun StoresScreen(
             onOptionSelected = onDownloadSpeedChanged,
             highlightMaxValue = true,
         )
-        val serverSubtitle = if (!state.downloadServerManuallySet && state.downloadServer != 0) {
-            val name = serverOptions.firstOrNull { it.first == state.downloadServer }?.second ?: ""
-            "Auto-detected: $name"
-        } else {
-            "Steam CDN region for game downloads"
-        }
+        val serverSubtitle =
+            if (!state.downloadServerManuallySet && state.downloadServer != 0) {
+                val name = serverOptions.firstOrNull { it.first == state.downloadServer }?.second ?: ""
+                "Auto-detected: $name"
+            } else {
+                "Steam CDN region for game downloads"
+            }
         SettingsDropdownCard(
             title = stringResource(R.string.stores_accounts_download_server),
             subtitle = serverSubtitle,
@@ -227,7 +230,10 @@ fun StoresScreen(
 
 // Section label
 @Composable
-private fun SectionLabel(text: String, modifier: Modifier = Modifier) {
+private fun SectionLabel(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
     Text(
         text = text.uppercase(),
         color = TextSecondary,
@@ -240,15 +246,20 @@ private fun SectionLabel(text: String, modifier: Modifier = Modifier) {
 
 // Sign-out confirmation dialog
 @Composable
-private fun SignOutConfirmDialog(storeName: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+private fun SignOutConfirmDialog(
+    storeName: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     Dialog(onDismissRequest = onDismiss) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(CardDark)
-                .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-                .padding(24.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(CardDark)
+                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .padding(24.dp),
         ) {
             Column {
                 Text(
@@ -269,7 +280,10 @@ private fun SignOutConfirmDialog(storeName: String, onConfirm: () -> Unit, onDis
                     horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
                 ) {
                     ActionButton(label = "Cancel", textColor = TextSecondary, onClick = onDismiss)
-                    ActionButton(label = "Sign Out", textColor = DangerRed, onClick = { onConfirm(); onDismiss() })
+                    ActionButton(label = "Sign Out", textColor = DangerRed, onClick = {
+                        onConfirm()
+                        onDismiss()
+                    })
                 }
             }
         }
@@ -297,41 +311,48 @@ private fun StoreCard(
 
     val pulse = rememberInfiniteTransition(label = "pulse_$name")
     val pulseScale by pulse.animateFloat(
-        initialValue = 1f, targetValue = 1.7f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
+        initialValue = 1f,
+        targetValue = 1.7f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(1000, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
         label = "scale_$name",
     )
     val pulseAlpha by pulse.animateFloat(
-        initialValue = 0.5f, targetValue = 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
+        initialValue = 0.5f,
+        targetValue = 0f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(1000, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
         label = "alpha_$name",
     )
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(14.dp)),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(14.dp)),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 11.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Icon box
             Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(11.dp))
-                    .background(IconBoxBg),
+                modifier =
+                    Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(11.dp))
+                        .background(IconBoxBg),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -356,26 +377,38 @@ private fun StoreCard(
                     Box(contentAlignment = Alignment.Center) {
                         if (isLoggedIn) {
                             Box(
-                                modifier = Modifier
-                                    .size(10.dp)
-                                    .scale(pulseScale)
-                                    .clip(CircleShape)
-                                    .background(StatusGreen.copy(alpha = pulseAlpha)),
+                                modifier =
+                                    Modifier
+                                        .size(10.dp)
+                                        .scale(pulseScale)
+                                        .clip(CircleShape)
+                                        .background(StatusGreen.copy(alpha = pulseAlpha)),
                             )
                         }
                         Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (isLoggedIn) StatusGreen
-                                    else TextSecondary.copy(alpha = 0.4f)
-                                ),
+                            modifier =
+                                Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isLoggedIn) {
+                                            StatusGreen
+                                        } else {
+                                            TextSecondary.copy(alpha = 0.4f)
+                                        },
+                                    ),
                         )
                     }
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        text = if (isLoggedIn) stringResource(R.string.common_ui_signed_in) else stringResource(R.string.google_cloud_status_not_signed_in),
+                        text =
+                            if (isLoggedIn) {
+                                stringResource(
+                                    R.string.common_ui_signed_in,
+                                )
+                            } else {
+                                stringResource(R.string.google_cloud_status_not_signed_in)
+                            },
                         color = if (isLoggedIn) StatusGreen else TextSecondary,
                         fontSize = 12.sp,
                     )
@@ -392,7 +425,11 @@ private fun StoreCard(
 }
 
 @Composable
-private fun ActionButton(label: String, textColor: Color, onClick: () -> Unit) {
+private fun ActionButton(
+    label: String,
+    textColor: Color,
+    onClick: () -> Unit,
+) {
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.93f else 1f,
@@ -400,18 +437,22 @@ private fun ActionButton(label: String, textColor: Color, onClick: () -> Unit) {
         label = "btnScale",
     )
     Box(
-        modifier = Modifier
-            .scale(scale)
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFF222232))
-            .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-            .pointerInput(onClick) {
-                detectTapGestures(
-                    onPress = { isPressed = true; tryAwaitRelease(); isPressed = false },
-                    onTap = { onClick() },
-                )
-            }
-            .padding(horizontal = 12.dp, vertical = 7.dp),
+        modifier =
+            Modifier
+                .scale(scale)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFF222232))
+                .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .pointerInput(onClick) {
+                    detectTapGestures(
+                        onPress = {
+                            isPressed = true
+                            tryAwaitRelease()
+                            isPressed = false
+                        },
+                        onTap = { onClick() },
+                    )
+                }.padding(horizontal = 12.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -435,23 +476,26 @@ private fun SettingsToggleCard(
     cardColor: Color = CardDark,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(cardColor)
-            .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(cardColor)
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 11.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(IconBoxBg),
+                modifier =
+                    Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(IconBoxBg),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -471,10 +515,11 @@ private fun SettingsToggleCard(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
                 modifier = Modifier.scale(0.78f),
-                colors = outlinedSwitchColors(
-                    accentColor = accentColor,
-                    textSecondaryColor = TextSecondary,
-                ),
+                colors =
+                    outlinedSwitchColors(
+                        accentColor = accentColor,
+                        textSecondaryColor = TextSecondary,
+                    ),
             )
         }
     }
@@ -498,23 +543,26 @@ private fun SettingsDropdownCard(
     val selectedColor = if (highlightMaxValue && selectedValue == maxValue) Color(0xFFFF9500) else accentColor
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 11.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(IconBoxBg),
+                modifier =
+                    Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(IconBoxBg),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -538,18 +586,22 @@ private fun SettingsDropdownCard(
                     label = "dropdownScale",
                 )
                 Row(
-                    modifier = Modifier
-                        .scale(scale)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF222232))
-                        .border(1.dp, selectedColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onPress = { isPressed = true; tryAwaitRelease(); isPressed = false },
-                                onTap = { expanded = true },
-                            )
-                        }
-                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                    modifier =
+                        Modifier
+                            .scale(scale)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF222232))
+                            .border(1.dp, selectedColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onPress = {
+                                        isPressed = true
+                                        tryAwaitRelease()
+                                        isPressed = false
+                                    },
+                                    onTap = { expanded = true },
+                                )
+                            }.padding(horizontal = 10.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
@@ -575,9 +627,10 @@ private fun SettingsDropdownCard(
                     modifier = Modifier.widthIn(max = 220.dp),
                 ) {
                     Column(
-                        modifier = Modifier
-                            .heightIn(max = 260.dp)
-                            .verticalScroll(rememberScrollState()),
+                        modifier =
+                            Modifier
+                                .heightIn(max = 260.dp)
+                                .verticalScroll(rememberScrollState()),
                     ) {
                         options.forEach { (value, label) ->
                             val isSelected = value == selectedValue
@@ -592,10 +645,14 @@ private fun SettingsDropdownCard(
                                         softWrap = true,
                                     )
                                 },
-                                onClick = { onOptionSelected(value); expanded = false },
-                                modifier = Modifier.background(
-                                    if (isSelected) itemColor.copy(alpha = 0.08f) else Color.Transparent
-                                ),
+                                onClick = {
+                                    onOptionSelected(value)
+                                    expanded = false
+                                },
+                                modifier =
+                                    Modifier.background(
+                                        if (isSelected) itemColor.copy(alpha = 0.08f) else Color.Transparent,
+                                    ),
                             )
                         }
                     }
@@ -619,16 +676,18 @@ private fun FolderPathCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 11.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(IconBoxBg),
+                modifier =
+                    Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(IconBoxBg),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -664,17 +723,21 @@ private fun BrowseButton(onClick: () -> Unit) {
         label = "browseScale",
     )
     Box(
-        modifier = Modifier
-            .scale(scale)
-            .clip(RoundedCornerShape(8.dp))
-            .background(Accent.copy(alpha = 0.12f))
-            .pointerInput(onClick) {
-                detectTapGestures(
-                    onPress = { isPressed = true; tryAwaitRelease(); isPressed = false },
-                    onTap = { onClick() },
-                )
-            }
-            .padding(horizontal = 12.dp, vertical = 7.dp),
+        modifier =
+            Modifier
+                .scale(scale)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Accent.copy(alpha = 0.12f))
+                .pointerInput(onClick) {
+                    detectTapGestures(
+                        onPress = {
+                            isPressed = true
+                            tryAwaitRelease()
+                            isPressed = false
+                        },
+                        onTap = { onClick() },
+                    )
+                }.padding(horizontal = 12.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(

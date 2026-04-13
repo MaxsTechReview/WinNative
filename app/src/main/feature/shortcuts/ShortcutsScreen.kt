@@ -1,5 +1,4 @@
 package com.winlator.cmod.feature.shortcuts
-import com.winlator.cmod.R
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -44,6 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.winlator.cmod.R
 import com.winlator.cmod.runtime.container.Shortcut
 import com.winlator.cmod.shared.theme.WinNativeAccent
 import com.winlator.cmod.shared.theme.WinNativeBackground
@@ -56,11 +56,17 @@ import com.winlator.cmod.shared.theme.WinNativeTheme
 
 interface ShortcutsActionListener {
     fun onRunShortcut(shortcut: Shortcut)
+
     fun onEditShortcut(shortcut: Shortcut)
+
     fun onAddToHomeScreen(shortcut: Shortcut)
+
     fun onRemoveShortcut(shortcut: Shortcut)
+
     fun onExportShortcut(shortcut: Shortcut)
+
     fun onCloneShortcut(shortcut: Shortcut)
+
     fun onShowProperties(shortcut: Shortcut)
 }
 
@@ -83,10 +89,11 @@ private fun ShortcutsScreen(
     listener: ShortcutsActionListener,
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(WinNativeBackground)
-            .padding(start = 16.dp, top = 16.dp, end = 26.dp, bottom = 16.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(WinNativeBackground)
+                .padding(start = 16.dp, top = 16.dp, end = 26.dp, bottom = 16.dp),
     ) {
         Text(
             text = stringResource(R.string.common_ui_shortcuts).uppercase(),
@@ -102,9 +109,10 @@ private fun ShortcutsScreen(
                 color = WinNativeTextSecondary,
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 18.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 18.dp),
             )
         } else {
             Spacer(Modifier.height(8.dp))
@@ -131,29 +139,32 @@ private fun ShortcutRow(
     var menuExpanded by remember { mutableStateOf(false) }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(WinNativeSurface)
-            .border(1.dp, WinNativeOutline, RoundedCornerShape(12.dp))
-            .padding(12.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(WinNativeSurface)
+                .border(1.dp, WinNativeOutline, RoundedCornerShape(12.dp))
+                .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
-            modifier = Modifier
-                .weight(1f)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = { listener.onRunShortcut(shortcut) },
-                ),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { listener.onRunShortcut(shortcut) },
+                    ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(WinNativePanel),
+                modifier =
+                    Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(WinNativePanel),
                 contentAlignment = Alignment.Center,
             ) {
                 val bitmap = shortcut.icon
@@ -195,14 +206,15 @@ private fun ShortcutRow(
 
         Box {
             Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { menuExpanded = true },
-                    ),
+                modifier =
+                    Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { menuExpanded = true },
+                        ),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(

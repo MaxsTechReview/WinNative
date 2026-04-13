@@ -9,6 +9,12 @@ import android.net.Uri
 fun redactUrlForLogging(url: String?): String =
     url?.let {
         runCatching {
-            Uri.parse(it).buildUpon().clearQuery().fragment(null).build().toString()
+            Uri
+                .parse(it)
+                .buildUpon()
+                .clearQuery()
+                .fragment(null)
+                .build()
+                .toString()
         }.getOrDefault("<invalid-url>")
     } ?: "null"

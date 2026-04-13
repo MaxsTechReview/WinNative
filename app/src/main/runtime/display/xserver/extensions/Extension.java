@@ -4,17 +4,17 @@ import com.winlator.cmod.runtime.display.connector.XInputStream;
 import com.winlator.cmod.runtime.display.connector.XOutputStream;
 import com.winlator.cmod.runtime.display.xserver.XClient;
 import com.winlator.cmod.runtime.display.xserver.errors.XRequestError;
-
 import java.io.IOException;
 
 public interface Extension {
-    String getName();
+  String getName();
 
-    byte getMajorOpcode();
+  byte getMajorOpcode();
 
-    byte getFirstErrorId();
+  byte getFirstErrorId();
 
-    byte getFirstEventId();
+  byte getFirstEventId();
 
-    void handleRequest(XClient client, XInputStream inputStream, XOutputStream outputStream) throws IOException, XRequestError;
+  void handleRequest(XClient client, XInputStream inputStream, XOutputStream outputStream)
+      throws IOException, XRequestError;
 }

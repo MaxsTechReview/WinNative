@@ -1,10 +1,11 @@
 package com.winlator.cmod.feature.stores.steam.utils
+import android.util.Base64
 import `in`.dragonbra.javasteam.enums.ELicenseFlags
 import `in`.dragonbra.javasteam.enums.ELicenseType
 import `in`.dragonbra.javasteam.enums.EPaymentMethod
+import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesClientserver
 import `in`.dragonbra.javasteam.steam.handlers.steamapps.License
 import `in`.dragonbra.javasteam.types.DepotManifest
-import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesClientserver
 import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber
@@ -14,37 +15,35 @@ import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.util.Date
 import java.util.EnumSet
-import android.util.Base64
 
 object LicenseSerializer {
-
     /**
      * Serialize a single License object by extracting all its fields to a JSON string.
      */
-    fun serializeLicense(license: License): String {
-        return try {
-            val jsonObj = JSONObject().apply {
-                put("packageID", license.packageID)
-                put("lastChangeNumber", license.lastChangeNumber)
-                put("timeCreated", license.timeCreated.time)
-                put("timeNextProcess", license.timeNextProcess.time)
-                put("minuteLimit", license.minuteLimit)
-                put("minutesUsed", license.minutesUsed)
-                put("paymentMethod", license.paymentMethod.code())
-                put("licenseFlags", JSONArray(license.licenseFlags.map { it.code() }))
-                put("purchaseCode", license.purchaseCode)
-                put("licenseType", license.licenseType.code())
-                put("territoryCode", license.territoryCode)
-                put("accessToken", license.accessToken)
-                put("ownerAccountID", license.ownerAccountID)
-                put("masterPackageID", license.masterPackageID)
-            }
+    fun serializeLicense(license: License): String =
+        try {
+            val jsonObj =
+                JSONObject().apply {
+                    put("packageID", license.packageID)
+                    put("lastChangeNumber", license.lastChangeNumber)
+                    put("timeCreated", license.timeCreated.time)
+                    put("timeNextProcess", license.timeNextProcess.time)
+                    put("minuteLimit", license.minuteLimit)
+                    put("minutesUsed", license.minutesUsed)
+                    put("paymentMethod", license.paymentMethod.code())
+                    put("licenseFlags", JSONArray(license.licenseFlags.map { it.code() }))
+                    put("purchaseCode", license.purchaseCode)
+                    put("licenseType", license.licenseType.code())
+                    put("territoryCode", license.territoryCode)
+                    put("accessToken", license.accessToken)
+                    put("ownerAccountID", license.ownerAccountID)
+                    put("masterPackageID", license.masterPackageID)
+                }
             jsonObj.toString()
         } catch (e: Exception) {
             Timber.e(e, "Failed to serialize license: ${e.message}")
             ""
         }
-    }
 
     /**
      * Deserialize JSON string to a single License object.
@@ -64,16 +63,17 @@ object LicenseSerializer {
             val minutesUsed = jsonObj.optInt("minutesUsed", 0)
             val paymentMethod = EPaymentMethod.from(jsonObj.optInt("paymentMethod", 0))
             val licenseFlagsArray = jsonObj.optJSONArray("licenseFlags")
-            val licenseFlags = if (licenseFlagsArray != null) {
-                val flags = EnumSet.noneOf(ELicenseFlags::class.java)
-                for (i in 0 until licenseFlagsArray.length()) {
-                    val flagCode = licenseFlagsArray.optInt(i)
-                    flags.add(ELicenseFlags.from(flagCode).first())
+            val licenseFlags =
+                if (licenseFlagsArray != null) {
+                    val flags = EnumSet.noneOf(ELicenseFlags::class.java)
+                    for (i in 0 until licenseFlagsArray.length()) {
+                        val flagCode = licenseFlagsArray.optInt(i)
+                        flags.add(ELicenseFlags.from(flagCode).first())
+                    }
+                    flags
+                } else {
+                    EnumSet.noneOf(ELicenseFlags::class.java)
                 }
-                flags
-            } else {
-                EnumSet.noneOf(ELicenseFlags::class.java)
-            }
             val purchaseCode = jsonObj.optString("purchaseCode", "")
             val licenseType = ELicenseType.from(jsonObj.optInt("licenseType", 0))
             val territoryCode = jsonObj.optInt("territoryCode", 0)
@@ -83,21 +83,23 @@ object LicenseSerializer {
 
             // Construct License using CMsgClientLicenseList.License.newBuilder()
             try {
-                val licenseBuilder = SteammessagesClientserver.CMsgClientLicenseList.License.newBuilder()
-                    .setPackageId(packageID)
-                    .setTimeCreated((timeCreated.time / 1000).toInt()) // Convert to Unix timestamp
-                    .setTimeNextProcess((timeNextProcess.time / 1000).toInt())
-                    .setMinuteLimit(minuteLimit)
-                    .setMinutesUsed(minutesUsed)
-                    .setPaymentMethod(paymentMethod.code())
-                    .setFlags(ELicenseFlags.code(licenseFlags))
-                    .setPurchaseCountryCode(purchaseCode)
-                    .setLicenseType(licenseType.code())
-                    .setTerritoryCode(territoryCode)
-                    .setAccessToken(accessToken)
-                    .setOwnerId(ownerAccountID)
-                    .setMasterPackageId(masterPackageID)
-                    .setChangeNumber(lastChangeNumber)
+                val licenseBuilder =
+                    SteammessagesClientserver.CMsgClientLicenseList.License
+                        .newBuilder()
+                        .setPackageId(packageID)
+                        .setTimeCreated((timeCreated.time / 1000).toInt()) // Convert to Unix timestamp
+                        .setTimeNextProcess((timeNextProcess.time / 1000).toInt())
+                        .setMinuteLimit(minuteLimit)
+                        .setMinutesUsed(minutesUsed)
+                        .setPaymentMethod(paymentMethod.code())
+                        .setFlags(ELicenseFlags.code(licenseFlags))
+                        .setPurchaseCountryCode(purchaseCode)
+                        .setLicenseType(licenseType.code())
+                        .setTerritoryCode(territoryCode)
+                        .setAccessToken(accessToken)
+                        .setOwnerId(ownerAccountID)
+                        .setMasterPackageId(masterPackageID)
+                        .setChangeNumber(lastChangeNumber)
 
                 val licenseProto = licenseBuilder.build()
                 return License(licenseProto)
@@ -114,8 +116,8 @@ object LicenseSerializer {
     /**
      * Serialize a DepotManifest object using Java serialization.
      */
-    fun serializeManifest(manifest: DepotManifest): String {
-        return try {
+    fun serializeManifest(manifest: DepotManifest): String =
+        try {
             val baos = ByteArrayOutputStream()
             ObjectOutputStream(baos).use { oos ->
                 oos.writeObject(manifest)
@@ -125,7 +127,6 @@ object LicenseSerializer {
             Timber.e(e, "Failed to serialize manifest")
             ""
         }
-    }
 
     /**
      * Deserialize Base64 string to DepotManifest object using Java deserialization.

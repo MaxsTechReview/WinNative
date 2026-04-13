@@ -14,8 +14,9 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.winlator.cmod.R
 
-class InputControlsDialog(private val activity: Activity) {
-
+class InputControlsDialog(
+    private val activity: Activity,
+) {
     private val dialog: Dialog
 
     // Compose state
@@ -30,63 +31,69 @@ class InputControlsDialog(private val activity: Activity) {
     var onSettingsClickCallback: Runnable? = null
 
     init {
-        dialog = Dialog(activity, R.style.ContentDialog).apply {
-            requestWindowFeature(Window.FEATURE_NO_TITLE)
-            setCancelable(true)
-            setCanceledOnTouchOutside(false)
-            setOwnerActivity(activity)
-            window?.apply {
-                setBackgroundDrawableResource(android.R.color.transparent)
-                setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT)
-                setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+        dialog =
+            Dialog(activity, R.style.ContentDialog).apply {
+                requestWindowFeature(Window.FEATURE_NO_TITLE)
+                setCancelable(true)
+                setCanceledOnTouchOutside(false)
+                setOwnerActivity(activity)
+                window?.apply {
+                    setBackgroundDrawableResource(android.R.color.transparent)
+                    setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT)
+                    setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+                }
             }
-        }
 
-        val composeView = ComposeView(activity).apply {
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            setViewTreeLifecycleOwner(activity as LifecycleOwner)
-            setViewTreeSavedStateRegistryOwner(activity as SavedStateRegistryOwner)
-            setContent {
-                InputControlsDialogContent(
-                    state = InputControlsState(
-                        profileNames = profileNames.value,
-                        selectedProfileIndex = selectedProfileIndex.intValue,
-                        showTouchscreenControls = showTouchscreenControls.value,
-                        touchscreenTimeout = touchscreenTimeout.value,
-                        touchscreenHaptics = touchscreenHaptics.value
-                    ),
-                    onProfileSelected = { index ->
-                        selectedProfileIndex.intValue = index
-                        if (index > 0) {
-                            showTouchscreenControls.value = true
-                        }
-                    },
-                    onSettingsClick = { onSettingsClickCallback?.run() },
-                    onShowTouchscreenControlsChange = { showTouchscreenControls.value = it },
-                    onTouchscreenTimeoutChange = { touchscreenTimeout.value = it },
-                    onTouchscreenHapticsChange = { touchscreenHaptics.value = it },
-                    onCancel = {
-                        onCancelCallback?.run()
-                        dismiss()
-                    },
-                    onConfirm = {
-                        onConfirmCallback?.run()
-                        dismiss()
-                    }
-                )
+        val composeView =
+            ComposeView(activity).apply {
+                layoutParams =
+                    ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                    )
+                setViewTreeLifecycleOwner(activity as LifecycleOwner)
+                setViewTreeSavedStateRegistryOwner(activity as SavedStateRegistryOwner)
+                setContent {
+                    InputControlsDialogContent(
+                        state =
+                            InputControlsState(
+                                profileNames = profileNames.value,
+                                selectedProfileIndex = selectedProfileIndex.intValue,
+                                showTouchscreenControls = showTouchscreenControls.value,
+                                touchscreenTimeout = touchscreenTimeout.value,
+                                touchscreenHaptics = touchscreenHaptics.value,
+                            ),
+                        onProfileSelected = { index ->
+                            selectedProfileIndex.intValue = index
+                            if (index > 0) {
+                                showTouchscreenControls.value = true
+                            }
+                        },
+                        onSettingsClick = { onSettingsClickCallback?.run() },
+                        onShowTouchscreenControlsChange = { showTouchscreenControls.value = it },
+                        onTouchscreenTimeoutChange = { touchscreenTimeout.value = it },
+                        onTouchscreenHapticsChange = { touchscreenHaptics.value = it },
+                        onCancel = {
+                            onCancelCallback?.run()
+                            dismiss()
+                        },
+                        onConfirm = {
+                            onConfirmCallback?.run()
+                            dismiss()
+                        },
+                    )
+                }
             }
-        }
         dialog.setContentView(composeView)
 
         // Auto-dismiss when activity is destroyed to prevent window leaks
-        (activity as LifecycleOwner).lifecycle.addObserver(object : DefaultLifecycleObserver {
-            override fun onDestroy(owner: LifecycleOwner) {
-                if (dialog.isShowing) dialog.dismiss()
-            }
-        })
+        (activity as LifecycleOwner).lifecycle.addObserver(
+            object : DefaultLifecycleObserver {
+                override fun onDestroy(owner: LifecycleOwner) {
+                    if (dialog.isShowing) dialog.dismiss()
+                }
+            },
+        )
     }
 
     fun show() {
@@ -98,7 +105,8 @@ class InputControlsDialog(private val activity: Activity) {
     }
 
     fun dismiss() {
-        com.winlator.cmod.shared.android.AppUtils.hideKeyboard(activity)
+        com.winlator.cmod.shared.android.AppUtils
+            .hideKeyboard(activity)
         dialog.dismiss()
     }
 }

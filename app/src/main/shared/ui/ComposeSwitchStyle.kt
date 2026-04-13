@@ -12,8 +12,8 @@ fun outlinedSwitchColors(
     accentColor: Color,
     textSecondaryColor: Color,
     checkedThumbColor: Color = Color.White,
-): SwitchColors {
-    return SwitchDefaults.colors(
+): SwitchColors =
+    SwitchDefaults.colors(
         checkedThumbColor = checkedThumbColor,
         checkedTrackColor = accentColor,
         uncheckedThumbColor = textSecondaryColor.copy(alpha = 0.92f),
@@ -27,4 +27,3 @@ fun outlinedSwitchColors(
         disabledUncheckedBorderColor = SwitchBorderOff.copy(alpha = 0.65f),
         disabledCheckedBorderColor = Color.Transparent,
     )
-}

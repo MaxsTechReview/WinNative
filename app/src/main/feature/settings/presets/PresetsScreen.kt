@@ -1,7 +1,6 @@
 /* Settings > Presets screen — Jetpack Compose / Material3.
  * Scrolling delegated to a View-level ScrollView in PresetsFragment, matching DriversFragment. */
 package com.winlator.cmod.feature.settings
-import com.winlator.cmod.R
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
@@ -22,10 +21,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -87,17 +86,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 
-private val BgDark        = Color(0xFF18181D)
-private val CardDark      = Color(0xFF1C1C2A)
-private val CardDarker    = Color(0xFF15151E)
-private val CardBorder    = Color(0xFF2A2A3A)
-private val IconBoxBg     = Color(0xFF242434)
-private val SurfaceDark   = Color(0xFF21212A)
-private val Accent        = Color(0xFF1A9FFF)
-private val DangerRed     = Color(0xFFFF7A88)
-private val TextPrimary   = Color(0xFFF0F4FF)
+private val BgDark = Color(0xFF18181D)
+private val CardDark = Color(0xFF1C1C2A)
+private val CardDarker = Color(0xFF15151E)
+private val CardBorder = Color(0xFF2A2A3A)
+private val IconBoxBg = Color(0xFF242434)
+private val SurfaceDark = Color(0xFF21212A)
+private val Accent = Color(0xFF1A9FFF)
+private val DangerRed = Color(0xFFFF7A88)
+private val TextPrimary = Color(0xFFF0F4FF)
 private val TextSecondary = Color(0xFF7A8FA8)
 
 @Composable
@@ -159,10 +159,11 @@ data class PresetEngineData(
 
 data class PresetsState(
     val currentEngine: PresetEngine = PresetEngine.BOX64,
-    val engines: Map<PresetEngine, PresetEngineData> = mapOf(
-        PresetEngine.BOX64 to PresetEngineData(),
-        PresetEngine.FEXCORE to PresetEngineData(),
-    ),
+    val engines: Map<PresetEngine, PresetEngineData> =
+        mapOf(
+            PresetEngine.BOX64 to PresetEngineData(),
+            PresetEngine.FEXCORE to PresetEngineData(),
+        ),
 ) {
     /** Data for the currently-selected engine. Used by callers that don't participate in the crossfade. */
     val current: PresetEngineData
@@ -252,11 +253,12 @@ fun PresetsScreen(
     val currentData = state.current
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentHeight()
-            .background(BgDark)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .background(BgDark)
+                .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         PresetHeroHeader(
@@ -329,32 +331,35 @@ fun PresetsScreen(
 private fun AnimatedContentTransitionScope<PresetEngine>.engineSwapTransition(): ContentTransform {
     val forward = targetState.ordinal > initialState.ordinal
     val direction = if (forward) 1 else -1
-    val slideSpec = tween<IntOffset>(
-        durationMillis = 220,
-        easing = FastOutSlowInEasing,
-    )
-    val fadeInSpec = tween<Float>(
-        durationMillis = 200,
-        easing = FastOutSlowInEasing,
-    )
-    val fadeOutSpec = tween<Float>(
-        durationMillis = 140,
-        easing = FastOutSlowInEasing,
-    )
+    val slideSpec =
+        tween<IntOffset>(
+            durationMillis = 220,
+            easing = FastOutSlowInEasing,
+        )
+    val fadeInSpec =
+        tween<Float>(
+            durationMillis = 200,
+            easing = FastOutSlowInEasing,
+        )
+    val fadeOutSpec =
+        tween<Float>(
+            durationMillis = 140,
+            easing = FastOutSlowInEasing,
+        )
     return (
         fadeIn(animationSpec = fadeInSpec) +
             slideInHorizontally(animationSpec = slideSpec) { fullWidth ->
                 (fullWidth / 12) * direction
             }
-        ).togetherWith(
+    ).togetherWith(
         fadeOut(animationSpec = fadeOutSpec) +
             slideOutHorizontally(animationSpec = slideSpec) { fullWidth ->
                 -(fullWidth / 12) * direction
-            }
+            },
     ).using(
         SizeTransform(clip = false) { _, _ ->
             tween(durationMillis = 240, easing = FastOutSlowInEasing)
-        }
+        },
     )
 }
 
@@ -371,22 +376,24 @@ private fun PresetHeroHeader(
     onImportPreset: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(RoundedCornerShape(7.dp))
-                    .background(IconBoxBg),
+                modifier =
+                    Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(7.dp))
+                        .background(IconBoxBg),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -407,10 +414,11 @@ private fun PresetHeroHeader(
                 Spacer(Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CountPill(
-                        label = when (engine) {
-                            PresetEngine.BOX64 -> "Box64"
-                            PresetEngine.FEXCORE -> "FEXCore"
-                        },
+                        label =
+                            when (engine) {
+                                PresetEngine.BOX64 -> "Box64"
+                                PresetEngine.FEXCORE -> "FEXCore"
+                            },
                         count = presetCount,
                     )
                     Spacer(Modifier.width(5.dp))
@@ -434,13 +442,17 @@ private fun PresetHeroHeader(
 }
 
 @Composable
-private fun CountPill(label: String, count: Int) {
+private fun CountPill(
+    label: String,
+    count: Int,
+) {
     Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(Accent.copy(alpha = 0.12f))
-            .border(1.dp, Accent.copy(alpha = 0.28f), RoundedCornerShape(6.dp))
-            .padding(horizontal = 7.dp, vertical = 2.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(Accent.copy(alpha = 0.12f))
+                .border(1.dp, Accent.copy(alpha = 0.28f), RoundedCornerShape(6.dp))
+                .padding(horizontal = 7.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -466,12 +478,13 @@ private fun HeroPillButton(
     onClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(7.dp))
-            .background(Accent.copy(alpha = 0.12f))
-            .border(1.dp, Accent.copy(alpha = 0.32f), RoundedCornerShape(7.dp))
-            .noRippleClickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 5.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(7.dp))
+                .background(Accent.copy(alpha = 0.12f))
+                .border(1.dp, Accent.copy(alpha = 0.32f), RoundedCornerShape(7.dp))
+                .noRippleClickable(onClick = onClick)
+                .padding(horizontal = 10.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -502,11 +515,12 @@ private fun EngineTabs(
     // Compact segmented tabs — sized inline (not stretched across the row) so they
     // don't dominate the screen the way a fillMaxWidth segmented control does.
     Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
-            .padding(3.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                .padding(3.dp),
         horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         EngineTab(
@@ -532,12 +546,13 @@ private fun EngineTab(
     val borderColor = if (selected) Accent.copy(alpha = 0.45f) else Color.Transparent
     val textColor = if (selected) Accent else TextPrimary
     Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(bg)
-            .border(1.dp, borderColor, RoundedCornerShape(6.dp))
-            .noRippleClickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 5.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(bg)
+                .border(1.dp, borderColor, RoundedCornerShape(6.dp))
+                .noRippleClickable(onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 5.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -566,16 +581,18 @@ private fun PresetSelectorCard(
     onRemove: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
         ) {
             // Single row — engine tabs stay static on the left, the dropdown /
             // badge / menu group on the right swaps via AnimatedContent keyed on
@@ -619,13 +636,14 @@ private fun PresetSelectorCard(
             ) { frameEngine ->
                 val editable = state.engines[frameEngine]?.editable == true
                 Text(
-                    text = stringResource(
-                        if (editable) {
-                            R.string.container_presets_changes_auto_saved
-                        } else {
-                            R.string.container_presets_builtin_readonly_hint
-                        }
-                    ),
+                    text =
+                        stringResource(
+                            if (editable) {
+                                R.string.container_presets_changes_auto_saved
+                            } else {
+                                R.string.container_presets_builtin_readonly_hint
+                            },
+                        ),
                     color = TextSecondary,
                     fontSize = 11.sp,
                     lineHeight = 14.sp,
@@ -659,13 +677,14 @@ private fun PresetSelectorRowContent(
     Row(verticalAlignment = Alignment.CenterVertically) {
         // Dropdown trigger — takes the middle space.
         Box(
-            modifier = Modifier
-                .weight(1f)
-                .clip(RoundedCornerShape(8.dp))
-                .background(CardDarker)
-                .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
-                .noRippleClickable(enabled = data.presets.isNotEmpty()) { dropdownOpen = true }
-                .padding(horizontal = 11.dp, vertical = 7.dp),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(CardDarker)
+                    .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                    .noRippleClickable(enabled = data.presets.isNotEmpty()) { dropdownOpen = true }
+                    .padding(horizontal = 11.dp, vertical = 7.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -681,9 +700,10 @@ private fun PresetSelectorRowContent(
                     imageVector = Icons.Outlined.ExpandMore,
                     contentDescription = null,
                     tint = TextSecondary,
-                    modifier = Modifier
-                        .size(16.dp)
-                        .rotate(if (dropdownOpen) 180f else 0f),
+                    modifier =
+                        Modifier
+                            .size(16.dp)
+                            .rotate(if (dropdownOpen) 180f else 0f),
                 )
             }
 
@@ -749,7 +769,10 @@ private fun PresetSelectorRowContent(
                     label = stringResource(R.string.container_presets_rename),
                     textColor = TextPrimary,
                     enabled = data.editable,
-                    onClick = { menuOpen = false; onRename() },
+                    onClick = {
+                        menuOpen = false
+                        onRename()
+                    },
                 )
                 MenuRow(
                     icon = Icons.Outlined.ContentCopy,
@@ -757,7 +780,10 @@ private fun PresetSelectorRowContent(
                     label = stringResource(R.string.common_ui_duplicate),
                     textColor = TextPrimary,
                     enabled = true,
-                    onClick = { menuOpen = false; onDuplicate() },
+                    onClick = {
+                        menuOpen = false
+                        onDuplicate()
+                    },
                 )
                 MenuRow(
                     icon = Icons.Outlined.FileUpload,
@@ -765,7 +791,10 @@ private fun PresetSelectorRowContent(
                     label = stringResource(R.string.common_ui_export),
                     textColor = TextPrimary,
                     enabled = data.editable,
-                    onClick = { menuOpen = false; onExport() },
+                    onClick = {
+                        menuOpen = false
+                        onExport()
+                    },
                 )
                 MenuRow(
                     icon = Icons.Outlined.FileDownload,
@@ -773,7 +802,10 @@ private fun PresetSelectorRowContent(
                     label = stringResource(R.string.common_ui_import),
                     textColor = TextPrimary,
                     enabled = true,
-                    onClick = { menuOpen = false; onImport() },
+                    onClick = {
+                        menuOpen = false
+                        onImport()
+                    },
                 )
                 MenuRow(
                     icon = Icons.Outlined.Delete,
@@ -781,7 +813,10 @@ private fun PresetSelectorRowContent(
                     label = stringResource(R.string.common_ui_remove),
                     textColor = DangerRed,
                     enabled = data.editable,
-                    onClick = { menuOpen = false; onRemove() },
+                    onClick = {
+                        menuOpen = false
+                        onRemove()
+                    },
                 )
             }
         }
@@ -792,17 +827,19 @@ private fun PresetSelectorRowContent(
 private fun PresetTypeBadge(isCustom: Boolean) {
     val color = if (isCustom) Accent else TextSecondary
     Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(color.copy(alpha = 0.12f))
-            .border(1.dp, color.copy(alpha = 0.32f), RoundedCornerShape(6.dp))
-            .padding(horizontal = 7.dp, vertical = 3.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(color.copy(alpha = 0.12f))
+                .border(1.dp, color.copy(alpha = 0.32f), RoundedCornerShape(6.dp))
+                .padding(horizontal = 7.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = stringResource(
-                if (isCustom) R.string.container_presets_custom else R.string.container_presets_built_in
-            ),
+            text =
+                stringResource(
+                    if (isCustom) R.string.container_presets_custom else R.string.container_presets_built_in,
+                ),
             color = color,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
@@ -845,7 +882,10 @@ private fun MenuRow(
 // ============================================================================
 
 @Composable
-private fun SectionLabel(text: String, modifier: Modifier = Modifier) {
+private fun SectionLabel(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
     Text(
         text = text.uppercase(),
         color = TextSecondary,
@@ -880,16 +920,18 @@ private fun EnvVarGrid(
             // the tallest card's content, so cards in a row align visually even
             // when one has a much longer description.
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 rowItems.forEach { def ->
                     Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
                     ) {
                         EnvVarCard(
                             definition = def,
@@ -922,14 +964,15 @@ private fun EnvVarCard(
     // matches the old 140dp so all cards in a row align neatly even when their
     // descriptions vary in length.
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .heightIn(min = 150.dp)
-            .alpha(if (editable) 1f else 0.55f)
-            .clip(RoundedCornerShape(12.dp))
-            .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .heightIn(min = 150.dp)
+                .alpha(if (editable) 1f else 0.55f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                .padding(horizontal = 12.dp, vertical = 12.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
@@ -943,22 +986,30 @@ private fun EnvVarCard(
             )
             Spacer(Modifier.height(10.dp))
             when (definition.controlType) {
-                PresetControlType.TOGGLE -> EnvVarToggleControl(
-                    value = value,
-                    editable = editable,
-                    onValueChanged = onValueChanged,
-                )
-                PresetControlType.DROPDOWN -> EnvVarDropdownControl(
-                    values = definition.values,
-                    value = value,
-                    editable = editable,
-                    onValueChanged = onValueChanged,
-                )
-                PresetControlType.TEXT -> EnvVarTextControl(
-                    value = value,
-                    editable = editable,
-                    onValueChanged = onValueChanged,
-                )
+                PresetControlType.TOGGLE -> {
+                    EnvVarToggleControl(
+                        value = value,
+                        editable = editable,
+                        onValueChanged = onValueChanged,
+                    )
+                }
+
+                PresetControlType.DROPDOWN -> {
+                    EnvVarDropdownControl(
+                        values = definition.values,
+                        value = value,
+                        editable = editable,
+                        onValueChanged = onValueChanged,
+                    )
+                }
+
+                PresetControlType.TEXT -> {
+                    EnvVarTextControl(
+                        value = value,
+                        editable = editable,
+                        onValueChanged = onValueChanged,
+                    )
+                }
             }
             if (definition.summary.isNotBlank()) {
                 Spacer(Modifier.height(10.dp))
@@ -997,10 +1048,11 @@ private fun EnvVarToggleControl(
             checked = checked,
             enabled = editable,
             onCheckedChange = { onValueChanged(if (it) "1" else "0") },
-            colors = outlinedSwitchColors(
-                accentColor = Accent,
-                textSecondaryColor = TextSecondary,
-            ),
+            colors =
+                outlinedSwitchColors(
+                    accentColor = Accent,
+                    textSecondaryColor = TextSecondary,
+                ),
             // scale() preserves the switch's native proportions and just shrinks
             // the whole thing; using .size() with a custom width/height ends up
             // squishing the thumb vs. track ratio.
@@ -1018,13 +1070,14 @@ private fun EnvVarDropdownControl(
 ) {
     var open by remember { mutableStateOf(false) }
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(CardDarker)
-            .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
-            .noRippleClickable(enabled = editable && values.isNotEmpty()) { open = true }
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(CardDarker)
+                .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                .noRippleClickable(enabled = editable && values.isNotEmpty()) { open = true }
+                .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -1079,13 +1132,14 @@ private fun EnvVarTextControl(
     val borderColor = if (isFocused) Accent else CardBorder
     val borderWidth = if (isFocused) 1.5.dp else 1.dp
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .requiredHeightIn(min = 38.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(CardDarker)
-            .border(borderWidth, borderColor, RoundedCornerShape(8.dp))
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .requiredHeightIn(min = 38.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(CardDarker)
+                .border(borderWidth, borderColor, RoundedCornerShape(8.dp))
+                .padding(horizontal = 10.dp, vertical = 8.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
         BasicTextField(
@@ -1095,10 +1149,11 @@ private fun EnvVarTextControl(
             singleLine = true,
             textStyle = TextStyle(color = TextPrimary, fontSize = 12.sp),
             cursorBrush = SolidColor(Accent),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Text,
-                imeAction = ImeAction.Done,
-            ),
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Done,
+                ),
             interactionSource = interactionSource,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -1112,12 +1167,13 @@ private fun EnvVarTextControl(
 @Composable
 private fun EmptyEnvVarsCard() {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
-            .padding(horizontal = 20.dp, vertical = 28.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                .padding(horizontal = 20.dp, vertical = 28.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -1133,12 +1189,17 @@ private fun EmptyEnvVarsCard() {
 // ============================================================================
 
 @Composable
-private fun IconTapButton(icon: ImageVector, tint: Color, onClick: () -> Unit) {
+private fun IconTapButton(
+    icon: ImageVector,
+    tint: Color,
+    onClick: () -> Unit,
+) {
     Box(
-        modifier = Modifier
-            .size(30.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .noRippleClickable(onClick = onClick),
+        modifier =
+            Modifier
+                .size(30.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .noRippleClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -1151,14 +1212,19 @@ private fun IconTapButton(icon: ImageVector, tint: Color, onClick: () -> Unit) {
 }
 
 @Composable
-private fun DialogActionButton(label: String, textColor: Color, onClick: () -> Unit) {
+private fun DialogActionButton(
+    label: String,
+    textColor: Color,
+    onClick: () -> Unit,
+) {
     Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(CardDarker)
-            .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-            .noRippleClickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(CardDarker)
+                .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .noRippleClickable(onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -1185,12 +1251,13 @@ private fun ConfirmDialog(
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(CardDark)
-                .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-                .padding(22.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(CardDark)
+                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .padding(22.dp),
         ) {
             Column {
                 Text(
@@ -1239,32 +1306,36 @@ private fun PromptDialog(
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false,
-        ),
+        properties =
+            DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+            ),
     ) {
         BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
             Box(
-                modifier = Modifier
-                    .widthIn(max = 440.dp)
-                    .fillMaxWidth()
-                    .heightIn(max = maxHeight)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-                    .padding(horizontal = 18.dp, vertical = 16.dp),
+                modifier =
+                    Modifier
+                        .widthIn(max = 440.dp)
+                        .fillMaxWidth()
+                        .heightIn(max = maxHeight)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(CardDark)
+                        .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                        .padding(horizontal = 18.dp, vertical = 16.dp),
             ) {
                 Column(
-                    modifier = Modifier
-                        .wrapContentHeight()
-                        .verticalScroll(rememberScrollState()),
+                    modifier =
+                        Modifier
+                            .wrapContentHeight()
+                            .verticalScroll(rememberScrollState()),
                 ) {
                     Text(
                         text = title,
@@ -1287,13 +1358,14 @@ private fun PromptDialog(
                     val borderColor = if (isFocused) Accent else CardBorder
                     val borderWidth = if (isFocused) 1.5.dp else 1.dp
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .requiredHeightIn(min = 40.dp)
-                            .clip(RoundedCornerShape(9.dp))
-                            .background(CardDarker)
-                            .border(borderWidth, borderColor, RoundedCornerShape(9.dp))
-                            .padding(horizontal = 11.dp, vertical = 8.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .requiredHeightIn(min = 40.dp)
+                                .clip(RoundedCornerShape(9.dp))
+                                .background(CardDarker)
+                                .border(borderWidth, borderColor, RoundedCornerShape(9.dp))
+                                .padding(horizontal = 11.dp, vertical = 8.dp),
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         BasicTextField(

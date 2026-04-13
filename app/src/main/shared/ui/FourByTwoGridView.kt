@@ -1,4 +1,7 @@
 package com.winlator.cmod.shared.ui
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,9 +16,6 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,7 +33,7 @@ import kotlin.math.abs
 enum class ViewMode { Grid }
 
 /**
- * Unified grid layout used by store tabs              
+ * Unified grid layout used by store tabs
  *
  * @param items The data to display.
  * @param modifier Outer modifier (padding, size, etc.).
@@ -56,30 +56,32 @@ fun <T> FourByTwoGridView(
     clipContent: Boolean = true,
     viewMode: ViewMode = ViewMode.Grid,
     itemContent: @Composable (item: T, index: Int, rowHeight: Dp) -> Unit,
-    ) {
-        when (viewMode) {
-            ViewMode.Grid -> {
-                BoxWithConstraints(modifier.fillMaxSize()) {
-                    val layoutDirection = LocalLayoutDirection.current
-                    val navBottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                    val effectiveContentPadding = PaddingValues(
+) {
+    when (viewMode) {
+        ViewMode.Grid -> {
+            BoxWithConstraints(modifier.fillMaxSize()) {
+                val layoutDirection = LocalLayoutDirection.current
+                val navBottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                val effectiveContentPadding =
+                    PaddingValues(
                         start = contentPadding.calculateStartPadding(layoutDirection),
                         top = contentPadding.calculateTopPadding(),
                         end = contentPadding.calculateEndPadding(layoutDirection),
-                        bottom = contentPadding.calculateBottomPadding() + navBottomInset
+                        bottom = contentPadding.calculateBottomPadding() + navBottomInset,
                     )
-                    // Visible rows = 2; subtract one gap between them plus any content-padding inset
-                    val verticalInset =
-                        effectiveContentPadding.calculateTopPadding() +
+                // Visible rows = 2; subtract one gap between them plus any content-padding inset
+                val verticalInset =
+                    effectiveContentPadding.calculateTopPadding() +
                         effectiveContentPadding.calculateBottomPadding()
-                    val targetRowHeight = (maxHeight - spacing - verticalInset) / 2
-                    val rowHeight by animateDpAsState(
-                        targetValue = targetRowHeight,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessHigh
-                    ),
-                    label = "rowHeight"
+                val targetRowHeight = (maxHeight - spacing - verticalInset) / 2
+                val rowHeight by animateDpAsState(
+                    targetValue = targetRowHeight,
+                    animationSpec =
+                        spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessHigh,
+                        ),
+                    label = "rowHeight",
                 )
 
                 LazyVerticalGrid(
@@ -88,9 +90,10 @@ fun <T> FourByTwoGridView(
                     horizontalArrangement = Arrangement.spacedBy(spacing),
                     verticalArrangement = Arrangement.spacedBy(spacing),
                     contentPadding = effectiveContentPadding,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .then(if (!clipContent) Modifier.graphicsLayer { clip = false } else Modifier)
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .then(if (!clipContent) Modifier.graphicsLayer { clip = false } else Modifier),
                 ) {
                     itemsIndexed(items) { index, item ->
                         itemContent(item, index, rowHeight)

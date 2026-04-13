@@ -1,10 +1,10 @@
 package com.winlator.cmod.feature.stores.steam.data
+import com.winlator.cmod.feature.stores.steam.db.serializers.OsEnumSetSerializer
 import com.winlator.cmod.feature.stores.steam.enums.OS
 import com.winlator.cmod.feature.stores.steam.enums.OSArch
-import com.winlator.cmod.feature.stores.steam.db.serializers.OsEnumSetSerializer
 import com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.INVALID_APP_ID
-import java.util.EnumSet
 import kotlinx.serialization.Serializable
+import java.util.EnumSet
 
 @Serializable
 data class DepotInfo(

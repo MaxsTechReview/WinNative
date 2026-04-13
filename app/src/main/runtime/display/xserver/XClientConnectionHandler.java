@@ -4,20 +4,20 @@ import com.winlator.cmod.runtime.display.connector.Client;
 import com.winlator.cmod.runtime.display.connector.ConnectionHandler;
 
 public class XClientConnectionHandler implements ConnectionHandler {
-    private final XServer xServer;
+  private final XServer xServer;
 
-    public XClientConnectionHandler(XServer xServer) {
-        this.xServer = xServer;
-    }
+  public XClientConnectionHandler(XServer xServer) {
+    this.xServer = xServer;
+  }
 
-    @Override
-    public void handleNewConnection(Client client) {
-        client.createIOStreams();
-        client.setTag(new XClient(xServer, client.getInputStream(), client.getOutputStream()));
-    }
+  @Override
+  public void handleNewConnection(Client client) {
+    client.createIOStreams();
+    client.setTag(new XClient(xServer, client.getInputStream(), client.getOutputStream()));
+  }
 
-    @Override
-    public void handleConnectionShutdown(Client client) {
-        ((XClient)client.getTag()).freeResources();
-    }
+  @Override
+  public void handleConnectionShutdown(Client client) {
+    ((XClient) client.getTag()).freeResources();
+  }
 }

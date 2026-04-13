@@ -24,39 +24,48 @@ class VdfParser {
         val result = mutableMapOf<String, Any>()
 
         while (stream.available() > 0) {
-            val dataType = try {
-                stream.readByte()
-            } catch (e: Exception) {
-                break
-            }
+            val dataType =
+                try {
+                    stream.readByte()
+                } catch (e: Exception) {
+                    break
+                }
 
             when (dataType) {
-                VDF_END -> break
+                VDF_END -> {
+                    break
+                }
+
                 VDF_SUBSECTION -> {
                     val key = readString(stream)
                     val value = parseVdfData(stream)
                     result[key] = value
                 }
+
                 VDF_STRING -> {
                     val key = readString(stream)
                     val value = readString(stream)
                     result[key] = value
                 }
+
                 VDF_INT32 -> {
                     val key = readString(stream)
                     val value = readInt32(stream)
                     result[key] = value
                 }
+
                 VDF_FLOAT32 -> {
                     val key = readString(stream)
                     val value = readFloat32(stream)
                     result[key] = value
                 }
+
                 VDF_INT64 -> {
                     val key = readString(stream)
                     val value = readInt64(stream)
                     result[key] = value
                 }
+
                 VDF_UINT64 -> {
                     val key = readString(stream)
                     val value = readUInt64(stream)

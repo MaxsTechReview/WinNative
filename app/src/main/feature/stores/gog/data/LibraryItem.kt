@@ -7,7 +7,8 @@ data class LibraryItem(
     val gameSource: GameSource,
 ) {
     val gameId: Int
-        get() = appId.substringAfterLast("_", appId).toIntOrNull()
-            ?: appId.toIntOrNull()
-            ?: appId.hashCode()
+        get() =
+            appId.substringAfterLast("_", appId).toIntOrNull()
+                ?: appId.toIntOrNull()
+                ?: appId.hashCode()
 }

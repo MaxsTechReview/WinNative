@@ -1,8 +1,8 @@
 /**************************************************************************
- * 
+ *
  * Copyright 2007-2008 VMware, Inc.
  * All Rights Reserved.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -10,11 +10,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -22,22 +22,19 @@
  * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- * 
+ *
  **************************************************************************/
 
 #ifndef P_COMPILER_H
 #define P_COMPILER_H
 
-
-
 #include "p_config.h"
 
+#include <limits.h>
+#include <stdarg.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stddef.h>
-#include <stdarg.h>
-#include <limits.h>
-
 
 #if defined(_WIN32) && !defined(__WIN32__)
 #define __WIN32__
@@ -46,10 +43,9 @@
 #if defined(_MSC_VER)
 
 /* Avoid 'expression is always true' warning */
-#pragma warning(disable: 4296)
+#pragma warning(disable : 4296)
 
 #endif /* _MSC_VER */
-
 
 /*
  * Alternative stdint.h and stdbool.h headers are supplied in include/c99 for
@@ -58,26 +54,24 @@
 #ifndef __STDC_LIMIT_MACROS
 #define __STDC_LIMIT_MACROS 1
 #endif
-#include <stdint.h>
 #include <stdbool.h>
-
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-
 #if !defined(__HAIKU__) && !defined(__USE_MISC)
 #if !defined(PIPE_OS_ANDROID)
-typedef unsigned int       uint;
+typedef unsigned int uint;
 #endif
-typedef unsigned short     ushort;
+typedef unsigned short ushort;
 #endif
-typedef unsigned char      ubyte;
+typedef unsigned char ubyte;
 
 typedef unsigned char boolean;
 #ifndef TRUE
-#define TRUE  true
+#define TRUE true
 #endif
 #ifndef FALSE
 #define FALSE false
@@ -93,21 +87,19 @@ typedef unsigned char boolean;
 
 /* Function visibility */
 #ifndef PUBLIC
-#  if defined(__GNUC__) || (defined(__SUNPRO_C) && (__SUNPRO_C >= 0x590))
-#    define PUBLIC __attribute__((visibility("default")))
-#  elif defined(_MSC_VER)
-#    define PUBLIC __declspec(dllexport)
-#  else
-#    define PUBLIC
-#  endif
+#if defined(__GNUC__) || (defined(__SUNPRO_C) && (__SUNPRO_C >= 0x590))
+#define PUBLIC __attribute__((visibility("default")))
+#elif defined(_MSC_VER)
+#define PUBLIC __declspec(dllexport)
+#else
+#define PUBLIC
 #endif
-
+#endif
 
 /* XXX: Use standard `__func__` instead */
 #ifndef __FUNCTION__
-#  define __FUNCTION__ __func__
+#define __FUNCTION__ __func__
 #endif
-
 
 /* This should match linux gcc cdecl semantics everywhere, so that we
  * just codegen one calling convention on all platforms.
@@ -118,26 +110,25 @@ typedef unsigned char boolean;
 #define PIPE_CDECL
 #endif
 
-
-
 #if defined(__GNUC__)
-#define PIPE_DEPRECATED  __attribute__((__deprecated__))
+#define PIPE_DEPRECATED __attribute__((__deprecated__))
 #else
 #define PIPE_DEPRECATED
 #endif
 
-
-
 /* Macros for data alignment. */
-#if defined(__GNUC__) || (defined(__SUNPRO_C) && (__SUNPRO_C >= 0x590)) || defined(__SUNPRO_CC)
+#if defined(__GNUC__) || (defined(__SUNPRO_C) && (__SUNPRO_C >= 0x590)) ||     \
+    defined(__SUNPRO_CC)
 
 /* See http://gcc.gnu.org/onlinedocs/gcc-4.4.2/gcc/Type-Attributes.html */
-#define PIPE_ALIGN_TYPE(_alignment, _type) _type __attribute__((aligned(_alignment)))
+#define PIPE_ALIGN_TYPE(_alignment, _type)                                     \
+  _type __attribute__((aligned(_alignment)))
 
 /* See http://gcc.gnu.org/onlinedocs/gcc-4.4.2/gcc/Variable-Attributes.html */
 #define PIPE_ALIGN_VAR(_alignment) __attribute__((aligned(_alignment)))
 
-#if (__GNUC__ > 4 || (__GNUC__ == 4 &&__GNUC_MINOR__>1)) && !defined(PIPE_ARCH_X86_64)
+#if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 1)) &&                 \
+    !defined(PIPE_ARCH_X86_64)
 #define PIPE_ALIGN_STACK __attribute__((force_align_arg_pointer))
 #else
 #define PIPE_ALIGN_STACK
@@ -164,10 +155,9 @@ typedef unsigned char boolean;
 
 #endif
 
-
 #if defined(__GNUC__)
 
-#define PIPE_READ_WRITE_BARRIER() __asm__("":::"memory")
+#define PIPE_READ_WRITE_BARRIER() __asm__("" ::: "memory")
 
 #elif defined(_MSC_VER)
 
@@ -185,7 +175,6 @@ void _ReadWriteBarrier(void);
 #define PIPE_READ_WRITE_BARRIER() /* */
 
 #endif
-
 
 /* You should use these macros to mark if blocks where the if condition
  * is either likely to be true, or unlikely to be true.
@@ -220,30 +209,27 @@ void _ReadWriteBarrier(void);
  * needs an appropriate coverage suite and does not inform human readers.
  */
 #ifndef likely
-#  if defined(__GNUC__)
-#    define likely(x)   __builtin_expect(!!(x), 1)
-#    define unlikely(x) __builtin_expect(!!(x), 0)
-#  else
-#    define likely(x)   (x)
-#    define unlikely(x) (x)
-#  endif
+#if defined(__GNUC__)
+#define likely(x) __builtin_expect(!!(x), 1)
+#define unlikely(x) __builtin_expect(!!(x), 0)
+#else
+#define likely(x) (x)
+#define unlikely(x) (x)
 #endif
-
+#endif
 
 /**
  * Static (compile-time) assertion.
  * Basically, use COND to dimension an array.  If COND is false/zero the
  * array size will be -1 and we'll get a compilation error.
  */
-#define STATIC_ASSERT(COND) \
-   do { \
-      (void) sizeof(char [1 - 2*!(COND)]); \
-   } while (0)
-
+#define STATIC_ASSERT(COND)                                                    \
+  do {                                                                         \
+    (void)sizeof(char[1 - 2 * !(COND)]);                                       \
+  } while (0)
 
 #if defined(__cplusplus)
 }
 #endif
-
 
 #endif /* P_COMPILER_H */

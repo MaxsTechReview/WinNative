@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2011 Red Hat Inc.
- * 
+ *
  * block compression parts are:
  * Copyright (C) 2004  Roland Scheidegger   All Rights Reserved.
  *
@@ -27,8 +27,8 @@
  *    Dave Airlie
  */
 
-#include <inttypes.h>
 #include "macros.h"
+#include <inttypes.h>
 
 #include "rgtc.h"
 
@@ -58,4 +58,3 @@
 #undef TYPE
 #undef T_MIN
 #undef T_MAX
-

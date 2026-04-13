@@ -9,8 +9,8 @@ import com.winlator.cmod.feature.stores.steam.data.LibraryHeroInfo
 import com.winlator.cmod.feature.stores.steam.data.LibraryLogoInfo
 import com.winlator.cmod.feature.stores.steam.data.ManifestInfo
 import com.winlator.cmod.feature.stores.steam.data.SaveFilePattern
-import com.winlator.cmod.feature.stores.steam.data.SteamControllerConfigDetail
 import com.winlator.cmod.feature.stores.steam.data.SteamApp
+import com.winlator.cmod.feature.stores.steam.data.SteamControllerConfigDetail
 import com.winlator.cmod.feature.stores.steam.data.UFS
 import com.winlator.cmod.feature.stores.steam.enums.AppType
 import com.winlator.cmod.feature.stores.steam.enums.ControllerSupport
@@ -21,51 +21,56 @@ import com.winlator.cmod.feature.stores.steam.enums.PathType
 import com.winlator.cmod.feature.stores.steam.enums.ReleaseState
 import com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.INVALID_APP_ID
 import `in`.dragonbra.javasteam.types.KeyValue
-import java.util.Date
 import timber.log.Timber
+import java.util.Date
 
 /**
  * Extension functions relating to [KeyValue] as the receiver type.
  */
 
-fun KeyValue.generateSteamApp(): SteamApp {
-    return SteamApp(
+fun KeyValue.generateSteamApp(): SteamApp =
+    SteamApp(
         id = this["appid"].asInteger(INVALID_APP_ID),
-        depots = this["depots"].children
-            .filter { currentDepot ->
-                currentDepot.name?.toIntOrNull() != null
-            }
-            .associate { currentDepot ->
-                val depotId = currentDepot.name!!.toInt()
+        depots =
+            this["depots"]
+                .children
+                .filter { currentDepot ->
+                    currentDepot.name?.toIntOrNull() != null
+                }.associate { currentDepot ->
+                    val depotId = currentDepot.name!!.toInt()
 
-                val manifests = currentDepot["manifests"].children.generateManifest()
+                    val manifests = currentDepot["manifests"].children.generateManifest()
 
-                val encryptedManifests = currentDepot["encryptedManifests"].children.generateManifest()
+                    val encryptedManifests = currentDepot["encryptedManifests"].children.generateManifest()
 
-                depotId to DepotInfo(
-                    depotId = depotId,
-                    dlcAppId = currentDepot["dlcappid"].asInteger(INVALID_APP_ID),
-                    depotFromApp = currentDepot["depotfromapp"].asInteger(
-                        INVALID_APP_ID,
-                    ),
-                    sharedInstall = currentDepot["sharedinstall"].asBoolean(),
-                    osList = OS.from(currentDepot["config"]["oslist"].value),
-                    osArch = OSArch.from(currentDepot["config"]["osarch"].value),
-                    manifests = manifests,
-                    encryptedManifests = encryptedManifests,
-                    language = currentDepot["config"]["language"].value.orEmpty(),
-                    realm = currentDepot["config"]["realm"].value.orEmpty(),
-                    optionalDlcId = currentDepot["config"]["optionaldlc"].asInteger(INVALID_APP_ID),
-                )
+                    depotId to
+                        DepotInfo(
+                            depotId = depotId,
+                            dlcAppId = currentDepot["dlcappid"].asInteger(INVALID_APP_ID),
+                            depotFromApp =
+                                currentDepot["depotfromapp"].asInteger(
+                                    INVALID_APP_ID,
+                                ),
+                            sharedInstall = currentDepot["sharedinstall"].asBoolean(),
+                            osList = OS.from(currentDepot["config"]["oslist"].value),
+                            osArch = OSArch.from(currentDepot["config"]["osarch"].value),
+                            manifests = manifests,
+                            encryptedManifests = encryptedManifests,
+                            language = currentDepot["config"]["language"].value.orEmpty(),
+                            realm = currentDepot["config"]["realm"].value.orEmpty(),
+                            optionalDlcId = currentDepot["config"]["optionaldlc"].asInteger(INVALID_APP_ID),
+                        )
+                },
+        branches =
+            this["depots"]["branches"].children.associate {
+                it.name!! to
+                    BranchInfo(
+                        name = it.name!!,
+                        buildId = it["buildid"].asLong(),
+                        pwdRequired = it["pwdrequired"].asBoolean(),
+                        timeUpdated = Date(it["timeupdated"].asLong() * 1000L),
+                    )
             },
-        branches = this["depots"]["branches"].children.associate {
-            it.name!! to BranchInfo(
-                name = it.name!!,
-                buildId = it["buildid"].asLong(),
-                pwdRequired = it["pwdrequired"].asBoolean(),
-                timeUpdated = Date(it["timeupdated"].asLong() * 1000L),
-            )
-        },
         name = this["common"]["name"].value.orEmpty(),
         type = AppType.from(this["common"]["type"].value),
         osList = OS.from(this["common"]["oslist"].value),
@@ -80,20 +85,24 @@ fun KeyValue.generateSteamApp(): SteamApp {
         clientTgaHash = this["common"]["clienttga"].value.orEmpty(),
         smallCapsule = this["common"]["small_capsule"].children.toLangImgMap(),
         headerImage = this["common"]["header_image"].children.toLangImgMap(),
-        libraryAssets = LibraryAssetsInfo(
-            libraryCapsule = LibraryCapsuleInfo(
-                image = this["common"]["library_assets_full"]["library_capsule"]["image"].children.toLangImgMap(),
-                image2x = this["common"]["library_assets_full"]["library_capsule"]["image2x"].children.toLangImgMap(),
+        libraryAssets =
+            LibraryAssetsInfo(
+                libraryCapsule =
+                    LibraryCapsuleInfo(
+                        image = this["common"]["library_assets_full"]["library_capsule"]["image"].children.toLangImgMap(),
+                        image2x = this["common"]["library_assets_full"]["library_capsule"]["image2x"].children.toLangImgMap(),
+                    ),
+                libraryHero =
+                    LibraryHeroInfo(
+                        image = this["common"]["library_assets_full"]["library_hero"]["image"].children.toLangImgMap(),
+                        image2x = this["common"]["library_assets_full"]["library_hero"]["image2x"].children.toLangImgMap(),
+                    ),
+                libraryLogo =
+                    LibraryLogoInfo(
+                        image = this["common"]["library_assets_full"]["library_logo"]["image"].children.toLangImgMap(),
+                        image2x = this["common"]["library_assets_full"]["library_logo"]["image2x"].children.toLangImgMap(),
+                    ),
             ),
-            libraryHero = LibraryHeroInfo(
-                image = this["common"]["library_assets_full"]["library_hero"]["image"].children.toLangImgMap(),
-                image2x = this["common"]["library_assets_full"]["library_hero"]["image2x"].children.toLangImgMap(),
-            ),
-            libraryLogo = LibraryLogoInfo(
-                image = this["common"]["library_assets_full"]["library_logo"]["image"].children.toLangImgMap(),
-                image2x = this["common"]["library_assets_full"]["library_logo"]["image2x"].children.toLangImgMap(),
-            ),
-        ),
         primaryGenre = this["common"]["primary_genre"].asBoolean(),
         reviewScore = this["common"]["review_score"].asByte(),
         reviewPercentage = this["common"]["review_percentage"].asByte(),
@@ -129,37 +138,40 @@ fun KeyValue.generateSteamApp(): SteamApp {
         useMms = this["common"]["config"]["usemms"].asBoolean(),
         installScriptSignature = this["common"]["config"]["installscriptsignature"].value.orEmpty(),
         installScriptOverride = this["common"]["config"]["installscriptoverride"].asBoolean(),
-        config = ConfigInfo(
-            installDir = this["config"]["installdir"].value.orEmpty(),
-            launch = this["config"]["launch"].children.map {
-                LaunchInfo(
-                    executable = it["executable"].value?.replace('\\', '/').orEmpty(),
-                    workingDir = it["workingdir"].value?.replace('\\', '/').orEmpty(),
-                    description = it["description"].value.orEmpty(),
-                    type = it["type"].value.orEmpty(),
-                    configOS = OS.from(it["config"]["oslist"].value),
-                    configArch = OSArch.from(it["config"]["osarch"].value),
-                )
-            },
-            steamControllerTemplateIndex = this["config"]["steamcontrollertemplateindex"].asInteger(),
-            steamControllerTouchTemplateIndex = this["config"]["steamcontrollertouchtemplateindex"].asInteger(),
-            steamInputManifestPath = this["config"]["steaminputmanifestpath"].value.orEmpty(),
-            steamControllerConfigDetails = parseSteamControllerConfigDetails(),
-        ),
-        ufs = UFS(
-            quota = this["ufs"]["quota"].asInteger(),
-            maxNumFiles = this["ufs"]["maxnumfiles"].asInteger(),
-            saveFilePatterns = this["ufs"]["savefiles"].children.map {
-                SaveFilePattern(
-                    root = PathType.from(it["root"].value),
-                    path = it["path"].value.orEmpty(),
-                    pattern = it["pattern"].value.orEmpty(),
-                    recursive = it["recursive"].asInteger(0),
-                )
-            },
-        ),
+        config =
+            ConfigInfo(
+                installDir = this["config"]["installdir"].value.orEmpty(),
+                launch =
+                    this["config"]["launch"].children.map {
+                        LaunchInfo(
+                            executable = it["executable"].value?.replace('\\', '/').orEmpty(),
+                            workingDir = it["workingdir"].value?.replace('\\', '/').orEmpty(),
+                            description = it["description"].value.orEmpty(),
+                            type = it["type"].value.orEmpty(),
+                            configOS = OS.from(it["config"]["oslist"].value),
+                            configArch = OSArch.from(it["config"]["osarch"].value),
+                        )
+                    },
+                steamControllerTemplateIndex = this["config"]["steamcontrollertemplateindex"].asInteger(),
+                steamControllerTouchTemplateIndex = this["config"]["steamcontrollertouchtemplateindex"].asInteger(),
+                steamInputManifestPath = this["config"]["steaminputmanifestpath"].value.orEmpty(),
+                steamControllerConfigDetails = parseSteamControllerConfigDetails(),
+            ),
+        ufs =
+            UFS(
+                quota = this["ufs"]["quota"].asInteger(),
+                maxNumFiles = this["ufs"]["maxnumfiles"].asInteger(),
+                saveFilePatterns =
+                    this["ufs"]["savefiles"].children.map {
+                        SaveFilePattern(
+                            root = PathType.from(it["root"].value),
+                            path = it["path"].value.orEmpty(),
+                            pattern = it["pattern"].value.orEmpty(),
+                            recursive = it["recursive"].asInteger(0),
+                        )
+                    },
+            ),
     )
-}
 
 private fun KeyValue.parseSteamControllerConfigDetails(): List<SteamControllerConfigDetail> {
     val details = this["config"]["steamcontrollerconfigdetails"]
@@ -168,12 +180,13 @@ private fun KeyValue.parseSteamControllerConfigDetails(): List<SteamControllerCo
     return details.children.mapNotNull { detail ->
         val publishedFileId = detail.name?.toLongOrNull() ?: return@mapNotNull null
         val controllerType = detail["controller_type"].value.orEmpty()
-        val enabledBranches = detail["enabled_branches"]
-            .value
-            .orEmpty()
-            .split(',')
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
+        val enabledBranches =
+            detail["enabled_branches"]
+                .value
+                .orEmpty()
+                .split(',')
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
 
         SteamControllerConfigDetail(
             publishedFileId = publishedFileId,
@@ -183,20 +196,24 @@ private fun KeyValue.parseSteamControllerConfigDetails(): List<SteamControllerCo
     }
 }
 
-fun List<KeyValue>.generateManifest(): Map<String, ManifestInfo> = associate { manifest ->
-    manifest.name!! to ManifestInfo(
-        name = manifest.name!!,
-        gid = manifest["gid"].asLong(),
-        size = manifest["size"].asLong(),
-        download = manifest["download"].asLong(),
-    )
-}
+fun List<KeyValue>.generateManifest(): Map<String, ManifestInfo> =
+    associate { manifest ->
+        manifest.name!! to
+            ManifestInfo(
+                name = manifest.name!!,
+                gid = manifest["gid"].asLong(),
+                size = manifest["size"].asLong(),
+                download = manifest["download"].asLong(),
+            )
+    }
 
-fun List<KeyValue>.toLangImgMap(): Map<Language, String> = mapNotNull { kv ->
-    Language.from(kv.name!!)
-        .takeIf { it != Language.unknown }
-        ?.to(kv.value!!)
-}.toMap()
+fun List<KeyValue>.toLangImgMap(): Map<Language, String> =
+    mapNotNull { kv ->
+        Language
+            .from(kv.name!!)
+            .takeIf { it != Language.unknown }
+            ?.to(kv.value!!)
+    }.toMap()
 
 @Suppress("unused")
 fun KeyValue.printAllKeyValues(depth: Int = 0) {

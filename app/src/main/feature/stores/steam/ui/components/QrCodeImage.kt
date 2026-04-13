@@ -46,9 +46,10 @@ fun QrCodeImage(
         targetState = qrBitmap,
     ) { bitmap ->
         Box(
-            modifier = modifier
-                .size(size)
-                .background(Color.Transparent),
+            modifier =
+                modifier
+                    .size(size)
+                    .background(Color.Transparent),
             contentAlignment = Alignment.Center,
         ) {
             if (bitmap != null) {
@@ -67,7 +68,10 @@ fun QrCodeImage(
 }
 
 @Composable
-private fun rememberQrBitmap(content: String, size: Dp): Bitmap? {
+private fun rememberQrBitmap(
+    content: String,
+    size: Dp,
+): Bitmap? {
     val density = LocalDensity.current
     val sizePx = with(density) { size.roundToPx() }
 
@@ -85,21 +89,23 @@ private fun rememberQrBitmap(content: String, size: Dp): Bitmap? {
         ioScope.launch {
             val qrCodeWriter = QRCodeWriter()
 
-            val encodeHints = mutableMapOf<EncodeHintType, Any?>().apply {
-                this[EncodeHintType.MARGIN] = 0
-            }
+            val encodeHints =
+                mutableMapOf<EncodeHintType, Any?>().apply {
+                    this[EncodeHintType.MARGIN] = 0
+                }
 
-            val bitmapMatrix = try {
-                qrCodeWriter.encode(
-                    content,
-                    BarcodeFormat.QR_CODE,
-                    sizePx,
-                    sizePx,
-                    encodeHints,
-                )
-            } catch (_: WriterException) {
-                null
-            }
+            val bitmapMatrix =
+                try {
+                    qrCodeWriter.encode(
+                        content,
+                        BarcodeFormat.QR_CODE,
+                        sizePx,
+                        sizePx,
+                        encodeHints,
+                    )
+                } catch (_: WriterException) {
+                    null
+                }
 
             val matrixWidth = bitmapMatrix?.width ?: sizePx
             val matrixHeight = bitmapMatrix?.height ?: sizePx

@@ -1,6 +1,6 @@
 package com.winlator.cmod.feature.stores.steam.data
-import kotlinx.serialization.Serializable
 import com.winlator.cmod.feature.stores.steam.db.serializers.DateSerializer
+import kotlinx.serialization.Serializable
 import java.util.Date
 
 @Serializable

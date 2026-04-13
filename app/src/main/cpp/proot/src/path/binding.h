@@ -26,31 +26,37 @@
 #include <limits.h> /* PATH_MAX, */
 #include <stdbool.h>
 
-#include "tracee/tracee.h"
 #include "path.h"
+#include "tracee/tracee.h"
 
 typedef struct binding {
-	Path host;
-	Path guest;
+  Path host;
+  Path guest;
 
-	bool need_substitution;
+  bool need_substitution;
 
-	struct {
-		CIRCLEQ_ENTRY(binding) pending;
-		CIRCLEQ_ENTRY(binding) guest;
-		CIRCLEQ_ENTRY(binding) host;
-	} link;
+  struct {
+    CIRCLEQ_ENTRY(binding) pending;
+    CIRCLEQ_ENTRY(binding) guest;
+    CIRCLEQ_ENTRY(binding) host;
+  } link;
 } Binding;
 
 typedef CIRCLEQ_HEAD(bindings, binding) Bindings;
 
 extern Binding *insort_binding3(const Tracee *tracee, const TALLOC_CTX *context,
-				const char host_path[PATH_MAX], const char guest_path[PATH_MAX]);
-extern Binding *new_binding(Tracee *tracee, const char *host, const char *guest, bool must_exist);
+                                const char host_path[PATH_MAX],
+                                const char guest_path[PATH_MAX]);
+extern Binding *new_binding(Tracee *tracee, const char *host, const char *guest,
+                            bool must_exist);
 extern int initialize_bindings(Tracee *tracee);
-extern const char *get_path_binding(const Tracee* tracee, Side side, const char path[PATH_MAX]);
-extern Binding *get_binding(const Tracee *tracee, Side side, const char path[PATH_MAX]);
-extern int substitute_binding(const Tracee* tracee, Side side, char path[PATH_MAX]);
-extern void remove_binding_from_all_lists(const Tracee *tracee, Binding *binding);
+extern const char *get_path_binding(const Tracee *tracee, Side side,
+                                    const char path[PATH_MAX]);
+extern Binding *get_binding(const Tracee *tracee, Side side,
+                            const char path[PATH_MAX]);
+extern int substitute_binding(const Tracee *tracee, Side side,
+                              char path[PATH_MAX]);
+extern void remove_binding_from_all_lists(const Tracee *tracee,
+                                          Binding *binding);
 
 #endif /* BINDING_H */

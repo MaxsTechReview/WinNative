@@ -20,12 +20,13 @@ object LogManager {
     fun getLogsDir(context: Context): File {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val customUri = prefs.getString("winlator_path_uri", null)
-        val baseDir = if (customUri != null) {
-            val customPath = FileUtils.getFilePathFromUri(context, android.net.Uri.parse(customUri))
-            if (customPath != null) File(customPath) else File(SettingsConfig.DEFAULT_WINLATOR_PATH)
-        } else {
-            File(SettingsConfig.DEFAULT_WINLATOR_PATH)
-        }
+        val baseDir =
+            if (customUri != null) {
+                val customPath = FileUtils.getFilePathFromUri(context, android.net.Uri.parse(customUri))
+                if (customPath != null) File(customPath) else File(SettingsConfig.DEFAULT_WINLATOR_PATH)
+            } else {
+                File(SettingsConfig.DEFAULT_WINLATOR_PATH)
+            }
         val dir = File(baseDir, "logs")
         if (!dir.exists()) dir.mkdirs()
         return dir
@@ -34,12 +35,12 @@ object LogManager {
     fun isAnyLoggingEnabled(context: Context): Boolean {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         return prefs.getBoolean("enable_wine_debug", false) ||
-               prefs.getBoolean("enable_box64_logs", false) ||
-               prefs.getBoolean("enable_fexcore_logs", false) ||
-               prefs.getBoolean("enable_steam_logs", false) ||
-               prefs.getBoolean("enable_input_logs", false) ||
-               prefs.getBoolean("enable_download_logs", false) ||
-               prefs.getBoolean("enable_app_debug", false)
+            prefs.getBoolean("enable_box64_logs", false) ||
+            prefs.getBoolean("enable_fexcore_logs", false) ||
+            prefs.getBoolean("enable_steam_logs", false) ||
+            prefs.getBoolean("enable_input_logs", false) ||
+            prefs.getBoolean("enable_download_logs", false) ||
+            prefs.getBoolean("enable_app_debug", false)
     }
 
     fun updateLoggingState(context: Context) {
@@ -95,9 +96,10 @@ object LogManager {
         try {
             stopLogcat()
             Runtime.getRuntime().exec("logcat -c").waitFor()
-            logcatProcess = Runtime.getRuntime().exec(
-                arrayOf("logcat", "-f", logFile.absolutePath, "*:D")
-            )
+            logcatProcess =
+                Runtime.getRuntime().exec(
+                    arrayOf("logcat", "-f", logFile.absolutePath, "*:D"),
+                )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start logcat: ${e.message}")
         }
@@ -141,9 +143,10 @@ object LogManager {
             stopAppLogging()
             val pid = android.os.Process.myPid()
             // Filter by PID and capture warnings, errors, and fatal messages
-            appLogProcess = Runtime.getRuntime().exec(
-                arrayOf("logcat", "-f", logFile.absolutePath, "--pid=$pid", "*:W")
-            )
+            appLogProcess =
+                Runtime.getRuntime().exec(
+                    arrayOf("logcat", "-f", logFile.absolutePath, "--pid=$pid", "*:W"),
+                )
             Log.i(TAG, "Application debug logging started (PID=$pid)")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start application logging: ${e.message}")
@@ -166,8 +169,10 @@ object LogManager {
     @JvmStatic
     fun getShareableLogFiles(context: Context): Array<File> {
         val logsDir = getLogsDir(context)
-        return logsDir.listFiles()?.filter {
-            it.isFile && (it.name.endsWith(".log") || it.name.endsWith(".old.log") || it.name.endsWith(".txt"))
-        }?.toTypedArray() ?: emptyArray()
+        return logsDir
+            .listFiles()
+            ?.filter {
+                it.isFile && (it.name.endsWith(".log") || it.name.endsWith(".old.log") || it.name.endsWith(".txt"))
+            }?.toTypedArray() ?: emptyArray()
     }
 }

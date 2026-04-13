@@ -1,9 +1,9 @@
 /**************************************************************************
- * 
+ *
  * Copyright 2007 VMware, Inc.
  * Copyright (c) 2008 VMware, Inc.
  * All Rights Reserved.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -11,11 +11,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -23,7 +23,7 @@
  * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- * 
+ *
  **************************************************************************/
 
 #ifndef PIPE_FORMAT_H
@@ -36,12 +36,11 @@
 extern "C" {
 #endif
 
-
 #define pipe_format virgl_formats
 /**
  * Formats for textures, surfaces and vertex data
  */
-#define PIPE_FORMAT_NONE           VIRGL_FORMAT_NONE
+#define PIPE_FORMAT_NONE VIRGL_FORMAT_NONE
 #define PIPE_FORMAT_B8G8R8A8_UNORM VIRGL_FORMAT_B8G8R8A8_UNORM
 #define PIPE_FORMAT_B8G8R8X8_UNORM VIRGL_FORMAT_B8G8R8X8_UNORM
 #define PIPE_FORMAT_A8R8G8B8_UNORM VIRGL_FORMAT_A8R8G8B8_UNORM
@@ -50,11 +49,12 @@ extern "C" {
 #define PIPE_FORMAT_B4G4R4A4_UNORM VIRGL_FORMAT_B4G4R4A4_UNORM
 #define PIPE_FORMAT_B5G6R5_UNORM VIRGL_FORMAT_B5G6R5_UNORM
 #define PIPE_FORMAT_R10G10B10A2_UNORM VIRGL_FORMAT_R10G10B10A2_UNORM
-#define PIPE_FORMAT_L8_UNORM VIRGL_FORMAT_L8_UNORM                    /**< ubyte luminance */
-#define PIPE_FORMAT_A8_UNORM VIRGL_FORMAT_A8_UNORM                   /**< ubyte alpha */
-#define PIPE_FORMAT_I8_UNORM VIRGL_FORMAT_I8_UNORM                   /**< ubyte intensity */
-#define PIPE_FORMAT_L8A8_UNORM VIRGL_FORMAT_L8A8_UNORM                 /**< ubyte alpha, luminance */
-#define PIPE_FORMAT_L16_UNORM VIRGL_FORMAT_L16_UNORM                  /**< ushort luminance */
+#define PIPE_FORMAT_L8_UNORM VIRGL_FORMAT_L8_UNORM /**< ubyte luminance */
+#define PIPE_FORMAT_A8_UNORM VIRGL_FORMAT_A8_UNORM /**< ubyte alpha */
+#define PIPE_FORMAT_I8_UNORM VIRGL_FORMAT_I8_UNORM /**< ubyte intensity */
+#define PIPE_FORMAT_L8A8_UNORM                                                 \
+  VIRGL_FORMAT_L8A8_UNORM /**< ubyte alpha, luminance */
+#define PIPE_FORMAT_L16_UNORM VIRGL_FORMAT_L16_UNORM /**< ushort luminance */
 #define PIPE_FORMAT_UYVY VIRGL_FORMAT_UYVY
 #define PIPE_FORMAT_YUYV VIRGL_FORMAT_YUYV
 #define PIPE_FORMAT_Z16_UNORM VIRGL_FORMAT_Z16_UNORM
@@ -64,7 +64,7 @@ extern "C" {
 #define PIPE_FORMAT_S8_UINT_Z24_UNORM VIRGL_FORMAT_S8_UINT_Z24_UNORM
 #define PIPE_FORMAT_Z24X8_UNORM VIRGL_FORMAT_Z24X8_UNORM
 #define PIPE_FORMAT_X8Z24_UNORM VIRGL_FORMAT_X8Z24_UNORM
-#define PIPE_FORMAT_S8_UINT VIRGL_FORMAT_S8_UINT                    /**< ubyte stencil */
+#define PIPE_FORMAT_S8_UINT VIRGL_FORMAT_S8_UINT /**< ubyte stencil */
 #define PIPE_FORMAT_R64_FLOAT VIRGL_FORMAT_R64_FLOAT
 #define PIPE_FORMAT_R64G64_FLOAT VIRGL_FORMAT_R64G64_FLOAT
 #define PIPE_FORMAT_R64G64B64_FLOAT VIRGL_FORMAT_R64G64B64_FLOAT
@@ -220,7 +220,7 @@ extern "C" {
 
 #define PIPE_FORMAT_YV12 VIRGL_FORMAT_YV12
 #define PIPE_FORMAT_YV16 VIRGL_FORMAT_YV16
-#define PIPE_FORMAT_IYUV VIRGL_FORMAT_IYUV                      /**< aka I420 */
+#define PIPE_FORMAT_IYUV VIRGL_FORMAT_IYUV /**< aka I420 */
 #define PIPE_FORMAT_NV12 VIRGL_FORMAT_NV12
 #define PIPE_FORMAT_NV21 VIRGL_FORMAT_NV21
 
@@ -478,13 +478,12 @@ extern "C" {
 #define PIPE_FORMAT_GR1616_SNORM PIPE_FORMAT_R16G16_SNORM
 #endif
 
-enum pipe_video_chroma_format
-{
-   PIPE_VIDEO_CHROMA_FORMAT_400,
-   PIPE_VIDEO_CHROMA_FORMAT_420,
-   PIPE_VIDEO_CHROMA_FORMAT_422,
-   PIPE_VIDEO_CHROMA_FORMAT_444,
-   PIPE_VIDEO_CHROMA_FORMAT_NONE
+enum pipe_video_chroma_format {
+  PIPE_VIDEO_CHROMA_FORMAT_400,
+  PIPE_VIDEO_CHROMA_FORMAT_420,
+  PIPE_VIDEO_CHROMA_FORMAT_422,
+  PIPE_VIDEO_CHROMA_FORMAT_444,
+  PIPE_VIDEO_CHROMA_FORMAT_NONE
 };
 
 #ifdef __cplusplus

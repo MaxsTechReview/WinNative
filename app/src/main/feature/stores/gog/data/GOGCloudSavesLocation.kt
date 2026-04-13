@@ -1,4 +1,5 @@
 package com.winlator.cmod.feature.stores.gog.data
+
 data class GOGCloudSavesLocationTemplate(
     val name: String,
     val location: String,

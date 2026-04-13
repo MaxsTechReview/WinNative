@@ -24,40 +24,38 @@
 
 #include "virgl_server_shm.h"
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include <sys/syscall.h>
 #include <unistd.h>
 
-static int memfd_create(const char *name, unsigned int flags)
-{
+static int memfd_create(const char *name, unsigned int flags) {
 #ifdef __NR_memfd_create
-    return syscall(__NR_memfd_create, name, flags);
+  return syscall(__NR_memfd_create, name, flags);
 #else
-    return -1;
+  return -1;
 #endif
 }
 
-int virgl_server_new_shm(uint32_t handle, size_t size)
-{
-   int fd, ret;
-   int length = snprintf(NULL, 0, "virgl-res-%u", handle);
-   char *str = malloc(length + 1);
-   snprintf(str, length + 1, "virgl-res-%u", handle);
+int virgl_server_new_shm(uint32_t handle, size_t size) {
+  int fd, ret;
+  int length = snprintf(NULL, 0, "virgl-res-%u", handle);
+  char *str = malloc(length + 1);
+  snprintf(str, length + 1, "virgl-res-%u", handle);
 
-   fd = memfd_create(str, MFD_ALLOW_SEALING);
-   free(str);
-   if (fd < 0)
-      return -errno;
+  fd = memfd_create(str, MFD_ALLOW_SEALING);
+  free(str);
+  if (fd < 0)
+    return -errno;
 
-   ret = ftruncate(fd, size);
-   if (ret < 0) {
-      close(fd);
-      return -errno;
-   }
+  ret = ftruncate(fd, size);
+  if (ret < 0) {
+    close(fd);
+    return -errno;
+  }
 
-   return fd;
+  return fd;
 }

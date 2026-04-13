@@ -1,29 +1,33 @@
 package com.winlator.cmod.feature.stores.steam.utils
+import timber.log.Timber
 import java.nio.file.Files
 import java.nio.file.Path
-import timber.log.Timber
 
 object SteamControllerVdfUtils {
-    private val keymapDigital = mapOf(
-        "button_a" to "A",
-        "button_b" to "B",
-        "button_x" to "X",
-        "button_y" to "Y",
-        "dpad_north" to "DUP",
-        "dpad_south" to "DDOWN",
-        "dpad_east" to "DRIGHT",
-        "dpad_west" to "DLEFT",
-        "button_escape" to "START",
-        "button_menu" to "BACK",
-        "left_bumper" to "LBUMPER",
-        "right_bumper" to "RBUMPER",
-        "button_back_left" to "A",
-        "button_back_right" to "X",
-        "button_back_left_upper" to "B",
-        "button_back_right_upper" to "Y",
-    )
+    private val keymapDigital =
+        mapOf(
+            "button_a" to "A",
+            "button_b" to "B",
+            "button_x" to "X",
+            "button_y" to "Y",
+            "dpad_north" to "DUP",
+            "dpad_south" to "DDOWN",
+            "dpad_east" to "DRIGHT",
+            "dpad_west" to "DLEFT",
+            "button_escape" to "START",
+            "button_menu" to "BACK",
+            "left_bumper" to "LBUMPER",
+            "right_bumper" to "RBUMPER",
+            "button_back_left" to "A",
+            "button_back_right" to "X",
+            "button_back_left_upper" to "B",
+            "button_back_right_upper" to "Y",
+        )
 
-    fun generateControllerConfig(controllerVdfText: String, outputDir: Path) {
+    fun generateControllerConfig(
+        controllerVdfText: String,
+        outputDir: Path,
+    ) {
         val root = VdfParser(controllerVdfText).parse()
         val controllerMappings = root.getObject("controller_mappings") ?: return
 
@@ -38,9 +42,11 @@ object SteamControllerVdfUtils {
         }
 
         val presets = controllerMappings.getObjects("preset")
-        val presetsByName = presets.mapNotNull { preset ->
-            preset.getString("name")?.let { name -> name to preset }
-        }.toMap()
+        val presetsByName =
+            presets
+                .mapNotNull { preset ->
+                    preset.getString("name")?.let { name -> name to preset }
+                }.toMap()
         val allBindings = LinkedHashMap<String, LinkedHashMap<String, MutableList<String>>>()
 
         for (preset in presets) {
@@ -66,13 +72,14 @@ object SteamControllerVdfUtils {
         Files.createDirectories(outputDir)
         for ((presetName, bindings) in allBindings) {
             val outputFile = outputDir.resolve("$presetName.txt")
-            val content = buildString {
-                for ((actionName, actionBindings) in bindings) {
-                    append(actionName)
-                    append("=")
-                    appendLine(actionBindings.joinToString(","))
+            val content =
+                buildString {
+                    for ((actionName, actionBindings) in bindings) {
+                        append(actionName)
+                        append("=")
+                        appendLine(actionBindings.joinToString(","))
+                    }
                 }
-            }
             outputFile.toFile().writeText(content, Charsets.UTF_8)
         }
     }
@@ -201,11 +208,12 @@ object SteamControllerVdfUtils {
 
             if (bindingType in listOf("left_trigger", "right_trigger")) {
                 if (groupMode == "trigger") {
-                    val actionName = resolveGroupActionName(
-                        group,
-                        presetName,
-                        fallbackXinputButtons = setOf("TRIGGER_LEFT", "TRIGGER_RIGHT"),
-                    )
+                    val actionName =
+                        resolveGroupActionName(
+                            group,
+                            presetName,
+                            fallbackXinputButtons = setOf("TRIGGER_LEFT", "TRIGGER_RIGHT"),
+                        )
                     if (!actionName.isNullOrEmpty()) {
                         val binding = if (bindingType == "left_trigger") "LTRIGGER" else "RTRIGGER"
                         addActionBinding(bindings, actionName, binding, bindingSuffix = "trigger")
@@ -219,49 +227,54 @@ object SteamControllerVdfUtils {
 
             if (bindingType in listOf("joystick", "right_joystick", "dpad", "left_trackpad", "right_trackpad")) {
                 if (groupMode == "joystick_move" || groupMode == "joystick_camera") {
-                    val actionName = resolveGroupActionName(
-                        group,
-                        presetName,
-                        fallbackXinputButtons = setOf("JOYSTICK_LEFT", "JOYSTICK_RIGHT"),
-                    )
+                    val actionName =
+                        resolveGroupActionName(
+                            group,
+                            presetName,
+                            fallbackXinputButtons = setOf("JOYSTICK_LEFT", "JOYSTICK_RIGHT"),
+                        )
                     if (!actionName.isNullOrEmpty()) {
-                        val binding = when (bindingType) {
-                            "joystick", "left_trackpad" -> "LJOY"
-                            "right_joystick", "right_trackpad" -> "RJOY"
-                            "dpad" -> "DPAD"
-                            else -> ""
-                        }
+                        val binding =
+                            when (bindingType) {
+                                "joystick", "left_trackpad" -> "LJOY"
+                                "right_joystick", "right_trackpad" -> "RJOY"
+                                "dpad" -> "DPAD"
+                                else -> ""
+                            }
                         if (binding.isNotEmpty()) {
                             addActionBinding(bindings, actionName, binding, bindingSuffix = "joystick_move")
                         }
                     }
-                    val forceBinding = when {
-                        isLeftStickSource -> "LSTICK"
-                        isRightStickSource -> "RSTICK"
-                        bindingType == "dpad" -> "RSTICK"
-                        else -> null
-                    }
+                    val forceBinding =
+                        when {
+                            isLeftStickSource -> "LSTICK"
+                            isRightStickSource -> "RSTICK"
+                            bindingType == "dpad" -> "RSTICK"
+                            else -> null
+                        }
                     if (forceBinding != null) {
                         addInputBindings(group, bindings, forceBinding = forceBinding)
                     }
                 } else if (groupMode == "dpad") {
                     if (isLeftStickSource) {
-                        val bindingMap = mapOf(
-                            "dpad_north" to "DLJOYUP",
-                            "dpad_south" to "DLJOYDOWN",
-                            "dpad_west" to "DLJOYLEFT",
-                            "dpad_east" to "DLJOYRIGHT",
-                            "click" to "LSTICK",
-                        )
+                        val bindingMap =
+                            mapOf(
+                                "dpad_north" to "DLJOYUP",
+                                "dpad_south" to "DLJOYDOWN",
+                                "dpad_west" to "DLJOYLEFT",
+                                "dpad_east" to "DLJOYRIGHT",
+                                "click" to "LSTICK",
+                            )
                         addInputBindings(group, bindings, keymap = bindingMap)
                     } else if (isRightStickSource) {
-                        val bindingMap = mapOf(
-                            "dpad_north" to "DRJOYUP",
-                            "dpad_south" to "DRJOYDOWN",
-                            "dpad_west" to "DRJOYLEFT",
-                            "dpad_east" to "DRJOYRIGHT",
-                            "click" to "RSTICK",
-                        )
+                        val bindingMap =
+                            mapOf(
+                                "dpad_north" to "DRJOYUP",
+                                "dpad_south" to "DRJOYDOWN",
+                                "dpad_west" to "DRJOYLEFT",
+                                "dpad_east" to "DRJOYRIGHT",
+                                "click" to "RSTICK",
+                            )
                         addInputBindings(group, bindings, keymap = bindingMap)
                     }
                 }
@@ -274,43 +287,57 @@ object SteamControllerVdfUtils {
 
 private sealed interface VdfValue
 
-private data class VdfEntry(val key: String, val value: VdfValue)
+private data class VdfEntry(
+    val key: String,
+    val value: VdfValue,
+)
 
-private data class VdfString(val value: String) : VdfValue
+private data class VdfString(
+    val value: String,
+) : VdfValue
 
 private class VdfObject : VdfValue {
     private val entries = mutableListOf<VdfEntry>()
 
-    fun add(key: String, value: VdfValue) {
+    fun add(
+        key: String,
+        value: VdfValue,
+    ) {
         entries.add(VdfEntry(key, value))
     }
 
     fun getObject(key: String): VdfObject? = getObjects(key).firstOrNull()
 
-    fun getObjects(key: String): List<VdfObject> = entries.mapNotNull {
-        if (it.key == key && it.value is VdfObject) it.value else null
-    }
+    fun getObjects(key: String): List<VdfObject> =
+        entries.mapNotNull {
+            if (it.key == key && it.value is VdfObject) it.value else null
+        }
 
     fun getString(key: String): String? = getStrings(key).firstOrNull()
 
-    fun getStrings(key: String): List<String> = entries.mapNotNull {
-        if (it.key == key && it.value is VdfString) it.value.value else null
-    }
+    fun getStrings(key: String): List<String> =
+        entries.mapNotNull {
+            if (it.key == key && it.value is VdfString) it.value.value else null
+        }
 
-    fun objectEntries(): List<Pair<String, VdfObject>> = entries.mapNotNull {
-        if (it.value is VdfObject) it.key to it.value else null
-    }
+    fun objectEntries(): List<Pair<String, VdfObject>> =
+        entries.mapNotNull {
+            if (it.value is VdfObject) it.key to it.value else null
+        }
 
     fun objectValues(): List<VdfObject> = entries.mapNotNull { it.value as? VdfObject }
 
-    fun stringEntries(): List<Pair<String, String>> = entries.mapNotNull {
-        if (it.value is VdfString) it.key to it.value.value else null
-    }
+    fun stringEntries(): List<Pair<String, String>> =
+        entries.mapNotNull {
+            if (it.value is VdfString) it.key to it.value.value else null
+        }
 
     fun keys(): List<String> = entries.map { it.key }
 }
 
-private class VdfParser(text: String) {
+private class VdfParser(
+    text: String,
+) {
     private val source = if (text.startsWith("\uFEFF")) text.substring(1) else text
     private var index = 0
 
@@ -342,8 +369,14 @@ private class VdfParser(text: String) {
                 index++
                 ch.toString()
             }
-            '"' -> parseQuoted()
-            else -> parseUnquoted()
+
+            '"' -> {
+                parseQuoted()
+            }
+
+            else -> {
+                parseUnquoted()
+            }
         }
     }
 
@@ -389,20 +422,21 @@ private class VdfParser(text: String) {
         }
     }
 
-    private fun unescapeChar(ch: Char): Char = when (ch) {
-        'n' -> '\n'
-        't' -> '\t'
-        'v' -> '\u000B'
-        'b' -> '\b'
-        'r' -> '\r'
-        'f' -> '\u000C'
-        'a' -> '\u0007'
-        '\\' -> '\\'
-        '?' -> '?'
-        '"' -> '"'
-        '\'' -> '\''
-        else -> ch
-    }
+    private fun unescapeChar(ch: Char): Char =
+        when (ch) {
+            'n' -> '\n'
+            't' -> '\t'
+            'v' -> '\u000B'
+            'b' -> '\b'
+            'r' -> '\r'
+            'f' -> '\u000C'
+            'a' -> '\u0007'
+            '\\' -> '\\'
+            '?' -> '?'
+            '"' -> '"'
+            '\'' -> '\''
+            else -> ch
+        }
 
     private fun unescape(value: String): String {
         if (!value.contains('\\')) return value

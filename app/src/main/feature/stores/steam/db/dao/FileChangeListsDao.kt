@@ -18,7 +18,10 @@ interface FileChangeListsDao {
     suspend fun insertAll(fileChangeLists: List<FileChangeLists>)
 
     @Transaction
-    suspend fun insert(appId: Int, userFileInfo: List<UserFileInfo>) {
+    suspend fun insert(
+        appId: Int,
+        userFileInfo: List<UserFileInfo>,
+    ) {
         insert(FileChangeLists(appId, userFileInfo))
     }
 
@@ -38,7 +41,10 @@ interface FileChangeListsDao {
     suspend fun getAll(): List<FileChangeLists>
 
     @Query("UPDATE app_file_change_lists SET userFileInfo = :newUserFileInfo WHERE appId = :appId")
-    suspend fun updateUserFileInfo(appId: Int, newUserFileInfo: List<UserFileInfo>)
+    suspend fun updateUserFileInfo(
+        appId: Int,
+        newUserFileInfo: List<UserFileInfo>,
+    )
 
     @Query("DELETE from app_file_change_lists")
     suspend fun deleteAll()

@@ -44,11 +44,10 @@ extern "C" {
  * \param out_str       STR cubemap texture coordinates to compute.
  * \param out_stride    Stride of out_str in floats.
  */
-void util_map_texcoords2d_onto_cubemap(unsigned face,
-                                       const float *in_st, unsigned in_stride,
-                                       float *out_str, unsigned out_stride,
+void util_map_texcoords2d_onto_cubemap(unsigned face, const float *in_st,
+                                       unsigned in_stride, float *out_str,
+                                       unsigned out_stride,
                                        boolean allow_scale);
-
 
 #ifdef __cplusplus
 }

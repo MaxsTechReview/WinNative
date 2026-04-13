@@ -1,7 +1,6 @@
 /* Settings > Debug screen — Jetpack Compose / Material3.
  * Scrolling delegated to a View-level ScrollView in DebugFragment, matching StoresFragment. */
 package com.winlator.cmod.feature.settings
-import com.winlator.cmod.R
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -67,17 +66,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 
 // Palette (mirrors StoresScreen)
-private val BgDark        = Color(0xFF18181D)
-private val CardDark      = Color(0xFF1C1C2A)
-private val CardBorder    = Color(0xFF2A2A3A)
-private val IconBoxBg     = Color(0xFF242434)
-private val SurfaceDark   = Color(0xFF21212A)
-private val Accent        = Color(0xFF1A9FFF)
-private val Warning       = Color(0xFFFF4444)
-private val TextPrimary   = Color(0xFFF0F4FF)
+private val BgDark = Color(0xFF18181D)
+private val CardDark = Color(0xFF1C1C2A)
+private val CardBorder = Color(0xFF2A2A3A)
+private val IconBoxBg = Color(0xFF242434)
+private val SurfaceDark = Color(0xFF21212A)
+private val Accent = Color(0xFF1A9FFF)
+private val Warning = Color(0xFFFF4444)
+private val TextPrimary = Color(0xFFF0F4FF)
 private val TextSecondary = Color(0xFF7A8FA8)
 
 // State
@@ -124,11 +124,12 @@ fun DebugScreen(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentHeight()
-            .background(BgDark)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .background(BgDark)
+                .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         SectionLabel(stringResource(R.string.common_ui_application))
@@ -212,7 +213,10 @@ fun DebugScreen(
 
 // Section label
 @Composable
-private fun SectionLabel(text: String, modifier: Modifier = Modifier) {
+private fun SectionLabel(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
     Text(
         text = text.uppercase(),
         color = TextSecondary,
@@ -234,23 +238,26 @@ private fun SettingsToggleCard(
     accentColor: Color = Accent,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 11.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(IconBoxBg),
+                modifier =
+                    Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(IconBoxBg),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -270,10 +277,11 @@ private fun SettingsToggleCard(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
                 modifier = Modifier.scale(0.78f),
-                colors = outlinedSwitchColors(
-                    accentColor = accentColor,
-                    textSecondaryColor = TextSecondary,
-                ),
+                colors =
+                    outlinedSwitchColors(
+                        accentColor = accentColor,
+                        textSecondaryColor = TextSecondary,
+                    ),
             )
         }
     }
@@ -289,24 +297,27 @@ private fun WineChannelsCard(
     onRemoveChannel: (String) -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .alpha(if (enabled) 1f else 0.48f)
-            .clip(RoundedCornerShape(12.dp))
-            .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .alpha(if (enabled) 1f else 0.48f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(9.dp))
-                        .background(IconBoxBg),
+                    modifier =
+                        Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(IconBoxBg),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -345,9 +356,10 @@ private fun WineChannelsCard(
             }
             Spacer(Modifier.height(10.dp))
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -371,13 +383,17 @@ private fun WineChannelsCard(
 }
 
 @Composable
-private fun ChannelChip(label: String, onRemove: () -> Unit) {
+private fun ChannelChip(
+    label: String,
+    onRemove: () -> Unit,
+) {
     Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(7.dp))
-            .background(IconBoxBg)
-            .border(1.dp, CardBorder, RoundedCornerShape(7.dp))
-            .padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(7.dp))
+                .background(IconBoxBg)
+                .border(1.dp, CardBorder, RoundedCornerShape(7.dp))
+                .padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -388,12 +404,13 @@ private fun ChannelChip(label: String, onRemove: () -> Unit) {
         )
         Spacer(Modifier.width(4.dp))
         Box(
-            modifier = Modifier
-                .size(18.dp)
-                .clip(RoundedCornerShape(5.dp))
-                .pointerInput(onRemove) {
-                    detectTapGestures(onTap = { onRemove() })
-                },
+            modifier =
+                Modifier
+                    .size(18.dp)
+                    .clip(RoundedCornerShape(5.dp))
+                    .pointerInput(onRemove) {
+                        detectTapGestures(onTap = { onRemove() })
+                    },
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -407,7 +424,11 @@ private fun ChannelChip(label: String, onRemove: () -> Unit) {
 }
 
 @Composable
-private fun SmallActionButton(label: String, textColor: Color, onClick: () -> Unit) {
+private fun SmallActionButton(
+    label: String,
+    textColor: Color,
+    onClick: () -> Unit,
+) {
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.93f else 1f,
@@ -415,18 +436,22 @@ private fun SmallActionButton(label: String, textColor: Color, onClick: () -> Un
         label = "debugBtnScale",
     )
     Box(
-        modifier = Modifier
-            .scale(scale)
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFF222232))
-            .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-            .pointerInput(onClick) {
-                detectTapGestures(
-                    onPress = { isPressed = true; tryAwaitRelease(); isPressed = false },
-                    onTap = { onClick() },
-                )
-            }
-            .padding(horizontal = 11.dp, vertical = 6.dp),
+        modifier =
+            Modifier
+                .scale(scale)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFF222232))
+                .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .pointerInput(onClick) {
+                    detectTapGestures(
+                        onPress = {
+                            isPressed = true
+                            tryAwaitRelease()
+                            isPressed = false
+                        },
+                        onTap = { onClick() },
+                    )
+                }.padding(horizontal = 11.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -446,39 +471,43 @@ private fun WineChannelsDialog(
     onDismiss: () -> Unit,
     onConfirm: (List<String>) -> Unit,
 ) {
-    val selected = remember(initiallySelected) {
-        mutableStateOf(initiallySelected.toSet())
-    }
+    val selected =
+        remember(initiallySelected) {
+            mutableStateOf(initiallySelected.toSet())
+        }
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            // Parent activity runs edge-to-edge (WindowCompat.setDecorFitsSystemWindows(window, false)),
-            // so we also take the dialog window edge-to-edge and pad for insets manually below.
-            // This gives predictable behavior regardless of platform defaults.
-            decorFitsSystemWindows = false,
-        ),
+        properties =
+            DialogProperties(
+                usePlatformDefaultWidth = false,
+                // Parent activity runs edge-to-edge (WindowCompat.setDecorFitsSystemWindows(window, false)),
+                // so we also take the dialog window edge-to-edge and pad for insets manually below.
+                // This gives predictable behavior regardless of platform defaults.
+                decorFitsSystemWindows = false,
+            ),
     ) {
         // fillMaxSize + safeDrawing inset padding keeps the dialog clear of the
         // system status/nav bars and any display cutout on every device.
         BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
             val availableHeight = maxHeight
             Box(
-                modifier = Modifier
-                    .widthIn(max = 460.dp)
-                    .fillMaxWidth()
-                    .heightIn(max = availableHeight)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-                    .padding(horizontal = 18.dp, vertical = 16.dp),
+                modifier =
+                    Modifier
+                        .widthIn(max = 460.dp)
+                        .fillMaxWidth()
+                        .heightIn(max = availableHeight)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(CardDark)
+                        .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                        .padding(horizontal = 18.dp, vertical = 16.dp),
             ) {
                 Column(modifier = Modifier.fillMaxHeight()) {
                     Text(
@@ -499,11 +528,12 @@ private fun WineChannelsDialog(
                         options = options,
                         selected = selected.value,
                         onToggle = { channel ->
-                            selected.value = if (channel in selected.value) {
-                                selected.value - channel
-                            } else {
-                                selected.value + channel
-                            }
+                            selected.value =
+                                if (channel in selected.value) {
+                                    selected.value - channel
+                                } else {
+                                    selected.value + channel
+                                }
                         },
                     )
 
@@ -552,9 +582,10 @@ private fun ColumnScope.ChannelGrid(
     // shrink on short landscape screens without pushing buttons off-screen.
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 92.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .weight(1f, fill = false),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .weight(1f, fill = false),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -578,15 +609,16 @@ private fun SelectableChannelChip(
     val borderColor = if (isSelected) Accent.copy(alpha = 0.55f) else CardBorder
     val textColor = if (isSelected) Accent else TextPrimary
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(34.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(bg)
-            .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-            .pointerInput(label) {
-                detectTapGestures(onTap = { onToggle() })
-            },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(34.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(bg)
+                .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                .pointerInput(label) {
+                    detectTapGestures(onTap = { onToggle() })
+                },
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -609,19 +641,23 @@ private fun ShareLogsButton(onClick: () -> Unit) {
         label = "shareScale",
     )
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(scale)
-            .clip(RoundedCornerShape(12.dp))
-            .background(Accent.copy(alpha = 0.12f))
-            .border(1.dp, Accent.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
-            .pointerInput(onClick) {
-                detectTapGestures(
-                    onPress = { isPressed = true; tryAwaitRelease(); isPressed = false },
-                    onTap = { onClick() },
-                )
-            }
-            .padding(vertical = 14.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .scale(scale)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Accent.copy(alpha = 0.12f))
+                .border(1.dp, Accent.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                .pointerInput(onClick) {
+                    detectTapGestures(
+                        onPress = {
+                            isPressed = true
+                            tryAwaitRelease()
+                            isPressed = false
+                        },
+                        onTap = { onClick() },
+                    )
+                }.padding(vertical = 14.dp),
         contentAlignment = Alignment.Center,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

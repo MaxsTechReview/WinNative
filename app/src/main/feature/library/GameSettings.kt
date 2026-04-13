@@ -1,30 +1,29 @@
 package com.winlator.cmod.feature.library
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -40,18 +39,19 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Extension
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Monitor
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenu
@@ -118,10 +118,26 @@ private val WarningAmber = Color(0xFFFFB74D)
 // ---------------------------------------------------------------------------
 // Data classes
 // ---------------------------------------------------------------------------
-data class WinComponentItem(val key: String, val label: String, val selectedIndex: Int)
-data class EnvVarItem(val key: String, val value: String)
-data class ExtraArgGroup(val header: String, val args: List<String>)
-data class DriveItem(val letter: String, val path: String)
+data class WinComponentItem(
+    val key: String,
+    val label: String,
+    val selectedIndex: Int,
+)
+
+data class EnvVarItem(
+    val key: String,
+    val value: String,
+)
+
+data class ExtraArgGroup(
+    val header: String,
+    val args: List<String>,
+)
+
+data class DriveItem(
+    val letter: String,
+    val path: String,
+)
 
 // ---------------------------------------------------------------------------
 // State holder
@@ -132,6 +148,7 @@ class GameSettingsStateHolder {
     // True when editing a Container directly; hides shortcut-only fields
     // and exposes wine version / mouse warp / drives / desktop background.
     val isContainerEditMode = mutableStateOf(false)
+
     // Wine version dropdown is editable only when creating a new container.
     val wineVersionEditable = mutableStateOf(false)
 
@@ -241,6 +258,7 @@ class GameSettingsStateHolder {
     val desktopBackgroundColor = mutableStateOf("#0277bd")
     val desktopWallpaperSelected = mutableStateOf(false)
     val drivesList = mutableStateOf<List<DriveItem>>(emptyList())
+
     // Exclusive Input is a global SharedPreferences flag ("xinput_toggle"),
     // not per-container — tracked here so InputSection can reuse its layout.
     val containerExclusiveInput = mutableStateOf(false)
@@ -297,12 +315,14 @@ class GameSettingsStateHolder {
 
     // Advanced - CPU
     val cpuCount = mutableIntStateOf(Runtime.getRuntime().availableProcessors())
-    val cpuChecked = mutableStateOf<List<Boolean>>(
-        List(Runtime.getRuntime().availableProcessors()) { true }
-    )
-    val cpuCheckedWoW64 = mutableStateOf<List<Boolean>>(
-        List(Runtime.getRuntime().availableProcessors()) { true }
-    )
+    val cpuChecked =
+        mutableStateOf<List<Boolean>>(
+            List(Runtime.getRuntime().availableProcessors()) { true },
+        )
+    val cpuCheckedWoW64 =
+        mutableStateOf<List<Boolean>>(
+            List(Runtime.getRuntime().availableProcessors()) { true },
+        )
 
     // Advanced - Drives
     val drives = mutableStateOf("")
@@ -316,57 +336,102 @@ class GameSettingsStateHolder {
 // ---------------------------------------------------------------------------
 interface GameSettingsCallbacks {
     fun onConfirm()
+
     fun onDismiss()
+
     fun onAddToHomeScreen()
+
     fun onRemoveEnvVar(index: Int)
-    fun onUpdateWinComponent(isDirectX: Boolean, index: Int, newValue: Int)
+
+    fun onUpdateWinComponent(
+        isDirectX: Boolean,
+        index: Int,
+        newValue: Int,
+    )
+
     fun onSelectExe() {}
+
     fun onGfxDriverVersionChanged(versionIndex: Int) {}
+
     fun onDxvkVkd3dVersionChanged(versionIndex: Int) {}
+
     fun onContainerChanged(containerIndex: Int) {}
+
     fun onEmulatorChanged() {}
+
     fun onWineVersionChanged(versionIndex: Int) {}
+
     fun onAddDrive() {}
+
     fun onRemoveDrive(index: Int) {}
+
     fun onPickDrivePath(index: Int) {}
+
     fun onPickWallpaper() {}
 }
 
 // ---------------------------------------------------------------------------
 // Preset exec args
 // ---------------------------------------------------------------------------
-private val ExtraArgPresets = listOf(
-    ExtraArgGroup(
-        "Unity", listOf(
-            "-force-d3d9", "-force-d3d11", "-force-d3d12", "-force-vulkan",
-            "-force-glcore", "-force-gfx-direct", "-force-d3d11-singlethreaded",
-            "-screen-fullscreen 0", "-screen-fullscreen 1", "-popupwindow", "-nolog"
-        )
-    ),
-    ExtraArgGroup(
-        "Unreal", listOf(
-            "-WINDOWED", "-FULLSCREEN", "-dx11", "-dx12", "-vulkan",
-            "-NOSPLASH", "-NOSOUND"
-        )
-    ),
-    ExtraArgGroup(
-        "Source", listOf(
-            "-sw", "-novid", "-nojoy", "-console", "-nosound"
-        )
-    ),
-    ExtraArgGroup(
-        "General", listOf(
-            "-windowed", "-fullscreen", "-nointro", "-skipvideos", "-novsync", "/d3d9"
-        )
+private val ExtraArgPresets =
+    listOf(
+        ExtraArgGroup(
+            "Unity",
+            listOf(
+                "-force-d3d9",
+                "-force-d3d11",
+                "-force-d3d12",
+                "-force-vulkan",
+                "-force-glcore",
+                "-force-gfx-direct",
+                "-force-d3d11-singlethreaded",
+                "-screen-fullscreen 0",
+                "-screen-fullscreen 1",
+                "-popupwindow",
+                "-nolog",
+            ),
+        ),
+        ExtraArgGroup(
+            "Unreal",
+            listOf(
+                "-WINDOWED",
+                "-FULLSCREEN",
+                "-dx11",
+                "-dx12",
+                "-vulkan",
+                "-NOSPLASH",
+                "-NOSOUND",
+            ),
+        ),
+        ExtraArgGroup(
+            "Source",
+            listOf(
+                "-sw",
+                "-novid",
+                "-nojoy",
+                "-console",
+                "-nosound",
+            ),
+        ),
+        ExtraArgGroup(
+            "General",
+            listOf(
+                "-windowed",
+                "-fullscreen",
+                "-nointro",
+                "-skipvideos",
+                "-novsync",
+                "/d3d9",
+            ),
+        ),
     )
-)
 
 // ---------------------------------------------------------------------------
 // Sidebar section definitions
 // ---------------------------------------------------------------------------
 private data class SidebarSection(
     val icon: ImageVector,
-    val labelResId: Int
+    val labelResId: Int,
 )
 
 // Section IDs (stable across dynamic lists)
@@ -398,7 +463,7 @@ private fun buildSections(isSteam: Boolean): List<Pair<Int, SidebarSection>> {
 @Composable
 fun GameSettingsContent(
     state: GameSettingsStateHolder,
-    callbacks: GameSettingsCallbacks
+    callbacks: GameSettingsCallbacks,
 ) {
     val isSteam by state.isSteamGame
     val sections = remember(isSteam) { buildSections(isSteam) }
@@ -407,10 +472,11 @@ fun GameSettingsContent(
     val saveEnabled by state.isLoaded
 
     BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .clip(RoundedCornerShape(16.dp))
-            .background(BgDeep)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(16.dp))
+                .background(BgDeep),
     ) {
         val isCompact = maxWidth < 720.dp
 
@@ -422,32 +488,33 @@ fun GameSettingsContent(
                     title = state.name.value,
                     saveEnabled = saveEnabled,
                     onSave = { callbacks.onConfirm() },
-                    onCancel = { callbacks.onDismiss() }
+                    onCancel = { callbacks.onDismiss() },
                 )
 
                 Box(
-                    Modifier.fillMaxWidth().height(1.dp).background(DividerColor)
+                    Modifier.fillMaxWidth().height(1.dp).background(DividerColor),
                 )
 
                 // Content area
                 Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .background(ContentBg)
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .background(ContentBg),
                 ) {
                     SectionContent(currentSectionId, state, callbacks, isCompact)
                 }
 
                 Box(
-                    Modifier.fillMaxWidth().height(1.dp).background(DividerColor)
+                    Modifier.fillMaxWidth().height(1.dp).background(DividerColor),
                 )
 
                 // Bottom section picker - scrollable row of chips
                 CompactTopBar(
                     sections = sections,
                     currentIndex = selectedIdx,
-                    onSectionSelected = { state.currentSection.intValue = it }
+                    onSectionSelected = { state.currentSection.intValue = it },
                 )
             }
         } else {
@@ -461,23 +528,26 @@ fun GameSettingsContent(
                     saveEnabled = saveEnabled,
                     onSave = { callbacks.onConfirm() },
                     onCancel = { callbacks.onDismiss() },
-                    modifier = Modifier
-                        .width(220.dp)
-                        .fillMaxHeight()
+                    modifier =
+                        Modifier
+                            .width(220.dp)
+                            .fillMaxHeight(),
                 )
 
                 Box(
-                    modifier = Modifier
-                        .width(1.dp)
-                        .fillMaxHeight()
-                        .background(DividerColor)
+                    modifier =
+                        Modifier
+                            .width(1.dp)
+                            .fillMaxHeight()
+                            .background(DividerColor),
                 )
 
                 Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .background(ContentBg)
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .background(ContentBg),
                 ) {
                     SectionContent(currentSectionId, state, callbacks, false)
                 }
@@ -491,30 +561,32 @@ private fun SectionContent(
     sectionId: Int,
     state: GameSettingsStateHolder,
     callbacks: GameSettingsCallbacks,
-    isCompact: Boolean
+    isCompact: Boolean,
 ) {
     AnimatedContent(
         targetState = sectionId,
         transitionSpec = {
             val direction = if (targetState > initialState) 1 else -1
-            (slideInHorizontally(
-                animationSpec = tween(220)
-            ) { direction * it / 6 } + fadeIn(tween(200)))
-                .togetherWith(
-                    slideOutHorizontally(
-                        animationSpec = tween(180)
-                    ) { -direction * it / 6 } + fadeOut(tween(120))
-                )
+            (
+                slideInHorizontally(
+                    animationSpec = tween(220),
+                ) { direction * it / 6 } + fadeIn(tween(200))
+            ).togetherWith(
+                slideOutHorizontally(
+                    animationSpec = tween(180),
+                ) { -direction * it / 6 } + fadeOut(tween(120)),
+            )
         },
-        label = "SectionTransition"
+        label = "SectionTransition",
     ) { id ->
         val scrollState = rememberScrollState()
         val hPad = if (isCompact) 16.dp else 28.dp
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(horizontal = hPad, vertical = 20.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = hPad, vertical = 20.dp),
         ) {
             when (id) {
                 SEC_GENERAL -> GeneralSection(state, callbacks)
@@ -538,37 +610,38 @@ private fun SectionContent(
 private fun CompactTopBar(
     sections: List<Pair<Int, SidebarSection>>,
     currentIndex: Int,
-    onSectionSelected: (Int) -> Unit
+    onSectionSelected: (Int) -> Unit,
 ) {
     val scrollState = rememberScrollState()
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(SidebarBg)
-            .horizontalScroll(scrollState)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(SidebarBg)
+                .horizontalScroll(scrollState)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         sections.forEachIndexed { index, (_, section) ->
             val isSelected = currentIndex == index
             Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .chasingBorder(isFocused = isSelected, cornerRadius = 8.dp, borderWidth = 2.dp)
-                    .background(if (isSelected) AccentBlue.copy(alpha = 0.08f) else Color.Transparent)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { onSectionSelected(index) }
-                    )
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .chasingBorder(isFocused = isSelected, cornerRadius = 8.dp, borderWidth = 2.dp)
+                        .background(if (isSelected) AccentBlue.copy(alpha = 0.08f) else Color.Transparent)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { onSectionSelected(index) },
+                        ).padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         section.icon,
                         contentDescription = null,
                         tint = if (isSelected) AccentBlue else TextDim,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
@@ -576,7 +649,7 @@ private fun CompactTopBar(
                         color = if (isSelected) TextPrimary else TextSecondary,
                         fontSize = 12.sp,
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                        maxLines = 1
+                        maxLines = 1,
                     )
                 }
             }
@@ -589,15 +662,16 @@ private fun CompactBottomBar(
     title: String,
     saveEnabled: Boolean,
     onSave: () -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(SidebarBg)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(SidebarBg)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         // Game title on the left — matches the Sidebar header text format
         if (title.isNotBlank()) {
@@ -610,7 +684,7 @@ private fun CompactBottomBar(
                 lineHeight = 15.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
         } else {
             Spacer(Modifier.weight(1f))
@@ -618,14 +692,15 @@ private fun CompactBottomBar(
 
         // Smaller right-aligned Cancel / Save buttons
         Box(
-            modifier = Modifier
-                .height(28.dp)
-                .clip(RoundedCornerShape(7.dp))
-                .border(1.dp, CardBorder, RoundedCornerShape(7.dp))
-                .background(CardSurface)
-                .clickable { onCancel() }
-                .padding(horizontal = 14.dp),
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .height(28.dp)
+                    .clip(RoundedCornerShape(7.dp))
+                    .border(1.dp, CardBorder, RoundedCornerShape(7.dp))
+                    .background(CardSurface)
+                    .clickable { onCancel() }
+                    .padding(horizontal = 14.dp),
+            contentAlignment = Alignment.Center,
         ) {
             Text(stringResource(R.string.common_ui_cancel), color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
         }
@@ -645,12 +720,13 @@ private fun Sidebar(
     saveEnabled: Boolean,
     onSave: () -> Unit,
     onCancel: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .background(SidebarBg)
-            .padding(top = 18.dp, bottom = 16.dp)
+        modifier =
+            modifier
+                .background(SidebarBg)
+                .padding(top = 18.dp, bottom = 16.dp),
     ) {
         // Header: shortcut/game title being edited
         if (title.isNotBlank()) {
@@ -663,71 +739,77 @@ private fun Sidebar(
                 lineHeight = 15.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 12.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 12.dp),
             )
             Box(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(DividerColor)
+                modifier =
+                    Modifier
+                        .padding(horizontal = 16.dp)
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(DividerColor),
             )
             Spacer(Modifier.height(10.dp))
         }
 
         // Sidebar items
         Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             sections.forEachIndexed { index, section ->
                 SidebarItem(
                     icon = section.icon,
                     label = stringResource(section.labelResId),
                     isSelected = currentIndex == index,
-                    onClick = { onSectionSelected(index) }
+                    onClick = { onSectionSelected(index) },
                 )
             }
         }
 
         // Divider above the action buttons (matches the one under the title)
         Box(
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(DividerColor)
+            modifier =
+                Modifier
+                    .padding(horizontal = 16.dp)
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(DividerColor),
         )
         Spacer(Modifier.height(10.dp))
 
         // Cancel + Save buttons
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(32.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
-                    .background(CardSurface)
-                    .clickable { onCancel() },
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .height(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                        .background(CardSurface)
+                        .clickable { onCancel() },
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
                     stringResource(R.string.common_ui_cancel),
                     color = TextSecondary,
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
                 )
             }
             SaveButton(
@@ -736,7 +818,7 @@ private fun Sidebar(
                 height = 32.dp,
                 corner = 8.dp,
                 fontSize = 12.sp,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
         }
     }
@@ -749,29 +831,28 @@ private fun SaveButton(
     height: Dp,
     corner: Dp,
     fontSize: TextUnit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier
-            .height(height)
-            .clip(RoundedCornerShape(corner))
-            .border(
-                1.dp,
-                if (enabled) AccentBlue.copy(alpha = 0.5f) else CardBorder,
-                RoundedCornerShape(corner)
-            )
-            .background(
-                if (enabled) AccentBlue.copy(alpha = 0.1f) else CardSurface
-            )
-            .clickable(enabled = enabled) { onClick() }
-            .padding(horizontal = 14.dp),
-        contentAlignment = Alignment.Center
+        modifier =
+            modifier
+                .height(height)
+                .clip(RoundedCornerShape(corner))
+                .border(
+                    1.dp,
+                    if (enabled) AccentBlue.copy(alpha = 0.5f) else CardBorder,
+                    RoundedCornerShape(corner),
+                ).background(
+                    if (enabled) AccentBlue.copy(alpha = 0.1f) else CardSurface,
+                ).clickable(enabled = enabled) { onClick() }
+                .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             stringResource(R.string.common_ui_save),
             color = if (enabled) AccentBlue else TextDim,
             fontSize = fontSize,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
         )
     }
 }
@@ -781,27 +862,27 @@ private fun SidebarItem(
     icon: ImageVector,
     label: String,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 10.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .chasingBorder(isFocused = isSelected, cornerRadius = 10.dp, borderWidth = 2.dp)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick
-            )
-            .padding(horizontal = 14.dp, vertical = 11.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .chasingBorder(isFocused = isSelected, cornerRadius = 10.dp, borderWidth = 2.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                ).padding(horizontal = 14.dp, vertical = 11.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 icon,
                 contentDescription = null,
                 tint = if (isSelected) AccentBlue else TextDim,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp),
             )
             Spacer(Modifier.width(12.dp))
             Text(
@@ -809,7 +890,7 @@ private fun SidebarItem(
                 color = if (isSelected) TextPrimary else TextSecondary,
                 fontSize = 13.sp,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                maxLines = 1
+                maxLines = 1,
             )
         }
     }
@@ -821,7 +902,7 @@ private fun SidebarItem(
 @Composable
 private fun GeneralSection(
     state: GameSettingsStateHolder,
-    callbacks: GameSettingsCallbacks
+    callbacks: GameSettingsCallbacks,
 ) {
     val isContainer = state.isContainerEditMode.value
 
@@ -830,7 +911,7 @@ private fun GeneralSection(
         SettingTextField(
             label = stringResource(R.string.common_ui_name),
             value = state.name.value,
-            onValueChange = { state.name.value = it }
+            onValueChange = { state.name.value = it },
         )
 
         if (!isContainer) {
@@ -839,23 +920,24 @@ private fun GeneralSection(
                 stringResource(R.string.common_ui_select_exe),
                 color = TextSecondary,
                 fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
             )
             Spacer(Modifier.height(4.dp))
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .border(1.dp, InputBorder, RoundedCornerShape(10.dp))
-                    .background(InputSurface)
-                    .clickable { callbacks.onSelectExe() }
-                    .padding(horizontal = 14.dp, vertical = 12.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .border(1.dp, InputBorder, RoundedCornerShape(10.dp))
+                        .background(InputSurface)
+                        .clickable { callbacks.onSelectExe() }
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
             ) {
                 Text(
                     text = state.launchExePath.value.ifEmpty { stringResource(R.string.common_ui_select_exe) },
                     color = if (state.launchExePath.value.isEmpty()) TextDim else TextPrimary,
                     fontSize = 13.sp,
-                    maxLines = 1
+                    maxLines = 1,
                 )
             }
         }
@@ -869,7 +951,7 @@ private fun GeneralSection(
                 onSelected = {
                     state.selectedContainer.intValue = it
                     callbacks.onContainerChanged(it)
-                }
+                },
             )
         }
 
@@ -883,33 +965,34 @@ private fun GeneralSection(
                     state.selectedWineVersion.intValue = it
                     callbacks.onWineVersionChanged(it)
                 },
-                enabled = state.wineVersionEditable.value
+                enabled = state.wineVersionEditable.value,
             )
         }
 
         if (!isContainer) {
             Spacer(Modifier.height(14.dp))
             Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(AccentBlue.copy(alpha = 0.08f))
-                    .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
-                    .clickable { callbacks.onAddToHomeScreen() }
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(AccentBlue.copy(alpha = 0.08f))
+                        .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                        .clickable { callbacks.onAddToHomeScreen() }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Outlined.Home,
                         contentDescription = null,
                         tint = AccentBlue,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                     Spacer(Modifier.width(10.dp))
                     Text(
                         stringResource(R.string.shortcuts_list_add_to_home_screen),
                         color = AccentBlue,
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
                     )
                 }
             }
@@ -924,7 +1007,7 @@ private fun GeneralSection(
             label = stringResource(R.string.container_config_screen_size),
             entries = state.screenSizeEntries.value,
             selectedIndex = state.selectedScreenSize.intValue,
-            onSelected = { state.selectedScreenSize.intValue = it }
+            onSelected = { state.selectedScreenSize.intValue = it },
         )
 
         // Custom resolution fields when "Custom" is selected (index 0)
@@ -932,14 +1015,14 @@ private fun GeneralSection(
             Spacer(Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Box(Modifier.weight(1f)) {
                     SettingTextField(
                         label = stringResource(R.string.common_ui_width),
                         value = state.customWidth.value,
                         onValueChange = { state.customWidth.value = it },
-                        keyboardType = KeyboardType.Number
+                        keyboardType = KeyboardType.Number,
                     )
                 }
                 Box(Modifier.weight(1f)) {
@@ -947,7 +1030,7 @@ private fun GeneralSection(
                         label = stringResource(R.string.common_ui_height),
                         value = state.customHeight.value,
                         onValueChange = { state.customHeight.value = it },
-                        keyboardType = KeyboardType.Number
+                        keyboardType = KeyboardType.Number,
                     )
                 }
             }
@@ -959,7 +1042,7 @@ private fun GeneralSection(
                 label = stringResource(R.string.settings_general_refresh_rate),
                 entries = state.refreshRateEntries.value,
                 selectedIndex = state.selectedRefreshRate.intValue,
-                onSelected = { state.selectedRefreshRate.intValue = it }
+                onSelected = { state.selectedRefreshRate.intValue = it },
             )
         }
     }
@@ -972,7 +1055,7 @@ private fun GeneralSection(
             label = stringResource(R.string.container_config_audio_driver),
             entries = state.audioDriverEntries.value,
             selectedIndex = state.selectedAudioDriver.intValue,
-            onSelected = { state.selectedAudioDriver.intValue = it }
+            onSelected = { state.selectedAudioDriver.intValue = it },
         )
 
         Spacer(Modifier.height(14.dp))
@@ -981,7 +1064,7 @@ private fun GeneralSection(
             label = stringResource(R.string.settings_audio_midi_sound_font),
             entries = state.midiSoundFontEntries.value,
             selectedIndex = state.selectedMidiSoundFont.intValue,
-            onSelected = { state.selectedMidiSoundFont.intValue = it }
+            onSelected = { state.selectedMidiSoundFont.intValue = it },
         )
     }
 }
@@ -992,15 +1075,14 @@ private fun GeneralSection(
 @Composable
 private fun DisplaySection(
     state: GameSettingsStateHolder,
-    callbacks: GameSettingsCallbacks
+    callbacks: GameSettingsCallbacks,
 ) {
-
     SettingGroup {
         SettingDropdown(
             label = stringResource(R.string.container_graphics_driver),
             entries = state.graphicsDriverEntries.value,
             selectedIndex = state.selectedGraphicsDriver.intValue,
-            onSelected = { state.selectedGraphicsDriver.intValue = it }
+            onSelected = { state.selectedGraphicsDriver.intValue = it },
         )
 
         Spacer(Modifier.height(16.dp))
@@ -1009,7 +1091,7 @@ private fun DisplaySection(
             label = stringResource(R.string.container_wine_dxwrapper),
             entries = state.dxWrapperEntries.value,
             selectedIndex = state.selectedDxWrapper.intValue,
-            onSelected = { state.selectedDxWrapper.intValue = it }
+            onSelected = { state.selectedDxWrapper.intValue = it },
         )
     }
 
@@ -1023,9 +1105,13 @@ private fun DisplaySection(
     // Show DXVK or WineD3D config card based on selected DX wrapper
     val dxWrapperEntries = state.dxWrapperEntries.value
     val dxWrapperIdx = state.selectedDxWrapper.intValue
-    val selectedDxWrapper = if (dxWrapperIdx in dxWrapperEntries.indices)
-        com.winlator.cmod.shared.util.StringUtils.parseIdentifier(dxWrapperEntries[dxWrapperIdx])
-    else ""
+    val selectedDxWrapper =
+        if (dxWrapperIdx in dxWrapperEntries.indices) {
+            com.winlator.cmod.shared.util.StringUtils
+                .parseIdentifier(dxWrapperEntries[dxWrapperIdx])
+        } else {
+            ""
+        }
 
     if (selectedDxWrapper.contains("dxvk")) {
         DXVKConfigCard(state, callbacks)
@@ -1039,7 +1125,7 @@ private fun DisplaySection(
         SettingCheckbox(
             label = stringResource(R.string.session_display_show_fps),
             checked = state.showFPS.value,
-            onCheckedChange = { state.showFPS.value = it }
+            onCheckedChange = { state.showFPS.value = it },
         )
     }
 }
@@ -1050,30 +1136,32 @@ private fun DisplaySection(
 @Composable
 private fun GraphicsDriverConfigCard(
     state: GameSettingsStateHolder,
-    callbacks: GameSettingsCallbacks
+    callbacks: GameSettingsCallbacks,
 ) {
     val expanded by state.gfxConfigExpanded
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(CardSurface)
-            .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(CardSurface)
+                .border(1.dp, CardBorder, RoundedCornerShape(14.dp)),
     ) {
         // Header row - always visible, acts as expand/collapse toggle
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { state.gfxConfigExpanded.value = !expanded }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { state.gfxConfigExpanded.value = !expanded }
+                    .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 Icons.Outlined.Settings,
                 contentDescription = null,
                 tint = AccentBlue,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp),
             )
             Spacer(Modifier.width(10.dp))
             Text(
@@ -1081,21 +1169,22 @@ private fun GraphicsDriverConfigCard(
                 color = TextPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             // Version badge
             if (state.graphicsDriverVersion.value.isNotEmpty()) {
                 Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(AccentBlue.copy(alpha = 0.1f))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(AccentBlue.copy(alpha = 0.1f))
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
                 ) {
                     Text(
                         state.graphicsDriverVersion.value,
                         color = AccentBlue,
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
                     )
                 }
                 Spacer(Modifier.width(8.dp))
@@ -1104,7 +1193,7 @@ private fun GraphicsDriverConfigCard(
                 if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
                 contentDescription = null,
                 tint = TextDim,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp),
             )
         }
 
@@ -1112,12 +1201,13 @@ private fun GraphicsDriverConfigCard(
         AnimatedVisibility(
             visible = expanded,
             enter = expandVertically(),
-            exit = shrinkVertically()
+            exit = shrinkVertically(),
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
             ) {
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
                 Spacer(Modifier.height(14.dp))
@@ -1126,7 +1216,7 @@ private fun GraphicsDriverConfigCard(
                     label = stringResource(R.string.container_graphics_vulkan_version),
                     entries = state.gfxVulkanVersionEntries.value,
                     selectedIndex = state.gfxSelectedVulkanVersion.intValue,
-                    onSelected = { state.gfxSelectedVulkanVersion.intValue = it }
+                    onSelected = { state.gfxSelectedVulkanVersion.intValue = it },
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -1138,7 +1228,7 @@ private fun GraphicsDriverConfigCard(
                     onSelected = {
                         state.gfxSelectedDriverVersion.intValue = it
                         callbacks.onGfxDriverVersionChanged(it)
-                    }
+                    },
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -1152,7 +1242,7 @@ private fun GraphicsDriverConfigCard(
                     label = stringResource(R.string.container_wine_gpu_name),
                     entries = state.gfxGpuNameEntries.value,
                     selectedIndex = state.gfxSelectedGpuName.intValue,
-                    onSelected = { state.gfxSelectedGpuName.intValue = it }
+                    onSelected = { state.gfxSelectedGpuName.intValue = it },
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -1161,7 +1251,7 @@ private fun GraphicsDriverConfigCard(
                     label = stringResource(R.string.container_graphics_max_device_memory),
                     entries = state.gfxMaxDeviceMemoryEntries.value,
                     selectedIndex = state.gfxSelectedMaxDeviceMemory.intValue,
-                    onSelected = { state.gfxSelectedMaxDeviceMemory.intValue = it }
+                    onSelected = { state.gfxSelectedMaxDeviceMemory.intValue = it },
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -1170,7 +1260,7 @@ private fun GraphicsDriverConfigCard(
                     label = stringResource(R.string.container_graphics_present_modes),
                     entries = state.gfxPresentModeEntries.value,
                     selectedIndex = state.gfxSelectedPresentMode.intValue,
-                    onSelected = { state.gfxSelectedPresentMode.intValue = it }
+                    onSelected = { state.gfxSelectedPresentMode.intValue = it },
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -1179,7 +1269,7 @@ private fun GraphicsDriverConfigCard(
                     label = stringResource(R.string.container_graphics_resource_type),
                     entries = state.gfxResourceTypeEntries.value,
                     selectedIndex = state.gfxSelectedResourceType.intValue,
-                    onSelected = { state.gfxSelectedResourceType.intValue = it }
+                    onSelected = { state.gfxSelectedResourceType.intValue = it },
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -1188,7 +1278,7 @@ private fun GraphicsDriverConfigCard(
                     label = stringResource(R.string.container_graphics_bcn_emulation),
                     entries = state.gfxBcnEmulationEntries.value,
                     selectedIndex = state.gfxSelectedBcnEmulation.intValue,
-                    onSelected = { state.gfxSelectedBcnEmulation.intValue = it }
+                    onSelected = { state.gfxSelectedBcnEmulation.intValue = it },
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -1197,7 +1287,7 @@ private fun GraphicsDriverConfigCard(
                     label = stringResource(R.string.container_graphics_bcn_emulation_type),
                     entries = state.gfxBcnEmulationTypeEntries.value,
                     selectedIndex = state.gfxSelectedBcnEmulationType.intValue,
-                    onSelected = { state.gfxSelectedBcnEmulationType.intValue = it }
+                    onSelected = { state.gfxSelectedBcnEmulationType.intValue = it },
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -1206,7 +1296,7 @@ private fun GraphicsDriverConfigCard(
                     label = stringResource(R.string.container_graphics_bcn_emulation_cache),
                     entries = state.gfxBcnEmulationCacheEntries.value,
                     selectedIndex = state.gfxSelectedBcnEmulationCache.intValue,
-                    onSelected = { state.gfxSelectedBcnEmulationCache.intValue = it }
+                    onSelected = { state.gfxSelectedBcnEmulationCache.intValue = it },
                 )
 
                 Spacer(Modifier.height(14.dp))
@@ -1215,7 +1305,7 @@ private fun GraphicsDriverConfigCard(
                 SettingCheckbox(
                     label = stringResource(R.string.container_graphics_sync_frame),
                     checked = state.gfxSyncFrame.value,
-                    onCheckedChange = { state.gfxSyncFrame.value = it }
+                    onCheckedChange = { state.gfxSyncFrame.value = it },
                 )
 
                 Spacer(Modifier.height(4.dp))
@@ -1223,7 +1313,7 @@ private fun GraphicsDriverConfigCard(
                 SettingCheckbox(
                     label = stringResource(R.string.container_graphics_disable_present_wait),
                     checked = state.gfxDisablePresentWait.value,
-                    onCheckedChange = { state.gfxDisablePresentWait.value = it }
+                    onCheckedChange = { state.gfxDisablePresentWait.value = it },
                 )
             }
         }
@@ -1247,32 +1337,36 @@ private fun ExtensionsMultiSelect(state: GameSettingsStateHolder) {
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             letterSpacing = 0.3.sp,
-            modifier = Modifier.padding(bottom = 6.dp)
+            modifier = Modifier.padding(bottom = 6.dp),
         )
 
         // Summary button — opens popup
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(InputSurface)
-                .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
-                .clickable(enabled = extensions.isNotEmpty()) { showDialog = true }
-                .padding(horizontal = 14.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(InputSurface)
+                    .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
+                    .clickable(enabled = extensions.isNotEmpty()) { showDialog = true }
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                if (extensions.isEmpty()) "—"
-                else "$enabledCount / ${extensions.size} enabled",
+                if (extensions.isEmpty()) {
+                    "—"
+                } else {
+                    "$enabledCount / ${extensions.size} enabled"
+                },
                 color = TextPrimary,
                 fontSize = 14.sp,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             Icon(
                 Icons.Outlined.KeyboardArrowDown,
                 contentDescription = null,
                 tint = TextDim,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp),
             )
         }
     }
@@ -1282,13 +1376,14 @@ private fun ExtensionsMultiSelect(state: GameSettingsStateHolder) {
             extensions = extensions,
             blacklisted = blacklisted,
             onToggle = { ext, enabled ->
-                state.gfxBlacklistedExtensions.value = if (enabled) {
-                    blacklisted - ext
-                } else {
-                    blacklisted + ext
-                }
+                state.gfxBlacklistedExtensions.value =
+                    if (enabled) {
+                        blacklisted - ext
+                    } else {
+                        blacklisted + ext
+                    }
             },
-            onDismiss = { showDialog = false }
+            onDismiss = { showDialog = false },
         )
     }
 }
@@ -1298,48 +1393,52 @@ private fun ExtensionsPickerDialog(
     extensions: List<String>,
     blacklisted: Set<String>,
     onToggle: (String, Boolean) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(
-            usePlatformDefaultWidth = false
-        )
+        properties =
+            androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false,
+            ),
     ) {
         Column(
-            modifier = Modifier
-                .widthIn(max = 360.dp)
-                .fillMaxHeight(0.70f)
-                .clip(RoundedCornerShape(16.dp))
-                .background(BgDeep)
-                .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+            modifier =
+                Modifier
+                    .widthIn(max = 360.dp)
+                    .fillMaxHeight(0.70f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(BgDeep)
+                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp)),
         ) {
             // Header
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     stringResource(R.string.container_graphics_available_extensions),
                     color = TextPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
                 val enabledCount = extensions.size - blacklisted.size
                 Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(AccentBlue.copy(alpha = 0.1f))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(AccentBlue.copy(alpha = 0.1f))
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
                 ) {
                     Text(
                         "$enabledCount / ${extensions.size}",
                         color = AccentBlue,
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
                     )
                 }
             }
@@ -1348,38 +1447,41 @@ private fun ExtensionsPickerDialog(
 
             // Scrollable list — takes remaining space between header and button
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
                 extensions.forEach { ext ->
                     val isEnabled = ext !in blacklisted
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onToggle(ext, !isEnabled) }
-                            .padding(horizontal = 8.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onToggle(ext, !isEnabled) }
+                                .padding(horizontal = 8.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Checkbox(
                             checked = isEnabled,
                             onCheckedChange = { onToggle(ext, it) },
                             modifier = Modifier.size(22.dp),
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = AccentBlue,
-                                uncheckedColor = CheckBorder,
-                                checkmarkColor = Color.White
-                            )
+                            colors =
+                                CheckboxDefaults.colors(
+                                    checkedColor = AccentBlue,
+                                    uncheckedColor = CheckBorder,
+                                    checkmarkColor = Color.White,
+                                ),
                         )
                         Spacer(Modifier.width(12.dp))
                         Text(
                             ext,
                             color = if (isEnabled) TextPrimary else TextDim,
                             fontSize = 13.sp,
-                            maxLines = 1
+                            maxLines = 1,
                         )
                     }
                 }
@@ -1389,17 +1491,18 @@ private fun ExtensionsPickerDialog(
 
             // Close button
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onDismiss() }
-                    .padding(vertical = 14.dp),
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { onDismiss() }
+                        .padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
                     stringResource(android.R.string.ok),
                     color = AccentBlue,
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
         }
@@ -1412,7 +1515,7 @@ private fun ExtensionsPickerDialog(
 @Composable
 private fun DXVKConfigCard(
     state: GameSettingsStateHolder,
-    callbacks: GameSettingsCallbacks
+    callbacks: GameSettingsCallbacks,
 ) {
     val expanded by state.dxvkConfigExpanded
 
@@ -1426,25 +1529,27 @@ private fun DXVKConfigCard(
     val asyncCacheEnabled = isGplAsync
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(CardSurface)
-            .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(CardSurface)
+                .border(1.dp, CardBorder, RoundedCornerShape(14.dp)),
     ) {
         // Header row
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { state.dxvkConfigExpanded.value = !expanded }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { state.dxvkConfigExpanded.value = !expanded }
+                    .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 Icons.Outlined.Tune,
                 contentDescription = null,
                 tint = AccentBlue,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp),
             )
             Spacer(Modifier.width(10.dp))
             Text(
@@ -1452,13 +1557,13 @@ private fun DXVKConfigCard(
                 color = TextPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             Icon(
                 if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
                 contentDescription = null,
                 tint = TextDim,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp),
             )
         }
 
@@ -1466,12 +1571,13 @@ private fun DXVKConfigCard(
         AnimatedVisibility(
             visible = expanded,
             enter = expandVertically(),
-            exit = shrinkVertically()
+            exit = shrinkVertically(),
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
             ) {
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
                 Spacer(Modifier.height(14.dp))
@@ -1483,7 +1589,7 @@ private fun DXVKConfigCard(
                     onSelected = {
                         state.dxvkSelectedVkd3dVersion.intValue = it
                         callbacks.onDxvkVkd3dVersionChanged(it)
-                    }
+                    },
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -1492,7 +1598,7 @@ private fun DXVKConfigCard(
                     label = stringResource(R.string.container_wine_vkd3d_feature_level),
                     entries = state.dxvkVkd3dFeatureLevelEntries.value,
                     selectedIndex = state.dxvkSelectedVkd3dFeatureLevel.intValue,
-                    onSelected = { state.dxvkSelectedVkd3dFeatureLevel.intValue = it }
+                    onSelected = { state.dxvkSelectedVkd3dFeatureLevel.intValue = it },
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -1501,7 +1607,7 @@ private fun DXVKConfigCard(
                     label = stringResource(R.string.container_wine_dxvk_version),
                     entries = state.dxvkVersionEntries.value,
                     selectedIndex = state.dxvkSelectedVersion.intValue,
-                    onSelected = { state.dxvkSelectedVersion.intValue = it }
+                    onSelected = { state.dxvkSelectedVersion.intValue = it },
                 )
 
                 // Async toggle - greyed out when version doesn't support it
@@ -1510,7 +1616,7 @@ private fun DXVKConfigCard(
                     SettingCheckbox(
                         label = stringResource(R.string.container_wine_enabled_async),
                         checked = state.dxvkAsync.value && asyncEnabled,
-                        onCheckedChange = { if (asyncEnabled) state.dxvkAsync.value = it }
+                        onCheckedChange = { if (asyncEnabled) state.dxvkAsync.value = it },
                     )
                 }
 
@@ -1520,7 +1626,7 @@ private fun DXVKConfigCard(
                     SettingCheckbox(
                         label = stringResource(R.string.container_wine_enabled_async_cache),
                         checked = state.dxvkAsyncCache.value && asyncCacheEnabled,
-                        onCheckedChange = { if (asyncCacheEnabled) state.dxvkAsyncCache.value = it }
+                        onCheckedChange = { if (asyncCacheEnabled) state.dxvkAsyncCache.value = it },
                     )
                 }
 
@@ -1530,7 +1636,7 @@ private fun DXVKConfigCard(
                     label = stringResource(R.string.container_wine_ddraw_wrapper),
                     entries = state.dxvkDdrawWrapperEntries.value,
                     selectedIndex = state.dxvkSelectedDdrawWrapper.intValue,
-                    onSelected = { state.dxvkSelectedDdrawWrapper.intValue = it }
+                    onSelected = { state.dxvkSelectedDdrawWrapper.intValue = it },
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -1539,7 +1645,7 @@ private fun DXVKConfigCard(
                     label = stringResource(R.string.session_display_frame_rate),
                     entries = state.dxvkFramerateEntries.value,
                     selectedIndex = state.dxvkSelectedFramerate.intValue,
-                    onSelected = { state.dxvkSelectedFramerate.intValue = it }
+                    onSelected = { state.dxvkSelectedFramerate.intValue = it },
                 )
             }
         }
@@ -1554,25 +1660,27 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
     val expanded by state.wined3dConfigExpanded
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(CardSurface)
-            .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(CardSurface)
+                .border(1.dp, CardBorder, RoundedCornerShape(14.dp)),
     ) {
         // Header row
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { state.wined3dConfigExpanded.value = !expanded }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { state.wined3dConfigExpanded.value = !expanded }
+                    .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 Icons.Outlined.Tune,
                 contentDescription = null,
                 tint = AccentBlue,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp),
             )
             Spacer(Modifier.width(10.dp))
             Text(
@@ -1580,13 +1688,13 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
                 color = TextPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             Icon(
                 if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
                 contentDescription = null,
                 tint = TextDim,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp),
             )
         }
 
@@ -1594,12 +1702,13 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
         AnimatedVisibility(
             visible = expanded,
             enter = expandVertically(),
-            exit = shrinkVertically()
+            exit = shrinkVertically(),
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
             ) {
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
                 Spacer(Modifier.height(14.dp))
@@ -1608,7 +1717,7 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
                     label = stringResource(R.string.container_wine_csmt),
                     entries = state.wined3dCsmtEntries.value,
                     selectedIndex = state.wined3dSelectedCsmt.intValue,
-                    onSelected = { state.wined3dSelectedCsmt.intValue = it }
+                    onSelected = { state.wined3dSelectedCsmt.intValue = it },
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -1617,7 +1726,7 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
                     label = stringResource(R.string.container_wine_gpu_name),
                     entries = state.wined3dGpuNameEntries.value,
                     selectedIndex = state.wined3dSelectedGpuName.intValue,
-                    onSelected = { state.wined3dSelectedGpuName.intValue = it }
+                    onSelected = { state.wined3dSelectedGpuName.intValue = it },
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -1626,7 +1735,7 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
                     label = stringResource(R.string.container_wine_video_memory_size),
                     entries = state.wined3dVideoMemorySizeEntries.value,
                     selectedIndex = state.wined3dSelectedVideoMemorySize.intValue,
-                    onSelected = { state.wined3dSelectedVideoMemorySize.intValue = it }
+                    onSelected = { state.wined3dSelectedVideoMemorySize.intValue = it },
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -1635,7 +1744,7 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
                     label = stringResource(R.string.container_wine_strict_shader_math),
                     entries = state.wined3dStrictShaderMathEntries.value,
                     selectedIndex = state.wined3dSelectedStrictShaderMath.intValue,
-                    onSelected = { state.wined3dSelectedStrictShaderMath.intValue = it }
+                    onSelected = { state.wined3dSelectedStrictShaderMath.intValue = it },
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -1644,7 +1753,7 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
                     label = stringResource(R.string.container_wine_offscreen_rendering_mode),
                     entries = state.wined3dOffscreenRenderingModeEntries.value,
                     selectedIndex = state.wined3dSelectedOffscreenRenderingMode.intValue,
-                    onSelected = { state.wined3dSelectedOffscreenRenderingMode.intValue = it }
+                    onSelected = { state.wined3dSelectedOffscreenRenderingMode.intValue = it },
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -1653,7 +1762,7 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
                     label = stringResource(R.string.container_config_renderer),
                     entries = state.wined3dRendererEntries.value,
                     selectedIndex = state.wined3dSelectedRenderer.intValue,
-                    onSelected = { state.wined3dSelectedRenderer.intValue = it }
+                    onSelected = { state.wined3dSelectedRenderer.intValue = it },
                 )
             }
         }
@@ -1665,63 +1774,62 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
 // ===================================================================
 @Composable
 private fun SteamSection(state: GameSettingsStateHolder) {
-
     SubsectionLabel(stringResource(R.string.steam_section_emulator))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
         SettingCheckbox(
             label = stringResource(R.string.shortcuts_properties_use_cold_client),
             checked = state.useColdClient.value,
-            onCheckedChange = { state.useColdClient.value = it }
+            onCheckedChange = { state.useColdClient.value = it },
         )
         Spacer(Modifier.height(4.dp))
         Text(
             stringResource(R.string.shortcuts_properties_use_cold_client_description),
             color = TextDim,
             fontSize = 11.sp,
-            lineHeight = 16.sp
+            lineHeight = 16.sp,
         )
         Spacer(Modifier.height(12.dp))
 
         SettingCheckbox(
             label = stringResource(R.string.shortcuts_properties_use_steam_input),
             checked = state.useSteamInput.value,
-            onCheckedChange = { state.useSteamInput.value = it }
+            onCheckedChange = { state.useSteamInput.value = it },
         )
         Spacer(Modifier.height(12.dp))
 
         SettingCheckbox(
             label = stringResource(R.string.shortcuts_properties_force_dlc),
             checked = state.forceDlc.value,
-            onCheckedChange = { state.forceDlc.value = it }
+            onCheckedChange = { state.forceDlc.value = it },
         )
         Spacer(Modifier.height(4.dp))
         Text(
             stringResource(R.string.shortcuts_properties_force_dlc_description),
             color = TextDim,
             fontSize = 11.sp,
-            lineHeight = 16.sp
+            lineHeight = 16.sp,
         )
         Spacer(Modifier.height(12.dp))
 
         SettingCheckbox(
             label = stringResource(R.string.shortcuts_properties_steam_offline_mode),
             checked = state.steamOfflineMode.value,
-            onCheckedChange = { state.steamOfflineMode.value = it }
+            onCheckedChange = { state.steamOfflineMode.value = it },
         )
         Spacer(Modifier.height(12.dp))
 
         SettingCheckbox(
             label = stringResource(R.string.shortcuts_properties_unpack_files),
             checked = state.unpackFiles.value,
-            onCheckedChange = { state.unpackFiles.value = it }
+            onCheckedChange = { state.unpackFiles.value = it },
         )
         Spacer(Modifier.height(4.dp))
         Text(
             stringResource(R.string.shortcuts_properties_unpack_files_description),
             color = TextDim,
             fontSize = 11.sp,
-            lineHeight = 16.sp
+            lineHeight = 16.sp,
         )
     }
 
@@ -1733,14 +1841,14 @@ private fun SteamSection(state: GameSettingsStateHolder) {
         SettingCheckbox(
             label = stringResource(R.string.shortcuts_properties_launch_steam_client_beta),
             checked = state.launchRealSteam.value,
-            onCheckedChange = { state.launchRealSteam.value = it }
+            onCheckedChange = { state.launchRealSteam.value = it },
         )
         Spacer(Modifier.height(4.dp))
         Text(
             stringResource(R.string.shortcuts_properties_launch_steam_client_description),
             color = TextDim,
             fontSize = 11.sp,
-            lineHeight = 16.sp
+            lineHeight = 16.sp,
         )
         Spacer(Modifier.height(12.dp))
 
@@ -1749,7 +1857,7 @@ private fun SteamSection(state: GameSettingsStateHolder) {
                 label = stringResource(R.string.shortcuts_properties_steam_type),
                 entries = state.steamTypeEntries.value,
                 selectedIndex = state.selectedSteamType.intValue,
-                onSelected = { state.selectedSteamType.intValue = it }
+                onSelected = { state.selectedSteamType.intValue = it },
             )
         }
     }
@@ -1761,7 +1869,7 @@ private fun SteamSection(state: GameSettingsStateHolder) {
 @Composable
 private fun WineSection(
     state: GameSettingsStateHolder,
-    callbacks: GameSettingsCallbacks
+    callbacks: GameSettingsCallbacks,
 ) {
     val isContainer = state.isContainerEditMode.value
 
@@ -1769,34 +1877,35 @@ private fun WineSection(
         // LC_ALL with locale picker. Emulator selection lives in Advanced.
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.Top,
         ) {
             Box(Modifier.weight(1f)) {
                 SettingTextField(
                     label = stringResource(R.string.container_config_lc_all),
                     value = state.lcAll.value,
-                    onValueChange = { state.lcAll.value = it }
+                    onValueChange = { state.lcAll.value = it },
                 )
             }
             Spacer(Modifier.width(8.dp))
             var showLocalePicker by remember { mutableStateOf(false) }
             Box(
-                modifier = Modifier.padding(top = 22.dp)
+                modifier = Modifier.padding(top = 22.dp),
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(InputSurface)
-                        .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
-                        .clickable { showLocalePicker = true },
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(InputSurface)
+                            .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
+                            .clickable { showLocalePicker = true },
+                    contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         Icons.Outlined.KeyboardArrowDown,
                         contentDescription = null,
                         tint = TextSecondary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                 }
                 DropdownMenu(
@@ -1804,7 +1913,7 @@ private fun WineSection(
                     onDismissRequest = { showLocalePicker = false },
                     shape = RoundedCornerShape(8.dp),
                     containerColor = CardSurface,
-                    modifier = Modifier.height(300.dp)
+                    modifier = Modifier.height(300.dp),
                 ) {
                     state.localeOptions.value.forEach { locale ->
                         DropdownMenuItem(
@@ -1814,7 +1923,7 @@ private fun WineSection(
                             onClick = {
                                 state.lcAll.value = locale
                                 showLocalePicker = false
-                            }
+                            },
                         )
                     }
                 }
@@ -1830,7 +1939,7 @@ private fun WineSection(
                 label = stringResource(R.string.settings_general_theme),
                 entries = state.desktopThemeEntries.value,
                 selectedIndex = state.selectedDesktopTheme.intValue,
-                onSelected = { state.selectedDesktopTheme.intValue = it }
+                onSelected = { state.selectedDesktopTheme.intValue = it },
             )
 
             if (isContainer && state.desktopBackgroundTypeEntries.value.isNotEmpty()) {
@@ -1839,66 +1948,75 @@ private fun WineSection(
                     label = stringResource(R.string.settings_general_background),
                     entries = state.desktopBackgroundTypeEntries.value,
                     selectedIndex = state.selectedDesktopBackgroundType.intValue,
-                    onSelected = { state.selectedDesktopBackgroundType.intValue = it }
+                    onSelected = { state.selectedDesktopBackgroundType.intValue = it },
                 )
 
                 val typeEntries = state.desktopBackgroundTypeEntries.value
-                val selectedType = typeEntries.getOrNull(state.selectedDesktopBackgroundType.intValue)
-                    ?.lowercase() ?: ""
+                val selectedType =
+                    typeEntries
+                        .getOrNull(state.selectedDesktopBackgroundType.intValue)
+                        ?.lowercase() ?: ""
                 when (selectedType) {
                     "color" -> {
                         Spacer(Modifier.height(12.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.Bottom
+                            verticalAlignment = Alignment.Bottom,
                         ) {
                             Box(Modifier.weight(1f)) {
                                 SettingTextField(
                                     label = "Color (hex)",
                                     value = state.desktopBackgroundColor.value,
-                                    onValueChange = { state.desktopBackgroundColor.value = it }
+                                    onValueChange = { state.desktopBackgroundColor.value = it },
                                 )
                             }
                             Spacer(Modifier.width(10.dp))
-                            val previewColor = remember(state.desktopBackgroundColor.value) {
-                                runCatching {
-                                    Color(android.graphics.Color.parseColor(state.desktopBackgroundColor.value))
-                                }.getOrDefault(Color(0xFF0277BD))
-                            }
+                            val previewColor =
+                                remember(state.desktopBackgroundColor.value) {
+                                    runCatching {
+                                        Color(android.graphics.Color.parseColor(state.desktopBackgroundColor.value))
+                                    }.getOrDefault(Color(0xFF0277BD))
+                                }
                             Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(previewColor)
-                                    .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
+                                modifier =
+                                    Modifier
+                                        .size(40.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(previewColor)
+                                        .border(1.dp, InputBorder, RoundedCornerShape(8.dp)),
                             )
                         }
                     }
+
                     "image" -> {
                         Spacer(Modifier.height(12.dp))
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .border(1.dp, InputBorder, RoundedCornerShape(10.dp))
-                                .background(InputSurface)
-                                .clickable { callbacks.onPickWallpaper() }
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .border(1.dp, InputBorder, RoundedCornerShape(10.dp))
+                                    .background(InputSurface)
+                                    .clickable { callbacks.onPickWallpaper() }
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                if (state.desktopWallpaperSelected.value) "Wallpaper selected"
-                                else "Select wallpaper",
+                                if (state.desktopWallpaperSelected.value) {
+                                    "Wallpaper selected"
+                                } else {
+                                    "Select wallpaper"
+                                },
                                 color = if (state.desktopWallpaperSelected.value) TextPrimary else TextSecondary,
                                 fontSize = 12.sp,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
                             if (state.desktopWallpaperSelected.value) {
                                 Icon(
                                     Icons.Outlined.Check,
                                     contentDescription = null,
                                     tint = AccentBlue,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(18.dp),
                                 )
                             }
                         }
@@ -1915,7 +2033,7 @@ private fun WineSection(
                 label = stringResource(R.string.container_wine_mouse_warp_override),
                 entries = state.mouseWarpOverrideEntries.value,
                 selectedIndex = state.selectedMouseWarpOverride.intValue,
-                onSelected = { state.selectedMouseWarpOverride.intValue = it }
+                onSelected = { state.selectedMouseWarpOverride.intValue = it },
             )
         }
     }
@@ -1927,9 +2045,8 @@ private fun WineSection(
 @Composable
 private fun ComponentsSection(
     state: GameSettingsStateHolder,
-    callbacks: GameSettingsCallbacks
+    callbacks: GameSettingsCallbacks,
 ) {
-
     // DirectX components
     if (state.directXComponents.value.isNotEmpty()) {
         SubsectionLabel(stringResource(R.string.container_wine_directx))
@@ -1943,7 +2060,7 @@ private fun ComponentsSection(
                     selectedIndex = component.selectedIndex,
                     onSelected = { newVal ->
                         callbacks.onUpdateWinComponent(true, index, newVal)
-                    }
+                    },
                 )
             }
         }
@@ -1963,7 +2080,7 @@ private fun ComponentsSection(
                     selectedIndex = component.selectedIndex,
                     onSelected = { newVal ->
                         callbacks.onUpdateWinComponent(false, index, newVal)
-                    }
+                    },
                 )
             }
         }
@@ -1973,13 +2090,12 @@ private fun ComponentsSection(
 // ===================================================================
 // Section 5: Variables
 // ===================================================================
-private fun findKnownEnvVar(name: String): Array<String>? =
-    EnvVarsView.knownEnvVars.firstOrNull { it[0] == name }
+private fun findKnownEnvVar(name: String): Array<String>? = EnvVarsView.knownEnvVars.firstOrNull { it[0] == name }
 
 @Composable
 private fun VariablesSection(
     state: GameSettingsStateHolder,
-    callbacks: GameSettingsCallbacks
+    callbacks: GameSettingsCallbacks,
 ) {
     val isContainer = state.isContainerEditMode.value
     var isAdding by remember { mutableStateOf(false) }
@@ -1997,7 +2113,7 @@ private fun VariablesSection(
                 stringResource(R.string.common_ui_none),
                 color = TextDim,
                 fontSize = 13.sp,
-                modifier = Modifier.padding(vertical = 8.dp)
+                modifier = Modifier.padding(vertical = 8.dp),
             )
         } else {
             state.envVars.value.forEachIndexed { index, envVar ->
@@ -2007,20 +2123,22 @@ private fun VariablesSection(
                         Modifier
                             .fillMaxWidth()
                             .height(1.dp)
-                            .background(DividerColor)
+                            .background(DividerColor),
                     )
                     Spacer(Modifier.height(2.dp))
                 }
                 EnvVarRow(
                     name = envVar.key,
                     value = envVar.value,
-                    excludeOtherNames = state.envVars.value
-                        .filterIndexed { i, _ -> i != index }
-                        .map { it.key }
-                        .toSet(),
+                    excludeOtherNames =
+                        state.envVars.value
+                            .filterIndexed { i, _ -> i != index }
+                            .map { it.key }
+                            .toSet(),
                     onNameChange = { newKey ->
                         if (newKey.isNotEmpty() &&
-                            state.envVars.value.none { it.key == newKey }) {
+                            state.envVars.value.none { it.key == newKey }
+                        ) {
                             val list = state.envVars.value.toMutableList()
                             list[index] = EnvVarItem(newKey, "")
                             state.envVars.value = list
@@ -2031,7 +2149,7 @@ private fun VariablesSection(
                         list[index] = EnvVarItem(envVar.key, v)
                         state.envVars.value = list
                     },
-                    onRemove = { callbacks.onRemoveEnvVar(index) }
+                    onRemove = { callbacks.onRemoveEnvVar(index) },
                 )
             }
         }
@@ -2046,49 +2164,58 @@ private fun VariablesSection(
             EnvVarRow(
                 name = newName,
                 value = newValue,
-                excludeOtherNames = state.envVars.value.map { it.key }.toSet(),
-                onNameChange = { newName = it; newValue = "" },
+                excludeOtherNames =
+                    state.envVars.value
+                        .map { it.key }
+                        .toSet(),
+                onNameChange = {
+                    newName = it
+                    newValue = ""
+                },
                 onValueChange = { newValue = it },
                 onRemove = null,
                 trailing = {
                     Spacer(Modifier.width(4.dp))
                     Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(AccentBlue.copy(alpha = 0.15f))
-                            .clickable {
-                                val key = newName.trim()
-                                if (key.isNotEmpty() &&
-                                    state.envVars.value.none { it.key == key }) {
-                                    val list = state.envVars.value.toMutableList()
-                                    list.add(EnvVarItem(key, newValue.trim()))
-                                    state.envVars.value = list
-                                }
-                                newName = ""
-                                newValue = ""
-                                isAdding = false
-                            },
-                        contentAlignment = Alignment.Center
+                        modifier =
+                            Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(AccentBlue.copy(alpha = 0.15f))
+                                .clickable {
+                                    val key = newName.trim()
+                                    if (key.isNotEmpty() &&
+                                        state.envVars.value.none { it.key == key }
+                                    ) {
+                                        val list = state.envVars.value.toMutableList()
+                                        list.add(EnvVarItem(key, newValue.trim()))
+                                        state.envVars.value = list
+                                    }
+                                    newName = ""
+                                    newValue = ""
+                                    isAdding = false
+                                },
+                        contentAlignment = Alignment.Center,
                     ) {
                         Icon(Icons.Outlined.Check, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(16.dp))
                     }
                     Spacer(Modifier.width(4.dp))
                     Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(DangerRed.copy(alpha = 0.1f))
-                            .clickable {
-                                newName = ""
-                                newValue = ""
-                                isAdding = false
-                            },
-                        contentAlignment = Alignment.Center
+                        modifier =
+                            Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(DangerRed.copy(alpha = 0.1f))
+                                .clickable {
+                                    newName = ""
+                                    newValue = ""
+                                    isAdding = false
+                                },
+                        contentAlignment = Alignment.Center,
                     ) {
                         Icon(Icons.Outlined.Close, contentDescription = null, tint = DangerRed, modifier = Modifier.size(16.dp))
                     }
-                }
+                },
             )
         }
 
@@ -2097,30 +2224,30 @@ private fun VariablesSection(
         // Add button
         if (!isAdding) {
             Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(AccentBlue.copy(alpha = 0.08f))
-                    .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                    .clickable {
-                        newName = ""
-                        newValue = ""
-                        isAdding = true
-                    }
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(AccentBlue.copy(alpha = 0.08f))
+                        .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                        .clickable {
+                            newName = ""
+                            newValue = ""
+                            isAdding = true
+                        }.padding(horizontal = 16.dp, vertical = 10.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Outlined.Add,
                         contentDescription = null,
                         tint = AccentBlue,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
                         stringResource(R.string.common_ui_add),
                         color = AccentBlue,
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
                     )
                 }
             }
@@ -2138,7 +2265,7 @@ private fun VariablesSection(
                     stringResource(R.string.common_ui_none),
                     color = TextDim,
                     fontSize = 13.sp,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    modifier = Modifier.padding(vertical = 8.dp),
                 )
             } else {
                 drives.forEachIndexed { index, drive ->
@@ -2148,58 +2275,62 @@ private fun VariablesSection(
                         Spacer(Modifier.height(2.dp))
                     }
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Box(
-                            modifier = Modifier
-                                .size(width = 38.dp, height = 32.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(AccentBlue.copy(alpha = 0.1f))
-                                .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(6.dp)),
-                            contentAlignment = Alignment.Center
+                            modifier =
+                                Modifier
+                                    .size(width = 38.dp, height = 32.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(AccentBlue.copy(alpha = 0.1f))
+                                    .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(6.dp)),
+                            contentAlignment = Alignment.Center,
                         ) {
                             Text(
                                 "${drive.letter}:",
                                 color = AccentBlue,
                                 fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
                             )
                         }
                         Spacer(Modifier.width(10.dp))
                         Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(InputSurface)
-                                .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
-                                .clickable { callbacks.onPickDrivePath(index) }
-                                .padding(horizontal = 12.dp, vertical = 10.dp)
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(InputSurface)
+                                    .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
+                                    .clickable { callbacks.onPickDrivePath(index) }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
                         ) {
                             Text(
                                 drive.path.ifEmpty { "Select a folder" },
                                 color = if (drive.path.isEmpty()) TextDim else TextPrimary,
                                 fontSize = 12.sp,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                         Spacer(Modifier.width(8.dp))
                         Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(DangerRed.copy(alpha = 0.1f))
-                                .clickable { callbacks.onRemoveDrive(index) },
-                            contentAlignment = Alignment.Center
+                            modifier =
+                                Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(DangerRed.copy(alpha = 0.1f))
+                                    .clickable { callbacks.onRemoveDrive(index) },
+                            contentAlignment = Alignment.Center,
                         ) {
                             Icon(
                                 Icons.Outlined.Close,
                                 contentDescription = null,
                                 tint = DangerRed,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(16.dp),
                             )
                         }
                     }
@@ -2209,26 +2340,27 @@ private fun VariablesSection(
             Spacer(Modifier.height(12.dp))
 
             Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(AccentBlue.copy(alpha = 0.08f))
-                    .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                    .clickable { callbacks.onAddDrive() }
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(AccentBlue.copy(alpha = 0.08f))
+                        .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                        .clickable { callbacks.onAddDrive() }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Outlined.Add,
                         contentDescription = null,
                         tint = AccentBlue,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
                         stringResource(R.string.common_ui_add),
                         color = AccentBlue,
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
                     )
                 }
             }
@@ -2247,27 +2379,29 @@ private fun EnvVarRow(
     onNameChange: (String) -> Unit,
     onValueChange: (String) -> Unit,
     onRemove: (() -> Unit)?,
-    trailing: (@Composable () -> Unit)? = null
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     var nameMenuExpanded by remember { mutableStateOf(false) }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // Name dropdown
         Box(modifier = Modifier.weight(1.6f)) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(InputSurface)
-                    .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                    .clickable { nameMenuExpanded = true }
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                contentAlignment = Alignment.CenterStart
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(InputSurface)
+                        .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                        .clickable { nameMenuExpanded = true }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                contentAlignment = Alignment.CenterStart,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -2276,13 +2410,13 @@ private fun EnvVarRow(
                         fontSize = 13.sp,
                         modifier = Modifier.weight(1f),
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Icon(
                         Icons.Outlined.KeyboardArrowDown,
                         contentDescription = null,
                         tint = TextSecondary,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                 }
             }
@@ -2291,9 +2425,10 @@ private fun EnvVarRow(
                 onDismissRequest = { nameMenuExpanded = false },
                 shape = RoundedCornerShape(8.dp),
                 containerColor = CardSurface,
-                modifier = Modifier
-                    .height(360.dp)
-                    .width(260.dp)
+                modifier =
+                    Modifier
+                        .height(360.dp)
+                        .width(260.dp),
             ) {
                 EnvVarsView.knownEnvVars.forEach { known ->
                     val knownName = known[0]
@@ -2304,13 +2439,13 @@ private fun EnvVarRow(
                             Text(
                                 knownName,
                                 color = if (disabled) TextDim else TextPrimary,
-                                fontSize = 13.sp
+                                fontSize = 13.sp,
                             )
                         },
                         onClick = {
                             onNameChange(knownName)
                             nameMenuExpanded = false
-                        }
+                        },
                     )
                 }
             }
@@ -2321,24 +2456,25 @@ private fun EnvVarRow(
             EnvVarValueEditor(
                 name = name,
                 value = value,
-                onValueChange = onValueChange
+                onValueChange = onValueChange,
             )
         }
         if (onRemove != null) {
             Spacer(Modifier.width(8.dp))
             Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(DangerRed.copy(alpha = 0.1f))
-                    .clickable { onRemove() },
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(DangerRed.copy(alpha = 0.1f))
+                        .clickable { onRemove() },
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     Icons.Outlined.Close,
                     contentDescription = null,
                     tint = DangerRed,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
                 )
             }
         }
@@ -2350,7 +2486,7 @@ private fun EnvVarRow(
 private fun EnvVarValueEditor(
     name: String,
     value: String,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
 ) {
     val known = findKnownEnvVar(name)
     val type = known?.getOrNull(1) ?: "TEXT"
@@ -2362,27 +2498,35 @@ private fun EnvVarValueEditor(
             EnvValueDropdown(
                 current = if (isOn) on else off,
                 options = listOf(off, on),
-                onSelected = onValueChange
+                onSelected = onValueChange,
             )
         }
+
         "SELECT" -> {
             val options = known!!.drop(2)
             EnvValueDropdown(
                 current = if (value.isEmpty()) options.firstOrNull() ?: "" else value,
                 options = options,
-                onSelected = onValueChange
+                onSelected = onValueChange,
             )
         }
+
         "SELECT_MULTIPLE" -> {
             val options = known!!.drop(2)
             EnvValueMultiDropdown(
                 current = value,
                 options = options,
-                onChanged = onValueChange
+                onChanged = onValueChange,
             )
         }
-        "NUMBER" -> EnvValueTextField(value, onValueChange, numeric = true)
-        else -> EnvValueTextField(value, onValueChange, numeric = false)
+
+        "NUMBER" -> {
+            EnvValueTextField(value, onValueChange, numeric = true)
+        }
+
+        else -> {
+            EnvValueTextField(value, onValueChange, numeric = false)
+        }
     }
 }
 
@@ -2390,19 +2534,20 @@ private fun EnvVarValueEditor(
 private fun EnvValueDropdown(
     current: String,
     options: List<String>,
-    onSelected: (String) -> Unit
+    onSelected: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(InputSurface)
-                .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                .clickable { expanded = true }
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            contentAlignment = Alignment.CenterStart
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(InputSurface)
+                    .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                    .clickable { expanded = true }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+            contentAlignment = Alignment.CenterStart,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -2411,13 +2556,13 @@ private fun EnvValueDropdown(
                     fontSize = 13.sp,
                     modifier = Modifier.weight(1f),
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Icon(
                     Icons.Outlined.KeyboardArrowDown,
                     contentDescription = null,
                     tint = TextSecondary,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
                 )
             }
         }
@@ -2426,7 +2571,7 @@ private fun EnvValueDropdown(
             onDismissRequest = { expanded = false },
             shape = RoundedCornerShape(8.dp),
             containerColor = CardSurface,
-            modifier = Modifier.width(220.dp)
+            modifier = Modifier.width(220.dp),
         ) {
             options.forEach { opt ->
                 DropdownMenuItem(
@@ -2436,7 +2581,7 @@ private fun EnvValueDropdown(
                     onClick = {
                         onSelected(opt)
                         expanded = false
-                    }
+                    },
                 )
             }
         }
@@ -2447,22 +2592,28 @@ private fun EnvValueDropdown(
 private fun EnvValueMultiDropdown(
     current: String,
     options: List<String>,
-    onChanged: (String) -> Unit
+    onChanged: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedSet = remember(current) {
-        current.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toMutableSet()
-    }
+    val selectedSet =
+        remember(current) {
+            current
+                .split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .toMutableSet()
+        }
     Box {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(InputSurface)
-                .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                .clickable { expanded = true }
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            contentAlignment = Alignment.CenterStart
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(InputSurface)
+                    .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                    .clickable { expanded = true }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+            contentAlignment = Alignment.CenterStart,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -2471,13 +2622,13 @@ private fun EnvValueMultiDropdown(
                     fontSize = 13.sp,
                     modifier = Modifier.weight(1f),
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Icon(
                     Icons.Outlined.KeyboardArrowDown,
                     contentDescription = null,
                     tint = TextSecondary,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
                 )
             }
         }
@@ -2486,9 +2637,10 @@ private fun EnvValueMultiDropdown(
             onDismissRequest = { expanded = false },
             shape = RoundedCornerShape(8.dp),
             containerColor = CardSurface,
-            modifier = Modifier
-                .height(320.dp)
-                .width(260.dp)
+            modifier =
+                Modifier
+                    .height(320.dp)
+                    .width(260.dp),
         ) {
             options.forEach { opt ->
                 val checked = opt in selectedSet
@@ -2498,11 +2650,12 @@ private fun EnvValueMultiDropdown(
                             Checkbox(
                                 checked = checked,
                                 onCheckedChange = null,
-                                colors = CheckboxDefaults.colors(
-                                    checkedColor = AccentBlue,
-                                    uncheckedColor = TextSecondary,
-                                    checkmarkColor = Color.White
-                                )
+                                colors =
+                                    CheckboxDefaults.colors(
+                                        checkedColor = AccentBlue,
+                                        uncheckedColor = TextSecondary,
+                                        checkmarkColor = Color.White,
+                                    ),
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(opt, color = TextPrimary, fontSize = 13.sp)
@@ -2511,7 +2664,7 @@ private fun EnvValueMultiDropdown(
                     onClick = {
                         if (checked) selectedSet.remove(opt) else selectedSet.add(opt)
                         onChanged(selectedSet.joinToString(","))
-                    }
+                    },
                 )
             }
         }
@@ -2522,7 +2675,7 @@ private fun EnvValueMultiDropdown(
 private fun EnvValueTextField(
     value: String,
     onValueChange: (String) -> Unit,
-    numeric: Boolean
+    numeric: Boolean,
 ) {
     BasicTextField(
         value = value,
@@ -2530,25 +2683,29 @@ private fun EnvValueTextField(
         textStyle = TextStyle(color = TextPrimary, fontSize = 13.sp),
         cursorBrush = SolidColor(AccentBlue),
         singleLine = true,
-        keyboardOptions = if (numeric)
-            KeyboardOptions(keyboardType = KeyboardType.Number)
-        else KeyboardOptions.Default,
+        keyboardOptions =
+            if (numeric) {
+                KeyboardOptions(keyboardType = KeyboardType.Number)
+            } else {
+                KeyboardOptions.Default
+            },
         modifier = Modifier.fillMaxWidth(),
         decorationBox = { innerTextField ->
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(InputSurface)
-                    .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(InputSurface)
+                        .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
             ) {
                 if (value.isEmpty()) {
                     Text("value", color = TextDim, fontSize = 13.sp)
                 }
                 innerTextField()
             }
-        }
+        },
     )
 }
 
@@ -2568,7 +2725,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
                 label = stringResource(R.string.common_ui_profile),
                 entries = state.controlsProfileEntries.value,
                 selectedIndex = state.selectedControlsProfile.intValue,
-                onSelected = { state.selectedControlsProfile.intValue = it }
+                onSelected = { state.selectedControlsProfile.intValue = it },
             )
 
             Spacer(Modifier.height(12.dp))
@@ -2576,8 +2733,12 @@ private fun InputSection(state: GameSettingsStateHolder) {
 
         // Exclusive Input — when off, XInput + DInput are both forced on and locked below.
         // Container mode backs it with the global "xinput_toggle" pref.
-        val exclusiveChecked = if (isContainer) state.containerExclusiveInput.value
-        else state.disableXInput.value
+        val exclusiveChecked =
+            if (isContainer) {
+                state.containerExclusiveInput.value
+            } else {
+                state.disableXInput.value
+            }
         SettingCheckbox(
             label = stringResource(R.string.shortcuts_properties_exclusive_input),
             checked = exclusiveChecked,
@@ -2591,7 +2752,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
                     state.enableXInput.value = true
                     state.enableDInput.value = true
                 }
-            }
+            },
         )
 
         Spacer(Modifier.height(4.dp))
@@ -2599,7 +2760,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
         SettingCheckbox(
             label = stringResource(R.string.container_config_sdl2_compatibility),
             checked = state.sdl2Compatibility.value,
-            onCheckedChange = { state.sdl2Compatibility.value = it }
+            onCheckedChange = { state.sdl2Compatibility.value = it },
         )
 
         if (!isContainer) {
@@ -2608,7 +2769,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
             SettingCheckbox(
                 label = stringResource(R.string.session_xserver_simulate_touch_screen),
                 checked = state.simTouchScreen.value,
-                onCheckedChange = { state.simTouchScreen.value = it }
+                onCheckedChange = { state.simTouchScreen.value = it },
             )
         }
     }
@@ -2625,42 +2786,47 @@ private fun InputSection(state: GameSettingsStateHolder) {
                 label = stringResource(R.string.container_config_directinput_mapper_type),
                 entries = state.dInputMapperTypeEntries.value,
                 selectedIndex = state.selectedDInputMapperType.intValue,
-                onSelected = { state.selectedDInputMapperType.intValue = it }
+                onSelected = { state.selectedDInputMapperType.intValue = it },
             )
             Spacer(Modifier.height(12.dp))
         }
 
         // Enable XInput with help — only toggleable when Exclusive Input is on.
-        val inputApisLocked = if (isContainer) !state.containerExclusiveInput.value
-        else !state.disableXInput.value
+        val inputApisLocked =
+            if (isContainer) {
+                !state.containerExclusiveInput.value
+            } else {
+                !state.disableXInput.value
+            }
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.weight(1f)) {
                 SettingCheckbox(
                     label = stringResource(R.string.container_config_enable_xinput),
                     checked = state.enableXInput.value,
                     onCheckedChange = { state.enableXInput.value = it },
-                    enabled = !inputApisLocked
+                    enabled = !inputApisLocked,
                 )
             }
             var showXInputHelp by remember { mutableStateOf(false) }
             Box {
                 Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(InputSurface)
-                        .border(1.dp, InputBorder, RoundedCornerShape(6.dp))
-                        .clickable { showXInputHelp = !showXInputHelp },
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(InputSurface)
+                            .border(1.dp, InputBorder, RoundedCornerShape(6.dp))
+                            .clickable { showXInputHelp = !showXInputHelp },
+                    contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         Icons.AutoMirrored.Outlined.HelpOutline,
                         contentDescription = null,
                         tint = TextPrimary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                 }
                 DropdownMenu(
@@ -2668,15 +2834,16 @@ private fun InputSection(state: GameSettingsStateHolder) {
                     onDismissRequest = { showXInputHelp = false },
                     shape = RoundedCornerShape(8.dp),
                     containerColor = CardSurface,
-                    modifier = Modifier
-                        .padding(12.dp)
-                        .width(280.dp)
+                    modifier =
+                        Modifier
+                            .padding(12.dp)
+                            .width(280.dp),
                 ) {
                     HtmlText(
                         stringResource(R.string.container_config_help_xinput),
                         color = TextPrimary,
                         fontSize = 12.sp,
-                        lineHeight = 18.sp
+                        lineHeight = 18.sp,
                     )
                 }
             }
@@ -2687,32 +2854,33 @@ private fun InputSection(state: GameSettingsStateHolder) {
         // Enable DInput with help
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.weight(1f)) {
                 SettingCheckbox(
                     label = stringResource(R.string.container_config_enable_dinput),
                     checked = state.enableDInput.value,
                     onCheckedChange = { state.enableDInput.value = it },
-                    enabled = !inputApisLocked
+                    enabled = !inputApisLocked,
                 )
             }
             var showDInputHelp by remember { mutableStateOf(false) }
             Box {
                 Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(InputSurface)
-                        .border(1.dp, InputBorder, RoundedCornerShape(6.dp))
-                        .clickable { showDInputHelp = !showDInputHelp },
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(InputSurface)
+                            .border(1.dp, InputBorder, RoundedCornerShape(6.dp))
+                            .clickable { showDInputHelp = !showDInputHelp },
+                    contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         Icons.AutoMirrored.Outlined.HelpOutline,
                         contentDescription = null,
                         tint = TextPrimary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                 }
                 DropdownMenu(
@@ -2720,15 +2888,16 @@ private fun InputSection(state: GameSettingsStateHolder) {
                     onDismissRequest = { showDInputHelp = false },
                     shape = RoundedCornerShape(8.dp),
                     containerColor = CardSurface,
-                    modifier = Modifier
-                        .padding(12.dp)
-                        .width(280.dp)
+                    modifier =
+                        Modifier
+                            .padding(12.dp)
+                            .width(280.dp),
                 ) {
                     HtmlText(
                         stringResource(R.string.container_config_help_dinput),
                         color = TextPrimary,
                         fontSize = 12.sp,
-                        lineHeight = 18.sp
+                        lineHeight = 18.sp,
                     )
                 }
             }
@@ -2738,18 +2907,19 @@ private fun InputSection(state: GameSettingsStateHolder) {
         if (state.enableXInput.value && state.enableDInput.value) {
             Spacer(Modifier.height(10.dp))
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(WarningAmber.copy(alpha = 0.08f))
-                    .border(1.dp, WarningAmber.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                    .padding(12.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(WarningAmber.copy(alpha = 0.08f))
+                        .border(1.dp, WarningAmber.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                        .padding(12.dp),
             ) {
                 Text(
                     stringResource(R.string.container_config_xinput_dinput_warning),
                     color = WarningAmber,
                     fontSize = 12.sp,
-                    lineHeight = 17.sp
+                    lineHeight = 17.sp,
                 )
             }
         }
@@ -2763,9 +2933,8 @@ private fun InputSection(state: GameSettingsStateHolder) {
 @Composable
 private fun AdvancedSection(
     state: GameSettingsStateHolder,
-    callbacks: GameSettingsCallbacks
+    callbacks: GameSettingsCallbacks,
 ) {
-
     // Wine / Proton version (read-only)
     val wineVersionDisplay = state.wineVersionDisplay.value
     if (wineVersionDisplay.isNotEmpty()) {
@@ -2776,7 +2945,7 @@ private fun AdvancedSection(
                 text = wineVersionDisplay,
                 color = TextPrimary,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
             )
         }
         Spacer(Modifier.height(16.dp))
@@ -2794,7 +2963,7 @@ private fun AdvancedSection(
                 state.selectedEmulator64.intValue = it
                 callbacks.onEmulatorChanged()
             },
-            enabled = state.emulator64Entries.value.size > 1
+            enabled = state.emulator64Entries.value.size > 1,
         )
         Spacer(Modifier.height(14.dp))
         SettingDropdown(
@@ -2805,7 +2974,7 @@ private fun AdvancedSection(
                 state.selectedEmulator.intValue = it
                 callbacks.onEmulatorChanged()
             },
-            enabled = state.emulator32Entries.value.size > 1
+            enabled = state.emulator32Entries.value.size > 1,
         )
     }
     Spacer(Modifier.height(16.dp))
@@ -2820,14 +2989,14 @@ private fun AdvancedSection(
                 label = stringResource(R.string.container_fexcore_version),
                 entries = state.fexcoreVersionEntries.value,
                 selectedIndex = state.selectedFexcoreVersion.intValue,
-                onSelected = { state.selectedFexcoreVersion.intValue = it }
+                onSelected = { state.selectedFexcoreVersion.intValue = it },
             )
             Spacer(Modifier.height(14.dp))
             SettingDropdown(
                 label = stringResource(R.string.container_fexcore_preset),
                 entries = state.fexcorePresetEntries.value,
                 selectedIndex = state.selectedFexcorePreset.intValue,
-                onSelected = { state.selectedFexcorePreset.intValue = it }
+                onSelected = { state.selectedFexcorePreset.intValue = it },
             )
         }
         Spacer(Modifier.height(16.dp))
@@ -2836,17 +3005,22 @@ private fun AdvancedSection(
     // Box64 / Wowbox64 — title switches between Box64/Wowbox64/both based on selection.
     if (state.showBox64Frame.value) {
         val box64Usage = emulatorUsageLabel(state, setOf("box64", "wowbox64"))
-        val box64Id32 = state.emulator32Entries.value
-            .getOrNull(state.selectedEmulator.intValue)?.lowercase() ?: ""
-        val box64Id64 = state.emulator64Entries.value
-            .getOrNull(state.selectedEmulator64.intValue)?.lowercase() ?: ""
+        val box64Id32 =
+            state.emulator32Entries.value
+                .getOrNull(state.selectedEmulator.intValue)
+                ?.lowercase() ?: ""
+        val box64Id64 =
+            state.emulator64Entries.value
+                .getOrNull(state.selectedEmulator64.intValue)
+                ?.lowercase() ?: ""
         val usesPlainBox64 = box64Id32 == "box64" || box64Id64 == "box64"
         val usesWowbox64 = box64Id32 == "wowbox64" || box64Id64 == "wowbox64"
-        val box64Title = when {
-            usesPlainBox64 && usesWowbox64 -> "Box64 / Wowbox64"
-            usesWowbox64 -> "Wowbox64"
-            else -> stringResource(R.string.container_box64_title)
-        }
+        val box64Title =
+            when {
+                usesPlainBox64 && usesWowbox64 -> "Box64 / Wowbox64"
+                usesWowbox64 -> "Wowbox64"
+                else -> stringResource(R.string.container_box64_title)
+            }
         EmulatorSectionHeader(box64Title, box64Usage)
         Spacer(Modifier.height(8.dp))
         SettingGroup {
@@ -2854,14 +3028,14 @@ private fun AdvancedSection(
                 label = stringResource(R.string.container_box64_version),
                 entries = state.box64VersionEntries.value,
                 selectedIndex = state.selectedBox64Version.intValue,
-                onSelected = { state.selectedBox64Version.intValue = it }
+                onSelected = { state.selectedBox64Version.intValue = it },
             )
             Spacer(Modifier.height(14.dp))
             SettingDropdown(
                 label = stringResource(R.string.container_box64_preset),
                 entries = state.box64PresetEntries.value,
                 selectedIndex = state.selectedBox64Preset.intValue,
-                onSelected = { state.selectedBox64Preset.intValue = it }
+                onSelected = { state.selectedBox64Preset.intValue = it },
             )
         }
         Spacer(Modifier.height(16.dp))
@@ -2875,7 +3049,7 @@ private fun AdvancedSection(
             label = stringResource(R.string.container_config_startup_selection),
             entries = state.startupSelectionEntries.value,
             selectedIndex = state.selectedStartupSelection.intValue,
-            onSelected = { state.selectedStartupSelection.intValue = it }
+            onSelected = { state.selectedStartupSelection.intValue = it },
         )
 
         Spacer(Modifier.height(14.dp))
@@ -2883,22 +3057,26 @@ private fun AdvancedSection(
         // Exec Arguments with helper dropdown
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.Top,
         ) {
             Box(Modifier.weight(1f)) {
                 SettingTextField(
                     label = stringResource(R.string.shortcuts_properties_exec_arguments),
                     value = state.execArgs.value,
-                    onValueChange = { state.execArgs.value = it }
+                    onValueChange = { state.execArgs.value = it },
                 )
             }
             Spacer(Modifier.width(8.dp))
             ExecArgsHelper(
                 onArgSelected = { arg ->
                     val current = state.execArgs.value
-                    state.execArgs.value = if (current.isBlank()) arg
-                    else "$current $arg"
-                }
+                    state.execArgs.value =
+                        if (current.isBlank()) {
+                            arg
+                        } else {
+                            "$current $arg"
+                        }
+                },
             )
         }
 
@@ -2907,7 +3085,7 @@ private fun AdvancedSection(
         SettingCheckbox(
             label = stringResource(R.string.session_display_fullscreen_stretched),
             checked = state.fullscreenStretched.value,
-            onCheckedChange = { state.fullscreenStretched.value = it }
+            onCheckedChange = { state.fullscreenStretched.value = it },
         )
     }
 
@@ -2920,7 +3098,7 @@ private fun AdvancedSection(
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             val checkedList = state.cpuChecked.value
             for (i in 0 until state.cpuCount.intValue) {
@@ -2932,7 +3110,7 @@ private fun AdvancedSection(
                         val mutable = checkedList.toMutableList()
                         mutable[i] = !isChecked
                         state.cpuChecked.value = mutable
-                    }
+                    },
                 )
             }
         }
@@ -2947,7 +3125,7 @@ private fun AdvancedSection(
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             val checkedList = state.cpuCheckedWoW64.value
             for (i in 0 until state.cpuCount.intValue) {
@@ -2959,7 +3137,7 @@ private fun AdvancedSection(
                         val mutable = checkedList.toMutableList()
                         mutable[i] = !isChecked
                         state.cpuCheckedWoW64.value = mutable
-                    }
+                    },
                 )
             }
         }
@@ -2975,19 +3153,20 @@ private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
 
     Box(modifier = Modifier.padding(top = 22.dp)) {
         Box(
-            modifier = Modifier
-                .size(38.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(InputSurface)
-                .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
-                .clickable { expanded = true },
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(InputSurface)
+                    .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
+                    .clickable { expanded = true },
+            contentAlignment = Alignment.Center,
         ) {
             Icon(
                 Icons.Outlined.Add,
                 contentDescription = null,
                 tint = TextSecondary,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(18.dp),
             )
         }
 
@@ -2996,9 +3175,10 @@ private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
             onDismissRequest = { expanded = false },
             shape = RoundedCornerShape(8.dp),
             containerColor = CardSurface,
-            modifier = Modifier
-                .height(360.dp)
-                .width(240.dp)
+            modifier =
+                Modifier
+                    .height(360.dp)
+                    .width(240.dp),
         ) {
             ExtraArgPresets.forEach { group ->
                 // Group header
@@ -3009,11 +3189,11 @@ private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
                             color = AccentBlue,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.8.sp
+                            letterSpacing = 0.8.sp,
                         )
                     },
                     onClick = {},
-                    enabled = false
+                    enabled = false,
                 )
                 group.args.forEach { arg ->
                     DropdownMenuItem(
@@ -3021,13 +3201,13 @@ private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
                             Text(
                                 arg,
                                 color = TextPrimary,
-                                fontSize = 13.sp
+                                fontSize = 13.sp,
                             )
                         },
                         onClick = {
                             onArgSelected(arg)
                             expanded = false
-                        }
+                        },
                     )
                 }
             }
@@ -3042,26 +3222,27 @@ private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
 private fun CpuChip(
     index: Int,
     isChecked: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     val bgColor = if (isChecked) AccentBlue.copy(alpha = 0.15f) else ChipSurface
     val borderColor = if (isChecked) AccentBlue.copy(alpha = 0.4f) else ChipBorder
     val textColor = if (isChecked) AccentBlue else TextDim
 
     Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(bgColor)
-            .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(bgColor)
+                .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                .clickable(onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             "CPU $index",
             color = textColor,
             fontSize = 12.sp,
-            fontWeight = if (isChecked) FontWeight.SemiBold else FontWeight.Normal
+            fontWeight = if (isChecked) FontWeight.SemiBold else FontWeight.Normal,
         )
     }
 }
@@ -3075,39 +3256,46 @@ private fun HtmlText(
     html: String,
     color: Color,
     fontSize: TextUnit,
-    lineHeight: TextUnit
+    lineHeight: TextUnit,
 ) {
-    val spanned = remember(html) {
-        android.text.Html.fromHtml(html, android.text.Html.FROM_HTML_MODE_COMPACT)
-    }
-    val annotated = remember(spanned) {
-        buildAnnotatedString {
-            val str = spanned.toString().trim()
-            append(str)
-            for (span in spanned.getSpans(0, spanned.length, Any::class.java)) {
-                val start = spanned.getSpanStart(span)
-                val end = spanned.getSpanEnd(span).coerceAtMost(str.length)
-                if (start >= str.length) continue
-                when (span) {
-                    is android.text.style.StyleSpan -> {
-                        when (span.style) {
-                            android.graphics.Typeface.BOLD ->
-                                addStyle(SpanStyle(fontWeight = FontWeight.Bold), start, end)
-                            android.graphics.Typeface.ITALIC ->
-                                addStyle(SpanStyle(fontStyle = FontStyle.Italic), start, end)
-                            android.graphics.Typeface.BOLD_ITALIC ->
-                                addStyle(SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic), start, end)
+    val spanned =
+        remember(html) {
+            android.text.Html.fromHtml(html, android.text.Html.FROM_HTML_MODE_COMPACT)
+        }
+    val annotated =
+        remember(spanned) {
+            buildAnnotatedString {
+                val str = spanned.toString().trim()
+                append(str)
+                for (span in spanned.getSpans(0, spanned.length, Any::class.java)) {
+                    val start = spanned.getSpanStart(span)
+                    val end = spanned.getSpanEnd(span).coerceAtMost(str.length)
+                    if (start >= str.length) continue
+                    when (span) {
+                        is android.text.style.StyleSpan -> {
+                            when (span.style) {
+                                android.graphics.Typeface.BOLD -> {
+                                    addStyle(SpanStyle(fontWeight = FontWeight.Bold), start, end)
+                                }
+
+                                android.graphics.Typeface.ITALIC -> {
+                                    addStyle(SpanStyle(fontStyle = FontStyle.Italic), start, end)
+                                }
+
+                                android.graphics.Typeface.BOLD_ITALIC -> {
+                                    addStyle(SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic), start, end)
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-    }
     Text(
         text = annotated,
         color = color,
         fontSize = fontSize,
-        lineHeight = lineHeight
+        lineHeight = lineHeight,
     )
 }
 
@@ -3118,14 +3306,14 @@ private fun SubsectionLabel(text: String) {
         color = TextSecondary,
         fontSize = 13.sp,
         fontWeight = FontWeight.SemiBold,
-        letterSpacing = 0.8.sp
+        letterSpacing = 0.8.sp,
     )
 }
 
 // Returns the architecture badge for the slots currently using one of [ids].
 private fun emulatorUsageLabel(
     state: GameSettingsStateHolder,
-    ids: Set<String>
+    ids: Set<String>,
 ): String? {
     val entries32 = state.emulator32Entries.value
     val entries64 = state.emulator64Entries.value
@@ -3142,33 +3330,37 @@ private fun emulatorUsageLabel(
 }
 
 @Composable
-private fun EmulatorSectionHeader(title: String, usage: String?) {
+private fun EmulatorSectionHeader(
+    title: String,
+    usage: String?,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = title,
             color = TextSecondary,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
-            letterSpacing = 0.8.sp
+            letterSpacing = 0.8.sp,
         )
         if (usage != null) {
             Spacer(Modifier.width(8.dp))
             Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(AccentBlue.copy(alpha = 0.15f))
-                    .border(1.dp, AccentBlue.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
-                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(AccentBlue.copy(alpha = 0.15f))
+                        .border(1.dp, AccentBlue.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
             ) {
                 Text(
                     text = usage,
                     color = AccentBlue,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium,
-                    letterSpacing = 0.5.sp
+                    letterSpacing = 0.5.sp,
                 )
             }
         }
@@ -3176,16 +3368,15 @@ private fun EmulatorSectionHeader(title: String, usage: String?) {
 }
 
 @Composable
-private fun SettingGroup(
-    content: @Composable () -> Unit
-) {
+private fun SettingGroup(content: @Composable () -> Unit) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(CardSurface)
-            .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
-            .padding(16.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(CardSurface)
+                .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                .padding(16.dp),
     ) {
         content()
     }
@@ -3197,7 +3388,7 @@ private fun SettingDropdown(
     entries: List<String>,
     selectedIndex: Int,
     onSelected: (Int) -> Unit,
-    enabled: Boolean = true
+    enabled: Boolean = true,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedText = entries.getOrElse(selectedIndex) { "" }
@@ -3210,31 +3401,32 @@ private fun SettingDropdown(
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             letterSpacing = 0.3.sp,
-            modifier = Modifier.padding(bottom = 6.dp)
+            modifier = Modifier.padding(bottom = 6.dp),
         )
         Box {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(InputSurface)
-                    .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
-                    .then(if (enabled) Modifier.clickable { expanded = true } else Modifier)
-                    .padding(horizontal = 14.dp, vertical = 11.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(InputSurface)
+                        .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
+                        .then(if (enabled) Modifier.clickable { expanded = true } else Modifier)
+                        .padding(horizontal = 14.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     selectedText,
                     color = TextPrimary,
                     fontSize = 14.sp,
                     modifier = Modifier.weight(1f),
-                    maxLines = 1
+                    maxLines = 1,
                 )
                 Icon(
                     Icons.Outlined.KeyboardArrowDown,
                     contentDescription = null,
                     tint = TextDim,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
             }
             DropdownMenu(
@@ -3250,18 +3442,19 @@ private fun SettingDropdown(
                                 entry,
                                 color = if (index == selectedIndex) AccentBlue else TextPrimary,
                                 fontSize = 14.sp,
-                                fontWeight = if (index == selectedIndex) FontWeight.Medium else FontWeight.Normal
+                                fontWeight = if (index == selectedIndex) FontWeight.Medium else FontWeight.Normal,
                             )
                         },
                         onClick = {
                             onSelected(index)
                             expanded = false
                         },
-                        modifier = if (index == selectedIndex) {
-                            Modifier.background(AccentBlue.copy(alpha = 0.06f))
-                        } else {
-                            Modifier
-                        }
+                        modifier =
+                            if (index == selectedIndex) {
+                                Modifier.background(AccentBlue.copy(alpha = 0.06f))
+                            } else {
+                                Modifier
+                            },
                     )
                 }
             }
@@ -3274,7 +3467,7 @@ private fun SettingTextField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
-    keyboardType: KeyboardType = KeyboardType.Text
+    keyboardType: KeyboardType = KeyboardType.Text,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -3283,24 +3476,26 @@ private fun SettingTextField(
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             letterSpacing = 0.3.sp,
-            modifier = Modifier.padding(bottom = 6.dp)
+            modifier = Modifier.padding(bottom = 6.dp),
         )
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            textStyle = TextStyle(
-                color = TextPrimary,
-                fontSize = 14.sp
-            ),
+            textStyle =
+                TextStyle(
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                ),
             cursorBrush = SolidColor(AccentBlue),
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .background(InputSurface)
-                .border(1.dp, InputBorder, RoundedCornerShape(10.dp))
-                .padding(horizontal = 14.dp, vertical = 12.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(InputSurface)
+                    .border(1.dp, InputBorder, RoundedCornerShape(10.dp))
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
         )
     }
 }
@@ -3310,34 +3505,36 @@ private fun SettingCheckbox(
     label: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    enabled: Boolean = true
+    enabled: Boolean = true,
 ) {
     val alpha = if (enabled) 1f else 0.4f
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .alpha(alpha)
-            .clip(RoundedCornerShape(8.dp))
-            .then(if (enabled) Modifier.clickable { onCheckedChange(!checked) } else Modifier)
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .alpha(alpha)
+                .clip(RoundedCornerShape(8.dp))
+                .then(if (enabled) Modifier.clickable { onCheckedChange(!checked) } else Modifier)
+                .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Checkbox(
             checked = checked,
             onCheckedChange = if (enabled) onCheckedChange else null,
             enabled = enabled,
             modifier = Modifier.size(22.dp),
-            colors = CheckboxDefaults.colors(
-                checkedColor = AccentBlue,
-                uncheckedColor = CheckBorder,
-                checkmarkColor = Color.White
-            )
+            colors =
+                CheckboxDefaults.colors(
+                    checkedColor = AccentBlue,
+                    uncheckedColor = CheckBorder,
+                    checkmarkColor = Color.White,
+                ),
         )
         Spacer(Modifier.width(12.dp))
         Text(
             label,
             color = TextPrimary,
-            fontSize = 14.sp
+            fontSize = 14.sp,
         )
     }
 }
@@ -3347,7 +3544,7 @@ private fun SettingSlider(
     label: String,
     value: Int,
     range: IntRange,
-    onValueChange: (Int) -> Unit
+    onValueChange: (Int) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -3356,21 +3553,22 @@ private fun SettingSlider(
                 color = TextSecondary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
-                letterSpacing = 0.3.sp
+                letterSpacing = 0.3.sp,
             )
             Spacer(Modifier.weight(1f))
             // Value badge
             Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(AccentBlue.copy(alpha = 0.1f))
-                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(AccentBlue.copy(alpha = 0.1f))
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
             ) {
                 Text(
                     "$value%",
                     color = AccentBlue,
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
         }
@@ -3379,14 +3577,16 @@ private fun SettingSlider(
             value = value.toFloat(),
             onValueChange = { onValueChange(it.roundToInt()) },
             valueRange = range.first.toFloat()..range.last.toFloat(),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(28.dp),
-            colors = SliderDefaults.colors(
-                thumbColor = Color.White,
-                activeTrackColor = AccentBlue,
-                inactiveTrackColor = TrackInactive
-            )
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(28.dp),
+            colors =
+                SliderDefaults.colors(
+                    thumbColor = Color.White,
+                    activeTrackColor = AccentBlue,
+                    inactiveTrackColor = TrackInactive,
+                ),
         )
     }
 }

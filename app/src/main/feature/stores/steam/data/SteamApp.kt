@@ -24,12 +24,10 @@ data class SteamApp(
     val receivedPICS: Boolean = false,
     @ColumnInfo("last_change_number")
     val lastChangeNumber: Int = 0,
-
     @ColumnInfo("depots")
     val depots: Map<Int, DepotInfo> = emptyMap(),
     @ColumnInfo("branches")
     val branches: Map<String, BranchInfo> = emptyMap(),
-
     // Common
     @ColumnInfo("name")
     val name: String = "",
@@ -70,7 +68,6 @@ data class SteamApp(
     val reviewPercentage: Byte = 0,
     @ColumnInfo("controller_support")
     val controllerSupport: ControllerSupport = ControllerSupport.none,
-
     // Extended
     @ColumnInfo("demo_of_app_id")
     val demoOfAppId: Int = SteamService.INVALID_APP_ID,
@@ -116,7 +113,6 @@ data class SteamApp(
     val visibleOnlyWhenSubscribed: Boolean = false,
     @ColumnInfo("launch_eula_url")
     val launchEulaUrl: String = "",
-
     // Config
     @ColumnInfo("require_default_install_folder")
     val requireDefaultInstallFolder: Boolean = false,
@@ -134,10 +130,8 @@ data class SteamApp(
     val installScriptSignature: String = "",
     @ColumnInfo("install_script_override")
     val installScriptOverride: Boolean = false,
-
     @ColumnInfo("config")
     val config: ConfigInfo = ConfigInfo(),
-
     @ColumnInfo("ufs")
     val ufs: UFS = UFS(),
 ) {
@@ -159,38 +153,22 @@ data class SteamApp(
         get() = "$STEAM_URL/$id/header.jpg"
 
     // source: https://github.com/Nemirtingas/games-infos/blob/3915100198bac34553b3c862f9e295d277f5520a/steam_retriever/Program.cs#L589C43-L589C89
-    fun getSmallCapsuleUrl(language: Language = Language.english): String {
-        return smallCapsule[language]?.takeIf { it.isNotEmpty() }?.let {
+    fun getSmallCapsuleUrl(language: Language = Language.english): String =
+        smallCapsule[language]?.takeIf { it.isNotEmpty() }?.let {
             "$STEAM_URL/$id/$it"
         } ?: "$STEAM_URL/$id/capsule_231x87.jpg"
-    }
 
-    fun getHeaderImageUrl(language: Language = Language.english): String {
-        return headerImage[language]?.takeIf { it.isNotEmpty() }?.let {
+    fun getHeaderImageUrl(language: Language = Language.english): String =
+        headerImage[language]?.takeIf { it.isNotEmpty() }?.let {
             "$STEAM_URL/$id/$it"
         } ?: headerUrl
-    }
 
-    fun getLibraryCapsuleUrl(language: Language = Language.english, large: Boolean = false): String {
+    fun getLibraryCapsuleUrl(
+        language: Language = Language.english,
+        large: Boolean = false,
+    ): String {
         val capsules = if (large) libraryAssets.libraryCapsule.image2x else libraryAssets.libraryCapsule.image
-        val imageLink = if (capsules.containsKey(language)) {
-            capsules[language]
-        } else if (capsules.isNotEmpty()) {
-            capsules.values.first()
-        } else {
-            null
-        }
-        return imageLink?.takeIf { it.isNotEmpty() }?.let { "$STEAM_URL/$id/$it" }
-            ?: "$STEAM_URL/$id/library_600x900_2x.jpg"
-    }
-
-    fun getCapsuleUrl(language: Language = Language.english, large: Boolean = false): String {
-        val imageLink = if (headerImage.containsKey(language)) {
-            headerImage[language]
-        } else if (headerImage.isNotEmpty()) {
-            headerImage.values.first()
-        } else {
-            val capsules = if (large) libraryAssets.libraryCapsule.image2x else libraryAssets.libraryCapsule.image
+        val imageLink =
             if (capsules.containsKey(language)) {
                 capsules[language]
             } else if (capsules.isNotEmpty()) {
@@ -198,41 +176,71 @@ data class SteamApp(
             } else {
                 null
             }
-        }
+        return imageLink?.takeIf { it.isNotEmpty() }?.let { "$STEAM_URL/$id/$it" }
+            ?: "$STEAM_URL/$id/library_600x900_2x.jpg"
+    }
+
+    fun getCapsuleUrl(
+        language: Language = Language.english,
+        large: Boolean = false,
+    ): String {
+        val imageLink =
+            if (headerImage.containsKey(language)) {
+                headerImage[language]
+            } else if (headerImage.isNotEmpty()) {
+                headerImage.values.first()
+            } else {
+                val capsules = if (large) libraryAssets.libraryCapsule.image2x else libraryAssets.libraryCapsule.image
+                if (capsules.containsKey(language)) {
+                    capsules[language]
+                } else if (capsules.isNotEmpty()) {
+                    capsules.values.first()
+                } else {
+                    null
+                }
+            }
 
         return imageLink?.takeIf { it.isNotEmpty() }?.let { "$STEAM_URL/$id/$it" }
             ?: "$STEAM_URL/$id/header.jpg"
     }
 
-    fun getHeroUrl(language: Language = Language.english, large: Boolean = false): String {
+    fun getHeroUrl(
+        language: Language = Language.english,
+        large: Boolean = false,
+    ): String {
         val images = if (large) libraryAssets.libraryHero.image2x else libraryAssets.libraryHero.image
 
-        val imageLink = if (images.containsKey(language)) {
-            images[language]
-        } else if (images.isNotEmpty()) {
-            images.values.first()
-        } else if (headerImage.containsKey(language)) {
-            headerImage[language]
-        } else if (headerImage.isNotEmpty()) {
-            headerImage.values.first()
-        } else {
-            null
-        }
+        val imageLink =
+            if (images.containsKey(language)) {
+                images[language]
+            } else if (images.isNotEmpty()) {
+                images.values.first()
+            } else if (headerImage.containsKey(language)) {
+                headerImage[language]
+            } else if (headerImage.isNotEmpty()) {
+                headerImage.values.first()
+            } else {
+                null
+            }
 
         return imageLink?.takeIf { it.isNotEmpty() }?.let { "$STEAM_URL/$id/$it" }
             ?: "$STEAM_URL/$id/library_hero.jpg"
     }
 
-    fun getLogoUrl(language: Language = Language.english, large: Boolean = false): String {
+    fun getLogoUrl(
+        language: Language = Language.english,
+        large: Boolean = false,
+    ): String {
         val images = if (large) libraryAssets.libraryLogo.image2x else libraryAssets.libraryLogo.image
 
-        val imageLink = if (images.containsKey(language)) {
-            images[language]
-        } else if (images.isNotEmpty()) {
-            images.values.first()
-        } else {
-            null
-        }
+        val imageLink =
+            if (images.containsKey(language)) {
+                images[language]
+            } else if (images.isNotEmpty()) {
+                images.values.first()
+            } else {
+                null
+            }
 
         return imageLink?.takeIf { it.isNotEmpty() }?.let { "$STEAM_URL/$id/$it" }
             ?: "$STEAM_URL/$id/logo.png"

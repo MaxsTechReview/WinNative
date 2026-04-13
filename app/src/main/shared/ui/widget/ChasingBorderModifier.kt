@@ -29,79 +29,91 @@ fun Modifier.chasingBorder(
     paused: Boolean = false,
     cornerRadius: Dp = 8.dp,
     borderWidth: Dp = 4.dp,
-    animationDurationMs: Int = 5000
-): Modifier = composed {
-    if (!isFocused) return@composed this
+    animationDurationMs: Int = 5000,
+): Modifier =
+    composed {
+        if (!isFocused) return@composed this
 
-    val density = LocalDensity.current.density
-    val cornerRadiusPx = cornerRadius.value * density
-    val borderWidthPx = borderWidth.value * density
+        val density = LocalDensity.current.density
+        val cornerRadiusPx = cornerRadius.value * density
+        val borderWidthPx = borderWidth.value * density
 
-    val infiniteTransition = rememberInfiniteTransition(label = "chasingBorder")
-    val animatedRotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = animationDurationMs, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "borderRotation"
-    )
-    // When paused, skip the animated state read so Compose stops invalidating
-    // the draw scope — the border renders once and stays static until resumed.
-    val rotationDegrees = if (paused) 0f else animatedRotation
-
-    val gradientColors = remember {
-        intArrayOf(
-            0xFF2196F3.toInt(),  // blue
-            0xFF29B6F6.toInt(),  // sky blue
-            0xFF00E5FF.toInt(),  // electric cyan
-            0xFF29B6F6.toInt(),  // sky blue
-            0xFF2196F3.toInt()   // blue (seamless)
+        val infiniteTransition = rememberInfiniteTransition(label = "chasingBorder")
+        val animatedRotation by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec =
+                infiniteRepeatable(
+                    animation = tween(durationMillis = animationDurationMs, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart,
+                ),
+            label = "borderRotation",
         )
-    }
-    val gradientStops = remember { floatArrayOf(0f, 0.25f, 0.50f, 0.75f, 1f) }
+        // When paused, skip the animated state read so Compose stops invalidating
+        // the draw scope — the border renders once and stays static until resumed.
+        val rotationDegrees = if (paused) 0f else animatedRotation
 
-    val drawState = remember {
-        ChasingBorderDrawState(
-            paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                style = Paint.Style.STROKE
-                strokeWidth = borderWidthPx
-                strokeCap = Paint.Cap.ROUND
-                strokeJoin = Paint.Join.ROUND
+        val gradientColors =
+            remember {
+                intArrayOf(
+                    0xFF2196F3.toInt(), // blue
+                    0xFF29B6F6.toInt(), // sky blue
+                    0xFF00E5FF.toInt(), // electric cyan
+                    0xFF29B6F6.toInt(), // sky blue
+                    0xFF2196F3.toInt(), // blue (seamless)
+                )
             }
-        )
-    }
+        val gradientStops = remember { floatArrayOf(0f, 0.25f, 0.50f, 0.75f, 1f) }
 
-    this.drawWithContent {
-        drawContent()
+        val drawState =
+            remember {
+                ChasingBorderDrawState(
+                    paint =
+                        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                            style = Paint.Style.STROKE
+                            strokeWidth = borderWidthPx
+                            strokeCap = Paint.Cap.ROUND
+                            strokeJoin = Paint.Join.ROUND
+                        },
+                )
+            }
 
-        val w = size.width
-        val h = size.height
-        if (w <= 0 || h <= 0) return@drawWithContent
+        this.drawWithContent {
+            drawContent()
 
-        // Rebuild path and shader when size changes
-        if (drawState.lastWidth != w || drawState.lastHeight != h) {
-            drawState.lastWidth = w
-            drawState.lastHeight = h
-            val inset = borderWidthPx / 2f
-            drawState.rect.set(inset, inset, w - inset, h - inset)
-            drawState.path.reset()
-            drawState.path.addRoundRect(
-                drawState.rect, cornerRadiusPx, cornerRadiusPx, Path.Direction.CW
-            )
-            drawState.paint.shader = SweepGradient(
-                w / 2f, h / 2f, gradientColors, gradientStops
-            )
+            val w = size.width
+            val h = size.height
+            if (w <= 0 || h <= 0) return@drawWithContent
+
+            // Rebuild path and shader when size changes
+            if (drawState.lastWidth != w || drawState.lastHeight != h) {
+                drawState.lastWidth = w
+                drawState.lastHeight = h
+                val inset = borderWidthPx / 2f
+                drawState.rect.set(inset, inset, w - inset, h - inset)
+                drawState.path.reset()
+                drawState.path.addRoundRect(
+                    drawState.rect,
+                    cornerRadiusPx,
+                    cornerRadiusPx,
+                    Path.Direction.CW,
+                )
+                drawState.paint.shader =
+                    SweepGradient(
+                        w / 2f,
+                        h / 2f,
+                        gradientColors,
+                        gradientStops,
+                    )
+            }
+
+            // Rotate the sweep gradient
+            drawState.matrix.setRotate(rotationDegrees, w / 2f, h / 2f)
+            drawState.paint.shader?.setLocalMatrix(drawState.matrix)
+
+            drawContext.canvas.nativeCanvas.drawPath(drawState.path, drawState.paint)
         }
-
-        // Rotate the sweep gradient
-        drawState.matrix.setRotate(rotationDegrees, w / 2f, h / 2f)
-        drawState.paint.shader?.setLocalMatrix(drawState.matrix)
-
-        drawContext.canvas.nativeCanvas.drawPath(drawState.path, drawState.paint)
     }
-}
 
 private class ChasingBorderDrawState(
     val paint: Paint,
@@ -109,5 +121,5 @@ private class ChasingBorderDrawState(
     val rect: RectF = RectF(),
     val matrix: Matrix = Matrix(),
     var lastWidth: Float = -1f,
-    var lastHeight: Float = -1f
+    var lastHeight: Float = -1f,
 )

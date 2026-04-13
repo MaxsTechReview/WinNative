@@ -1,10 +1,10 @@
 package com.winlator.cmod.feature.stores.epic.service.manifest
+import timber.log.Timber
 import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.security.MessageDigest
 import java.util.zip.Inflater
-import timber.log.Timber
 
 /**
  * Base class for Epic Games manifest parsing.
@@ -35,8 +35,8 @@ sealed class EpicManifest {
         /**
          * Detects manifest format and returns appropriate parser
          */
-        fun detect(data: ByteArray): EpicManifest {
-            return if (data.size >= 4) {
+        fun detect(data: ByteArray): EpicManifest =
+            if (data.size >= 4) {
                 val buffer = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
                 val magic = buffer.int.toUInt()
                 if (magic == HEADER_MAGIC) {
@@ -51,7 +51,6 @@ sealed class EpicManifest {
                 Timber.tag("Epic").i("Defaulting to JSON Manifest...")
                 JsonManifest()
             }
-        }
 
         /**
          * Read and parse complete manifest from bytes
@@ -65,20 +64,21 @@ sealed class EpicManifest {
     }
 
     abstract fun read(data: ByteArray)
+
     abstract fun parseContents()
+
     abstract fun serialize(): ByteArray
 
     /**
      * Get chunk directory based on manifest version
      */
-    fun getChunkDir(): String {
-        return when {
+    fun getChunkDir(): String =
+        when {
             version >= 15 -> "ChunksV4"
             version >= 6 -> "ChunksV3"
             version >= 3 -> "ChunksV2"
             else -> "Chunks"
         }
-    }
 }
 
 /**
@@ -127,29 +127,30 @@ class BinaryManifest : EpicManifest() {
         buffer.get(bodyData)
 
         // Decompress if necessary
-        this.data = if (isCompressed) {
-            val inflater = Inflater()
-            inflater.setInput(bodyData)
-            val decompressed = ByteArray(sizeUncompressed)
-            val resultLength = inflater.inflate(decompressed)
-            inflater.end()
+        this.data =
+            if (isCompressed) {
+                val inflater = Inflater()
+                inflater.setInput(bodyData)
+                val decompressed = ByteArray(sizeUncompressed)
+                val resultLength = inflater.inflate(decompressed)
+                inflater.end()
 
-            // Validate decompressed length matches expected size
-            if (resultLength != sizeUncompressed) {
-                throw IllegalStateException("Manifest decompression size mismatch: expected $sizeUncompressed, got $resultLength")
+                // Validate decompressed length matches expected size
+                if (resultLength != sizeUncompressed) {
+                    throw IllegalStateException("Manifest decompression size mismatch: expected $sizeUncompressed, got $resultLength")
+                }
+
+                // Verify hash
+                val md = MessageDigest.getInstance("SHA-1")
+                val computedHash = md.digest(decompressed)
+                if (!computedHash.contentEquals(shaHash)) {
+                    throw IllegalStateException("Manifest hash mismatch!")
+                }
+
+                decompressed
+            } else {
+                bodyData
             }
-
-            // Verify hash
-            val md = MessageDigest.getInstance("SHA-1")
-            val computedHash = md.digest(decompressed)
-            if (!computedHash.contentEquals(shaHash)) {
-                throw IllegalStateException("Manifest hash mismatch!")
-            }
-
-            decompressed
-        } else {
-            bodyData
-        }
     }
 
     override fun parseContents() {
@@ -173,11 +174,12 @@ class BinaryManifest : EpicManifest() {
         chunkDataList?.let { size += it.elements.size * 57 + 1000 }
         // File manifest list estimate
         fileManifestList?.let { fml ->
-            size += fml.elements.sumOf { fm ->
-                fm.filename.length + fm.symlinkTarget.length + 100 +
-                fm.installTags.sumOf { it.length + 4 } +
-                fm.chunkParts.size * 28
-            }
+            size +=
+                fml.elements.sumOf { fm ->
+                    fm.filename.length + fm.symlinkTarget.length + 100 +
+                        fm.installTags.sumOf { it.length + 4 } +
+                        fm.chunkParts.size * 28
+                }
         }
         // Custom fields estimate
         customFields?.let { size += 1000 }
@@ -190,8 +192,9 @@ class BinaryManifest : EpicManifest() {
         // Determine target version
         // max(default=17, featureLevel), clamped to known range.
         // For cloud saves we always use 18 (dataVersion=0, no MD5/SHA256 in FML).
-        val targetVersion = maxOf(DEFAULT_SERIALIZATION_VERSION, meta?.featureLevel ?: version)
-            .coerceAtMost(21)
+        val targetVersion =
+            maxOf(DEFAULT_SERIALIZATION_VERSION, meta?.featureLevel ?: version)
+                .coerceAtMost(21)
 
         // Ensure metadata reflects the version we'll write into the header
         meta?.featureLevel = targetVersion
@@ -222,11 +225,12 @@ class BinaryManifest : EpicManifest() {
         }
 
         fileManifestList?.let { fml ->
-            val needed = fml.elements.sumOf {
-                it.filename.length + it.symlinkTarget.length + 100 +
-                it.installTags.sumOf { t -> t.length + 4 } +
-                it.chunkParts.size * 28
-            }
+            val needed =
+                fml.elements.sumOf {
+                    it.filename.length + it.symlinkTarget.length + 100 +
+                        it.installTags.sumOf { t -> t.length + 4 } +
+                        it.chunkParts.size * 28
+                }
             ensureSpace(needed + 1_000)
             fml.write(bodyBuffer)
         }
@@ -242,7 +246,9 @@ class BinaryManifest : EpicManifest() {
 
         // Compress body with zlib
         val compressedData = java.io.ByteArrayOutputStream()
-        java.util.zip.DeflaterOutputStream(compressedData).use { it.write(uncompressedData) }
+        java.util.zip
+            .DeflaterOutputStream(compressedData)
+            .use { it.write(uncompressedData) }
         val compressed = compressedData.toByteArray()
 
         // SHA-1 of uncompressed body — written into the manifest header
@@ -250,13 +256,13 @@ class BinaryManifest : EpicManifest() {
 
         // Build the 41-byte manifest header
         val headerBuffer = ByteBuffer.allocate(41).order(ByteOrder.LITTLE_ENDIAN)
-        headerBuffer.putInt(HEADER_MAGIC.toInt())   // magic
-        headerBuffer.putInt(41)                      // header size (always 41)
-        headerBuffer.putInt(uncompressedData.size)   // size_uncompressed
-        headerBuffer.putInt(compressed.size)         // size_compressed
-        headerBuffer.put(sha)                        // SHA-1 (20 bytes)
-        headerBuffer.put(0x01.toByte())              // stored_as = compressed
-        headerBuffer.putInt(targetVersion)           // manifest version
+        headerBuffer.putInt(HEADER_MAGIC.toInt()) // magic
+        headerBuffer.putInt(41) // header size (always 41)
+        headerBuffer.putInt(uncompressedData.size) // size_uncompressed
+        headerBuffer.putInt(compressed.size) // size_compressed
+        headerBuffer.put(sha) // SHA-1 (20 bytes)
+        headerBuffer.put(0x01.toByte()) // stored_as = compressed
+        headerBuffer.putInt(targetVersion) // manifest version
 
         val result = ByteArray(41 + compressed.size)
         System.arraycopy(headerBuffer.array(), 0, result, 0, 41)
@@ -322,7 +328,7 @@ data class ManifestMeta(
     var prereqArgs: String = "",
     var uninstallActionPath: String = "",
     var uninstallActionArgs: String = "",
-    var buildId: String = ""
+    var buildId: String = "",
 ) {
     companion object {
         fun read(buffer: ByteBuffer): ManifestMeta {
@@ -419,7 +425,7 @@ data class ChunkDataList(
     var size: Int = 0,
     var count: Int = 0,
     val elements: MutableList<ChunkInfo> = mutableListOf(),
-    private var manifestVersion: Int = 18
+    private var manifestVersion: Int = 18,
 ) {
     private val guidMap: MutableMap<String, Int> by lazy {
         elements.mapIndexed { index, chunk -> chunk.guidStr to index }.toMap(mutableMapOf())
@@ -429,16 +435,15 @@ data class ChunkDataList(
         elements.mapIndexed { index, chunk -> chunk.guidNum to index }.toMap(mutableMapOf())
     }
 
-    fun getChunkByGuid(guid: String): ChunkInfo? {
-        return guidMap[guid.lowercase()]?.let { elements[it] }
-    }
+    fun getChunkByGuid(guid: String): ChunkInfo? = guidMap[guid.lowercase()]?.let { elements[it] }
 
-    fun getChunkByGuidNum(guidNum: Pair<ULong, ULong>): ChunkInfo? {
-        return guidIntMap[guidNum]?.let { elements[it] }
-    }
+    fun getChunkByGuidNum(guidNum: Pair<ULong, ULong>): ChunkInfo? = guidIntMap[guidNum]?.let { elements[it] }
 
     companion object {
-        fun read(buffer: ByteBuffer, manifestVersion: Int): ChunkDataList {
+        fun read(
+            buffer: ByteBuffer,
+            manifestVersion: Int,
+        ): ChunkDataList {
             val cdl = ChunkDataList(manifestVersion = manifestVersion)
             val startPos = buffer.position()
 
@@ -492,7 +497,10 @@ data class ChunkDataList(
         }
     }
 
-    fun write(buffer: ByteBuffer, manifestVersion: Int) {
+    fun write(
+        buffer: ByteBuffer,
+        manifestVersion: Int,
+    ) {
         val startPos = buffer.position()
 
         // Placeholder for size
@@ -551,7 +559,7 @@ data class ChunkInfo(
     var windowSize: Int = 0,
     var fileSize: Long = 0,
     var useHashPrefixForV3: Boolean = false,
-    private val manifestVersion: Int = 18
+    private val manifestVersion: Int = 18,
 ) {
     val guidStr: String by lazy {
         guid.joinToString("-") { "%08x".format(it) }
@@ -571,12 +579,16 @@ data class ChunkInfo(
     fun getPath(chunkDir: String = getChunkDir(manifestVersion)): String {
         val guidHex = guid.joinToString("") { "%08X".format(it) }
         val hashHex = hash.toString(16).uppercase().padStart(16, '0')
-        val subfolder = when (chunkDir) {
-            "ChunksV3" -> {
-                if (useHashPrefixForV3) hashHex.substring(0, 2) else "%02d".format(groupNum)
+        val subfolder =
+            when (chunkDir) {
+                "ChunksV3" -> {
+                    if (useHashPrefixForV3) hashHex.substring(0, 2) else "%02d".format(groupNum)
+                }
+
+                else -> {
+                    "%02d".format(groupNum)
+                }
             }
-            else -> "%02d".format(groupNum)
-        }
         return "$chunkDir/$subfolder/${hashHex}_$guidHex.chunk"
     }
 
@@ -599,9 +611,7 @@ data class ChunkInfo(
         return guid.contentEquals(other.guid)
     }
 
-    override fun hashCode(): Int {
-        return guid.contentHashCode()
-    }
+    override fun hashCode(): Int = guid.contentHashCode()
 }
 
 /**
@@ -611,15 +621,13 @@ data class FileManifestList(
     var version: Byte = 0,
     var size: Int = 0,
     var count: Int = 0,
-    val elements: MutableList<FileManifest> = mutableListOf()
+    val elements: MutableList<FileManifest> = mutableListOf(),
 ) {
     private val pathMap: MutableMap<String, Int> by lazy {
         elements.mapIndexed { index, fm -> fm.filename to index }.toMap(mutableMapOf())
     }
 
-    fun getFileByPath(path: String): FileManifest? {
-        return pathMap[path]?.let { elements[it] }
-    }
+    fun getFileByPath(path: String): FileManifest? = pathMap[path]?.let { elements[it] }
 
     companion object {
         fun read(buffer: ByteBuffer): FileManifestList {
@@ -671,12 +679,13 @@ data class FileManifestList(
                     val partStartPos = buffer.position()
                     val partSize = buffer.int
 
-                    val part = ChunkPart(
-                        guid = intArrayOf(buffer.int, buffer.int, buffer.int, buffer.int),
-                        offset = buffer.int,
-                        size = buffer.int,
-                        fileOffset = fileOffset
-                    )
+                    val part =
+                        ChunkPart(
+                            guid = intArrayOf(buffer.int, buffer.int, buffer.int, buffer.int),
+                            offset = buffer.int,
+                            size = buffer.int,
+                            fileOffset = fileOffset,
+                        )
 
                     fm.chunkParts.add(part)
                     fileOffset += part.size.toLong()
@@ -824,7 +833,7 @@ data class FileManifest(
     var fileSize: Long = 0,
     var hashMd5: ByteArray = ByteArray(16),
     var mimeType: String = "",
-    var hashSha256: ByteArray = ByteArray(32)
+    var hashSha256: ByteArray = ByteArray(32),
 ) {
     val isReadOnly: Boolean get() = (flags and 0x1) != 0
     val isCompressed: Boolean get() = (flags and 0x2) != 0
@@ -837,9 +846,7 @@ data class FileManifest(
         return filename == other.filename
     }
 
-    override fun hashCode(): Int {
-        return filename.hashCode()
-    }
+    override fun hashCode(): Int = filename.hashCode()
 }
 
 /**
@@ -849,7 +856,7 @@ data class ChunkPart(
     val guid: IntArray,
     val offset: Int,
     val size: Int,
-    val fileOffset: Long
+    val fileOffset: Long,
 ) {
     val guidStr: String by lazy {
         guid.joinToString("-") { "%08x".format(it) }
@@ -873,10 +880,14 @@ data class ChunkPart(
  * Custom fields in the manifest
  */
 data class CustomFields(
-    private val fields: MutableMap<String, String> = mutableMapOf()
+    private val fields: MutableMap<String, String> = mutableMapOf(),
 ) {
     operator fun get(key: String): String? = fields[key]
-    operator fun set(key: String, value: String) {
+
+    operator fun set(
+        key: String,
+        value: String,
+    ) {
         fields[key] = value
     }
 
@@ -938,6 +949,7 @@ private fun readFString(buffer: ByteBuffer): String {
             buffer.position(buffer.position() + 2) // Skip null terminator
             String(bytes, Charsets.UTF_16LE)
         }
+
         length > 0 -> {
             // ASCII encoded
             val bytes = ByteArray(length - 1)
@@ -945,14 +957,20 @@ private fun readFString(buffer: ByteBuffer): String {
             buffer.position(buffer.position() + 1) // Skip null terminator
             String(bytes, Charsets.US_ASCII)
         }
-        else -> ""
+
+        else -> {
+            ""
+        }
     }
 }
 
 /**
  * Write a variable-length string to the buffer (Epic's FString format)
  */
-private fun writeFString(buffer: ByteBuffer, str: String) {
+private fun writeFString(
+    buffer: ByteBuffer,
+    str: String,
+) {
     if (str.isEmpty()) {
         buffer.putInt(0)
         return

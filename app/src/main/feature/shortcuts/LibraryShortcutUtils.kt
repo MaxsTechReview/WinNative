@@ -1,9 +1,9 @@
 package com.winlator.cmod.feature.shortcuts
-import com.winlator.cmod.R
 import android.content.Context
 import android.content.pm.ShortcutManager
 import android.os.Build
 import android.util.Log
+import com.winlator.cmod.R
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.container.Shortcut
 import java.io.File
@@ -31,9 +31,7 @@ object LibraryShortcutUtils {
     }
 
     @JvmStatic
-    fun isCustomLibraryShortcut(shortcut: Shortcut): Boolean {
-        return inferGameSource(shortcut) == "CUSTOM"
-    }
+    fun isCustomLibraryShortcut(shortcut: Shortcut): Boolean = inferGameSource(shortcut) == "CUSTOM"
 
     @JvmStatic
     fun buildPinnedHomeShortcutId(shortcut: Shortcut): String? {
@@ -48,7 +46,10 @@ object LibraryShortcutUtils {
     }
 
     @JvmStatic
-    fun hasPinnedHomeShortcut(context: Context, shortcut: Shortcut): Boolean {
+    fun hasPinnedHomeShortcut(
+        context: Context,
+        shortcut: Shortcut,
+    ): Boolean {
         val shortcutManager = context.getSystemService(ShortcutManager::class.java) ?: return false
         val pinnedShortcutId = buildPinnedHomeShortcutId(shortcut) ?: return false
 
@@ -61,7 +62,10 @@ object LibraryShortcutUtils {
     }
 
     @JvmStatic
-    fun disablePinnedHomeShortcut(context: Context, shortcut: Shortcut): Boolean {
+    fun disablePinnedHomeShortcut(
+        context: Context,
+        shortcut: Shortcut,
+    ): Boolean {
         val shortcutManager = context.getSystemService(ShortcutManager::class.java) ?: return false
         val pinnedShortcutId = buildPinnedHomeShortcutId(shortcut) ?: return false
 
@@ -70,7 +74,7 @@ object LibraryShortcutUtils {
             if (isPinned) {
                 shortcutManager.disableShortcuts(
                     listOf(pinnedShortcutId),
-                    context.getString(R.string.shortcuts_list_not_available)
+                    context.getString(R.string.shortcuts_list_not_available),
                 )
                 shortcutManager.removeDynamicShortcuts(listOf(pinnedShortcutId))
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -85,7 +89,10 @@ object LibraryShortcutUtils {
     }
 
     @JvmStatic
-    fun deleteShortcutArtifacts(context: Context, shortcut: Shortcut): Boolean {
+    fun deleteShortcutArtifacts(
+        context: Context,
+        shortcut: Shortcut,
+    ): Boolean {
         var deletedAny = false
 
         disablePinnedHomeShortcut(context, shortcut)
@@ -110,35 +117,45 @@ object LibraryShortcutUtils {
     }
 
     @JvmStatic
-    fun deleteSteamShortcuts(context: Context, appId: Int): Int {
-        return deleteMatchingShortcuts(context) { shortcut ->
+    fun deleteSteamShortcuts(
+        context: Context,
+        appId: Int,
+    ): Int =
+        deleteMatchingShortcuts(context) { shortcut ->
             inferGameSource(shortcut) == "STEAM" && shortcut.getExtra("app_id") == appId.toString()
         }
-    }
 
     @JvmStatic
-    fun deleteEpicShortcuts(context: Context, appId: Int): Int {
-        return deleteMatchingShortcuts(context) { shortcut ->
+    fun deleteEpicShortcuts(
+        context: Context,
+        appId: Int,
+    ): Int =
+        deleteMatchingShortcuts(context) { shortcut ->
             inferGameSource(shortcut) == "EPIC" && shortcut.getExtra("app_id") == appId.toString()
         }
-    }
 
     @JvmStatic
-    fun deleteGogShortcuts(context: Context, gogId: String, appId: String = ""): Int {
-        return deleteMatchingShortcuts(context) { shortcut ->
+    fun deleteGogShortcuts(
+        context: Context,
+        gogId: String,
+        appId: String = "",
+    ): Int =
+        deleteMatchingShortcuts(context) { shortcut ->
             inferGameSource(shortcut) == "GOG" &&
-                (shortcut.getExtra("gog_id") == gogId ||
-                    (appId.isNotEmpty() && shortcut.getExtra("app_id") == appId))
+                (
+                    shortcut.getExtra("gog_id") == gogId ||
+                        (appId.isNotEmpty() && shortcut.getExtra("app_id") == appId)
+                )
         }
-    }
 
     private inline fun deleteMatchingShortcuts(
         context: Context,
-        predicate: (Shortcut) -> Boolean
+        predicate: (Shortcut) -> Boolean,
     ): Int {
         var deletedCount = 0
 
-        ContainerManager(context).loadShortcuts()
+        ContainerManager(context)
+            .loadShortcuts()
             .filter(predicate)
             .forEach { shortcut ->
                 if (deleteShortcutArtifacts(context, shortcut)) {

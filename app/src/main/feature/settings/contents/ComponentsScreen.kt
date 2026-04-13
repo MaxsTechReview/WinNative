@@ -1,7 +1,6 @@
 /* Settings > Components screen — Jetpack Compose / Material3.
  * Scrolling delegated to a View-level ScrollView in ContentsFragment. */
 package com.winlator.cmod.feature.settings
-import com.winlator.cmod.R
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.SizeTransform
@@ -61,21 +60,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.winlator.cmod.R
 import com.winlator.cmod.runtime.content.ContentProfile
 
 // ============================================================================
 // Palette (unified with Drivers / Stores / Other / Debug)
 // ============================================================================
-private val BgDark        = Color(0xFF18181D)
-private val CardDark      = Color(0xFF1C1C2A)
-private val CardDarker    = Color(0xFF15151E)
-private val CardBorder    = Color(0xFF2A2A3A)
-private val IconBoxBg     = Color(0xFF242434)
-private val SurfaceDark   = Color(0xFF21212A)
-private val Accent        = Color(0xFF1A9FFF)
-private val SuccessGreen  = Color(0xFF5BD68F)
-private val DangerRed     = Color(0xFFFF7A88)
-private val TextPrimary   = Color(0xFFD6DAE0)
+private val BgDark = Color(0xFF18181D)
+private val CardDark = Color(0xFF1C1C2A)
+private val CardDarker = Color(0xFF15151E)
+private val CardBorder = Color(0xFF2A2A3A)
+private val IconBoxBg = Color(0xFF242434)
+private val SurfaceDark = Color(0xFF21212A)
+private val Accent = Color(0xFF1A9FFF)
+private val SuccessGreen = Color(0xFF5BD68F)
+private val DangerRed = Color(0xFFFF7A88)
+private val TextPrimary = Color(0xFFD6DAE0)
 private val TextSecondary = Color(0xFF7A8FA8)
 
 @Composable
@@ -154,11 +154,12 @@ fun ComponentsScreen(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentHeight()
-            .background(BgDark)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .background(BgDark)
+                .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         HeroHeader(
@@ -177,12 +178,15 @@ fun ComponentsScreen(
         AnimatedContent(
             targetState = state,
             transitionSpec = {
-                (fadeIn(animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing))
-                    togetherWith
-                    fadeOut(animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing)))
-                    .using(SizeTransform(clip = false) { _, _ ->
+                (
+                    fadeIn(animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing))
+                        togetherWith
+                        fadeOut(animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing))
+                ).using(
+                    SizeTransform(clip = false) { _, _ ->
                         tween(durationMillis = 140, easing = FastOutSlowInEasing)
-                    })
+                    },
+                )
             },
             contentKey = { it.currentType },
             label = "componentsTypeContent",
@@ -239,22 +243,24 @@ private fun HeroHeader(
     onToggleAutoCreateContainer: (Boolean) -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
-            .padding(horizontal = 14.dp, vertical = 11.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                .padding(horizontal = 14.dp, vertical = 11.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(IconBoxBg),
+                modifier =
+                    Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(IconBoxBg),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -306,19 +312,21 @@ private fun ToggleChip(
     val background = if (enabled) SuccessGreen.copy(alpha = 0.14f) else SurfaceDark
     val borderColor = if (enabled) SuccessGreen.copy(alpha = 0.45f) else CardBorder
     Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(background)
-            .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-            .noRippleClickable(onClick = onToggle)
-            .padding(horizontal = 10.dp, vertical = 5.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(background)
+                .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                .noRippleClickable(onClick = onToggle)
+                .padding(horizontal = 10.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            modifier = Modifier
-                .size(6.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(tint),
+            modifier =
+                Modifier
+                    .size(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(tint),
         )
         Spacer(Modifier.width(6.dp))
         Text(
@@ -331,13 +339,17 @@ private fun ToggleChip(
 }
 
 @Composable
-private fun CountPill(label: String, count: Int) {
+private fun CountPill(
+    label: String,
+    count: Int,
+) {
     Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(Accent.copy(alpha = 0.12f))
-            .border(1.dp, Accent.copy(alpha = 0.28f), RoundedCornerShape(6.dp))
-            .padding(horizontal = 7.dp, vertical = 2.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(Accent.copy(alpha = 0.12f))
+                .border(1.dp, Accent.copy(alpha = 0.28f), RoundedCornerShape(6.dp))
+                .padding(horizontal = 7.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -366,12 +378,13 @@ private fun TypeTabsCard(
     onTypeSelected: (ContentProfile.ContentType) -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
@@ -383,9 +396,10 @@ private fun TypeTabsCard(
                 modifier = Modifier.padding(start = 2.dp, bottom = 8.dp),
             )
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 val types = ContentProfile.ContentType.values()
@@ -412,24 +426,26 @@ private fun TypeTabsCard(
                     fontSize = 11.sp,
                     lineHeight = 15.sp,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 2.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 2.dp),
                 )
             }
         }
     }
 }
 
-private fun descriptionResFor(type: ContentProfile.ContentType): Int = when (type) {
-    ContentProfile.ContentType.CONTENT_TYPE_WINE     -> R.string.settings_content_desc_wine
-    ContentProfile.ContentType.CONTENT_TYPE_PROTON   -> R.string.settings_content_desc_proton
-    ContentProfile.ContentType.CONTENT_TYPE_DXVK     -> R.string.settings_content_desc_dxvk
-    ContentProfile.ContentType.CONTENT_TYPE_VKD3D    -> R.string.settings_content_desc_vkd3d
-    ContentProfile.ContentType.CONTENT_TYPE_BOX64    -> R.string.settings_content_desc_box64
-    ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64 -> R.string.settings_content_desc_wowbox64
-    ContentProfile.ContentType.CONTENT_TYPE_FEXCORE  -> R.string.settings_content_desc_fexcore
-}
+private fun descriptionResFor(type: ContentProfile.ContentType): Int =
+    when (type) {
+        ContentProfile.ContentType.CONTENT_TYPE_WINE -> R.string.settings_content_desc_wine
+        ContentProfile.ContentType.CONTENT_TYPE_PROTON -> R.string.settings_content_desc_proton
+        ContentProfile.ContentType.CONTENT_TYPE_DXVK -> R.string.settings_content_desc_dxvk
+        ContentProfile.ContentType.CONTENT_TYPE_VKD3D -> R.string.settings_content_desc_vkd3d
+        ContentProfile.ContentType.CONTENT_TYPE_BOX64 -> R.string.settings_content_desc_box64
+        ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64 -> R.string.settings_content_desc_wowbox64
+        ContentProfile.ContentType.CONTENT_TYPE_FEXCORE -> R.string.settings_content_desc_fexcore
+    }
 
 @Composable
 private fun TypeTabChip(
@@ -441,13 +457,14 @@ private fun TypeTabChip(
     val borderColor = if (selected) Accent.copy(alpha = 0.45f) else CardBorder
     val textColor = if (selected) Accent else TextSecondary
     Box(
-        modifier = Modifier
-            .height(32.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(background)
-            .border(1.dp, borderColor, RoundedCornerShape(16.dp))
-            .noRippleClickable(onClick = onClick)
-            .padding(horizontal = 14.dp),
+        modifier =
+            Modifier
+                .height(32.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(background)
+                .border(1.dp, borderColor, RoundedCornerShape(16.dp))
+                .noRippleClickable(onClick = onClick)
+                .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -464,7 +481,10 @@ private fun TypeTabChip(
 // ============================================================================
 
 @Composable
-private fun SectionLabel(text: String, modifier: Modifier = Modifier) {
+private fun SectionLabel(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
     Text(
         text = text.uppercase(),
         color = TextSecondary,
@@ -486,23 +506,26 @@ private fun ComponentItemCard(
     onRemove: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 11.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(IconBoxBg),
+                modifier =
+                    Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(IconBoxBg),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -565,12 +588,17 @@ private fun ComponentItemCard(
 // ============================================================================
 
 @Composable
-private fun IconTapButton(icon: ImageVector, tint: Color, onClick: () -> Unit) {
+private fun IconTapButton(
+    icon: ImageVector,
+    tint: Color,
+    onClick: () -> Unit,
+) {
     Box(
-        modifier = Modifier
-            .size(30.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .noRippleClickable(onClick = onClick),
+        modifier =
+            Modifier
+                .size(30.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .noRippleClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -590,12 +618,13 @@ private fun SmallPillButton(
     onClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(tint.copy(alpha = 0.14f))
-            .border(1.dp, tint.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-            .noRippleClickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(tint.copy(alpha = 0.14f))
+                .border(1.dp, tint.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .noRippleClickable(onClick = onClick)
+                .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
@@ -617,14 +646,19 @@ private fun SmallPillButton(
 }
 
 @Composable
-private fun DialogActionButton(label: String, textColor: Color, onClick: () -> Unit) {
+private fun DialogActionButton(
+    label: String,
+    textColor: Color,
+    onClick: () -> Unit,
+) {
     Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(CardDarker)
-            .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-            .noRippleClickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(CardDarker)
+                .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .noRippleClickable(onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -643,12 +677,13 @@ private fun DialogActionButton(label: String, textColor: Color, onClick: () -> U
 @Composable
 private fun EmptyState() {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
-            .padding(horizontal = 20.dp, vertical = 28.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                .padding(horizontal = 20.dp, vertical = 28.dp),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -683,20 +718,22 @@ private fun EmptyState() {
 private fun DownloadProgressDialog(progress: ComponentsDownloadProgress) {
     Dialog(
         onDismissRequest = { /* non-dismissable while a transfer is in flight */ },
-        properties = DialogProperties(
-            dismissOnBackPress = false,
-            dismissOnClickOutside = false,
-            usePlatformDefaultWidth = false,
-        ),
+        properties =
+            DialogProperties(
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false,
+                usePlatformDefaultWidth = false,
+            ),
     ) {
         Box(
-            modifier = Modifier
-                .widthIn(max = 360.dp)
-                .fillMaxWidth(0.88f)
-                .clip(RoundedCornerShape(16.dp))
-                .background(CardDark)
-                .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-                .padding(horizontal = 18.dp, vertical = 16.dp),
+            modifier =
+                Modifier
+                    .widthIn(max = 360.dp)
+                    .fillMaxWidth(0.88f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(CardDark)
+                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                    .padding(horizontal = 18.dp, vertical = 16.dp),
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
@@ -721,10 +758,11 @@ private fun DownloadProgressDialog(progress: ComponentsDownloadProgress) {
                 val barShape = RoundedCornerShape(3.dp)
                 if (progress.indeterminate) {
                     LinearProgressIndicator(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(barHeight)
-                            .clip(barShape),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(barHeight)
+                                .clip(barShape),
                         color = Accent,
                         trackColor = CardDarker,
                     )
@@ -736,10 +774,11 @@ private fun DownloadProgressDialog(progress: ComponentsDownloadProgress) {
                     )
                     LinearProgressIndicator(
                         progress = { smoothed },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(barHeight)
-                            .clip(barShape),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(barHeight)
+                                .clip(barShape),
                         color = Accent,
                         trackColor = CardDarker,
                         drawStopIndicator = {},
@@ -752,11 +791,12 @@ private fun DownloadProgressDialog(progress: ComponentsDownloadProgress) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    val percentText = if (progress.indeterminate) {
-                        stringResource(R.string.common_ui_working)
-                    } else {
-                        "${(progress.progress * 100).toInt().coerceIn(0, 100)}%"
-                    }
+                    val percentText =
+                        if (progress.indeterminate) {
+                            stringResource(R.string.common_ui_working)
+                        } else {
+                            "${(progress.progress * 100).toInt().coerceIn(0, 100)}%"
+                        }
                     Text(
                         text = percentText,
                         color = TextSecondary,
@@ -780,12 +820,13 @@ private fun ConfirmDialog(
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(CardDark)
-                .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-                .padding(22.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(CardDark)
+                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .padding(22.dp),
         ) {
             Column {
                 Text(
@@ -848,12 +889,15 @@ private fun formatBytes(bytes: Long): String {
 private fun iconFor(type: ContentProfile.ContentType): ImageVector =
     when (type) {
         ContentProfile.ContentType.CONTENT_TYPE_WINE,
-        ContentProfile.ContentType.CONTENT_TYPE_PROTON -> Icons.Outlined.Science
+        ContentProfile.ContentType.CONTENT_TYPE_PROTON,
+        -> Icons.Outlined.Science
 
         ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-        ContentProfile.ContentType.CONTENT_TYPE_VKD3D -> Icons.Outlined.DeveloperBoard
+        ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
+        -> Icons.Outlined.DeveloperBoard
 
         ContentProfile.ContentType.CONTENT_TYPE_BOX64,
         ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64,
-        ContentProfile.ContentType.CONTENT_TYPE_FEXCORE -> Icons.Outlined.Memory
+        ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
+        -> Icons.Outlined.Memory
     }

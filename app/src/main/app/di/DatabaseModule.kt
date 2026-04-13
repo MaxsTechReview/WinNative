@@ -1,8 +1,8 @@
 package com.winlator.cmod.app.di
 import android.content.Context
 import androidx.room.Room
-import com.winlator.cmod.app.db.PluviaDatabase
 import com.winlator.cmod.app.db.DATABASE_NAME
+import com.winlator.cmod.app.db.PluviaDatabase
 import com.winlator.cmod.feature.stores.steam.db.dao.*
 import dagger.Module
 import dagger.Provides
@@ -14,14 +14,15 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 @Module
 class DatabaseModule {
-
     @Provides
     @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): PluviaDatabase {
-        return Room.databaseBuilder(context, PluviaDatabase::class.java, DATABASE_NAME)
+    fun provideDatabase(
+        @ApplicationContext context: Context,
+    ): PluviaDatabase =
+        Room
+            .databaseBuilder(context, PluviaDatabase::class.java, DATABASE_NAME)
             .fallbackToDestructiveMigration()
             .build()
-    }
 
     @Provides
     @Singleton

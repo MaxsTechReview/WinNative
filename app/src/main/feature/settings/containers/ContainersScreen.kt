@@ -1,5 +1,4 @@
 package com.winlator.cmod.feature.settings
-import com.winlator.cmod.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,7 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,13 +15,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -31,8 +30,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inbox
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
@@ -54,10 +53,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.winlator.cmod.R
 import com.winlator.cmod.runtime.container.Container
 import java.util.Locale
 
@@ -78,14 +78,28 @@ data class ContainersScreenState(
 
 sealed interface ContainersDialogUiState {
     data object None : ContainersDialogUiState
-    data class ConfirmDuplicate(val container: Container) : ContainersDialogUiState
-    data class ConfirmRemove(val container: Container) : ContainersDialogUiState
-    data class Backups(val container: Container) : ContainersDialogUiState
+
+    data class ConfirmDuplicate(
+        val container: Container,
+    ) : ContainersDialogUiState
+
+    data class ConfirmRemove(
+        val container: Container,
+    ) : ContainersDialogUiState
+
+    data class Backups(
+        val container: Container,
+    ) : ContainersDialogUiState
+
     data class BackupSelection(
         val container: Container,
         val backupNames: List<String>,
     ) : ContainersDialogUiState
-    data class StorageInfo(val data: ContainerStorageInfoUiState) : ContainersDialogUiState
+
+    data class StorageInfo(
+        val data: ContainerStorageInfoUiState,
+    ) : ContainersDialogUiState
+
     data class Message(
         val title: String,
         val message: String,
@@ -120,10 +134,11 @@ fun ContainersScreen(
     onBackupSelectionChosen: (Int) -> Unit,
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(ContainersBg)
-            .padding(start = 16.dp, top = 16.dp, end = 26.dp, bottom = 16.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(ContainersBg)
+                .padding(start = 16.dp, top = 16.dp, end = 26.dp, bottom = 16.dp),
     ) {
         SectionLabel(text = stringResource(R.string.common_ui_containers))
         if (state.containers.isEmpty()) {
@@ -132,9 +147,10 @@ fun ContainersScreen(
                 color = ContainersTextSecondary,
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 6.dp, bottom = 14.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 6.dp, bottom = 14.dp),
             )
         } else {
             Spacer(Modifier.height(6.dp))
@@ -167,7 +183,10 @@ fun ContainersScreen(
     }
 
     when (val dialog = state.dialog) {
-        ContainersDialogUiState.None -> Unit
+        ContainersDialogUiState.None -> {
+            Unit
+        }
+
         is ContainersDialogUiState.ConfirmDuplicate -> {
             ContainersConfirmDialog(
                 message = stringResource(R.string.containers_list_confirm_duplicate),
@@ -177,6 +196,7 @@ fun ContainersScreen(
                 onConfirm = { onConfirmDuplicateDialog(dialog.container) },
             )
         }
+
         is ContainersDialogUiState.ConfirmRemove -> {
             ContainersConfirmDialog(
                 message = stringResource(R.string.containers_list_confirm_remove),
@@ -186,6 +206,7 @@ fun ContainersScreen(
                 onConfirm = { onConfirmRemoveDialog(dialog.container) },
             )
         }
+
         is ContainersDialogUiState.Backups -> {
             ContainersBackupsDialog(
                 onDismiss = onDismissDialog,
@@ -193,6 +214,7 @@ fun ContainersScreen(
                 onRestore = { onConfirmRestoreDialog(dialog.container) },
             )
         }
+
         is ContainersDialogUiState.BackupSelection -> {
             ContainersSelectionDialog(
                 title = stringResource(R.string.container_backups_select_title),
@@ -201,6 +223,7 @@ fun ContainersScreen(
                 onSelected = onBackupSelectionChosen,
             )
         }
+
         is ContainersDialogUiState.StorageInfo -> {
             ContainerStorageInfoDialog(
                 state = dialog.data,
@@ -208,6 +231,7 @@ fun ContainersScreen(
                 onClearCache = { onClearCacheDialog(dialog.data.container) },
             )
         }
+
         is ContainersDialogUiState.Message -> {
             ContainersMessageDialog(
                 title = dialog.title,
@@ -233,26 +257,27 @@ private fun SectionLabel(text: String) {
 @Composable
 private fun AddContainerCard(onClick: () -> Unit) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(138.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(ContainersCard)
-            .border(1.dp, ContainersOutline, RoundedCornerShape(12.dp))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            )
-            .padding(12.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(138.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(ContainersCard)
+                .border(1.dp, ContainersOutline, RoundedCornerShape(12.dp))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                ).padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Box(
-            modifier = Modifier
-                .size(56.dp)
-                .clip(CircleShape)
-                .background(ContainersIconBox),
+            modifier =
+                Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(ContainersIconBox),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -286,13 +311,14 @@ private fun ContainerCard(
     var menuExpanded by remember { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(138.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(ContainersCard)
-            .border(1.dp, ContainersOutline, RoundedCornerShape(12.dp))
-            .padding(12.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(138.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(ContainersCard)
+                .border(1.dp, ContainersOutline, RoundedCornerShape(12.dp))
+                .padding(12.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -348,9 +374,10 @@ private fun ContainerCard(
         }
 
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
             contentAlignment = Alignment.Center,
         ) {
             Text(
@@ -393,10 +420,11 @@ private fun IconBox(
     tint: Color,
 ) {
     Box(
-        modifier = Modifier
-            .size(38.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(ContainersIconBox),
+        modifier =
+            Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(ContainersIconBox),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -418,33 +446,37 @@ private fun ContainersDialogShell(
 ) {
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false,
-        ),
+        properties =
+            DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+            ),
     ) {
         BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .safeDrawingPadding()
-                .imePadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .safeDrawingPadding()
+                    .imePadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
             Box(
-                modifier = Modifier
-                    .widthIn(max = maxWidth)
-                    .fillMaxWidth()
-                    .heightIn(max = maxHeight)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(ContainersCard)
-                    .border(1.dp, ContainersOutline, RoundedCornerShape(16.dp))
-                    .padding(horizontal = 18.dp, vertical = 16.dp),
+                modifier =
+                    Modifier
+                        .widthIn(max = maxWidth)
+                        .fillMaxWidth()
+                        .heightIn(max = maxHeight)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(ContainersCard)
+                        .border(1.dp, ContainersOutline, RoundedCornerShape(16.dp))
+                        .padding(horizontal = 18.dp, vertical = 16.dp),
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
                 ) {
                     if (title != null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -466,10 +498,11 @@ private fun ContainersDialogShell(
                         }
                         Spacer(Modifier.height(12.dp))
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(1.dp)
-                                .background(ContainersOutline),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(ContainersOutline),
                         )
                         Spacer(Modifier.height(14.dp))
                     }
@@ -493,22 +526,21 @@ private fun ContainersDialogButton(
     val resolvedBorder = borderColor ?: if (primary) ContainersAccent.copy(alpha = 0.5f) else ContainersOutline
 
     Box(
-        modifier = Modifier
-            .widthIn(min = 84.dp)
-            .heightIn(min = 40.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(resolvedBackground)
-            .border(
-                1.dp,
-                resolvedBorder,
-                RoundedCornerShape(10.dp),
-            )
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            )
-            .padding(horizontal = 18.dp),
+        modifier =
+            Modifier
+                .widthIn(min = 84.dp)
+                .heightIn(min = 40.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(resolvedBackground)
+                .border(
+                    1.dp,
+                    resolvedBorder,
+                    RoundedCornerShape(10.dp),
+                ).clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                ).padding(horizontal = 18.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -540,10 +572,11 @@ private fun ContainersConfirmDialog(
         )
         Spacer(Modifier.height(16.dp))
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(ContainersOutline),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(ContainersOutline),
         )
         Spacer(Modifier.height(16.dp))
         Row(
@@ -587,10 +620,11 @@ private fun ContainersBackupsDialog(
         )
         Spacer(Modifier.height(16.dp))
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(ContainersOutline),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(ContainersOutline),
         )
         Spacer(Modifier.height(16.dp))
         Row(
@@ -635,25 +669,26 @@ private fun ContainersSelectionDialog(
     ) {
         Column {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 300.dp)
-                    .verticalScroll(rememberScrollState()),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 300.dp)
+                        .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 options.forEachIndexed { index, option ->
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(ContainersSubcard)
-                            .border(1.dp, ContainersOutline, RoundedCornerShape(12.dp))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = { onSelected(index) },
-                            )
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(ContainersSubcard)
+                                .border(1.dp, ContainersOutline, RoundedCornerShape(12.dp))
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = { onSelected(index) },
+                                ).padding(horizontal = 14.dp, vertical = 10.dp),
                     ) {
                         Text(
                             text = option,
@@ -667,10 +702,11 @@ private fun ContainersSelectionDialog(
             }
             Spacer(Modifier.height(14.dp))
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(ContainersOutline),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(ContainersOutline),
             )
             Spacer(Modifier.height(14.dp))
             Row(
@@ -707,10 +743,11 @@ private fun ContainersMessageDialog(
         )
         Spacer(Modifier.height(16.dp))
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(ContainersOutline),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(ContainersOutline),
         )
         Spacer(Modifier.height(16.dp))
         Row(
@@ -794,10 +831,11 @@ private fun ContainerStorageInfoDialog(
         }
         Spacer(Modifier.height(18.dp))
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(ContainersOutline),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(ContainersOutline),
         )
         Spacer(Modifier.height(16.dp))
         Row(
@@ -845,9 +883,9 @@ private fun StorageMetric(
     }
 }
 
-private fun formatBytes(bytes: Long): String {
-    return com.winlator.cmod.shared.util.StringUtils.formatBytes(bytes)
-}
+private fun formatBytes(bytes: Long): String =
+    com.winlator.cmod.shared.util.StringUtils
+        .formatBytes(bytes)
 
 private fun formatUsedPercent(percent: Float): String {
     val clamped = percent.coerceIn(0f, 100f)
@@ -866,16 +904,17 @@ private fun SmallVectorIconButton(
     onClick: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .size(34.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(ContainersSubcard)
-            .border(1.dp, ContainersOutline, RoundedCornerShape(8.dp))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            ),
+        modifier =
+            Modifier
+                .size(34.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(ContainersSubcard)
+                .border(1.dp, ContainersOutline, RoundedCornerShape(8.dp))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                ),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -896,16 +935,17 @@ private fun ActionButton(
     onClick: () -> Unit,
 ) {
     Box(
-        modifier = modifier
-            .height(34.dp)
-            .clip(RoundedCornerShape(9.dp))
-            .background(ContainersSubcard)
-            .border(1.dp, ContainersOutline, RoundedCornerShape(9.dp))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            ),
+        modifier =
+            modifier
+                .height(34.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(ContainersSubcard)
+                .border(1.dp, ContainersOutline, RoundedCornerShape(9.dp))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                ),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
