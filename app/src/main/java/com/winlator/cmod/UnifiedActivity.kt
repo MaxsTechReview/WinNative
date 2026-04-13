@@ -117,6 +117,7 @@ import coil.compose.AsyncImage
 import coil.imageLoader
 import coil.request.ImageRequest
 import com.winlator.cmod.core.UpdateChecker
+import com.winlator.cmod.google.CloudSyncManager
 import com.winlator.cmod.google.GameSaveBackupManager
 import com.winlator.cmod.steam.service.SteamService
 import com.winlator.cmod.steam.utils.PrefManager
@@ -175,6 +176,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.ui.text.style.TextAlign
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -232,6 +234,7 @@ class UnifiedActivity : AppCompatActivity() {
     
     // Trigger to refresh library when activity resumes from another container
     var libraryRefreshSignal by mutableIntStateOf(0)
+    private var hasBootstrappedGoogleRestoreOnHome = false
 
     // Freezes the library/store card chasing borders while any full-screen
     // dialog is open, so the ~120 Hz animation cost isn't paid for content
@@ -436,6 +439,16 @@ class UnifiedActivity : AppCompatActivity() {
 
         // (Re)start the background update loop (checks hourly + on first tick)
         UpdateChecker.startBackgroundLoop(this)
+
+        lifecycleScope.launch {
+            bootstrapGoogleRestoreOnFirstHomeArrival()
+        }
+    }
+
+    private suspend fun bootstrapGoogleRestoreOnFirstHomeArrival() {
+        if (hasBootstrappedGoogleRestoreOnHome) return
+        hasBootstrappedGoogleRestoreOnHome = true
+        CloudSyncManager.bootstrapOnHomeScreenArrival(this)
     }
 
     override fun dispatchGenericMotionEvent(event: android.view.MotionEvent): Boolean {

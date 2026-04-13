@@ -2,6 +2,7 @@ package com.winlator.cmod.google
 
 import android.app.Activity
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
@@ -48,6 +49,8 @@ object CloudSyncManager {
     private const val SNAPSHOT_NAME = "store_logins_v1"
     private const val AUTH_SESSION_RETRY_COUNT = 5
     private const val AUTH_SESSION_RETRY_DELAY_MS = 750L
+    private const val HOME_BOOTSTRAP_TIMEOUT_MS = 15000L
+    private const val HOME_BOOTSTRAP_POLL_DELAY_MS = 1000L
     private const val ZIP_MANIFEST = "manifest.json"
     private const val ZIP_STEAM = "stores/steam.json"
     private const val ZIP_EPIC = "stores/epic_credentials.json"
@@ -112,6 +115,17 @@ object CloudSyncManager {
         }
     }
 
+    private data class EffectiveSyncGate(
+        val syncEnabled: Boolean,
+        val authenticated: Boolean,
+        val adoptedExistingSession: Boolean
+    )
+
+    private data class SyncEntryResult(
+        val state: StoreLoginSyncState,
+        val autoRestoreSummary: SyncSummary? = null
+    )
+
     fun signIn(activity: Activity, callback: (Boolean, String) -> Unit) {
         val gamesSignInClient = PlayGames.getGamesSignInClient(activity)
         Log.i(TAG, "Starting Google Play Games sign-in for store login sync")
@@ -144,11 +158,14 @@ object CloudSyncManager {
                 return@launch
             }
 
-            Timber.tag(TAG).i("Play Games session ready; reading Saved Games state without auto-sync")
+            Timber.tag(TAG).i("Play Games session ready; checking Saved Games state and auto-restoring missing store tokens")
             val message = runCatching {
+                val summary = autoRestoreMissingStoresFromCloud(activity, reason = "manual_sign_in")
                 val state = readStateInternal(activity, authenticated = true)
                 when {
-                    state.cloudStores.isNotEmpty() ->
+                    summary.restoredStores.isNotEmpty() ->
+                        summary.message(activity)
+                    state.cloudStores.isNotEmpty() && state.cloudStores != state.localStores ->
                         activity.getString(R.string.google_cloud_connected_restore_available, state.cloudStores.joinToString())
                     state.localStores.isNotEmpty() ->
                         activity.getString(R.string.google_cloud_connected_tap_backup, state.localStores.joinToString())
@@ -197,23 +214,53 @@ object CloudSyncManager {
 
     suspend fun syncOnGoogleScreenOpened(activity: Activity): StoreLoginSyncState {
         return withContext(Dispatchers.IO) {
-            if (!isGoogleSyncEnabled(activity)) {
-                return@withContext StoreLoginSyncState(
-                    googleSignedIn = false,
-                    localStores = collectLocalStoreNames(activity),
-                    status = SyncStatus.NOT_SIGNED_IN,
-                    detail = activity.getString(R.string.google_cloud_sign_in_to_sync)
+            readSyncEntryState(
+                activity = activity,
+                entryReason = "google_screen_opened"
+            ).state
+        }
+    }
+
+    suspend fun bootstrapOnHomeScreenArrival(activity: Activity): String? {
+        return withContext(Dispatchers.IO) {
+            val shouldRetrySessionAdoption = !prefs(activity).contains(KEY_GOOGLE_SYNC_ENABLED)
+            val timeoutAt = SystemClock.elapsedRealtime() + HOME_BOOTSTRAP_TIMEOUT_MS
+            var attempt = 0
+
+            while (SystemClock.elapsedRealtime() < timeoutAt) {
+                val entryReason = if (attempt == 0) {
+                    "home_screen_bootstrap"
+                } else {
+                    "home_screen_bootstrap_retry_$attempt"
+                }
+                val entry = readSyncEntryState(
+                    activity = activity,
+                    entryReason = entryReason
                 )
+                val restoredToastMessage = entry.autoRestoreSummary
+                    ?.takeIf { it.restoredStores.isNotEmpty() }
+                    ?.message(activity)
+                if (restoredToastMessage != null) {
+                    return@withContext restoredToastMessage
+                }
+
+                if (!shouldRetrySessionAdoption || entry.state.googleSignedIn) {
+                    return@withContext null
+                }
+
+                attempt += 1
+                delay(HOME_BOOTSTRAP_POLL_DELAY_MS)
             }
-            val authenticated = isAuthenticatedBlocking(activity)
-            Timber.tag(TAG).i("Google screen opened; authenticated=%s", authenticated)
-            readStateInternal(activity, authenticated)
+
+            Timber.tag(TAG).i("Home screen Google bootstrap timed out waiting for Play Games auto sign-in")
+            null
         }
     }
 
     suspend fun readStoreLoginState(activity: Activity): StoreLoginSyncState {
         return withContext(Dispatchers.IO) {
-            if (!isGoogleSyncEnabled(activity)) {
+            val syncGate = resolveEffectiveSyncGate(activity)
+            if (!syncGate.syncEnabled) {
                 return@withContext StoreLoginSyncState(
                     googleSignedIn = false,
                     localStores = collectLocalStoreNames(activity),
@@ -221,9 +268,8 @@ object CloudSyncManager {
                     detail = activity.getString(R.string.google_cloud_sign_in_to_sync)
                 )
             }
-            val authenticated = isAuthenticatedBlocking(activity)
-            Timber.tag(TAG).d("Reading store login sync state; authenticated=%s", authenticated)
-            readStateInternal(activity, authenticated)
+            Timber.tag(TAG).d("Reading store login sync state; authenticated=%s", syncGate.authenticated)
+            readStateInternal(activity, syncGate.authenticated)
         }
     }
 
@@ -346,6 +392,9 @@ object CloudSyncManager {
                     restoreMissingStores(activity, remotePayload)
                 } else {
                     emptySet()
+                }
+                if (restoredStores.isNotEmpty()) {
+                    rehydrateRestoredStores(activity, restoredStores)
                 }
 
                 val localAfterRestore = collectLocalPayload(activity)
@@ -831,6 +880,99 @@ object CloudSyncManager {
 
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    private suspend fun readSyncEntryState(
+        activity: Activity,
+        entryReason: String
+    ): SyncEntryResult {
+        val syncGate = resolveEffectiveSyncGate(activity)
+        if (!syncGate.syncEnabled) {
+            return SyncEntryResult(state = notSignedInState(activity))
+        }
+        var autoRestoreSummary: SyncSummary? = null
+        if (syncGate.adoptedExistingSession && syncGate.authenticated) {
+            runCatching {
+                autoRestoreMissingStoresFromCloud(activity, reason = "adopted_existing_session")
+            }.onFailure { error ->
+                Timber.tag(TAG).e(error, "Automatic store token restore failed after adopting existing Google session")
+            }.onSuccess { summary ->
+                autoRestoreSummary = summary
+            }
+        }
+        Timber.tag(TAG).i("%s; authenticated=%s", entryReason, syncGate.authenticated)
+        return SyncEntryResult(
+            state = readStateInternal(activity, syncGate.authenticated),
+            autoRestoreSummary = autoRestoreSummary
+        )
+    }
+
+    private fun notSignedInState(activity: Activity): StoreLoginSyncState {
+        return StoreLoginSyncState(
+            googleSignedIn = false,
+            localStores = collectLocalStoreNames(activity),
+            status = SyncStatus.NOT_SIGNED_IN,
+            detail = activity.getString(R.string.google_cloud_sign_in_to_sync)
+        )
+    }
+
+    private suspend fun autoRestoreMissingStoresFromCloud(
+        activity: Activity,
+        reason: String
+    ): SyncSummary {
+        Timber.tag(TAG).i("Checking for backed up store tokens to auto-restore (%s)", reason)
+        val summary = performSmartSyncWithAuthRetry(
+            activity,
+            preferRestoreForMissingStores = true
+        )
+        clearSyncError(activity)
+        if (summary.restoredStores.isNotEmpty()) {
+            Timber.tag(TAG).i(
+                "Auto-restored backed up store tokens (%s): %s",
+                reason,
+                summary.restoredStores
+            )
+        }
+        return summary
+    }
+
+    private suspend fun resolveEffectiveSyncGate(activity: Activity): EffectiveSyncGate {
+        val preferences = prefs(activity)
+        if (preferences.contains(KEY_GOOGLE_SYNC_ENABLED)) {
+            val syncEnabled = preferences.getBoolean(KEY_GOOGLE_SYNC_ENABLED, false)
+            if (!syncEnabled) {
+                return EffectiveSyncGate(
+                    syncEnabled = false,
+                    authenticated = false,
+                    adoptedExistingSession = false
+                )
+            }
+            return EffectiveSyncGate(
+                syncEnabled = true,
+                authenticated = isAuthenticatedBlocking(activity),
+                adoptedExistingSession = false
+            )
+        }
+
+        val authenticated = isAuthenticatedBlocking(activity)
+        if (authenticated) {
+            preferences.edit()
+                .putBoolean(KEY_GOOGLE_SYNC_ENABLED, true)
+                .apply()
+            clearSyncError(activity)
+            Timber.tag(TAG).i("Adopted existing Google Play Games session after local prefs reset")
+            return EffectiveSyncGate(
+                syncEnabled = true,
+                authenticated = true,
+                adoptedExistingSession = true
+            )
+        }
+
+        return EffectiveSyncGate(
+            syncEnabled = false,
+            authenticated = false,
+            adoptedExistingSession = false
+        )
+    }
 
     private fun isGoogleSyncEnabled(context: Context): Boolean =
         prefs(context).getBoolean(KEY_GOOGLE_SYNC_ENABLED, false)
