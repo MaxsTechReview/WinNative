@@ -44,9 +44,14 @@ public class WinHandler {
     public static final byte FLAG_DINPUT_MAPPER_STANDARD = 1;
     public static final byte FLAG_DINPUT_MAPPER_XINPUT = 2;
     public static final byte INPUT_TYPE_MIXED = 2;
+    private static final int GAMEPAD_SOURCE_NONE = 0;
+    private static final int GAMEPAD_SOURCE_VIRTUAL = 1;
+    private static final int GAMEPAD_SOURCE_CONTROLLER = 2;
     private static final int MAX_CONTROLLERS = 4;
     private static final int OSC_DEVICE_ID = -1;
     private static final short SERVER_PORT = 7947;
+    private static final float GYRO_AXIS_EPSILON = 0.001f;
+    private static final float GYRO_TRIGGER_PRESS_THRESHOLD = 0.15f;
     private final XServerDisplayActivity activity;
     private String fakeInputBasePath;
     private final InputManager inputManager;
@@ -72,6 +77,16 @@ public class WinHandler {
     private Set<Integer> usedSlots = new HashSet();
     private boolean xinputDisabledInitialized = false;
     private ExternalController currentController;
+    private final GamepadState outputGamepadState = new GamepadState();
+    private int lastGamepadSource = 0;
+    private float smoothedGyroX = 0.0f;
+    private float smoothedGyroY = 0.0f;
+    private float currentGyroStickX = 0.0f;
+    private float currentGyroStickY = 0.0f;
+    private boolean gyroToggleEnabled = false;
+    private boolean gyroActivatorPressed = false;
+    private int lastGyroTargetSource = 0;
+    private ExternalController lastGyroTargetController;
     private final InputManager.InputDeviceListener inputDeviceListener = new InputManager.InputDeviceListener() {
         @Override
         public void onInputDeviceAdded(int deviceId) {
@@ -389,6 +404,12 @@ public class WinHandler {
     }
 
     public void sendGamepadState() {
+        setLastGamepadSource(GAMEPAD_SOURCE_VIRTUAL, null);
+        maybeClearGyroTarget(GAMEPAD_SOURCE_VIRTUAL, null);
+        writeVirtualGamepadState(shouldApplyGyroToTarget(GAMEPAD_SOURCE_VIRTUAL, null));
+    }
+
+    private void writeVirtualGamepadState(boolean applyGyroOverlay) {
         ControlsProfile profile = this.activity.getInputControlsView().getProfile();
         if (profile == null) {
             return;
@@ -399,7 +420,7 @@ public class WinHandler {
             int slot = assignSlot(-1);
             if (slot >= 0 && this.writers[slot] != null) {
                 try {
-                    this.writers[slot].writeGamepadState(gamepadState);
+                    this.writers[slot].writeGamepadState(getOutputGamepadState(gamepadState, applyGyroOverlay));
                 } catch (IOException ignored) {
                 }
                 return;
@@ -410,6 +431,15 @@ public class WinHandler {
     }
 
     public void sendGamepadState(ExternalController controller) {
+        if (controller != null) {
+            this.currentController = controller;
+        }
+        setLastGamepadSource(GAMEPAD_SOURCE_CONTROLLER, controller);
+        maybeClearGyroTarget(GAMEPAD_SOURCE_CONTROLLER, controller);
+        writeControllerGamepadState(controller, shouldApplyGyroToTarget(GAMEPAD_SOURCE_CONTROLLER, controller));
+    }
+
+    private void writeControllerGamepadState(ExternalController controller, boolean applyGyroOverlay) {
         ExternalController profileController;
         if (controller == null) {
             return;
@@ -419,7 +449,7 @@ public class WinHandler {
             int slot = assignSlot(controller.getDeviceId());
             if (slot >= 0 && this.writers[slot] != null) {
                 try {
-                    this.writers[slot].writeGamepadState(controller.remappedState);
+                    this.writers[slot].writeGamepadState(getOutputGamepadState(controller.remappedState, applyGyroOverlay));
                 } catch (IOException ignored) {
                 }
                 return;
@@ -429,7 +459,7 @@ public class WinHandler {
         int slot2 = assignSlot(controller.getDeviceId());
         if (slot2 >= 0 && this.writers[slot2] != null) {
             try {
-                this.writers[slot2].writeGamepadState(controller.state);
+                this.writers[slot2].writeGamepadState(getOutputGamepadState(controller.state, applyGyroOverlay));
             } catch (IOException ignored) {
             }
         }
@@ -542,6 +572,15 @@ public class WinHandler {
         this.usedSlots.clear();
         this.controllers.clear();
         this.currentController = null;
+        this.lastGamepadSource = GAMEPAD_SOURCE_NONE;
+        this.smoothedGyroX = 0.0f;
+        this.smoothedGyroY = 0.0f;
+        this.currentGyroStickX = 0.0f;
+        this.currentGyroStickY = 0.0f;
+        this.gyroToggleEnabled = false;
+        this.gyroActivatorPressed = false;
+        this.lastGyroTargetSource = GAMEPAD_SOURCE_NONE;
+        this.lastGyroTargetController = null;
     }
 
     private ExternalController getController(int deviceId) {
@@ -615,9 +654,270 @@ public class WinHandler {
     }
 
     public void updateGyroData(float rawGyroX, float rawGyroY) {
+        GyroSettings gyroSettings = getGyroSettings();
+        if (!gyroSettings.enabled) {
+            this.smoothedGyroX = 0.0f;
+            this.smoothedGyroY = 0.0f;
+            this.currentGyroStickX = 0.0f;
+            this.currentGyroStickY = 0.0f;
+            this.gyroToggleEnabled = false;
+            this.gyroActivatorPressed = false;
+            clearLastGyroTarget();
+            return;
+        }
+
+        if (Math.abs(rawGyroX) < gyroSettings.deadzone) rawGyroX = 0.0f;
+        if (Math.abs(rawGyroY) < gyroSettings.deadzone) rawGyroY = 0.0f;
+        if (gyroSettings.invertX) rawGyroX = -rawGyroX;
+        if (gyroSettings.invertY) rawGyroY = -rawGyroY;
+
+        rawGyroX *= gyroSettings.sensitivityX;
+        rawGyroY *= gyroSettings.sensitivityY;
+
+        this.smoothedGyroX = (this.smoothedGyroX * gyroSettings.smoothing) + (rawGyroX * (1.0f - gyroSettings.smoothing));
+        this.smoothedGyroY = (this.smoothedGyroY * gyroSettings.smoothing) + (rawGyroY * (1.0f - gyroSettings.smoothing));
+
+        int targetSource = resolveGyroTargetSource();
+        ExternalController targetController = targetSource == GAMEPAD_SOURCE_CONTROLLER ? getPreferredGyroController() : null;
+        if (targetSource == GAMEPAD_SOURCE_NONE) {
+            clearLastGyroTarget();
+            return;
+        }
+
+        if (targetSource == GAMEPAD_SOURCE_CONTROLLER && targetController == null) {
+            clearLastGyroTarget();
+            return;
+        }
+
+        GamepadState targetState = getTargetGamepadState(targetSource, targetController);
+        if (targetState == null) {
+            clearLastGyroTarget();
+            return;
+        }
+
+        boolean gyroActive = updateGyroActivation(targetState, gyroSettings);
+        float nextGyroStickX = gyroActive ? clamp(this.smoothedGyroX, -1.0f, 1.0f) : 0.0f;
+        float nextGyroStickY = gyroActive ? clamp(this.smoothedGyroY, -1.0f, 1.0f) : 0.0f;
+
+        boolean targetChanged = targetSource != this.lastGyroTargetSource
+                || (targetSource == GAMEPAD_SOURCE_CONTROLLER && !isSameController(targetController, this.lastGyroTargetController));
+        boolean valuesChanged = Math.abs(nextGyroStickX - this.currentGyroStickX) > GYRO_AXIS_EPSILON
+                || Math.abs(nextGyroStickY - this.currentGyroStickY) > GYRO_AXIS_EPSILON;
+
+        if (!targetChanged && !valuesChanged) {
+            return;
+        }
+
+        if (targetChanged) {
+            clearLastGyroTarget();
+        }
+
+        this.currentGyroStickX = nextGyroStickX;
+        this.currentGyroStickY = nextGyroStickY;
+
+        if (targetSource == GAMEPAD_SOURCE_VIRTUAL) {
+            writeVirtualGamepadState(gyroActive);
+        } else {
+            writeControllerGamepadState(targetController, gyroActive);
+        }
+
+        this.lastGyroTargetSource = gyroActive ? targetSource : GAMEPAD_SOURCE_NONE;
+        this.lastGyroTargetController = gyroActive && targetSource == GAMEPAD_SOURCE_CONTROLLER ? targetController : null;
     }
 
     public void refreshControllerMappings() {
+    }
+
+    private GyroSettings getGyroSettings() {
+        GyroSettings settings = new GyroSettings();
+        settings.enabled = this.preferences.getBoolean("gyro_enabled", false);
+        settings.mode = this.preferences.getInt("gyro_mode", 0);
+        settings.activatorKeyCode = this.preferences.getInt("gyro_trigger_button", KeyEvent.KEYCODE_BUTTON_L1);
+        settings.applyToRightStick = this.preferences.getBoolean("process_gyro_with_left_trigger", false);
+        settings.sensitivityX = getFloatPreference("gyro_x_sensitivity", 1.0f);
+        settings.sensitivityY = getFloatPreference("gyro_y_sensitivity", 1.0f);
+        settings.smoothing = clamp(getFloatPreference("gyro_smoothing", 0.9f), 0.0f, 0.99f);
+        settings.deadzone = clamp(getFloatPreference("gyro_deadzone", 0.05f), 0.0f, 1.0f);
+        settings.invertX = this.preferences.getBoolean("invert_gyro_x", false);
+        settings.invertY = this.preferences.getBoolean("invert_gyro_y", false);
+        return settings;
+    }
+
+    private float getFloatPreference(String key, float defaultValue) {
+        try {
+            return this.preferences.getFloat(key, defaultValue);
+        } catch (ClassCastException e) {
+            try {
+                int intValue = this.preferences.getInt(key, Integer.MIN_VALUE);
+                if (intValue != Integer.MIN_VALUE) {
+                    float floatValue = intValue / 100.0f;
+                    this.preferences.edit().putFloat(key, floatValue).apply();
+                    return floatValue;
+                }
+            } catch (ClassCastException ignored) {
+            }
+            return defaultValue;
+        }
+    }
+
+    private int resolveGyroTargetSource() {
+        if (this.lastGamepadSource == GAMEPAD_SOURCE_CONTROLLER && getPreferredGyroController() != null) {
+            return GAMEPAD_SOURCE_CONTROLLER;
+        }
+        if (this.lastGamepadSource == GAMEPAD_SOURCE_VIRTUAL && canUseVirtualGamepad()) {
+            return GAMEPAD_SOURCE_VIRTUAL;
+        }
+        if (canUseVirtualGamepad()) {
+            return GAMEPAD_SOURCE_VIRTUAL;
+        }
+        return getPreferredGyroController() != null ? GAMEPAD_SOURCE_CONTROLLER : GAMEPAD_SOURCE_NONE;
+    }
+
+    private ExternalController getPreferredGyroController() {
+        if (this.currentController == null) {
+            return null;
+        }
+        int deviceId = this.currentController.getDeviceId();
+        return deviceId >= 0 && android.view.InputDevice.getDevice(deviceId) != null ? this.currentController : null;
+    }
+
+    private boolean canUseVirtualGamepad() {
+        ControlsProfile profile = this.activity.getInputControlsView().getProfile();
+        return profile != null && profile.isVirtualGamepad() && this.activity.getInputControlsView().isShowTouchscreenControls();
+    }
+
+    private void setLastGamepadSource(int source, ExternalController controller) {
+        if (source != this.lastGamepadSource) {
+            this.gyroToggleEnabled = false;
+            this.gyroActivatorPressed = false;
+        }
+        this.lastGamepadSource = source;
+        if (controller != null) {
+            this.currentController = controller;
+        }
+    }
+
+    private void maybeClearGyroTarget(int nextSource, ExternalController nextController) {
+        if (this.lastGyroTargetSource == GAMEPAD_SOURCE_NONE) {
+            return;
+        }
+        if (nextSource == this.lastGyroTargetSource && (nextSource != GAMEPAD_SOURCE_CONTROLLER || isSameController(nextController, this.lastGyroTargetController))) {
+            return;
+        }
+        clearLastGyroTarget();
+    }
+
+    private void clearLastGyroTarget() {
+        if (this.lastGyroTargetSource == GAMEPAD_SOURCE_VIRTUAL) {
+            writeVirtualGamepadState(false);
+        } else if (this.lastGyroTargetSource == GAMEPAD_SOURCE_CONTROLLER && this.lastGyroTargetController != null) {
+            writeControllerGamepadState(this.lastGyroTargetController, false);
+        }
+        this.lastGyroTargetSource = GAMEPAD_SOURCE_NONE;
+        this.lastGyroTargetController = null;
+    }
+
+    private boolean shouldApplyGyroToTarget(int source, ExternalController controller) {
+        GyroSettings gyroSettings = getGyroSettings();
+        if (!gyroSettings.enabled) {
+            return false;
+        }
+        int preferredSource = resolveGyroTargetSource();
+        if (source != preferredSource) {
+            return false;
+        }
+        if (source == GAMEPAD_SOURCE_CONTROLLER && !isSameController(controller, getPreferredGyroController())) {
+            return false;
+        }
+        GamepadState targetState = getTargetGamepadState(source, controller);
+        return targetState != null && updateGyroActivation(targetState, gyroSettings);
+    }
+
+    private GamepadState getTargetGamepadState(int source, ExternalController controller) {
+        ControlsProfile profile = this.activity.getInputControlsView().getProfile();
+        if (source == GAMEPAD_SOURCE_VIRTUAL) {
+            return profile != null ? profile.getGamepadState() : null;
+        }
+        if (controller == null) {
+            return null;
+        }
+        ExternalController profileController;
+        if (profile != null && (profileController = profile.getController(controller.getDeviceId())) != null && profileController.getControllerBindingCount() > 0) {
+            return controller.remappedState;
+        }
+        return controller.state;
+    }
+
+    private boolean updateGyroActivation(GamepadState targetState, GyroSettings gyroSettings) {
+        boolean activatorPressed = isActivatorPressed(targetState, gyroSettings.activatorKeyCode);
+        if (gyroSettings.mode == 1 && activatorPressed && !this.gyroActivatorPressed) {
+            this.gyroToggleEnabled = !this.gyroToggleEnabled;
+        }
+        this.gyroActivatorPressed = activatorPressed;
+        return gyroSettings.mode == 1 ? this.gyroToggleEnabled : activatorPressed;
+    }
+
+    private boolean isActivatorPressed(GamepadState state, int keyCode) {
+        if (state == null) {
+            return false;
+        }
+        int buttonIdx = ExternalController.getButtonIdxByKeyCode(keyCode);
+        if (buttonIdx == GamepadState.BUTTON_L2) {
+            return state.triggerL > GYRO_TRIGGER_PRESS_THRESHOLD || state.isPressed(GamepadState.BUTTON_L2);
+        }
+        if (buttonIdx == GamepadState.BUTTON_R2) {
+            return state.triggerR > GYRO_TRIGGER_PRESS_THRESHOLD || state.isPressed(GamepadState.BUTTON_R2);
+        }
+        return buttonIdx != -1 && state.isPressed(buttonIdx);
+    }
+
+    private GamepadState getOutputGamepadState(GamepadState baseState, boolean applyGyroOverlay) {
+        if (!applyGyroOverlay || baseState == null) {
+            return baseState;
+        }
+
+        GyroSettings gyroSettings = getGyroSettings();
+        this.outputGamepadState.copy(baseState);
+        if (gyroSettings.applyToRightStick) {
+            this.outputGamepadState.thumbRX = clamp(baseState.thumbRX + this.currentGyroStickX, -1.0f, 1.0f);
+            this.outputGamepadState.thumbRY = clamp(baseState.thumbRY + this.currentGyroStickY, -1.0f, 1.0f);
+        } else {
+            this.outputGamepadState.thumbLX = clamp(baseState.thumbLX + this.currentGyroStickX, -1.0f, 1.0f);
+            this.outputGamepadState.thumbLY = clamp(baseState.thumbLY + this.currentGyroStickY, -1.0f, 1.0f);
+        }
+        return this.outputGamepadState;
+    }
+
+    private boolean isSameController(ExternalController first, ExternalController second) {
+        if (first == second) {
+            return true;
+        }
+        if (first == null || second == null) {
+            return false;
+        }
+        String firstId = first.getId();
+        String secondId = second.getId();
+        if (firstId != null && secondId != null) {
+            return firstId.equals(secondId);
+        }
+        return first.getDeviceId() == second.getDeviceId();
+    }
+
+    private float clamp(float value, float min, float max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private static class GyroSettings {
+        boolean enabled;
+        int mode;
+        int activatorKeyCode;
+        boolean applyToRightStick;
+        float sensitivityX;
+        float sensitivityY;
+        float smoothing;
+        float deadzone;
+        boolean invertX;
+        boolean invertY;
     }
 
     public void execWithDelay(final String command, int delaySeconds) {
