@@ -2,6 +2,4 @@
 <resources>
     <!-- Replace this with your actual Play Games App ID (12-digit number) from the Google Play Console! -->
     <string name="play_games_app_id" translatable="false">468699745768</string>
-    <!-- Web OAuth client ID used by GamesSignInClient.requestServerSideAccess(...) for Saved Games consent. -->
-    <string name="play_games_server_oauth_client_id" translatable="false"></string>
 </resources>
