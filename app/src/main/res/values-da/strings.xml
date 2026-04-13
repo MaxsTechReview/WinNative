@@ -952,4 +952,36 @@ Installeret sti:
     <string name="preloader_platform_gog">GOG</string>
     <string name="preloader_platform_custom">Brugerdefineret spil</string>
 
+    <!-- Missing translations -->
+    <string name="common_ui_graphics">Grafik</string>
+    <string name="container_backups_title">Sikkerhedskopier</string>
+    <string name="container_backups_prompt">Vælg en handling for denne containersikkerhedskopi.</string>
+    <string name="container_backups_backing_up">Sikkerhedskopierer container…</string>
+    <string name="container_backups_restoring">Gendanner container…</string>
+    <string name="container_backups_checking">Kontrollerer containersikkerhedskopier…</string>
+    <string name="container_backups_select_title">Vælg sikkerhedskopi der skal gendannes</string>
+    <string name="container_backups_no_files">Der blev ikke fundet nogen containersikkerhedskopier i Google Drive.</string>
+    <string name="steam_section_title">Steam</string>
+    <string name="binding_secondary">Sekundær binding</string>
+    <string name="input_controls_editor_tap_to_switch">Tryk for at skifte</string>
+    <string name="input_controls_editor_download_profile">Download profil</string>
+    <string name="container_config_emulator_section">Emulator</string>
+    <string name="container_no_wine_installed">Ingen Wine eller Proton er installeret. Installer en først.</string>
+    <string name="session_drawer_fps_monitor">FPS-overvågning</string>
+    <string name="session_drawer_fps_monitor_subtitle">Vis ydeevnestatistik i realtid</string>
+    <string name="session_drawer_dual_series_battery">Dual Series-batteri</string>
+    <string name="settings_general_check_for_updates">Søg efter opdateringer</string>
+    <string name="settings_general_check_for_updates_summary">Søg automatisk efter nye appversioner ved opstart og med jævne mellemrum.</string>
+    <string name="setup_wizard_containers">Containeropsætning</string>
+    <string name="google_cloud_auto_backup">Automatisk sikkerhedskopi af Cloud Sync</string>
+    <string name="google_cloud_auto_backup_summary">Sikkerhedskopiér automatisk spilsaves til Google Drive hver gang du afslutter et spil.</string>
+    <string name="cloud_saves_title">Cloud-saves</string>
+    <string name="cloud_saves_backup">Sikkerhedskopiér cloud-save</string>
+    <string name="cloud_saves_restore">Gendan cloud-save</string>
+    <string name="cloud_sync_title">Cloud Sync</string>
+    <string name="cloud_sync_enabled_summary">Download cloud-saves ved opstart og synkroniser/sikkerhedskopiér dem ved afslutning.</string>
+    <string name="cloud_sync_disabled_summary">Start dette spil uden download af cloud-save eller synkronisering ved afslutning.</string>
+    <string name="cloud_saves_backing_up">Sikkerhedskopierer cloud-save…</string>
+    <string name="cloud_saves_restoring">Gendanner cloud-save…</string>
+
 </resources>

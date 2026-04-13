@@ -952,4 +952,36 @@ Zainstalowana ścieżka:
     <string name="preloader_platform_gog">GOG</string>
     <string name="preloader_platform_custom">Gra niestandardowa</string>
 
+    <!-- Missing translations -->
+    <string name="common_ui_graphics">Grafika</string>
+    <string name="container_backups_title">Kopie zapasowe</string>
+    <string name="container_backups_prompt">Wybierz działanie dla tej kopii zapasowej kontenera.</string>
+    <string name="container_backups_backing_up">Tworzenie kopii zapasowej kontenera…</string>
+    <string name="container_backups_restoring">Przywracanie kontenera…</string>
+    <string name="container_backups_checking">Sprawdzanie kopii zapasowych kontenera…</string>
+    <string name="container_backups_select_title">Wybierz kopię zapasową do przywrócenia</string>
+    <string name="container_backups_no_files">Nie znaleziono kopii zapasowych kontenera na Dysku Google.</string>
+    <string name="steam_section_title">Steam</string>
+    <string name="binding_secondary">Drugie przypisanie</string>
+    <string name="input_controls_editor_tap_to_switch">Dotknij, aby przełączyć</string>
+    <string name="input_controls_editor_download_profile">Pobierz profil</string>
+    <string name="container_config_emulator_section">Emulator</string>
+    <string name="container_no_wine_installed">Nie zainstalowano Wine ani Proton. Najpierw zainstaluj jeden z nich.</string>
+    <string name="session_drawer_fps_monitor">Monitor FPS</string>
+    <string name="session_drawer_fps_monitor_subtitle">Pokaż statystyki wydajności w czasie rzeczywistym</string>
+    <string name="session_drawer_dual_series_battery">Bateria Dual Series</string>
+    <string name="settings_general_check_for_updates">Sprawdź aktualizacje</string>
+    <string name="settings_general_check_for_updates_summary">Automatycznie sprawdzaj nowe wersje aplikacji przy uruchomieniu i okresowo.</string>
+    <string name="setup_wizard_containers">Konfiguracja kontenera</string>
+    <string name="google_cloud_auto_backup">Automatyczna kopia Cloud Sync</string>
+    <string name="google_cloud_auto_backup_summary">Automatycznie twórz kopie zapasowe zapisów gry na Dysku Google przy każdym wyjściu z gry.</string>
+    <string name="cloud_saves_title">Zapisy w chmurze</string>
+    <string name="cloud_saves_backup">Utwórz kopię zapisu w chmurze</string>
+    <string name="cloud_saves_restore">Przywróć zapis w chmurze</string>
+    <string name="cloud_sync_title">Synchronizacja z chmurą</string>
+    <string name="cloud_sync_enabled_summary">Pobieraj zapisy z chmury przy uruchomieniu oraz synchronizuj/twórz ich kopie przy wyjściu.</string>
+    <string name="cloud_sync_disabled_summary">Uruchom tę grę bez pobierania zapisów z chmury i bez synchronizacji przy wyjściu.</string>
+    <string name="cloud_saves_backing_up">Tworzenie kopii zapisu w chmurze…</string>
+    <string name="cloud_saves_restoring">Przywracanie zapisu w chmurze…</string>
+
 </resources>

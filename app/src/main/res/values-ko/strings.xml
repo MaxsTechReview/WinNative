@@ -952,4 +952,36 @@
     <string name="preloader_platform_gog">GOG</string>
     <string name="preloader_platform_custom">커스텀 게임</string>
 
+    <!-- Missing translations -->
+    <string name="common_ui_graphics">그래픽</string>
+    <string name="container_backups_title">백업</string>
+    <string name="container_backups_prompt">이 컨테이너 백업에 대해 수행할 작업을 선택하세요.</string>
+    <string name="container_backups_backing_up">컨테이너 백업 중…</string>
+    <string name="container_backups_restoring">컨테이너 복원 중…</string>
+    <string name="container_backups_checking">컨테이너 백업 확인 중…</string>
+    <string name="container_backups_select_title">복원할 백업 선택</string>
+    <string name="container_backups_no_files">Google Drive에서 컨테이너 백업을 찾지 못했습니다.</string>
+    <string name="steam_section_title">Steam</string>
+    <string name="binding_secondary">보조 바인딩</string>
+    <string name="input_controls_editor_tap_to_switch">탭하여 전환</string>
+    <string name="input_controls_editor_download_profile">프로필 다운로드</string>
+    <string name="container_config_emulator_section">에뮬레이터</string>
+    <string name="container_no_wine_installed">Wine 또는 Proton이 설치되어 있지 않습니다. 먼저 하나를 설치하세요.</string>
+    <string name="session_drawer_fps_monitor">FPS 모니터</string>
+    <string name="session_drawer_fps_monitor_subtitle">실시간 성능 통계 표시</string>
+    <string name="session_drawer_dual_series_battery">듀얼 시리즈 배터리</string>
+    <string name="settings_general_check_for_updates">업데이트 확인</string>
+    <string name="settings_general_check_for_updates_summary">앱 실행 시와 주기적으로 새 버전을 자동으로 확인합니다.</string>
+    <string name="setup_wizard_containers">컨테이너 설정</string>
+    <string name="google_cloud_auto_backup">클라우드 동기화 자동 백업</string>
+    <string name="google_cloud_auto_backup_summary">게임을 종료할 때마다 게임 저장 데이터를 Google Drive에 자동으로 백업합니다.</string>
+    <string name="cloud_saves_title">클라우드 저장</string>
+    <string name="cloud_saves_backup">클라우드 저장 백업</string>
+    <string name="cloud_saves_restore">클라우드 저장 복원</string>
+    <string name="cloud_sync_title">클라우드 동기화</string>
+    <string name="cloud_sync_enabled_summary">실행 시 클라우드 저장을 다운로드하고 종료 시 동기화/백업합니다.</string>
+    <string name="cloud_sync_disabled_summary">클라우드 저장 다운로드나 종료 시 동기화 없이 이 게임을 실행합니다.</string>
+    <string name="cloud_saves_backing_up">클라우드 저장 백업 중…</string>
+    <string name="cloud_saves_restoring">클라우드 저장 복원 중…</string>
+
 </resources>

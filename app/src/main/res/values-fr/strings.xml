@@ -952,4 +952,36 @@ Chemin installé :
     <string name="preloader_platform_gog">GOG</string>
     <string name="preloader_platform_custom">Jeu personnalisé</string>
 
+    <!-- Missing translations -->
+    <string name="common_ui_graphics">Graphismes</string>
+    <string name="container_backups_title">Sauvegardes</string>
+    <string name="container_backups_prompt">Choisissez une action pour cette sauvegarde de conteneur.</string>
+    <string name="container_backups_backing_up">Sauvegarde du conteneur…</string>
+    <string name="container_backups_restoring">Restauration du conteneur…</string>
+    <string name="container_backups_checking">Vérification des sauvegardes du conteneur…</string>
+    <string name="container_backups_select_title">Sélectionner une sauvegarde à restaurer</string>
+    <string name="container_backups_no_files">Aucune sauvegarde de conteneur trouvée dans Google Drive.</string>
+    <string name="steam_section_title">Steam</string>
+    <string name="binding_secondary">Affectation secondaire</string>
+    <string name="input_controls_editor_tap_to_switch">Touchez pour basculer</string>
+    <string name="input_controls_editor_download_profile">Télécharger le profil</string>
+    <string name="container_config_emulator_section">Émulateur</string>
+    <string name="container_no_wine_installed">Aucun Wine ou Proton installé. Installez-en un d\'abord.</string>
+    <string name="session_drawer_fps_monitor">Moniteur FPS</string>
+    <string name="session_drawer_fps_monitor_subtitle">Afficher les statistiques de performance en temps réel</string>
+    <string name="session_drawer_dual_series_battery">Batterie Dual Series</string>
+    <string name="settings_general_check_for_updates">Rechercher des mises à jour</string>
+    <string name="settings_general_check_for_updates_summary">Rechercher automatiquement de nouvelles versions de l\'application au lancement et périodiquement.</string>
+    <string name="setup_wizard_containers">Configuration du conteneur</string>
+    <string name="google_cloud_auto_backup">Sauvegarde automatique Cloud Sync</string>
+    <string name="google_cloud_auto_backup_summary">Sauvegardez automatiquement les sauvegardes de jeu sur Google Drive chaque fois que vous quittez un jeu.</string>
+    <string name="cloud_saves_title">Sauvegardes cloud</string>
+    <string name="cloud_saves_backup">Sauvegarder la sauvegarde cloud</string>
+    <string name="cloud_saves_restore">Restaurer la sauvegarde cloud</string>
+    <string name="cloud_sync_title">Synchronisation cloud</string>
+    <string name="cloud_sync_enabled_summary">Téléchargez les sauvegardes cloud au lancement et synchronisez-les/sauvegardez-les à la fermeture.</string>
+    <string name="cloud_sync_disabled_summary">Lancez ce jeu sans téléchargement de sauvegarde cloud ni synchronisation à la fermeture.</string>
+    <string name="cloud_saves_backing_up">Sauvegarde cloud en cours…</string>
+    <string name="cloud_saves_restoring">Restauration de la sauvegarde cloud…</string>
+
 </resources>

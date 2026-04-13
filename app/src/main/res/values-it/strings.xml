@@ -952,4 +952,36 @@ Percorso installato:
     <string name="preloader_platform_gog">GOG</string>
     <string name="preloader_platform_custom">Gioco personalizzato</string>
 
+    <!-- Missing translations -->
+    <string name="common_ui_graphics">Grafica</string>
+    <string name="container_backups_title">Backup</string>
+    <string name="container_backups_prompt">Scegli un\'azione per questo backup del container.</string>
+    <string name="container_backups_backing_up">Backup del container in corso…</string>
+    <string name="container_backups_restoring">Ripristino del container in corso…</string>
+    <string name="container_backups_checking">Controllo dei backup del container…</string>
+    <string name="container_backups_select_title">Seleziona il backup da ripristinare</string>
+    <string name="container_backups_no_files">Nessun backup del container trovato in Google Drive.</string>
+    <string name="steam_section_title">Steam</string>
+    <string name="binding_secondary">Associazione secondaria</string>
+    <string name="input_controls_editor_tap_to_switch">Tocca per cambiare</string>
+    <string name="input_controls_editor_download_profile">Scarica profilo</string>
+    <string name="container_config_emulator_section">Emulatore</string>
+    <string name="container_no_wine_installed">Nessun Wine o Proton installato. Installane uno prima.</string>
+    <string name="session_drawer_fps_monitor">Monitor FPS</string>
+    <string name="session_drawer_fps_monitor_subtitle">Mostra statistiche prestazioni in tempo reale</string>
+    <string name="session_drawer_dual_series_battery">Batteria Dual Series</string>
+    <string name="settings_general_check_for_updates">Controlla aggiornamenti</string>
+    <string name="settings_general_check_for_updates_summary">Controlla automaticamente la presenza di nuove versioni dell\'app all\'avvio e periodicamente.</string>
+    <string name="setup_wizard_containers">Configurazione container</string>
+    <string name="google_cloud_auto_backup">Backup automatico Cloud Sync</string>
+    <string name="google_cloud_auto_backup_summary">Esegui automaticamente il backup dei salvataggi di gioco su Google Drive ogni volta che esci da un gioco.</string>
+    <string name="cloud_saves_title">Salvataggi cloud</string>
+    <string name="cloud_saves_backup">Backup salvataggio cloud</string>
+    <string name="cloud_saves_restore">Ripristina salvataggio cloud</string>
+    <string name="cloud_sync_title">Sincronizzazione cloud</string>
+    <string name="cloud_sync_enabled_summary">Scarica i salvataggi cloud all\'avvio e sincronizzali/esegui il backup all\'uscita.</string>
+    <string name="cloud_sync_disabled_summary">Avvia questo gioco senza scaricare i salvataggi cloud né sincronizzarli all\'uscita.</string>
+    <string name="cloud_saves_backing_up">Backup salvataggio cloud in corso…</string>
+    <string name="cloud_saves_restoring">Ripristino salvataggio cloud in corso…</string>
+
 </resources>

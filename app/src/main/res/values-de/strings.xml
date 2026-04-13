@@ -952,4 +952,36 @@ Installierter Pfad:
     <string name="preloader_platform_gog">GOG</string>
     <string name="preloader_platform_custom">Eigenes Spiel</string>
 
+    <!-- Missing translations -->
+    <string name="common_ui_graphics">Grafik</string>
+    <string name="container_backups_title">Sicherungen</string>
+    <string name="container_backups_prompt">Wähle eine Aktion für diese Containersicherung.</string>
+    <string name="container_backups_backing_up">Container wird gesichert…</string>
+    <string name="container_backups_restoring">Container wird wiederhergestellt…</string>
+    <string name="container_backups_checking">Containersicherungen werden geprüft…</string>
+    <string name="container_backups_select_title">Sicherung zum Wiederherstellen auswählen</string>
+    <string name="container_backups_no_files">Keine Containersicherungen in Google Drive gefunden.</string>
+    <string name="steam_section_title">Steam</string>
+    <string name="binding_secondary">Sekundäre Belegung</string>
+    <string name="input_controls_editor_tap_to_switch">Tippen zum Wechseln</string>
+    <string name="input_controls_editor_download_profile">Profil herunterladen</string>
+    <string name="container_config_emulator_section">Emulator</string>
+    <string name="container_no_wine_installed">Kein Wine oder Proton installiert. Installiere zuerst eines.</string>
+    <string name="session_drawer_fps_monitor">FPS-Monitor</string>
+    <string name="session_drawer_fps_monitor_subtitle">Leistungsstatistiken in Echtzeit anzeigen</string>
+    <string name="session_drawer_dual_series_battery">Dual-Series-Akku</string>
+    <string name="settings_general_check_for_updates">Nach Updates suchen</string>
+    <string name="settings_general_check_for_updates_summary">Beim Start und regelmäßig automatisch nach neuen App-Versionen suchen.</string>
+    <string name="setup_wizard_containers">Container-Einrichtung</string>
+    <string name="google_cloud_auto_backup">Automatische Cloud-Sync-Sicherung</string>
+    <string name="google_cloud_auto_backup_summary">Spielstände bei jedem Beenden eines Spiels automatisch in Google Drive sichern.</string>
+    <string name="cloud_saves_title">Cloud-Speicherstände</string>
+    <string name="cloud_saves_backup">Cloud-Speicherstand sichern</string>
+    <string name="cloud_saves_restore">Cloud-Speicherstand wiederherstellen</string>
+    <string name="cloud_sync_title">Cloud-Synchronisierung</string>
+    <string name="cloud_sync_enabled_summary">Cloud-Speicherstände beim Start herunterladen und beim Beenden synchronisieren/sichern.</string>
+    <string name="cloud_sync_disabled_summary">Dieses Spiel ohne Cloud-Speicherstand-Download oder Synchronisierung beim Beenden starten.</string>
+    <string name="cloud_saves_backing_up">Cloud-Speicherstand wird gesichert…</string>
+    <string name="cloud_saves_restoring">Cloud-Speicherstand wird wiederhergestellt…</string>
+
 </resources>

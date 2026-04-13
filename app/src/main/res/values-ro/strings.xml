@@ -952,4 +952,36 @@ Cale instalata:
     <string name="preloader_platform_gog">GOG</string>
     <string name="preloader_platform_custom">Joc personalizat</string>
 
+    <!-- Missing translations -->
+    <string name="common_ui_graphics">Grafică</string>
+    <string name="container_backups_title">Copii de rezervă</string>
+    <string name="container_backups_prompt">Alege o acțiune pentru această copie de rezervă a containerului.</string>
+    <string name="container_backups_backing_up">Se face copia de rezervă a containerului…</string>
+    <string name="container_backups_restoring">Se restaurează containerul…</string>
+    <string name="container_backups_checking">Se verifică copiile de rezervă ale containerului…</string>
+    <string name="container_backups_select_title">Selectează copia de rezervă de restaurat</string>
+    <string name="container_backups_no_files">Nu au fost găsite copii de rezervă ale containerului în Google Drive.</string>
+    <string name="steam_section_title">Steam</string>
+    <string name="binding_secondary">Asociere secundară</string>
+    <string name="input_controls_editor_tap_to_switch">Atinge pentru a schimba</string>
+    <string name="input_controls_editor_download_profile">Descarcă profilul</string>
+    <string name="container_config_emulator_section">Emulator</string>
+    <string name="container_no_wine_installed">Nu este instalat Wine sau Proton. Instalează unul mai întâi.</string>
+    <string name="session_drawer_fps_monitor">Monitor FPS</string>
+    <string name="session_drawer_fps_monitor_subtitle">Afișează statisticile de performanță în timp real</string>
+    <string name="session_drawer_dual_series_battery">Baterie Dual Series</string>
+    <string name="settings_general_check_for_updates">Verifică actualizările</string>
+    <string name="settings_general_check_for_updates_summary">Verifică automat dacă există versiuni noi ale aplicației la pornire și periodic.</string>
+    <string name="setup_wizard_containers">Configurare container</string>
+    <string name="google_cloud_auto_backup">Backup automat Cloud Sync</string>
+    <string name="google_cloud_auto_backup_summary">Salvează automat copiile de rezervă ale jocurilor în Google Drive de fiecare dată când ieși dintr-un joc.</string>
+    <string name="cloud_saves_title">Salvări în cloud</string>
+    <string name="cloud_saves_backup">Fă backup salvării în cloud</string>
+    <string name="cloud_saves_restore">Restaurează salvarea în cloud</string>
+    <string name="cloud_sync_title">Sincronizare în cloud</string>
+    <string name="cloud_sync_enabled_summary">Descarcă salvările din cloud la pornire și sincronizează/fă backup la ieșire.</string>
+    <string name="cloud_sync_disabled_summary">Pornește acest joc fără descărcarea salvărilor din cloud sau sincronizare la ieșire.</string>
+    <string name="cloud_saves_backing_up">Se face backup salvării în cloud…</string>
+    <string name="cloud_saves_restoring">Se restaurează salvarea în cloud…</string>
+
 </resources>

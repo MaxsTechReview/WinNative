@@ -952,4 +952,36 @@
     <string name="preloader_platform_gog">GOG</string>
     <string name="preloader_platform_custom">Власна гра</string>
 
+    <!-- Missing translations -->
+    <string name="common_ui_graphics">Графіка</string>
+    <string name="container_backups_title">Резервні копії</string>
+    <string name="container_backups_prompt">Виберіть дію для цієї резервної копії контейнера.</string>
+    <string name="container_backups_backing_up">Створення резервної копії контейнера…</string>
+    <string name="container_backups_restoring">Відновлення контейнера…</string>
+    <string name="container_backups_checking">Перевірка резервних копій контейнера…</string>
+    <string name="container_backups_select_title">Виберіть резервну копію для відновлення</string>
+    <string name="container_backups_no_files">У Google Drive не знайдено резервних копій контейнера.</string>
+    <string name="steam_section_title">Steam</string>
+    <string name="binding_secondary">Вторинне призначення</string>
+    <string name="input_controls_editor_tap_to_switch">Торкніться, щоб перемкнути</string>
+    <string name="input_controls_editor_download_profile">Завантажити профіль</string>
+    <string name="container_config_emulator_section">Емулятор</string>
+    <string name="container_no_wine_installed">Wine або Proton не встановлено. Спочатку встановіть один із них.</string>
+    <string name="session_drawer_fps_monitor">Монітор FPS</string>
+    <string name="session_drawer_fps_monitor_subtitle">Показувати статистику продуктивності в реальному часі</string>
+    <string name="session_drawer_dual_series_battery">Батарея Dual Series</string>
+    <string name="settings_general_check_for_updates">Перевірити оновлення</string>
+    <string name="settings_general_check_for_updates_summary">Автоматично перевіряти нові версії застосунку під час запуску та періодично.</string>
+    <string name="setup_wizard_containers">Налаштування контейнера</string>
+    <string name="google_cloud_auto_backup">Автоматичне резервне копіювання Cloud Sync</string>
+    <string name="google_cloud_auto_backup_summary">Автоматично створювати резервні копії збережень гри в Google Drive щоразу після виходу з гри.</string>
+    <string name="cloud_saves_title">Хмарні збереження</string>
+    <string name="cloud_saves_backup">Створити резервну копію хмарного збереження</string>
+    <string name="cloud_saves_restore">Відновити хмарне збереження</string>
+    <string name="cloud_sync_title">Хмарна синхронізація</string>
+    <string name="cloud_sync_enabled_summary">Завантажувати хмарні збереження під час запуску та синхронізувати/резервувати їх під час виходу.</string>
+    <string name="cloud_sync_disabled_summary">Запустити цю гру без завантаження хмарних збережень і синхронізації при виході.</string>
+    <string name="cloud_saves_backing_up">Створення резервної копії хмарного збереження…</string>
+    <string name="cloud_saves_restoring">Відновлення хмарного збереження…</string>
+
 </resources>

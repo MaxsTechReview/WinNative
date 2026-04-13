@@ -952,4 +952,36 @@
     <string name="preloader_platform_gog">GOG</string>
     <string name="preloader_platform_custom">自訂遊戲</string>
 
+    <!-- Missing translations -->
+    <string name="common_ui_graphics">圖形</string>
+    <string name="container_backups_title">備份</string>
+    <string name="container_backups_prompt">選擇要對此容器備份執行的操作。</string>
+    <string name="container_backups_backing_up">正在備份容器…</string>
+    <string name="container_backups_restoring">正在還原容器…</string>
+    <string name="container_backups_checking">正在檢查容器備份…</string>
+    <string name="container_backups_select_title">選擇要還原的備份</string>
+    <string name="container_backups_no_files">未在 Google Drive 中找到容器備份。</string>
+    <string name="steam_section_title">Steam</string>
+    <string name="binding_secondary">次要綁定</string>
+    <string name="input_controls_editor_tap_to_switch">點按切換</string>
+    <string name="input_controls_editor_download_profile">下載設定檔</string>
+    <string name="container_config_emulator_section">模擬器</string>
+    <string name="container_no_wine_installed">尚未安裝 Wine 或 Proton。請先安裝其中一個。</string>
+    <string name="session_drawer_fps_monitor">FPS 監視器</string>
+    <string name="session_drawer_fps_monitor_subtitle">顯示即時效能統計資料</string>
+    <string name="session_drawer_dual_series_battery">Dual Series 電量</string>
+    <string name="settings_general_check_for_updates">檢查更新</string>
+    <string name="settings_general_check_for_updates_summary">啟動時及定期自動檢查新版本。</string>
+    <string name="setup_wizard_containers">容器設定</string>
+    <string name="google_cloud_auto_backup">雲端同步自動備份</string>
+    <string name="google_cloud_auto_backup_summary">每次退出遊戲時自動將遊戲存檔備份到 Google Drive。</string>
+    <string name="cloud_saves_title">雲端存檔</string>
+    <string name="cloud_saves_backup">備份雲端存檔</string>
+    <string name="cloud_saves_restore">還原雲端存檔</string>
+    <string name="cloud_sync_title">雲端同步</string>
+    <string name="cloud_sync_enabled_summary">啟動時下載雲端存檔，並在退出時同步/備份。</string>
+    <string name="cloud_sync_disabled_summary">啟動此遊戲時不下載雲端存檔，也不在退出時同步。</string>
+    <string name="cloud_saves_backing_up">正在備份雲端存檔…</string>
+    <string name="cloud_saves_restoring">正在還原雲端存檔…</string>
+
 </resources>

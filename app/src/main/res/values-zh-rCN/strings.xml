@@ -952,4 +952,36 @@
     <string name="preloader_platform_gog">GOG</string>
     <string name="preloader_platform_custom">自定义游戏</string>
 
+    <!-- Missing translations -->
+    <string name="common_ui_graphics">图形</string>
+    <string name="container_backups_title">备份</string>
+    <string name="container_backups_prompt">选择对此容器备份执行的操作。</string>
+    <string name="container_backups_backing_up">正在备份容器…</string>
+    <string name="container_backups_restoring">正在恢复容器…</string>
+    <string name="container_backups_checking">正在检查容器备份…</string>
+    <string name="container_backups_select_title">选择要恢复的备份</string>
+    <string name="container_backups_no_files">未在 Google Drive 中找到容器备份。</string>
+    <string name="steam_section_title">Steam</string>
+    <string name="binding_secondary">次要绑定</string>
+    <string name="input_controls_editor_tap_to_switch">点按切换</string>
+    <string name="input_controls_editor_download_profile">下载配置文件</string>
+    <string name="container_config_emulator_section">模拟器</string>
+    <string name="container_no_wine_installed">未安装 Wine 或 Proton。请先安装一个。</string>
+    <string name="session_drawer_fps_monitor">FPS 监视器</string>
+    <string name="session_drawer_fps_monitor_subtitle">显示实时性能统计信息</string>
+    <string name="session_drawer_dual_series_battery">Dual Series 电量</string>
+    <string name="settings_general_check_for_updates">检查更新</string>
+    <string name="settings_general_check_for_updates_summary">在启动时和定期自动检查新版本。</string>
+    <string name="setup_wizard_containers">容器设置</string>
+    <string name="google_cloud_auto_backup">云同步自动备份</string>
+    <string name="google_cloud_auto_backup_summary">每次退出游戏时自动将游戏存档备份到 Google Drive。</string>
+    <string name="cloud_saves_title">云存档</string>
+    <string name="cloud_saves_backup">备份云存档</string>
+    <string name="cloud_saves_restore">恢复云存档</string>
+    <string name="cloud_sync_title">云同步</string>
+    <string name="cloud_sync_enabled_summary">启动时下载云存档，并在退出时同步/备份。</string>
+    <string name="cloud_sync_disabled_summary">启动此游戏时不下载云存档，也不在退出时同步。</string>
+    <string name="cloud_saves_backing_up">正在备份云存档…</string>
+    <string name="cloud_saves_restoring">正在恢复云存档…</string>
+
 </resources>
