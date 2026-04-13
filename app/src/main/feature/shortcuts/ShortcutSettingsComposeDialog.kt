@@ -30,9 +30,9 @@ import com.winlator.cmod.feature.library.GameSettingsCallbacks
 import com.winlator.cmod.feature.library.GameSettingsContent
 import com.winlator.cmod.feature.library.GameSettingsStateHolder
 import com.winlator.cmod.feature.library.WinComponentItem
-import com.winlator.cmod.feature.settings.DXVKConfigDialog
-import com.winlator.cmod.feature.settings.GraphicsDriverConfigDialog
-import com.winlator.cmod.feature.settings.WineD3DConfigDialog
+import com.winlator.cmod.feature.settings.DXVKConfigUtils
+import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils
+import com.winlator.cmod.feature.settings.WineD3DConfigUtils
 import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.runtime.compat.box64.Box64Preset
 import com.winlator.cmod.runtime.compat.box64.Box64PresetManager
@@ -183,18 +183,6 @@ class ShortcutSettingsComposeDialog private constructor(
 
             override fun onDismiss() {
                 dismiss()
-            }
-
-            override fun onGraphicsDriverConfig() {
-                // Now handled inline by GraphicsDriverConfigCard
-            }
-
-            override fun onDxWrapperConfig() {
-                // Now handled inline by DXVKConfigCard
-            }
-
-            override fun onAddEnvVar() {
-                // Now handled by Compose AddEnvVarDialog in VariablesSection
             }
 
             override fun onAddToHomeScreen() {
@@ -1400,7 +1388,7 @@ class ShortcutSettingsComposeDialog private constructor(
             getShortcutSetting("graphicsDriverConfig", container.getGraphicsDriverConfig())
         else
             container.getGraphicsDriverConfig()
-        val config = GraphicsDriverConfigDialog.parseGraphicsDriverConfig(configStr)
+        val config = GraphicsDriverConfigUtils.parseGraphicsDriverConfig(configStr)
 
         // Load dropdown entries from resource arrays
         state.gfxVulkanVersionEntries.value = context.resources.getStringArray(R.array.vulkan_version_entries).toList()
@@ -1477,7 +1465,7 @@ class ShortcutSettingsComposeDialog private constructor(
             getShortcutSetting("graphicsDriverConfig", container.getGraphicsDriverConfig())
         else
             container.getGraphicsDriverConfig()
-        val config = GraphicsDriverConfigDialog.parseGraphicsDriverConfig(configStr)
+        val config = GraphicsDriverConfigUtils.parseGraphicsDriverConfig(configStr)
         val initialVersion = config["version"] ?: ""
         if (initialVersion.isNotEmpty()) {
             val idx = versions.indexOfFirst { it.equals(initialVersion, ignoreCase = true) }
@@ -1498,7 +1486,7 @@ class ShortcutSettingsComposeDialog private constructor(
 
                 // On initial load, set blacklisted from config; on version change, clear blacklist
                 val configStr = getShortcutSetting("graphicsDriverConfig", shortcut.container.getGraphicsDriverConfig())
-                val config = GraphicsDriverConfigDialog.parseGraphicsDriverConfig(configStr)
+                val config = GraphicsDriverConfigUtils.parseGraphicsDriverConfig(configStr)
                 val savedVersion = config["version"] ?: ""
                 if (version == savedVersion) {
                     val bl = config["blacklistedExtensions"] ?: ""
@@ -1522,10 +1510,10 @@ class ShortcutSettingsComposeDialog private constructor(
             getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig())
         else
             container.getDXWrapperConfig()
-        val config = DXVKConfigDialog.parseConfig(configStr)
+        val config = DXVKConfigUtils.parseConfig(configStr)
 
         // Feature levels
-        state.dxvkVkd3dFeatureLevelEntries.value = DXVKConfigDialog.VKD3D_FEATURE_LEVEL.toList()
+        state.dxvkVkd3dFeatureLevelEntries.value = DXVKConfigUtils.VKD3D_FEATURE_LEVEL.toList()
 
         // DDraw wrapper and framerate from resources
         state.dxvkDdrawWrapperEntries.value = context.resources.getStringArray(R.array.ddrawrapper_entries).toList()
@@ -1569,7 +1557,7 @@ class ShortcutSettingsComposeDialog private constructor(
             getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig())
         else
             container.getDXWrapperConfig()
-        val config = DXVKConfigDialog.parseConfig(configStr)
+        val config = DXVKConfigUtils.parseConfig(configStr)
         selectByIdentifier(originalItems, config.get("version"), state.dxvkSelectedVersion)
     }
 
@@ -1591,7 +1579,7 @@ class ShortcutSettingsComposeDialog private constructor(
             getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig())
         else
             container.getDXWrapperConfig()
-        val config = DXVKConfigDialog.parseConfig(configStr)
+        val config = DXVKConfigUtils.parseConfig(configStr)
         selectByIdentifier(items, config.get("vkd3dVersion"), state.dxvkSelectedVkd3dVersion)
     }
 
@@ -1789,7 +1777,7 @@ class ShortcutSettingsComposeDialog private constructor(
             getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig())
         else
             container.getDXWrapperConfig()
-        val config = WineD3DConfigDialog.parseConfig(configStr)
+        val config = WineD3DConfigUtils.parseConfig(configStr)
 
         // Video memory size from resources
         state.wined3dVideoMemorySizeEntries.value =

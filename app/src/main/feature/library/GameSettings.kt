@@ -317,9 +317,6 @@ class GameSettingsStateHolder {
 interface GameSettingsCallbacks {
     fun onConfirm()
     fun onDismiss()
-    fun onGraphicsDriverConfig()
-    fun onDxWrapperConfig()
-    fun onAddEnvVar()
     fun onAddToHomeScreen()
     fun onRemoveEnvVar(index: Int)
     fun onUpdateWinComponent(isDirectX: Boolean, index: Int, newValue: Int)

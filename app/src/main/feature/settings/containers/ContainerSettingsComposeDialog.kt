@@ -30,6 +30,9 @@ import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
+import com.winlator.cmod.feature.settings.DXVKConfigUtils
+import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils
+import com.winlator.cmod.feature.settings.WineD3DConfigUtils
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.runtime.wine.DefaultVersion
@@ -180,9 +183,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 dismiss()
             }
 
-            override fun onGraphicsDriverConfig() {}
-            override fun onDxWrapperConfig() {}
-            override fun onAddEnvVar() {}
             override fun onAddToHomeScreen() {}
 
             override fun onRemoveEnvVar(index: Int) {
@@ -569,7 +569,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             state.graphicsDriverEntries.value, state.selectedGraphicsDriver.intValue
         )
         var graphicsDriverConfig = buildGraphicsDriverConfigFromState()
-        val parsedGfx = GraphicsDriverConfigDialog.parseGraphicsDriverConfig(graphicsDriverConfig)
+        val parsedGfx = GraphicsDriverConfigUtils.parseGraphicsDriverConfig(graphicsDriverConfig)
         if (parsedGfx.get("version").isNullOrEmpty()) {
             val defaultVersion = try {
                 if (com.winlator.cmod.runtime.system.GPUInformation.isDriverSupported(DefaultVersion.WRAPPER_ADRENO, context))
@@ -578,7 +578,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 DefaultVersion.WRAPPER
             }
             parsedGfx.put("version", defaultVersion)
-            graphicsDriverConfig = GraphicsDriverConfigDialog.toGraphicsDriverConfig(parsedGfx)
+            graphicsDriverConfig = GraphicsDriverConfigUtils.toGraphicsDriverConfig(parsedGfx)
         }
         val dxwrapper = getIdentifierFromEntries(
             state.dxWrapperEntries.value, state.selectedDxWrapper.intValue
@@ -898,7 +898,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
     private fun loadGraphicsDriverConfigState() {
         val configStr = container?.getGraphicsDriverConfig() ?: Container.DEFAULT_GRAPHICSDRIVERCONFIG
-        val config = GraphicsDriverConfigDialog.parseGraphicsDriverConfig(configStr)
+        val config = GraphicsDriverConfigUtils.parseGraphicsDriverConfig(configStr)
 
         state.gfxVulkanVersionEntries.value =
             context.resources.getStringArray(R.array.vulkan_version_entries).toList()
@@ -970,7 +970,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         state.gfxDriverVersionEntries.value = versions
 
         val configStr2 = container?.getGraphicsDriverConfig() ?: Container.DEFAULT_GRAPHICSDRIVERCONFIG
-        val config = GraphicsDriverConfigDialog.parseGraphicsDriverConfig(configStr2)
+        val config = GraphicsDriverConfigUtils.parseGraphicsDriverConfig(configStr2)
         val initialVersion = config.get("version") ?: ""
         if (initialVersion.isNotEmpty()) {
             val idx = versions.indexOfFirst { it.equals(initialVersion, ignoreCase = true) }
@@ -987,7 +987,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             if (extensions != null) {
                 state.gfxAvailableExtensions.value = extensions.toList()
                 val configStr = container?.getGraphicsDriverConfig() ?: Container.DEFAULT_GRAPHICSDRIVERCONFIG
-                val config = GraphicsDriverConfigDialog.parseGraphicsDriverConfig(configStr)
+                val config = GraphicsDriverConfigUtils.parseGraphicsDriverConfig(configStr)
                 val savedVersion = config.get("version") ?: ""
                 if (version == savedVersion) {
                     val bl = config.get("blacklistedExtensions") ?: ""
@@ -1009,8 +1009,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
     private fun loadDxvkConfigState() {
         val configStr = container?.getDXWrapperConfig() ?: Container.DEFAULT_DXWRAPPERCONFIG
-        val config = DXVKConfigDialog.parseConfig(configStr)
-        state.dxvkVkd3dFeatureLevelEntries.value = DXVKConfigDialog.VKD3D_FEATURE_LEVEL.toList()
+        val config = DXVKConfigUtils.parseConfig(configStr)
+        state.dxvkVkd3dFeatureLevelEntries.value = DXVKConfigUtils.VKD3D_FEATURE_LEVEL.toList()
         state.dxvkDdrawWrapperEntries.value =
             context.resources.getStringArray(R.array.ddrawrapper_entries).toList()
         state.dxvkFramerateEntries.value =
@@ -1036,7 +1036,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         if (!isArm64EC) originalItems.removeAll { it.contains("arm64ec") }
         state.dxvkVersionEntries.value = originalItems
         val configStr = container?.getDXWrapperConfig() ?: Container.DEFAULT_DXWRAPPERCONFIG
-        val config = DXVKConfigDialog.parseConfig(configStr)
+        val config = DXVKConfigUtils.parseConfig(configStr)
         selectByIdentifier(originalItems, config.get("version"), state.dxvkSelectedVersion)
     }
 
@@ -1048,13 +1048,13 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         }
         state.dxvkVkd3dVersionEntries.value = items
         val configStr = container?.getDXWrapperConfig() ?: Container.DEFAULT_DXWRAPPERCONFIG
-        val config = DXVKConfigDialog.parseConfig(configStr)
+        val config = DXVKConfigUtils.parseConfig(configStr)
         selectByIdentifier(items, config.get("vkd3dVersion"), state.dxvkSelectedVkd3dVersion)
     }
 
     private fun loadWineD3DConfigState() {
         val configStr = container?.getDXWrapperConfig() ?: Container.DEFAULT_DXWRAPPERCONFIG
-        val config = WineD3DConfigDialog.parseConfig(configStr)
+        val config = WineD3DConfigUtils.parseConfig(configStr)
         state.wined3dVideoMemorySizeEntries.value =
             context.resources.getStringArray(R.array.video_memory_size_entries).toList()
 

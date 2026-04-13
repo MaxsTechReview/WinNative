@@ -68,15 +68,15 @@ import com.winlator.cmod.runtime.container.Container;
 import com.winlator.cmod.runtime.container.ContainerManager;
 import com.winlator.cmod.runtime.container.Shortcut;
 import com.winlator.cmod.shared.ui.dialog.ContentDialog;
-import com.winlator.cmod.feature.settings.DXVKConfigDialog;
 import com.winlator.cmod.feature.settings.DebugDialog;
-import com.winlator.cmod.feature.settings.GraphicsDriverConfigDialog;
+import com.winlator.cmod.feature.settings.DXVKConfigUtils;
+import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils;
 import com.winlator.cmod.feature.shortcuts.ShortcutsFragment;
 import com.winlator.cmod.feature.sync.CloudSyncConflictDialog;
 import com.winlator.cmod.feature.sync.CloudSyncConflictTimestamps;
 import com.winlator.cmod.feature.sync.CloudSyncHelper;
 import com.winlator.cmod.feature.stores.steam.ui.SteamClientDownloadFailureDialog;
-import com.winlator.cmod.feature.settings.WineD3DConfigDialog;
+import com.winlator.cmod.feature.settings.WineD3DConfigUtils;
 import com.winlator.cmod.runtime.compat.SteamBridge;
 import com.winlator.cmod.runtime.content.ContentProfile;
 import com.winlator.cmod.runtime.content.ContentsManager;
@@ -360,7 +360,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         String shortcutDxwrapperConfig = shortcut.getExtra("dxwrapperConfig");
         if (shortcutDxwrapperConfig.isEmpty()) return false;
 
-        KeyValueSet perGameConfig = DXVKConfigDialog.parseConfig(shortcutDxwrapperConfig);
+        KeyValueSet perGameConfig = DXVKConfigUtils.parseConfig(shortcutDxwrapperConfig);
         return parsePositiveInt(perGameConfig.get("framerate")) > 0;
     }
 
@@ -1019,8 +1019,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
         Log.d("XServerDisplayActivity", "DXVK launch config normalized before='" +
                 preNormalizedDxwrapperConfig + "' after='" + dxwrapperConfig + "'");
 
-        this.graphicsDriverConfig = GraphicsDriverConfigDialog.parseGraphicsDriverConfig(graphicsDriverConfig);
-        this.dxwrapperConfig = DXVKConfigDialog.parseConfig(dxwrapperConfig);
+        this.graphicsDriverConfig = GraphicsDriverConfigUtils.parseGraphicsDriverConfig(graphicsDriverConfig);
+        this.dxwrapperConfig = DXVKConfigUtils.parseConfig(dxwrapperConfig);
         Log.d("XServerDisplayActivity", "VKD3D version (from effective dxwrapperConfig)='" +
                 this.dxwrapperConfig.get("vkd3dVersion") + "' dxvkVersion='" +
                 this.dxwrapperConfig.get("version") + "' ddrawrapper='" +
@@ -2399,7 +2399,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             String dxwrapperConfig = shortcut != null ? getShortcutSetting("dxwrapperConfig", this.dxwrapperConfig.toString()) : this.dxwrapperConfig.toString();
             String preNormalizedDxwrapperConfig = dxwrapperConfig;
             dxwrapperConfig = normalizeDxwrapperConfigForCurrentWine(dxwrapperConfig);
-            KeyValueSet currentDXWrapperConfig = DXVKConfigDialog.parseConfig(dxwrapperConfig);
+            KeyValueSet currentDXWrapperConfig = DXVKConfigUtils.parseConfig(dxwrapperConfig);
             String dxvkWrapper = "dxvk-" + currentDXWrapperConfig.get("version");
             String vkd3dWrapper = "vkd3d-" + currentDXWrapperConfig.get("vkd3dVersion");
             String ddrawrapper = currentDXWrapperConfig.get("ddrawrapper");
@@ -3074,7 +3074,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private String normalizeDxwrapperConfigForCurrentWine(String dxwrapperConfig) {
-        KeyValueSet config = DXVKConfigDialog.parseConfig(dxwrapperConfig);
+        KeyValueSet config = DXVKConfigUtils.parseConfig(dxwrapperConfig);
         boolean isArm64EC = wineInfo != null && wineInfo.isArm64EC();
         boolean changed = false;
 
@@ -3612,7 +3612,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         if (dxwrapper.contains("dxvk")) {
             int refreshRateOverride = getDxvkFrameRateOverride();
-            DXVKConfigDialog.setEnvVars(this, dxwrapperConfig, envVars, refreshRateOverride);
+            DXVKConfigUtils.setEnvVars(this, dxwrapperConfig, envVars, refreshRateOverride);
             String version = dxwrapperConfig.get("version");
             if (version.equals("1.11.1-sarek")) {
                 Log.d("GraphicsDriverExtraction", "Disabling Wrapper PATCH_OPCONSTCOMP SPIR-V pass");
@@ -3620,7 +3620,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             }
         }
         else {
-            WineD3DConfigDialog.setEnvVars(this, dxwrapperConfig, envVars);
+            WineD3DConfigUtils.setEnvVars(this, dxwrapperConfig, envVars);
         }
 
         envVars.put("VK_ICD_FILENAMES", imageFs.getShareDir() + "/vulkan/icd.d/wrapper_icd.aarch64.json");
@@ -3671,8 +3671,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
         String dxvkVersion = dxwrapperConfig.get("version");
         if (gpuName != null && !gpuName.equals("Device") && dxvkVersion != null && !dxvkVersion.equals("1.11.1-sarek")) {
             envVars.put("WRAPPER_DEVICE_NAME", gpuName);
-            envVars.put("WRAPPER_DEVICE_ID", WineD3DConfigDialog.getDeviceIdFromGPUName(this, gpuName));
-            envVars.put("WRAPPER_VENDOR_ID", WineD3DConfigDialog.getVendorIdFromGPUName(this, gpuName));
+            envVars.put("WRAPPER_DEVICE_ID", WineD3DConfigUtils.getDeviceIdFromGPUName(this, gpuName));
+            envVars.put("WRAPPER_VENDOR_ID", WineD3DConfigUtils.getVendorIdFromGPUName(this, gpuName));
         }
 
         String maxDeviceMemory = graphicsDriverConfig.get("maxDeviceMemory");

@@ -3,8 +3,6 @@ package com.winlator.cmod.runtime.container;
 import android.os.Environment;
 
 import com.winlator.cmod.runtime.compat.box64.Box64Preset;
-import com.winlator.cmod.feature.settings.DXVKConfigDialog;
-import com.winlator.cmod.feature.settings.WineD3DConfigDialog;
 import com.winlator.cmod.runtime.wine.DefaultVersion;
 import com.winlator.cmod.runtime.wine.EnvVars;
 import com.winlator.cmod.shared.io.FileUtils;
