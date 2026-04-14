@@ -596,8 +596,9 @@ EXPORT ssize_t read(int fd, void *buf, size_t count) {
         errno = EINTR;
         return bytes_read;
       }
+      struct timespec ts = {0, 500 * 1000}; /* 0.5ms between retries */
+      nanosleep(&ts, nullptr);
       bytes_read = syscall(SYS_read, fd, buf, count);
-      continue;
     }
 
     return bytes_read;
@@ -696,7 +697,7 @@ EXPORT int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
     if (deadline_ms >= 0 && monotonic_ms() >= deadline_ms)
       return 0;
 
-    struct timespec sleep_time = {0, 5 * 1000 * 1000};
+    struct timespec sleep_time = {0, 1 * 1000 * 1000}; /* 1ms poll - reduced from 5ms for Samsung input responsiveness */
     nanosleep(&sleep_time, nullptr);
   }
 }
@@ -824,7 +825,7 @@ EXPORT int select(int nfds, fd_set *readfds, fd_set *writefds,
     if (deadline_ms >= 0 && monotonic_ms() >= deadline_ms)
       return 0;
 
-    struct timespec sleep_time = {0, 5 * 1000 * 1000};
+    struct timespec sleep_time = {0, 1 * 1000 * 1000}; /* 1ms poll - reduced from 5ms for Samsung input responsiveness */
     nanosleep(&sleep_time, nullptr);
   }
 }

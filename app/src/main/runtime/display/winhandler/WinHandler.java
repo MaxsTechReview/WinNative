@@ -659,7 +659,12 @@ public class WinHandler {
     ExternalController controller = getController(deviceId);
     if (controller != null && (handled = controller.updateStateFromMotionEvent(event))) {
       this.currentController = controller;
+      // Temporarily elevate thread priority so Samsung GOS / Game Booster
+      // cannot deprioritize gamepad I/O into a background bucket.
+      int savedPriority = android.os.Process.getThreadPriority(android.os.Process.myTid());
+      android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY);
       sendGamepadState(controller);
+      android.os.Process.setThreadPriority(savedPriority);
     }
     return handled;
   }
@@ -675,7 +680,10 @@ public class WinHandler {
       }
       if (handled) {
         this.currentController = controller;
+        int savedPriority = android.os.Process.getThreadPriority(android.os.Process.myTid());
+        android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY);
         sendGamepadState(controller);
+        android.os.Process.setThreadPriority(savedPriority);
       }
     }
     return handled;

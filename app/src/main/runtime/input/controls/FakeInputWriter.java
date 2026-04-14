@@ -4,10 +4,10 @@ import android.util.Log;
 import androidx.core.app.NotificationCompat;
 import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.nio.file.StandardOpenOption;
 
 public class FakeInputWriter {
   public static final short ABS_BRAKE = 10;
@@ -38,7 +38,6 @@ public class FakeInputWriter {
   private int prevThumbRY;
   private int prevTriggerL;
   private int prevTriggerR;
-  private RandomAccessFile raf;
   public static final short BTN_A = 304;
   public static final short BTN_B = 305;
   public static final short BTN_X = 307;
@@ -75,11 +74,18 @@ public class FakeInputWriter {
       if (!this.eventFile.exists()) {
         this.eventFile.createNewFile();
       }
-      this.raf = new RandomAccessFile(this.eventFile, "rw");
-      this.raf.seek(this.raf.length());
-      this.channel = this.raf.getChannel();
+      // Open with DSYNC so every write() forces data+metadata (st_size) to be
+      // visible immediately.  Samsung kernels defer page-cache writeback more
+      // aggressively than OnePlus/RedMagic, which causes the reader (fakeinput
+      // poll via fstat) to miss new events until the cache flushes in bulk --
+      // producing the "queue-then-burst" input lag Samsung users report.
+      this.channel = FileChannel.open(
+          this.eventFile.toPath(),
+          StandardOpenOption.WRITE,
+          StandardOpenOption.APPEND,
+          StandardOpenOption.DSYNC);
       this.isOpen = true;
-      Log.i(TAG, "Opened fake input: " + this.eventFile.getAbsolutePath());
+      Log.i(TAG, "Opened fake input (DSYNC): " + this.eventFile.getAbsolutePath());
       return true;
     } catch (IOException e) {
       Log.e(TAG, "Failed to open: " + e.getMessage());
@@ -94,13 +100,6 @@ public class FakeInputWriter {
       } catch (IOException e) {
       }
       this.channel = null;
-    }
-    if (this.raf != null) {
-      try {
-        this.raf.close();
-      } catch (IOException e2) {
-      }
-      this.raf = null;
     }
     this.isOpen = false;
   }
