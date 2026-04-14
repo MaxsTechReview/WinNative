@@ -586,8 +586,7 @@ public abstract class WineUtils {
       "dxgi",
       "wined3d"
     };
-    // evshim creates SDL virtual joysticks that Wine picks up through winebus,
-    // so Wine's builtin dinput/xinput path should stay preferred on all arches.
+    // Wine's builtin dinput/xinput path should stay preferred on all arches.
     final String[] dinputLibs = {"dinput", "dinput8"};
     final String[] xinputLibs = {
       "xinput1_1", "xinput1_2", "xinput1_3", "xinput1_4", "xinput9_1_0", "xinputuap"

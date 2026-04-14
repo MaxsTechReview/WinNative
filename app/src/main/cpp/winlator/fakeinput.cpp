@@ -274,8 +274,14 @@ EXPORT int open(const char *pathname, int flags, ...) {
   else
     fd = my_open(pathname, flags);
 
-  if (isFromInput) {
-    Logger::log("Adding controller, fd %d event %s\n", fd, get_event(pathname));
+  if (isFromInput && fd >= 0) {
+    /* Force non-blocking so Wine's joystick_hid.c never stalls inside its
+       critical section waiting for data.  poll()/select() still wake the
+       caller when events arrive; read() returns EAGAIN instead of blocking. */
+    int cur = fcntl(fd, F_GETFL);
+    if (cur >= 0 && !(cur & O_NONBLOCK))
+      fcntl(fd, F_SETFL, cur | O_NONBLOCK);
+    Logger::log("Adding controller, fd %d event %s (nonblock)\n", fd, get_event(pathname));
     controller_map[fd] = strdup(get_event(pathname));
   }
 
@@ -317,8 +323,14 @@ EXPORT int openat(int dirfd, const char *pathname, int flags, ...) {
   else
     fd = my_openat(dirfd, pathname, flags);
 
-  if (isFromInput) {
-    Logger::log("Adding controller, fd %d event %s\n", fd, get_event(pathname));
+  if (isFromInput && fd >= 0) {
+    /* Force non-blocking so Wine's joystick_hid.c never stalls inside its
+       critical section waiting for data.  poll()/select() still wake the
+       caller when events arrive; read() returns EAGAIN instead of blocking. */
+    int cur = fcntl(fd, F_GETFL);
+    if (cur >= 0 && !(cur & O_NONBLOCK))
+      fcntl(fd, F_SETFL, cur | O_NONBLOCK);
+    Logger::log("Adding controller, fd %d event %s (nonblock)\n", fd, get_event(pathname));
     controller_map[fd] = strdup(get_event(pathname));
   }
 
