@@ -31,7 +31,7 @@ static char *get_native_library_dir(JNIEnv *env, jobject context) {
     return NULL;
 
   jclass class_ =
-      (*env)->FindClass(env, "com/winlator/cmod/runtime/wine/AppUtils");
+      (*env)->FindClass(env, "com/winlator/cmod/shared/android/AppUtils");
   if (class_ == NULL) {
     (*env)->ExceptionClear(env);
     return NULL;
