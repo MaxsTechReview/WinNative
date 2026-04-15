@@ -32,6 +32,7 @@ import androidx.preference.PreferenceManager
 import com.winlator.cmod.R
 import com.winlator.cmod.app.config.SettingsConfig
 import com.winlator.cmod.app.update.UpdateChecker
+import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.runtime.audio.midi.MidiManager
 import com.winlator.cmod.runtime.display.environment.ImageFsInstaller
 import com.winlator.cmod.shared.android.AppUtils
@@ -190,6 +191,9 @@ class OtherSettingsFragment : Fragment() {
                             onShareClipboardChanged = { checked ->
                                 preferences.edit { putBoolean("share_android_clipboard", checked) }
                                 refresh()
+                            },
+                            onRunSetupWizard = {
+                                startActivity(SetupWizardActivity.createManualRerunIntent(ctx))
                             },
                             onReinstallImagefs = { startImagefsReinstall() },
                         )

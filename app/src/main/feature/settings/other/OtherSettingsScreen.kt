@@ -39,6 +39,7 @@ import androidx.compose.material.icons.outlined.Monitor
 import androidx.compose.material.icons.outlined.Mouse
 import androidx.compose.material.icons.outlined.OpenInBrowser
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.SystemUpdate
@@ -126,6 +127,7 @@ fun OtherSettingsScreen(
     onEnableFileProviderChanged: (Boolean) -> Unit,
     onOpenInBrowserChanged: (Boolean) -> Unit,
     onShareClipboardChanged: (Boolean) -> Unit,
+    onRunSetupWizard: () -> Unit,
     onReinstallImagefs: () -> Unit,
 ) {
     var showReinstallDialog by remember { mutableStateOf(false) }
@@ -264,6 +266,7 @@ fun OtherSettingsScreen(
         SectionLabel(stringResource(R.string.settings_general_imagefs), modifier = Modifier.padding(top = 8.dp))
 
         ReinstallImagefsCard(onClick = { showReinstallDialog = true })
+        SetupWizardCard(onClick = onRunSetupWizard)
 
         Spacer(Modifier.height(24.dp))
     }
@@ -1001,6 +1004,34 @@ private fun ImagefsInstallProgressDialog(percent: Int) {
 // Reinstall imagefs card with centered action button
 @Composable
 private fun ReinstallImagefsCard(onClick: () -> Unit) {
+    SettingsActionCard(
+        title = stringResource(R.string.settings_general_reinstall_imagefs),
+        subtitle = stringResource(R.string.settings_general_imagefs_summary),
+        icon = Icons.Outlined.Autorenew,
+        buttonLabel = stringResource(R.string.common_ui_reinstall),
+        onClick = onClick,
+    )
+}
+
+@Composable
+private fun SetupWizardCard(onClick: () -> Unit) {
+    SettingsActionCard(
+        title = stringResource(R.string.settings_other_setup_wizard_title),
+        subtitle = stringResource(R.string.settings_other_setup_wizard_summary),
+        icon = Icons.Outlined.Settings,
+        buttonLabel = stringResource(R.string.common_ui_open),
+        onClick = onClick,
+    )
+}
+
+@Composable
+private fun SettingsActionCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    buttonLabel: String,
+    onClick: () -> Unit,
+) {
     Box(
         modifier =
             Modifier
@@ -1009,90 +1040,47 @@ private fun ReinstallImagefsCard(onClick: () -> Unit) {
                 .background(CardDark)
                 .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
     ) {
-        Column(
+        Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(34.dp)
-                            .clip(RoundedCornerShape(9.dp))
-                            .background(IconBoxBg),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Autorenew,
-                        contentDescription = null,
-                        tint = Accent,
-                        modifier = Modifier.size(17.dp),
-                    )
-                }
-                Spacer(Modifier.width(13.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.settings_general_reinstall_imagefs),
-                        color = TextPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_general_imagefs_summary),
-                        color = TextSecondary,
-                        fontSize = 11.sp,
-                    )
-                }
+            Box(
+                modifier =
+                    Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(IconBoxBg),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Accent,
+                    modifier = Modifier.size(17.dp),
+                )
             }
-            Spacer(Modifier.height(10.dp))
-            ReinstallButton(onClick = onClick)
-        }
-    }
-}
-
-@Composable
-private fun ReinstallButton(onClick: () -> Unit) {
-    var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
-        label = "reinstallScale",
-    )
-    Box(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .scale(scale)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Accent.copy(alpha = 0.12f))
-                .border(1.dp, Accent.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
-                .pointerInput(onClick) {
-                    detectTapGestures(
-                        onPress = {
-                            isPressed = true
-                            tryAwaitRelease()
-                            isPressed = false
-                        },
-                        onTap = { onClick() },
-                    )
-                }.padding(vertical = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Outlined.Refresh,
-                contentDescription = null,
-                tint = Accent,
-                modifier = Modifier.size(16.dp),
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text = stringResource(R.string.settings_general_reinstall_imagefs),
-                color = Accent,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
+            Spacer(Modifier.width(13.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    text = subtitle,
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            SmallActionButton(
+                label = buttonLabel,
+                textColor = Accent,
+                onClick = onClick,
             )
         }
     }
@@ -1115,6 +1103,7 @@ private fun SmallActionButton(
         modifier =
             Modifier
                 .scale(scale)
+                .width(104.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))
                 .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))

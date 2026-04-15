@@ -759,6 +759,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_other_language_system_default">System default</string>
 
     <string name="settings_other_section_integration">Integration</string>
+    <string name="settings_other_setup_wizard_title">Setup Wizard</string>
+    <string name="settings_other_setup_wizard_summary">Open the setup wizard again to review permissions, system files, and default containers.</string>
     <string name="settings_other_checking_for_updates">Checking for updates\u2026</string>
     <string name="settings_other_update_check_cooldown">Please wait %1$ds before checking again</string>
     <string name="settings_other_persistable_permission_failed">Unable to take persistable permissions: %1$s</string>

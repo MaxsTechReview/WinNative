@@ -142,6 +142,8 @@ private data class TabInfo(
 class SetupWizardActivity : FragmentActivity() {
     companion object {
         private const val PREFS_NAME = "winnative_setup"
+        private const val EXTRA_FORCE_SHOW = "force_show"
+        private const val EXTRA_RETURN_TO_CALLER = "return_to_caller"
         private const val KEY_SETUP_COMPLETE = "setup_complete"
         private const val KEY_RECOMMENDED_COMPONENTS_DONE = "recommended_components_done"
         private const val KEY_DRIVERS_VISITED = "drivers_visited"
@@ -162,6 +164,12 @@ class SetupWizardActivity : FragmentActivity() {
         fun markSetupComplete(context: Context) {
             prefs(context).edit().putBoolean(KEY_SETUP_COMPLETE, true).apply()
         }
+
+        @JvmStatic
+        fun createManualRerunIntent(context: Context): Intent =
+            Intent(context, SetupWizardActivity::class.java)
+                .putExtra(EXTRA_FORCE_SHOW, true)
+                .putExtra(EXTRA_RETURN_TO_CALLER, true)
 
         @JvmStatic
         fun getPreferredGameContainer(
@@ -483,6 +491,7 @@ class SetupWizardActivity : FragmentActivity() {
     private val advancedInstalledSet = mutableStateListOf<String>()
     private val advancedContainerNames = mutableStateListOf<String>()
 
+    private var returnToCaller = false
     private var pendingContainerSettingsType: String? = null
     private var recommendedPackageRefreshInFlight = false
 
@@ -529,6 +538,8 @@ class SetupWizardActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        returnToCaller = intent?.getBooleanExtra(EXTRA_RETURN_TO_CALLER, false) == true
+        val forceShow = intent?.getBooleanExtra(EXTRA_FORCE_SHOW, false) == true
 
         supportFragmentManager.setFragmentResultListener(
             SetupWizardDriversDialogFragment.RESULT_KEY,
@@ -538,7 +549,7 @@ class SetupWizardActivity : FragmentActivity() {
             refreshWizardState()
         }
 
-        if (isSetupComplete(this) && ImageFs.find(this).isValid) {
+        if (!forceShow && isSetupComplete(this) && ImageFs.find(this).isValid) {
             launchApp()
             return
         }
@@ -1420,7 +1431,11 @@ class SetupWizardActivity : FragmentActivity() {
 
     private fun finishWizard() {
         markSetupComplete(this)
-        launchApp()
+        if (returnToCaller) {
+            finish()
+        } else {
+            launchApp()
+        }
     }
 
     private fun clearRootDir(rootDir: File) {
