@@ -1,5 +1,5 @@
 /* Settings > Components screen — Jetpack Compose / Material3.
- * Scrolling delegated to a View-level ScrollView in ContentsFragment. */
+ * Uses a LazyColumn for the main content. */
 package com.winlator.cmod.feature.settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
@@ -15,18 +15,20 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -153,80 +155,87 @@ fun ComponentsScreen(
         DownloadProgressDialog(progress = progress)
     }
 
-    Column(
+    LazyColumn(
         modifier =
             Modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
-                .background(BgDark)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .fillMaxSize()
+                .background(BgDark),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 40.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        HeroHeader(
-            installedCount = state.installed.size,
-            availableCount = state.available.size,
-            autoCreateContainer = state.autoCreateContainer,
-            onInstallFromFile = onInstallFromFile,
-            onToggleAutoCreateContainer = onToggleAutoCreateContainer,
-        )
+        item(key = "hero_header") {
+            HeroHeader(
+                installedCount = state.installed.size,
+                availableCount = state.available.size,
+                autoCreateContainer = state.autoCreateContainer,
+                onInstallFromFile = onInstallFromFile,
+                onToggleAutoCreateContainer = onToggleAutoCreateContainer,
+            )
+        }
 
-        TypeTabsCard(
-            currentType = state.currentType,
-            onTypeSelected = onTypeSelected,
-        )
+        item(key = "type_tabs") {
+            TypeTabsCard(
+                currentType = state.currentType,
+                onTypeSelected = onTypeSelected,
+            )
+        }
 
-        AnimatedContent(
-            targetState = state,
-            transitionSpec = {
-                (
-                    fadeIn(animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing))
-                        togetherWith
-                        fadeOut(animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing))
-                ).using(
-                    SizeTransform(clip = false) { _, _ ->
-                        tween(durationMillis = 140, easing = FastOutSlowInEasing)
-                    },
-                )
-            },
-            contentKey = { it.currentType },
-            label = "componentsTypeContent",
-        ) { snapshot ->
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (snapshot.installed.isEmpty() && snapshot.available.isEmpty()) {
-                    EmptyState()
-                }
-
-                if (snapshot.installed.isNotEmpty()) {
-                    SectionLabel(
-                        text = stringResource(R.string.common_ui_installed),
-                        modifier = Modifier.padding(top = 8.dp),
+        item(key = "type_content") {
+            AnimatedContent(
+                targetState = state,
+                transitionSpec = {
+                    (
+                        fadeIn(animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing))
+                            togetherWith
+                            fadeOut(animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing))
+                    ).using(
+                        SizeTransform(clip = false) { _, _ ->
+                            tween(durationMillis = 140, easing = FastOutSlowInEasing)
+                        },
                     )
-                    snapshot.installed.forEach { item ->
-                        ComponentItemCard(
-                            item = item,
-                            onDownload = { onDownloadItem(item) },
-                            onRemove = { itemPendingRemoval = item },
-                        )
+                },
+                contentKey = { it.currentType },
+                label = "componentsTypeContent",
+            ) { snapshot ->
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (snapshot.installed.isEmpty() && snapshot.available.isEmpty()) {
+                        EmptyState()
                     }
-                }
 
-                if (snapshot.available.isNotEmpty()) {
-                    SectionLabel(
-                        text = stringResource(R.string.common_ui_available),
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                    snapshot.available.forEach { item ->
-                        ComponentItemCard(
-                            item = item,
-                            onDownload = { onDownloadItem(item) },
-                            onRemove = { itemPendingRemoval = item },
+                    if (snapshot.installed.isNotEmpty()) {
+                        SectionLabel(
+                            text = stringResource(R.string.common_ui_installed),
+                            modifier = Modifier.padding(top = 8.dp),
                         )
+                        snapshot.installed.forEach { item ->
+                            ComponentItemCard(
+                                item = item,
+                                onDownload = { onDownloadItem(item) },
+                                onRemove = { itemPendingRemoval = item },
+                            )
+                        }
+                    }
+
+                    if (snapshot.available.isNotEmpty()) {
+                        SectionLabel(
+                            text = stringResource(R.string.common_ui_available),
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                        snapshot.available.forEach { item ->
+                            ComponentItemCard(
+                                item = item,
+                                onDownload = { onDownloadItem(item) },
+                                onRemove = { itemPendingRemoval = item },
+                            )
+                        }
                     }
                 }
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        item(key = "bottom_spacer") {
+            Spacer(Modifier.height(24.dp))
+        }
     }
 }
 

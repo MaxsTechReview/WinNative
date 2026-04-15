@@ -1,14 +1,10 @@
 // Settings > Presets fragment — hosts PresetsScreen via ComposeView.
 package com.winlator.cmod.feature.settings
 import android.content.SharedPreferences
-import android.graphics.drawable.GradientDrawable
-import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
-import android.widget.ScrollView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.MaterialTheme
@@ -114,182 +110,138 @@ class PresetsFragment : Fragment() {
         val ctx = requireContext()
         refresh()
 
-        val composeView =
-            ComposeView(ctx).apply {
-                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-                setContent {
-                    MaterialTheme(
-                        colorScheme =
-                            darkColorScheme(
-                                primary = Color(0xFF1A9FFF),
-                                background = Color(0xFF141B24),
-                                surface = Color(0xFF1E252E),
-                            ),
-                    ) {
-                        PresetsScreen(
-                            state = presetsState,
-                            onEngineSelected = { engine ->
-                                if (engine != currentEngine) {
-                                    currentEngine = engine
-                                    refresh()
-                                }
-                            },
-                            onPresetSelected = { presetId ->
-                                setSelectedPreset(currentEngine, presetId)
+        return ComposeView(ctx).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                MaterialTheme(
+                    colorScheme =
+                        darkColorScheme(
+                            primary = Color(0xFF1A9FFF),
+                            background = Color(0xFF141B24),
+                            surface = Color(0xFF1E252E),
+                        ),
+                ) {
+                    PresetsScreen(
+                        state = presetsState,
+                        onEngineSelected = { engine ->
+                            if (engine != currentEngine) {
+                                currentEngine = engine
                                 refresh()
-                            },
-                            onEnvVarValueChanged = { name, value ->
-                                onEnvVarValueChanged(name, value)
-                            },
-                            onCreatePreset = { rawName ->
-                                val sanitized = sanitizePresetName(rawName)
-                                if (sanitized.isEmpty()) return@PresetsScreen
-                                savePreset(
-                                    engine = currentEngine,
-                                    presetId = null,
-                                    presetName = sanitized,
-                                    envVars = buildEnvVarsFromMap(currentEngine, buildDefaultValueMap(currentEngine)),
-                                )
-                                refresh(selectLatestPreset = true)
-                            },
-                            onRenamePreset = { rawName ->
-                                val selected = selectedPresetOption() ?: return@PresetsScreen
-                                if (!selected.isCustom) {
-                                    AppUtils.showToast(requireContext(), R.string.container_presets_cannot_rename)
-                                    return@PresetsScreen
-                                }
-                                val sanitized = sanitizePresetName(rawName)
-                                if (sanitized.isEmpty()) return@PresetsScreen
-                                savePreset(
-                                    engine = currentEngine,
-                                    presetId = selected.id,
-                                    presetName = sanitized,
-                                    envVars =
-                                        buildEnvVarsFromMap(
-                                            currentEngine,
-                                            currentValues[currentEngine] ?: linkedMapOf(),
-                                        ),
-                                )
-                                refresh()
-                            },
-                            onDuplicatePreset = {
-                                val selected = selectedPresetOption() ?: return@PresetsScreen
-                                when (currentEngine) {
-                                    PresetEngine.BOX64 -> {
-                                        Box64PresetManager.duplicatePreset(
-                                            "box64",
-                                            requireContext(),
-                                            selected.id,
-                                        )
-                                    }
-
-                                    PresetEngine.FEXCORE -> {
-                                        FEXCorePresetManager.duplicatePreset(
-                                            requireContext(),
-                                            selected.id,
-                                        )
-                                    }
-                                }
-                                refresh(selectLatestPreset = true)
-                            },
-                            onExportPreset = {
-                                val selected = selectedPresetOption() ?: return@PresetsScreen
-                                if (!selected.isCustom) {
-                                    AppUtils.showToast(requireContext(), R.string.container_presets_cannot_export)
-                                    return@PresetsScreen
-                                }
-                                when (currentEngine) {
-                                    PresetEngine.BOX64 -> {
-                                        Box64PresetManager.exportPreset(
-                                            "box64",
-                                            requireContext(),
-                                            selected.id,
-                                        )
-                                    }
-
-                                    PresetEngine.FEXCORE -> {
-                                        FEXCorePresetManager.exportPreset(
-                                            requireContext(),
-                                            selected.id,
-                                        )
-                                    }
-                                }
-                            },
-                            onImportPreset = {
-                                pendingImportEngine = currentEngine
-                                importPresetPicker.launch(arrayOf("*/*"))
-                            },
-                            onRemovePreset = {
-                                val selected = selectedPresetOption() ?: return@PresetsScreen
-                                if (!selected.isCustom) {
-                                    AppUtils.showToast(requireContext(), R.string.container_presets_cannot_remove)
-                                    return@PresetsScreen
-                                }
-                                when (currentEngine) {
-                                    PresetEngine.BOX64 -> {
-                                        Box64PresetManager.removePreset(
-                                            "box64",
-                                            requireContext(),
-                                            selected.id,
-                                        )
-                                    }
-
-                                    PresetEngine.FEXCORE -> {
-                                        FEXCorePresetManager.removePreset(
-                                            requireContext(),
-                                            selected.id,
-                                        )
-                                    }
-                                }
-                                refresh()
-                            },
-                            suggestedNewPresetName = { buildDefaultPresetName(currentEngine) },
-                        )
-                    }
-                }
-            }
-
-        // Match the DriversFragment / DebugFragment pattern: outer ScrollView gives
-        // Compose a bounded height so the screen scrolls predictably across every
-        // display size. Don't add verticalScroll inside PresetsScreen while this
-        // ScrollView is the parent.
-        val density = resources.displayMetrics.density
-        val scrollView =
-            ScrollView(ctx).apply {
-                isFillViewport = true
-                scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
-                scrollBarSize = (3 * density).toInt()
-                isScrollbarFadingEnabled = true
-                scrollBarDefaultDelayBeforeFade = 400
-                scrollBarFadeDuration = 250
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    setVerticalScrollbarThumbDrawable(
-                        GradientDrawable().apply {
-                            shape = GradientDrawable.RECTANGLE
-                            setColor(android.graphics.Color.argb(100, 26, 159, 255))
-                            cornerRadius = 4 * density
+                            }
                         },
+                        onPresetSelected = { presetId ->
+                            setSelectedPreset(currentEngine, presetId)
+                            refresh()
+                        },
+                        onEnvVarValueChanged = { name, value ->
+                            onEnvVarValueChanged(name, value)
+                        },
+                        onCreatePreset = { rawName ->
+                            val sanitized = sanitizePresetName(rawName)
+                            if (sanitized.isEmpty()) return@PresetsScreen
+                            savePreset(
+                                engine = currentEngine,
+                                presetId = null,
+                                presetName = sanitized,
+                                envVars = buildEnvVarsFromMap(currentEngine, buildDefaultValueMap(currentEngine)),
+                            )
+                            refresh(selectLatestPreset = true)
+                        },
+                        onRenamePreset = { rawName ->
+                            val selected = selectedPresetOption() ?: return@PresetsScreen
+                            if (!selected.isCustom) {
+                                AppUtils.showToast(requireContext(), R.string.container_presets_cannot_rename)
+                                return@PresetsScreen
+                            }
+                            val sanitized = sanitizePresetName(rawName)
+                            if (sanitized.isEmpty()) return@PresetsScreen
+                            savePreset(
+                                engine = currentEngine,
+                                presetId = selected.id,
+                                presetName = sanitized,
+                                envVars =
+                                    buildEnvVarsFromMap(
+                                        currentEngine,
+                                        currentValues[currentEngine] ?: linkedMapOf(),
+                                    ),
+                            )
+                            refresh()
+                        },
+                        onDuplicatePreset = {
+                            val selected = selectedPresetOption() ?: return@PresetsScreen
+                            when (currentEngine) {
+                                PresetEngine.BOX64 -> {
+                                    Box64PresetManager.duplicatePreset(
+                                        "box64",
+                                        requireContext(),
+                                        selected.id,
+                                    )
+                                }
+
+                                PresetEngine.FEXCORE -> {
+                                    FEXCorePresetManager.duplicatePreset(
+                                        requireContext(),
+                                        selected.id,
+                                    )
+                                }
+                            }
+                            refresh(selectLatestPreset = true)
+                        },
+                        onExportPreset = {
+                            val selected = selectedPresetOption() ?: return@PresetsScreen
+                            if (!selected.isCustom) {
+                                AppUtils.showToast(requireContext(), R.string.container_presets_cannot_export)
+                                return@PresetsScreen
+                            }
+                            when (currentEngine) {
+                                PresetEngine.BOX64 -> {
+                                    Box64PresetManager.exportPreset(
+                                        "box64",
+                                        requireContext(),
+                                        selected.id,
+                                    )
+                                }
+
+                                PresetEngine.FEXCORE -> {
+                                    FEXCorePresetManager.exportPreset(
+                                        requireContext(),
+                                        selected.id,
+                                    )
+                                }
+                            }
+                        },
+                        onImportPreset = {
+                            pendingImportEngine = currentEngine
+                            importPresetPicker.launch(arrayOf("*/*"))
+                        },
+                        onRemovePreset = {
+                            val selected = selectedPresetOption() ?: return@PresetsScreen
+                            if (!selected.isCustom) {
+                                AppUtils.showToast(requireContext(), R.string.container_presets_cannot_remove)
+                                return@PresetsScreen
+                            }
+                            when (currentEngine) {
+                                PresetEngine.BOX64 -> {
+                                    Box64PresetManager.removePreset(
+                                        "box64",
+                                        requireContext(),
+                                        selected.id,
+                                    )
+                                }
+
+                                PresetEngine.FEXCORE -> {
+                                    FEXCorePresetManager.removePreset(
+                                        requireContext(),
+                                        selected.id,
+                                    )
+                                }
+                            }
+                            refresh()
+                        },
+                        suggestedNewPresetName = { buildDefaultPresetName(currentEngine) },
                     )
                 }
-                addView(
-                    composeView,
-                    ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ),
-                )
             }
-
-        return FrameLayout(ctx).apply {
-            setBackgroundColor(android.graphics.Color.parseColor("#18181D"))
-            addView(
-                scrollView,
-                FrameLayout
-                    .LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                    ).apply { marginEnd = (10 * density).toInt() },
-            )
         }
     }
 

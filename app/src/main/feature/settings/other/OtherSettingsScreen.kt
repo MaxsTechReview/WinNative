@@ -1,6 +1,5 @@
 /* Settings > Other screen — Jetpack Compose / Material3.
- * Scrolling delegated to a View-level ScrollView in OtherSettingsFragment,
- * matching StoresFragment and DebugFragment. */
+ * Uses a LazyColumn for the main content so the screen scrolls natively in Compose. */
 package com.winlator.cmod.feature.settings
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
@@ -12,11 +11,14 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -24,7 +26,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -146,129 +147,176 @@ fun OtherSettingsScreen(
         ImagefsInstallProgressDialog(percent = percent)
     }
 
-    Column(
+    LazyColumn(
         modifier =
             Modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
-                .background(BgDark)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .fillMaxSize()
+                .background(BgDark),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 40.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        SectionLabel(stringResource(R.string.common_ui_application))
+        item(key = "application_section") {
+            SectionLabel(stringResource(R.string.common_ui_application))
+        }
 
-        UpdatesCard(
-            checked = state.checkForUpdates,
-            onCheckedChange = onCheckForUpdatesChanged,
-            onCheckNow = onCheckForUpdatesNow,
-        )
+        item(key = "updates_card") {
+            UpdatesCard(
+                checked = state.checkForUpdates,
+                onCheckedChange = onCheckForUpdatesChanged,
+                onCheckNow = onCheckForUpdatesNow,
+            )
+        }
 
-        SettingsDropdownCard(
-            title = stringResource(R.string.settings_other_language_title),
-            subtitle = stringResource(R.string.settings_other_language_summary),
-            icon = Icons.Outlined.Language,
-            options = state.languageLabels,
-            selectedIndex = state.languageIndex,
-            onOptionSelected = onLanguageSelected,
-        )
+        item(key = "language_card") {
+            SettingsDropdownCard(
+                title = stringResource(R.string.settings_other_language_title),
+                subtitle = stringResource(R.string.settings_other_language_summary),
+                icon = Icons.Outlined.Language,
+                options = state.languageLabels,
+                selectedIndex = state.languageIndex,
+                onOptionSelected = onLanguageSelected,
+            )
+        }
 
-        SectionLabel(stringResource(R.string.session_display_title), modifier = Modifier.padding(top = 8.dp))
+        item(key = "display_section") {
+            SectionLabel(stringResource(R.string.session_display_title), modifier = Modifier.padding(top = 8.dp))
+        }
 
-        SettingsDropdownCard(
-            title = stringResource(R.string.settings_general_refresh_rate),
-            subtitle = stringResource(R.string.settings_general_refresh_rate_summary),
-            icon = Icons.Outlined.Monitor,
-            options = state.refreshRateLabels,
-            selectedIndex = state.refreshRateIndex,
-            onOptionSelected = onRefreshRateSelected,
-        )
+        item(key = "refresh_rate_card") {
+            SettingsDropdownCard(
+                title = stringResource(R.string.settings_general_refresh_rate),
+                subtitle = stringResource(R.string.settings_general_refresh_rate_summary),
+                icon = Icons.Outlined.Monitor,
+                options = state.refreshRateLabels,
+                selectedIndex = state.refreshRateIndex,
+                onOptionSelected = onRefreshRateSelected,
+            )
+        }
 
-        SectionLabel(stringResource(R.string.settings_audio_sound), modifier = Modifier.padding(top = 8.dp))
+        item(key = "audio_section") {
+            SectionLabel(stringResource(R.string.settings_audio_sound), modifier = Modifier.padding(top = 8.dp))
+        }
 
-        SoundFontCard(
-            files = state.soundFontFiles,
-            selectedIndex = state.soundFontIndex,
-            onSelected = onSoundFontSelected,
-            onInstall = onInstallSoundFont,
-            onRemove = onRemoveSoundFont,
-        )
+        item(key = "sound_font_card") {
+            SoundFontCard(
+                files = state.soundFontFiles,
+                selectedIndex = state.soundFontIndex,
+                onSelected = onSoundFontSelected,
+                onInstall = onInstallSoundFont,
+                onRemove = onRemoveSoundFont,
+            )
+        }
 
-        SectionLabel(stringResource(R.string.settings_general_paths_title), modifier = Modifier.padding(top = 8.dp))
+        item(key = "paths_section") {
+            SectionLabel(stringResource(R.string.settings_general_paths_title), modifier = Modifier.padding(top = 8.dp))
+        }
 
-        FolderPathCard(
-            label = stringResource(R.string.settings_general_winlator_path_title),
-            path = state.winlatorPath,
-            onBrowse = onPickWinlatorPath,
-        )
-        FolderPathCard(
-            label = stringResource(R.string.settings_general_shortcut_export_path_title),
-            path = state.shortcutExportPath,
-            onBrowse = onPickShortcutExportPath,
-        )
+        item(key = "winlator_path_card") {
+            FolderPathCard(
+                label = stringResource(R.string.settings_general_winlator_path_title),
+                path = state.winlatorPath,
+                onBrowse = onPickWinlatorPath,
+            )
+        }
 
-        SectionLabel(stringResource(R.string.session_xserver_title), modifier = Modifier.padding(top = 8.dp))
+        item(key = "shortcut_export_path_card") {
+            FolderPathCard(
+                label = stringResource(R.string.settings_general_shortcut_export_path_title),
+                path = state.shortcutExportPath,
+                onBrowse = onPickShortcutExportPath,
+            )
+        }
 
-        CursorSpeedCard(
-            percent = state.cursorSpeedPercent,
-            onPercentChanged = onCursorSpeedChanged,
-        )
+        item(key = "xserver_section") {
+            SectionLabel(stringResource(R.string.session_xserver_title), modifier = Modifier.padding(top = 8.dp))
+        }
 
-        SettingsToggleCard(
-            title = stringResource(R.string.session_xserver_use_dri3_extension),
-            subtitle = stringResource(R.string.session_xserver_use_dri3_description),
-            icon = Icons.Outlined.Visibility,
-            checked = state.useDRI3,
-            onCheckedChange = onUseDRI3Changed,
-        )
+        item(key = "cursor_speed_card") {
+            CursorSpeedCard(
+                percent = state.cursorSpeedPercent,
+                onPercentChanged = onCursorSpeedChanged,
+            )
+        }
 
-        SettingsToggleCard(
-            title = stringResource(R.string.settings_general_cursor_lock_title),
-            subtitle = stringResource(R.string.settings_general_cursor_lock_summary),
-            icon = Icons.Outlined.Mouse,
-            checked = state.cursorLock,
-            onCheckedChange = onCursorLockChanged,
-        )
+        item(key = "use_dri3_card") {
+            SettingsToggleCard(
+                title = stringResource(R.string.session_xserver_use_dri3_extension),
+                subtitle = stringResource(R.string.session_xserver_use_dri3_description),
+                icon = Icons.Outlined.Visibility,
+                checked = state.useDRI3,
+                onCheckedChange = onUseDRI3Changed,
+            )
+        }
 
-        SettingsToggleCard(
-            title = stringResource(R.string.settings_general_xinput_toggle_title),
-            subtitle = stringResource(R.string.settings_general_xinput_toggle_summary),
-            icon = Icons.Outlined.SportsEsports,
-            checked = state.xinputDisabled,
-            onCheckedChange = onXinputDisabledChanged,
-        )
+        item(key = "cursor_lock_card") {
+            SettingsToggleCard(
+                title = stringResource(R.string.settings_general_cursor_lock_title),
+                subtitle = stringResource(R.string.settings_general_cursor_lock_summary),
+                icon = Icons.Outlined.Mouse,
+                checked = state.cursorLock,
+                onCheckedChange = onCursorLockChanged,
+            )
+        }
 
-        SectionLabel(stringResource(R.string.settings_other_section_integration), modifier = Modifier.padding(top = 8.dp))
+        item(key = "xinput_card") {
+            SettingsToggleCard(
+                title = stringResource(R.string.settings_general_xinput_toggle_title),
+                subtitle = stringResource(R.string.settings_general_xinput_toggle_summary),
+                icon = Icons.Outlined.SportsEsports,
+                checked = state.xinputDisabled,
+                onCheckedChange = onXinputDisabledChanged,
+            )
+        }
 
-        SettingsToggleCard(
-            title = stringResource(R.string.settings_general_enable_file_provider),
-            subtitle = stringResource(R.string.settings_general_file_provider_summary),
-            icon = Icons.Outlined.Folder,
-            checked = state.enableFileProvider,
-            onCheckedChange = onEnableFileProviderChanged,
-        )
+        item(key = "integration_section") {
+            SectionLabel(stringResource(R.string.settings_other_section_integration), modifier = Modifier.padding(top = 8.dp))
+        }
 
-        SettingsToggleCard(
-            title = stringResource(R.string.settings_general_open_with_android_browser),
-            subtitle = stringResource(R.string.settings_general_open_browser_summary),
-            icon = Icons.Outlined.OpenInBrowser,
-            checked = state.openInBrowser,
-            onCheckedChange = onOpenInBrowserChanged,
-        )
+        item(key = "file_provider_card") {
+            SettingsToggleCard(
+                title = stringResource(R.string.settings_general_enable_file_provider),
+                subtitle = stringResource(R.string.settings_general_file_provider_summary),
+                icon = Icons.Outlined.Folder,
+                checked = state.enableFileProvider,
+                onCheckedChange = onEnableFileProviderChanged,
+            )
+        }
 
-        SettingsToggleCard(
-            title = stringResource(R.string.settings_general_share_android_clipboard),
-            subtitle = stringResource(R.string.settings_general_clipboard_summary),
-            icon = Icons.Outlined.ContentCopy,
-            checked = state.shareClipboard,
-            onCheckedChange = onShareClipboardChanged,
-        )
+        item(key = "browser_card") {
+            SettingsToggleCard(
+                title = stringResource(R.string.settings_general_open_with_android_browser),
+                subtitle = stringResource(R.string.settings_general_open_browser_summary),
+                icon = Icons.Outlined.OpenInBrowser,
+                checked = state.openInBrowser,
+                onCheckedChange = onOpenInBrowserChanged,
+            )
+        }
 
-        SectionLabel(stringResource(R.string.settings_general_imagefs), modifier = Modifier.padding(top = 8.dp))
+        item(key = "clipboard_card") {
+            SettingsToggleCard(
+                title = stringResource(R.string.settings_general_share_android_clipboard),
+                subtitle = stringResource(R.string.settings_general_clipboard_summary),
+                icon = Icons.Outlined.ContentCopy,
+                checked = state.shareClipboard,
+                onCheckedChange = onShareClipboardChanged,
+            )
+        }
 
-        ReinstallImagefsCard(onClick = { showReinstallDialog = true })
-        SetupWizardCard(onClick = onRunSetupWizard)
+        item(key = "imagefs_section") {
+            SectionLabel(stringResource(R.string.settings_general_imagefs), modifier = Modifier.padding(top = 8.dp))
+        }
 
-        Spacer(Modifier.height(24.dp))
+        item(key = "reinstall_imagefs_card") {
+            ReinstallImagefsCard(onClick = { showReinstallDialog = true })
+        }
+
+        item(key = "setup_wizard_card") {
+            SetupWizardCard(onClick = onRunSetupWizard)
+        }
+
+        item(key = "bottom_spacer") {
+            Spacer(Modifier.height(24.dp))
+        }
     }
 }
 

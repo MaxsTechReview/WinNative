@@ -1,16 +1,12 @@
 /* Components screen — Jetpack Compose host.
  * Hosts ComponentsScreen; orchestrates install / download / remove flows. */
 package com.winlator.cmod.feature.settings
-import android.graphics.drawable.GradientDrawable
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
-import android.widget.ScrollView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.MaterialTheme
@@ -95,79 +91,39 @@ class ContentsFragment : Fragment() {
         val ctx = requireContext()
         publishState()
 
-        val composeView =
-            ComposeView(ctx).apply {
-                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-                setContent {
-                    MaterialTheme(
-                        colorScheme =
-                            darkColorScheme(
-                                primary = Color(0xFF1A9FFF),
-                                background = Color(0xFF141B24),
-                                surface = Color(0xFF1E252E),
-                            ),
-                    ) {
-                        ComponentsScreen(
-                            state = componentsState,
-                            onTypeSelected = { type -> selectContentType(type) },
-                            onInstallFromFile = { promptInstallFromFile() },
-                            onDownloadItem = { item ->
-                                profilesByKey[item.key]?.let { downloadRemoteContent(it) }
-                            },
-                            onRemoveItem = { item ->
-                                profilesByKey[item.key]?.let { onRemoveRequested(it) }
-                            },
-                            onToggleAutoCreateContainer = { enabled ->
-                                autoCreateContainer = enabled
-                                PreferenceManager
-                                    .getDefaultSharedPreferences(requireContext())
-                                    .edit()
-                                    .putBoolean(PREF_AUTO_CREATE_CONTAINER, enabled)
-                                    .apply()
-                                publishState()
-                            },
-                        )
-                    }
-                }
-            }
-
-        val density = resources.displayMetrics.density
-        val scrollView =
-            ScrollView(ctx).apply {
-                isFillViewport = true
-                scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
-                scrollBarSize = (3 * density).toInt()
-                isScrollbarFadingEnabled = true
-                scrollBarDefaultDelayBeforeFade = 400
-                scrollBarFadeDuration = 250
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    setVerticalScrollbarThumbDrawable(
-                        GradientDrawable().apply {
-                            shape = GradientDrawable.RECTANGLE
-                            setColor(android.graphics.Color.argb(100, 26, 159, 255))
-                            cornerRadius = 4 * density
+        return ComposeView(ctx).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                MaterialTheme(
+                    colorScheme =
+                        darkColorScheme(
+                            primary = Color(0xFF1A9FFF),
+                            background = Color(0xFF141B24),
+                            surface = Color(0xFF1E252E),
+                        ),
+                ) {
+                    ComponentsScreen(
+                        state = componentsState,
+                        onTypeSelected = { type -> selectContentType(type) },
+                        onInstallFromFile = { promptInstallFromFile() },
+                        onDownloadItem = { item ->
+                            profilesByKey[item.key]?.let { downloadRemoteContent(it) }
+                        },
+                        onRemoveItem = { item ->
+                            profilesByKey[item.key]?.let { onRemoveRequested(it) }
+                        },
+                        onToggleAutoCreateContainer = { enabled ->
+                            autoCreateContainer = enabled
+                            PreferenceManager
+                                .getDefaultSharedPreferences(requireContext())
+                                .edit()
+                                .putBoolean(PREF_AUTO_CREATE_CONTAINER, enabled)
+                                .apply()
+                            publishState()
                         },
                     )
                 }
-                addView(
-                    composeView,
-                    ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ),
-                )
             }
-
-        return FrameLayout(ctx).apply {
-            setBackgroundColor(android.graphics.Color.parseColor("#18181D"))
-            addView(
-                scrollView,
-                FrameLayout
-                    .LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                    ).apply { marginEnd = (10 * density).toInt() },
-            )
         }
     }
 

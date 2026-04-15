@@ -4,9 +4,8 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
-import android.widget.ScrollView
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
 
 class GoogleFragment : Fragment() {
@@ -14,25 +13,13 @@ class GoogleFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
-    ): View {
-        val scrollView =
-            ScrollView(requireContext()).apply {
-                layoutParams =
-                    FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                    )
-                isFillViewport = true
+    ): View =
+        ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                GoogleScreen()
             }
-        val composeView =
-            ComposeView(requireContext()).apply {
-                setContent {
-                    GoogleScreen()
-                }
-            }
-        scrollView.addView(composeView)
-        return scrollView
-    }
+        }
 
     fun onSavedGamesPermissionResult(
         resultCode: Int,

@@ -15,17 +15,22 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -78,6 +83,7 @@ fun GoogleScreen() {
     val context = LocalContext.current
     val activity = context as? Activity
     val scope = rememberCoroutineScope()
+    val navBarBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     var googleSignedIn by remember { mutableStateOf(false) }
     var syncState by remember { mutableStateOf(CloudSyncManager.StoreLoginSyncState()) }
@@ -107,109 +113,126 @@ fun GoogleScreen() {
         busy = false
     }
 
-    Column(
+    LazyColumn(
         modifier =
             Modifier
-                .fillMaxWidth()
-                .background(BgDark)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .fillMaxSize()
+                .background(BgDark),
+        contentPadding =
+            PaddingValues(
+                start = 16.dp,
+                top = 16.dp,
+                end = 16.dp,
+                bottom = 16.dp + navBarBottomPadding,
+            ),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        SectionLabel(stringResource(R.string.google_cloud_services))
+        item("services_section") {
+            SectionLabel(stringResource(R.string.google_cloud_services))
+        }
 
-        GoogleAccountCard(
-            isLoggedIn = googleSignedIn,
-            busy = busy,
-            onSignIn = {
-                val currentActivity = activity ?: return@GoogleAccountCard
-                busy = true
-                CloudSyncManager.signIn(currentActivity) { success, message ->
-                    busy = false
-                    googleSignedIn = success
-                    AppUtils.showToast(context, message)
-                    refreshState()
-                }
-            },
-            onSignOut = {
-                val currentActivity = activity ?: return@GoogleAccountCard
-                busy = true
-                CloudSyncManager.signOut(currentActivity) { success, message ->
-                    busy = false
-                    googleSignedIn = !success
-                    AppUtils.showToast(context, message)
-                    refreshState()
-                }
-            },
-        )
-
-        SectionLabel(stringResource(R.string.google_cloud_store_logins), modifier = Modifier.padding(top = 8.dp))
-
-        StoreLoginCard(
-            state = syncState,
-            busy = busy,
-            onBackup = {
-                val currentActivity = activity ?: return@StoreLoginCard
-                busy = true
-                scope.launch {
-                    try {
-                        val message = CloudSyncManager.backupStoreLogins(currentActivity)
-                        AppUtils.showToast(context, message)
-                        syncState = CloudSyncManager.readStoreLoginState(currentActivity)
-                        googleSignedIn = syncState.googleSignedIn
-                    } finally {
+        item("google_account_card") {
+            GoogleAccountCard(
+                isLoggedIn = googleSignedIn,
+                busy = busy,
+                onSignIn = {
+                    val currentActivity = activity ?: return@GoogleAccountCard
+                    busy = true
+                    CloudSyncManager.signIn(currentActivity) { success, message ->
                         busy = false
-                    }
-                }
-            },
-            onRestore = {
-                val currentActivity = activity ?: return@StoreLoginCard
-                busy = true
-                scope.launch {
-                    try {
-                        val message = CloudSyncManager.restoreStoreLogins(currentActivity)
+                        googleSignedIn = success
                         AppUtils.showToast(context, message)
-                        syncState = CloudSyncManager.readStoreLoginState(currentActivity)
-                        googleSignedIn = syncState.googleSignedIn
-                    } finally {
-                        busy = false
+                        refreshState()
                     }
-                }
-            },
-        )
+                },
+                onSignOut = {
+                    val currentActivity = activity ?: return@GoogleAccountCard
+                    busy = true
+                    CloudSyncManager.signOut(currentActivity) { success, message ->
+                        busy = false
+                        googleSignedIn = !success
+                        AppUtils.showToast(context, message)
+                        refreshState()
+                    }
+                },
+            )
+        }
 
-        SectionLabel(stringResource(R.string.google_cloud_auto_backup), modifier = Modifier.padding(top = 8.dp))
+        item("store_logins_section") {
+            SectionLabel(stringResource(R.string.google_cloud_store_logins), modifier = Modifier.padding(top = 8.dp))
+        }
 
-        AutoBackupCard(
-            enabled = autoBackupEnabled,
-            googleSignedIn = googleSignedIn,
-            busy = busy,
-            onToggle = { newValue ->
-                if (newValue) {
-                    val currentActivity = activity ?: return@AutoBackupCard
+        item("store_login_card") {
+            StoreLoginCard(
+                state = syncState,
+                busy = busy,
+                onBackup = {
+                    val currentActivity = activity ?: return@StoreLoginCard
                     busy = true
                     scope.launch {
                         try {
-                            val alreadyAuthorized = GameSaveBackupManager.requestDriveAuthorization(currentActivity)
-                            if (alreadyAuthorized) {
-                                autoBackupEnabled = true
-                                autoBackupPrefs.edit().putBoolean("cloud_sync_auto_backup", true).apply()
-                            } else {
-                                // Consent UI launched — toggle will be enabled after user grants access
-                                autoBackupEnabled = true
-                                autoBackupPrefs.edit().putBoolean("cloud_sync_auto_backup", true).apply()
-                            }
-                        } catch (e: Exception) {
-                            AppUtils.showToast(context, "Drive authorization failed: ${e.message}")
+                            val message = CloudSyncManager.backupStoreLogins(currentActivity)
+                            AppUtils.showToast(context, message)
+                            syncState = CloudSyncManager.readStoreLoginState(currentActivity)
+                            googleSignedIn = syncState.googleSignedIn
                         } finally {
                             busy = false
                         }
                     }
-                } else {
-                    autoBackupEnabled = false
-                    autoBackupPrefs.edit().putBoolean("cloud_sync_auto_backup", false).apply()
-                }
-            },
-        )
+                },
+                onRestore = {
+                    val currentActivity = activity ?: return@StoreLoginCard
+                    busy = true
+                    scope.launch {
+                        try {
+                            val message = CloudSyncManager.restoreStoreLogins(currentActivity)
+                            AppUtils.showToast(context, message)
+                            syncState = CloudSyncManager.readStoreLoginState(currentActivity)
+                            googleSignedIn = syncState.googleSignedIn
+                        } finally {
+                            busy = false
+                        }
+                    }
+                },
+            )
+        }
+
+        item("auto_backup_section") {
+            SectionLabel(stringResource(R.string.google_cloud_auto_backup), modifier = Modifier.padding(top = 8.dp))
+        }
+
+        item("auto_backup_card") {
+            AutoBackupCard(
+                enabled = autoBackupEnabled,
+                googleSignedIn = googleSignedIn,
+                busy = busy,
+                onToggle = { newValue ->
+                    if (newValue) {
+                        val currentActivity = activity ?: return@AutoBackupCard
+                        busy = true
+                        scope.launch {
+                            try {
+                                val alreadyAuthorized = GameSaveBackupManager.requestDriveAuthorization(currentActivity)
+                                if (alreadyAuthorized) {
+                                    autoBackupEnabled = true
+                                    autoBackupPrefs.edit().putBoolean("cloud_sync_auto_backup", true).apply()
+                                } else {
+                                    autoBackupEnabled = true
+                                    autoBackupPrefs.edit().putBoolean("cloud_sync_auto_backup", true).apply()
+                                }
+                            } catch (e: Exception) {
+                                AppUtils.showToast(context, "Drive authorization failed: ${e.message}")
+                            } finally {
+                                busy = false
+                            }
+                        }
+                    } else {
+                        autoBackupEnabled = false
+                        autoBackupPrefs.edit().putBoolean("cloud_sync_auto_backup", false).apply()
+                    }
+                },
+            )
+        }
     }
 }
 

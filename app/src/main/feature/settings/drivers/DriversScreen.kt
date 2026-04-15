@@ -12,10 +12,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -234,85 +236,105 @@ fun DriversScreen(
         DownloadProgressDialog(progress = progress)
     }
 
-    Column(
+    LazyColumn(
         modifier =
             Modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
-                .background(BgDark)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .fillMaxSize()
+                .background(BgDark),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 40.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        HeroHeader(
-            installedCount = state.installedDrivers.size,
-            repoCount = state.sources.size,
-            isBusy = state.loadingSourceApiUrl != null,
-            onInstall = onInstallFromFile,
-            onAddRepo = { showAddRepoDialog = true },
-        )
-
-        if (state.installedDrivers.isEmpty() && state.sources.isEmpty()) {
-            EmptyState()
+        item(key = "hero_header") {
+            HeroHeader(
+                installedCount = state.installedDrivers.size,
+                repoCount = state.sources.size,
+                isBusy = state.loadingSourceApiUrl != null,
+                onInstall = onInstallFromFile,
+                onAddRepo = { showAddRepoDialog = true },
+            )
         }
 
-        if (state.installedDrivers.isNotEmpty()) {
-            SectionLabel(
-                text = stringResource(R.string.common_ui_installed),
-                modifier = Modifier.padding(top = 8.dp),
-            )
-            state.installedDrivers.forEach { driver ->
-                InstalledDriverCard(
-                    driver = driver,
-                    onRemove = { driverPendingRemoval = driver },
+        item(key = "empty_state") {
+            if (state.installedDrivers.isEmpty() && state.sources.isEmpty()) {
+                EmptyState()
+            }
+        }
+
+        item(key = "installed_section") {
+            if (state.installedDrivers.isNotEmpty()) {
+                SectionLabel(
+                    text = stringResource(R.string.common_ui_installed),
+                    modifier = Modifier.padding(top = 8.dp),
                 )
             }
         }
 
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-            verticalAlignment = Alignment.Bottom,
-        ) {
-            SectionLabel(
-                text = stringResource(R.string.settings_drivers_github_repos),
-                modifier = Modifier.weight(1f),
-            )
-            if (state.hasMissingDefaults) {
-                SmallPillButton(
-                    label = "Restore defaults",
-                    icon = Icons.Outlined.Restore,
-                    tint = Accent,
-                    onClick = onRestoreDefaultRepos,
-                )
+        item(key = "installed_drivers") {
+            if (state.installedDrivers.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.installedDrivers.forEach { driver ->
+                        InstalledDriverCard(
+                            driver = driver,
+                            onRemove = { driverPendingRemoval = driver },
+                        )
+                    }
+                }
             }
         }
 
-        if (state.sources.isEmpty()) {
-            EmptyRepoCard()
+        item(key = "repos_header") {
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                SectionLabel(
+                    text = stringResource(R.string.settings_drivers_github_repos),
+                    modifier = Modifier.weight(1f),
+                )
+                if (state.hasMissingDefaults) {
+                    SmallPillButton(
+                        label = "Restore defaults",
+                        icon = Icons.Outlined.Restore,
+                        tint = Accent,
+                        onClick = onRestoreDefaultRepos,
+                    )
+                }
+            }
         }
 
-        state.sources.forEachIndexed { index, source ->
-            val releases = state.releasesBySource[source.apiUrl].orEmpty()
-            val isExpanded = state.expandedSourceApiUrl == source.apiUrl
-            val isLoading = state.loadingSourceApiUrl == source.apiUrl
-            RepoCard(
-                source = source,
-                isExpanded = isExpanded,
-                isLoading = isLoading,
-                releases = releases,
-                expandedReleaseId = state.expandedReleaseId,
-                installedAssetNames = state.installedAssetNames,
-                onTap = { onSourceTapped(source) },
-                onReleaseTap = onReleaseTapped,
-                onDownloadAsset = onDownloadAsset,
-                onEdit = { editingRepo = index to source },
-                onDelete = { repoPendingRemoval = index to source },
-            )
+        item(key = "repos_content") {
+            if (state.sources.isEmpty()) {
+                EmptyRepoCard()
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.sources.forEachIndexed { index, source ->
+                        val releases = state.releasesBySource[source.apiUrl].orEmpty()
+                        val isExpanded = state.expandedSourceApiUrl == source.apiUrl
+                        val isLoading = state.loadingSourceApiUrl == source.apiUrl
+                        RepoCard(
+                            source = source,
+                            isExpanded = isExpanded,
+                            isLoading = isLoading,
+                            releases = releases,
+                            expandedReleaseId = state.expandedReleaseId,
+                            installedAssetNames = state.installedAssetNames,
+                            onTap = { onSourceTapped(source) },
+                            onReleaseTap = onReleaseTapped,
+                            onDownloadAsset = onDownloadAsset,
+                            onEdit = { editingRepo = index to source },
+                            onDelete = { repoPendingRemoval = index to source },
+                        )
+                    }
+                }
+            }
         }
 
-        Spacer(Modifier.height(24.dp))
+        item(key = "bottom_spacer") {
+            Spacer(Modifier.height(24.dp))
+        }
     }
 }
 

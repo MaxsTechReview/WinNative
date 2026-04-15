@@ -8,6 +8,8 @@ import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,9 +21,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.AccountCircle
@@ -128,17 +128,32 @@ fun SettingsNavSidebar(
             SidebarHeader(onBackPressed)
 
             // Scrollable nav items
-            Column(
+            LazyColumn(
                 modifier =
                     Modifier
                         .weight(1f)
-                        .verticalScroll(rememberScrollState())
                         .padding(start = 8.dp, end = 8.dp, top = 2.dp, bottom = 16.dp),
             ) {
                 NavSection.entries.forEachIndexed { index, section ->
-                    if (index > 0) Spacer(Modifier.height(4.dp))
-                    SectionHeader(section.name)
-                    sectionedNavItems[section]?.forEach { item ->
+                    if (index > 0) {
+                        item(
+                            key = "spacer_${section.name}",
+                            contentType = "sectionSpacer",
+                        ) {
+                            Spacer(Modifier.height(4.dp))
+                        }
+                    }
+                    item(
+                        key = "header_${section.name}",
+                        contentType = "sectionHeader",
+                    ) {
+                        SectionHeader(section.name)
+                    }
+                    items(
+                        items = sectionedNavItems[section].orEmpty(),
+                        key = { it.name },
+                        contentType = { "navItem" },
+                    ) { item ->
                         NavItemRow(
                             item = item,
                             isSelected = item == selectedItem,

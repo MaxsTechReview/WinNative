@@ -1,5 +1,5 @@
 /* Settings > Stores screen — Jetpack Compose / Material3.
- * Scrolling delegated to a View-level ScrollView in StoresFragment. */
+ * Uses a LazyColumn for the main content. */
 package com.winlator.cmod.feature.settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
@@ -19,11 +19,14 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -31,7 +34,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -128,103 +130,124 @@ fun StoresScreen(
     onPickEpicFolder: () -> Unit,
     onPickGogFolder: () -> Unit,
 ) {
-    Column(
+    LazyColumn(
         modifier =
             Modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
-                .background(BgDark)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .fillMaxSize()
+                .background(BgDark),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 40.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        SectionLabel("Connected Stores")
+        item(key = "stores_section") {
+            SectionLabel("Connected Stores")
+        }
 
-        StoreCard(
-            name = "Steam",
-            icon = Icons.Outlined.Gamepad,
-            accentColor = Color(0xFF66C0F4),
-            isLoggedIn = state.isSteamLoggedIn,
-            onSignIn = onSteamSignIn,
-            onSignOut = onSteamSignOut,
-        )
-        StoreCard(
-            name = "Epic Games",
-            icon = Icons.Outlined.Gamepad,
-            accentColor = Color(0xFF8BAFD4),
-            isLoggedIn = state.isEpicLoggedIn,
-            onSignIn = onEpicSignIn,
-            onSignOut = onEpicSignOut,
-        )
-        StoreCard(
-            name = "GOG",
-            icon = Icons.Outlined.Gamepad,
-            accentColor = Color(0xFFA855F7),
-            isLoggedIn = state.isGogLoggedIn,
-            onSignIn = onGogSignIn,
-            onSignOut = onGogSignOut,
-        )
+        item(key = "steam_card") {
+            StoreCard(
+                name = "Steam",
+                icon = Icons.Outlined.Gamepad,
+                accentColor = Color(0xFF66C0F4),
+                isLoggedIn = state.isSteamLoggedIn,
+                onSignIn = onSteamSignIn,
+                onSignOut = onSteamSignOut,
+            )
+        }
+        item(key = "epic_card") {
+            StoreCard(
+                name = "Epic Games",
+                icon = Icons.Outlined.Gamepad,
+                accentColor = Color(0xFF8BAFD4),
+                isLoggedIn = state.isEpicLoggedIn,
+                onSignIn = onEpicSignIn,
+                onSignOut = onEpicSignOut,
+            )
+        }
+        item(key = "gog_card") {
+            StoreCard(
+                name = "GOG",
+                icon = Icons.Outlined.Gamepad,
+                accentColor = Color(0xFFA855F7),
+                isLoggedIn = state.isGogLoggedIn,
+                onSignIn = onGogSignIn,
+                onSignOut = onGogSignOut,
+            )
+        }
 
-        SectionLabel("Download Settings", modifier = Modifier.padding(top = 8.dp))
+        item(key = "download_section") {
+            SectionLabel("Download Settings", modifier = Modifier.padding(top = 8.dp))
+        }
 
-        SettingsToggleCard(
-            title = stringResource(R.string.stores_accounts_shared_downloads_folder),
-            subtitle = stringResource(R.string.stores_accounts_shared_downloads_subtitle),
-            icon = Icons.Outlined.FolderShared,
-            checked = state.sharedFolder,
-            onCheckedChange = onSharedFolderChanged,
-        )
+        item(key = "shared_folder_toggle") {
+            SettingsToggleCard(
+                title = stringResource(R.string.stores_accounts_shared_downloads_folder),
+                subtitle = stringResource(R.string.stores_accounts_shared_downloads_subtitle),
+                icon = Icons.Outlined.FolderShared,
+                checked = state.sharedFolder,
+                onCheckedChange = onSharedFolderChanged,
+            )
+        }
 
-        AnimatedContent(
-            targetState = state.sharedFolder,
-            transitionSpec = {
-                fadeIn(tween(220)) togetherWith fadeOut(tween(160)) using
-                    SizeTransform(clip = true, sizeAnimationSpec = { _, _ -> tween(240) })
-            },
-            label = "folderPaths",
-        ) { shared ->
-            if (shared) {
-                FolderPathCard(
-                    label = "Default Downloads Folder",
-                    path = state.defaultFolder,
-                    onBrowse = onPickDefaultFolder,
-                )
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FolderPathCard("Steam Downloads", state.steamFolder, onPickSteamFolder)
-                    FolderPathCard("Epic Downloads", state.epicFolder, onPickEpicFolder)
-                    FolderPathCard("GOG Downloads", state.gogFolder, onPickGogFolder)
+        item(key = "folder_paths") {
+            AnimatedContent(
+                targetState = state.sharedFolder,
+                transitionSpec = {
+                    fadeIn(tween(220)) togetherWith fadeOut(tween(160)) using
+                        SizeTransform(clip = true, sizeAnimationSpec = { _, _ -> tween(240) })
+                },
+                label = "folderPaths",
+            ) { shared ->
+                if (shared) {
+                    FolderPathCard(
+                        label = "Default Downloads Folder",
+                        path = state.defaultFolder,
+                        onBrowse = onPickDefaultFolder,
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FolderPathCard("Steam Downloads", state.steamFolder, onPickSteamFolder)
+                        FolderPathCard("Epic Downloads", state.epicFolder, onPickEpicFolder)
+                        FolderPathCard("GOG Downloads", state.gogFolder, onPickGogFolder)
+                    }
                 }
             }
         }
 
-        SectionLabel("Steam", modifier = Modifier.padding(top = 8.dp))
+        item(key = "steam_section") {
+            SectionLabel("Steam", modifier = Modifier.padding(top = 8.dp))
+        }
 
-        SettingsDropdownCard(
-            title = stringResource(R.string.stores_accounts_download_speed),
-            subtitle = stringResource(R.string.stores_accounts_download_speed_subtitle),
-            icon = Icons.Outlined.Speed,
-            selectedValue = state.downloadSpeed,
-            options = downloadSpeedOptions,
-            onOptionSelected = onDownloadSpeedChanged,
-            highlightMaxValue = true,
-        )
-        val serverSubtitle =
-            if (!state.downloadServerManuallySet && state.downloadServer != 0) {
-                val name = serverOptions.firstOrNull { it.first == state.downloadServer }?.second ?: ""
-                "Auto-detected: $name"
-            } else {
-                "Steam CDN region for game downloads"
-            }
-        SettingsDropdownCard(
-            title = stringResource(R.string.stores_accounts_download_server),
-            subtitle = serverSubtitle,
-            icon = Icons.Outlined.Public,
-            selectedValue = state.downloadServer,
-            options = serverOptions,
-            onOptionSelected = onDownloadServerChanged,
-        )
+        item(key = "download_speed") {
+            SettingsDropdownCard(
+                title = stringResource(R.string.stores_accounts_download_speed),
+                subtitle = stringResource(R.string.stores_accounts_download_speed_subtitle),
+                icon = Icons.Outlined.Speed,
+                selectedValue = state.downloadSpeed,
+                options = downloadSpeedOptions,
+                onOptionSelected = onDownloadSpeedChanged,
+                highlightMaxValue = true,
+            )
+        }
+        item(key = "download_server") {
+            val serverSubtitle =
+                if (!state.downloadServerManuallySet && state.downloadServer != 0) {
+                    val name = serverOptions.firstOrNull { it.first == state.downloadServer }?.second ?: ""
+                    "Auto-detected: $name"
+                } else {
+                    "Steam CDN region for game downloads"
+                }
+            SettingsDropdownCard(
+                title = stringResource(R.string.stores_accounts_download_server),
+                subtitle = serverSubtitle,
+                icon = Icons.Outlined.Public,
+                selectedValue = state.downloadServer,
+                options = serverOptions,
+                onOptionSelected = onDownloadServerChanged,
+            )
+        }
 
-        Spacer(Modifier.height(24.dp))
+        item(key = "bottom_spacer") {
+            Spacer(Modifier.height(24.dp))
+        }
     }
 }
 

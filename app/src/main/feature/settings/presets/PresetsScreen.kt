@@ -1,5 +1,5 @@
 /* Settings > Presets screen — Jetpack Compose / Material3.
- * Scrolling delegated to a View-level ScrollView in PresetsFragment, matching DriversFragment. */
+ * Uses a LazyColumn for the main content. */
 package com.winlator.cmod.feature.settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
@@ -17,11 +17,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -252,68 +254,77 @@ fun PresetsScreen(
 
     val currentData = state.current
 
-    Column(
+    LazyColumn(
         modifier =
             Modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
-                .background(BgDark)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .fillMaxSize()
+                .background(BgDark),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 40.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        PresetHeroHeader(
-            engine = state.currentEngine,
-            presetCount = currentData.presets.size,
-            customCount = currentData.presets.count { it.isCustom },
-            onCreatePreset = { showNewDialog = true },
-            onImportPreset = onImportPreset,
-        )
+        item(key = "hero_header") {
+            PresetHeroHeader(
+                engine = state.currentEngine,
+                presetCount = currentData.presets.size,
+                customCount = currentData.presets.count { it.isCustom },
+                onCreatePreset = { showNewDialog = true },
+                onImportPreset = onImportPreset,
+            )
+        }
 
-        // Combined engine-tabs + preset selector card. The tabs themselves stay
-        // static; only the preset dropdown / badge / menu / hint and env-var grid
-        // are inside the AnimatedContent below, so tapping a tab doesn't make the
-        // tab itself flicker.
-        PresetSelectorCard(
-            engine = state.currentEngine,
-            state = state,
-            onEngineSelected = onEngineSelected,
-            onPresetSelected = onPresetSelected,
-            onRename = { showRenameDialog = true },
-            onDuplicate = { showDuplicateConfirm = true },
-            onExport = onExportPreset,
-            onImport = onImportPreset,
-            onRemove = { showRemoveConfirm = true },
-        )
+        item(key = "selector_card") {
+            // Combined engine-tabs + preset selector card. The tabs themselves stay
+            // static; only the preset dropdown / badge / menu / hint and env-var grid
+            // are inside the AnimatedContent below, so tapping a tab doesn't make the
+            // tab itself flicker.
+            PresetSelectorCard(
+                engine = state.currentEngine,
+                state = state,
+                onEngineSelected = onEngineSelected,
+                onPresetSelected = onPresetSelected,
+                onRename = { showRenameDialog = true },
+                onDuplicate = { showDuplicateConfirm = true },
+                onExport = onExportPreset,
+                onImport = onImportPreset,
+                onRemove = { showRemoveConfirm = true },
+            )
+        }
 
-        SectionLabel(
-            text = stringResource(R.string.container_config_env_vars),
-            modifier = Modifier.padding(top = 6.dp),
-        )
+        item(key = "env_vars_section") {
+            SectionLabel(
+                text = stringResource(R.string.container_config_env_vars),
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
 
-        // Env var grid crossfades + slides when switching engines. Keyed on the
-        // engine enum so AnimatedContent can gracefully interrupt rapid taps:
-        // mid-animation state changes swap to the new target from current progress
-        // instead of completing the old animation first.
-        AnimatedContent(
-            targetState = state.currentEngine,
-            transitionSpec = { engineSwapTransition() },
-            contentKey = { it },
-            label = "presetEnvVarGrid",
-        ) { frameEngine ->
-            val data = state.engines[frameEngine] ?: PresetEngineData()
-            if (data.envVarDefinitions.isEmpty()) {
-                EmptyEnvVarsCard()
-            } else {
-                EnvVarGrid(
-                    definitions = data.envVarDefinitions,
-                    values = data.currentValues,
-                    editable = data.editable,
-                    onValueChanged = onEnvVarValueChanged,
-                )
+        item(key = "env_var_grid") {
+            // Env var grid crossfades + slides when switching engines. Keyed on the
+            // engine enum so AnimatedContent can gracefully interrupt rapid taps:
+            // mid-animation state changes swap to the new target from current progress
+            // instead of completing the old animation first.
+            AnimatedContent(
+                targetState = state.currentEngine,
+                transitionSpec = { engineSwapTransition() },
+                contentKey = { it },
+                label = "presetEnvVarGrid",
+            ) { frameEngine ->
+                val data = state.engines[frameEngine] ?: PresetEngineData()
+                if (data.envVarDefinitions.isEmpty()) {
+                    EmptyEnvVarsCard()
+                } else {
+                    EnvVarGrid(
+                        definitions = data.envVarDefinitions,
+                        values = data.currentValues,
+                        editable = data.editable,
+                        onValueChanged = onEnvVarValueChanged,
+                    )
+                }
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        item(key = "bottom_spacer") {
+            Spacer(Modifier.height(24.dp))
+        }
     }
 }
 
