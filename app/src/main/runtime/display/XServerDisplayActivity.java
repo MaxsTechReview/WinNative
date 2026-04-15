@@ -3654,6 +3654,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         touchpadView.setPointerButtonRightEnabled(false);
 
         inputControlsView.invalidate();
+        winHandler.sendGamepadState();
     }
 
     private void hideInputControls() {
@@ -3666,6 +3667,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         touchpadView.setPointerButtonRightEnabled(true);
 
         inputControlsView.invalidate();
+        winHandler.sendGamepadState();
     }
 
     private void extractGraphicsDriverFiles() {

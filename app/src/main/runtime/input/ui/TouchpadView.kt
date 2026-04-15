@@ -340,6 +340,9 @@ class TouchpadView(
             MotionEvent.ACTION_CANCEL -> {
                 longPressHandler.removeCallbacks(longPressRunnable)
                 longPressActive = false
+                // NOTE: This matches Ludashi, but it only clears tracked fingers.
+                // If touchpad-mode stuck buttons or clicks show up later, revisit this
+                // path and explicitly release any state that would normally flow through handleFingerUp().
                 for (i in 0 until MAX_FINGERS.toInt()) fingers[i] = null
                 numFingers = 0
             }

@@ -45,6 +45,8 @@ public class ExternalController {
   public final GamepadState remappedState = new GamepadState();
   private boolean triggerLPressedViaButton = false;
   private boolean triggerRPressedViaButton = false;
+  private float triggerLAnalogValue = 0.0f;
+  private float triggerRAnalogValue = 0.0f;
 
   // Configurable deadzone, sensitivity, and inversion settings
   private float deadzoneLeft = 0.1f;
@@ -153,6 +155,7 @@ public class ExternalController {
 
   public void setTriggerType(byte mode) {
     this.triggerType = mode;
+    updateTriggerState();
   }
 
   public void setContext(Context context) {
@@ -307,12 +310,9 @@ public class ExternalController {
     // DualSense uses AXIS_BRAKE(23)/AXIS_GAS(22) while Xbox uses
     // AXIS_LTRIGGER(17)/AXIS_RTRIGGER(18).
     // Some controllers report tiny noise on the unused axis, so comparing == 0.0f is unreliable.
-    float l = Math.max(event.getAxisValue(17), event.getAxisValue(23));
-    float r = Math.max(event.getAxisValue(18), event.getAxisValue(22));
-    this.state.triggerL = l;
-    this.state.triggerR = r;
-    this.state.setPressed(10, l > 0.9f);
-    this.state.setPressed(11, r > 0.9f);
+    triggerLAnalogValue = Math.max(event.getAxisValue(17), event.getAxisValue(23));
+    triggerRAnalogValue = Math.max(event.getAxisValue(18), event.getAxisValue(22));
+    updateTriggerState();
   }
 
   public boolean isXboxController() {
@@ -325,22 +325,9 @@ public class ExternalController {
   }
 
   private void processXboxTriggerButton(MotionEvent event) {
-    float l = Math.max(event.getAxisValue(17), event.getAxisValue(23));
-    float r = Math.max(event.getAxisValue(18), event.getAxisValue(22));
-    if (l > 0.0f) {
-      this.state.triggerL = 1.0f;
-      this.state.setPressed(10, true);
-    } else {
-      this.state.triggerL = 0.0f;
-      this.state.setPressed(10, false);
-    }
-    if (r > 0.0f) {
-      this.state.triggerR = 1.0f;
-      this.state.setPressed(11, true);
-    } else {
-      this.state.triggerR = 0.0f;
-      this.state.setPressed(11, false);
-    }
+    triggerLAnalogValue = Math.max(event.getAxisValue(17), event.getAxisValue(23));
+    triggerRAnalogValue = Math.max(event.getAxisValue(18), event.getAxisValue(22));
+    updateTriggerState();
   }
 
   public boolean updateStateFromMotionEvent(MotionEvent event) {
@@ -363,9 +350,13 @@ public class ExternalController {
     int buttonIdx = getButtonIdxByKeyCode(keyCode);
     if (buttonIdx != -1) {
       if (buttonIdx == 10 || buttonIdx == 11) {
-        // Trigger key events: don't call sendGamepadState to avoid
-        // overwriting analog trigger values from motion events
-        return false;
+        if (buttonIdx == 10) {
+          triggerLPressedViaButton = pressed;
+        } else {
+          triggerRPressedViaButton = pressed;
+        }
+        updateTriggerState();
+        return true;
       }
       this.state.setPressed(buttonIdx, pressed);
       return true;
@@ -549,6 +540,36 @@ public class ExternalController {
     float normalized = (Math.abs(value) - deadzone) / (1.0f - deadzone);
     normalized = Math.signum(value) * normalized;
     return normalized * sensitivity;
+  }
+
+  private void updateTriggerState() {
+    float buttonLValue = triggerLPressedViaButton ? 1.0f : 0.0f;
+    float buttonRValue = triggerRPressedViaButton ? 1.0f : 0.0f;
+
+    float finalL;
+    float finalR;
+    switch (triggerType) {
+      case TRIGGER_IS_BUTTON:
+        finalL = buttonLValue;
+        finalR = buttonRValue;
+        break;
+      case TRIGGER_IS_BOTH:
+        finalL = Math.max(triggerLAnalogValue, buttonLValue);
+        finalR = Math.max(triggerRAnalogValue, buttonRValue);
+        break;
+      case TRIGGER_IS_AXIS:
+      default:
+        // Preserve digital trigger presses for controllers that only emit key events,
+        // while still preferring analog data when it is available.
+        finalL = triggerLAnalogValue > 0.0f ? triggerLAnalogValue : buttonLValue;
+        finalR = triggerRAnalogValue > 0.0f ? triggerRAnalogValue : buttonRValue;
+        break;
+    }
+
+    state.triggerL = finalL;
+    state.triggerR = finalR;
+    state.setPressed(IDX_BUTTON_L2, triggerLPressedViaButton || finalL > 0.9f);
+    state.setPressed(IDX_BUTTON_R2, triggerRPressedViaButton || finalR > 0.9f);
   }
 
   public static boolean isJoystickDevice(MotionEvent event) {
