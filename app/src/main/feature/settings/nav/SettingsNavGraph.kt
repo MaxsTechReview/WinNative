@@ -14,7 +14,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.fragment.compose.AndroidFragment
 import androidx.navigation.compose.NavHost
@@ -79,8 +78,7 @@ fun SettingsHost(
                 modifier =
                     Modifier
                         .weight(1f)
-                        .fillMaxHeight()
-                        .graphicsLayer(),
+                        .fillMaxHeight(),
             ) {
                 composable(SettingsRoutes.fromNavItem(SettingsNavItem.CONTAINERS)) {
                     AndroidFragment<ContainersFragment>()
