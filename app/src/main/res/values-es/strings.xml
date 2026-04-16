@@ -520,6 +520,12 @@ Ej. <b>META</b> para la <i>tecla META</i>, \n
     <string name="session_drawer_pause">Pausar</string>
     <string name="session_drawer_wine_processes_paused">Los procesos de Wine están pausados</string>
     <string name="session_drawer_pause_all_wine_processes">Pausar todos los procesos de Wine</string>
+    <string name="session_drawer_hud_element_fps">FPS</string>
+    <string name="session_drawer_hud_element_api">API</string>
+    <string name="session_drawer_hud_element_gpu">GPU</string>
+    <string name="session_drawer_hud_element_cpu">CPU</string>
+    <string name="session_drawer_hud_element_battery">Bat.</string>
+    <string name="session_drawer_hud_element_graph">Gráf.</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">¿Deseas finalizar este proceso?</string>

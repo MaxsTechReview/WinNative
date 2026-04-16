@@ -531,6 +531,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_pip_subtitle">Shrink the game into a floating window</string>
     <string name="session_drawer_task_manager_subtitle">Inspect and manage running processes</string>
     <string name="session_drawer_magnifier_subtitle">Zoom into the display</string>
+    <string name="session_drawer_magnifier_disabled_native_subtitle">Disabled while Native Rendering is enabled</string>
     <string name="session_drawer_logs_subtitle">Open Wine and Box64 logs</string>
     <string name="session_drawer_exit_subtitle">Close the running session</string>
     <string name="session_drawer_touchscreen_overlay">Touchscreen Overlay</string>
@@ -538,6 +539,24 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_pause">Pause</string>
     <string name="session_drawer_wine_processes_paused">Wine processes are paused</string>
     <string name="session_drawer_pause_all_wine_processes">Pause all Wine processes</string>
+    <string name="session_drawer_controls_section">Controls</string>
+    <string name="session_drawer_session_section">Session</string>
+    <string name="session_drawer_header_subtitle">Quick access to controls, overlays, and session tools</string>
+    <string name="session_drawer_swipe_hint">Swipe away to jump back into the game</string>
+    <string name="session_drawer_hud_summary">Tune overlay visibility and data points</string>
+    <string name="session_drawer_hud_disabled_hint">Turn on the overlay to customize it</string>
+    <string name="session_drawer_hud_alpha">Alpha</string>
+    <string name="session_drawer_hud_scale">Scale</string>
+    <string name="session_drawer_hud_elements">HUD Elements</string>
+    <string name="session_drawer_hud_element_fps">FPS</string>
+    <string name="session_drawer_hud_element_api">API</string>
+    <string name="session_drawer_hud_element_gpu">GPU</string>
+    <string name="session_drawer_hud_element_cpu">CPU</string>
+    <string name="session_drawer_hud_element_battery">BAT</string>
+    <string name="session_drawer_hud_element_graph">Graph</string>
+    <string name="session_drawer_hud_alpha_input_title">Set Alpha</string>
+    <string name="session_drawer_hud_scale_input_title">Set Scale</string>
+    <string name="session_drawer_hud_input_hint">Enter a value from %1$d to %2$d. Values above the limit are clamped.</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Do you want to end this process?</string>

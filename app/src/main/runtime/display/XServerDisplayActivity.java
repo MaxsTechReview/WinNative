@@ -272,6 +272,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private float hudScale = 1.0f;
     private boolean[] hudElements = new boolean[]{true, true, true, true, true, true};
     private boolean dualSeriesBattery = false;
+    private boolean hudCardExpanded = true;
+    private XServerDrawerStateHolder drawerStateHolder;
+    private XServerDrawerActionListener drawerActionListener;
 
     // Inside the XServerDisplayActivity class
     private SensorManager sensorManager;
@@ -2188,13 +2191,12 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 hudTransparency,
                 hudScale,
                 hudElements,
-                dualSeriesBattery
+                dualSeriesBattery,
+                hudCardExpanded
         );
-        XServerDrawerMenuKt.setupXServerDrawerComposeView(
-                navigationComposeView,
-                state,
-                this,
-                new XServerDrawerActionListener() {
+
+        if (drawerActionListener == null) {
+            drawerActionListener = new XServerDrawerActionListener() {
                     @Override
                     public void onActionSelected(int itemId) {
                         handleDrawerAction(itemId);
@@ -2231,8 +2233,27 @@ public class XServerDisplayActivity extends AppCompatActivity {
                         if (frameRating != null) frameRating.setDualSeriesBattery(enabled);
                         renderDrawerMenu();
                     }
-                }
-        );
+
+                    @Override
+                    public void onHUDCardExpandedChanged(boolean expanded) {
+                        hudCardExpanded = expanded;
+                        renderDrawerMenu();
+                    }
+                };
+        }
+
+        if (drawerStateHolder == null) {
+            drawerStateHolder = new XServerDrawerStateHolder(state);
+            XServerDrawerMenuKt.setupXServerDrawerComposeView(
+                    navigationComposeView,
+                    drawerStateHolder,
+                    this,
+                    drawerActionListener
+            );
+            return;
+        }
+
+        drawerStateHolder.setState(state);
     }
 
     private void loadHUDSettings() {
@@ -2292,9 +2313,11 @@ public class XServerDisplayActivity extends AppCompatActivity {
         switch (itemId) {
             case R.id.main_menu_keyboard:
                 AppUtils.showKeyboard(this);
+                drawerLayout.closeDrawers();
                 break;
             case R.id.main_menu_input_controls:
                 showInputControlsDialog();
+                drawerLayout.closeDrawers();
                 break;
             case R.id.main_menu_fps_monitor:
                 if (frameRating == null) {
@@ -2310,6 +2333,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 boolean becomingVisible = !isFpsVisible;
                 frameRating.setVisibility(becomingVisible ? View.VISIBLE : View.GONE);
                 if (becomingVisible) {
+                    hudCardExpanded = true;
                     syncFrameRatingWithExistingWindows();
                     applyHUDSettings();
                 }
@@ -2353,6 +2377,11 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 new TaskManagerDialog(this).show();
                 break;
             case R.id.main_menu_magnifier:
+                if (isNativeRenderingEnabled) {
+                    showToast(this, getString(R.string.session_drawer_magnifier_disabled_native_subtitle));
+                    renderDrawerMenu();
+                    break;
+                }
                 if (magnifierView == null) {
                     FrameLayout container = findViewById(R.id.FLXServerDisplay);
                     magnifierView = new MagnifierView(this);
@@ -2371,6 +2400,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 break;
             case R.id.main_menu_screen_effects:
                 new ScreenEffectDialog(this).show();
+                drawerLayout.closeDrawers();
                 break;
             case R.id.main_menu_logs:
                 debugDialog.show();

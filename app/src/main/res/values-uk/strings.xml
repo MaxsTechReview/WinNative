@@ -520,6 +520,12 @@
     <string name="session_drawer_pause">Пауза</string>
     <string name="session_drawer_wine_processes_paused">Процеси Wine призупинені</string>
     <string name="session_drawer_pause_all_wine_processes">Призупинити всі процеси Wine</string>
+    <string name="session_drawer_hud_element_fps">FPS</string>
+    <string name="session_drawer_hud_element_api">API</string>
+    <string name="session_drawer_hud_element_gpu">GPU</string>
+    <string name="session_drawer_hud_element_cpu">CPU</string>
+    <string name="session_drawer_hud_element_battery">Бат.</string>
+    <string name="session_drawer_hud_element_graph">Графік</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Ви хочете завершити цей процес?</string>

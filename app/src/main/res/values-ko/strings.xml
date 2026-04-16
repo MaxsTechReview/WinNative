@@ -520,6 +520,12 @@
     <string name="session_drawer_pause">일시 중지</string>
     <string name="session_drawer_wine_processes_paused">Wine 프로세스가 일시 중지되었습니다</string>
     <string name="session_drawer_pause_all_wine_processes">모든 Wine 프로세스 일시 중지</string>
+    <string name="session_drawer_hud_element_fps">FPS</string>
+    <string name="session_drawer_hud_element_api">API</string>
+    <string name="session_drawer_hud_element_gpu">GPU</string>
+    <string name="session_drawer_hud_element_cpu">CPU</string>
+    <string name="session_drawer_hud_element_battery">배터리</string>
+    <string name="session_drawer_hud_element_graph">그래프</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">이 프로세스를 종료하시겠습니까?</string>

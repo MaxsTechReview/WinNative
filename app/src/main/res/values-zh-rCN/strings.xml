@@ -520,6 +520,12 @@
     <string name="session_drawer_pause">暂停</string>
     <string name="session_drawer_wine_processes_paused">Wine 进程已暂停</string>
     <string name="session_drawer_pause_all_wine_processes">暂停所有 Wine 进程</string>
+    <string name="session_drawer_hud_element_fps">FPS</string>
+    <string name="session_drawer_hud_element_api">API</string>
+    <string name="session_drawer_hud_element_gpu">GPU</string>
+    <string name="session_drawer_hud_element_cpu">CPU</string>
+    <string name="session_drawer_hud_element_battery">电量</string>
+    <string name="session_drawer_hud_element_graph">图表</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">您要结束此进程吗？</string>
