@@ -112,15 +112,15 @@ class PluviaApp : Application() {
                     activity: Activity,
                     savedInstanceState: Bundle?,
                 ) {
-                    if (activity !is XServerDisplayActivity) {
-                        RefreshRateUtils.applyPreferredRefreshRate(activity)
+                    if (shouldManageAppRefreshRate(activity)) {
+                        RefreshRateUtils.onActivityCreated(activity)
                     }
                 }
 
                 override fun onActivityResumed(activity: Activity) {
                     currentForegroundActivity = activity
-                    if (activity !is XServerDisplayActivity) {
-                        RefreshRateUtils.applyPreferredRefreshRate(activity)
+                    if (shouldManageAppRefreshRate(activity)) {
+                        RefreshRateUtils.onActivityResumed(activity)
                     }
                 }
 
@@ -140,11 +140,19 @@ class PluviaApp : Application() {
                 ) {}
 
                 override fun onActivityDestroyed(activity: Activity) {
+                    if (shouldManageAppRefreshRate(activity)) {
+                        RefreshRateUtils.onActivityDestroyed(activity)
+                    }
                     if (currentForegroundActivity === activity) {
                         currentForegroundActivity = null
                     }
                 }
             },
         )
+    }
+
+    private fun shouldManageAppRefreshRate(activity: Activity): Boolean {
+        // Game windows own per-title refresh policy and should not inherit the global app override.
+        return activity !is XServerDisplayActivity
     }
 }

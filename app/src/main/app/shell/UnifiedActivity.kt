@@ -187,6 +187,7 @@ import com.winlator.cmod.runtime.input.ControllerHelper
 import com.winlator.cmod.runtime.wine.PeIconExtractor
 import com.winlator.cmod.shared.android.ActivityResultHost
 import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.android.RefreshRateUtils
 import com.winlator.cmod.shared.io.StorageUtils
 import com.winlator.cmod.shared.ui.CarouselView
 import com.winlator.cmod.shared.ui.FourByTwoGridView
@@ -625,11 +626,19 @@ class UnifiedActivity :
         window.decorView.rootView.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, keyCode))
     }
 
+    private fun reapplyPreferredRefreshRate() {
+        if (isFinishing || isDestroyed) return
+        RefreshRateUtils.applyPreferredRefreshRate(this)
+    }
+
     private fun navigateToSettings(
         item: SettingsNavItem = SettingsNavItem.CONTAINERS,
         profileId: Int = 0,
         editContainerId: Int = 0,
     ) {
+        // Settings is an in-activity navigation target, so entering it does not trigger an
+        // Activity resume. Reassert the preferred display mode at the activity boundary.
+        reapplyPreferredRefreshRate()
         val route = buildSettingsRoute(item, profileId, editContainerId)
         val nav = rootNavController
         if (nav == null) {

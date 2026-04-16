@@ -5,16 +5,22 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
 import android.view.Display;
+import android.view.View;
+import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import androidx.annotation.Nullable;
 import androidx.preference.PreferenceManager;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeSet;
+import java.util.WeakHashMap;
 
 public final class RefreshRateUtils {
   private static final String TAG = "RefreshRateUtils";
   private static final float DEFAULT_REFRESH_RATE = 60f;
+  private static final Map<Activity, ViewTreeObserver.OnWindowFocusChangeListener>
+      WINDOW_FOCUS_LISTENERS = new WeakHashMap<>();
 
   private RefreshRateUtils() {}
 
@@ -181,6 +187,51 @@ public final class RefreshRateUtils {
 
   @Nullable private static Display getDisplay(Activity activity) {
     return activity.getWindow().getDecorView().getDisplay();
+  }
+
+  public static void onActivityCreated(Activity activity) {
+    attachWindowFocusListener(activity);
+    applyPreferredRefreshRate(activity);
+  }
+
+  public static void onActivityResumed(Activity activity) {
+    applyPreferredRefreshRate(activity);
+  }
+
+  public static void onActivityDestroyed(Activity activity) {
+    detachWindowFocusListener(activity);
+  }
+
+  private static void attachWindowFocusListener(Activity activity) {
+    if (WINDOW_FOCUS_LISTENERS.containsKey(activity)) return;
+
+    View decorView = activity.getWindow().getDecorView();
+    if (decorView == null) return;
+
+    ViewTreeObserver observer = decorView.getViewTreeObserver();
+    if (!observer.isAlive()) return;
+
+    // Some devices do not fully honor the preferred mode until the window regains focus.
+    ViewTreeObserver.OnWindowFocusChangeListener listener =
+        hasFocus -> {
+          if (hasFocus) {
+            applyPreferredRefreshRate(activity);
+          }
+        };
+    observer.addOnWindowFocusChangeListener(listener);
+    WINDOW_FOCUS_LISTENERS.put(activity, listener);
+  }
+
+  private static void detachWindowFocusListener(Activity activity) {
+    ViewTreeObserver.OnWindowFocusChangeListener listener = WINDOW_FOCUS_LISTENERS.remove(activity);
+    if (listener == null) return;
+
+    View decorView = activity.getWindow().getDecorView();
+    if (decorView == null) return;
+
+    ViewTreeObserver observer = decorView.getViewTreeObserver();
+    if (!observer.isAlive()) return;
+    observer.removeOnWindowFocusChangeListener(listener);
   }
 
   public static void applyPreferredRefreshRate(Activity activity) {
