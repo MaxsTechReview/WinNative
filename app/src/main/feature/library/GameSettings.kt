@@ -2275,6 +2275,7 @@ private fun EnvVarRow(
                         color = TextPrimary,
                         fontSize = 13.sp
                     ),
+                    cursorBrush = SolidColor(AccentBlue),
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()

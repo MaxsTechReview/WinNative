@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -70,6 +72,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -218,7 +221,11 @@ fun InputControlsScreen(
     state: InputControlsScreenState,
     actions: InputControlsScreenActions,
 ) {
-    val navBarBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val layoutDirection = LocalLayoutDirection.current
+    val navBarPadding = WindowInsets.navigationBars.asPaddingValues()
+    val navBarStartPadding = navBarPadding.calculateStartPadding(layoutDirection)
+    val navBarEndPadding = navBarPadding.calculateEndPadding(layoutDirection)
+    val navBarBottomPadding = navBarPadding.calculateBottomPadding()
 
     Box(
         modifier =
@@ -230,14 +237,13 @@ fun InputControlsScreen(
             modifier = Modifier.fillMaxSize(),
             contentPadding =
                 PaddingValues(
-                    start = 16.dp,
+                    start = 16.dp + navBarStartPadding,
                     top = 16.dp,
-                    end = 26.dp,
-                    bottom = 16.dp + navBarBottomPadding,
+                    end = 16.dp + navBarEndPadding,
+                    bottom = 20.dp + navBarBottomPadding,
                 ),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            item("profile-label") { SectionLabel(stringResource(R.string.common_ui_profile)) }
             item("profile-card") { ProfileCard(state, actions) }
             item("overlay-label") { SectionLabel(stringResource(R.string.input_controls_editor_overlay_opacity)) }
             item("overlay-card") { OverlayOpacityCard(state, actions) }
@@ -1197,102 +1203,132 @@ private fun ProfileCard(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            Color(
-                                red = InputField.red,
-                                green = InputField.green,
-                                blue = InputField.blue,
-                                alpha = 0.28f + (0.34f * selectorTint),
-                            ),
-                        ).border(
-                            1.dp,
-                            Color(
-                                red = InputOutline.red + ((InputAccent.red - InputOutline.red) * selectorTint * 0.45f),
-                                green = InputOutline.green + ((InputAccent.green - InputOutline.green) * selectorTint * 0.45f),
-                                blue = InputOutline.blue + ((InputAccent.blue - InputOutline.blue) * selectorTint * 0.45f),
-                                alpha = 0.8f + (0.15f * selectorTint),
-                            ),
-                            RoundedCornerShape(12.dp),
-                        ).clickable(
-                            interactionSource = selectionInteraction,
-                            indication = null,
-                            onClick = actions.onSelectProfile,
-                        ).padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                ProfileSelectorIconBox(if (selectorPressed) InputTextPrimary else InputAccent)
-                Spacer(Modifier.width(14.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text =
-                            state.selectedProfileName
-                                ?: stringResource(R.string.input_controls_editor_select_profile),
-                        color = InputTextPrimary,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text =
-                            if (state.selectedProfileName != null) {
-                                stringResource(R.string.common_ui_elements_count, state.selectedProfileElementCount)
-                            } else {
-                                stringResource(R.string.input_controls_editor_no_profile_selected)
-                            },
-                        color = InputTextSecondary,
-                        fontSize = 12.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    text = stringResource(R.string.input_controls_editor_tap_to_switch),
-                    color = if (selectorPressed) InputTextPrimary else InputAccent,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                )
-            }
+            ProfileSelectorRow(
+                state = state,
+                selectionInteraction = selectionInteraction,
+                selectorTint = selectorTint,
+                selectorPressed = selectorPressed,
+                onClick = actions.onSelectProfile,
+                modifier = Modifier.weight(1f),
+            )
             Spacer(Modifier.width(10.dp))
-            IconActionButton(
-                image = Icons.Outlined.SportsEsports,
-                contentDescription = stringResource(R.string.input_controls_editor_title),
-                onClick = actions.onOpenEditor,
+            ProfileActionRow(actions = actions)
+        }
+    }
+}
+
+@Composable
+private fun ProfileSelectorRow(
+    state: InputControlsScreenState,
+    selectionInteraction: MutableInteractionSource,
+    selectorTint: Float,
+    selectorPressed: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(
+                    Color(
+                        red = InputField.red,
+                        green = InputField.green,
+                        blue = InputField.blue,
+                        alpha = 0.28f + (0.34f * selectorTint),
+                    ),
+                ).border(
+                    1.dp,
+                    Color(
+                        red = InputOutline.red + ((InputAccent.red - InputOutline.red) * selectorTint * 0.45f),
+                        green = InputOutline.green + ((InputAccent.green - InputOutline.green) * selectorTint * 0.45f),
+                        blue = InputOutline.blue + ((InputAccent.blue - InputOutline.blue) * selectorTint * 0.45f),
+                        alpha = 0.8f + (0.15f * selectorTint),
+                    ),
+                    RoundedCornerShape(12.dp),
+                )
+                .clickable(
+                    interactionSource = selectionInteraction,
+                    indication = null,
+                    onClick = onClick,
+                )
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ProfileSelectorIconBox(if (selectorPressed) InputTextPrimary else InputAccent)
+        Spacer(Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text =
+                    state.selectedProfileName
+                        ?: stringResource(R.string.input_controls_editor_select_profile),
+                color = InputTextPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-            Spacer(Modifier.width(6.dp))
-            IconActionButton(
-                image = Icons.Outlined.Add,
-                contentDescription = stringResource(R.string.common_ui_add),
-                onClick = actions.onAddProfile,
-            )
-            Spacer(Modifier.width(6.dp))
-            IconActionButton(
-                image = Icons.Outlined.Edit,
-                contentDescription = stringResource(R.string.common_ui_edit),
-                onClick = actions.onEditProfile,
-            )
-            Spacer(Modifier.width(6.dp))
-            IconActionButton(
-                image = Icons.Outlined.ContentCopy,
-                contentDescription = stringResource(R.string.common_ui_duplicate),
-                onClick = actions.onDuplicateProfile,
-            )
-            Spacer(Modifier.width(6.dp))
-            IconActionButton(
-                image = Icons.Outlined.Delete,
-                contentDescription = stringResource(R.string.common_ui_remove),
-                tint = InputDanger,
-                onClick = actions.onRemoveProfile,
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text =
+                    if (state.selectedProfileName != null) {
+                        stringResource(R.string.common_ui_elements_count, state.selectedProfileElementCount)
+                    } else {
+                        stringResource(R.string.input_controls_editor_no_profile_selected)
+                    },
+                color = InputTextSecondary,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
+        Spacer(Modifier.width(10.dp))
+        Icon(
+            imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+            contentDescription = null,
+            tint =
+                if (selectorPressed) {
+                    InputTextPrimary
+                } else {
+                    InputAccent.copy(alpha = 0.9f)
+                },
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+@Composable
+private fun ProfileActionRow(actions: InputControlsScreenActions) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconActionButton(
+            image = Icons.Outlined.SportsEsports,
+            contentDescription = stringResource(R.string.input_controls_editor_title),
+            onClick = actions.onOpenEditor,
+        )
+        IconActionButton(
+            image = Icons.Outlined.Add,
+            contentDescription = stringResource(R.string.common_ui_add),
+            onClick = actions.onAddProfile,
+        )
+        IconActionButton(
+            image = Icons.Outlined.Edit,
+            contentDescription = stringResource(R.string.common_ui_edit),
+            onClick = actions.onEditProfile,
+        )
+        IconActionButton(
+            image = Icons.Outlined.ContentCopy,
+            contentDescription = stringResource(R.string.common_ui_duplicate),
+            onClick = actions.onDuplicateProfile,
+        )
+        IconActionButton(
+            image = Icons.Outlined.Delete,
+            contentDescription = stringResource(R.string.common_ui_remove),
+            tint = InputDanger,
+            onClick = actions.onRemoveProfile,
+        )
     }
 }
 

@@ -8,16 +8,20 @@ import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -41,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -63,6 +68,7 @@ import com.winlator.cmod.shared.ui.widget.chasingBorder
 private val SidebarBgTop = Color(0xFF171E2E)
 private val SidebarBgBot = Color(0xFF11161F)
 private val SectionLabelClr = Color(0xFF3D4F65)
+private val HeaderTextClr = Color(0xFF58708C)
 private val TextNormal = Color(0xFF7A8FA8)
 private val TextSelected = Color(0xFFF0F4FF)
 private val IconMuted = Color(0xFF4A7A8F)
@@ -70,6 +76,7 @@ private val SelectedBg = Color(0xFF131D2F)
 private val DividerColor = Color(0xFF212C3F)
 
 private val AccentSelected = Color(0xFF4FC3F7)
+private val AccentPressed = Color(0xFF8BDEFF)
 
 private val InterFamily = FontFamily(Font(R.font.inter_medium, FontWeight.Medium))
 
@@ -115,14 +122,20 @@ fun SettingsNavSidebar(
     onBackPressed: () -> Unit,
     bordersPaused: Boolean = false,
 ) {
-    Row(modifier = Modifier.fillMaxHeight()) {
+    val navBottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+    Row(
+        modifier =
+            Modifier
+                .fillMaxHeight()
+                .graphicsLayer(),
+    ) {
         Column(
             modifier =
                 Modifier
                     .width(220.dp)
                     .fillMaxHeight()
-                    .background(Brush.verticalGradient(listOf(SidebarBgTop, SidebarBgBot)))
-                    .navigationBarsPadding(),
+                    .background(Brush.verticalGradient(listOf(SidebarBgTop, SidebarBgBot))),
         ) {
             // Header
             SidebarHeader(onBackPressed)
@@ -132,7 +145,8 @@ fun SettingsNavSidebar(
                 modifier =
                     Modifier
                         .weight(1f)
-                        .padding(start = 8.dp, end = 8.dp, top = 2.dp, bottom = 16.dp),
+                        .padding(start = 8.dp, end = 8.dp, top = 2.dp),
+                contentPadding = PaddingValues(bottom = 24.dp + navBottomInset),
             ) {
                 NavSection.entries.forEachIndexed { index, section ->
                     if (index > 0) {
@@ -180,13 +194,21 @@ fun SettingsNavSidebar(
 
 @Composable
 private fun SidebarHeader(onBackPressed: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val arrowTint by animateColorAsState(
+        targetValue = if (isPressed) AccentPressed else AccentSelected,
+        animationSpec = tween(120),
+        label = "sidebarHeaderArrowTint",
+    )
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
             Modifier
                 .fillMaxWidth()
                 .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
+                    interactionSource = interactionSource,
                     indication = null,
                     onClick = onBackPressed,
                 ).padding(start = 14.dp, end = 14.dp, top = 18.dp, bottom = 6.dp),
@@ -194,13 +216,13 @@ private fun SidebarHeader(onBackPressed: () -> Unit) {
         Icon(
             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
             contentDescription = stringResource(R.string.common_ui_back),
-            tint = AccentSelected,
+            tint = arrowTint,
             modifier = Modifier.size(22.dp),
         )
 
         Text(
             text = stringResource(R.string.common_ui_settings).uppercase(),
-            color = SectionLabelClr,
+            color = HeaderTextClr,
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             fontFamily = InterFamily,

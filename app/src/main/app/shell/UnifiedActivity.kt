@@ -108,6 +108,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -219,15 +220,17 @@ private val DangerRed = Color(0xFFFF6B6B)
 private val StatusOnline = Color(0xFF3FB950)
 private val StatusAway = Color(0xFFF0C040)
 private val StatusOffline = Color(0xFF6E7681)
-
 private val TabScreenHorizontalPadding = 16.dp
 private val TabScreenBottomPadding = 8.dp
-private val TabListContentPadding = PaddingValues(top = 8.dp, bottom = 12.dp)
-private val TabGridContentPadding = PaddingValues(top = 12.dp, bottom = 16.dp)
-private val TabGridTopPadding = 12.dp
-private val TabCarouselTopPadding = 20.dp
+private val UnifiedTopBarHorizontalPadding = 8.dp
+private val UnifiedTopBarTopPadding = 4.dp
+private val UnifiedTopBarHeight = 56.dp
+private val TabListContentPadding = PaddingValues(top = 4.dp, bottom = 12.dp)
+private val TabGridContentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)
+private val TabGridTopPadding = 8.dp
+private val TabCarouselTopPadding = 12.dp
 private val TabCarouselBottomPadding = 20.dp
-private val DownloadsHeaderTopPadding = 4.dp
+private val DownloadsHeaderTopPadding = 2.dp
 
 private fun Modifier.tabScreenPadding(
     top: Dp = 0.dp,
@@ -1347,17 +1350,29 @@ class UnifiedActivity :
                             }
                         }
 
+                        val configuration = LocalConfiguration.current
+                        val libraryFabBase = minOf(configuration.screenWidthDp, configuration.screenHeightDp)
+                        val addGameFabSize = (libraryFabBase * 0.125f).dp.coerceIn(56.dp, 64.dp)
+                        val addGameFabMargin = (libraryFabBase * 0.035f).dp.coerceIn(12.dp, 20.dp)
+                        val addGameFabIconSize = (libraryFabBase * 0.055f).dp.coerceIn(24.dp, 28.dp)
+
                         // Bottom-right Add Custom Game button
                         if (key == "library") {
                             Box(
                                 modifier =
                                     Modifier
                                         .align(Alignment.BottomEnd)
-                                        .padding(16.dp)
-                                        .size(52.dp)
+                                        .windowInsetsPadding(
+                                            WindowInsets.navigationBars.only(
+                                                WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom,
+                                            ),
+                                        )
+                                        .padding(end = addGameFabMargin, bottom = addGameFabMargin)
+                                        .size(addGameFabSize)
                                         .shadow(10.dp, CircleShape, spotColor = Accent.copy(alpha = 0.4f))
                                         .clip(CircleShape)
-                                        .background(Accent)
+                                        .background(SurfaceDark.copy(alpha = 0.96f), CircleShape)
+                                        .border(1.5.dp, Accent.copy(alpha = 0.55f), CircleShape)
                                         .focusProperties { canFocus = false } // No specific button for this, handle via long press or touch
                                         .clickable { showAddCustomGame = true },
                                 contentAlignment = Alignment.Center,
@@ -1366,7 +1381,7 @@ class UnifiedActivity :
                                     Icons.Outlined.Add,
                                     contentDescription = "Add Custom Game",
                                     tint = Color.White,
-                                    modifier = Modifier.size(28.dp),
+                                    modifier = Modifier.size(addGameFabIconSize),
                                 )
                             }
                         }
@@ -1513,8 +1528,12 @@ class UnifiedActivity :
                     Modifier
                         .fillMaxWidth()
                         .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))
-                        .padding(start = 8.dp, end = 8.dp, top = 8.dp)
-                        .height(64.dp),
+                        .padding(
+                            start = UnifiedTopBarHorizontalPadding,
+                            end = UnifiedTopBarHorizontalPadding,
+                            top = UnifiedTopBarTopPadding,
+                        )
+                        .height(UnifiedTopBarHeight),
             ) {
                 // Center Block: Tabs (absolutely centered, unaffected by left/right content)
                 Row(
