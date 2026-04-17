@@ -272,7 +272,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private float hudScale = 1.0f;
     private boolean[] hudElements = new boolean[]{true, true, true, true, true, true};
     private boolean dualSeriesBattery = false;
-    private boolean hudCardExpanded = true;
+    private boolean hudCardExpanded = false;
     private XServerDrawerStateHolder drawerStateHolder;
     private XServerDrawerActionListener drawerActionListener;
 
@@ -612,6 +612,15 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 super.onDrawerOpened(drawerView);
                 renderDrawerMenu();
                 navigationComposeView.requestFocus();
+            }
+
+            @Override
+            public void onDrawerClosed(View drawerView) {
+                super.onDrawerClosed(drawerView);
+                if (hudCardExpanded) {
+                    hudCardExpanded = false;
+                    renderDrawerMenu();
+                }
             }
         });
 
@@ -2333,7 +2342,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 boolean becomingVisible = !isFpsVisible;
                 frameRating.setVisibility(becomingVisible ? View.VISIBLE : View.GONE);
                 if (becomingVisible) {
-                    hudCardExpanded = true;
                     syncFrameRatingWithExistingWindows();
                     applyHUDSettings();
                 }
