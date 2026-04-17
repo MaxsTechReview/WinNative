@@ -765,14 +765,20 @@ public class ControlElement {
         && (binding == Binding.GAMEPAD_BUTTON_L3 || binding == Binding.GAMEPAD_BUTTON_R3);
   }
 
+  private void dispatchButtonBinding(Binding primary, Binding secondary, boolean pressed) {
+    inputControlsView.handleInputEvent(primary, pressed);
+    if (secondary != Binding.NONE && secondary != primary) {
+      inputControlsView.handleInputEvent(secondary, pressed);
+    }
+  }
+
   public boolean handleTouchDown(int pointerId, float x, float y) {
     if (currentPointerId == -1 && containsPoint(x, y)) {
       currentPointerId = pointerId;
       if (type == Type.BUTTON) {
         if (isKeepButtonPressedAfterMinTime()) touchTime = System.currentTimeMillis();
         if (!toggleSwitch || !selected) {
-          inputControlsView.handleInputEvent(getBindingAt(0), true);
-          inputControlsView.handleInputEvent(getBindingAt(1), true);
+          dispatchButtonBinding(getBindingAt(0), getBindingAt(1), true);
         }
         inputControlsView.invalidate();
         return true;
@@ -955,16 +961,14 @@ public class ControlElement {
         long delay = Math.max(0L, BUTTON_MIN_TIME_TO_KEEP_PRESSED - held);
         inputControlsView.postDelayed(
             () -> {
-              inputControlsView.handleInputEvent(binding, false);
-              inputControlsView.handleInputEvent(bindingSecondary, false);
+              dispatchButtonBinding(binding, bindingSecondary, false);
               inputControlsView.invalidate();
             },
             delay);
         touchTime = null;
       } else {
         if (!toggleSwitch || selected) {
-          inputControlsView.handleInputEvent(binding, false);
-          inputControlsView.handleInputEvent(bindingSecondary, false);
+          dispatchButtonBinding(binding, bindingSecondary, false);
         }
         if (toggleSwitch) selected = !selected;
       }
