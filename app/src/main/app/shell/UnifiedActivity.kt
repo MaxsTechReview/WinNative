@@ -7367,7 +7367,7 @@ class UnifiedActivity :
 
         val shortcut =
             containerManager.loadShortcuts().find {
-                it.getExtra("app_id") == app.id.toString()
+                it.getExtra("game_source") == "STEAM" && it.getExtra("app_id") == app.id.toString()
             }
 
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {

@@ -361,7 +361,7 @@ object SteamUtils {
 
     /**
      * Adds depots listing, achievements mapping, and save-location symlinks to steam_settings.
-     * Mirrors GameNative's ensureSteamSettings extras for Goldberg/ColdClient.
+     * Supplements the core Goldberg/ColdClient config written by writeCompleteSettingsDir.
      */
     @JvmStatic
     fun enrichSteamSettings(
@@ -403,7 +403,7 @@ object SteamUtils {
     }
 
     /**
-     * Ensures save location symlinks for special cases (mirrors GameNative).
+     * Ensures save location symlinks for special cases.
      */
     @JvmStatic
     fun ensureSaveLocationsForGames(
@@ -810,7 +810,6 @@ object SteamUtils {
      * Writes steam.cfg to skip Steam bootstrapper self-update and marks all common
      * redistributables (DirectX, .NET, XNA, OpenAL) as already installed in system.reg,
      * preventing Steam from re-running their setup wizards on first launch.
-     * Mirrors GameNative's skipFirstTimeSteamSetup() fully.
      */
     @JvmStatic
     fun skipFirstTimeSteamSetup(rootDir: File) {
@@ -867,7 +866,7 @@ object SteamUtils {
     /**
      * Generates the cloud save config sections for configs.app.ini.
      * Produces [app::cloud_save::general] and, when Windows save patterns exist,
-     * [app::cloud_save::win] with dir1=, dir2=, ... entries — matching GameNative exactly.
+     * [app::cloud_save::win] with dir1=, dir2=, ... entries in the Goldberg-expected format.
      */
     @JvmStatic
     fun generateCloudSaveConfig(steamAppId: Int): String {
@@ -921,7 +920,7 @@ object SteamUtils {
 
     /**
      * Writes the complete steam_settings directory next to a DLL (steam_api.dll or steamclient.dll).
-     * Mirrors GameNative's ensureSteamSettings() — single source of truth for all Goldberg config.
+     * Single source of truth for all Goldberg config.
      *
      * Writes:
      *  - steam_appid.txt (parent dir level)
@@ -1164,7 +1163,6 @@ object SteamUtils {
     /**
      * Updates localconfig.vdf with the container's LaunchOptions for the given appId,
      * and updates UserConfig/MountedConfig language in the ACF manifest.
-     * Mirrors GameNative's updateOrModifyLocalConfig().
      */
     @JvmStatic
     fun updateOrModifyLocalConfig(

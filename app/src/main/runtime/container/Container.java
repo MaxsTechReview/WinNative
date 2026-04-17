@@ -20,7 +20,7 @@ import java.io.File;
 import java.util.Iterator;
 
 public class Container {
-    public static final String DEFAULT_ENV_VARS = "WRAPPER_MAX_IMAGE_COUNT=0 VKD3D_SHADER_MODEL=6_6 ZINK_DESCRIPTORS=lazy ZINK_DEBUG=compact MESA_SHADER_CACHE_DISABLE=false MESA_SHADER_CACHE_MAX_SIZE=512MB mesa_glthread=true WINEESYNC=1 TU_DEBUG=noconform,sysmem";
+    public static final String DEFAULT_ENV_VARS = "WRAPPER_MAX_IMAGE_COUNT=0 VKD3D_SHADER_MODEL=6_6 ZINK_DESCRIPTORS=lazy ZINK_DEBUG=compact MESA_SHADER_CACHE_DISABLE=false MESA_SHADER_CACHE_MAX_SIZE=512MB mesa_glthread=true TU_DEBUG=noconform,sysmem";
     public static final String DEFAULT_SCREEN_SIZE = "1280x720";
     public static final String DEFAULT_GRAPHICS_DRIVER = "wrapper";
     public static final String DEFAULT_AUDIO_DRIVER = "alsa";
@@ -105,7 +105,7 @@ public class Container {
     public void setExecutablePath(String executablePath) {
         String newPath = executablePath != null ? executablePath : "";
         // If the executable path changed from a non-empty value, mark as needing unpacking
-        // so Steamless DRM stripping will re-run on the new exe (matches GameNative)
+        // so Steamless DRM stripping will re-run on the new exe
         if (!this.executablePath.isEmpty() && !this.executablePath.equals(newPath)) {
             this.needsUnpacking = true;
         }

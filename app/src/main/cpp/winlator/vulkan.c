@@ -22,7 +22,6 @@ PFN_vkEnumeratePhysicalDevices enumeratePhysicalDevices;
 PFN_vkDestroyInstance destroyInstance;
 
 static void *vulkan_handle = NULL;
-static void *vulkan_mapping_handle = NULL;
 
 static char *get_native_library_dir(JNIEnv *env, jobject context) {
   char *native_libdir = NULL;
@@ -170,7 +169,24 @@ static char *get_library_name(JNIEnv *env, jobject context,
   return library_name;
 }
 
+static void preload_vendor_icd_deps() {
+  // Some OEM Vulkan ICDs (e.g. Samsung's /system_ext/lib64/libvendorutils.so)
+  // declare unresolved refs to OpenSSL symbols like BIO_flush. When the Android
+  // Vulkan loader pulls in the vendor ICD via dlopen, those symbols must already
+  // be visible in a preceding RTLD_GLOBAL library or the dlopen fails with
+  // "cannot locate symbol BIO_flush", and vkCreateInstance returns -9.
+  const char *candidates[] = {
+      "libcrypto.so",
+      NULL,
+  };
+  for (int i = 0; candidates[i]; i++) {
+    if (dlopen(candidates[i], RTLD_GLOBAL | RTLD_NOW))
+      break;
+  }
+}
+
 static void init_original_vulkan() {
+  preload_vendor_icd_deps();
   vulkan_handle = dlopen("/system/lib64/libvulkan.so", RTLD_LOCAL | RTLD_NOW);
 }
 
@@ -196,12 +212,11 @@ static void init_vulkan(JNIEnv *env, jobject context, const char *driver_name) {
   asprintf(&tmpdir, "%s%s", driver_path, "temp");
   mkdir(tmpdir, S_IRWXU | S_IRWXG);
 
-  vulkan_mapping_handle = NULL;
   vulkan_handle = adrenotools_open_libvulkan(
       RTLD_LOCAL | RTLD_NOW,
-      ADRENOTOOLS_DRIVER_CUSTOM | ADRENOTOOLS_DRIVER_GPU_MAPPING_IMPORT, tmpdir,
+      ADRENOTOOLS_DRIVER_CUSTOM, tmpdir,
       native_library_dir, driver_path, library_name, NULL,
-      &vulkan_mapping_handle);
+      NULL);
 }
 
 static VkResult create_instance(jstring driverName, JNIEnv *env,
@@ -333,8 +348,10 @@ Java_com_winlator_cmod_runtime_system_GPUInformation_getVulkanVersion(
 
   destroyInstance(instance, NULL);
 
-  if (vulkan_handle)
+  if (vulkan_handle) {
     dlclose(vulkan_handle);
+    vulkan_handle = NULL;
+  }
 
   return result;
 }
@@ -360,8 +377,10 @@ Java_com_winlator_cmod_runtime_system_GPUInformation_getVendorID(
 
   destroyInstance(instance, NULL);
 
-  if (vulkan_handle)
+  if (vulkan_handle) {
     dlclose(vulkan_handle);
+    vulkan_handle = NULL;
+  }
 
   return vendorID;
 }
@@ -386,8 +405,10 @@ Java_com_winlator_cmod_runtime_system_GPUInformation_getRenderer(
 
   destroyInstance(instance, NULL);
 
-  if (vulkan_handle)
+  if (vulkan_handle) {
     dlclose(vulkan_handle);
+    vulkan_handle = NULL;
+  }
 
   return result;
 }
@@ -447,8 +468,10 @@ Java_com_winlator_cmod_runtime_system_GPUInformation_enumerateExtensions(
 
   destroyInstance(instance, NULL);
 
-  if (vulkan_handle)
+  if (vulkan_handle) {
     dlclose(vulkan_handle);
+    vulkan_handle = NULL;
+  }
 
   return extensions;
 }

@@ -40,8 +40,6 @@ public class EnvVarsView extends FrameLayout {
     {"MESA_SHADER_CACHE_DISABLE", "CHECKBOX", "false", "true"},
     {"mesa_glthread", "CHECKBOX", "false", "true"},
     {"WINEESYNC", "CHECKBOX", "0", "1"},
-    {"WINEFSYNC", "CHECKBOX", "0", "1"},
-    {"PROTON_USE_NTSYNC", "CHECKBOX", "0", "1"},
     {"WINENTSYNC", "CHECKBOX", "0", "1"},
     {"FD_DEV_FEATURES", "SELECT_MULTIPLE", "enable_tp_ubwc_flag_hint=1", "storage_8bit=1"},
     {

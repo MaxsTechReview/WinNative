@@ -2848,9 +2848,11 @@ private fun AdvancedSection(
     callbacks: GameSettingsCallbacks
 ) {
 
-    // Wine / Proton version (read-only)
+    // Wine / Proton version (read-only) — only show on existing containers
+    // where it's not editable. When creating a new container the user already
+    // selects the Wine Version in the General tab.
     val wineVersionDisplay = state.wineVersionDisplay.value
-    if (wineVersionDisplay.isNotEmpty()) {
+    if (wineVersionDisplay.isNotEmpty() && !state.wineVersionEditable.value) {
         SubsectionLabel(stringResource(R.string.container_wine_version))
         Spacer(Modifier.height(8.dp))
         SettingGroup {

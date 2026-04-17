@@ -5,6 +5,7 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -13,8 +14,13 @@ import java.net.Socket;
 public class SteamPipeServer {
   private static final String TAG = "SteamPipeServer";
   private static final int PORT = 34865;
+
+  // Gate per-message logging. Flipping this on produces one log line per Steam
+  // API callback, which is noisy enough to skew frame timing under logcat load.
+  private static final boolean VERBOSE = false;
+
   private ServerSocket serverSocket;
-  private boolean running;
+  private volatile boolean running;
 
   private int readNetworkInt(DataInputStream input) throws IOException {
     return Integer.reverseBytes(input.readInt());
@@ -66,67 +72,56 @@ public class SteamPipeServer {
                 DataOutputStream output =
                     new DataOutputStream(new BufferedOutputStream(clientSocket.getOutputStream()));
 
+                // Block on readInt(). When the peer closes, EOFException ends the loop
+                // without burning CPU and without adding per-message latency.
                 while (running && !clientSocket.isClosed()) {
+                  int messageType;
                   try {
-                    if (input.available() > 0) {
-                      int messageType = readNetworkInt(input);
-
-                      switch (messageType) {
-                        case RequestCodes.MSG_INIT:
-                          Log.d(TAG, "Received MSG_INIT");
-                          writeNetworkInt(output, 1);
-                          output.flush();
-                          break;
-                        case RequestCodes.MSG_SHUTDOWN:
-                          Log.d(TAG, "Received MSG_SHUTDOWN");
-                          clientSocket.close();
-                          break;
-                        case RequestCodes.MSG_RESTART_APP:
-                          Log.d(TAG, "Received MSG_RESTART_APP");
-                          int appId = input.readInt();
-                          writeNetworkInt(output, 0); // Send restart not needed
-                          output.flush();
-                          break;
-                        case RequestCodes.MSG_IS_RUNNING:
-                          Log.d(TAG, "Received MSG_IS_RUNNING");
-                          writeNetworkInt(output, 1); // Send Steam running status
-                          output.flush();
-                          break;
-                        case RequestCodes.MSG_REGISTER_CALLBACK:
-                          Log.d(TAG, "Received MSG_REGISTER_CALLBACK");
-                          break;
-                        case RequestCodes.MSG_UNREGISTER_CALLBACK:
-                          Log.d(TAG, "Received MSG_UNREGISTER_CALLBACK");
-                          break;
-                        case RequestCodes.MSG_RUN_CALLBACKS:
-                          Log.d(TAG, "Received MSG_RUN_CALLBACKS");
-                          break;
-                        default:
-                          Log.w(TAG, "Unknown message type: " + messageType);
-                          break;
-                      }
-                    }
-
-                    Thread.sleep(10);
-                  } catch (InterruptedException e) {
-                    Log.d(TAG, "Client thread interrupted");
+                    messageType = readNetworkInt(input);
+                  } catch (EOFException eof) {
                     break;
-                  } catch (IOException e) {
-                    if (running) {
-                      Log.e(TAG, "Error reading from client", e);
-                    }
-                    break;
+                  }
+
+                  switch (messageType) {
+                    case RequestCodes.MSG_INIT:
+                      if (VERBOSE) Log.d(TAG, "MSG_INIT");
+                      writeNetworkInt(output, 1);
+                      output.flush();
+                      break;
+                    case RequestCodes.MSG_SHUTDOWN:
+                      if (VERBOSE) Log.d(TAG, "MSG_SHUTDOWN");
+                      clientSocket.close();
+                      break;
+                    case RequestCodes.MSG_RESTART_APP:
+                      if (VERBOSE) Log.d(TAG, "MSG_RESTART_APP");
+                      input.readInt(); // appId, not used
+                      writeNetworkInt(output, 0);
+                      output.flush();
+                      break;
+                    case RequestCodes.MSG_IS_RUNNING:
+                      if (VERBOSE) Log.d(TAG, "MSG_IS_RUNNING");
+                      writeNetworkInt(output, 1);
+                      output.flush();
+                      break;
+                    case RequestCodes.MSG_REGISTER_CALLBACK:
+                    case RequestCodes.MSG_UNREGISTER_CALLBACK:
+                    case RequestCodes.MSG_RUN_CALLBACKS:
+                      if (VERBOSE) Log.d(TAG, "callback msg " + messageType);
+                      break;
+                    default:
+                      Log.w(TAG, "Unknown message type: " + messageType);
+                      break;
                   }
                 }
               } catch (IOException e) {
-                Log.e(TAG, "Client handler error", e);
+                if (running) Log.e(TAG, "Client handler error", e);
               } finally {
                 try {
                   clientSocket.close();
                 } catch (IOException e) {
                   Log.e(TAG, "Error closing client socket", e);
                 }
-                Log.d(TAG, "Client thread exiting");
+                if (VERBOSE) Log.d(TAG, "Client thread exiting");
               }
             },
             "SteamPipeClient")

@@ -219,7 +219,12 @@ public class Shortcut {
   }
 
   public String getSettingExtra(String name, String containerValue) {
-    return usesContainerDefaults() ? containerValue : getExtra(name, containerValue);
+    if (usesContainerDefaults()) return containerValue;
+    // A persisted extra of "" (legacy shortcuts or cleared fields) must not shadow
+    // the container value. Otherwise graphicsDriver/graphicsDriverConfig resolve to
+    // "" and AdrenotoolsManager.setDriverById silently falls back to system drivers.
+    String extra = getExtra(name, "");
+    return extra.isEmpty() ? containerValue : extra;
   }
 
   public void putExtra(String name, String value) {

@@ -231,6 +231,24 @@ public class ContainerManager {
       Log.d("ContainerManager", "createContainer: wineVersion=" + wineVersion);
       container.setWineVersion(wineVersion);
 
+      // Set the correct emulators based on the wine architecture, unless the
+      // caller already specified them in the JSON data.  This ensures every
+      // creation path (manual, contents download, store integration) gets the
+      // right emulator: box64 for x86_64, fexcore for arm64ec.
+      if (!data.has("emulator") || !data.has("emulator64")) {
+          WineInfo wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersion);
+          if (wineInfo.isArm64EC()) {
+              if (!data.has("emulator"))   container.setEmulator("fexcore");
+              if (!data.has("emulator64")) container.setEmulator64("fexcore");
+          } else {
+              if (!data.has("emulator"))   container.setEmulator("box64");
+              if (!data.has("emulator64")) container.setEmulator64("box64");
+          }
+          Log.d("ContainerManager", "createContainer: auto-set emulators for arch="
+              + wineInfo.getArch() + " emulator=" + container.getEmulator()
+              + " emulator64=" + container.getEmulator64());
+      }
+
       if (!extractContainerPatternFile(
           container, container.getWineVersion(), contentsManager, containerDir, null)) {
         Log.e(

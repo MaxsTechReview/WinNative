@@ -2625,7 +2625,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
                             Log.d("XServerDisplayActivity", "Real Steam Setup: Pristine environment restored for appId=" + appId);
                         } else if (useColdClient) {
-                            // ── ColdClient launcher mode (matches GameNative replaceSteamclientDll) ──────
+                            // ── ColdClient launcher mode ──────
                             // ColdClientLoader handles Steam emulation by loading Goldberg's
                             // steamclient.dll/steamclient64.dll. The game's ORIGINAL steam_api.dll
                             // must stay intact — ColdClientLoader routes its calls through the
@@ -2635,52 +2635,65 @@ public class XServerDisplayActivity extends AppCompatActivity {
                             MarkerUtils.INSTANCE.removeMarker(gameInstallPath, Marker.STEAM_DLL_REPLACED);
                             MarkerUtils.INSTANCE.removeMarker(gameInstallPath, Marker.STEAM_DLL_RESTORED);
 
-                            // Restore original steam_api DLLs if previously replaced by Goldberg mode
-                            SteamUtils.putBackSteamDlls(gameInstallPath);
+                            // One-time-per-prefix provisioning guard: once the loader + Goldberg
+                            // stubs are extracted into the prefix and the DLL-scan marker is set,
+                            // the tzst extract / DLL backup / interfaces scan don't need to rerun.
+                            // Per-launch config (steam_settings, ini, symlinks) always runs below.
+                            File coldClientLoaderExe = new File(container.getRootDir(),
+                                    ".wine/drive_c/Program Files (x86)/Steam/steamclient_loader_x64.exe");
+                            boolean coldClientProvisioned =
+                                    MarkerUtils.INSTANCE.hasMarker(gameInstallPath, Marker.STEAM_COLDCLIENT_USED)
+                                    && coldClientLoaderExe.exists();
 
-                            // Backup steamclient DLLs before any modification (for restore on mode switch)
-                            SteamUtils.backupSteamclientFiles(this, appId);
+                            if (!coldClientProvisioned) {
+                                // Restore original steam_api DLLs if previously replaced by Goldberg mode
+                                SteamUtils.putBackSteamDlls(gameInstallPath);
 
-                            // Delete extra_dlls folder before extraction to prevent conflicts (GameNative parity)
-                            File extraDllDir = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam/extra_dlls");
-                            if (extraDllDir.exists()) {
-                                com.winlator.cmod.shared.io.FileUtils.delete(extraDllDir);
-                                Log.d("XServerDisplayActivity", "Deleted extra_dlls directory before extraction");
-                            }
+                                // Backup steamclient DLLs before any modification (for restore on mode switch)
+                                SteamUtils.backupSteamclientFiles(this, appId);
 
-                            // Extract ColdClientLoader + Goldberg steamclient stubs into the Wine prefix.
-                            // The archive extracts into imageFs.rootDir at home/xuser/.wine/... which resolves
-                            // through the container activation symlink to the correct container prefix.
-                            // Do NOT break the Steam symlink — GameNative keeps it intact and uses
-                            // backup/restore for mode switching instead.
-                            try {
-                                File expFile = new File(getFilesDir(), "experimental-drm.tzst");
-                                if (expFile.exists()) {
-                                    com.winlator.cmod.shared.io.TarCompressorUtils.extract(
-                                            com.winlator.cmod.shared.io.TarCompressorUtils.Type.ZSTD,
-                                            expFile, imageFs.getRootDir(), null);
-                                    Log.d("XServerDisplayActivity", "Extracted experimental-drm.tzst for ColdClient mode");
-                                } else {
-                                    Log.w("XServerDisplayActivity", "experimental-drm.tzst not found! ColdClient mode may fail.");
+                                // Delete extra_dlls folder before extraction to prevent conflicts
+                                File extraDllDir = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam/extra_dlls");
+                                if (extraDllDir.exists()) {
+                                    com.winlator.cmod.shared.io.FileUtils.delete(extraDllDir);
+                                    Log.d("XServerDisplayActivity", "Deleted extra_dlls directory before extraction");
                                 }
-                            } catch (Exception e) {
-                                Log.e("XServerDisplayActivity", "Failed to extract experimental-drm.tzst", e);
+
+                                // Extract ColdClientLoader + Goldberg steamclient stubs into the Wine prefix.
+                                // The archive extracts into imageFs.rootDir at home/xuser/.wine/... which resolves
+                                // through the container activation symlink to the correct container prefix.
+                                // Do NOT break the Steam symlink — mode switches use backup/restore instead.
+                                try {
+                                    File expFile = new File(getFilesDir(), "experimental-drm.tzst");
+                                    if (expFile.exists()) {
+                                        com.winlator.cmod.shared.io.TarCompressorUtils.extract(
+                                                com.winlator.cmod.shared.io.TarCompressorUtils.Type.ZSTD,
+                                                expFile, imageFs.getRootDir(), null);
+                                        Log.d("XServerDisplayActivity", "Extracted experimental-drm.tzst for ColdClient mode");
+                                    } else {
+                                        Log.w("XServerDisplayActivity", "experimental-drm.tzst not found! ColdClient mode may fail.");
+                                    }
+                                } catch (Exception e) {
+                                    Log.e("XServerDisplayActivity", "Failed to extract experimental-drm.tzst", e);
+                                }
+
+                                // Restore original steam_api DLLs in game dir (ColdClient hooks through steamclient, not steam_api)
+                                SteamUtils.putBackSteamDlls(gameInstallPath);
+                                // Restore unpacked exe if available
+                                SteamUtils.restoreUnpackedExecutable(this, appId);
+
+                                // Generate steam_interfaces.txt from the original DLLs (slow scan, once per prefix)
+                                generateSteamInterfacesForGame(gameDir);
+                            } else {
+                                Log.d("XServerDisplayActivity", "ColdClient prefix already provisioned for appId=" + appId + ", skipping extract/backup");
                             }
 
-                            // Restore original steam_api DLLs in game dir (ColdClient hooks through steamclient, not steam_api)
-                            SteamUtils.putBackSteamDlls(gameInstallPath);
-                            // Restore unpacked exe if available
-                            SteamUtils.restoreUnpackedExecutable(this, appId);
-
-                            // Write steam_settings in Steam dir + next to game's steam_api DLLs
+                            // Per-launch config: picks up any toggles the user changed between launches
                             File steamDir = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam");
                             steamDir.mkdirs();
                             SteamUtils.writeCompleteSettingsDir(steamDir, appId, language, isOfflineMode, forceDlc, useSteamInput, ticketBase64);
                             SteamUtils.enrichSteamSettings(this, appId, new File(steamDir, "steam_settings"));
                             setupSteamSettingsForAllDirs(gameDir, appId, language, isOfflineMode, forceDlc, useSteamInput, ticketBase64);
-
-                            // Generate steam_interfaces.txt from the original DLLs
-                            generateSteamInterfacesForGame(gameDir);
 
                             // Ensure steamapps/common symlink exists — ColdClientLoader's ExeRunDir depends on it
                             File steamappsDir = new File(steamDir, "steamapps");
@@ -2762,10 +2775,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
                         // Sync achievements from Goldberg back to Steam (best-effort)
                         SteamUtils.syncGoldbergAchievementsAndStats(this, appId);
 
-                        // GameNative parity: do not clone the full Steam runtime into the game
-                        // directory for Steam titles. A copied GameDir/Steam tree can override
-                        // the intended global Steam root or per-game Goldberg stubs and break
-                        // repeated launches, especially on titles with custom Steam loaders.
+                        // Do not clone the full Steam runtime into the game directory for Steam titles.
+                        // A copied GameDir/Steam tree can override the intended global Steam root
+                        // or per-game Goldberg stubs and break repeated launches, especially on
+                        // titles with custom Steam loaders.
                         cleanupEmbeddedSteamRuntime(gameDir);
 
                         Log.d("XServerDisplayActivity", "Steam environment physical readiness verified for appId=" + appId);
@@ -2904,13 +2917,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     "' effective='" + effectiveCustomEnvVars + "'");
             envVars.putAll(effectiveCustomEnvVars);
 
-            // Normalize synchronization environment variables (NTSync / ESync / FSync).
+            // Normalize synchronization environment variables (NTSync / ESync).
+            // This auto-detects NTSync and falls back to ESync when unavailable.
             normalizeSyncEnvVars(envVars);
-
-            if (!envVars.has("WINEESYNC") && !envVars.has("WINENTSYNC")
-                    && !envVars.has("PROTON_USE_NTSYNC")) {
-                envVars.put("WINEESYNC", "1");
-            }
 
             ArrayList<String> bindingPaths = new ArrayList<>();
             String drives = shortcut != null ? getShortcutSetting("drives", container.getDrives()) : container.getDrives();
@@ -3755,8 +3764,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
             WineD3DConfigUtils.setEnvVars(this, dxwrapperConfig, envVars);
         }
 
-        envVars.put("VK_ICD_FILENAMES", imageFs.getShareDir() + "/vulkan/icd.d/wrapper_icd.aarch64.json");
         envVars.put("GALLIUM_DRIVER", "zink");
+        envVars.put("LIBGL_KOPPER_DISABLE", "true");
 
         if (firstTimeBoot) {
             Log.d("XServerDisplayActivity", "First time container boot, re-extracting libs");
@@ -3772,14 +3781,23 @@ public class XServerDisplayActivity extends AppCompatActivity {
             }
         }
 
-        if (adrenoToolsDriverId != null && !adrenoToolsDriverId.equals("System")) {
+        if (adrenoToolsDriverId != null && !adrenoToolsDriverId.isEmpty()
+                && !adrenoToolsDriverId.equals("System")) {
             AdrenotoolsManager adrenotoolsManager = new AdrenotoolsManager(this);
             adrenotoolsManager.setDriverById(envVars, imageFs, adrenoToolsDriverId);
-            Log.d("GraphicsDriverExtraction", "Driver env after Adrenotools: path=" +
+            Log.d("GraphicsDriverExtraction", "Driver env after Adrenotools: id='" +
+                    adrenoToolsDriverId + "' path=" +
                     envVars.get("ADRENOTOOLS_DRIVER_PATH") + " name=" +
                     envVars.get("ADRENOTOOLS_DRIVER_NAME") + " hooks=" +
                     envVars.get("ADRENOTOOLS_HOOKS_PATH"));
+        } else {
+            String gameSource = (shortcut != null) ? shortcut.getExtra("game_source") : "";
+            Log.w("GraphicsDriverExtraction", "No Adrenotools driver applied (id='"
+                    + adrenoToolsDriverId + "' graphicsDriver='" + graphicsDriver
+                    + "' gameSource='" + gameSource + "') - system Vulkan driver will be used");
         }
+
+        envVars.put("VK_ICD_FILENAMES", imageFs.getShareDir() + "/vulkan/icd.d/wrapper_icd.aarch64.json");
 
         String vulkanVersion = graphicsDriverConfig.get("vulkanVersion");
         if (vulkanVersion == null) vulkanVersion = "1.3";
@@ -3810,9 +3828,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
         String maxDeviceMemory = graphicsDriverConfig.get("maxDeviceMemory");
         if (maxDeviceMemory != null && Integer.parseInt(maxDeviceMemory) > 0)
             envVars.put("WRAPPER_VMEM_MAX_SIZE", maxDeviceMemory);
-        
+
         String presentMode = graphicsDriverConfig.get("presentMode");
-        if (presentMode != null && presentMode.contains("immediate")) {
+        if (presentMode == null || presentMode.isEmpty()) presentMode = "mailbox";
+        if (presentMode.contains("immediate")) {
             envVars.put("WRAPPER_MAX_IMAGE_COUNT", "1");
         }
         envVars.put("MESA_VK_WSI_PRESENT_MODE", presentMode);
@@ -3833,7 +3852,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
         envVars.put("WRAPPER_DISABLE_PRESENT_WAIT", disablePresentWait);
 
         String bcnEmulation = graphicsDriverConfig.get("bcnEmulation");
-
         String bcnEmulationType = graphicsDriverConfig.get("bcnEmulationType");
 
         switch (bcnEmulation) {
@@ -4144,7 +4162,32 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 } else if (useColdClient) {
                     // ColdClient mode: always use x64 loader — IgnoreLoaderArchDifference=1
                     // in ColdClientLoader.ini handles architecture differences.
-                    if (containerSteamDir.exists()) launcherComponent.setWorkingDir(containerSteamDir);
+                    // cwd goes to the actual game dir (not Steam root) so games that resolve
+                    // assets/configs relative to cwd find them. The loader itself is path-agnostic;
+                    // it reads ColdClientLoader.ini from the Steam dir by absolute Windows path.
+                    File coldClientWorkDir = null;
+                    String gameDirNameCC = (gameInstPath != null) ? new File(gameInstPath).getName() : "";
+                    String relativeExeCC = resolveRelativeGameExe(appId, gameInstPath);
+                    if (!gameDirNameCC.isEmpty()) {
+                        File containerGameDirCC = new File(containerSteamDir, "steamapps/common/" + gameDirNameCC);
+                        try { coldClientWorkDir = containerGameDirCC.getCanonicalFile(); }
+                        catch (IOException e) { coldClientWorkDir = containerGameDirCC; }
+                        if (!relativeExeCC.isEmpty()) {
+                            String exeRelNativeCC = relativeExeCC.replace("\\", "/");
+                            int lastSlashCC = exeRelNativeCC.lastIndexOf("/");
+                            if (lastSlashCC > 0) {
+                                File exeParentDirCC = new File(coldClientWorkDir, exeRelNativeCC.substring(0, lastSlashCC));
+                                if (exeParentDirCC.exists()) coldClientWorkDir = exeParentDirCC;
+                            }
+                        }
+                    }
+                    if (coldClientWorkDir != null && coldClientWorkDir.exists()) {
+                        launcherComponent.setWorkingDir(coldClientWorkDir);
+                        Log.d("XServerDisplayActivity", "ColdClient working dir: " + coldClientWorkDir.getPath());
+                    } else if (containerSteamDir.exists()) {
+                        launcherComponent.setWorkingDir(containerSteamDir);
+                        Log.w("XServerDisplayActivity", "ColdClient: game dir unresolved, falling back to Steam dir");
+                    }
                     args = "\"C:\\Program Files (x86)\\Steam\\steamclient_loader_x64.exe\"";
                     Log.d("XServerDisplayActivity", "ColdClient launch via steamclient_loader_x64.exe for appId=" + appId);
                 } else {
@@ -4505,11 +4548,16 @@ public class XServerDisplayActivity extends AppCompatActivity {
         String perGameExecArgs = shortcut != null ? shortcut.getSettingExtra("execArgs", container.getExecArgs()) : container.getExecArgs();
         String exeCommandLine = perGameExecArgs != null ? perGameExecArgs : "";
 
-        // Always inject extra_dlls in ColdClient mode — the folder contains the runtime
-        // DRM patcher (steamclient_extra_x64.dll) that handles SteamStub at runtime.
-        // Without injection, games with SteamStub DRM fail even with Goldberg emulation.
-        String injectionSection = "[Injection]\nIgnoreLoaderArchDifference=1\n"
-                + "DllsToInjectFolder=extra_dlls\n";
+        // IgnoreLoaderArchDifference=1 is always needed so the x64 loader can spawn
+        // x86 games. DllsToInjectFolder is only included when the user opts into
+        // unpackFiles — that's when extra_dlls/steamclient_extra_x64.dll (runtime DRM
+        // patcher) is needed. Non-DRM games don't benefit from injection and pay
+        // extra LoadLibrary overhead every launch.
+        StringBuilder injectionBuilder = new StringBuilder("[Injection]\nIgnoreLoaderArchDifference=1\n");
+        if (unpackFiles) {
+            injectionBuilder.append("DllsToInjectFolder=extra_dlls\n");
+        }
+        String injectionSection = injectionBuilder.toString();
 
         String iniContent = "[SteamClient]\n" +
                 "\n" +
@@ -4562,11 +4610,16 @@ public class XServerDisplayActivity extends AppCompatActivity {
         String perGameExecArgs = shortcut != null ? shortcut.getSettingExtra("execArgs", container.getExecArgs()) : container.getExecArgs();
         String exeCommandLine = perGameExecArgs != null ? perGameExecArgs : "";
 
-        // Always inject extra_dlls in ColdClient mode — the folder contains the runtime
-        // DRM patcher (steamclient_extra_x64.dll) that handles SteamStub at runtime.
-        // Without injection, games with SteamStub DRM fail even with Goldberg emulation.
-        String injectionSection = "[Injection]\nIgnoreLoaderArchDifference=1\n"
-                + "DllsToInjectFolder=extra_dlls\n";
+        // IgnoreLoaderArchDifference=1 is always needed so the x64 loader can spawn
+        // x86 games. DllsToInjectFolder is only included when the user opts into
+        // unpackFiles — that's when extra_dlls/steamclient_extra_x64.dll (runtime DRM
+        // patcher) is needed. Non-DRM games don't benefit from injection and pay
+        // extra LoadLibrary overhead every launch.
+        StringBuilder injectionBuilder = new StringBuilder("[Injection]\nIgnoreLoaderArchDifference=1\n");
+        if (unpackFiles) {
+            injectionBuilder.append("DllsToInjectFolder=extra_dlls\n");
+        }
+        String injectionSection = injectionBuilder.toString();
 
         String iniContent = "[SteamClient]\n" +
                 "\n" +
@@ -4813,7 +4866,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     /**
      * Replaces all steam_api.dll / steam_api64.dll in the game directory tree with
      * steampipe stubs. Generates steam_interfaces.txt BEFORE replacing (from the original),
-     * backs up originals as .orig (matching GameNative's convention), writes orig_dll_path.txt,
+     * backs up originals as .orig, writes orig_dll_path.txt,
      * and calls writeCompleteSettingsDir next to each DLL found.
      */
     private void injectSteamApiIfMissing(File gameDir, String appDirPath, String language,
@@ -4956,7 +5009,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             injectSteamApiIfMissing(gameDir, appDirPath, language, isOffline, forceDlc, useSteamInput, ticketBase64, backupPaths);
         }
 
-        // Write orig_dll_path.txt listing all .orig backup paths (matches GameNative)
+        // Write orig_dll_path.txt listing all .orig backup paths
         if (!backupPaths.isEmpty()) {
             try {
                 java.util.Collections.sort(backupPaths);
@@ -5031,7 +5084,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 // Generate steam_interfaces.txt BEFORE replacing (scans the original DLL)
                 generateSteamInterfacesFromDll(dir, file);
 
-                // Backup as .orig (GameNative convention) if not already done
+                // Backup as .orig if not already done
                 File backup = new File(file.getParent(), file.getName() + ".orig");
                 if (!backup.exists()) {
                     FileUtils.copy(file, backup);
@@ -5184,7 +5237,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 }
             } else {
                 String name = file.getName().toLowerCase();
-                // Backups are written as .orig (GameNative convention)
+                // Backups are written as .orig
                 if (name.equals("steam_api.dll.orig") || name.equals("steam_api64.dll.orig")) {
                     try {
                         String originalName = file.getName().substring(0, file.getName().length() - ".orig".length());
@@ -5240,51 +5293,66 @@ public class XServerDisplayActivity extends AppCompatActivity {
     /**
      * Normalizes synchronization environment variables.
      *
-     * NTSync, ESync, and FSync are mutually exclusive kernel-level synchronization
-     * methods for Wine. This method enforces correct precedence:
+     * NTSync and ESync are the two synchronization methods available on Android.
+     * FSync is compiled out of the Android Wine build (futex_waitv not reliable
+     * on Android bionic), so it is always disabled here.
      *
-     * 1. If NTSync is requested (PROTON_USE_NTSYNC=1 or WINENTSYNC=1):
-     *    a. If /dev/ntsync is accessible: enable NTSync, disable ESync and FSync
-     *    b. If /dev/ntsync is NOT accessible: fall back to plain Wine server sync
-     *       (disable all fast-sync methods for maximum compatibility)
+     * Priority logic:
      *
-     * 2. Translates PROTON_USE_NTSYNC into WINENTSYNC so both Proton-patched and
-     *    Crossover/Wine-GE builds activate the driver regardless of which env var
-     *    name their patches use.
+     * 1. If the user explicitly set WINEESYNC=1 (without any NTSync variable):
+     *    bypass NTSync detection entirely, use ESync.
+     *
+     * 2. If the user explicitly set WINENTSYNC=1 or PROTON_USE_NTSYNC=1:
+     *    try NTSync. If /dev/ntsync is not accessible, fall back to ESync
+     *    automatically (never drop to plain wineserver sync).
+     *
+     * 3. If no sync variables are set at all:
+     *    auto-detect NTSync — use it if /dev/ntsync is accessible,
+     *    otherwise fall back to ESync.
      */
     private void normalizeSyncEnvVars(com.winlator.cmod.runtime.wine.EnvVars envVars) {
-        boolean ntSyncRequested = "1".equals(envVars.get("PROTON_USE_NTSYNC"))
-                || "1".equals(envVars.get("WINENTSYNC"));
+        boolean esyncExplicit = "1".equals(envVars.get("WINEESYNC"));
+        boolean ntSyncExplicit = "1".equals(envVars.get("WINENTSYNC"))
+                || "1".equals(envVars.get("PROTON_USE_NTSYNC"));
 
-        if (!ntSyncRequested) return;
+        // FSync is always disabled on Android (compiled out of Wine build).
+        envVars.remove("WINEFSYNC");
+        envVars.put("PROTON_NO_FSYNC", "1");
 
-        if (canAccessNtsyncDevice()) {
-            // NTSync available — enable it and disable competing sync methods
-            envVars.put("WINENTSYNC", "1");
-            envVars.put("PROTON_USE_NTSYNC", "1");
-
-            // Explicitly disable ESync and FSync (mutually exclusive with NTSync)
-            envVars.remove("WINEESYNC");
-            envVars.remove("WINEFSYNC");
-            envVars.put("PROTON_NO_ESYNC", "1");
-            envVars.put("PROTON_NO_FSYNC", "1");
-
-            Log.d("XServerDisplayActivity", "NTSync: enabled — disabled ESync/FSync");
-        } else {
-            // NTSync requested but device is inaccessible — fall back to plain sync.
-            // Standard Winlator often forces ESync by default, but if NTSync failed,
-            // forcing ESync can cause "Too many open files" errors. Plain server-side
-            // sync is the safest fallback to ensure the game actually boots.
+        if (esyncExplicit && !ntSyncExplicit) {
+            // User explicitly chose ESync — honour that, skip NTSync detection.
             envVars.remove("WINENTSYNC");
             envVars.remove("PROTON_USE_NTSYNC");
-            envVars.remove("WINEESYNC");
-            envVars.remove("WINEFSYNC");
-            envVars.put("WINE_DISABLE_FAST_SYNC", "1");
-            envVars.put("PROTON_NO_ESYNC", "1");
-            envVars.put("PROTON_NO_FSYNC", "1");
+            envVars.put("WINEESYNC", "1");
+            envVars.remove("PROTON_NO_ESYNC");
+            Log.d("XServerDisplayActivity",
+                    "Sync: user selected ESync — using ESync, skipping NTSync detection");
+            return;
+        }
 
-            Log.w("XServerDisplayActivity",
-                    "NTSync: requested but /dev/ntsync not accessible — falling back to plain sync");
+        // Either NTSync was explicitly requested, or no sync vars are set at all.
+        // In both cases: try NTSync first, fall back to ESync if unavailable.
+        if (canAccessNtsyncDevice()) {
+            // NTSync available — enable it, disable ESync (mutually exclusive).
+            envVars.put("WINENTSYNC", "1");
+            envVars.put("PROTON_USE_NTSYNC", "1");
+            envVars.remove("WINEESYNC");
+            envVars.put("PROTON_NO_ESYNC", "1");
+            Log.d("XServerDisplayActivity",
+                    "Sync: NTSync enabled (/dev/ntsync accessible) — disabled ESync");
+        } else {
+            // NTSync not available — fall back to ESync automatically.
+            envVars.remove("WINENTSYNC");
+            envVars.remove("PROTON_USE_NTSYNC");
+            envVars.put("WINEESYNC", "1");
+            envVars.remove("PROTON_NO_ESYNC");
+            if (ntSyncExplicit) {
+                Log.w("XServerDisplayActivity",
+                        "Sync: NTSync requested but /dev/ntsync not accessible — falling back to ESync");
+            } else {
+                Log.d("XServerDisplayActivity",
+                        "Sync: NTSync not available (no /dev/ntsync) — using ESync");
+            }
         }
     }
 
@@ -5735,7 +5803,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     /**
      * Generates steam_interfaces.txt by scanning the backed-up original DLL for
      * Steam interface version strings (e.g., SteamUser023, SteamApps008).
-     * Checks .orig backup first (GameNative convention), then falls back to the DLL itself.
+     * Checks .orig backup first, then falls back to the DLL itself.
      */
     private void generateSteamInterfacesFile(File dir, String dllName) {
         File interfacesFile = new File(dir, "steam_interfaces.txt");
@@ -6228,7 +6296,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
     /**
      * Sets up the Steam environment: steamapps/common symlink, ACF manifest,
      * Wine registry entries for Steam paths, and steam.cfg for bootstrap inhibit.
-     * Matches GameNative's createAppManifest and autoLoginUserChanges approach.
      */
     private void setupSteamEnvironment(int appId, File gameDir) {
         try {
@@ -6273,8 +6340,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
             commonDir.mkdirs();
             WineUtils.ensureSteamappsCommonSymlink(container, gameDir.getAbsolutePath());
 
-            // FIX #7: Create full ACF manifest via SteamUtils.createAppManifest which includes
-            // InstalledDepots, buildId, SizeOnDisk, UserConfig/language — matching GameNative.
+            // Create full ACF manifest via SteamUtils.createAppManifest which includes
+            // InstalledDepots, buildId, SizeOnDisk, UserConfig/language.
             // Falls back gracefully if SteamService has no appInfo for this game.
             SteamUtils.createAppManifest(this, appId);
 
@@ -6315,7 +6382,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             }
 
             // Write loginusers.vdf with full OAuth tokens and set Wine registry for Steam paths.
-            // autoLoginUserChanges uses SteamService for proper token format (matching GameNative).
+            // autoLoginUserChanges uses SteamService for proper token format.
             try {
                 SteamUtils.autoLoginUserChanges(imageFs);
                 Log.d("XServerDisplayActivity", "autoLoginUserChanges complete");

@@ -418,22 +418,28 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val emulatorArr = context.resources.getStringArray(R.array.emulator_entries).toList()
         state.emulatorEntries.value = emulatorArr
 
-        val wineVersionStr = c?.getWineVersion() ?: WineInfo.MAIN_WINE_VERSION.identifier()
-        val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersionStr)
-        isArm64EC = wineInfo.isArm64EC()
-        state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
+        // For existing containers, set up emulator lists now from the saved
+        // wine version. For new containers, defer this to
+        // populateContentsDependentData() which runs after the installed wine
+        // list is populated — that way the emulator options (Box64 vs FEXCore)
+        // match the actual wine version the user will see in the General tab.
+        if (c != null) {
+            val wineInfo = WineInfo.fromIdentifier(context, contentsManager, c.getWineVersion())
+            isArm64EC = wineInfo.isArm64EC()
+            state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
 
-        rebuildEmulatorLists()
-        selectByIdentifier(
-            state.emulator32Entries.value,
-            c?.getEmulator() ?: Container.DEFAULT_EMULATOR,
-            state.selectedEmulator
-        )
-        selectByIdentifier(
-            state.emulator64Entries.value,
-            c?.getEmulator64() ?: Container.DEFAULT_EMULATOR64,
-            state.selectedEmulator64
-        )
+            rebuildEmulatorLists()
+            selectByIdentifier(
+                state.emulator32Entries.value,
+                c.getEmulator(),
+                state.selectedEmulator
+            )
+            selectByIdentifier(
+                state.emulator64Entries.value,
+                c.getEmulator64(),
+                state.selectedEmulator64
+            )
+        }
 
         state.localeOptions.value = context.resources.getStringArray(R.array.some_lc_all).toList()
         state.winComponentEntries.value =
@@ -527,17 +533,36 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         state.wineVersionEntries.value = versions
         wineVersionIdentifiers = identifiers
 
-        val currentWine = c?.getWineVersion() ?: WineInfo.MAIN_WINE_VERSION.identifier()
+        // For existing containers, use their saved wine version.
+        // For new containers, use the first actually-installed version from the
+        // populated list instead of the hardcoded MAIN_WINE_VERSION default.
+        // This ensures that if only an arm64ec Proton is installed, the dialog
+        // correctly shows FEXCore/WowBox64 options instead of Box64.
+        val currentWine: String
+        if (c != null) {
+            currentWine = c.getWineVersion()
+        } else if (identifiers.isNotEmpty()) {
+            currentWine = identifiers[0]
+        } else {
+            currentWine = WineInfo.MAIN_WINE_VERSION.identifier()
+        }
         val idx = identifiers.indexOfFirst { it == currentWine }
         state.selectedWineVersion.intValue = if (idx >= 0) idx else 0
 
-        val wineInfo = WineInfo.fromIdentifier(context, contentsManager, currentWine)
+        // Resolve the actual wine info for the selected version and detect
+        // architecture changes from the initial default so emulator lists
+        // and presets are rebuilt correctly.
+        val selectedIdentifier = if (idx >= 0) identifiers[idx]
+            else identifiers.getOrElse(0) { currentWine }
+        val wineInfo = WineInfo.fromIdentifier(context, contentsManager, selectedIdentifier)
         val archChanged = isArm64EC != wineInfo.isArm64EC()
         isArm64EC = wineInfo.isArm64EC()
         state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
 
         rebuildEmulatorLists()
-        if (archChanged) {
+        // Always reset emulator selections when populating for the first time
+        // or when the architecture changed from the initial default.
+        if (c == null || archChanged) {
             selectByIdentifier(
                 state.emulator32Entries.value,
                 c?.getEmulator() ?: Container.DEFAULT_EMULATOR,
@@ -552,6 +577,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
         loadBox64Versions()
         loadFexcoreVersions()
+        loadBox64Presets()
+        loadFexcorePresets()
         loadDxvkConfigState()
         loadWineD3DConfigState()
         updateEmulatorFrameVisibility()
@@ -884,7 +911,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 listOfNotNull(entryById("fexcore"), entryById("wowbox64"))
         } else {
             state.emulator64Entries.value = listOfNotNull(entryById("box64"))
-            state.emulator32Entries.value = listOfNotNull(entryById("wowbox64"))
+            state.emulator32Entries.value = listOfNotNull(entryById("box64"))
         }
 
         val new32 = state.emulator32Entries.value
