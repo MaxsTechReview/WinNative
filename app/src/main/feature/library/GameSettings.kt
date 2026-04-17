@@ -267,6 +267,8 @@ class GameSettingsStateHolder {
     // Input
     val controlsProfileEntries = mutableStateOf<List<String>>(emptyList())
     val selectedControlsProfile = mutableIntStateOf(0)
+    val numControllersEntries = mutableStateOf<List<String>>(emptyList())
+    val selectedNumControllers = mutableIntStateOf(0)
     val disableXInput = mutableStateOf(false)
     val simTouchScreen = mutableStateOf(false)
     val sdl2Compatibility = mutableStateOf(false)
@@ -2636,6 +2638,15 @@ private fun InputSection(state: GameSettingsStateHolder) {
                 entries = state.controlsProfileEntries.value,
                 selectedIndex = state.selectedControlsProfile.intValue,
                 onSelected = { state.selectedControlsProfile.intValue = it }
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            SettingDropdown(
+                label = stringResource(R.string.num_controllers),
+                entries = state.numControllersEntries.value,
+                selectedIndex = state.selectedNumControllers.intValue,
+                onSelected = { state.selectedNumControllers.intValue = it }
             )
 
             Spacer(Modifier.height(12.dp))

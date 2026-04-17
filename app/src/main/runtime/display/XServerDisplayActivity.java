@@ -103,6 +103,7 @@ import com.winlator.cmod.runtime.wine.WineThemeManager;
 import com.winlator.cmod.runtime.wine.WineUtils;
 import com.winlator.cmod.runtime.compat.fexcore.FEXCoreManager;
 import com.winlator.cmod.runtime.compat.gamefixes.GameFixes;
+import com.winlator.cmod.runtime.input.ControllerAssignmentDialog;
 import com.winlator.cmod.runtime.input.InputControlsDialog;
 import com.winlator.cmod.runtime.input.controls.ControlsProfile;
 import com.winlator.cmod.runtime.input.controls.ControllerManager;
@@ -2319,6 +2320,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 showInputControlsDialog();
                 drawerLayout.closeDrawers();
                 break;
+            case R.id.main_menu_controller_manager:
+                ControllerAssignmentDialog.show(this, winHandler);
+                drawerLayout.closeDrawers();
+                break;
             case R.id.main_menu_fps_monitor:
                 if (frameRating == null) {
                     FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
@@ -3043,6 +3048,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
             }
         }
 
+        // Reserve controller slots before Wine starts so connected pads are
+        // visible immediately without waiting for a first input event.
+        winHandler.preAssignConnectedControllers();
+
         // Start all environment components (XServer, Audio, etc.)
         environment.startEnvironmentComponents();
 
@@ -3684,6 +3693,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
         touchpadView.setPointerButtonRightEnabled(false);
 
         inputControlsView.invalidate();
+        if (winHandler != null) {
+            winHandler.sendGamepadState();
+        }
     }
 
     private void hideInputControls() {
@@ -3696,6 +3708,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
         touchpadView.setPointerButtonRightEnabled(true);
 
         inputControlsView.invalidate();
+        if (winHandler != null) {
+            winHandler.sendGamepadState();
+        }
     }
 
     private void extractGraphicsDriverFiles() {

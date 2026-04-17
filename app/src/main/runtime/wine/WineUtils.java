@@ -1160,10 +1160,14 @@ public abstract class WineUtils {
         if (selection == 1) {
           if (servicesList.contains(service)
               && !name.equals("winebus")
-              && !name.equals("winehid")) {
+              && !name.equals("winehid")
+              && !name.equals("PlugPlay")) {
             value = 4;
           }
-        } else if (selection == 2 && !name.equals("winebus") && !name.equals("winehid")) {
+        } else if (selection == 2
+            && !name.equals("winebus")
+            && !name.equals("winehid")
+            && !name.equals("PlugPlay")) {
           value = 4;
         }
         registryEditor.setDwordValue(

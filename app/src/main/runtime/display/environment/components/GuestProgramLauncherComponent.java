@@ -760,18 +760,17 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
     File devInputDir = new File(imageFs.getRootDir(), "dev/input");
     devInputDir.mkdirs();
-    // Pre-create all 4 event files so Wine's winebus/SDL can detect
-    // up to 4 controllers on startup.
-    for (int i = 0; i < 4; i++) {
-      File eventFile = new File(devInputDir, "event" + i);
-      if (!eventFile.exists()) {
-        try {
-          eventFile.createNewFile();
-        } catch (Exception e) {
-        }
+    // XServerDisplayActivity pre-creates the configured controller count after the
+    // shortcut is loaded. Keep event0 available here as a minimum fallback.
+    File event0 = new File(devInputDir, "event0");
+    if (!event0.exists()) {
+      try {
+        event0.createNewFile();
+      } catch (Exception e) {
       }
     }
     envVars.put("FAKE_EVDEV_DIR", devInputDir.getAbsolutePath());
+    envVars.put("FAKE_EVDEV_VIBRATION", "1");
 
     // Ensure Proton-flavoured winebus.sys uses the evdev/SDL path that
     // libfakeinput.so hooks, and does not filter out our fake gamepad.

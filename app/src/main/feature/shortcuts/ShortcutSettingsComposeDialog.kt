@@ -449,6 +449,13 @@ class ShortcutSettingsComposeDialog private constructor(
             context.resources.getStringArray(R.array.dinput_mapper_type_entries).toList()
         state.dInputMapperTypeEntries.value = dInputArr
 
+        val numControllersArr =
+            context.resources.getStringArray(R.array.num_controllers_entries).toList()
+        state.numControllersEntries.value = numControllersArr
+        val numControllers = shortcut.getExtra("numControllers", "1").toIntOrNull() ?: 1
+        state.selectedNumControllers.intValue =
+            (numControllers - 1).coerceIn(0, (numControllersArr.size - 1).coerceAtLeast(0))
+
         // Startup selection
         val startupArr =
             context.resources.getStringArray(R.array.startup_selection_entries).toList()
@@ -1005,6 +1012,16 @@ class ShortcutSettingsComposeDialog private constructor(
                 "controlsProfile",
                 if (controlsProfile > 0) controlsProfile.toString() else null
             )
+
+            val numControllerEntries = state.numControllersEntries.value
+            val numControllerIndex = state.selectedNumControllers.intValue
+            val numControllers =
+                if (numControllerIndex in numControllerEntries.indices) {
+                    numControllerEntries[numControllerIndex].toIntOrNull() ?: (numControllerIndex + 1)
+                } else {
+                    1
+                }
+            shortcut.putExtra("numControllers", numControllers.toString())
 
             // CPU list
             val cpuList = buildCpuListString(state.cpuChecked.value)
@@ -1656,7 +1673,7 @@ class ShortcutSettingsComposeDialog private constructor(
 
         // Reset container-derived state to the new container. Shortcut-only
         // fields (name, launchExePath, execArgs, refreshRate, controlsProfile,
-        // disableXInput, simTouchScreen) travel with the shortcut and are not
+        // numControllers, disableXInput, simTouchScreen) travel with the shortcut and are not
         // touched here.
         applyContainerDefaultsToState(newContainer)
         loadGraphicsDriverConfigState(newContainer)

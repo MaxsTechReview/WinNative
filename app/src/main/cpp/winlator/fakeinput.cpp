@@ -35,12 +35,12 @@
 
 #define EXPORT __attribute__((visibility("default"))) extern "C"
 
-static constexpr uint16_t GAMEPAD_VENDOR_ID = 0x1234;
-static constexpr uint16_t GAMEPAD_PRODUCT_ID = 0x5678;
-static constexpr uint16_t GAMEPAD_VERSION = 0x0001;
-static constexpr const char *GAMEPAD_NAME = "Generic HID Gamepad";
-static constexpr const char *GAMEPAD_PHYS = "usb-fakeinput/input0";
-static constexpr const char *GAMEPAD_UNIQ = "000000000001";
+static constexpr uint16_t GAMEPAD_VENDOR_ID_BASE = 0x1234;
+static constexpr uint16_t GAMEPAD_PRODUCT_ID_BASE = 0x5678;
+static constexpr uint16_t GAMEPAD_VERSION = 0x0110;
+static constexpr const char *GAMEPAD_NAME_TEMPLATE = "Generic HID Gamepad %d";
+static constexpr const char *GAMEPAD_PHYS_TEMPLATE = "usb-fakeinput/input%d";
+static constexpr const char *GAMEPAD_UNIQ_TEMPLATE = "0000000000%02d";
 static constexpr uint8_t GAMEPAD_AXIS_COUNT = 8;
 static constexpr uint8_t GAMEPAD_BUTTON_COUNT = 11;
 
@@ -192,12 +192,12 @@ __attribute__((visibility("hidden"))) int get_event_number(const char *event) {
 }
 
 __attribute__((visibility("hidden"))) static void
-copy_ioctl_string(int op, void *argp, const char *value) {
+copy_slot_ioctl_string(int op, void *argp, const char *format, int event_number) {
   size_t size = _IOC_SIZE(op);
   if (!argp || size == 0)
     return;
 
-  snprintf(static_cast<char *>(argp), size, "%s", value);
+  snprintf(static_cast<char *>(argp), size, format, event_number);
 }
 
 __attribute__((visibility("hidden"))) static bool is_fake_input_fd(int fd) {
@@ -412,6 +412,7 @@ EXPORT int ioctl(int fd, int op, ...) {
   int type = (op >> 8 & 0xFF);
   int number = (op >> 0 & 0xFF);
   const char *event = controller->second;
+  int event_number = get_event_number(event);
 
   if (type == 0x45 && number == 0x1) {
     Logger::log("Hooking ioctl EVIOCGVERSION for event %s\n", event);
@@ -423,22 +424,22 @@ EXPORT int ioctl(int fd, int op, ...) {
     struct input_id id;
     memset(&id, 0, sizeof(id));
     id.bustype = 0x03;
-    id.vendor = GAMEPAD_VENDOR_ID;
-    id.product = GAMEPAD_PRODUCT_ID;
+    id.vendor = static_cast<uint16_t>(GAMEPAD_VENDOR_ID_BASE + event_number);
+    id.product = static_cast<uint16_t>(GAMEPAD_PRODUCT_ID_BASE + event_number);
     id.version = GAMEPAD_VERSION;
     memcpy(argp, (void *)&id, sizeof(id));
     return 0;
   } else if (type == 0x45 && number == 0x6) {
     Logger::log("Hooking ioctl EVIOCGNAME for event %s\n", event);
-    copy_ioctl_string(op, argp, GAMEPAD_NAME);
+    copy_slot_ioctl_string(op, argp, GAMEPAD_NAME_TEMPLATE, event_number);
     return 0;
   } else if (type == 0x45 && number == 0x7) {
     Logger::log("Hooking ioctl EVIOCGPHYS for event %s\n", event);
-    copy_ioctl_string(op, argp, GAMEPAD_PHYS);
+    copy_slot_ioctl_string(op, argp, GAMEPAD_PHYS_TEMPLATE, event_number);
     return 0;
   } else if (type == 0x45 && number == 0x8) {
     Logger::log("Hooking ioctl EVIOCGUNIQ for event %s\n", event);
-    copy_ioctl_string(op, argp, GAMEPAD_UNIQ);
+    copy_slot_ioctl_string(op, argp, GAMEPAD_UNIQ_TEMPLATE, event_number);
     return 0;
   } else if (type == 0x45 && number == 0x9) {
     Logger::log("Hooking ioctl EVIOCGPROP for event %s\n", event);
@@ -554,7 +555,7 @@ EXPORT int ioctl(int fd, int op, ...) {
     return 0;
   } else if (type == 0x6A && number == 0x13) {
     Logger::log("Hooking ioctl JSIOCGNAME(len) for event %s\n", event);
-    copy_ioctl_string(op, argp, GAMEPAD_NAME);
+    copy_slot_ioctl_string(op, argp, GAMEPAD_NAME_TEMPLATE, event_number);
     return 0;
   } else {
     Logger::log("Unhandled evdev ioctl, type %d number %d\n", type, number);
@@ -612,8 +613,14 @@ EXPORT ssize_t write(int fd, const void *buf, size_t count) {
   auto controller = controller_map.find(fd);
   if (controller != controller_map.end() &&
       count == sizeof(struct input_event)) {
+    const struct input_event *ev = static_cast<const struct input_event *>(buf);
     uint16_t slot = static_cast<uint16_t>(get_event_number(controller->second));
-    check_ff_event(static_cast<const struct input_event *>(buf), slot);
+    check_ff_event(ev, slot);
+    // FF control events are commands sent to the fake device, not controller input.
+    // Writing them back into the fake evdev file lets Wine read them as input and can
+    // stall or corrupt controller state, so consume them here.
+    if (ev->type == EV_FF)
+      return static_cast<ssize_t>(count);
   }
   return my_write(fd, buf, count);
 }
@@ -622,12 +629,31 @@ EXPORT ssize_t writev(int fd, const struct iovec *iov, int iovcnt) {
   auto controller = controller_map.find(fd);
   if (controller != controller_map.end()) {
     uint16_t slot = static_cast<uint16_t>(get_event_number(controller->second));
+    std::vector<struct iovec> filtered;
+    filtered.reserve(iovcnt);
+    ssize_t filtered_out_bytes = 0;
+
     for (int i = 0; i < iovcnt; i++) {
       if (iov[i].iov_len == sizeof(struct input_event)) {
-        check_ff_event(static_cast<const struct input_event *>(iov[i].iov_base),
-                       slot);
+        const struct input_event *ev =
+            static_cast<const struct input_event *>(iov[i].iov_base);
+        check_ff_event(ev, slot);
+        if (ev->type == EV_FF) {
+          filtered_out_bytes += static_cast<ssize_t>(iov[i].iov_len);
+          continue;
+        }
       }
+      filtered.push_back(iov[i]);
     }
+
+    if (filtered.empty())
+      return filtered_out_bytes;
+
+    ssize_t written =
+        syscall(SYS_writev, fd, filtered.data(), static_cast<int>(filtered.size()));
+    if (written < 0)
+      return written;
+    return written + filtered_out_bytes;
   }
   return syscall(SYS_writev, fd, iov, iovcnt);
 }

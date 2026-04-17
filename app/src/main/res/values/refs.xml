@@ -12,6 +12,7 @@
 
     <item type="id" name="main_menu_keyboard" />
     <item type="id" name="main_menu_fps_monitor" />
+    <item type="id" name="main_menu_controller_manager" />
     <item type="id" name="main_menu_relative_mouse_movement" />
     <item type="id" name="main_menu_disable_mouse" />
     <item type="id" name="main_menu_screen_effects" />

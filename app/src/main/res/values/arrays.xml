@@ -222,6 +222,12 @@
         <item>Box64</item>
         <item>Wowbox64</item>
     </string-array>
+    <string-array name="num_controllers_entries">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+    </string-array>
     <string-array name="wine_entries">
     </string-array>
 </resources>

@@ -225,6 +225,7 @@
     <string name="shortcuts_properties_exec_arguments">Exec Arguments</string>
     <string name="shortcuts_properties_target_path">Target Path</string>
     <string name="shortcuts_properties_disable_xinput">Disable Xinput (For Exclusive M/KB Control)</string>
+    <string name="num_controllers">Number of Controllers</string>
     <string name="shortcuts_properties_exclusive_input">Exclusive Input</string>
     <string name="shortcuts_properties_custom_game_settings">Custom Game Settings</string>
     <string name="shortcuts_properties_use_cold_client">Use ColdClient Launcher</string>
