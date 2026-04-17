@@ -187,6 +187,7 @@ class TouchpadView(
     }
 
     private fun resetTouchscreenTimeout() {
+        if (!preferences.getBoolean("touchscreen_timeout_enabled", false)) return
         if (timeoutHandler != null && hideControlsRunnable != null) {
             timeoutHandler.removeCallbacks(hideControlsRunnable)
             timeoutHandler.postDelayed(hideControlsRunnable, 5000)

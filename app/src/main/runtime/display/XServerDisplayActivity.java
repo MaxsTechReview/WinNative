@@ -295,6 +295,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     private Handler  timeoutHandler = new Handler(Looper.getMainLooper());
     private Runnable hideControlsRunnable;
+    private boolean forwardingWakeTouchGesture = false;
     private final AtomicBoolean exitRequested = new AtomicBoolean(false);
     private final AtomicBoolean steamExitWatchRunning = new AtomicBoolean(false);
 
@@ -570,11 +571,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
 
         // Handler and Runnable to manage timeout for hiding controls
-
-        boolean isTimeoutEnabled = preferences.getBoolean("touchscreen_timeout_enabled", true);
-
         hideControlsRunnable = () -> {
-            if (isTimeoutEnabled) {
+            if (isTouchscreenTimeoutEnabled() && hasActiveTouchscreenProfile()) {
+                forwardingWakeTouchGesture = false;
                 inputControlsView.setVisibility(View.GONE);
                 Log.d("XServerDisplayActivity", "Touchscreen controls hidden after timeout.");
             }
@@ -1578,6 +1577,12 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (environment != null) {
             xServerView.onResume();
             environment.onResume();
+        }
+        if (inputControlsView != null && touchpadView != null) {
+            ControlsProfile activeProfile = inputControlsView.getProfile();
+            if (activeProfile == null) activeProfile = resolvePreferredStartupProfile();
+            if (activeProfile != null) showInputControls(activeProfile);
+            else startTouchscreenTimeout();
         }
         startTime = System.currentTimeMillis();
         handler.postDelayed(savePlaytimeRunnable, SAVE_INTERVAL_MS);
@@ -3121,14 +3126,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
         rootView.addView(inputControlsView);
 
 
-        startTouchscreenTimeout();
-
-        // Inside onCreate(), after initializing controls
-        boolean isTimeoutEnabled = preferences.getBoolean("touchscreen_timeout_enabled", false);
-        if (isTimeoutEnabled) {
-            startTouchscreenTimeout();
-        }
-
         // FPS monitor is a global sticky preference - persists across all games/containers
         effectiveShowFPS = preferences.getBoolean("fps_monitor_enabled", false);
         if (effectiveShowFPS) {
@@ -3161,6 +3158,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
             String simTouchScreen = shortcut.getExtra("simTouchScreen");
             touchpadView.setSimTouchScreen(simTouchScreen.equals("1"));
         }
+
+        startTouchscreenTimeout();
 
         AppUtils.observeSoftKeyboardVisibility(drawerLayout, renderer::setScreenOffsetYRelativeToCursor);
     }
@@ -3609,20 +3608,97 @@ public class XServerDisplayActivity extends AppCompatActivity {
         return null;
     }
 
+    private boolean hasActiveTouchscreenProfile() {
+        return inputControlsView != null && inputControlsView.getProfile() != null;
+    }
+
+    private boolean isTouchscreenTimeoutEnabled() {
+        return preferences.getBoolean("touchscreen_timeout_enabled", false);
+    }
+
+    private void cancelTouchscreenTimeout() {
+        if (timeoutHandler != null && hideControlsRunnable != null) {
+            timeoutHandler.removeCallbacks(hideControlsRunnable);
+        }
+    }
+
+    private void resetTouchscreenTimeout() {
+        if (!isTouchscreenTimeoutEnabled()
+                || !hasActiveTouchscreenProfile()
+                || inputControlsView.getVisibility() != View.VISIBLE) {
+            return;
+        }
+        cancelTouchscreenTimeout();
+        timeoutHandler.postDelayed(hideControlsRunnable, 5000);
+    }
+
+    private void persistSelectedProfile(ControlsProfile profile) {
+        SharedPreferences.Editor editor = preferences.edit();
+        if (profile != null) {
+            int selectedProfileIndex = -1;
+            ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
+            for (int i = 0; i < profiles.size(); i++) {
+                ControlsProfile storedProfile = profiles.get(i);
+                if (storedProfile != null && storedProfile.id == profile.id) {
+                    selectedProfileIndex = i;
+                    break;
+                }
+            }
+            editor.putInt("selected_profile_id", profile.id);
+            editor.putInt("selected_profile_index", selectedProfileIndex);
+        } else {
+            editor.remove("selected_profile_id");
+            editor.putInt("selected_profile_index", -1);
+        }
+        editor.apply();
+    }
+
+    private boolean handleTouchscreenTimeoutWakeTouch(MotionEvent event) {
+        if (!hasActiveTouchscreenProfile()) return false;
+
+        int action = event.getActionMasked();
+        boolean controlsHidden = inputControlsView.getVisibility() != View.VISIBLE;
+
+        if (controlsHidden && action == MotionEvent.ACTION_DOWN) {
+            forwardingWakeTouchGesture = true;
+        }
+
+        if (!forwardingWakeTouchGesture) return false;
+
+        inputControlsView.setVisibility(View.VISIBLE);
+        inputControlsView.requestFocus();
+        resetTouchscreenTimeout();
+
+        boolean handled = inputControlsView.onTouchEvent(event);
+        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            forwardingWakeTouchGesture = false;
+        }
+        return handled;
+    }
+
     private ControlsProfile resolvePreferredStartupProfile() {
         ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
+        int selectedProfileId = preferences.getInt("selected_profile_id", 0);
         int selectedProfileIndex = preferences.getInt("selected_profile_index", -1);
-        ControlsProfile selectedProfile = null;
+        ControlsProfile selectedProfile =
+                selectedProfileId != 0 ? inputControlsManager.getProfile(selectedProfileId) : null;
 
-        if (selectedProfileIndex >= 0 && selectedProfileIndex < profiles.size()) {
+        if (selectedProfile == null
+                && selectedProfileIndex >= 0
+                && selectedProfileIndex < profiles.size()) {
             selectedProfile = profiles.get(selectedProfileIndex);
         }
 
-        if (selectedProfile != null && selectedProfile.isVirtualGamepad()) {
-            Log.d("XServerDisplayActivity", "Skipping automatic startup for Virtual Gamepad profile=" + selectedProfile.getName());
-            return null;
+        if (selectedProfile != null) {
+            Log.d(
+                    "XServerDisplayActivity",
+                    "Resolved startup profile="
+                            + selectedProfile.getName()
+                            + " id="
+                            + selectedProfile.id
+                            + " virtual="
+                            + selectedProfile.isVirtualGamepad());
         }
-
         return selectedProfile;
     }
 
@@ -3645,12 +3721,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (startupProfile != null) showInputControls(startupProfile);
         else hideInputControls();
 
-        // Timeout logic should only apply if the controls are visible
-        if (isTimeoutEnabled && inputControlsView.getVisibility() == View.VISIBLE) {
-            startTouchscreenTimeout(); // Start timeout if enabled and controls are visible
-        } else {
-            touchpadView.setOnTouchListener(null); // Disable the timeout listener if not needed
-        }
+        startTouchscreenTimeout();
 
         Log.d("XServerDisplayActivity", "Input controls simulated confirmation executed. startupProfile=" + (startupProfile != null ? startupProfile.getName() : "none"));
 
@@ -3658,41 +3729,22 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private void startTouchscreenTimeout() {
-        boolean isTimeoutEnabled = preferences.getBoolean("touchscreen_timeout_enabled", false);
+        if (inputControlsView == null || touchpadView == null) return;
+        boolean shouldUseTimeout = isTouchscreenTimeoutEnabled() && hasActiveTouchscreenProfile();
+        forwardingWakeTouchGesture = false;
 
-        if (isTimeoutEnabled) {
-            // Show controls initially and set up touch event listeners
+        if (shouldUseTimeout) {
+            Log.d("XServerDisplayActivity", "Timeout is enabled for active touchscreen controls.");
+            touchpadView.setOnTouchListener((v, event) -> handleTouchscreenTimeoutWakeTouch(event));
+            if (inputControlsView.getVisibility() == View.VISIBLE) resetTouchscreenTimeout();
+            else cancelTouchscreenTimeout();
+            return;
+        }
+
+        cancelTouchscreenTimeout();
+        touchpadView.setOnTouchListener(null);
+        if (hasActiveTouchscreenProfile()) {
             inputControlsView.setVisibility(View.VISIBLE);
-            Log.d("XServerDisplayActivity", "Timeout is enabled, setting up timeout logic.");
-
-            // Attach the OnTouchListener to reset the timeout on touch events
-            touchpadView.setOnTouchListener((v, event) -> {
-                int action = event.getAction();
-                if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE) {
-                    // Reset the timeout on any touch event
-                    //Log.d("XServerDisplayActivity", "Touch detected, resetting timeout.");
-
-                    // Keep the controls visible
-                    inputControlsView.setVisibility(View.VISIBLE);
-
-                    // Remove any pending hide callbacks and reset the timeout
-                    timeoutHandler.removeCallbacks(hideControlsRunnable);
-                    timeoutHandler.postDelayed(hideControlsRunnable, 5000); // Reset timeout
-                }
-
-                return false; // Allow the touch event to propagate
-            });
-
-            // Reset the timeout when the controls are initially displayed
-            timeoutHandler.removeCallbacks(hideControlsRunnable);
-            timeoutHandler.postDelayed(hideControlsRunnable, 5000); // Hide after 5 seconds of inactivity
-        } else {
-            // If timeout is disabled, keep the controls always visible
-            Log.d("XServerDisplayActivity", "Timeout is disabled, controls will stay visible.");
-
-            inputControlsView.setVisibility(View.VISIBLE); // Ensure controls are visible
-            timeoutHandler.removeCallbacks(hideControlsRunnable); // Remove any existing hide callbacks
-            touchpadView.setOnTouchListener(null); // Remove the touch listener
         }
     }
 
@@ -3704,6 +3756,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         inputControlsView.setVisibility(View.VISIBLE);
         inputControlsView.requestFocus();
         inputControlsView.setProfile(profile);
+        persistSelectedProfile(profile);
         Log.d("XServerDisplayActivity", "showInputControls: profile=" + profile.getName() + " id=" + profile.id + " virtual=" + profile.isVirtualGamepad());
 
         touchpadView.setSensitivity(profile.getCursorSpeed() * globalCursorSpeed);
@@ -3713,12 +3766,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (winHandler != null) {
             winHandler.sendGamepadState();
         }
+        startTouchscreenTimeout();
     }
 
     private void hideInputControls() {
         inputControlsView.setShowTouchscreenControls(true);
         inputControlsView.setVisibility(View.GONE);
         inputControlsView.setProfile(null);
+        persistSelectedProfile(null);
 
         touchpadView.setSensitivity(globalCursorSpeed);
         touchpadView.setPointerButtonLeftEnabled(true);
@@ -3728,6 +3783,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (winHandler != null) {
             winHandler.sendGamepadState();
         }
+        startTouchscreenTimeout();
     }
 
     private void extractGraphicsDriverFiles() {
