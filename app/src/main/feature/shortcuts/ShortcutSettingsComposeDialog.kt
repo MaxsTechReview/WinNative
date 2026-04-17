@@ -219,6 +219,10 @@ class ShortcutSettingsComposeDialog private constructor(
                 state.graphicsDriverVersion.value = versions.getOrElse(versionIndex) { "" }
             }
 
+            override fun onDxvkVersionChanged(versionIndex: Int) {
+                handleDxvkVersionChanged(versionIndex)
+            }
+
             override fun onDxvkVkd3dVersionChanged(versionIndex: Int) {
                 handleDxvkVkd3dVersionChanged(versionIndex)
             }
@@ -1530,10 +1534,8 @@ class ShortcutSettingsComposeDialog private constructor(
         selectByIdentifier(state.dxvkDdrawWrapperEntries.value, config.get("ddrawrapper"), state.dxvkSelectedDdrawWrapper)
         selectByIdentifier(state.dxvkFramerateEntries.value, config.get("framerate"), state.dxvkSelectedFramerate)
 
-        val selectedVersion = state.dxvkVersionEntries.value.getOrElse(state.dxvkSelectedVersion.intValue) { DefaultVersion.DXVK }
-        val asyncCapable = selectedVersion.contains("async", ignoreCase = true)
-        state.dxvkAsync.value = config.get("async")?.let { it == "1" } ?: asyncCapable
-        state.dxvkAsyncCache.value = config.get("asyncCache")?.let { it == "1" } ?: asyncCapable
+        state.dxvkAsync.value = config.get("async") == "1"
+        state.dxvkAsyncCache.value = config.get("asyncCache") == "1"
     }
 
     private fun loadDxvkVersions(container: Container = shortcut.container) {
@@ -1623,6 +1625,17 @@ class ShortcutSettingsComposeDialog private constructor(
             // Reload all DXVK versions
             loadDxvkVersions()
         }
+    }
+
+    private fun handleDxvkVersionChanged(versionIndex: Int) {
+        val dxvkEntries = state.dxvkVersionEntries.value
+        val selectedDxvk = dxvkEntries.getOrElse(versionIndex) { "" }
+        val normalized = selectedDxvk.lowercase()
+        val isGplAsync = normalized.contains("gplasync")
+        val isAsync = normalized.contains("async") || isGplAsync
+
+        state.dxvkAsync.value = isAsync
+        state.dxvkAsyncCache.value = isGplAsync
     }
 
     private fun handleContainerChanged(containerIndex: Int) {

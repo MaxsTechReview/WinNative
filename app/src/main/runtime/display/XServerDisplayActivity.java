@@ -3208,18 +3208,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 config.put("vkd3dVersion", normalizedVkd3d);
                 changed = true;
             }
-        } else if ("None".equalsIgnoreCase(vkd3dVersion) && this.dxwrapper != null && this.dxwrapper.contains("vkd3d")) {
-            // DXWrapper requests VKD3D but version is None — auto-resolve to best available
-            String resolvedVkd3d = resolveInstalledGraphicsComponentVersion(
-                    DefaultVersion.VKD3D,
-                    ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
-                    isArm64EC
-            );
-            if (resolvedVkd3d != null && !resolvedVkd3d.isEmpty() && !"None".equalsIgnoreCase(resolvedVkd3d)) {
-                config.put("vkd3dVersion", resolvedVkd3d);
-                changed = true;
-                Log.d("XServerDisplayActivity", "VKD3D auto-resolved from 'None' to '" + resolvedVkd3d + "' because dxwrapper=" + this.dxwrapper);
-            }
         }
 
         Log.d("XServerDisplayActivity", "normalizeDxwrapperConfigForCurrentWine input='" + dxwrapperConfig +
@@ -3239,24 +3227,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         ContentProfile currentProfile = resolveInstalledGraphicsProfileByToken(type, currentVersion);
         if (currentProfile != null) {
-            String resolvedToken = getContentVersionToken(currentProfile);
-            if (isArm64ComponentVersion(resolvedToken) == isArm64EC) {
-                Log.d("XServerDisplayActivity", "resolveInstalledGraphicsComponentVersion keep current type=" + type +
-                        " current='" + currentVersion + "' resolvedToken='" + resolvedToken +
-                        "' arm64ec=" + isArm64EC);
-                return currentVersion;
-            }
+            Log.d("XServerDisplayActivity", "resolveInstalledGraphicsComponentVersion keep installed type=" + type +
+                    " current='" + currentVersion + "' arm64ec=" + isArm64EC);
+            return currentVersion;
+        }
 
-            String sameVersionVariant = findBestInstalledGraphicsToken(type, isArm64EC, currentProfile.verName);
-            if (!sameVersionVariant.isEmpty()) {
-                Log.d("XServerDisplayActivity", "resolveInstalledGraphicsComponentVersion switched same-name variant type=" + type +
-                        " current='" + currentVersion + "' to='" + sameVersionVariant + "' arm64ec=" + isArm64EC);
-                return sameVersionVariant;
-            }
-        } else if (isArm64ComponentVersion(currentVersion) == isArm64EC) {
-            // Keep user-selected values (including built-in/default versions) untouched.
-            Log.d("XServerDisplayActivity", "resolveInstalledGraphicsComponentVersion keep user token type=" + type +
-                    " current='" + currentVersion + "' arm64ec=" + isArm64EC + " (no installed profile match)");
+        if (hasBundledGraphicsComponent(type, currentVersion)) {
+            Log.d("XServerDisplayActivity", "resolveInstalledGraphicsComponentVersion keep bundled type=" + type +
+                    " current='" + currentVersion + "' arm64ec=" + isArm64EC);
             return currentVersion;
         }
 
@@ -3296,6 +3274,28 @@ public class XServerDisplayActivity extends AppCompatActivity {
         Log.d("XServerDisplayActivity", "resolveInstalledGraphicsProfileByToken no match type=" + type +
                 " token='" + versionToken + "'");
         return null;
+    }
+
+    private boolean hasBundledGraphicsComponent(
+            ContentProfile.ContentType type,
+            String versionToken
+    ) {
+        if (versionToken == null || versionToken.isEmpty()) return false;
+
+        final String assetPath;
+        if (type == ContentProfile.ContentType.CONTENT_TYPE_DXVK) {
+            assetPath = "dxwrapper/dxvk-" + versionToken + ".tzst";
+        } else if (type == ContentProfile.ContentType.CONTENT_TYPE_VKD3D) {
+            assetPath = "dxwrapper/vkd3d-" + versionToken + ".tzst";
+        } else {
+            return false;
+        }
+
+        try (InputStream ignored = getAssets().open(assetPath)) {
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
     }
 
     private String findBestInstalledGraphicsToken(
