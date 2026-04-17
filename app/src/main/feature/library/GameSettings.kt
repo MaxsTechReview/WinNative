@@ -322,6 +322,7 @@ interface GameSettingsCallbacks {
     fun onUpdateWinComponent(isDirectX: Boolean, index: Int, newValue: Int)
     fun onSelectExe() {}
     fun onGfxDriverVersionChanged(versionIndex: Int) {}
+    fun onDxvkVersionChanged(versionIndex: Int) {}
     fun onDxvkVkd3dVersionChanged(versionIndex: Int) {}
     fun onContainerChanged(containerIndex: Int) {}
     fun onEmulatorChanged() {}
@@ -1501,7 +1502,10 @@ private fun DXVKConfigCard(
                     label = stringResource(R.string.container_wine_dxvk_version),
                     entries = state.dxvkVersionEntries.value,
                     selectedIndex = state.dxvkSelectedVersion.intValue,
-                    onSelected = { state.dxvkSelectedVersion.intValue = it }
+                    onSelected = {
+                        state.dxvkSelectedVersion.intValue = it
+                        callbacks.onDxvkVersionChanged(it)
+                    }
                 )
 
                 // Async toggle - greyed out when version doesn't support it
