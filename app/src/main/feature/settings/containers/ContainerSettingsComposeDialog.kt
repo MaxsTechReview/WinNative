@@ -215,6 +215,10 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 state.graphicsDriverVersion.value = versions.getOrElse(versionIndex) { "" }
             }
 
+            override fun onDxvkVersionChanged(versionIndex: Int) {
+                handleDxvkVersionChanged(versionIndex)
+            }
+
             override fun onDxvkVkd3dVersionChanged(versionIndex: Int) {
                 handleDxvkVkd3dVersionChanged(versionIndex)
             }
@@ -1020,10 +1024,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         selectByIdentifier(state.dxvkVkd3dFeatureLevelEntries.value, config.get("vkd3dLevel"), state.dxvkSelectedVkd3dFeatureLevel)
         selectByIdentifier(state.dxvkDdrawWrapperEntries.value, config.get("ddrawrapper"), state.dxvkSelectedDdrawWrapper)
         selectByIdentifier(state.dxvkFramerateEntries.value, config.get("framerate"), state.dxvkSelectedFramerate)
-        val selectedVersion = state.dxvkVersionEntries.value.getOrElse(state.dxvkSelectedVersion.intValue) { DefaultVersion.DXVK }
-        val asyncCapable = selectedVersion.contains("async", ignoreCase = true)
-        state.dxvkAsync.value = config.get("async")?.let { it == "1" } ?: asyncCapable
-        state.dxvkAsyncCache.value = config.get("asyncCache")?.let { it == "1" } ?: asyncCapable
+        state.dxvkAsync.value = config.get("async") == "1"
+        state.dxvkAsyncCache.value = config.get("asyncCache") == "1"
     }
 
     private fun loadDxvkVersions() {
@@ -1161,6 +1163,17 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         } else {
             loadDxvkVersions()
         }
+    }
+
+    private fun handleDxvkVersionChanged(versionIndex: Int) {
+        val dxvkEntries = state.dxvkVersionEntries.value
+        val selectedDxvk = dxvkEntries.getOrElse(versionIndex) { "" }
+        val normalized = selectedDxvk.lowercase()
+        val isGplAsync = normalized.contains("gplasync")
+        val isAsync = normalized.contains("async") || isGplAsync
+
+        state.dxvkAsync.value = isAsync
+        state.dxvkAsyncCache.value = isGplAsync
     }
 
     private fun selectScreenSize(screenSize: String) {
