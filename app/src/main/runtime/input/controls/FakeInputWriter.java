@@ -216,8 +216,6 @@ public class FakeInputWriter {
     for (int i = 0; i < 10; i++) {
       writeButton(i, state.isPressed((byte) i));
     }
-    // Always write all axes in every sync frame so the game/Wine input driver
-    // never sees a partial update that could reset missing axes to zero
     int lx = (int) (state.thumbLX * 32767.0f);
     int ly = (int) (state.thumbLY * 32767.0f);
     int rx = (int) (state.thumbRX * 32767.0f);
@@ -225,19 +223,31 @@ public class FakeInputWriter {
     int tl = (int) (state.triggerL * 255.0f);
     int tr = (int) (state.triggerR * 255.0f);
 
-    writeEvent((short) 3, (short) 0, lx);
-    writeEvent((short) 3, (short) 1, ly);
-    writeEvent((short) 3, (short) 3, rx);
-    writeEvent((short) 3, (short) 4, ry);
-    writeEvent((short) 3, (short) 10, tl);
-    writeEvent((short) 3, (short) 9, tr);
-
-    this.prevThumbLX = lx;
-    this.prevThumbLY = ly;
-    this.prevThumbRX = rx;
-    this.prevThumbRY = ry;
-    this.prevTriggerL = tl;
-    this.prevTriggerR = tr;
+    // The fake evdev file is effectively a queue, so unchanged axes must stay silent.
+    if (lx != this.prevThumbLX) {
+      this.prevThumbLX = lx;
+      writeEvent((short) 3, (short) 0, lx);
+    }
+    if (ly != this.prevThumbLY) {
+      this.prevThumbLY = ly;
+      writeEvent((short) 3, (short) 1, ly);
+    }
+    if (rx != this.prevThumbRX) {
+      this.prevThumbRX = rx;
+      writeEvent((short) 3, (short) 3, rx);
+    }
+    if (ry != this.prevThumbRY) {
+      this.prevThumbRY = ry;
+      writeEvent((short) 3, (short) 4, ry);
+    }
+    if (tl != this.prevTriggerL) {
+      this.prevTriggerL = tl;
+      writeEvent((short) 3, (short) 10, tl);
+    }
+    if (tr != this.prevTriggerR) {
+      this.prevTriggerR = tr;
+      writeEvent((short) 3, (short) 9, tr);
+    }
 
     int hatY = 1;
     if (state.dpad[3]) {
