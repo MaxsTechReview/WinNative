@@ -677,7 +677,10 @@ public class WinHandler {
           this.fallbackSlot = -1;
         }
         if (this.writers[slot] != null) {
-          this.writers[slot].softRelease();
+          // Fake evdev nodes are regular files; preserving them across release keeps old events
+          // readable on the next open and can replay stale input.
+          this.writers[slot].destroy();
+          this.writers[slot] = null;
         }
         this.usedSlots.remove(slot);
         Log.d("WinHandler", "Device " + deviceId + " disconnected. Slot " + slot + " released.");
