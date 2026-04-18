@@ -66,7 +66,7 @@ public class InputControlsView extends View {
   private final Bitmap[] icons = new Bitmap[17];
   private Timer mouseMoveTimer;
   private final PointF mouseMoveOffset = new PointF();
-  private boolean showTouchscreenControls = true;
+  private boolean showTouchscreenControls = false;
 
   private Handler timeoutHandler; // Reference to the activity's timeout handler
   private Runnable hideControlsRunnable; // Runnable to hide the controls
@@ -328,6 +328,7 @@ public class InputControlsView extends View {
   }
 
   public synchronized void setProfile(ControlsProfile profile) {
+    releaseActiveTouchElements();
     if (profile != null) {
       this.profile = profile;
       deselectAllElements();
@@ -340,15 +341,18 @@ public class InputControlsView extends View {
   }
 
   public void setShowTouchscreenControls(boolean showTouchscreenControls) {
+    if (this.showTouchscreenControls == showTouchscreenControls) {
+      return;
+    }
+    if (!showTouchscreenControls) {
+      releaseActiveTouchElements();
+    }
     this.showTouchscreenControls = showTouchscreenControls;
-  }
-
-  private boolean shouldBlockTouchpadFallback() {
-    return profile != null && profile.isVirtualGamepad() && showTouchscreenControls;
+    invalidate();
   }
 
   private void dispatchUnhandledTouch(MotionEvent event) {
-    if (touchpadView != null && !shouldBlockTouchpadFallback()) {
+    if (touchpadView != null) {
       touchpadView.onTouchEvent(event);
     }
   }
@@ -399,12 +403,27 @@ public class InputControlsView extends View {
     createMouseMoveTimer();
   }
 
-  private boolean hasMouseLeftButtonElement() {
+  public boolean hasMouseLeftButtonElement() {
     if (profile == null) return false;
     for (ControlElement element : profile.getElements()) {
       if (element.getBindingAt(0) == Binding.MOUSE_LEFT_BUTTON) return true;
     }
     return false;
+  }
+
+  private void releaseActiveTouchElements() {
+    for (int i = 0; i < activeTouchElements.size(); i++) {
+      int activePointerId = activeTouchElements.keyAt(i);
+      ControlElement activeElement = activeTouchElements.valueAt(i);
+      if (activeElement != null) {
+        activeElement.handleTouchUp(activePointerId);
+      }
+    }
+    activeTouchElements.clear();
+  }
+
+  public synchronized void cancelActiveTouches() {
+    releaseActiveTouchElements();
   }
 
   public int getMaxWidth() {
@@ -601,9 +620,6 @@ public class InputControlsView extends View {
 
     boolean hapticsEnabled = preferences.getBoolean("touchscreen_haptics_enabled", true);
 
-    // Reset the timeout when touch events occur within InputControlsView
-    resetTouchscreenTimeout();
-
     if (editMode && readyToDraw) {
       switch (event.getAction()) {
         case MotionEvent.ACTION_DOWN:
@@ -645,6 +661,11 @@ public class InputControlsView extends View {
     }
 
     if (!editMode && profile != null) {
+      if (!showTouchscreenControls) {
+        dispatchUnhandledTouch(event);
+        return true;
+      }
+
       int actionIndex = event.getActionIndex();
       int pointerId = event.getPointerId(actionIndex);
       int actionMasked = event.getActionMasked();
@@ -728,32 +749,13 @@ public class InputControlsView extends View {
           }
         case MotionEvent.ACTION_CANCEL:
           {
-            for (int i = 0; i < activeTouchElements.size(); i++) {
-              int activePointerId = activeTouchElements.keyAt(i);
-              ControlElement activeElement = activeTouchElements.valueAt(i);
-              if (activeElement != null) activeElement.handleTouchUp(activePointerId);
-            }
-            activeTouchElements.clear();
+            releaseActiveTouchElements();
             dispatchUnhandledTouch(event);
             break;
           }
       }
     }
     return true;
-  }
-
-  private void resetTouchscreenTimeout() {
-    if (!preferences.getBoolean("touchscreen_timeout_enabled", false)
-        || getVisibility() != View.VISIBLE
-        || profile == null) {
-      return;
-    }
-    if (timeoutHandler != null && hideControlsRunnable != null) {
-      // Cancel any pending hide requests
-      timeoutHandler.removeCallbacks(hideControlsRunnable);
-      // Post a new request to hide the controls after 5 seconds
-      timeoutHandler.postDelayed(hideControlsRunnable, 5000); // Adjust timeout as necessary
-    }
   }
 
   public void invalidateControlElement(ControlElement element) {

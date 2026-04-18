@@ -207,12 +207,6 @@ fun buildXServerDrawerState(
                 icon = Icons.Outlined.SportsEsports,
             ),
             XServerDrawerItem(
-                itemId = R.id.main_menu_controller_manager,
-                title = context.getString(R.string.session_gamepad_controller_manager),
-                subtitle = context.getString(R.string.session_gamepad_external_controllers),
-                icon = Icons.Outlined.SportsEsports,
-            ),
-            XServerDrawerItem(
                 itemId = R.id.main_menu_relative_mouse_movement,
                 title = context.getString(R.string.session_drawer_relative_mouse_movement),
                 subtitle =
@@ -268,6 +262,16 @@ fun buildXServerDrawerState(
                 icon = Icons.AutoMirrored.Outlined.ViewList,
             ),
         )
+
+    // items.add(
+    //     3,
+    //     XServerDrawerItem(
+    //         itemId = R.id.main_menu_controller_manager,
+    //         title = context.getString(R.string.session_gamepad_controller_manager),
+    //         subtitle = context.getString(R.string.session_gamepad_external_controllers),
+    //         icon = Icons.Outlined.SportsEsports,
+    //     ),
+    // )
 
     if (showMagnifier) {
         items +=

@@ -594,10 +594,121 @@ public class WinHandler {
     }
   }
 
+  private void ensureWriterForSlot(int slot) {
+    if (slot < 0 || slot >= MAX_CONTROLLERS || this.fakeInputBasePath == null) {
+      return;
+    }
+    if (this.writers[slot] == null) {
+      this.writers[slot] = new FakeInputWriter(this.fakeInputBasePath, slot);
+      this.writers[slot].open();
+    }
+  }
+
+  private boolean isPhysicalSlotOccupied(int slot) {
+    for (Map.Entry<Integer, Integer> entry : this.deviceToSlot.entrySet()) {
+      if (entry.getKey() != OSC_DEVICE_ID && entry.getValue() == slot) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private int getHighestPhysicalSlot() {
+    int highestSlot = -1;
+    for (Map.Entry<Integer, Integer> entry : this.deviceToSlot.entrySet()) {
+      if (entry.getKey() != OSC_DEVICE_ID) {
+        highestSlot = Math.max(highestSlot, entry.getValue());
+      }
+    }
+    return highestSlot;
+  }
+
+  private int findLowestAvailablePhysicalSlot() {
+    for (int slot = 0; slot < MAX_CONTROLLERS; slot++) {
+      if (!isPhysicalSlotOccupied(slot)) {
+        return slot;
+      }
+    }
+    return -1;
+  }
+
+  private int findPreferredVirtualSlot(Integer currentSlot) {
+    int minSlot = getHighestPhysicalSlot() + 1;
+    for (int slot = minSlot; slot < MAX_CONTROLLERS; slot++) {
+      if ((currentSlot != null && currentSlot == slot) || !this.usedSlots.contains(slot)) {
+        return slot;
+      }
+    }
+    return -1;
+  }
+
+  private void bindDeviceToSlot(int deviceId, String descriptor, int slot) {
+    this.usedSlots.add(slot);
+    this.deviceToSlot.put(deviceId, slot);
+    if (descriptor != null) {
+      this.descriptorToSlot.put(descriptor, slot);
+      this.deviceToDescriptor.put(deviceId, descriptor);
+    }
+    ensureWriterForSlot(slot);
+  }
+
+  private boolean moveVirtualGamepadToSlot(int targetSlot) {
+    Integer currentSlot = this.deviceToSlot.get(OSC_DEVICE_ID);
+    if (currentSlot == null) {
+      return false;
+    }
+    if (targetSlot == currentSlot) {
+      return true;
+    }
+    if (targetSlot < 0 || targetSlot >= MAX_CONTROLLERS) {
+      releaseSlot(OSC_DEVICE_ID);
+      return false;
+    }
+
+    ensureWriterForSlot(targetSlot);
+    if (this.writers[currentSlot] != null) {
+      this.writers[currentSlot].reset();
+    }
+
+    this.deviceToSlot.put(OSC_DEVICE_ID, targetSlot);
+    this.usedSlots.remove(currentSlot);
+    this.usedSlots.add(targetSlot);
+    if (this.fallbackSlot == currentSlot) {
+      this.fallbackSlot = -1;
+    }
+
+    Log.d(
+        "WinHandler",
+        "Moved virtual gamepad from slot " + currentSlot + " to slot " + targetSlot + ".");
+    return true;
+  }
+
+  private void rebalanceVirtualGamepadSlot() {
+    Integer virtualSlot = this.deviceToSlot.get(OSC_DEVICE_ID);
+    if (virtualSlot == null) {
+      return;
+    }
+
+    int preferredVirtualSlot = findPreferredVirtualSlot(virtualSlot);
+    if (preferredVirtualSlot == -1) {
+      releaseSlot(OSC_DEVICE_ID);
+    } else if (preferredVirtualSlot != virtualSlot) {
+      moveVirtualGamepadToSlot(preferredVirtualSlot);
+    }
+  }
+
   private int assignSlot(int deviceId) {
     // Fast path: already assigned
     Integer existing = this.deviceToSlot.get(deviceId);
     if (existing != null) {
+      if (deviceId == OSC_DEVICE_ID) {
+        int preferredVirtualSlot = findPreferredVirtualSlot(existing);
+        if (preferredVirtualSlot != -1 && preferredVirtualSlot != existing) {
+          moveVirtualGamepadToSlot(preferredVirtualSlot);
+          Integer updatedSlot = this.deviceToSlot.get(deviceId);
+          return updatedSlot != null ? updatedSlot : -1;
+        }
+      }
       return existing;
     }
 
@@ -628,33 +739,40 @@ public class WinHandler {
       }
     }
 
-    // Assign a new slot
-    for (int slot = 0; slot < MAX_CONTROLLERS; slot++) {
-      if (!this.usedSlots.contains(slot)) {
-        this.usedSlots.add(slot);
-        this.deviceToSlot.put(deviceId, slot);
-        if (descriptor != null) {
-          this.descriptorToSlot.put(descriptor, slot);
-          this.deviceToDescriptor.put(deviceId, descriptor);
-        }
-        if (this.fakeInputBasePath != null && this.writers[slot] == null) {
-          this.writers[slot] = new FakeInputWriter(this.fakeInputBasePath, slot);
-          this.writers[slot].open();
-          Log.d(
-              "WinHandler",
-              "Assigned device "
-                  + deviceId
-                  + " to slot "
-                  + slot
-                  + " (descriptor: "
-                  + descriptor
-                  + ")");
-        }
-        return slot;
+    if (deviceId == OSC_DEVICE_ID) {
+      int virtualSlot = findPreferredVirtualSlot(null);
+      if (virtualSlot >= 0) {
+        bindDeviceToSlot(deviceId, null, virtualSlot);
+        Log.d("WinHandler", "Assigned virtual gamepad to slot " + virtualSlot + ".");
+        return virtualSlot;
       }
+      Log.w("WinHandler", "No slots available for virtual gamepad.");
+      return -1;
     }
-    Log.w("WinHandler", "No slots available for device " + deviceId);
-    return -1;
+
+    int preferredPhysicalSlot = findLowestAvailablePhysicalSlot();
+    if (preferredPhysicalSlot < 0) {
+      Log.w("WinHandler", "No slots available for device " + deviceId);
+      return -1;
+    }
+
+    Integer virtualSlot = this.deviceToSlot.get(OSC_DEVICE_ID);
+    if (virtualSlot != null && virtualSlot == preferredPhysicalSlot) {
+      int relocatedVirtualSlot = findPreferredVirtualSlot(null);
+      moveVirtualGamepadToSlot(relocatedVirtualSlot);
+    }
+
+    bindDeviceToSlot(deviceId, descriptor, preferredPhysicalSlot);
+    Log.d(
+        "WinHandler",
+        "Assigned device "
+            + deviceId
+            + " to slot "
+            + preferredPhysicalSlot
+            + " (descriptor: "
+            + descriptor
+            + ")");
+    return preferredPhysicalSlot;
   }
 
   private void releaseSlot(int deviceId) {
@@ -698,6 +816,9 @@ public class WinHandler {
                 + " still used by sibling sub-device.");
       }
       this.controllers.remove(deviceId);
+      if (deviceId != OSC_DEVICE_ID) {
+        rebalanceVirtualGamepadSlot();
+      }
     }
   }
 

@@ -178,7 +178,7 @@ class TouchpadView(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!mouseEnabled) return true
         val isTouchscreenMode = preferences.getBoolean("touchscreen_toggle", false)
-        resetTouchscreenTimeout()
+        resetMousePointerTimeout()
 
         return when (event.getToolType(0)) {
             MotionEvent.TOOL_TYPE_STYLUS -> handleStylusEvent(event)
@@ -186,12 +186,26 @@ class TouchpadView(
         }
     }
 
-    private fun resetTouchscreenTimeout() {
-        if (!preferences.getBoolean("touchscreen_timeout_enabled", false)) return
+    private fun resetMousePointerTimeout() {
+        if (!mouseEnabled) return
+        xServer.renderer?.setCursorVisible(true)
         if (timeoutHandler != null && hideControlsRunnable != null) {
             timeoutHandler.removeCallbacks(hideControlsRunnable)
             timeoutHandler.postDelayed(hideControlsRunnable, 5000)
         }
+    }
+
+    fun cancelMousePointerTimeout() {
+        if (timeoutHandler != null && hideControlsRunnable != null) {
+            timeoutHandler.removeCallbacks(hideControlsRunnable)
+        }
+    }
+
+    private fun isExternalPointerEvent(event: MotionEvent): Boolean {
+        val source = event.source
+        val isPointerClass =
+            (source and InputDevice.SOURCE_CLASS_POINTER) == InputDevice.SOURCE_CLASS_POINTER
+        return isPointerClass && !event.isFromSource(InputDevice.SOURCE_TOUCHSCREEN)
     }
 
     private fun handleStylusHoverEvent(event: MotionEvent): Boolean {
@@ -585,12 +599,38 @@ class TouchpadView(
         this.pointerButtonRightEnabled = enabled
     }
 
+    fun resetInputState() {
+        longPressHandler.removeCallbacks(longPressRunnable)
+        longPressActive = false
+        continueClick = false
+        scrolling = false
+        scrollAccumY = 0f
+        for (i in 0 until MAX_FINGERS.toInt()) {
+            fingers[i] = null
+        }
+        numFingers = 0
+        fingerPointerButtonLeft = null
+        fingerPointerButtonRight = null
+
+        if (xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) {
+            xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+        }
+        if (xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_RIGHT)) {
+            xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
+        }
+        if (xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_MIDDLE)) {
+            xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_MIDDLE)
+        }
+    }
+
     fun setFourFingersTapCallback(callback: Runnable?) {
         this.fourFingersTapCallback = callback
     }
 
     fun onExternalMouseEvent(event: MotionEvent): Boolean {
-        if (!event.isFromSource(InputDevice.SOURCE_MOUSE)) return false
+        if (!isExternalPointerEvent(event)) return false
+        if (!mouseEnabled) return true
+        resetMousePointerTimeout()
         val actionButton = event.actionButton
         return when (event.action) {
             MotionEvent.ACTION_BUTTON_PRESS -> {
@@ -698,5 +738,12 @@ class TouchpadView(
 
     fun setMouseEnabled(enabled: Boolean) {
         this.mouseEnabled = enabled
+        if (!enabled) {
+            resetInputState()
+            cancelMousePointerTimeout()
+            xServer.renderer?.setCursorVisible(false)
+        } else {
+            resetMousePointerTimeout()
+        }
     }
 }

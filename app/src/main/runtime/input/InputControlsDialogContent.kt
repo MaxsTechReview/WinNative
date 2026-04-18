@@ -56,8 +56,7 @@ private val CheckBorder = Color(0xFF344C68)
 data class InputControlsState(
     val profileNames: List<String> = emptyList(),
     val selectedProfileIndex: Int = 0,
-    val showTouchscreenControls: Boolean = true,
-    val touchscreenTimeout: Boolean = false,
+    val showTouchscreenControls: Boolean = false,
     val touchscreenHaptics: Boolean = false,
     val gamepadVibration: Boolean = true,
 )
@@ -68,7 +67,6 @@ fun InputControlsDialogContent(
     onProfileSelected: (Int) -> Unit,
     onSettingsClick: () -> Unit,
     onShowTouchscreenControlsChange: (Boolean) -> Unit,
-    onTouchscreenTimeoutChange: (Boolean) -> Unit,
     onTouchscreenHapticsChange: (Boolean) -> Unit,
     onGamepadVibrationChange: (Boolean) -> Unit,
     onCancel: () -> Unit,
@@ -132,12 +130,6 @@ fun InputControlsDialogContent(
                 label = stringResource(R.string.session_drawer_show_touchscreen_controls),
                 checked = state.showTouchscreenControls,
                 onCheckedChange = onShowTouchscreenControlsChange,
-            )
-            Spacer(Modifier.height(4.dp))
-            OptionCheckbox(
-                label = stringResource(R.string.settings_general_touchscreen_timeout),
-                checked = state.touchscreenTimeout,
-                onCheckedChange = onTouchscreenTimeoutChange,
             )
             Spacer(Modifier.height(4.dp))
             OptionCheckbox(

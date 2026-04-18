@@ -22,8 +22,7 @@ class InputControlsDialog(
     // Compose state
     val profileNames = mutableStateOf<List<String>>(emptyList())
     val selectedProfileIndex = mutableIntStateOf(0)
-    val showTouchscreenControls = mutableStateOf(true)
-    val touchscreenTimeout = mutableStateOf(false)
+    val showTouchscreenControls = mutableStateOf(false)
     val touchscreenHaptics = mutableStateOf(false)
     val gamepadVibration = mutableStateOf(true)
 
@@ -61,19 +60,14 @@ class InputControlsDialog(
                                 profileNames = profileNames.value,
                                 selectedProfileIndex = selectedProfileIndex.intValue,
                                 showTouchscreenControls = showTouchscreenControls.value,
-                                touchscreenTimeout = touchscreenTimeout.value,
                                 touchscreenHaptics = touchscreenHaptics.value,
                                 gamepadVibration = gamepadVibration.value,
                             ),
                         onProfileSelected = { index ->
                             selectedProfileIndex.intValue = index
-                            if (index > 0) {
-                                showTouchscreenControls.value = true
-                            }
                         },
                         onSettingsClick = { onSettingsClickCallback?.run() },
                         onShowTouchscreenControlsChange = { showTouchscreenControls.value = it },
-                        onTouchscreenTimeoutChange = { touchscreenTimeout.value = it },
                         onTouchscreenHapticsChange = { touchscreenHaptics.value = it },
                         onGamepadVibrationChange = { gamepadVibration.value = it },
                         onCancel = {

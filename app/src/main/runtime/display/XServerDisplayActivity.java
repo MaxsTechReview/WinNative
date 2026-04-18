@@ -24,6 +24,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.PointerIcon;
@@ -295,7 +296,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     private Handler  timeoutHandler = new Handler(Looper.getMainLooper());
     private Runnable hideControlsRunnable;
-    private boolean forwardingWakeTouchGesture = false;
     private final AtomicBoolean exitRequested = new AtomicBoolean(false);
     private final AtomicBoolean steamExitWatchRunning = new AtomicBoolean(false);
 
@@ -570,12 +570,12 @@ public class XServerDisplayActivity extends AppCompatActivity {
         handler.postDelayed(savePlaytimeRunnable, SAVE_INTERVAL_MS);
 
 
-        // Handler and Runnable to manage timeout for hiding controls
+        // Handler and Runnable to manage mouse cursor auto-hide
         hideControlsRunnable = () -> {
-            if (isTouchscreenTimeoutEnabled() && hasActiveTouchscreenProfile()) {
-                forwardingWakeTouchGesture = false;
-                inputControlsView.setVisibility(View.GONE);
-                Log.d("XServerDisplayActivity", "Touchscreen controls hidden after timeout.");
+            if (!isMouseDisabled && xServer != null && xServer.getRenderer() != null
+                    && xServer.getRenderer().isCursorVisible()) {
+                xServer.getRenderer().setCursorVisible(false);
+                Log.d("XServerDisplayActivity", "Mouse cursor hidden after inactivity.");
             }
         };
 
@@ -1094,7 +1094,11 @@ public class XServerDisplayActivity extends AppCompatActivity {
             @Override
             public void onUpdateWindowContent(Window window) {
                 if (!winStarted[0] && window.isApplicationWindow()) {
-                    xServerView.getRenderer().setCursorVisible(true);
+                    if (!isMouseDisabled) {
+                        touchpadView.setMouseEnabled(true);
+                    } else {
+                        xServerView.getRenderer().setCursorVisible(false);
+                    }
                     preloaderDialog.closeOnUiThread();
                     winStarted[0] = true;
                 }
@@ -1490,6 +1494,16 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     // Inside XServerDisplayActivity class
     private void handleCapturedPointer(MotionEvent event) {
+        if (isMouseDisabled) {
+            return;
+        }
+        if (xServer.getRenderer() != null) {
+            xServer.getRenderer().setCursorVisible(true);
+        }
+        if (timeoutHandler != null && hideControlsRunnable != null) {
+            timeoutHandler.removeCallbacks(hideControlsRunnable);
+            timeoutHandler.postDelayed(hideControlsRunnable, 5000);
+        }
         boolean handled = false;
 
         int actionButton = event.getActionButton();
@@ -1606,6 +1620,13 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 environment.onPause();
                 xServerView.onPause();
             }
+        }
+
+        if (touchpadView != null) {
+            touchpadView.resetInputState();
+        }
+        if (inputControlsView != null) {
+            inputControlsView.cancelActiveTouches();
         }
 
         savePlaytimeData();
@@ -2455,9 +2476,37 @@ public class XServerDisplayActivity extends AppCompatActivity {
             });
         }
         else if (!hasFocus) {
+            if (touchpadView != null) {
+                touchpadView.resetInputState();
+            }
+            if (inputControlsView != null) {
+                inputControlsView.cancelActiveTouches();
+            }
             touchpadView.releasePointerCapture();
             touchpadView.setOnCapturedPointerListener(null);
         }
+    }
+
+    private void cancelMousePointerTimeout() {
+        if (timeoutHandler != null && hideControlsRunnable != null) {
+            timeoutHandler.removeCallbacks(hideControlsRunnable);
+        }
+    }
+
+    private boolean isPointerMotionEvent(MotionEvent event) {
+        int source = event.getSource();
+        boolean isPointerClass =
+                (source & InputDevice.SOURCE_CLASS_POINTER) == InputDevice.SOURCE_CLASS_POINTER;
+        return isPointerClass && !event.isFromSource(InputDevice.SOURCE_TOUCHSCREEN);
+    }
+
+    private boolean isControllerMotionEvent(MotionEvent event) {
+        int source = event.getSource();
+        boolean isGamepad =
+                (source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD;
+        boolean isJoystick =
+                (source & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK;
+        return (isGamepad || isJoystick) && !isPointerMotionEvent(event);
     }
 
     private void setupWineSystemFiles() {
@@ -3122,6 +3171,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         inputControlsView.setOverlayOpacity(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
         inputControlsView.setTouchpadView(touchpadView);
         inputControlsView.setXServer(xServer);
+        applyTouchscreenOverlayPreference();
         inputControlsView.setVisibility(View.GONE);
         rootView.addView(inputControlsView);
 
@@ -3549,8 +3599,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         loadProfileSpinner.run();
 
         // Initialize checkbox states
-        dialog.getShowTouchscreenControls().setValue(inputControlsView.isShowTouchscreenControls());
-        dialog.getTouchscreenTimeout().setValue(preferences.getBoolean("touchscreen_timeout_enabled", false));
+        dialog.getShowTouchscreenControls().setValue(preferences.getBoolean("show_touchscreen_controls_enabled", false));
         dialog.getTouchscreenHaptics().setValue(preferences.getBoolean("touchscreen_haptics_enabled", false));
         dialog.getGamepadVibration().setValue(preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true));
 
@@ -3580,24 +3629,17 @@ public class XServerDisplayActivity extends AppCompatActivity {
         // Confirm callback
         dialog.setOnConfirmCallback(() -> {
             inputControlsView.setShowTouchscreenControls(dialog.getShowTouchscreenControls().getValue());
-            boolean isTimeoutEnabled = dialog.getTouchscreenTimeout().getValue();
             boolean isHapticsEnabled = dialog.getTouchscreenHaptics().getValue();
             boolean isGamepadVibrationEnabled = dialog.getGamepadVibration().getValue();
             SharedPreferences.Editor editor = preferences.edit();
             editor.putBoolean("show_touchscreen_controls_enabled", dialog.getShowTouchscreenControls().getValue());
-            editor.putBoolean("touchscreen_timeout_enabled", isTimeoutEnabled);
             editor.putBoolean("touchscreen_haptics_enabled", isHapticsEnabled);
             editor.putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, isGamepadVibrationEnabled);
             editor.apply();
             if (winHandler != null) {
                 winHandler.setGlobalVibrationEnabled(isGamepadVibrationEnabled);
             }
-
-            if (isTimeoutEnabled) {
-                startTouchscreenTimeout();
-            } else {
-                touchpadView.setOnTouchListener(null);
-            }
+            touchpadView.setOnTouchListener(null);
             updateProfile.run();
         });
 
@@ -3618,24 +3660,12 @@ public class XServerDisplayActivity extends AppCompatActivity {
         return inputControlsView != null && inputControlsView.getProfile() != null;
     }
 
-    private boolean isTouchscreenTimeoutEnabled() {
-        return preferences.getBoolean("touchscreen_timeout_enabled", false);
-    }
+    private void applyTouchscreenOverlayPreference() {
+        if (inputControlsView == null || touchpadView == null) return;
 
-    private void cancelTouchscreenTimeout() {
-        if (timeoutHandler != null && hideControlsRunnable != null) {
-            timeoutHandler.removeCallbacks(hideControlsRunnable);
-        }
-    }
-
-    private void resetTouchscreenTimeout() {
-        if (!isTouchscreenTimeoutEnabled()
-                || !hasActiveTouchscreenProfile()
-                || inputControlsView.getVisibility() != View.VISIBLE) {
-            return;
-        }
-        cancelTouchscreenTimeout();
-        timeoutHandler.postDelayed(hideControlsRunnable, 5000);
+        boolean showTouchscreenControls =
+                preferences.getBoolean("show_touchscreen_controls_enabled", false);
+        inputControlsView.setShowTouchscreenControls(showTouchscreenControls);
     }
 
     private void persistSelectedProfile(ControlsProfile profile) {
@@ -3657,29 +3687,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
             editor.putInt("selected_profile_index", -1);
         }
         editor.apply();
-    }
-
-    private boolean handleTouchscreenTimeoutWakeTouch(MotionEvent event) {
-        if (!hasActiveTouchscreenProfile()) return false;
-
-        int action = event.getActionMasked();
-        boolean controlsHidden = inputControlsView.getVisibility() != View.VISIBLE;
-
-        if (controlsHidden && action == MotionEvent.ACTION_DOWN) {
-            forwardingWakeTouchGesture = true;
-        }
-
-        if (!forwardingWakeTouchGesture) return false;
-
-        inputControlsView.setVisibility(View.VISIBLE);
-        inputControlsView.requestFocus();
-        resetTouchscreenTimeout();
-
-        boolean handled = inputControlsView.onTouchEvent(event);
-        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
-            forwardingWakeTouchGesture = false;
-        }
-        return handled;
     }
 
     private ControlsProfile resolvePreferredStartupProfile() {
@@ -3714,12 +3721,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
         boolean isShowTouchscreenControls = preferences.getBoolean("show_touchscreen_controls_enabled", false); // default is false (hidden)
         inputControlsView.setShowTouchscreenControls(isShowTouchscreenControls);
 
-        boolean isTimeoutEnabled = preferences.getBoolean("touchscreen_timeout_enabled", false);
         boolean isHapticsEnabled = preferences.getBoolean("touchscreen_haptics_enabled", false);
 
         // Apply these settings as if the user confirmed the dialog
         SharedPreferences.Editor editor = preferences.edit();
-        editor.putBoolean("touchscreen_timeout_enabled", isTimeoutEnabled);
         editor.putBoolean("touchscreen_haptics_enabled", isHapticsEnabled);
         editor.apply();
 
@@ -3736,18 +3741,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     private void startTouchscreenTimeout() {
         if (inputControlsView == null || touchpadView == null) return;
-        boolean shouldUseTimeout = isTouchscreenTimeoutEnabled() && hasActiveTouchscreenProfile();
-        forwardingWakeTouchGesture = false;
-
-        if (shouldUseTimeout) {
-            Log.d("XServerDisplayActivity", "Timeout is enabled for active touchscreen controls.");
-            touchpadView.setOnTouchListener((v, event) -> handleTouchscreenTimeoutWakeTouch(event));
-            if (inputControlsView.getVisibility() == View.VISIBLE) resetTouchscreenTimeout();
-            else cancelTouchscreenTimeout();
-            return;
-        }
-
-        cancelTouchscreenTimeout();
         touchpadView.setOnTouchListener(null);
         if (hasActiveTouchscreenProfile()) {
             inputControlsView.setVisibility(View.VISIBLE);
@@ -3762,11 +3755,13 @@ public class XServerDisplayActivity extends AppCompatActivity {
         inputControlsView.setVisibility(View.VISIBLE);
         inputControlsView.requestFocus();
         inputControlsView.setProfile(profile);
+        applyTouchscreenOverlayPreference();
         persistSelectedProfile(profile);
         Log.d("XServerDisplayActivity", "showInputControls: profile=" + profile.getName() + " id=" + profile.id + " virtual=" + profile.isVirtualGamepad());
 
         touchpadView.setSensitivity(profile.getCursorSpeed() * globalCursorSpeed);
-        touchpadView.setPointerButtonRightEnabled(false);
+        touchpadView.setPointerButtonLeftEnabled(true);
+        touchpadView.setPointerButtonRightEnabled(true);
 
         inputControlsView.invalidate();
         if (winHandler != null) {
@@ -3776,9 +3771,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private void hideInputControls() {
-        inputControlsView.setShowTouchscreenControls(true);
         inputControlsView.setVisibility(View.GONE);
         inputControlsView.setProfile(null);
+        applyTouchscreenOverlayPreference();
         persistSelectedProfile(null);
 
         touchpadView.setSensitivity(globalCursorSpeed);
@@ -3945,22 +3940,23 @@ public class XServerDisplayActivity extends AppCompatActivity {
         boolean handledByWinHandler = false;
         boolean handledByTouchpadView = false;
 
-        int source = event.getSource();
-        boolean isGamepad = (source & android.view.InputDevice.SOURCE_GAMEPAD) == android.view.InputDevice.SOURCE_GAMEPAD
-                || (source & android.view.InputDevice.SOURCE_JOYSTICK) == android.view.InputDevice.SOURCE_JOYSTICK;
+        if (isPointerMotionEvent(event) && touchpadView != null) {
+            handledByTouchpadView = touchpadView.onExternalMouseEvent(event);
+        }
 
-        // Route gamepad/joystick events only to winHandler to avoid
-        // games cycling between controller and mouse input modes
-        if (isGamepad) {
+        if (handledByTouchpadView) {
+            return true;
+        }
+
+        if (isControllerMotionEvent(event)) {
+            cancelMousePointerTimeout();
+            if (touchpadView != null) {
+                touchpadView.cancelMousePointerTimeout();
+            }
             if (winHandler != null) {
                 handledByWinHandler = winHandler.onGenericMotionEvent(event);
             }
             if (handledByWinHandler) return true;
-        }
-
-        // Non-gamepad events (mouse, touchpad, etc.) go to touchpadView
-        if (!isGamepad && touchpadView != null) {
-            handledByTouchpadView = touchpadView.onExternalMouseEvent(event);
         }
 
         // Pass the event to the super method to ensure system-level handling
@@ -3975,6 +3971,12 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (ExternalController.isGameController(event.getDevice())) {
+            cancelMousePointerTimeout();
+            if (touchpadView != null) {
+                touchpadView.cancelMousePointerTimeout();
+            }
+        }
         boolean handled = false;
         if (event.getAction() != KeyEvent.ACTION_DOWN ||
                 (event.getKeyCode() != KeyEvent.KEYCODE_BUTTON_MODE &&

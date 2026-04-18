@@ -385,6 +385,9 @@ public class GLRenderer
   }
 
   public void setCursorVisible(boolean cursorVisible) {
+    if (this.cursorVisible == cursorVisible) {
+      return;
+    }
     this.cursorVisible = cursorVisible;
     xServerView.requestRender();
   }
