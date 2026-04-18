@@ -883,7 +883,12 @@ class UnifiedActivity :
                         val popSettingsOnce: () -> Unit = {
                             if (!isPoppingSettings) {
                                 isPoppingSettings = true
-                                navController.popBackStack()
+                                if (navController.previousBackStackEntry != null) {
+                                    navController.popBackStack()
+                                } else {
+                                    setResult(android.app.Activity.RESULT_OK)
+                                    finish()
+                                }
                             }
                         }
                         BackHandler(enabled = true) { popSettingsOnce() }

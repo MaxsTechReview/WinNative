@@ -10,9 +10,11 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.theme.WinNativeTheme
 
 class InputControlsDialog(
     private val activity: Activity,
@@ -51,34 +53,37 @@ class InputControlsDialog(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT,
                     )
+                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
                 setViewTreeLifecycleOwner(activity as LifecycleOwner)
                 setViewTreeSavedStateRegistryOwner(activity as SavedStateRegistryOwner)
                 setContent {
-                    InputControlsDialogContent(
-                        state =
-                            InputControlsState(
-                                profileNames = profileNames.value,
-                                selectedProfileIndex = selectedProfileIndex.intValue,
-                                showTouchscreenControls = showTouchscreenControls.value,
-                                touchscreenHaptics = touchscreenHaptics.value,
-                                gamepadVibration = gamepadVibration.value,
-                            ),
-                        onProfileSelected = { index ->
-                            selectedProfileIndex.intValue = index
-                        },
-                        onSettingsClick = { onSettingsClickCallback?.run() },
-                        onShowTouchscreenControlsChange = { showTouchscreenControls.value = it },
-                        onTouchscreenHapticsChange = { touchscreenHaptics.value = it },
-                        onGamepadVibrationChange = { gamepadVibration.value = it },
-                        onCancel = {
-                            onCancelCallback?.run()
-                            dismiss()
-                        },
-                        onConfirm = {
-                            onConfirmCallback?.run()
-                            dismiss()
-                        },
-                    )
+                    WinNativeTheme {
+                        InputControlsDialogContent(
+                            state =
+                                InputControlsState(
+                                    profileNames = profileNames.value,
+                                    selectedProfileIndex = selectedProfileIndex.intValue,
+                                    showTouchscreenControls = showTouchscreenControls.value,
+                                    touchscreenHaptics = touchscreenHaptics.value,
+                                    gamepadVibration = gamepadVibration.value,
+                                ),
+                            onProfileSelected = { index ->
+                                selectedProfileIndex.intValue = index
+                            },
+                            onSettingsClick = { onSettingsClickCallback?.run() },
+                            onShowTouchscreenControlsChange = { showTouchscreenControls.value = it },
+                            onTouchscreenHapticsChange = { touchscreenHaptics.value = it },
+                            onGamepadVibrationChange = { gamepadVibration.value = it },
+                            onCancel = {
+                                onCancelCallback?.run()
+                                dismiss()
+                            },
+                            onConfirm = {
+                                onConfirmCallback?.run()
+                                dismiss()
+                            },
+                        )
+                    }
                 }
             }
         dialog.setContentView(composeView)
