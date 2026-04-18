@@ -2555,6 +2555,29 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             containerDataChanged = true;
         }
 
+        // ARM64EC still needs the custom xinput_virtual DLLs for titles that
+        // load XInput directly (most commonly xinput1_3).
+        if (wineInfo != null && wineInfo.isArm64EC()) {
+            File windowsDir = new File(imageFs.getRootDir(), ImageFs.WINEPREFIX + "/drive_c/windows");
+            if (!container.getExtra("xinput_virtual_deployed", "").equals("10") || firstTimeBoot) {
+                TarCompressorUtils.extract(
+                        TarCompressorUtils.Type.ZSTD,
+                        this,
+                        "wincomponents/xinput_virtual_arm64ec.tzst",
+                        windowsDir);
+                File userRegFile = new File(imageFs.getRootDir(), ImageFs.WINEPREFIX + "/user.reg");
+                try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
+                    String[] xinputLibs = {"xinput1_1", "xinput1_2", "xinput1_3", "xinput1_4", "xinput9_1_0", "xinputuap"};
+                    for (String name : xinputLibs) {
+                        registryEditor.setStringValue("Software\\Wine\\DllOverrides", name, "native,builtin");
+                    }
+                }
+                container.putExtra("xinput_virtual_deployed", "10");
+                containerDataChanged = true;
+                Log.d("XServerDisplayActivity", "Deployed xinput_virtual DLLs (native,builtin) for ARM64EC");
+            }
+        }
+
         if (!dxwrapper.equals(container.getExtra("dxwrapper")) || firstTimeBoot) {
             extractDXWrapperFiles(dxwrapper);
             container.putExtra("dxwrapper", dxwrapper);
@@ -3995,6 +4018,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     public InputControlsView getInputControlsView() {
         return inputControlsView;
+    }
+
+    public ImageFs getImageFs() {
+        return imageFs;
     }
 
     private static final String TAG = "DXWrapperExtraction";

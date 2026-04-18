@@ -586,8 +586,8 @@ public abstract class WineUtils {
       "dxgi",
       "wined3d"
     };
-    // evshim creates SDL virtual joysticks that Wine picks up through winebus,
-    // so Wine's builtin dinput/xinput path should stay preferred on all arches.
+    // DirectInput stays on Wine builtins, but ARM64EC still needs the restored
+    // xinput_virtual DLLs for games that use XInput directly.
     final String[] dinputLibs = {"dinput", "dinput8"};
     final String[] xinputLibs = {
       "xinput1_1", "xinput1_2", "xinput1_3", "xinput1_4", "xinput9_1_0", "xinputuap"
@@ -600,8 +600,10 @@ public abstract class WineUtils {
         registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
       for (String name : dinputLibs)
         registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
+      String xinputOverride =
+          wineInfo != null && wineInfo.isArm64EC() ? "native,builtin" : "builtin,native";
       for (String name : xinputLibs)
-        registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
+        registryEditor.setStringValue(dllOverridesKey, name, xinputOverride);
       // Conditional OpenGL override for ARM64EC (exclude Mali GPUs)
       if (wineInfo != null
           && wineInfo.isArm64EC()

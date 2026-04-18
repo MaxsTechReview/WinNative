@@ -28,6 +28,7 @@ import com.winlator.cmod.shared.io.TarCompressorUtils;
 import com.winlator.cmod.shared.util.Callback;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
@@ -757,6 +758,26 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
       }
       ld_preload = ld_preload + fakeinputDest.getAbsolutePath();
     }
+
+    // Restore the shared-memory gamepad path used by xinput_virtual.dll so
+    // ARM64EC titles that load xinput1_3/xinput1_4 can bypass Wine's builtin
+    // XInput implementation.
+    final int maxPlayers = 4;
+    File tmpDir = new File(rootDir, "tmp");
+    tmpDir.mkdirs();
+    String tmpPath = tmpDir.getAbsolutePath();
+    for (int i = 0; i < maxPlayers; i++) {
+      String memName = i == 0 ? "gamepad.mem" : "gamepad" + i + ".mem";
+      File memFile = new File(tmpDir, memName);
+      try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(memFile, "rw")) {
+        raf.setLength(64);
+      } catch (IOException e) {
+        Log.e("GuestLauncher", "Failed to create shared gamepad file: " + memFile, e);
+      }
+    }
+    envVars.put("EVSHIM_MAX_PLAYERS", String.valueOf(maxPlayers));
+    envVars.put("EVSHIM_DATA_PATH", tmpPath);
+    envVars.put("EVSHIM_WIN_PATH", "Z:\\tmp");
 
     // Samsung and some other OEMs ship a Vulkan ICD dep chain ending in
     // /system_ext/lib64/libvendorutils.so that references OpenSSL's BIO_flush.

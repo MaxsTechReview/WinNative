@@ -19,7 +19,9 @@ import com.winlator.cmod.runtime.input.controls.ExternalController;
 import com.winlator.cmod.runtime.input.controls.FakeInputWriter;
 import com.winlator.cmod.runtime.input.controls.GamepadState;
 import com.winlator.cmod.shared.util.StringUtils;
+import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -29,6 +31,8 @@ import java.net.UnknownHostException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -57,6 +61,7 @@ public class WinHandler {
   private static final short SERVER_PORT = 7947;
   private static final float GYRO_AXIS_EPSILON = 0.001f;
   private static final float GYRO_TRIGGER_PRESS_THRESHOLD = 0.15f;
+  private static final int GAMEPAD_BUFFER_SIZE = 64;
   private final XServerDisplayActivity activity;
   private String fakeInputBasePath;
   private final InputManager inputManager;
@@ -76,6 +81,8 @@ public class WinHandler {
   private byte inputType = 4;
   private final List<Integer> gamepadClients = new CopyOnWriteArrayList();
   private FakeInputWriter[] writers = new FakeInputWriter[MAX_CONTROLLERS];
+  private MappedByteBuffer gamepadBuffer;
+  private final MappedByteBuffer[] extraGamepadBuffers = new MappedByteBuffer[MAX_CONTROLLERS - 1];
   private Map<Integer, Integer> deviceToSlot = new HashMap();
   private Map<String, Integer> descriptorToSlot = new HashMap<>(); // physical device → slot
   private Map<Integer, String> deviceToDescriptor = new HashMap<>(); // deviceId → descriptor
@@ -540,13 +547,15 @@ public class WinHandler {
             && this.activity.getInputControlsView().isShowTouchscreenControls();
     if (useVirtualGamepad) {
       int slot = assignSlot(-1);
-      if (slot >= 0 && this.writers[slot] != null) {
-        try {
-          this.writers[slot].writeGamepadState(
-              getOutputGamepadState(gamepadState, applyGyroOverlay));
-        } catch (IOException ignored) {
+      if (slot >= 0) {
+        GamepadState outputState = getOutputGamepadState(gamepadState, applyGyroOverlay);
+        if (this.writers[slot] != null) {
+          try {
+            this.writers[slot].writeGamepadState(outputState);
+          } catch (IOException ignored) {
+          }
         }
-        return;
+        writeStateToMappedBuffer(outputState, getMappedBufferForSlot(slot));
       }
       return;
     }
@@ -574,24 +583,137 @@ public class WinHandler {
         && (profileController = profile.getController(controller.getDeviceId())) != null
         && profileController.getControllerBindingCount() > 0) {
       int slot = assignSlot(controller.getDeviceId());
-      if (slot >= 0 && this.writers[slot] != null) {
-        try {
-          this.writers[slot].writeGamepadState(
-              getOutputGamepadState(controller.remappedState, applyGyroOverlay));
-        } catch (IOException ignored) {
+      if (slot >= 0) {
+        GamepadState outputState = getOutputGamepadState(controller.remappedState, applyGyroOverlay);
+        if (this.writers[slot] != null) {
+          try {
+            this.writers[slot].writeGamepadState(outputState);
+          } catch (IOException ignored) {
+          }
         }
-        return;
+        writeStateToMappedBuffer(outputState, getMappedBufferForSlot(slot));
       }
       return;
     }
     int slot2 = assignSlot(controller.getDeviceId());
-    if (slot2 >= 0 && this.writers[slot2] != null) {
-      try {
-        this.writers[slot2].writeGamepadState(
-            getOutputGamepadState(controller.state, applyGyroOverlay));
-      } catch (IOException ignored) {
+    if (slot2 >= 0) {
+      GamepadState outputState = getOutputGamepadState(controller.state, applyGyroOverlay);
+      if (this.writers[slot2] != null) {
+        try {
+          this.writers[slot2].writeGamepadState(outputState);
+        } catch (IOException ignored) {
+        }
+      }
+      writeStateToMappedBuffer(outputState, getMappedBufferForSlot(slot2));
+    }
+  }
+
+  private void ensureMappedGamepadBuffers() {
+    if (this.gamepadBuffer != null) {
+      return;
+    }
+
+    if (this.activity.getImageFs() == null) {
+      return;
+    }
+
+    File tmpDir = new File(this.activity.getImageFs().getRootDir(), "tmp");
+    if (!tmpDir.exists() && !tmpDir.mkdirs()) {
+      Log.w("WinHandler", "Failed to create tmp dir for shared gamepad buffers: " + tmpDir);
+      return;
+    }
+
+    File primaryBufferFile = new File(tmpDir, "gamepad.mem");
+    try (RandomAccessFile raf = new RandomAccessFile(primaryBufferFile, "rw")) {
+      raf.setLength(GAMEPAD_BUFFER_SIZE);
+      this.gamepadBuffer =
+          raf.getChannel().map(FileChannel.MapMode.READ_WRITE, 0, GAMEPAD_BUFFER_SIZE);
+      this.gamepadBuffer.order(ByteOrder.LITTLE_ENDIAN);
+      clearMappedBuffer(this.gamepadBuffer);
+    } catch (IOException e) {
+      Log.e("WinHandler", "Failed to map shared gamepad buffer: " + primaryBufferFile, e);
+    }
+
+    for (int slot = 0; slot < this.extraGamepadBuffers.length; slot++) {
+      File memFile = new File(tmpDir, "gamepad" + (slot + 1) + ".mem");
+      try (RandomAccessFile raf = new RandomAccessFile(memFile, "rw")) {
+        raf.setLength(GAMEPAD_BUFFER_SIZE);
+        this.extraGamepadBuffers[slot] =
+            raf.getChannel().map(FileChannel.MapMode.READ_WRITE, 0, GAMEPAD_BUFFER_SIZE);
+        this.extraGamepadBuffers[slot].order(ByteOrder.LITTLE_ENDIAN);
+        clearMappedBuffer(this.extraGamepadBuffers[slot]);
+      } catch (IOException e) {
+        Log.e("WinHandler", "Failed to map shared gamepad buffer: " + memFile, e);
       }
     }
+  }
+
+  private MappedByteBuffer getMappedBufferForSlot(int slot) {
+    if (slot < 0 || slot >= MAX_CONTROLLERS) {
+      return null;
+    }
+    ensureMappedGamepadBuffers();
+    if (slot == 0) {
+      return this.gamepadBuffer;
+    }
+    return this.extraGamepadBuffers[slot - 1];
+  }
+
+  private void clearMappedBuffer(int slot) {
+    MappedByteBuffer buffer = getMappedBufferForSlot(slot);
+    if (buffer == null) {
+      return;
+    }
+    clearMappedBuffer(buffer);
+  }
+
+  private void clearMappedBuffer(MappedByteBuffer buffer) {
+    if (buffer == null) {
+      return;
+    }
+
+    buffer.position(0);
+    for (int i = 0; i < GAMEPAD_BUFFER_SIZE; i++) {
+      buffer.put((byte) 0);
+    }
+    buffer.position(0);
+  }
+
+  private void writeStateToMappedBuffer(GamepadState state, MappedByteBuffer buffer) {
+    if (state == null || buffer == null) {
+      return;
+    }
+
+    buffer.position(0);
+    buffer.putShort((short) (clamp(state.thumbLX, -1.0f, 1.0f) * 32767.0f));
+    buffer.putShort((short) (clamp(state.thumbLY, -1.0f, 1.0f) * 32767.0f));
+    buffer.putShort((short) (clamp(state.thumbRX, -1.0f, 1.0f) * 32767.0f));
+    buffer.putShort((short) (clamp(state.thumbRY, -1.0f, 1.0f) * 32767.0f));
+    buffer.putShort((short) (clamp(state.triggerL, 0.0f, 1.0f) * 32767.0f));
+    buffer.putShort((short) (clamp(state.triggerR, 0.0f, 1.0f) * 32767.0f));
+
+    buffer.put(state.isButtonPressed(GamepadState.BUTTON_A) ? (byte) 1 : (byte) 0);
+    buffer.put(state.isButtonPressed(GamepadState.BUTTON_B) ? (byte) 1 : (byte) 0);
+    buffer.put(state.isButtonPressed(GamepadState.BUTTON_X) ? (byte) 1 : (byte) 0);
+    buffer.put(state.isButtonPressed(GamepadState.BUTTON_Y) ? (byte) 1 : (byte) 0);
+    buffer.put(state.isButtonPressed(GamepadState.BUTTON_SELECT) ? (byte) 1 : (byte) 0);
+    buffer.put(state.isButtonPressed(GamepadState.BUTTON_GUIDE) ? (byte) 1 : (byte) 0);
+    buffer.put(state.isButtonPressed(GamepadState.BUTTON_START) ? (byte) 1 : (byte) 0);
+    buffer.put(state.isButtonPressed(GamepadState.BUTTON_L3) ? (byte) 1 : (byte) 0);
+    buffer.put(state.isButtonPressed(GamepadState.BUTTON_R3) ? (byte) 1 : (byte) 0);
+    buffer.put(state.isButtonPressed(GamepadState.BUTTON_L1) ? (byte) 1 : (byte) 0);
+    buffer.put(state.isButtonPressed(GamepadState.BUTTON_R1) ? (byte) 1 : (byte) 0);
+    buffer.put(state.isButtonPressed(GamepadState.BUTTON_DPAD_UP) ? (byte) 1 : (byte) 0);
+    buffer.put(state.isButtonPressed(GamepadState.BUTTON_DPAD_DOWN) ? (byte) 1 : (byte) 0);
+    buffer.put(state.isButtonPressed(GamepadState.BUTTON_DPAD_LEFT) ? (byte) 1 : (byte) 0);
+    buffer.put(state.isButtonPressed(GamepadState.BUTTON_DPAD_RIGHT) ? (byte) 1 : (byte) 0);
+
+    byte hat = 0;
+    if (state.isButtonPressed(GamepadState.BUTTON_DPAD_UP)) hat |= 1;
+    if (state.isButtonPressed(GamepadState.BUTTON_DPAD_DOWN)) hat |= 2;
+    if (state.isButtonPressed(GamepadState.BUTTON_DPAD_LEFT)) hat |= 4;
+    if (state.isButtonPressed(GamepadState.BUTTON_DPAD_RIGHT)) hat |= 8;
+    buffer.put(hat);
   }
 
   private void ensureWriterForSlot(int slot) {
@@ -669,6 +791,7 @@ public class WinHandler {
     if (this.writers[currentSlot] != null) {
       this.writers[currentSlot].reset();
     }
+    clearMappedBuffer(currentSlot);
 
     this.deviceToSlot.put(OSC_DEVICE_ID, targetSlot);
     this.usedSlots.remove(currentSlot);
@@ -798,6 +921,7 @@ public class WinHandler {
         if (this.fallbackSlot == slot) {
           this.fallbackSlot = -1;
         }
+        clearMappedBuffer(slot);
         if (this.writers[slot] != null) {
           // Fake evdev nodes are regular files; preserving them across release keeps old events
           // readable on the next open and can replay stale input.
@@ -832,6 +956,7 @@ public class WinHandler {
     if (fakeInputPath != null && !fakeInputPath.isEmpty()) {
       this.fakeInputBasePath = fakeInputPath;
       Log.d("WinHandler", "FakeInputWriter base path set: " + fakeInputPath);
+      ensureMappedGamepadBuffers();
       startVibrationListener();
     }
   }
@@ -976,7 +1101,13 @@ public class WinHandler {
     if (this.inputManager != null && this.inputDeviceListener != null) {
       this.inputManager.unregisterInputDeviceListener(this.inputDeviceListener);
     }
+    clearMappedBuffer(this.gamepadBuffer);
+    this.gamepadBuffer = null;
     for (int i = 0; i < MAX_CONTROLLERS; i++) {
+      if (i < this.extraGamepadBuffers.length) {
+        clearMappedBuffer(this.extraGamepadBuffers[i]);
+        this.extraGamepadBuffers[i] = null;
+      }
       if (this.writers[i] != null) {
         this.writers[i].destroy();
         this.writers[i] = null;
