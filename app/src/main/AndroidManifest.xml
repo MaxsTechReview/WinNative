@@ -104,6 +104,17 @@
             </intent-filter>
         </receiver>
 
+        <!-- App-wide teardown service started from PluviaApp.onCreate. On
+             swipe-away from Recents, its onTaskRemoved runs full teardown
+             (kill Wine/child processes, release sockets) and terminates the
+             process so the app fully closes and relaunch starts clean.
+             Deliberately NOT stopWithTask — Android silently skips
+             onTaskRemoved when stopWithTask=true. -->
+        <service
+            android:name="com.winlator.cmod.runtime.display.SessionTeardownService"
+            android:enabled="true"
+            android:exported="false" />
+
         <service
             android:name="com.winlator.cmod.feature.stores.steam.service.SteamService"
             android:enabled="true"

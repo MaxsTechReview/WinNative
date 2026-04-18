@@ -911,5 +911,14 @@ class GOGService : Service() {
         instance = null
     }
 
+    // Fires on swipe-away from Recents. Per user policy, swipe = full app
+    // close. SessionTeardownService also kills the process; this stopSelf is
+    // defense-in-depth in case the service's kill path fails.
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        Timber.i("[GOGService] Task removed — stopping self")
+        stopSelf()
+        super.onTaskRemoved(rootIntent)
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 }

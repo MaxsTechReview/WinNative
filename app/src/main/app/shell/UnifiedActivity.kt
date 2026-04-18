@@ -1482,7 +1482,14 @@ class UnifiedActivity :
                             // Exit button
                             Button(
                                 onClick = {
-                                    // Kill all WinNative processes and close fully
+                                    // Kill native child processes (Wine/box64/wineserver/
+                                    // etc.) BEFORE killing the JVM, otherwise they become
+                                    // orphans reparented to init and leak until the next
+                                    // launch reaps them.
+                                    try {
+                                        com.winlator.cmod.runtime.system.ProcessHelper
+                                            .terminateSessionProcessesAndWait(500, true)
+                                    } catch (_: Throwable) {}
                                     finishAffinity()
                                     Process.killProcess(Process.myPid())
                                 },

@@ -9,13 +9,18 @@ import android.util.Log;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class WineRequestHandler {
+
+  private static final String TAG = "WineRequestHandler";
+  private static final int PORT = 20000;
 
   abstract class RequestCodes {
     static final int OPEN_URL = 1;
@@ -25,6 +30,7 @@ public class WineRequestHandler {
 
   private Context context;
   private ServerSocket serverSocket;
+  private ExecutorService executor;
 
   public ServerSocket getServerSocket() {
     return serverSocket;
@@ -35,12 +41,16 @@ public class WineRequestHandler {
   }
 
   public void start() {
-    ExecutorService executor = Executors.newSingleThreadExecutor();
+    executor = Executors.newSingleThreadExecutor();
     executor.execute(
         () -> {
           try {
-            serverSocket = new ServerSocket(20000);
-            while (true) {
+            // SO_REUSEADDR lets us rebind quickly after a fast relaunch even
+            // if the previous socket is still in TIME_WAIT on port 20000.
+            serverSocket = new ServerSocket();
+            serverSocket.setReuseAddress(true);
+            serverSocket.bind(new InetSocketAddress(PORT));
+            while (!Thread.currentThread().isInterrupted()) {
               Socket socket = serverSocket.accept();
               DataInputStream inputStream = new DataInputStream(socket.getInputStream());
               DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
@@ -53,11 +63,24 @@ public class WineRequestHandler {
   }
 
   public void stop() {
+    // Close the socket first so any blocking accept() unwinds with
+    // SocketException and the executor thread can exit.
     if (serverSocket != null) {
       try {
         serverSocket.close();
       } catch (IOException e) {
       }
+    }
+    if (executor != null) {
+      executor.shutdownNow();
+      try {
+        if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
+          Log.w(TAG, "Executor did not terminate within 1s");
+        }
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+      }
+      executor = null;
     }
   }
 

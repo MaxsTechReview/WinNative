@@ -300,6 +300,46 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private final AtomicBoolean exitRequested = new AtomicBoolean(false);
     private final AtomicBoolean steamExitWatchRunning = new AtomicBoolean(false);
 
+    /**
+     * Reference to the live session Activity, consulted by
+     * SessionTeardownService.onTaskRemoved when the user swipes the app away
+     * mid-game. Only non-null between onCreate and onDestroy. Never touch from
+     * background threads without copying to a local first — the field is
+     * volatile, individual reads are atomic, but the instance it points to
+     * can be destroyed concurrently.
+     */
+    private static volatile XServerDisplayActivity currentInstance = null;
+
+    /**
+     * Synchronous emergency teardown callable from SessionTeardownService on
+     * swipe-away. Releases the game-session sockets if a game was active.
+     * Best-effort: tolerates nulls, catches each step. Safe to call when no
+     * session is active — it just skips the handler stops. Wine process kill
+     * is done by SessionTeardownService itself (unconditional, not tied to
+     * session state) so stale children from crashed prior runs also die.
+     */
+    public static void emergencyTeardown(String reason) {
+        XServerDisplayActivity instance = currentInstance;
+        Log.w("XServerDisplayActivity", "emergencyTeardown(" + reason + "): activeSession=" + (instance != null));
+        if (instance == null) return;
+
+        try {
+            if (instance.winHandler != null) instance.winHandler.stop();
+        } catch (Throwable t) {
+            Log.e("XServerDisplayActivity", "emergencyTeardown: winHandler.stop failed", t);
+        }
+        try {
+            if (instance.wineRequestHandler != null) instance.wineRequestHandler.stop();
+        } catch (Throwable t) {
+            Log.e("XServerDisplayActivity", "emergencyTeardown: wineRequestHandler.stop failed", t);
+        }
+        try {
+            if (instance.midiHandler != null) instance.midiHandler.stop();
+        } catch (Throwable t) {
+            Log.e("XServerDisplayActivity", "emergencyTeardown: midiHandler.stop failed", t);
+        }
+    }
+
     private boolean isDarkMode;
     private boolean enableLogsMenu;
 
@@ -496,6 +536,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         // Clean up any shared debug logs and prepare for fresh session logging
         DebugFragment.Companion.cleanupSharedLogs();
         com.winlator.cmod.runtime.system.LogManager.prepareForNewSession(this);
+
+        // Register as the current live instance so SessionTeardownService can
+        // find us on swipe-away for synchronous handler cleanup. The service
+        // itself is started from PluviaApp.onCreate (app-wide lifetime).
+        currentInstance = this;
 
         // Initialize preferences early so pickHighestRefreshRate can read global override
         preferences = PreferenceManager.getDefaultSharedPreferences(this);
@@ -2172,6 +2217,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        // Clear the static reference FIRST so a concurrent
+        // SessionTeardownService.onTaskRemoved becomes a no-op rather than
+        // racing with the normal teardown below. Do NOT stopService here —
+        // SessionTeardownService is app-wide, not session-scoped.
+        if (currentInstance == this) currentInstance = null;
         super.onDestroy();
         // Schedule a deferred update check 10 s after game exit
         UpdateChecker.INSTANCE.schedulePostGameCheck(this);

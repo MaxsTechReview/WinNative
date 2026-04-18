@@ -5042,6 +5042,19 @@ class SteamService :
         scope.launch { stop() }
     }
 
+    // Fires on swipe-away from Recents. Per user policy, swipe = full app
+    // close — no download protection. Persist progress snapshots so a resume
+    // is possible next launch, then stop. (SessionTeardownService also kills
+    // the process, which takes us down regardless; this is defense-in-depth.)
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        downloadJobs.values.forEach { info ->
+            try { info.persistProgressSnapshot(force = true) } catch (_: Throwable) {}
+        }
+        Timber.i("[SteamService] Task removed — stopping self")
+        stopSelf()
+        super.onTaskRemoved(rootIntent)
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun connectToSteam() {

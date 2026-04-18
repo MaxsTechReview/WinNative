@@ -28,6 +28,17 @@ class PluviaApp : Application() {
         super.onCreate()
         instance = this
 
+        // Start the app-wide teardown service early so it's alive to receive
+        // onTaskRemoved from the very first swipe-away, regardless of which
+        // Activity the user is in. Wrapped in try/catch because background
+        // startService can throw IllegalStateException on API 26+ in some
+        // app-init paths (ContentProvider-triggered Application starts).
+        try {
+            startService(android.content.Intent(this, com.winlator.cmod.runtime.display.SessionTeardownService::class.java))
+        } catch (t: Throwable) {
+            Log.w("PluviaApp", "Failed to start SessionTeardownService", t)
+        }
+
         // Initialize Play Games Services SDK (v2)
         PlayGamesSdk.initialize(this)
 
@@ -74,14 +85,25 @@ class PluviaApp : Application() {
             SteamService.repairInstalledMetadataFromDisk()
         }
 
-        // Start SteamService only if setup is complete to avoid premature permission popups
+        // Start SteamService only if setup is complete to avoid premature permission popups.
+        // Guard each start: if the service is already alive (e.g. Android kept the process
+        // hot across a quick swipe+relaunch), skip the redundant startForegroundService so
+        // we don't re-enter its init path and fire a spurious null-intent onStartCommand.
         try {
             if (SetupWizardActivity.isSetupComplete(this)) {
-                val intent = android.content.Intent(this, com.winlator.cmod.feature.stores.steam.service.SteamService::class.java)
-                startForegroundService(intent)
+                if (!SteamService.isRunning) {
+                    val intent = android.content.Intent(this, com.winlator.cmod.feature.stores.steam.service.SteamService::class.java)
+                    startForegroundService(intent)
+                } else {
+                    Log.d("PluviaApp", "SteamService already running — skipping startForegroundService")
+                }
                 if (GOGAuthManager.isLoggedIn(this)) {
-                    val gogIntent = android.content.Intent(this, GOGService::class.java)
-                    startForegroundService(gogIntent)
+                    if (!GOGService.isRunning) {
+                        val gogIntent = android.content.Intent(this, GOGService::class.java)
+                        startForegroundService(gogIntent)
+                    } else {
+                        Log.d("PluviaApp", "GOGService already running — skipping startForegroundService")
+                    }
                 }
             }
         } catch (e: Exception) {

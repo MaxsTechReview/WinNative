@@ -21,6 +21,7 @@ public class SteamPipeServer {
 
   private ServerSocket serverSocket;
   private volatile boolean running;
+  private Thread serverThread;
 
   private int readNetworkInt(DataInputStream input) throws IOException {
     return Integer.reverseBytes(input.readInt());
@@ -32,7 +33,8 @@ public class SteamPipeServer {
 
   public void start() {
     running = true;
-    new Thread(
+    serverThread =
+        new Thread(
             () -> {
               try {
                 serverSocket = new ServerSocket();
@@ -59,8 +61,8 @@ public class SteamPipeServer {
                 Log.d(TAG, "Server thread exiting");
               }
             },
-            "SteamPipeServer")
-        .start();
+            "SteamPipeServer");
+    serverThread.start();
   }
 
   private void handleClient(Socket clientSocket) {
@@ -136,6 +138,16 @@ public class SteamPipeServer {
       }
     } catch (IOException e) {
       Log.e(TAG, "Error stopping server", e);
+    }
+    // Wait for the accept loop to exit so port 34865 is fully released before
+    // stop() returns. Prevents EADDRINUSE on a quick relaunch.
+    if (serverThread != null) {
+      try {
+        serverThread.join(1000);
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+      }
+      serverThread = null;
     }
   }
 }
