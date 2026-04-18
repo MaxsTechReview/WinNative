@@ -83,28 +83,6 @@
         <item name="android:windowAnimationStyle">@style/AppWindowAnimationNoAnimation</item>
     </style>
 
-    <!-- Base ComboBox Styles -->
-    <style name="ComboBox">
-        <item name="android:layout_width">192dp</item>
-        <item name="android:layout_height">42dp</item>
-        <item name="android:focusable">true</item>
-        <item name="android:clickable">true</item>
-        <item name="android:textSize">16sp</item>
-        <item name="android:gravity">left|center_vertical</item>
-        <item name="android:paddingLeft">12dp</item>
-        <item name="android:paddingRight">36dp</item>
-        <item name="android:paddingTop">0dp</item>
-        <item name="android:paddingBottom">0dp</item>
-        <item name="android:maxLines">1</item>
-        <item name="android:ellipsize">end</item>
-        <item name="android:spinnerMode">dropdown</item>
-        <item name="android:background">@drawable/combo_box</item>
-        <item name="android:popupBackground">@drawable/spinner_dropdown_background</item>
-        <item name="android:overlapAnchor">false</item>
-        <item name="android:dropDownVerticalOffset">4dp</item>
-        <item name="android:popupElevation">8dp</item>
-    </style>
-
     <style name="SpinnerDropDownItem" parent="Widget.AppCompat.DropDownItem.Spinner">
         <item name="android:textColor">#000000</item>
         <item name="android:paddingLeft">16dp</item>
@@ -154,35 +132,6 @@
     <style name="PopupMenu.Dark" parent="PopupMenu">
         <item name="android:popupBackground">@drawable/spinner_dropdown_background</item>
         <item name="android:popupElevation">8dp</item>
-    </style>
-
-    <style name="Widget.ContentPopupMenu" parent="Widget.AppCompat.PopupMenu">
-        <item name="android:popupBackground">@drawable/content_popup_menu_background</item>
-        <item name="android:popupAnimationStyle">@style/ContentPopupMenuAnimation</item>
-        <item name="android:dropDownHorizontalOffset">-10dp</item>
-        <item name="android:dropDownVerticalOffset">6dp</item>
-        <item name="android:popupElevation">18dp</item>
-    </style>
-
-    <style name="ContentPopupMenuAnimation">
-        <item name="android:windowEnterAnimation">@anim/content_popup_menu_enter</item>
-        <item name="android:windowExitAnimation">@anim/content_popup_menu_exit</item>
-    </style>
-
-    <style name="TextAppearance.ContentPopupMenu.Item" parent="TextAppearance.AppCompat.Body1">
-        <item name="android:fontFamily">@font/inter</item>
-        <item name="android:textColor">@color/settings_text_primary</item>
-        <item name="android:textSize">15sp</item>
-    </style>
-
-    <style name="ThemeOverlay.ContentPopupMenu" parent="ThemeOverlay.AppCompat.Dark">
-        <item name="android:textColorPrimary">@color/settings_text_primary</item>
-        <item name="textAppearanceLargePopupMenu">@style/TextAppearance.ContentPopupMenu.Item</item>
-        <item name="textAppearanceSmallPopupMenu">@style/TextAppearance.ContentPopupMenu.Item</item>
-        <item name="android:textAppearanceLargePopupMenu">@style/TextAppearance.ContentPopupMenu.Item</item>
-        <item name="android:textAppearanceSmallPopupMenu">@style/TextAppearance.ContentPopupMenu.Item</item>
-        <item name="popupMenuStyle">@style/Widget.ContentPopupMenu</item>
-        <item name="android:popupMenuStyle">@style/Widget.ContentPopupMenu</item>
     </style>
 
     <style name="SpinnerDropDownListView" parent="Widget.AppCompat.ListView.DropDown">
@@ -369,17 +318,6 @@
         <item name="android:paddingRight">4dp</item>
         <item name="android:textAllCaps">true</item>
         <item name="android:textColor">@color/settings_text_secondary</item>
-        <item name="android:textSize">11sp</item>
-        <item name="android:textStyle">bold</item>
-    </style>
-
-    <style name="OtherSettingsFieldLabel">
-        <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:fontFamily">@font/inter</item>
-        <item name="android:letterSpacing">0.06</item>
-        <item name="android:textAllCaps">true</item>
-        <item name="android:textColor">@color/settings_text_primary</item>
         <item name="android:textSize">11sp</item>
         <item name="android:textStyle">bold</item>
     </style>
