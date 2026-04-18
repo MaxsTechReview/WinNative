@@ -29,6 +29,7 @@ import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.ui.dialog.PreloaderDialog
+import com.winlator.cmod.shared.theme.WinNativeTheme
 import java.io.File
 import kotlin.math.roundToInt
 
@@ -53,7 +54,7 @@ class ContainersFragment : Fragment() {
         ComposeView(requireContext()).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
-                MaterialTheme(
+                WinNativeTheme(
                     colorScheme =
                         darkColorScheme(
                             primary = Color(0xFF1A9FFF),

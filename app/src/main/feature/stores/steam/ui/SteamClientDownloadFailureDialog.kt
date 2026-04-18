@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.winlator.cmod.shared.theme.WinNativeTheme
 
 object SteamClientDownloadFailureDialog {
     @JvmStatic
@@ -63,7 +64,7 @@ object SteamClientDownloadFailureDialog {
                     setViewTreeSavedStateRegistryOwner(it)
                 }
                 setContent {
-                    MaterialTheme(
+                    WinNativeTheme(
                         colorScheme =
                             darkColorScheme(
                                 primary = Color(0xFF57CBDE),

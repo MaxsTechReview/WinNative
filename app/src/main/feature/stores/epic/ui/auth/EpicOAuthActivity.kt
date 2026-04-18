@@ -6,11 +6,12 @@ import android.os.Bundle
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import com.winlator.cmod.feature.stores.epic.service.EpicConstants
 import com.winlator.cmod.feature.stores.epic.ui.component.dialog.AuthWebViewDialog
 import com.winlator.cmod.feature.stores.steam.utils.redactUrlForLogging
+import com.winlator.cmod.shared.android.FixedFontScaleComponentActivity
+import com.winlator.cmod.shared.theme.WinNativeTheme
 import timber.log.Timber
 
 /**
@@ -19,7 +20,7 @@ import timber.log.Timber
  * ({"authorizationCode":"...", ...}), not in the URL – so we read the body via JS.
  * Uses a per-session state parameter for CSRF protection.
  */
-class EpicOAuthActivity : ComponentActivity() {
+class EpicOAuthActivity : FixedFontScaleComponentActivity() {
     companion object {
         const val EXTRA_AUTH_CODE = "auth_code"
         const val EXTRA_ERROR = "error"
@@ -63,7 +64,7 @@ class EpicOAuthActivity : ComponentActivity() {
         initialAuthUrl = authUrl
 
         setContent {
-            MaterialTheme(colorScheme = darkColorScheme()) {
+            WinNativeTheme(colorScheme = darkColorScheme()) {
                 AuthWebViewDialog(
                     isVisible = true,
                     url = authUrl,

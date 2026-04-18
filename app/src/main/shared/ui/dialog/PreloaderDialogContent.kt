@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.theme.WinNativeTheme
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -529,6 +530,8 @@ fun setupPreloaderComposeView(
         composeView.setViewTreeSavedStateRegistryOwner(activity)
     }
     composeView.setContent {
-        PreloaderDialogContent(state)
+        WinNativeTheme {
+            PreloaderDialogContent(state)
+        }
     }
 }

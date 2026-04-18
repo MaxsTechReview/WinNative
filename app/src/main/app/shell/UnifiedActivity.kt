@@ -187,6 +187,7 @@ import com.winlator.cmod.runtime.input.ControllerHelper
 import com.winlator.cmod.runtime.wine.PeIconExtractor
 import com.winlator.cmod.shared.android.ActivityResultHost
 import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity
 import com.winlator.cmod.shared.android.RefreshRateUtils
 import com.winlator.cmod.shared.io.StorageUtils
 import com.winlator.cmod.shared.ui.CarouselView
@@ -197,6 +198,7 @@ import com.winlator.cmod.shared.ui.JoystickListScroll
 import com.winlator.cmod.shared.ui.ListView
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import com.winlator.cmod.shared.ui.widget.chasingBorder
+import com.winlator.cmod.shared.theme.WinNativeTheme
 import dagger.hilt.android.AndroidEntryPoint
 import `in`.dragonbra.javasteam.enums.EPersonaState
 import kotlinx.coroutines.Dispatchers
@@ -248,7 +250,7 @@ enum class LibraryLayoutMode {
 
 @AndroidEntryPoint
 class UnifiedActivity :
-    AppCompatActivity(),
+    FixedFontScaleAppCompatActivity(),
     ActivityResultHost {
     @Inject lateinit var db: PluviaDatabase
 
@@ -770,7 +772,7 @@ class UnifiedActivity :
                 }
             }
 
-            MaterialTheme(
+            WinNativeTheme(
                 colorScheme =
                     darkColorScheme(
                         primary = Accent,

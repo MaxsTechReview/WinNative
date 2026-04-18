@@ -48,6 +48,7 @@ import com.winlator.cmod.runtime.wine.EnvVars
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.util.KeyValueSet
 import com.winlator.cmod.shared.android.RefreshRateUtils
+import com.winlator.cmod.shared.theme.WinNativeTheme
 import com.winlator.cmod.shared.util.StringUtils
 import com.winlator.cmod.runtime.wine.WineInfo
 import com.winlator.cmod.runtime.compat.fexcore.FEXCoreManager
@@ -155,10 +156,12 @@ class ShortcutSettingsComposeDialog private constructor(
             setViewTreeLifecycleOwner(activity as LifecycleOwner)
             setViewTreeSavedStateRegistryOwner(activity as SavedStateRegistryOwner)
             setContent {
-                GameSettingsContent(
-                    state = state,
-                    callbacks = createCallbacks()
-                )
+                WinNativeTheme {
+                    GameSettingsContent(
+                        state = state,
+                        callbacks = createCallbacks()
+                    )
+                }
             }
         }
         dialog.setContentView(composeView)

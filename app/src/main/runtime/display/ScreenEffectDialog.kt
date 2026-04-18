@@ -19,6 +19,7 @@ import com.winlator.cmod.runtime.display.renderer.effects.FXAAEffect
 import com.winlator.cmod.runtime.display.renderer.effects.NTSCCombinedEffect
 import com.winlator.cmod.runtime.display.renderer.effects.ToonEffect
 import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.theme.WinNativeTheme
 import com.winlator.cmod.shared.ui.dialog.ContentDialog
 import com.winlator.cmod.shared.util.KeyValueSet
 
@@ -82,33 +83,35 @@ class ScreenEffectDialog(
                 setViewTreeLifecycleOwner(activity)
                 setViewTreeSavedStateRegistryOwner(activity)
                 setContent {
-                    ScreenEffectDialogContent(
-                        state =
-                            ScreenEffectState(
-                                brightness = brightness.floatValue,
-                                contrast = contrast.floatValue,
-                                gamma = gamma.floatValue,
-                                enableFXAA = enableFXAA.value,
-                                enableCRT = enableCRT.value,
-                                enableToon = enableToon.value,
-                                enableNTSC = enableNTSC.value,
-                                profileNames = profileNames.value,
-                                selectedProfileIndex = selectedProfileIndex.intValue,
-                            ),
-                        onBrightnessChange = { brightness.floatValue = it },
-                        onContrastChange = { contrast.floatValue = it },
-                        onGammaChange = { gamma.floatValue = it },
-                        onFXAAChange = { enableFXAA.value = it },
-                        onCRTChange = { enableCRT.value = it },
-                        onToonChange = { enableToon.value = it },
-                        onNTSCChange = { enableNTSC.value = it },
-                        onProfileSelected = { onProfileSelected(it) },
-                        onAddProfile = { promptAddProfile() },
-                        onRemoveProfile = { promptDeleteProfile() },
-                        onReset = { resetSettings() },
-                        onCancel = { dismiss() },
-                        onConfirm = { onConfirm() },
-                    )
+                    WinNativeTheme {
+                        ScreenEffectDialogContent(
+                            state =
+                                ScreenEffectState(
+                                    brightness = brightness.floatValue,
+                                    contrast = contrast.floatValue,
+                                    gamma = gamma.floatValue,
+                                    enableFXAA = enableFXAA.value,
+                                    enableCRT = enableCRT.value,
+                                    enableToon = enableToon.value,
+                                    enableNTSC = enableNTSC.value,
+                                    profileNames = profileNames.value,
+                                    selectedProfileIndex = selectedProfileIndex.intValue,
+                                ),
+                            onBrightnessChange = { brightness.floatValue = it },
+                            onContrastChange = { contrast.floatValue = it },
+                            onGammaChange = { gamma.floatValue = it },
+                            onFXAAChange = { enableFXAA.value = it },
+                            onCRTChange = { enableCRT.value = it },
+                            onToonChange = { enableToon.value = it },
+                            onNTSCChange = { enableNTSC.value = it },
+                            onProfileSelected = { onProfileSelected(it) },
+                            onAddProfile = { promptAddProfile() },
+                            onRemoveProfile = { promptDeleteProfile() },
+                            onReset = { resetSettings() },
+                            onCancel = { dismiss() },
+                            onConfirm = { onConfirm() },
+                        )
+                    }
                 }
             }
         dialog.setContentView(composeView)

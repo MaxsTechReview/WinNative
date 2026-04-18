@@ -8,6 +8,8 @@
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="android:windowBackground">@color/window_background_color</item>
         <item name="android:colorBackground">@color/window_background_color</item>
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="fontFamily">@font/inter</item>
         <item name="android:textViewStyle">@style/TextView</item>
         <item name="android:checkboxStyle">@style/CheckBox</item>
         <item name="android:listPopupWindowStyle">@style/ListPopupWindow</item>
@@ -26,6 +28,8 @@
         <item name="colorPrimaryDark">@color/colorPrimaryDarkModeDark</item>
         <item name="android:windowBackground">@color/window_background_color_dark</item>
         <item name="android:colorBackground">@color/window_background_color_dark</item>
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="fontFamily">@font/inter</item>
         <item name="android:textViewStyle">@style/TextView.Dark</item>
         <item name="android:checkboxStyle">@style/CheckBox.Dark</item>
         <item name="android:listPopupWindowStyle">@style/ListPopupWindow.Dark</item>
@@ -85,6 +89,7 @@
 
     <style name="SpinnerDropDownItem" parent="Widget.AppCompat.DropDownItem.Spinner">
         <item name="android:textColor">#000000</item>
+        <item name="android:fontFamily">@font/inter</item>
         <item name="android:paddingLeft">16dp</item>
         <item name="android:paddingRight">16dp</item>
     </style>
@@ -165,6 +170,7 @@
     <style name="EditText">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">42dp</item>
+        <item name="android:fontFamily">@font/inter</item>
         <item name="android:textSize">16sp</item>
         <item name="android:gravity">left|center_vertical</item>
         <item name="android:paddingLeft">12dp</item>
@@ -183,6 +189,7 @@
 
     <!-- TextView Styles -->
     <style name="TextView" parent="@android:style/Widget.TextView">
+        <item name="android:fontFamily">@font/inter</item>
         <item name="android:textSize">16sp</item>
     </style>
 
@@ -195,6 +202,7 @@
         <item name="colorAccent">@color/colorAccent</item>
         <item name="android:textColorSecondary">@color/colorPrimary</item>
         <item name="android:textColor">#000000</item>
+        <item name="android:fontFamily">@font/inter</item>
         <item name="android:textSize">16sp</item>
     </style>
 
@@ -211,6 +219,7 @@
         <item name="android:layout_height">42dp</item>
         <item name="android:focusable">true</item>
         <item name="android:clickable">true</item>
+        <item name="android:fontFamily">@font/inter</item>
         <item name="android:textSize">16sp</item>
         <item name="android:lines">1</item>
         <item name="android:gravity">center</item>

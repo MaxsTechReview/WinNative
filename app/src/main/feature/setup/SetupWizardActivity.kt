@@ -109,10 +109,12 @@ import com.winlator.cmod.runtime.display.environment.ImageFsInstaller
 import com.winlator.cmod.runtime.wine.DefaultVersion
 import com.winlator.cmod.runtime.wine.WineInfo
 import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.android.FixedFontScaleFragmentActivity
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.io.TarCompressorUtils
 import com.winlator.cmod.shared.io.TarCompressorUtils.Type
 import com.winlator.cmod.shared.ui.widget.chasingBorder
+import com.winlator.cmod.shared.theme.WinNativeTheme
 import com.winlator.cmod.shared.util.OnExtractFileListener
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -140,7 +142,7 @@ private data class TabInfo(
     val highlight: Boolean = false,
 )
 
-class SetupWizardActivity : FragmentActivity() {
+class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     companion object {
         private const val PREFS_NAME = "winnative_setup"
         private const val EXTRA_FORCE_SHOW = "force_show"
@@ -561,7 +563,7 @@ class SetupWizardActivity : FragmentActivity() {
         loadAdvancedProfiles()
 
         setContent {
-            MaterialTheme(
+            WinNativeTheme(
                 colorScheme =
                     darkColorScheme(
                         primary = Color(0xFF57CBDE),

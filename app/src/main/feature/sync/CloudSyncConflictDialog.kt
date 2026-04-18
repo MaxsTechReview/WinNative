@@ -45,12 +45,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.winlator.cmod.shared.theme.WinNativeTheme
 
 data class CloudSyncConflictTimestamps(
     val localTimestampLabel: String,
@@ -91,7 +91,7 @@ object CloudSyncConflictDialog {
                     setViewTreeSavedStateRegistryOwner(it)
                 }
                 setContent {
-                    MaterialTheme(
+                    WinNativeTheme(
                         colorScheme =
                             darkColorScheme(
                                 primary = Color(0xFF57CBDE),
@@ -223,7 +223,6 @@ private fun CloudSyncConflictDialogContent(
                                     style = MaterialTheme.typography.labelLarge,
                                     color = Color(0xFF8FA7C1),
                                     fontWeight = FontWeight.Medium,
-                                    fontFamily = FontFamily.Default,
                                 )
                                 Text(
                                     text = "Local save\n${timestamps.localTimestampLabel}",

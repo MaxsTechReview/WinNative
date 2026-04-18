@@ -20,7 +20,6 @@ import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 import androidx.activity.OnBackPressedCallback;
-import androidx.appcompat.app.AppCompatActivity;
 import com.winlator.cmod.R;
 import com.winlator.cmod.runtime.input.controls.Binding;
 import com.winlator.cmod.runtime.input.controls.ControlElement;
@@ -28,6 +27,7 @@ import com.winlator.cmod.runtime.input.controls.ControlsProfile;
 import com.winlator.cmod.runtime.input.controls.InputControlsManager;
 import com.winlator.cmod.runtime.input.ui.InputControlsView;
 import com.winlator.cmod.shared.android.AppUtils;
+import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity;
 import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.shared.math.Mathf;
 import com.winlator.cmod.shared.ui.widget.NumberPicker;
@@ -36,7 +36,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 
-public class ControlsEditorActivity extends AppCompatActivity implements View.OnClickListener {
+public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity implements View.OnClickListener {
   private InputControlsView inputControlsView;
   private ControlsProfile profile;
 
