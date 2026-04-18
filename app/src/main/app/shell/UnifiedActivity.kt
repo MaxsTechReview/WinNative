@@ -126,7 +126,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -177,7 +176,6 @@ import com.winlator.cmod.feature.stores.steam.events.EventDispatcher
 import com.winlator.cmod.feature.stores.steam.service.SteamService
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 import com.winlator.cmod.feature.stores.steam.utils.getAvatarURL
-import com.winlator.cmod.feature.sync.google.CloudSyncManager
 import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.container.Shortcut
@@ -279,7 +277,6 @@ class UnifiedActivity :
 
     // Trigger to refresh library when activity resumes from another container
     var libraryRefreshSignal by mutableIntStateOf(0)
-    private var hasBootstrappedGoogleRestoreOnHome = false
 
     // Freezes the library/store card chasing borders while any full-screen
     // dialog is open, so the ~120 Hz animation cost isn't paid for content
@@ -541,15 +538,6 @@ class UnifiedActivity :
         // (Re)start the background update loop (checks hourly + on first tick)
         UpdateChecker.startBackgroundLoop(this)
 
-        lifecycleScope.launch {
-            bootstrapGoogleRestoreOnFirstHomeArrival()
-        }
-    }
-
-    private suspend fun bootstrapGoogleRestoreOnFirstHomeArrival() {
-        if (hasBootstrappedGoogleRestoreOnHome) return
-        hasBootstrappedGoogleRestoreOnHome = true
-        CloudSyncManager.bootstrapOnHomeScreenArrival(this)
     }
 
     override fun dispatchGenericMotionEvent(event: android.view.MotionEvent): Boolean {

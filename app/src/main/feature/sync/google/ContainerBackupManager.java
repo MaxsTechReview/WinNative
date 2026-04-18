@@ -278,6 +278,7 @@ public final class ContainerBackupManager {
   }
 
   private static boolean awaitAuthenticatedSession(Activity activity) throws InterruptedException {
+    PlayGamesBootstrap.ensureInitialized(activity);
     for (int attempt = 0; attempt < AUTH_SESSION_RETRY_COUNT; attempt++) {
       if (isAuthenticatedBlocking(activity)) {
         return true;
@@ -291,6 +292,7 @@ public final class ContainerBackupManager {
 
   private static boolean isAuthenticatedBlocking(Activity activity) {
     try {
+      PlayGamesBootstrap.ensureInitialized(activity);
       Object result =
           Tasks.await(
               PlayGames.getGamesSignInClient(activity).isAuthenticated(), 10, TimeUnit.SECONDS);

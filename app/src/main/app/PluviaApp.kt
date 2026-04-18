@@ -3,7 +3,6 @@ import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 import android.util.Log
-import com.google.android.gms.games.PlayGamesSdk
 import com.winlator.cmod.app.service.DownloadService
 import com.winlator.cmod.app.update.UpdateChecker
 import com.winlator.cmod.feature.setup.SetupWizardActivity
@@ -27,9 +26,6 @@ class PluviaApp : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
-
-        // Initialize Play Games Services SDK (v2)
-        PlayGamesSdk.initialize(this)
 
         registerRefreshRateLifecycleCallbacks()
 
