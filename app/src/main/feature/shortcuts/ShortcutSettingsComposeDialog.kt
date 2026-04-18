@@ -304,6 +304,8 @@ class ShortcutSettingsComposeDialog private constructor(
                 "steamOfflineMode", if (container.isSteamOfflineMode) "1" else "0") == "1"
             state.unpackFiles.value = getShortcutSetting(
                 "unpackFiles", if (container.isUnpackFiles) "1" else "0") == "1"
+            state.runtimePatcher.value = getShortcutSetting(
+                "runtimePatcher", if (container.isRuntimePatcher) "1" else "0") == "1"
         }
 
         // Desktop Theme
@@ -1153,6 +1155,11 @@ class ShortcutSettingsComposeDialog private constructor(
                     if (state.unpackFiles.value) "1" else "0",
                     if (container.isUnpackFiles) "1" else "0"
                 )
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    "runtimePatcher",
+                    if (state.runtimePatcher.value) "1" else "0",
+                    if (container.isRuntimePatcher) "1" else "0"
+                )
 
                 val steamTypeEntries = state.steamTypeEntries.value
                 val stIdx = state.selectedSteamType.intValue
@@ -1785,6 +1792,7 @@ class ShortcutSettingsComposeDialog private constructor(
             state.forceDlc.value = container.isForceDlc
             state.steamOfflineMode.value = container.isSteamOfflineMode
             state.unpackFiles.value = container.isUnpackFiles
+            state.runtimePatcher.value = container.isRuntimePatcher
             state.useSteamInput.value = container.getExtra("useSteamInput", "0") == "1"
             val steamTypeArr = state.steamTypeEntries.value
             if (steamTypeArr.isNotEmpty()) {

@@ -76,7 +76,8 @@ public class Container {
     private boolean needsUnpacking = true;
     private boolean forceDlc = false;
     private boolean steamOfflineMode = false;
-    private boolean unpackFiles = false;
+    private boolean unpackFiles = true;
+    private boolean runtimePatcher = false;
 
     public static final String STEAM_TYPE_NORMAL = "normal";
     public static final String STEAM_TYPE_LIGHT = "light";
@@ -449,6 +450,7 @@ public class Container {
             data.put("forceDlc", forceDlc);
             data.put("steamOfflineMode", steamOfflineMode);
             data.put("unpackFiles", unpackFiles);
+            data.put("runtimePatcher", runtimePatcher);
 
             if (!WineInfo.isMainWineVersion(wineVersion)) data.put("wineVersion", wineVersion);
             FileUtils.writeString(getConfigFile(), data.toString());
@@ -586,6 +588,9 @@ public class Container {
                     break;
                 case "unpackFiles":
                     setUnpackFiles(data.getBoolean(key));
+                    break;
+                case "runtimePatcher":
+                    setRuntimePatcher(data.getBoolean(key));
                     break;
                 case "moveSteamExe":
                     break;
@@ -751,6 +756,14 @@ public class Container {
 
     public void setUnpackFiles(boolean unpackFiles) {
         this.unpackFiles = unpackFiles;
+    }
+
+    public boolean isRuntimePatcher() {
+        return runtimePatcher;
+    }
+
+    public void setRuntimePatcher(boolean runtimePatcher) {
+        this.runtimePatcher = runtimePatcher;
     }
 
 }

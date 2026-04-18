@@ -185,6 +185,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private static final String PREVIOUS_STEAM_CLIENT_STORE_RELATIVE_PATH = ".steam-client-store";
     private static final String PREVIOUS_CONTAINER_STEAM_CLIENT_STORE_RELATIVE_PATH = ".wine/.steam-client-store";
     private static final String LEGACY_STEAM_CLIENT_STORE_RELATIVE_PATH = ".wine/drive_c/WinNative/SteamClient";
+
+    // Real Steam launch flags. Keep this minimal set; CEF-workaround flags (-no-cef-sandbox,
+    // -cef-single-process, -no-browser) all made things worse in testing (V8 proxy errors
+    // under single-process, dead flag on modern Steam, etc.).
+    //   -silent -vgui -tcp -nobigpicture -nofriendsui -nochatui -nointro -applaunch <id>
     private static final String[] STEAM_SYSTEM_REGISTRY_KEYS = new String[] {
             "Software\\Classes\\steam",
             "Software\\Wow6432Node\\Valve\\Steam"
@@ -297,6 +302,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private Handler  timeoutHandler = new Handler(Looper.getMainLooper());
     private Runnable hideControlsRunnable;
+
+    // Real Steam watchdog: flipped true once an application window registers with the X server.
+    // The 75s watchdog timer reads this to decide whether steam.exe hung without producing a game window.
+    private final java.util.concurrent.atomic.AtomicBoolean firstAppWindowAppeared =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
+    private Runnable realSteamWatchdogRunnable;
     private final AtomicBoolean exitRequested = new AtomicBoolean(false);
     private final AtomicBoolean steamExitWatchRunning = new AtomicBoolean(false);
 
@@ -1102,6 +1113,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     }
                     preloaderDialog.closeOnUiThread();
                     winStarted[0] = true;
+                    firstAppWindowAppeared.set(true);
+                    cancelRealSteamWatchdog();
                 }
                 if (frameRating != null && frameRatingWindowId == window.id) {
                     frameRating.update();
@@ -2684,6 +2697,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     boolean unpackFiles = shortcut != null
                             ? parseBoolean(getShortcutSetting("unpackFiles", container.isUnpackFiles() ? "1" : "0"))
                             : container.isUnpackFiles();
+                    boolean runtimePatcher = shortcut != null
+                            ? parseBoolean(getShortcutSetting("runtimePatcher", container.isRuntimePatcher() ? "1" : "0"))
+                            : container.isRuntimePatcher();
 
                     // Get encrypted app ticket once for all setup
                     String ticketBase64 = null;
@@ -2741,7 +2757,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             restoreSteamApiDlls(gameDir);
                             // Restore original .exe (if Steamless replaced it previously)
                             SteamUtils.restoreOriginalExecutable(this, appId);
-                            prepareRealSteamBootstrap(steamDirFile);
 
                             Log.d("XServerDisplayActivity", "Real Steam Setup: Pristine environment restored for appId=" + appId);
                         } else if (useColdClient) {
@@ -2824,7 +2839,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             String relativeExeForIni = resolveRelativeGameExe(appId, gameInstallPath);
                             if (!relativeExeForIni.isEmpty()) {
                                 String gameDirNameForIni = new File(gameInstallPath).getName();
-                                writeColdClientIniDirect(appId, gameDirNameForIni, relativeExeForIni, unpackFiles);
+                                writeColdClientIniDirect(appId, gameDirNameForIni, relativeExeForIni, runtimePatcher);
                                 Log.d("XServerDisplayActivity", "ColdClient INI: exe=" + relativeExeForIni);
                             } else {
                                 Log.w("XServerDisplayActivity", "Could not find game exe for ColdClient INI, appId=" + appId);
@@ -4281,14 +4296,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         ".wine/drive_c/Program Files (x86)/Steam");
 
                 if (launchRealSteam) {
-                    // Real Steam mode: launch the actual Steam client with -applaunch.
-                    // -no-browser prevents steamwebhelper.exe (CEF/Chromium) from spawning —
-                    // it crashes in a loop on ARM64EC/Wine because dxgi.dll can't initialize.
-                    // -noreactlogin prevents the React login UI which also uses CEF.
+                    // Real Steam mode: launch steam.exe with -applaunch <appId> and let
+                    // Steam handle the game launch normally (update check, cloud sync, exe
+                    // spawn). Cloud pending-ops are cleared pre-launch via javasteam's
+                    // signalAppLaunchIntent(ignorePendingOperations=true) (see
+                    // setupSteamEnvironment). No env var / DLL override hacks — matches the
+                    // reference implementation exactly.
                     if (containerSteamDir.exists()) launcherComponent.setWorkingDir(containerSteamDir);
-                    args = "\"C:\\Program Files (x86)\\Steam\\steam.exe\" -silent -no-browser -noreactlogin -vgui -tcp -nobigpicture -nofriendsui -nochatui -nointro -applaunch " + appId;
-                    envVars.put("WINEDLLOVERRIDES", "gameoverlayui=d;gameoverlayui64.exe=d");
+                    args = "\"C:\\Program Files (x86)\\Steam\\steam.exe\" -silent -vgui -tcp "
+                            + "-nobigpicture -nofriendsui -nochatui -nointro -applaunch " + appId;
                     Log.d("XServerDisplayActivity", "Real Steam launch via steam.exe for appId=" + appId);
+                    scheduleRealSteamWatchdog(launcherComponent);
                 } else if (useColdClient) {
                     // ColdClient mode: always use x64 loader — IgnoreLoaderArchDifference=1
                     // in ColdClientLoader.ini handles architecture differences.
@@ -4664,7 +4682,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
      * Writes ColdClientLoader.ini from a known relative exe path and game directory name.
      * This avoids the fragile Windows-path-to-relative conversion in writeColdClientIniForLaunch.
      */
-    private void writeColdClientIniDirect(int appId, String gameDirName, String relativeExe, boolean unpackFiles) {
+    private void writeColdClientIniDirect(int appId, String gameDirName, String relativeExe, boolean runtimePatcher) {
         File iniFile = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam/ColdClientLoader.ini");
         iniFile.getParentFile().mkdirs();
 
@@ -4679,12 +4697,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String exeCommandLine = perGameExecArgs != null ? perGameExecArgs : "";
 
         // IgnoreLoaderArchDifference=1 is always needed so the x64 loader can spawn
-        // x86 games. DllsToInjectFolder is only included when the user opts into
-        // unpackFiles — that's when extra_dlls/steamclient_extra_x64.dll (runtime DRM
-        // patcher) is needed. Non-DRM games don't benefit from injection and pay
-        // extra LoadLibrary overhead every launch.
+        // x86 games. DllsToInjectFolder is only included when the user opts into the
+        // Runtime DRM Patcher — that's when extra_dlls/steamclient_extra_{x32,x64}.dll
+        // (Goldberg's runtime DRM patcher) is injected. Non-DRM games don't benefit
+        // from injection and pay per-frame hook overhead, hence the opt-in toggle.
         StringBuilder injectionBuilder = new StringBuilder("[Injection]\nIgnoreLoaderArchDifference=1\n");
-        if (unpackFiles) {
+        if (runtimePatcher) {
             injectionBuilder.append("DllsToInjectFolder=extra_dlls\n");
         }
         String injectionSection = injectionBuilder.toString();
@@ -4703,7 +4721,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 injectionSection;
 
         FileUtils.writeString(iniFile, iniContent);
-        Log.d("XServerDisplayActivity", "Wrote ColdClientLoader.ini: Exe=" + exePath + " ExeRunDir=" + exeRunDir + " AppId=" + appId);
+        Log.d("XServerDisplayActivity",
+                "Wrote ColdClientLoader.ini: Exe=" + exePath + " ExeRunDir=" + exeRunDir
+                        + " AppId=" + appId + " runtimePatcher=" + runtimePatcher);
     }
 
     /**
@@ -4712,7 +4732,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
      * @param appId Steam app ID
      * @param gameExeWinPath Windows-style path to the game exe (e.g. A:\SubDir\game.exe)
      */
-    private void writeColdClientIniForLaunch(int appId, String gameInstallPath, String gameExeWinPath, boolean unpackFiles) {
+    private void writeColdClientIniForLaunch(int appId, String gameInstallPath, String gameExeWinPath, boolean runtimePatcher) {
         File iniFile = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam/ColdClientLoader.ini");
         iniFile.getParentFile().mkdirs();
 
@@ -4741,12 +4761,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String exeCommandLine = perGameExecArgs != null ? perGameExecArgs : "";
 
         // IgnoreLoaderArchDifference=1 is always needed so the x64 loader can spawn
-        // x86 games. DllsToInjectFolder is only included when the user opts into
-        // unpackFiles — that's when extra_dlls/steamclient_extra_x64.dll (runtime DRM
-        // patcher) is needed. Non-DRM games don't benefit from injection and pay
-        // extra LoadLibrary overhead every launch.
+        // x86 games. DllsToInjectFolder is only included when the user opts into the
+        // Runtime DRM Patcher — that's when extra_dlls/steamclient_extra_{x32,x64}.dll
+        // (Goldberg's runtime DRM patcher) is injected. Non-DRM games don't benefit
+        // from injection and pay per-frame hook overhead, hence the opt-in toggle.
         StringBuilder injectionBuilder = new StringBuilder("[Injection]\nIgnoreLoaderArchDifference=1\n");
-        if (unpackFiles) {
+        if (runtimePatcher) {
             injectionBuilder.append("DllsToInjectFolder=extra_dlls\n");
         }
         String injectionSection = injectionBuilder.toString();
@@ -5504,10 +5524,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         installRedistributablesIfNeeded(launcher);
 
         // Step 3: Run Steamless DRM stripping.
-        // ColdClient's runtime patcher (extra_dlls) handles most games automatically,
-        // but Steamless is needed as a fallback for stubborn SteamStub variants.
-        // Single-exe unpacking runs by default for Steam games when needsUnpacking is set;
-        // the "Legacy DRM" toggle (unpackFiles) enables multi-exe scanning mode.
+        // Runtime DRM Patcher (extra_dlls) handles most games automatically when
+        // enabled, but Steamless is needed as a fallback for stubborn SteamStub
+        // variants. Single-exe unpacking runs by default for Steam games when
+        // needsUnpacking is set; the "Unpack Files" toggle also enables multi-exe
+        // scanning so additional exes/dlls in the game dir are unpacked too.
         if (launchRealSteam) {
             Log.d("XServerDisplayActivity",
                     "Skipping Steamless/unpack flow because Launch Steam Client is enabled");
@@ -6435,34 +6456,35 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             boolean launchRealSteamMode = shortcut != null
                     ? parseBoolean(getShortcutSetting("launchRealSteam", container.isLaunchRealSteam() ? "1" : "0"))
                     : container.isLaunchRealSteam();
-            boolean refreshedPackagedSteam = false;
 
             if (launchRealSteamMode) {
-                Log.d("XServerDisplayActivity", "Real Steam mode: refreshing packaged Steam client before environment setup");
-                refreshedPackagedSteam = SteamBridge.forceExtractSteam(this);
-                if (!refreshedPackagedSteam) {
-                    Log.w("XServerDisplayActivity", "Real Steam mode: failed to refresh packaged Steam client");
-                }
-            }
-
-            // steam.cfg prevents the Steam bootstrapper from self-updating to potentially
-            // incompatible versions. Only remove when user explicitly allows updates.
-            File steamCfg = new File(steamDir, "steam.cfg");
-            if (container.isAllowSteamUpdates()) {
-                if (steamCfg.exists()) {
-                    steamCfg.delete();
-                    Log.d("XServerDisplayActivity", "Removed steam.cfg — user allows Steam updates");
-                }
-            } else {
-                if (!steamCfg.exists()) {
-                    // steam.cfg was missing — Steam may have self-updated to an incompatible version.
-                    // Force re-extract the known-good packaged Steam client to restore it.
-                    if (!refreshedPackagedSteam) {
-                        Log.d("XServerDisplayActivity", "steam.cfg missing — forcing re-extraction of packaged Steam client");
-                        refreshedPackagedSteam = SteamBridge.forceExtractSteam(this);
+                // One-shot seed: only extract steam.tzst when the shared store is actually
+                // missing the Steam client. The shared-store + per-container symlink model means
+                // isSteamInstalled resolves through the symlink into .shared/steam-client-store,
+                // so re-extracting every launch is pure I/O waste.
+                if (!SteamBridge.isSteamInstalled(this)) {
+                    Log.d("XServerDisplayActivity", "Real Steam mode: seeding shared Steam client store (one-shot)");
+                    if (!SteamBridge.forceExtractSteam(this)) {
+                        Log.w("XServerDisplayActivity", "Real Steam mode: failed to seed Steam client store");
                     }
                 }
+
+                // Unconditionally inhibit Steam's bootstrapper. This is what keeps the client
+                // from trying to self-update over the network on launch (the cause of the long
+                // cryptnet hangs we've seen in Wine).
+                File steamCfg = new File(steamDir, "steam.cfg");
                 FileUtils.writeString(steamCfg, "BootStrapperInhibitAll=Enable\nBootStrapperForceSelfUpdate=False\n");
+
+                // Seed the package/.installed completion markers so the Steam bootstrap stub,
+                // if it runs at all, sees a finished install and doesn't try to re-download.
+                File packageDir = new File(steamDir, "package");
+                if (!packageDir.exists()) packageDir.mkdirs();
+                for (String marker : new String[]{"steam_client_win32.installed", "steam_client_win64.installed"}) {
+                    File mf = new File(packageDir, marker);
+                    if (!mf.exists() || mf.length() == 0) {
+                        FileUtils.writeString(mf, "1\n");
+                    }
+                }
             }
 
             File steamappsDir = new File(steamDir, "steamapps");
@@ -6535,6 +6557,74 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             // Create lightweight Steam config to reduce resource usage
             setupLightweightSteamConfig(steamDir, steamUserDataId);
 
+            // Pre-launch Steam Cloud handshake via javasteam. This is the key fix for
+            // arm64ec Wine: the reference implementation calls beginLaunchApp BEFORE
+            // invoking steam.exe, which triggers SteamAutoCloud.syncUserFiles + the
+            // server-side signalAppLaunchIntent(ignorePendingOperations=true). That tells
+            // Valve's servers "I'm launching, ignore/clear any pending ops from this
+            // machine" — so when Steam's own AutoCloud runs at -applaunch time, it sees
+            // no pending operations and skips the CEF-dependent conflict dialog.
+            //
+            // Runs on this background thread (setupSteamEnvironment is called off the
+            // UI thread). Timeout guards against network-stall; failure falls through to
+            // launch-as-before.
+            if (launchRealSteamMode) {
+                java.util.concurrent.CountDownLatch syncLatch = new java.util.concurrent.CountDownLatch(1);
+                final int appIdForSync = appId;
+                Thread preLaunchSync = new Thread(() -> {
+                    try {
+                        com.winlator.cmod.feature.stores.steam.service.SteamService.Companion
+                                .beginLaunchAppBlocking(
+                                        XServerDisplayActivity.this,
+                                        appIdForSync,
+                                        true, /* ignorePendingOperations */
+                                        com.winlator.cmod.feature.stores.steam.enums.SaveLocation.None,
+                                        false, /* isOffline */
+                                        null /* callback */);
+                        Log.d("XServerDisplayActivity",
+                                "Pre-launch javasteam cloud sync complete for appId=" + appIdForSync);
+                    } catch (Throwable t) {
+                        Log.w("XServerDisplayActivity",
+                                "Pre-launch javasteam cloud sync failed (continuing)", t);
+                    } finally {
+                        syncLatch.countDown();
+                    }
+                }, "SteamPreLaunchCloudSync");
+                preLaunchSync.start();
+                try {
+                    if (!syncLatch.await(45, java.util.concurrent.TimeUnit.SECONDS)) {
+                        Log.w("XServerDisplayActivity",
+                                "Pre-launch javasteam cloud sync timed out after 45s, proceeding");
+                    }
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+
+            // Local metadata cleanup — after javasteam has synced, Steam may still have
+            // stale local state from previous sessions. Wipe both the metadata cache and
+            // the remote/ save directory so Steam re-reads cleanly from the sync results.
+            if (launchRealSteamMode && steamAccountId > 0) {
+                File userAppDir = new File(steamDir,
+                        "userdata/" + steamAccountId + "/" + appId);
+                File remoteCache = new File(userAppDir, "remotecache.vdf");
+                if (remoteCache.exists() && remoteCache.delete()) {
+                    Log.d("XServerDisplayActivity",
+                            "Cleared remotecache.vdf for appId=" + appId);
+                }
+                File remoteSaves = new File(userAppDir, "remote");
+                if (remoteSaves.exists() && remoteSaves.isDirectory()) {
+                    if (FileUtils.delete(remoteSaves)) {
+                        Log.d("XServerDisplayActivity",
+                                "Cleared remote/ save directory for appId=" + appId
+                                        + " — Steam will re-download from cloud");
+                    } else {
+                        Log.w("XServerDisplayActivity",
+                                "Failed to clear remote/ save directory for appId=" + appId);
+                    }
+                }
+            }
+
             Log.d("XServerDisplayActivity", "Steam environment setup complete for appId=" + appId);
         } catch (Exception e) {
             Log.e("XServerDisplayActivity", "Failed to setup Steam environment", e);
@@ -6604,27 +6694,39 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    private boolean isSteamBootstrapRepairNeeded(File steamDir) {
-        File win32Manifest = new File(steamDir, "package/steam_client_win32.installed");
-        File win64Manifest = new File(steamDir, "package/steam_client_win64.installed");
-        return !win32Manifest.exists() || win32Manifest.length() == 0
-                || !win64Manifest.exists() || win64Manifest.length() == 0;
+    // Real Steam launch watchdog. If steam.exe hangs during startup (classic cryptnet/CRL
+    // stall in Wine) the user sees a blank screen because -silent hides everything. This
+    // schedules a timer that, if no application window has registered with the X server by
+    // the deadline, kills wineserver and surfaces a toast.
+    private static final long REAL_STEAM_WATCHDOG_MS = 75_000L;
+
+    private void scheduleRealSteamWatchdog(GuestProgramLauncherComponent launcherComponent) {
+        cancelRealSteamWatchdog();
+        firstAppWindowAppeared.set(false);
+        realSteamWatchdogRunnable = () -> {
+            if (firstAppWindowAppeared.get()) return;
+            Log.w("XServerDisplayActivity",
+                    "Real Steam watchdog: no game window after " + (REAL_STEAM_WATCHDOG_MS / 1000)
+                            + "s — assuming steam.exe hung, killing wineserver");
+            try {
+                if (launcherComponent != null) launcherComponent.execShellCommand("wineserver -k");
+            } catch (Exception e) {
+                Log.w("XServerDisplayActivity", "Real Steam watchdog: wineserver -k failed", e);
+            }
+            runOnUiThread(() -> AppUtils.showToast(
+                    XServerDisplayActivity.this,
+                    "Steam client failed to start. Try toggling Launch Steam Client off.",
+                    android.widget.Toast.LENGTH_LONG));
+        };
+        new Handler(Looper.getMainLooper()).postDelayed(realSteamWatchdogRunnable, REAL_STEAM_WATCHDOG_MS);
+        Log.d("XServerDisplayActivity",
+                "Real Steam watchdog: armed for " + (REAL_STEAM_WATCHDOG_MS / 1000) + "s");
     }
 
-    private void prepareRealSteamBootstrap(File steamDir) {
-        if (steamDir == null || !steamDir.exists()) return;
-
-        if (isSteamBootstrapRepairNeeded(steamDir)) {
-            File steamCfg = new File(steamDir, "steam.cfg");
-            if (steamCfg.exists() && steamCfg.delete()) {
-                Log.d("XServerDisplayActivity",
-                        "Real Steam Setup: Removed steam.cfg to allow bootstrap repair of missing package files");
-            }
-
-            File packageDir = new File(steamDir, "package");
-            if (!packageDir.exists()) {
-                packageDir.mkdirs();
-            }
+    private void cancelRealSteamWatchdog() {
+        if (realSteamWatchdogRunnable != null) {
+            new Handler(Looper.getMainLooper()).removeCallbacks(realSteamWatchdogRunnable);
+            realSteamWatchdogRunnable = null;
         }
     }
 

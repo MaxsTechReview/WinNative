@@ -1164,6 +1164,34 @@ object SteamUtils {
      * Updates localconfig.vdf with the container's LaunchOptions for the given appId,
      * and updates UserConfig/MountedConfig language in the ACF manifest.
      */
+    /**
+     * Disables Steam Cloud sync for a single app entry inside the parsed localconfig.vdf.
+     *
+     * Background: in Real Steam mode, Steam's launch pipeline calls AutoCloud on every launch.
+     * If any server-side pending remote operations exist for the app (one per partial/killed
+     * session piles up on the server), Steam wants to show a cloud-conflict dialog via the
+     * CEF webhelper. That dialog can't render on arm64ec Wine, so Steam suspends the launch
+     * indefinitely. Our own app already handles Steam Cloud sync via javasteam, so we turn
+     * off Steam's own AutoCloud for the launched app — the server state isn't touched, we
+     * just keep Steam from asking about it at launch.
+     */
+    private fun disableSteamCloudForApp(app: KeyValue) {
+        val existingEnabled = app.children.firstOrNull { it.name == "cloudenabled" }
+        if (existingEnabled != null) {
+            existingEnabled.value = "0"
+        } else {
+            app.children.add(KeyValue("cloudenabled", "0"))
+        }
+        val cloudSection = app.children.firstOrNull { it.name == "cloud" }
+            ?: KeyValue("cloud").also { app.children.add(it) }
+        val lastSyncState = cloudSection.children.firstOrNull { it.name == "last_sync_state" }
+        if (lastSyncState != null) {
+            lastSyncState.value = "synchronized"
+        } else {
+            cloudSection.children.add(KeyValue("last_sync_state", "synchronized"))
+        }
+    }
+
     @JvmStatic
     fun updateOrModifyLocalConfig(
         imageFs: ImageFs,
@@ -1193,6 +1221,7 @@ object SteamUtils {
                         } else {
                             app.children.add(KeyValue("LaunchOptions", exeCommandLine))
                         }
+                        disableSteamCloudForApp(app)
                         vdfData.saveToFile(localConfigFile, false)
                     }
                 }
@@ -1206,6 +1235,7 @@ object SteamUtils {
                 val app = KeyValue(appId)
 
                 app.children.add(option)
+                disableSteamCloudForApp(app)
                 apps.children.add(app)
                 steam.children.add(apps)
                 valve.children.add(steam)

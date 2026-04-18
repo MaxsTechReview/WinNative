@@ -153,6 +153,9 @@ class SteamTokenLogin(
     }
 
     fun phase1SteamConfig(forceFreshClientToken: Boolean = false) {
+        Timber.tag("SteamTokenLogin").d(
+            "phase1SteamConfig: start login=$login hasToken=${token.isNotEmpty()} tokenLen=${token.length} force=$forceFreshClientToken"
+        )
         val steamConfigDir = File(imageFs.wineprefix, "drive_c/Program Files (x86)/Steam/config").toPath()
         Files.createDirectories(steamConfigDir)
         val localSteamDir = File(imageFs.wineprefix, "drive_c/users/${ImageFs.USER}/AppData/Local/Steam").toPath()
@@ -218,7 +221,7 @@ class SteamTokenLogin(
         }
 
         if (shouldWriteConfig && token.isNotEmpty()) {
-            Timber.tag("SteamTokenLogin").d("Overriding config.vdf")
+            Timber.tag("SteamTokenLogin").d("phase1SteamConfig: writing config.vdf with ConnectCache entry")
             Files.write(configVdfPath, createConfigVdf().toByteArray())
             clearCachedClientState()
 
@@ -230,24 +233,33 @@ class SteamTokenLogin(
             }
 
             if (guestProgramLauncherComponent == null) {
-                Timber.tag("SteamTokenLogin").d("Config updated but launcher is not ready for local.vdf phase 2")
+                Timber.tag("SteamTokenLogin").d("phase1SteamConfig: config.vdf written; launcher not ready → skipping phase 2")
             } else {
                 phase2LocalConfig(forceFreshClientToken)
             }
+        } else if (shouldWriteConfig) {
+            Timber.tag("SteamTokenLogin").w(
+                "phase1SteamConfig: token is empty — config.vdf NOT written. Steam will require online login."
+            )
         } else if (shouldProcessPhase2 || forceFreshClientToken || !localSteamDir.resolve("local.vdf").exists()) {
             if (guestProgramLauncherComponent == null) {
-                Timber.tag("SteamTokenLogin").d("Skipping phase 2 until launcher is ready")
+                Timber.tag("SteamTokenLogin").d("phase1SteamConfig: skipping phase 2 until launcher is ready")
             } else {
                 phase2LocalConfig(forceFreshClientToken)
             }
+        } else {
+            Timber.tag("SteamTokenLogin").d("phase1SteamConfig: existing config.vdf is valid, no changes needed")
         }
     }
 
     fun phase2LocalConfig(forceFreshClientToken: Boolean = false) {
+        Timber.tag("SteamTokenLogin").d("phase2LocalConfig: start force=$forceFreshClientToken")
         try {
             val tokenArchive = File(imageFs.rootDir.parentFile, "steam-token.tzst")
             if (!tokenArchive.exists()) {
-                Timber.tag("SteamTokenLogin").w("steam-token.tzst is missing, cannot process local.vdf")
+                Timber.tag("SteamTokenLogin").w(
+                    "phase2LocalConfig: steam-token.tzst is missing at ${tokenArchive.absolutePath}, cannot process local.vdf"
+                )
                 return
             }
 
