@@ -2798,15 +2798,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         if (dxwrapper.contains("dxvk")) {
             String dxwrapperConfig = shortcut != null ? getShortcutSetting("dxwrapperConfig", this.dxwrapperConfig.toString()) : this.dxwrapperConfig.toString();
-            String preNormalizedDxwrapperConfig = dxwrapperConfig;
-            dxwrapperConfig = normalizeDxwrapperConfigForCurrentWine(dxwrapperConfig);
             KeyValueSet currentDXWrapperConfig = DXVKConfigUtils.parseConfig(dxwrapperConfig);
             String dxvkWrapper = "dxvk-" + currentDXWrapperConfig.get("version");
             String vkd3dWrapper = "vkd3d-" + currentDXWrapperConfig.get("vkd3dVersion");
             String ddrawrapper = currentDXWrapperConfig.get("ddrawrapper");
             dxwrapper = dxvkWrapper + ";" + vkd3dWrapper + ";" + ddrawrapper;
-            Log.d("XServerDisplayActivity", "DXVK setupWineSystemFiles config before='" +
-                    preNormalizedDxwrapperConfig + "' after='" + dxwrapperConfig + "' wrapper='" + dxwrapper + "'");
         }
 
         String wincomponents = shortcut != null ? getShortcutSetting("wincomponents", container.getWinComponents()) : container.getWinComponents();

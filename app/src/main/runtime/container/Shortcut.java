@@ -28,6 +28,7 @@ public class Shortcut {
   private final JSONObject extraData = new JSONObject();
   private Bitmap coverArt; // Changed to private to use getter method
   private String customCoverArtPath; // Path to custom cover art
+  private String architecture;
 
   private static final String COVER_ART_DIR =
       "app_data/cover_arts/"; // Removed leading "/" to keep it relative
@@ -176,6 +177,29 @@ public class Shortcut {
     File defaultCoverArtFile = new File(COVER_ART_DIR, this.name + ".png");
     if (defaultCoverArtFile.isFile()) {
       this.coverArt = BitmapFactory.decodeFile(defaultCoverArtFile.getPath());
+    }
+  }
+
+  public String getArchitecture() {
+    if (architecture == null || architecture.isEmpty()) detectArchitecture();
+    return architecture;
+  }
+
+  private void detectArchitecture() {
+    architecture = getExtra("architecture");
+    if (architecture.isEmpty()
+        && this.path != null
+        && !this.path.isEmpty()
+        && !this.path.equalsIgnoreCase("explorer.exe")) {
+      ImageFs imageFs = ImageFs.find(container.getManager().getContext());
+      File exeFile = com.winlator.cmod.runtime.wine.WineUtils.getNativePath(imageFs, this.path);
+      if (exeFile != null && exeFile.exists() && !exeFile.isDirectory()) {
+        architecture = com.winlator.cmod.runtime.wine.PEHelper.getArchitecture(exeFile);
+        if (!architecture.isEmpty()) {
+          putExtra("architecture", architecture);
+          saveData();
+        }
+      }
     }
   }
 
