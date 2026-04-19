@@ -258,6 +258,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private short taskAffinityMask = 0;
     private short taskAffinityMaskWoW64 = 0;
     private int frameRatingWindowId = -1;
+    private int frameRatingOwnerWindowId = -1;
+    private long lastFrameRatingWindowPresentNano = 0L;
+    private int frameRatingPresentCandidateWindowId = -1;
+    private int frameRatingPresentCandidateHits = 0;
+    private long lastFrameRatingPresentCandidateNano = 0L;
     private boolean cursorLock; // Flag to track if pointer capture was requested
     private final float[] xform = XForm.getInstance();
     private ContentsManager contentsManager;
@@ -298,6 +303,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private Handler  timeoutHandler = new Handler(Looper.getMainLooper());
     private Runnable hideControlsRunnable;
     private final AtomicBoolean exitRequested = new AtomicBoolean(false);
+    private static final long FRAME_RATING_RENDERER_FALLBACK_DELAY_NANOS = 750_000_000L;
+    private static final long FRAME_RATING_PRESENT_CANDIDATE_TIMEOUT_NANOS = 250_000_000L;
+    private static final int FRAME_RATING_WINDOW_MIN_SCREEN_DIVISOR = 4;
+    private static final int FRAME_RATING_PRESENT_PROMOTION_HITS = 2;
     private final AtomicBoolean steamExitWatchRunning = new AtomicBoolean(false);
 
     private boolean isDarkMode;
@@ -1118,10 +1127,39 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     frameRating.update();
                 }
             }
+
+            @Override
+            public void onFramePresented(Window window) {
+                if (frameRating == null || !effectiveShowFPS) return;
+                long eventNano = System.nanoTime();
+                if (window != null) {
+                    maybePromoteFrameRatingWindowFromPresent(window, eventNano);
+                    if (frameRatingWindowId == -1 || frameRatingWindowId == window.id) {
+                        lastFrameRatingWindowPresentNano = eventNano;
+                        frameRating.update();
+                    }
+                    return;
+                }
+
+                if (frameRatingWindowId == -1
+                        || eventNano - lastFrameRatingWindowPresentNano >= FRAME_RATING_RENDERER_FALLBACK_DELAY_NANOS) {
+                    frameRating.update();
+                }
+            }
            
             @Override
             public void onMapWindow(Window window) {
                 assignTaskAffinity(window);
+                if (frameRating != null && effectiveShowFPS) {
+                    syncFrameRatingWithExistingWindows();
+                }
+            }
+
+            @Override
+            public void onUpdateWindowGeometry(Window window, boolean resized) {
+                if (frameRating != null && effectiveShowFPS && resized) {
+                    syncFrameRatingWithExistingWindows();
+                }
             }
 
             @Override
@@ -6947,12 +6985,99 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
+    private boolean isFrameRatingCandidate(@Nullable Window window, @Nullable Window bestAppWindow) {
+        if (window == null || xServer == null) return false;
+        if (window.id == xServer.windowManager.rootWindow.id) return false;
+        if (!window.attributes.isMapped() || !window.isInputOutput()) return false;
+        if (bestAppWindow == null) return window.isApplicationWindow();
+        if (window.id == bestAppWindow.id) return true;
+
+        int screenArea = Math.max(1, xServer.screenInfo.width * xServer.screenInfo.height);
+        int windowArea = Math.max(1, window.getWidth()) * Math.max(1, window.getHeight());
+        if (windowArea * FRAME_RATING_WINDOW_MIN_SCREEN_DIVISOR < screenArea) return false;
+
+        int appProcessId = bestAppWindow.getProcessId();
+        int candidateProcessId = window.getProcessId();
+        if (appProcessId > 0 && candidateProcessId > 0 && appProcessId == candidateProcessId) {
+            return true;
+        }
+
+        String appClassName = bestAppWindow.getClassName();
+        String candidateClassName = window.getClassName();
+        return !appClassName.isEmpty() && appClassName.equals(candidateClassName);
+    }
+
+    @Nullable
+    private Window getFrameRatingOwnerWindow() {
+        if (xServer == null || frameRatingOwnerWindowId == -1) return null;
+        return xServer.windowManager.getWindow(frameRatingOwnerWindowId);
+    }
+
+    private void resetFrameRatingPresentCandidate() {
+        frameRatingPresentCandidateWindowId = -1;
+        frameRatingPresentCandidateHits = 0;
+        lastFrameRatingPresentCandidateNano = 0L;
+    }
+
+    private boolean isFrameRatingPresentPromotionCandidate(@Nullable Window window) {
+        if (window == null || xServer == null) return false;
+        if (window.id == xServer.windowManager.rootWindow.id) return false;
+        if (!window.attributes.isMapped() || !window.isInputOutput()) return false;
+        if (window.id == frameRatingWindowId) return false;
+
+        Window ownerWindow = getFrameRatingOwnerWindow();
+        if (ownerWindow == null || ownerWindow == window) return false;
+
+        int screenArea = Math.max(1, xServer.screenInfo.width * xServer.screenInfo.height);
+        int windowArea = Math.max(1, window.getWidth()) * Math.max(1, window.getHeight());
+        if (windowArea * FRAME_RATING_WINDOW_MIN_SCREEN_DIVISOR < screenArea) return false;
+
+        if (ownerWindow.isAncestorOf(window)) return true;
+
+        int ownerProcessId = ownerWindow.getProcessId();
+        int candidateProcessId = window.getProcessId();
+        if (ownerProcessId > 0 && candidateProcessId > 0 && ownerProcessId == candidateProcessId) {
+            return true;
+        }
+
+        String ownerClassName = ownerWindow.getClassName();
+        String candidateClassName = window.getClassName();
+        return !ownerClassName.isEmpty() && ownerClassName.equals(candidateClassName);
+    }
+
+    private void maybePromoteFrameRatingWindowFromPresent(@Nullable Window window, long eventNano) {
+        if (!isFrameRatingPresentPromotionCandidate(window)) {
+            if (frameRatingPresentCandidateWindowId == (window != null ? window.id : -1)) {
+                resetFrameRatingPresentCandidate();
+            }
+            return;
+        }
+
+        if (frameRatingPresentCandidateWindowId != window.id
+                || eventNano - lastFrameRatingPresentCandidateNano > FRAME_RATING_PRESENT_CANDIDATE_TIMEOUT_NANOS) {
+            frameRatingPresentCandidateWindowId = window.id;
+            frameRatingPresentCandidateHits = 1;
+        } else {
+            frameRatingPresentCandidateHits++;
+        }
+        lastFrameRatingPresentCandidateNano = eventNano;
+
+        if (frameRatingPresentCandidateHits >= FRAME_RATING_PRESENT_PROMOTION_HITS) {
+            frameRatingWindowId = window.id;
+            lastFrameRatingWindowPresentNano = eventNano;
+            resetFrameRatingPresentCandidate();
+        }
+    }
+
     private void changeFrameRatingVisibility(Window window, Property property) {
         if (property != null) {
             String propName = property.nameAsString();
             boolean isRendererProp = propName.contains("_MESA_DRV_ENGINE_NAME") || propName.contains("_UTIL_LAYER") || propName.contains("_MESA_DRV_RENDERER");
+            boolean affectsFrameRatingWindow = "WM_CLASS".equals(propName)
+                    || "WM_HINTS".equals(propName)
+                    || "_NET_WM_PID".equals(propName);
 
-            if (isRendererProp || propName.contains("_MESA_DRV_GPU_NAME")) {
+            if (isRendererProp || propName.contains("_MESA_DRV_GPU_NAME") || affectsFrameRatingWindow) {
                 syncFrameRatingWithExistingWindows();
                 return;
             }
@@ -6981,42 +7106,86 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private void syncFrameRatingWithExistingWindows() {
         if (xServer == null || frameRating == null) return;
-        Window bestWindow = null;
+        int previousWindowId = frameRatingWindowId;
+        int previousOwnerWindowId = frameRatingOwnerWindowId;
+        Window bestAppWindow = null;
+        int bestAppArea = -1;
+        Window bestFrameRatingWindow = null;
+        int bestFrameRatingArea = -1;
+        Window bestRendererWindow = null;
         String bestRenderer = null;
         String bestGpu = null;
 
         for (Window window : xServer.windowManager.getWindows()) {
             if (window.id == xServer.windowManager.rootWindow.id) continue;
+            if (!window.attributes.isMapped()) continue;
+
+            int area = Math.max(1, window.getWidth()) * Math.max(1, window.getHeight());
+            if (window.isApplicationWindow() && area > bestAppArea) {
+                bestAppWindow = window;
+                bestAppArea = area;
+            }
 
             Property prop = window.getProperty(Atom.getId("_MESA_DRV_ENGINE_NAME"));
             if (prop == null) prop = window.getProperty(Atom.getId("_MESA_DRV_RENDERER"));
             if (prop == null) prop = window.getProperty(Atom.getId("_UTIL_LAYER"));
 
             if (prop != null) {
-                boolean isApp = window.isApplicationWindow();
-                boolean isMapped = window.attributes.isMapped();
-                
-                if (bestWindow == null || 
-                   (isApp && !bestWindow.isApplicationWindow()) ||
-                   (isMapped && !bestWindow.attributes.isMapped() && (isApp || !bestWindow.isApplicationWindow()))) {
-                    bestWindow = window;
+                if (bestRendererWindow == null ||
+                   (window.isApplicationWindow() && !bestRendererWindow.isApplicationWindow()) ||
+                   (window.isApplicationWindow() == bestRendererWindow.isApplicationWindow()
+                           && area > (Math.max(1, bestRendererWindow.getWidth()) * Math.max(1, bestRendererWindow.getHeight())))) {
+                    bestRendererWindow = window;
                     bestRenderer = prop.toString();
                     Property gpuProp = window.getProperty(Atom.getId("_MESA_DRV_GPU_NAME"));
                     bestGpu = gpuProp != null ? gpuProp.toString() : null;
                 }
-                
-                if (isApp && isMapped) break;
             }
         }
 
-        if (bestWindow != null) {
-            lastRendererName = bestRenderer;
-            lastGpuName = bestGpu;
-            frameRatingWindowId = bestWindow.id;
+        for (Window window : xServer.windowManager.getWindows()) {
+            if (!isFrameRatingCandidate(window, bestAppWindow)) continue;
+
+            int area = Math.max(1, window.getWidth()) * Math.max(1, window.getHeight());
+            if (area > bestFrameRatingArea) {
+                bestFrameRatingWindow = window;
+                bestFrameRatingArea = area;
+            }
+        }
+
+        if (bestAppWindow != null) {
+            frameRatingOwnerWindowId = bestAppWindow.id;
+        } else if (bestFrameRatingWindow != null) {
+            frameRatingOwnerWindowId = bestFrameRatingWindow.id;
+        } else if (bestRendererWindow != null) {
+            frameRatingOwnerWindowId = bestRendererWindow.id;
         } else {
-            lastRendererName = "OpenGL";
-            lastGpuName = null;
+            frameRatingOwnerWindowId = -1;
+        }
+
+        if (bestFrameRatingWindow != null) {
+            frameRatingWindowId = bestFrameRatingWindow.id;
+        } else if (bestRendererWindow != null) {
+            frameRatingWindowId = bestRendererWindow.id;
+        } else {
             frameRatingWindowId = -1;
+        }
+
+        if (frameRatingOwnerWindowId != previousOwnerWindowId) {
+            resetFrameRatingPresentCandidate();
+        }
+
+        if (frameRatingWindowId != previousWindowId) {
+            lastFrameRatingWindowPresentNano = frameRatingWindowId == -1 ? 0L : System.nanoTime();
+            resetFrameRatingPresentCandidate();
+        }
+
+        if (bestRendererWindow != null) {
+            lastRendererName = resolveHudRendererName(bestRenderer);
+            lastGpuName = bestGpu;
+        } else {
+            lastRendererName = resolveHudRendererName(null);
+            lastGpuName = null;
         }
 
         runOnUiThread(() -> {
@@ -7024,6 +7193,28 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             frameRating.setGpuName(lastGpuName);
             updateHUDRenderMode();
         });
+    }
+
+    private String resolveHudRendererName(@Nullable String rendererName) {
+        String raw = rendererName != null ? rendererName.trim() : "";
+        String lower = raw.toLowerCase(Locale.US);
+
+        if (lower.contains("vkd3d") || lower.contains("dxvk")) {
+            return raw;
+        }
+
+        String activeDxWrapper = dxwrapper != null ? dxwrapper.toLowerCase(Locale.US) : "";
+        if (activeDxWrapper.contains("dxvk")) {
+            // When DXVK is active, Mesa helper windows can still expose "zink" or
+            // other backend names. Report the user-facing D3D wrapper instead.
+            return "DXVK";
+        }
+
+        if (activeDxWrapper.contains("wined3d")) {
+            return !raw.isEmpty() ? raw : "WineD3D";
+        }
+
+        return !raw.isEmpty() ? raw : "OpenGL";
     }
 
     private void updateHUDRenderMode() {

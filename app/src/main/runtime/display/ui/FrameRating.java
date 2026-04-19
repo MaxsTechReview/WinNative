@@ -79,6 +79,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   private long lastFrameNano;
   private long lastGraphRedraw;
   private long lastTime;
+  private long lastUpdateEventNano;
   private volatile String ramText;
   private String rendererName;
   private String gpuName;
@@ -127,6 +128,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.lastTime = 0L;
     this.lastGraphRedraw = 0L;
     this.lastFrameNano = 0L;
+    this.lastUpdateEventNano = 0L;
     this.frameCount = 0;
     this.lastFPS = 0.0f;
     this.currentMs = 0.0f;
@@ -165,6 +167,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.isNativeActive = this.preferences.getBoolean("use_dri3", true);
     this.batteryManager = (BatteryManager) context.getSystemService(Context.BATTERY_SERVICE);
     setOrientation(LinearLayout.HORIZONTAL);
+    setBaselineAligned(false);
     setLayoutParams(
         new ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -458,10 +461,12 @@ public class FrameRating extends LinearLayout implements Runnable {
         if (v == graphContainer) {
           lp.width = graphW;
           lp.height = graphH;
+          lp.gravity = android.view.Gravity.CENTER_VERTICAL;
           lp.setMargins(horizontal ? 4 : 0, horizontal ? 0 : 4, 0, 0);
         } else {
           lp.width = LayoutParams.WRAP_CONTENT;
           lp.height = LayoutParams.WRAP_CONTENT;
+          lp.gravity = horizontal ? android.view.Gravity.CENTER_VERTICAL : android.view.Gravity.START;
           lp.setMargins(0, 0, 0, 0);
         }
         v.setLayoutParams(lp);
@@ -594,6 +599,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.frameCount = 0;
     this.lastTime = 0L;
     this.lastFrameNano = 0L;
+    this.lastUpdateEventNano = 0L;
     this.lastFPS = 0.0f;
     this.currentMs = 0.0f;
     post(this);
@@ -703,6 +709,15 @@ public class FrameRating extends LinearLayout implements Runnable {
     if (getVisibility() != View.VISIBLE) {
       return;
     }
+    long eventNano = System.nanoTime();
+    // The same displayed frame can trigger both X11/present callbacks and
+    // the renderer's frame-present callback. Ignore events that land almost
+    // back-to-back so the HUD reflects displayed FPS instead of callback count.
+    if (lastUpdateEventNano != 0L && eventNano - lastUpdateEventNano < 1_000_000L) {
+      return;
+    }
+    lastUpdateEventNano = eventNano;
+
     if (this.lastTime == 0) {
       this.lastTime = SystemClock.elapsedRealtime();
     }
@@ -714,12 +729,11 @@ public class FrameRating extends LinearLayout implements Runnable {
       this.frameCount = 0;
     }
     this.frameCount++;
-    long nowNano = System.nanoTime();
     if (this.lastFrameNano == 0) {
-      this.lastFrameNano = nowNano;
+      this.lastFrameNano = eventNano;
     }
-    float ms = (nowNano - this.lastFrameNano) / 1000000.0f;
-    this.lastFrameNano = nowNano;
+    float ms = (eventNano - this.lastFrameNano) / 1000000.0f;
+    this.lastFrameNano = eventNano;
     if (this.enableGraph && ms > 0.0f && ms < 500.0f) {
       this.currentMs = ms;
       if (time - this.lastGraphRedraw >= 50) {
@@ -965,6 +979,7 @@ public class FrameRating extends LinearLayout implements Runnable {
 
   private class FrametimeGraphView extends View {
     private final int MAX_SAMPLES = 60;
+    private static final float GRAPH_MAX_VISIBLE_MS = 66.6f;
     private final float[] history = new float[MAX_SAMPLES];
     private int historyIndex = 0;
     private int historySize = 0;
@@ -982,9 +997,14 @@ public class FrameRating extends LinearLayout implements Runnable {
     }
 
     public void addFrame(float ms) {
-      this.history[this.historyIndex] = Math.min(ms, 66.6f);
+      this.history[this.historyIndex] = Math.min(ms, GRAPH_MAX_VISIBLE_MS);
       this.historyIndex = (this.historyIndex + 1) % MAX_SAMPLES;
       if (this.historySize < MAX_SAMPLES) this.historySize++;
+    }
+
+    private float mapFrameMsToY(float ms, float height) {
+      float normalized = Math.min(ms, GRAPH_MAX_VISIBLE_MS) / GRAPH_MAX_VISIBLE_MS;
+      return Math.max(0.0f, (height * 0.5f) - (normalized * height * 0.5f));
     }
 
     @Override
@@ -996,11 +1016,11 @@ public class FrameRating extends LinearLayout implements Runnable {
       float step = w / (MAX_SAMPLES - 1);
       this.path.reset();
       int start = (this.historyIndex - this.historySize + MAX_SAMPLES) % MAX_SAMPLES;
-      float yStart = h - ((this.history[start] / 40.0f) * h);
+      float yStart = mapFrameMsToY(this.history[start], h);
       this.path.moveTo(0.0f, Math.max(0.0f, yStart));
       for (int i = 1; i < this.historySize; i++) {
         int idx = (start + i) % MAX_SAMPLES;
-        float y = h - ((this.history[idx] / 40.0f) * h);
+        float y = mapFrameMsToY(this.history[idx], h);
         this.path.lineTo(i * step, Math.max(0.0f, y));
       }
       canvas.drawPath(this.path, this.paintLine);
