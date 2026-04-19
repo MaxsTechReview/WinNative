@@ -116,14 +116,57 @@ object SteamUtils {
 
         coreSteamClientFiles().forEach { file ->
             val dll = File(imageFs.wineprefix, "drive_c/Program Files (x86)/Steam/$file")
+            val backupFile = File(backupDir, "$file.orig")
             if (dll.exists()) {
-                Files.copy(dll.toPath(), File(backupDir, "$file.orig").toPath(), StandardCopyOption.REPLACE_EXISTING)
+                // Guard against stub-over-real contamination: if the existing backup is
+                // significantly larger than the current file, the current file must be
+                // a Goldberg stub (~200 KB) and overwriting the real-DLL backup (~13 MB)
+                // would permanently lose the pristine copy. Refuse the overwrite.
+                if (backupFile.exists() && backupFile.length() > dll.length() * 2 &&
+                    backupFile.length() > 1_000_000) {
+                    Timber.w(
+                        "backupSteamclientFiles: refusing shrink of $file.orig " +
+                            "(current=${dll.length()} existing backup=${backupFile.length()}) — " +
+                            "current file looks like a stub, keeping previous backup",
+                    )
+                    return@forEach
+                }
+                Files.copy(dll.toPath(), backupFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
                 backupCount++
             }
         }
 
         val idLog = if (steamAppId >= 0) steamAppId.toString() else "unknown"
         Timber.i("backupSteamclientFiles complete (appId=$idLog, count=$backupCount)")
+    }
+
+    /**
+     * Checks whether the shared Steam client store still contains the real
+     * Valve-signed DLLs, as opposed to Goldberg stubs left behind by an old
+     * ColdClient contamination. Real `steamclient64.dll` is ~13 MB; the Goldberg
+     * stub is ~200 KB. A generous 2 MB floor catches all known stubs.
+     *
+     * Returns true if the core files exist AND look like real Valve DLLs.
+     */
+    @JvmStatic
+    fun isSharedSteamStorePristine(context: Context): Boolean {
+        val imageFs = ImageFs.find(context)
+        val minBytes = 2_000_000L
+        coreSteamClientFiles().forEach { file ->
+            val dll = File(imageFs.wineprefix, "drive_c/Program Files (x86)/Steam/$file")
+            if (!dll.exists()) {
+                Timber.w("isSharedSteamStorePristine: $file missing from shared store")
+                return false
+            }
+            if (dll.length() < minBytes) {
+                Timber.w(
+                    "isSharedSteamStorePristine: $file is ${dll.length()} bytes (< $minBytes), " +
+                        "looks like a Goldberg stub — shared store is contaminated",
+                )
+                return false
+            }
+        }
+        return true
     }
 
     /**
@@ -1164,6 +1207,34 @@ object SteamUtils {
      * Updates localconfig.vdf with the container's LaunchOptions for the given appId,
      * and updates UserConfig/MountedConfig language in the ACF manifest.
      */
+    /**
+     * Disables Steam Cloud sync for a single app entry inside the parsed localconfig.vdf.
+     *
+     * Background: in Real Steam mode, Steam's launch pipeline calls AutoCloud on every launch.
+     * If any server-side pending remote operations exist for the app (one per partial/killed
+     * session piles up on the server), Steam wants to show a cloud-conflict dialog via the
+     * CEF webhelper. That dialog can't render on arm64ec Wine, so Steam suspends the launch
+     * indefinitely. Our own app already handles Steam Cloud sync via javasteam, so we turn
+     * off Steam's own AutoCloud for the launched app — the server state isn't touched, we
+     * just keep Steam from asking about it at launch.
+     */
+    private fun disableSteamCloudForApp(app: KeyValue) {
+        val existingEnabled = app.children.firstOrNull { it.name == "cloudenabled" }
+        if (existingEnabled != null) {
+            existingEnabled.value = "0"
+        } else {
+            app.children.add(KeyValue("cloudenabled", "0"))
+        }
+        val cloudSection = app.children.firstOrNull { it.name == "cloud" }
+            ?: KeyValue("cloud").also { app.children.add(it) }
+        val lastSyncState = cloudSection.children.firstOrNull { it.name == "last_sync_state" }
+        if (lastSyncState != null) {
+            lastSyncState.value = "synchronized"
+        } else {
+            cloudSection.children.add(KeyValue("last_sync_state", "synchronized"))
+        }
+    }
+
     @JvmStatic
     fun updateOrModifyLocalConfig(
         imageFs: ImageFs,
@@ -1193,6 +1264,7 @@ object SteamUtils {
                         } else {
                             app.children.add(KeyValue("LaunchOptions", exeCommandLine))
                         }
+                        disableSteamCloudForApp(app)
                         vdfData.saveToFile(localConfigFile, false)
                     }
                 }
@@ -1206,6 +1278,7 @@ object SteamUtils {
                 val app = KeyValue(appId)
 
                 app.children.add(option)
+                disableSteamCloudForApp(app)
                 apps.children.add(app)
                 steam.children.add(apps)
                 valve.children.add(steam)

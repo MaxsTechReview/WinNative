@@ -30,6 +30,7 @@ import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -93,6 +94,8 @@ public class WinHandler {
   private float smoothedGyroY = 0.0f;
   private float currentGyroStickX = 0.0f;
   private float currentGyroStickY = 0.0f;
+  private float accumulatedGyroX = 0.0f;
+  private float accumulatedGyroY = 0.0f;
   private boolean gyroToggleEnabled = false;
   private boolean gyroActivatorPressed = false;
   private int lastGyroTargetSource = 0;
@@ -1080,6 +1083,11 @@ public class WinHandler {
 
   public void updateGyroData(float rawGyroX, float rawGyroY) {
     GyroSettings gyroSettings = getGyroSettings();
+    if (this.preferences.getBoolean("mouse_gyro_enabled", false)) {
+        updateGyroDataMouse(rawGyroX, rawGyroY, gyroSettings);
+        return;
+    }
+    
     if (!gyroSettings.enabled) {
       this.smoothedGyroX = 0.0f;
       this.smoothedGyroY = 0.0f;
@@ -1125,7 +1133,7 @@ public class WinHandler {
       return;
     }
 
-    boolean gyroActive = updateGyroActivation(targetState, gyroSettings);
+    boolean gyroActive = updateGyroActivation(targetState, targetController != null ? targetController.state : null, gyroSettings);
     float nextGyroStickX = gyroActive ? clamp(this.smoothedGyroX, -1.0f, 1.0f) : 0.0f;
     float nextGyroStickY = gyroActive ? clamp(this.smoothedGyroY, -1.0f, 1.0f) : 0.0f;
 
@@ -1160,6 +1168,28 @@ public class WinHandler {
   }
 
   public void refreshControllerMappings() {}
+
+  private void updateGyroDataMouse(float rawGyroX, float rawGyroY, GyroSettings gyroSettings) {
+    if (Math.abs(rawGyroX) < gyroSettings.deadzone) rawGyroX = 0.0f;
+    if (Math.abs(rawGyroY) < gyroSettings.deadzone) rawGyroY = 0.0f;
+    if (gyroSettings.invertX) rawGyroX = -rawGyroX;
+    if (gyroSettings.invertY) rawGyroY = -rawGyroY;
+
+    float mouseScale = getFloatPreference("gyro_mouse_scale", 50.0f);
+    float scaledGyroX = gyroSettings.sensitivityX * rawGyroX;
+    float scaledGyroY = gyroSettings.sensitivityY * rawGyroY;
+
+    this.accumulatedGyroX += scaledGyroX * mouseScale;
+    this.accumulatedGyroY += scaledGyroY * mouseScale;
+
+    int dx = (int) this.accumulatedGyroX;
+    int dy = (int) this.accumulatedGyroY;
+    if (dx != 0 || dy != 0) {
+      mouseEvent(MouseEventFlags.MOVE, dx, dy, 0);
+      this.accumulatedGyroX -= dx;
+      this.accumulatedGyroY -= dy;
+    }
+  }
 
   private GyroSettings getGyroSettings() {
     GyroSettings settings = new GyroSettings();
@@ -1203,20 +1233,32 @@ public class WinHandler {
     if (this.lastGamepadSource == GAMEPAD_SOURCE_VIRTUAL && canUseVirtualGamepad()) {
       return GAMEPAD_SOURCE_VIRTUAL;
     }
-    if (canUseVirtualGamepad()) {
-      return GAMEPAD_SOURCE_VIRTUAL;
-    }
-    return getPreferredGyroController() != null ? GAMEPAD_SOURCE_CONTROLLER : GAMEPAD_SOURCE_NONE;
+    
+    // Fallback: prefer physical controller if connected, otherwise virtual
+    if (getPreferredGyroController() != null) return GAMEPAD_SOURCE_CONTROLLER;
+    if (canUseVirtualGamepad() || this.activity.getInputControlsView().getProfile() != null) return GAMEPAD_SOURCE_VIRTUAL;
+    
+    return GAMEPAD_SOURCE_NONE;
   }
 
   private ExternalController getPreferredGyroController() {
-    if (this.currentController == null) {
-      return null;
+    if (this.currentController != null) {
+      int deviceId = this.currentController.getDeviceId();
+      return deviceId >= 0 && android.view.InputDevice.getDevice(deviceId) != null
+          ? this.currentController
+          : null;
     }
-    int deviceId = this.currentController.getDeviceId();
-    return deviceId >= 0 && android.view.InputDevice.getDevice(deviceId) != null
-        ? this.currentController
-        : null;
+    
+    // Fallback: Use the first tracked controller that is still connected
+    if (!this.controllers.isEmpty()) {
+        for (ExternalController controller : this.controllers.values()) {
+            int deviceId = controller.getDeviceId();
+            if (deviceId >= 0 && android.view.InputDevice.getDevice(deviceId) != null) {
+                return controller;
+            }
+        }
+    }
+    return null;
   }
 
   private boolean canUseVirtualGamepad() {
@@ -1274,7 +1316,8 @@ public class WinHandler {
       return false;
     }
     GamepadState targetState = getTargetGamepadState(source, controller);
-    return targetState != null && updateGyroActivation(targetState, gyroSettings);
+    // Pass both remapped and raw state to activation check
+    return targetState != null && updateGyroActivation(targetState, controller != null ? controller.state : null, gyroSettings);
   }
 
   private GamepadState getTargetGamepadState(int source, ExternalController controller) {
@@ -1294,8 +1337,11 @@ public class WinHandler {
     return controller.state;
   }
 
-  private boolean updateGyroActivation(GamepadState targetState, GyroSettings gyroSettings) {
-    boolean activatorPressed = isActivatorPressed(targetState, gyroSettings.activatorKeyCode);
+  private boolean updateGyroActivation(GamepadState targetState, GamepadState rawState, GyroSettings gyroSettings) {
+    // Check both remapped and raw state for the activator
+    boolean activatorPressed = isActivatorPressed(targetState, gyroSettings.activatorKeyCode) ||
+                               isActivatorPressed(rawState, gyroSettings.activatorKeyCode);
+    
     if (gyroSettings.mode == 1 && activatorPressed && !this.gyroActivatorPressed) {
       this.gyroToggleEnabled = !this.gyroToggleEnabled;
     }

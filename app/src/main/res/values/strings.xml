@@ -230,8 +230,10 @@
     <string name="shortcuts_properties_custom_game_settings">Custom Game Settings</string>
     <string name="shortcuts_properties_use_cold_client">Use ColdClient Launcher</string>
     <string name="shortcuts_properties_use_cold_client_description">ColdClient is the preferred way to handle Steam emulation and DRM. It patches DRM at runtime without modifying game files.</string>
-    <string name="shortcuts_properties_unpack_files">Legacy DRM</string>
-    <string name="shortcuts_properties_unpack_files_description">Strip SteamStub DRM from the exe on disk. Only enable if the game fails to launch without it. ColdClient\'s runtime patcher handles most games automatically.</string>
+    <string name="shortcuts_properties_unpack_files">Unpack Files</string>
+    <string name="shortcuts_properties_unpack_files_description">Strip SteamStub DRM from the game exe on disk. One-time operation — once the exe has been unpacked, this has no runtime cost. Leave enabled by default; turn off only if a specific game breaks because of the strip.</string>
+    <string name="shortcuts_properties_runtime_patcher">Runtime DRM Patcher</string>
+    <string name="shortcuts_properties_runtime_patcher_description">Inject Goldberg\'s runtime DRM patcher DLL into the game on every launch. Works around anti-tamper checks that survive the Unpack Files strip. Significantly reduces FPS — only enable if a game still fails to launch with Unpack Files alone.</string>
     <string name="shortcuts_properties_force_dlc">Force DLC</string>
     <string name="shortcuts_properties_force_dlc_description">Only enable if DLCs are not detected or saves with DLC are not working</string>
     <string name="shortcuts_properties_launch_steam_client_beta">Launch Steam Client (Beta)</string>

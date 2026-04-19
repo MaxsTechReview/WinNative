@@ -187,6 +187,12 @@ fun buildXServerDrawerState(
     val items =
         mutableListOf(
             XServerDrawerItem(
+                itemId = R.id.main_menu_gyroscope,
+                title = "Gyroscope",
+                subtitle = "Configure Gyroscope Controls",
+                icon = Icons.Outlined.SportsEsports,
+            ),
+            XServerDrawerItem(
                 itemId = R.id.main_menu_fps_monitor,
                 title = context.getString(R.string.session_drawer_fps_monitor),
                 subtitle =

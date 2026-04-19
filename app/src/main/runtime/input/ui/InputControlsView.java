@@ -188,7 +188,7 @@ public class InputControlsView extends View {
       stickElement.draw(canvas);
     }
 
-    if (profile != null && showTouchscreenControls && !isFocusedOnStick()) {
+    if (profile != null && (showTouchscreenControls || editMode) && !isFocusedOnStick()) {
       if (!profile.isElementsLoaded()) profile.loadElements(this);
       for (ControlElement element : profile.getElements()) {
         element.draw(canvas);
