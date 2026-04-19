@@ -3424,9 +3424,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         ContentProfile currentProfile = resolveInstalledGraphicsProfileByToken(type, currentVersion);
         if (currentProfile != null) {
-            Log.d("XServerDisplayActivity", "resolveInstalledGraphicsComponentVersion keep installed type=" + type +
-                    " current='" + currentVersion + "' arm64ec=" + isArm64EC);
-            return currentVersion;
+            String normalizedToken = getContentVersionToken(currentProfile);
+            Log.d("XServerDisplayActivity", "resolveInstalledGraphicsComponentVersion canonicalized installed type=" + type +
+                    " current='" + currentVersion + "' normalized='" + normalizedToken + "' arm64ec=" + isArm64EC);
+            return normalizedToken;
         }
 
         if (hasBundledGraphicsComponent(type, currentVersion)) {
@@ -3435,13 +3436,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             return currentVersion;
         }
 
-        String preferredProfileToken = findBestInstalledGraphicsToken(type, isArm64EC, null);
-        if (!preferredProfileToken.isEmpty()) {
-            Log.d("XServerDisplayActivity", "resolveInstalledGraphicsComponentVersion fallback preferred type=" + type +
-                    " current='" + currentVersion + "' to='" + preferredProfileToken + "' arm64ec=" + isArm64EC);
-            return preferredProfileToken;
-        }
-        Log.d("XServerDisplayActivity", "resolveInstalledGraphicsComponentVersion keep current (no fallback) type=" + type +
+        Log.d("XServerDisplayActivity", "resolveInstalledGraphicsComponentVersion keep current (no installed/bundled match) type=" + type +
                 " current='" + currentVersion + "' arm64ec=" + isArm64EC);
         return currentVersion;
     }
@@ -3495,59 +3490,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    private String findBestInstalledGraphicsToken(
-            ContentProfile.ContentType type,
-            boolean isArm64EC,
-            @Nullable String preferredVersionName
-    ) {
-        ContentProfile preferredProfile = null;
-        String normalizedPreferredName = normalizeGraphicsVersionName(preferredVersionName);
-
-        for (ContentProfile profile : contentsManager.getProfiles(type)) {
-            if (!profile.isInstalled) continue;
-
-            String versionToken = getContentVersionToken(profile);
-            if (isArm64ComponentVersion(versionToken) != isArm64EC) continue;
-
-            if (normalizedPreferredName != null && !normalizedPreferredName.equals(profile.verName)) continue;
-
-            if (preferredProfile == null ||
-                    profile.verCode > preferredProfile.verCode ||
-                    (profile.verCode == preferredProfile.verCode &&
-                            profile.verName.compareToIgnoreCase(preferredProfile.verName) > 0)) {
-                preferredProfile = profile;
-            }
-        }
-
-        String selected = preferredProfile != null ? getContentVersionToken(preferredProfile) : "";
-        Log.d("XServerDisplayActivity", "findBestInstalledGraphicsToken type=" + type +
-                " preferredName='" + preferredVersionName + "' normalizedPreferredName='" + normalizedPreferredName +
-                "' arm64ec=" + isArm64EC + " selected='" + selected + "'");
-        return selected;
-    }
-
-    private String normalizeGraphicsVersionName(@Nullable String versionToken) {
-        if (versionToken == null || versionToken.isEmpty()) return null;
-        int lastDashIndex = versionToken.lastIndexOf('-');
-        if (lastDashIndex <= 0 || lastDashIndex == versionToken.length() - 1) return versionToken;
-
-        String suffix = versionToken.substring(lastDashIndex + 1);
-        for (int i = 0; i < suffix.length(); i++) {
-            if (!Character.isDigit(suffix.charAt(i))) {
-                return versionToken;
-            }
-        }
-        return versionToken.substring(0, lastDashIndex);
-    }
-
     private String getContentVersionToken(ContentProfile profile) {
         String entryName = ContentsManager.getEntryName(profile);
         int firstDashIndex = entryName.indexOf('-');
         return firstDashIndex >= 0 ? entryName.substring(firstDashIndex + 1) : profile.verName;
-    }
-
-    private boolean isArm64ComponentVersion(String version) {
-        return version != null && version.toLowerCase().contains("arm64ec");
     }
 
     private void ensureWinePrefixReady() {
