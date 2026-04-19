@@ -7233,6 +7233,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         Window bestWindow = null;
         String bestRenderer = null;
         String bestGpu = null;
+        int bestScore = -1;
 
         for (Window window : xServer.windowManager.getWindows()) {
             if (window.id == xServer.windowManager.rootWindow.id) continue;
@@ -7244,17 +7245,30 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (prop != null) {
                 boolean isApp = window.isApplicationWindow();
                 boolean isMapped = window.attributes.isMapped();
+                int area = window.getWidth() * window.getHeight();
                 
-                if (bestWindow == null || 
-                   (isApp && !bestWindow.isApplicationWindow()) ||
-                   (isMapped && !bestWindow.attributes.isMapped() && (isApp || !bestWindow.isApplicationWindow()))) {
+                int score = 0;
+                if (isApp) score += 100000000;
+                if (isMapped) score += 10000000;
+                
+                String rName = prop.toString().toLowerCase();
+                if (rName.contains("vkd3d")) {
+                    score += 6000000;
+                } else if (rName.contains("dxvk")) {
+                    score += 5000000;
+                } else if (rName.contains("vulkan") || rName.contains("turnip")) {
+                    score += 4000000;
+                }
+                
+                score += Math.min(area, 3000000);
+                
+                if (score > bestScore) {
+                    bestScore = score;
                     bestWindow = window;
                     bestRenderer = prop.toString();
                     Property gpuProp = window.getProperty(Atom.getId("_MESA_DRV_GPU_NAME"));
                     bestGpu = gpuProp != null ? gpuProp.toString() : null;
                 }
-                
-                if (isApp && isMapped) break;
             }
         }
 
