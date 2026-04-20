@@ -3068,15 +3068,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     Log.e("XServerDisplayActivity", "Failed to set up Steam environment", e);
                 }
             }
-        } else {
-            // Not a Steam game. Delete any lingering ColdClientLoader.ini so winhandler.exe doesn't get confused.
-            File iniFile = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam/ColdClientLoader.ini");
-            if (iniFile.exists()) {
-                iniFile.delete();
-                Log.d("XServerDisplayActivity", "Deleted lingering ColdClientLoader.ini for non-Steam game");
-            }
-            prepareCustomGameSteamIsolation();
         }
+        // Custom Games run unmodified — no Steam directory, no ini cleanup, no DLL/settings
+        // injection. Anything the user's patch (Goldberg, OnlineFix, CreamAPI, etc.) ships
+        // inside the game directory is its own and stays intact.
 
         String desktopTheme = shortcut != null ? getShortcutSetting("desktopTheme", container.getDesktopTheme()) : container.getDesktopTheme();
         if (!(desktopTheme+","+xServer.screenInfo).equals(container.getExtra("desktopTheme"))) {
@@ -6518,142 +6513,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
         return rebuilt.toString();
-    }
-
-    private void prepareCustomGameSteamIsolation() {
-        if (!isCustomShortcut() || shortcut == null || container == null) return;
-
-        File launchExe = resolveCustomLaunchExecutableFile();
-        if (launchExe == null || !launchExe.isFile()) return;
-
-        File launchDir = launchExe.getParentFile();
-        if (launchDir == null || !launchDir.isDirectory()) return;
-        File gameRoot = resolveCustomGameRoot(launchDir);
-
-        cleanupEmbeddedSteamRuntime(launchDir);
-        if (!launchDir.equals(gameRoot)) {
-            cleanupEmbeddedSteamRuntime(gameRoot);
-        }
-
-        int customSteamAppId = resolveCustomGameSteamAppId(launchExe);
-        if (customSteamAppId <= 0) {
-            Log.d("XServerDisplayActivity", "No custom Steam app ID discovered for " + launchExe.getName());
-            return;
-        }
-
-        String language = container.getExtra("containerLanguage", "english");
-        if (language == null || language.isEmpty()) language = "english";
-
-        try {
-            SteamUtils.writeCompleteSettingsDir(launchDir, customSteamAppId, language, false, false, false, null);
-            setupSteamSettingsForAllDirs(gameRoot, customSteamAppId, language, false, false, false, null);
-            Log.d("XServerDisplayActivity", "Prepared local Steamworks metadata for custom game appId=" + customSteamAppId
-                    + " exe=" + launchExe.getAbsolutePath());
-        } catch (Exception e) {
-            Log.w("XServerDisplayActivity", "Failed to prepare local Steamworks metadata for custom game", e);
-        }
-    }
-
-    @Nullable
-    private File resolveCustomLaunchExecutableFile() {
-        if (shortcut == null || shortcut.path == null || shortcut.path.isEmpty()) {
-            return null;
-        }
-
-        String safePath = shortcut.path;
-        if (safePath.matches("^[A-Z]:[^\\\\/].*")) {
-            safePath = safePath.substring(0, 2) + "\\" + safePath.substring(2);
-        }
-
-        File nativePath = WineUtils.getNativePath(imageFs, safePath);
-        return nativePath != null && nativePath.isFile() ? nativePath : null;
-    }
-
-    @NonNull
-    private File resolveCustomGameRoot(@NonNull File fallbackLaunchDir) {
-        String activeGameDirectoryPath = getActiveGameDirectoryPath();
-        if (activeGameDirectoryPath != null && !activeGameDirectoryPath.isEmpty()) {
-            File activeGameDir = new File(activeGameDirectoryPath);
-            if (activeGameDir.isDirectory()) {
-                return activeGameDir;
-            }
-        }
-        return fallbackLaunchDir;
-    }
-
-    private int resolveCustomGameSteamAppId(@NonNull File launchExe) {
-        Integer discovered = tryReadSteamAppId(new File(launchExe.getParentFile(), "steam_appid.txt"));
-        if (discovered != null) return discovered;
-
-        discovered = tryReadSteamAppId(new File(new File(launchExe.getParentFile(), "steam_settings"), "steam_appid.txt"));
-        if (discovered != null) return discovered;
-
-        File onlineFixIni = findClosestOnlineFixIni(launchExe.getParentFile());
-        if (onlineFixIni != null) {
-            discovered = parseOnlineFixAppId(onlineFixIni);
-            if (discovered != null) return discovered;
-        }
-
-        return 0;
-    }
-
-    @Nullable
-    private Integer tryReadSteamAppId(File appIdFile) {
-        if (appIdFile == null || !appIdFile.isFile()) return null;
-        try (BufferedReader reader = new BufferedReader(new FileReader(appIdFile))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String trimmed = line.trim();
-                if (trimmed.isEmpty() || trimmed.startsWith("#") || trimmed.startsWith(";")) {
-                    continue;
-                }
-                return Integer.parseInt(trimmed);
-            }
-        } catch (Exception e) {
-            Log.w("XServerDisplayActivity", "Failed to read steam_appid.txt from " + appIdFile.getAbsolutePath(), e);
-        }
-        return null;
-    }
-
-    @Nullable
-    private File findClosestOnlineFixIni(@Nullable File startDir) {
-        File current = startDir;
-        while (current != null) {
-            File candidate = new File(current, "OnlineFix.ini");
-            if (candidate.isFile()) {
-                return candidate;
-            }
-            current = current.getParentFile();
-        }
-        return null;
-    }
-
-    @Nullable
-    private Integer parseOnlineFixAppId(@NonNull File onlineFixIni) {
-        try (BufferedReader reader = new BufferedReader(new FileReader(onlineFixIni))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String trimmed = line.trim();
-                if (trimmed.isEmpty() || trimmed.startsWith("#") || trimmed.startsWith(";") || trimmed.startsWith("[")) {
-                    continue;
-                }
-
-                int separatorIndex = trimmed.indexOf('=');
-                if (separatorIndex <= 0) continue;
-
-                String key = trimmed.substring(0, separatorIndex).trim();
-                String value = trimmed.substring(separatorIndex + 1).trim();
-                if (!"FakeAppId".equalsIgnoreCase(key) && !"RealAppId".equalsIgnoreCase(key)) {
-                    continue;
-                }
-                if (value.isEmpty()) continue;
-
-                return Integer.parseInt(value);
-            }
-        } catch (Exception e) {
-            Log.w("XServerDisplayActivity", "Failed to parse OnlineFix.ini app ID from " + onlineFixIni.getAbsolutePath(), e);
-        }
-        return null;
     }
 
     /**
