@@ -2383,7 +2383,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 hudElements,
                 dualSeriesBattery,
                 hudCardExpanded,
-                preferences.getBoolean("gyro_enabled", false),
+                preferences.getBoolean("gyro_enabled", false) || preferences.getBoolean("mouse_gyro_enabled", false),
                 preferences.getInt("gyro_mode", 0),
                 currentGyroActivatorLabel(),
                 preferences.getBoolean("process_gyro_with_left_trigger", false),
@@ -2446,7 +2446,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
                     @Override
                     public void onGyroscopeEnabledChanged(boolean enabled) {
-                        preferences.edit().putBoolean("gyro_enabled", enabled).apply();
+                        SharedPreferences.Editor editor = preferences.edit();
+                        editor.putBoolean("gyro_enabled", enabled);
+                        if (!enabled) {
+                            editor.putBoolean("mouse_gyro_enabled", false);
+                        }
+                        editor.apply();
                         renderDrawerMenu();
                     }
 
