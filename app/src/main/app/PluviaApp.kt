@@ -28,7 +28,7 @@ class PluviaApp : Application() {
         super.onCreate()
         instance = this
 
-        // Initialize Play Games Services SDK (v2)
+        // Initialize Play Games Services SDK (v2) eagerly so auto sign-in fires at app launch.
         PlayGamesSdk.initialize(this)
 
         registerRefreshRateLifecycleCallbacks()

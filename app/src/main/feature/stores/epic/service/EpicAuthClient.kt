@@ -20,6 +20,8 @@ data class EpicAuthResponse(
     val displayName: String,
     val expiresAt: Long,
     val expiresIn: Int,
+    /** Epoch millis when the refresh token itself expires. 0 if the server did not return it. */
+    val refreshExpiresAt: Long = 0,
 )
 
 /**
@@ -82,6 +84,7 @@ object EpicAuthClient {
                         displayName = json.optString("displayName", ""),
                         expiresAt = parseExpiresAt(json),
                         expiresIn = json.getInt("expires_in"),
+                        refreshExpiresAt = parseRefreshExpiresAt(json),
                     )
 
                 Timber.i("Successfully authenticated with Epic")
@@ -144,6 +147,7 @@ object EpicAuthClient {
                         displayName = json.optString("displayName", ""),
                         expiresAt = parseExpiresAt(json),
                         expiresIn = json.getInt("expires_in"),
+                        refreshExpiresAt = parseRefreshExpiresAt(json),
                     )
 
                 Timber.i("Successfully refreshed Epic token")
@@ -267,4 +271,27 @@ object EpicAuthClient {
                 System.currentTimeMillis() + (expiresIn * 1000L)
             }
         }
+
+    /**
+     * Parse `refresh_expires_at` (ISO-8601 string) or `refresh_expires` (seconds) from an
+     * Epic OAuth response. Returns 0 if neither field is present.
+     *
+     * Epic's eg1 refresh token is ~8 hours as of 2026; we keep it conservative rather than
+     * defaulting to a fictional value when the server doesn't tell us.
+     */
+    private fun parseRefreshExpiresAt(json: JSONObject): Long {
+        val isoString = json.optString("refresh_expires_at", "")
+        if (isoString.isNotEmpty()) {
+            try {
+                return Instant.parse(isoString).toEpochMilli()
+            } catch (_: Exception) {
+                // fall through to refresh_expires
+            }
+        }
+        val refreshExpires = json.optInt("refresh_expires", -1)
+        if (refreshExpires > 0) {
+            return System.currentTimeMillis() + (refreshExpires * 1000L)
+        }
+        return 0L
+    }
 }

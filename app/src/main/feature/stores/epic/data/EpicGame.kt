@@ -148,6 +148,8 @@ data class EpicCredentials(
     val accountId: String,
     val displayName: String,
     val expiresAt: Long = 0,
+    /** Epoch millis when the refresh token dies. 0 if unknown (legacy on-disk format). */
+    val refreshExpiresAt: Long = 0,
 )
 
 /**

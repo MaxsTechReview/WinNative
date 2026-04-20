@@ -1,5 +1,9 @@
 package com.winlator.cmod.feature.stores.epic.service
 import android.content.Context
+import com.winlator.cmod.feature.stores.common.Store
+import com.winlator.cmod.feature.stores.common.StoreAuthStatus
+import com.winlator.cmod.feature.stores.common.StoreSessionBus
+import com.winlator.cmod.feature.stores.common.StoreSessionEvent
 import com.winlator.cmod.feature.stores.epic.data.EpicCredentials
 import com.winlator.cmod.feature.stores.epic.data.EpicGameToken
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,8 +36,47 @@ object EpicAuthManager {
         return credentialsFile.exists()
     }
 
+    /**
+     * Classify the current on-disk Epic credentials. If the refresh token's known expiry is
+     * already in the past, the credentials file is cleared and a [StoreSessionEvent.SessionExpired]
+     * is emitted on [StoreSessionBus].
+     *
+     * Safe to call from any thread — touches only local disk.
+     */
+    fun getAuthStatus(context: Context): StoreAuthStatus {
+        if (!hasStoredCredentials(context)) return StoreAuthStatus.LOGGED_OUT
+        val credentials =
+            loadCredentials(context) ?: run {
+                clearStoredCredentials(context)
+                return StoreAuthStatus.LOGGED_OUT
+            }
+
+        val now = System.currentTimeMillis()
+        val accessBuffer = 5L * 60 * 1000 // 5 minutes
+        val refreshBuffer = 60L * 1000 // 1 minute
+
+        if (credentials.refreshExpiresAt > 0 && now >= credentials.refreshExpiresAt - refreshBuffer) {
+            Timber.i("Epic refresh token expired (refreshExpiresAt=${credentials.refreshExpiresAt}), clearing credentials")
+            clearStoredCredentials(context)
+            // No SessionExpired emit here — getAuthStatus is called during startup before the
+            // bus collector is active. The UI already transitions to "logged out" via
+            // isLoggedInFlow. The emit-on-refresh-failure path covers mid-session death.
+            return StoreAuthStatus.EXPIRED
+        }
+
+        return when {
+            credentials.expiresAt > 0 && now < credentials.expiresAt - accessBuffer ->
+                StoreAuthStatus.ACTIVE
+            credentials.refreshExpiresAt > 0 ->
+                StoreAuthStatus.REFRESHABLE
+            else ->
+                // Legacy on-disk format without refresh_expires_at — probe on next use.
+                StoreAuthStatus.UNKNOWN
+        }
+    }
+
     @JvmStatic
-    fun isLoggedIn(context: Context): Boolean = hasStoredCredentials(context)
+    fun isLoggedIn(context: Context): Boolean = getAuthStatus(context).isLoggedInForUi
 
     /**
      * Clear stored credentials (logout)
@@ -47,6 +90,8 @@ object EpicAuthManager {
                 } else {
                     true
                 }
+            // Session is gone — no point running the periodic refresh worker.
+            EpicTokenRefreshWorker.cancel(context)
             updateLoginStatus(context)
             result
         } catch (e: Exception) {
@@ -112,6 +157,7 @@ object EpicAuthManager {
                     accountId = authResponse.accountId,
                     displayName = authResponse.displayName,
                     expiresAt = authResponse.expiresAt,
+                    refreshExpiresAt = authResponse.refreshExpiresAt,
                 )
 
             saveCredentials(context, credentials)
@@ -146,8 +192,13 @@ object EpicAuthManager {
                 val refreshResult = EpicAuthClient.refreshAccessToken(credentials.refreshToken)
 
                 if (refreshResult.isFailure) {
-                    Timber.e("Failed to refresh token")
-                    return Result.failure(Exception("Failed to refresh expired token: ${refreshResult.exceptionOrNull()?.message}"))
+                    val error = refreshResult.exceptionOrNull()
+                    Timber.e(error, "Failed to refresh Epic token — clearing credentials")
+                    clearStoredCredentials(context)
+                    StoreSessionBus.emit(
+                        StoreSessionEvent.SessionExpired(Store.EPIC, error?.message ?: "refresh_failed"),
+                    )
+                    return Result.failure(Exception("Epic session expired: ${error?.message}", error))
                 }
 
                 val authResponse = refreshResult.getOrNull()!!
@@ -158,9 +209,11 @@ object EpicAuthManager {
                         accountId = authResponse.accountId,
                         displayName = authResponse.displayName,
                         expiresAt = authResponse.expiresAt,
+                        refreshExpiresAt = authResponse.refreshExpiresAt,
                     )
 
                 saveCredentials(context, refreshedCredentials)
+                StoreSessionBus.emit(StoreSessionEvent.SessionRefreshed(Store.EPIC))
                 Timber.i("Access token refreshed successfully")
 
                 return Result.success(refreshedCredentials)
@@ -278,9 +331,16 @@ object EpicAuthManager {
             json.put("account_id", credentials.accountId)
             json.put("display_name", credentials.displayName)
             json.put("expires_at", credentials.expiresAt)
+            json.put("refresh_expires_at", credentials.refreshExpiresAt)
 
             authFile.writeText(json.toString())
             updateLoginStatus(context)
+            // Ensure the periodic refresh worker is running whenever creds exist on disk.
+            // Uses KEEP policy so this is a no-op when already scheduled.
+            EpicTokenRefreshWorker.schedule(context)
+            // Push the fresh token to Google Play Games so the cloud backup never holds a stale
+            // refresh token. Fires silently; no-op when sync is disabled or debounced.
+            com.winlator.cmod.feature.sync.google.CloudSyncManager.scheduleAutoBackup(context)
             Timber.d("Credentials saved to ${authFile.absolutePath}")
         } catch (e: Exception) {
             Timber.e(e, "Failed to save Epic credentials")
@@ -299,6 +359,7 @@ object EpicAuthManager {
                 accountId = json.getString("account_id"),
                 displayName = json.getString("display_name"),
                 expiresAt = json.getLong("expires_at"),
+                refreshExpiresAt = json.optLong("refresh_expires_at", 0L),
             )
         } catch (e: Exception) {
             Timber.e(e, "Failed to load credentials")

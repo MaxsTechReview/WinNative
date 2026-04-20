@@ -49,6 +49,8 @@ import com.winlator.cmod.feature.stores.steam.enums.OS
 import com.winlator.cmod.feature.stores.steam.enums.OSArch
 import com.winlator.cmod.feature.stores.steam.enums.SaveLocation
 import com.winlator.cmod.feature.stores.steam.enums.SyncResult
+import com.auth0.android.jwt.JWT
+import com.winlator.cmod.feature.stores.common.StoreAuthStatus
 import com.winlator.cmod.feature.stores.steam.events.AndroidEvent
 import com.winlator.cmod.feature.stores.steam.events.SteamEvent
 import com.winlator.cmod.feature.stores.steam.statsgen.StatType
@@ -716,12 +718,14 @@ class SteamService :
         private val _isConnectedFlow = MutableStateFlow(false)
         val isConnectedFlow = _isConnectedFlow.asStateFlow()
 
+        /**
+         * Pure getter over [isConnectedFlow]. Do not read `steamClient.isConnected` here —
+         * concurrent readers were mutating the flow as a side-effect, producing UI flicker
+         * during CM reconnect gaps. Callbacks (`onConnected` / `onDisconnected` / `clearValues`)
+         * are the only authoritative writers of the flow.
+         */
         var isConnected: Boolean
-            get() {
-                val real = (instance?.steamClient?.isConnected == true)
-                if (real != _isConnectedFlow.value) _isConnectedFlow.value = real
-                return real
-            }
+            get() = _isConnectedFlow.value
             private set(value) {
                 _isConnectedFlow.value = value
             }
@@ -734,34 +738,28 @@ class SteamService :
         private val _isLoggedInFlow = MutableStateFlow(false)
         val isLoggedInFlow = _isLoggedInFlow.asStateFlow()
 
+        /**
+         * Pure getter over [isLoggedInFlow]. Previously this read `steamClient.steamID.isValid`
+         * and wrote the flow as a side-effect, which caused UI flicker whenever any caller
+         * (StoresFragment.onResume, CloudSyncManager.rehydrateSteamSession, the 10s poll) read
+         * the value during a transient CM disconnect. The flow is now only mutated by
+         * authoritative sources: initLoginStatus(), onLoggedOn, onLoggedOff, logOut, clearValues.
+         */
         val isLoggedIn: Boolean
-            get() {
-                if (isLoggingOut) return false
-                val real = (instance?.steamClient?.steamID?.isValid == true)
-                // Only update flow if instance exists, to avoid overwriting
-                // the pre-seeded credential-based state before service starts
-                if (instance != null && real != _isLoggedInFlow.value) {
-                    _isLoggedInFlow.value = real
-                }
-                return real
-            }
+            get() = !isLoggingOut && _isLoggedInFlow.value
 
         var isWaitingForQRAuth: Boolean = false
             private set
 
+        /**
+         * Keeps [isConnectedFlow] in sync with the live socket state. Previously also wrote
+         * [isLoggedInFlow] from `steamID.isValid`, which flipped the UI to "signed out"
+         * whenever Valve's CM load-balanced us. The login flow is now purely callback-driven
+         * (see [isLoggedIn] docs), so this method only touches the connected flow.
+         */
         fun syncStates() {
             val connected = instance?.steamClient?.isConnected == true
             if (connected != _isConnectedFlow.value) _isConnectedFlow.value = connected
-
-            // Only update login state if the service instance exists (i.e. it has started).
-            // Before that, the flow may be pre-seeded from stored credentials and we
-            // don't want to overwrite it with false.
-            if (instance != null) {
-                val loggedIn = !isLoggingOut && (instance?.steamClient?.steamID?.isValid == true)
-                if (loggedIn != _isLoggedInFlow.value) {
-                    _isLoggedInFlow.value = loggedIn
-                }
-            }
         }
 
         /**
@@ -771,6 +769,36 @@ class SteamService :
         fun hasStoredCredentials(context: Context): Boolean {
             PrefManager.init(context)
             return PrefManager.refreshToken.isNotBlank()
+        }
+
+        /**
+         * Classifies the current Steam session using the same [StoreAuthStatus] model Epic
+         * uses. Lets the UI distinguish "reconnecting" / "token expired" / "no login" rather
+         * than painting every non-ACTIVE state as "signed out."
+         *
+         * - LOGGED_OUT: no stored refresh token.
+         * - EXPIRED:    refresh-token JWT's `exp` claim is in the past (~200 days old).
+         * - ACTIVE:     [isLoggedInFlow] is true (JavaSteam callback confirmed login).
+         * - REFRESHABLE: have a valid-looking refresh token but not yet logged on — the
+         *                 service is still connecting, or we're mid-reconnect after a CM bounce.
+         * - UNKNOWN:    refresh token exists but can't be parsed as a JWT.
+         */
+        fun getAuthStatus(context: Context): StoreAuthStatus {
+            PrefManager.init(context)
+            val refreshToken = PrefManager.refreshToken
+            if (refreshToken.isBlank()) return StoreAuthStatus.LOGGED_OUT
+
+            val jwtExpired: Boolean? =
+                try {
+                    JWT(refreshToken).isExpired(0)
+                } catch (_: Exception) {
+                    null
+                }
+            if (jwtExpired == true) return StoreAuthStatus.EXPIRED
+
+            if (!isLoggingOut && _isLoggedInFlow.value) return StoreAuthStatus.ACTIVE
+
+            return if (jwtExpired == null) StoreAuthStatus.UNKNOWN else StoreAuthStatus.REFRESHABLE
         }
 
         /**

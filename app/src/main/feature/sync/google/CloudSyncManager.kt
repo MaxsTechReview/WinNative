@@ -1,6 +1,7 @@
 package com.winlator.cmod.feature.sync.google
 import android.app.Activity
 import android.content.Context
+import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import android.util.Log
 import com.google.android.gms.common.api.ApiException
@@ -8,9 +9,13 @@ import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.games.PlayGames
 import com.google.android.gms.games.SnapshotsClient
 import com.google.android.gms.games.snapshot.Snapshot
+import com.google.android.gms.games.snapshot.SnapshotContents
 import com.google.android.gms.games.snapshot.SnapshotMetadataChange
 import com.google.android.gms.tasks.Tasks
 import com.winlator.cmod.R
+import com.winlator.cmod.feature.stores.common.Store
+import com.winlator.cmod.feature.stores.common.StoreSessionBus
+import com.winlator.cmod.feature.stores.common.StoreSessionEvent
 import com.winlator.cmod.feature.stores.epic.service.EpicAuthManager
 import com.winlator.cmod.feature.stores.epic.service.EpicService
 import com.winlator.cmod.feature.stores.gog.service.GOGAuthManager
@@ -45,11 +50,12 @@ object CloudSyncManager {
     private const val KEY_GOOGLE_SYNC_ENABLED = "google_sync_enabled"
     private const val KEY_LAST_SYNC_TIME = "last_sync_time"
     private const val KEY_LAST_SYNC_ERROR = "last_sync_error"
+    private const val KEY_AUTO_BACKUP_PENDING = "auto_backup_pending"
+    private const val AUTO_BACKUP_MIN_INTERVAL_MS = 60_000L // debounce: at most one auto-upload per minute
+    @Volatile private var lastAutoBackupAttemptMs: Long = 0L
     private const val SNAPSHOT_NAME = "store_logins_v1"
     private const val AUTH_SESSION_RETRY_COUNT = 5
     private const val AUTH_SESSION_RETRY_DELAY_MS = 750L
-    private const val HOME_BOOTSTRAP_TIMEOUT_MS = 15000L
-    private const val HOME_BOOTSTRAP_POLL_DELAY_MS = 1000L
     private const val ZIP_MANIFEST = "manifest.json"
     private const val ZIP_STEAM = "stores/steam.json"
     private const val ZIP_EPIC = "stores/epic_credentials.json"
@@ -137,6 +143,7 @@ object CloudSyncManager {
         activity: Activity,
         callback: (Boolean, String) -> Unit,
     ) {
+        PlayGamesBootstrap.ensureInitialized(activity)
         val gamesSignInClient = PlayGames.getGamesSignInClient(activity)
         Log.i(TAG, "Starting Google Play Games sign-in for store login sync")
         Timber.tag(TAG).i("Starting Google Play Games sign-in for store login sync")
@@ -160,40 +167,40 @@ object CloudSyncManager {
         scope.launch {
             prefs(activity).edit().putBoolean(KEY_GOOGLE_SYNC_ENABLED, true).apply()
 
-            if (!awaitAuthenticatedSession(activity)) {
-                callback(
-                    false,
-                    activity.getString(R.string.google_cloud_sign_in_finishing),
-                )
-                return@launch
-            }
-
-            Timber.tag(TAG).i("Play Games session ready; checking Saved Games state and auto-restoring missing store tokens")
-            val message =
-                runCatching {
-                    val summary = autoRestoreMissingStoresFromCloud(activity, reason = "manual_sign_in")
-                    val state = readStateInternal(activity, authenticated = true)
-                    when {
-                        summary.restoredStores.isNotEmpty() -> {
-                            summary.message(activity)
-                        }
-
-                        state.cloudStores.isNotEmpty() && state.cloudStores != state.localStores -> {
-                            activity.getString(R.string.google_cloud_connected_restore_available, state.cloudStores.joinToString())
-                        }
-
-                        state.localStores.isNotEmpty() -> {
-                            activity.getString(R.string.google_cloud_connected_tap_backup, state.localStores.joinToString())
-                        }
-
-                        else -> {
-                            activity.getString(R.string.google_cloud_connected_ready)
-                        }
+            val result =
+                withContext(Dispatchers.IO) {
+                    if (!awaitAuthenticatedSession(activity)) {
+                        return@withContext false to activity.getString(R.string.google_cloud_sign_in_finishing)
                     }
-                }.getOrElse { error ->
-                    rememberSyncError(activity, error)
+
+                    Timber.tag(TAG).i("Play Games session ready; checking Saved Games state and auto-restoring missing store tokens")
+                    val message =
+                        runCatching {
+                            val summary = autoRestoreMissingStoresFromCloud(activity, reason = "manual_sign_in")
+                            val state = readStateInternal(activity, authenticated = true)
+                            when {
+                                summary.restoredStores.isNotEmpty() -> {
+                                    summary.message(activity)
+                                }
+
+                                state.cloudStores.isNotEmpty() && state.cloudStores != state.localStores -> {
+                                    activity.getString(R.string.google_cloud_connected_restore_available, state.cloudStores.joinToString())
+                                }
+
+                                state.localStores.isNotEmpty() -> {
+                                    activity.getString(R.string.google_cloud_connected_tap_backup, state.localStores.joinToString())
+                                }
+
+                                else -> {
+                                    activity.getString(R.string.google_cloud_connected_ready)
+                                }
+                            }
+                        }.getOrElse { error ->
+                            rememberSyncError(activity, error)
+                        }
+                    true to message
                 }
-            callback(true, message)
+            callback(result.first, result.second)
         }
     }
 
@@ -216,6 +223,7 @@ object CloudSyncManager {
         activity: Activity,
         callback: (Boolean) -> Unit,
     ) {
+        PlayGamesBootstrap.ensureInitialized(activity)
         val gamesSignInClient = PlayGames.getGamesSignInClient(activity)
         gamesSignInClient.isAuthenticated.addOnCompleteListener { task ->
             val authenticated = task.isSuccessful && task.result?.isAuthenticated == true
@@ -244,45 +252,6 @@ object CloudSyncManager {
                 entryReason = "google_screen_opened",
             ).state
         }
-
-    suspend fun bootstrapOnHomeScreenArrival(activity: Activity): String? {
-        return withContext(Dispatchers.IO) {
-            val shouldRetrySessionAdoption = !prefs(activity).contains(KEY_GOOGLE_SYNC_ENABLED)
-            val timeoutAt = SystemClock.elapsedRealtime() + HOME_BOOTSTRAP_TIMEOUT_MS
-            var attempt = 0
-
-            while (SystemClock.elapsedRealtime() < timeoutAt) {
-                val entryReason =
-                    if (attempt == 0) {
-                        "home_screen_bootstrap"
-                    } else {
-                        "home_screen_bootstrap_retry_$attempt"
-                    }
-                val entry =
-                    readSyncEntryState(
-                        activity = activity,
-                        entryReason = entryReason,
-                    )
-                val restoredToastMessage =
-                    entry.autoRestoreSummary
-                        ?.takeIf { it.restoredStores.isNotEmpty() }
-                        ?.message(activity)
-                if (restoredToastMessage != null) {
-                    return@withContext restoredToastMessage
-                }
-
-                if (!shouldRetrySessionAdoption || entry.state.googleSignedIn) {
-                    return@withContext null
-                }
-
-                attempt += 1
-                delay(HOME_BOOTSTRAP_POLL_DELAY_MS)
-            }
-
-            Timber.tag(TAG).i("Home screen Google bootstrap timed out waiting for Play Games auto sign-in")
-            null
-        }
-    }
 
     suspend fun readStoreLoginState(activity: Activity): StoreLoginSyncState {
         return withContext(Dispatchers.IO) {
@@ -452,6 +421,95 @@ object CloudSyncManager {
         }
     }
 
+    /**
+     * Fire-and-forget auto-backup of store-login tokens. Invoked from credential-save paths
+     * (login, token refresh, background worker) so the Google snapshot always holds the latest
+     * refresh token instead of a stale one.
+     *
+     * - No-op if Google sync is disabled.
+     * - No-op if an earlier attempt ran within the debounce window ([AUTO_BACKUP_MIN_INTERVAL_MS]).
+     * - If an [Activity] is currently attached (app is live), uploads immediately on the manager's scope.
+     * - Otherwise marks a pending flag that [flushPendingAutoBackup] will drain on next Activity resume.
+     *
+     * Silent on both success and failure — this runs alongside normal API calls and must not
+     * interrupt the user with toasts.
+     */
+    fun scheduleAutoBackup(context: Context) {
+        if (!isGoogleSyncEnabled(context)) return
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastAutoBackupAttemptMs < AUTO_BACKUP_MIN_INTERVAL_MS) {
+            Timber.tag(TAG).v("scheduleAutoBackup debounced (last attempt %d ms ago)", now - lastAutoBackupAttemptMs)
+            return
+        }
+        lastAutoBackupAttemptMs = now
+
+        val activity = com.winlator.cmod.app.shell.UnifiedActivity.currentActivity()
+        if (activity == null) {
+            Timber.tag(TAG).i("Auto-backup: no Activity attached, deferring until next foreground")
+            prefs(context).edit().putBoolean(KEY_AUTO_BACKUP_PENDING, true).apply()
+            return
+        }
+
+        scope.launch {
+            if (performAutoBackupUpload(activity)) {
+                Timber.tag(TAG).i("Auto-backup of store logins completed")
+                prefs(context).edit().putBoolean(KEY_AUTO_BACKUP_PENDING, false).apply()
+            } else {
+                // Could not upload (no Google auth yet, network error, etc.). Leave pending
+                // so the next app foreground or next credential change can retry.
+                prefs(context).edit().putBoolean(KEY_AUTO_BACKUP_PENDING, true).apply()
+            }
+        }
+    }
+
+    /**
+     * Called on Activity foreground — uploads the local payload if a previous [scheduleAutoBackup]
+     * was deferred (e.g. the refresh worker ran while the app was killed). No-op if no pending flag
+     * or sync disabled.
+     */
+    suspend fun flushPendingAutoBackup(activity: Activity) {
+        if (!prefs(activity).getBoolean(KEY_AUTO_BACKUP_PENDING, false)) return
+        if (!isGoogleSyncEnabled(activity)) {
+            prefs(activity).edit().putBoolean(KEY_AUTO_BACKUP_PENDING, false).apply()
+            return
+        }
+        Timber.tag(TAG).i("Flushing pending auto-backup of store logins")
+        if (performAutoBackupUpload(activity)) {
+            prefs(activity).edit().putBoolean(KEY_AUTO_BACKUP_PENDING, false).apply()
+            lastAutoBackupAttemptMs = SystemClock.elapsedRealtime()
+        }
+    }
+
+    /**
+     * Silent snapshot upload used by auto-backup paths. Returns true iff the upload ran to
+     * completion (including the no-op case where the remote payload already matches).
+     * Does not surface user-visible messages on failure.
+     */
+    private suspend fun performAutoBackupUpload(activity: Activity): Boolean =
+        withContext(Dispatchers.IO) {
+            if (!isAuthenticatedBlocking(activity)) {
+                Timber.tag(TAG).d("Auto-backup upload skipped: Google Play Games not authenticated")
+                return@withContext false
+            }
+            runCatching {
+                syncMutex.withLock {
+                    val localPayload = collectLocalPayload(activity)
+                    if (localPayload.stores.isEmpty()) return@withLock
+                    val remotePayload = readRemotePayload(activity).payload
+                    val shouldUpload = remotePayload == null || localPayload.fingerprint != remotePayload.fingerprint
+                    if (shouldUpload) {
+                        backupPayload(activity, localPayload)
+                    } else {
+                        Timber.tag(TAG).d("Auto-backup upload skipped: remote fingerprint already matches")
+                    }
+                }
+                true
+            }.getOrElse { err ->
+                Timber.tag(TAG).w(err, "Auto-backup upload failed")
+                false
+            }
+        }
+
     private suspend fun rehydrateRestoredStores(
         context: Context,
         restoredStores: Set<String>,
@@ -533,6 +591,7 @@ object CloudSyncManager {
         Log.i(TAG, "Opening snapshot for backup: $SNAPSHOT_NAME")
         Timber.tag(TAG).i("Opening snapshot for backup: %s", SNAPSHOT_NAME)
         val snapshot = openSnapshot(activity, client, createIfMissing = true) ?: return emptySet()
+        val snapshotFileDescriptor = snapshotParcelFileDescriptor(snapshot.snapshotContents)
         try {
             val bytes = payloadToZip(payload)
             Timber.tag(TAG).i("Writing %d bytes to snapshot for stores=%s", bytes.size, payload.stores.keys)
@@ -562,6 +621,8 @@ object CloudSyncManager {
             Timber.tag(TAG).e(error, "Snapshot backup failed for stores=%s", payload.stores.keys)
             runCatching { Tasks.await(client.discardAndClose(snapshot)) }
             throw error
+        } finally {
+            closeQuietly(snapshotFileDescriptor)
         }
     }
 
@@ -569,6 +630,7 @@ object CloudSyncManager {
         val client = freshSnapshotsClient(activity) ?: return SnapshotReadResult(null, null)
         Timber.tag(TAG).d("Opening snapshot for read: %s", SNAPSHOT_NAME)
         val snapshot = openSnapshot(activity, client, createIfMissing = false) ?: return SnapshotReadResult(null, null)
+        val snapshotFileDescriptor = snapshotParcelFileDescriptor(snapshot.snapshotContents)
         return try {
             val bytes = snapshot.snapshotContents.readFully()
             val payload = if (bytes.isNotEmpty()) zipToPayload(bytes) else null
@@ -586,6 +648,8 @@ object CloudSyncManager {
             Timber.tag(TAG).e(error, "Snapshot read failed")
             runCatching { Tasks.await(client.discardAndClose(snapshot)) }
             throw error
+        } finally {
+            closeQuietly(snapshotFileDescriptor)
         }
     }
 
@@ -611,12 +675,12 @@ object CloudSyncManager {
                             SnapshotsClient.RESOLUTION_POLICY_MOST_RECENTLY_MODIFIED,
                         ),
                     )
-                if (result.isConflict) {
-                    Timber.tag(TAG).w("Snapshot conflict detected for %s", SNAPSHOT_NAME)
-                } else {
+                if (!result.isConflict) {
                     Timber.tag(TAG).d("Snapshot open returned without conflict")
+                    return result.data
                 }
-                return result.data ?: result.conflict?.snapshot ?: result.conflict?.conflictingSnapshot
+                val snapshot = resolveSnapshotConflict(client, result.conflict) ?: return null
+                return snapshot
             } catch (error: Exception) {
                 if (!createIfMissing && isMissingSnapshotError(error)) {
                     Timber.tag(TAG).d("No existing store login snapshot found: ${error.message}")
@@ -639,7 +703,74 @@ object CloudSyncManager {
         return null
     }
 
-    private suspend fun freshSnapshotsClient(activity: Activity): SnapshotsClient? = PlayGames.getSnapshotsClient(activity)
+    private suspend fun resolveSnapshotConflict(
+        client: SnapshotsClient,
+        conflict: SnapshotsClient.SnapshotConflict?,
+    ): Snapshot? {
+        if (conflict == null) return null
+
+        var pendingConflict: SnapshotsClient.SnapshotConflict? = conflict
+        while (pendingConflict != null) {
+            val candidates =
+                listOfNotNull(
+                    pendingConflict.snapshot,
+                    pendingConflict.conflictingSnapshot,
+                )
+            if (candidates.isEmpty()) {
+                return null
+            }
+
+            val chosen =
+                candidates.maxByOrNull { snapshot ->
+                    snapshot.metadata.lastModifiedTimestamp
+                } ?: return null
+
+            Log.w(TAG, "Snapshot conflict detected for $SNAPSHOT_NAME; resolving with most recent snapshot")
+            Timber.tag(TAG).w(
+                "Snapshot conflict detected for %s; resolving with lastModified=%d",
+                SNAPSHOT_NAME,
+                chosen.metadata.lastModifiedTimestamp,
+            )
+
+            val resolved =
+                Tasks.await(
+                    client.resolveConflict(
+                        pendingConflict.conflictId,
+                        chosen,
+                    ),
+                )
+
+            if (!resolved.isConflict) {
+                Timber.tag(TAG).i(
+                    "Resolved snapshot conflict for %s with lastModified=%d",
+                    SNAPSHOT_NAME,
+                    chosen.metadata.lastModifiedTimestamp,
+                )
+                return resolved.data
+            }
+
+            pendingConflict = resolved.conflict
+        }
+
+        return null
+    }
+
+    private suspend fun freshSnapshotsClient(activity: Activity): SnapshotsClient? {
+        PlayGamesBootstrap.ensureInitialized(activity)
+        return PlayGames.getSnapshotsClient(activity)
+    }
+
+    private fun snapshotParcelFileDescriptor(contents: SnapshotContents?): ParcelFileDescriptor? =
+        runCatching {
+            contents?.parcelFileDescriptor
+        }.getOrNull()
+
+    private fun closeQuietly(descriptor: ParcelFileDescriptor?) {
+        try {
+            descriptor?.close()
+        } catch (_: Exception) {
+        }
+    }
 
     fun onSavedGamesPermissionResult(activity: Activity) {
         Timber.tag(TAG).w(
@@ -841,6 +972,7 @@ object CloudSyncManager {
             PrefManager.clientId = json.optLong("clientId", 0L)
             SteamService.initLoginStatus(context)
             SteamService.start(context)
+            StoreSessionBus.emit(StoreSessionEvent.SessionRestored(Store.STEAM))
             true
         }.getOrElse { error ->
             Timber.tag(TAG).e(error, "Failed to restore Steam login tokens")
@@ -858,6 +990,7 @@ object CloudSyncManager {
             file.writeBytes(bytes)
             EpicAuthManager.updateLoginStatus(context)
             EpicService.start(context)
+            StoreSessionBus.emit(StoreSessionEvent.SessionRestored(Store.EPIC))
             true
         }.getOrElse { error ->
             Timber.tag(TAG).e(error, "Failed to restore Epic login tokens")
@@ -875,6 +1008,7 @@ object CloudSyncManager {
             file.writeBytes(bytes)
             GOGAuthManager.updateLoginStatus(context)
             GOGService.start(context)
+            StoreSessionBus.emit(StoreSessionEvent.SessionRestored(Store.GOG))
             true
         }.getOrElse { error ->
             Timber.tag(TAG).e(error, "Failed to restore GOG login tokens")
@@ -1189,6 +1323,7 @@ object CloudSyncManager {
     }
 
     private suspend fun awaitAuthenticatedSession(activity: Activity): Boolean {
+        PlayGamesBootstrap.ensureInitialized(activity)
         repeat(AUTH_SESSION_RETRY_COUNT) { attempt ->
             if (isAuthenticatedBlocking(activity)) {
                 return true
@@ -1225,6 +1360,7 @@ object CloudSyncManager {
 
     private suspend fun isAuthenticatedBlocking(activity: Activity): Boolean =
         try {
+            PlayGamesBootstrap.ensureInitialized(activity)
             val task = PlayGames.getGamesSignInClient(activity).isAuthenticated
             val result =
                 withContext(Dispatchers.IO) {

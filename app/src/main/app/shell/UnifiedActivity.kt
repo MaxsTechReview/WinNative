@@ -280,7 +280,6 @@ class UnifiedActivity :
 
     // Trigger to refresh library when activity resumes from another container
     var libraryRefreshSignal by mutableIntStateOf(0)
-    private var hasBootstrappedGoogleRestoreOnHome = false
 
     // Freezes the library/store card chasing borders while any full-screen
     // dialog is open, so the ~120 Hz animation cost isn't paid for content
@@ -326,6 +325,10 @@ class UnifiedActivity :
         fun refreshLibrary() {
             instance?.let { it.libraryRefreshSignal++ }
         }
+
+        /** Currently attached Activity (or null if the app is fully backgrounded/killed). */
+        @JvmStatic
+        fun currentActivity(): UnifiedActivity? = instance
     }
 
     private val wallpaperImagePickerLauncher =
@@ -541,16 +544,6 @@ class UnifiedActivity :
 
         // (Re)start the background update loop (checks hourly + on first tick)
         UpdateChecker.startBackgroundLoop(this)
-
-        lifecycleScope.launch {
-            bootstrapGoogleRestoreOnFirstHomeArrival()
-        }
-    }
-
-    private suspend fun bootstrapGoogleRestoreOnFirstHomeArrival() {
-        if (hasBootstrappedGoogleRestoreOnHome) return
-        hasBootstrappedGoogleRestoreOnHome = true
-        CloudSyncManager.bootstrapOnHomeScreenArrival(this)
     }
 
     override fun dispatchGenericMotionEvent(event: android.view.MotionEvent): Boolean {
@@ -727,6 +720,50 @@ class UnifiedActivity :
         // Start EpicService if user is logged in
         if (EpicService.hasStoredCredentials(this)) {
             EpicService.start(this)
+            // Proactively refresh the access token on app start; runs outside the 15-minute
+            // sync throttle so we extend the ~8h Epic refresh window every time the user
+            // opens the app.
+            lifecycleScope.launch {
+                EpicAuthManager.getStoredCredentials(this@UnifiedActivity)
+            }
+            // Make sure the background refresh worker is scheduled (idempotent).
+            com.winlator.cmod.feature.stores.epic.service.EpicTokenRefreshWorker.schedule(this)
+        }
+
+        // If the refresh worker fired while the app was killed, push the latest tokens to Google now.
+        lifecycleScope.launch {
+            com.winlator.cmod.feature.sync.google.CloudSyncManager.flushPendingAutoBackup(this@UnifiedActivity)
+        }
+
+        // Surface store-session events (e.g. Epic refresh-token death, cloud restore) as toasts.
+        lifecycleScope.launch {
+            com.winlator.cmod.feature.stores.common.StoreSessionBus.events.collect { event ->
+                val label =
+                    when (event.store) {
+                        com.winlator.cmod.feature.stores.common.Store.EPIC -> "Epic"
+                        com.winlator.cmod.feature.stores.common.Store.GOG -> "GOG"
+                        com.winlator.cmod.feature.stores.common.Store.STEAM -> "Steam"
+                    }
+                when (event) {
+                    is com.winlator.cmod.feature.stores.common.StoreSessionEvent.SessionExpired -> {
+                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                            this@UnifiedActivity,
+                            "$label session expired — please sign in again",
+                            android.widget.Toast.LENGTH_LONG,
+                        )
+                    }
+                    is com.winlator.cmod.feature.stores.common.StoreSessionEvent.SessionRestored -> {
+                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                            this@UnifiedActivity,
+                            "$label session restored from cloud",
+                            android.widget.Toast.LENGTH_SHORT,
+                        )
+                    }
+                    is com.winlator.cmod.feature.stores.common.StoreSessionEvent.SessionRefreshed -> {
+                        // informational — no UI surface
+                    }
+                }
+            }
         }
 
         // Start SteamService if user is logged in

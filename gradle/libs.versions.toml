@@ -37,6 +37,7 @@ playServicesAuth = "21.3.0"
 xz = "1.7"
 commonsCompress = "1.26.1"
 spotless = "8.4.0"
+workManager = "2.10.0"
 
 [libraries]
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
@@ -88,6 +89,7 @@ javaSteamDepotDownloader = { module = "in.dragonbra:javasteam-depotdownloader", 
 playServicesGamesV2 = { module = "com.google.android.gms:play-services-games-v2", version.ref = "playGames" }
 playServicesAuth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
 xz = { module = "org.tukaani:xz", version.ref = "xz" }
+workRuntimeKtx = { module = "androidx.work:work-runtime-ktx", version.ref = "workManager" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
