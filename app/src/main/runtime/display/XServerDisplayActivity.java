@@ -6309,10 +6309,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private void updateSteamRegistryVisibility(boolean visible) {
         if (container == null) return;
-        File userRegFile = new File(container.getRootDir(), ImageFs.WINEPREFIX + "/user.reg");
-        File systemRegFile = new File(container.getRootDir(), ImageFs.WINEPREFIX + "/system.reg");
-        File userBackupFile = new File(container.getRootDir(), ImageFs.WINEPREFIX + "/" + STEAM_USER_REGISTRY_BACKUP_FILE);
-        File systemBackupFile = new File(container.getRootDir(), ImageFs.WINEPREFIX + "/" + STEAM_SYSTEM_REGISTRY_BACKUP_FILE);
+        // container.getRootDir() already points at the per-container home dir
+        // (.../imagefs/home/xuser-N). ImageFs.WINEPREFIX is the default absolute
+        // path "/home/xuser/.wine" and concatenating the two produces a bogus
+        // .../home/xuser-N/home/xuser/.wine path that never exists — writes
+        // there throw ENOENT and silently swallow, making this whole routine a
+        // no-op. The wine prefix lives directly at "<rootDir>/.wine".
+        File userRegFile = new File(container.getRootDir(), ".wine/user.reg");
+        File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
+        File userBackupFile = new File(container.getRootDir(), ".wine/" + STEAM_USER_REGISTRY_BACKUP_FILE);
+        File systemBackupFile = new File(container.getRootDir(), ".wine/" + STEAM_SYSTEM_REGISTRY_BACKUP_FILE);
         if (!visible) {
             try {
                 forceHideSteamRegistry(userRegFile, userBackupFile, STEAM_REGISTRY_KEY);
