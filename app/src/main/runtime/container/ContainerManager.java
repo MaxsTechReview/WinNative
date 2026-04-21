@@ -20,7 +20,6 @@ import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.concurrent.Executors;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -342,68 +341,28 @@ public class ContainerManager {
 
   public ArrayList<Shortcut> loadShortcuts() {
     ArrayList<Shortcut> shortcuts = new ArrayList<>();
-    HashSet<String> processedFiles = new HashSet<>();
-
     for (Container container : containers) {
-      // 1. User Desktop
-      scanShortcutsRecursively(container, container.getDesktopDir(), shortcuts, processedFiles);
-
-      // 2. User Start Menu
-      File userStartMenuDir =
-          new File(
-              container.getRootDir(),
-              ".wine/drive_c/users/"
-                  + ImageFs.USER
-                  + "/AppData/Roaming/Microsoft/Windows/Start Menu/");
-      if (userStartMenuDir.exists())
-        scanShortcutsRecursively(container, userStartMenuDir, shortcuts, processedFiles);
-
-      // 3. System Start Menu
-      File systemStartMenuDir = container.getStartMenuDir();
-      if (systemStartMenuDir.exists())
-        scanShortcutsRecursively(container, systemStartMenuDir, shortcuts, processedFiles);
+      File desktopDir = container.getDesktopDir();
+      ArrayList<File> files = new ArrayList<>();
+      if (desktopDir.exists()) files.addAll(Arrays.asList(desktopDir.listFiles()));
+      if (files != null) {
+        for (File file : files) {
+          String fileName = file.getName();
+          if (fileName.endsWith(".lnk")) {
+            String filePath = file.getPath();
+            File desktopFile =
+                new File(filePath.substring(0, filePath.lastIndexOf(".")) + ".desktop");
+            if (!desktopFile.exists()) {
+              MSLink.createDesktopFile(file, context, container);
+              shortcuts.add(new Shortcut(container, desktopFile));
+            }
+          } else if (fileName.endsWith(".desktop")) shortcuts.add(new Shortcut(container, file));
+        }
+      }
     }
 
     shortcuts.sort(Comparator.comparing(a -> a.name));
     return shortcuts;
-  }
-
-  private void scanShortcutsRecursively(
-      Container container,
-      File dir,
-      ArrayList<Shortcut> shortcuts,
-      HashSet<String> processedFiles) {
-    File[] files = dir.listFiles();
-    if (files == null) return;
-
-    for (File file : files) {
-      if (file.isDirectory()) {
-        scanShortcutsRecursively(container, file, shortcuts, processedFiles);
-      } else {
-        String fileName = file.getName();
-        if (fileName.endsWith(".lnk")) {
-          String filePath = file.getPath();
-          File desktopFile =
-              new File(filePath.substring(0, filePath.lastIndexOf(".")) + ".desktop");
-
-          if (!desktopFile.exists()) {
-            MSLink.createDesktopFile(file, context);
-          }
-
-          String desktopPath = container.id + ":" + desktopFile.getAbsolutePath();
-          if (!processedFiles.contains(desktopPath)) {
-            shortcuts.add(new Shortcut(container, desktopFile));
-            processedFiles.add(desktopPath);
-          }
-        } else if (fileName.endsWith(".desktop")) {
-          String desktopPath = container.id + ":" + file.getAbsolutePath();
-          if (!processedFiles.contains(desktopPath)) {
-            shortcuts.add(new Shortcut(container, file));
-            processedFiles.add(desktopPath);
-          }
-        }
-      }
-    }
   }
 
   public int getNextContainerId() {

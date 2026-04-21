@@ -223,6 +223,10 @@ public abstract class MSLink {
   }
 
   public static void createDesktopFile(File lnkFile, Context context) {
+    createDesktopFile(lnkFile, context, null);
+  }
+
+  public static void createDesktopFile(File lnkFile, Context context, Container container) {
     String lnkFilePath = lnkFile.getPath();
     String windowsPath = parseFilePath(lnkFile);
     String filePath = StringUtils.escapeFileDOSPath(windowsPath);
@@ -230,7 +234,7 @@ public abstract class MSLink {
 
     // Smart Discovery: Try extracting the real EXE icon first
     String customLibraryIconPath = "";
-    File exeFile = WineUtils.getNativePath(imageFs, windowsPath);
+    File exeFile = WineUtils.getNativePath(container, imageFs, windowsPath);
     if (exeFile != null && exeFile.exists()) {
       String safeName =
           lnkFile

@@ -1300,6 +1300,33 @@ public abstract class WineUtils {
     }
   }
 
+  public static File getNativePath(Container container, ImageFs imageFs, String winPath) {
+    if (winPath == null || winPath.isEmpty()) return null;
+    String path = winPath.replace("\\", "/");
+    if (path.startsWith("\"") && path.endsWith("\"")) path = path.substring(1, path.length() - 1);
+
+    if (path.matches("^[a-zA-Z]:.*")) {
+      String drive = path.substring(0, 1).toLowerCase(Locale.ENGLISH);
+      String relPath = path.substring(2);
+      if (relPath.startsWith("/")) relPath = relPath.substring(1);
+
+      if (drive.equals("c") && container != null) {
+        return new File(container.getRootDir(), ".wine/drive_c/" + relPath);
+      } else {
+        File dosdevices = new File(imageFs.getRootDir(), ImageFs.WINEPREFIX + "/dosdevices");
+        File link = new File(dosdevices, drive + ":");
+        if (link.exists()) {
+          try {
+            return new File(link.getCanonicalPath(), relPath);
+          } catch (Exception e) {
+            return new File(link.getAbsolutePath(), relPath);
+          }
+        }
+      }
+    }
+    return new File(imageFs.getRootDir(), path);
+  }
+
   public static File getNativePath(ImageFs imageFs, String winPath) {
     if (winPath == null || winPath.isEmpty()) return null;
     String path = winPath.replace("\\", "/");
