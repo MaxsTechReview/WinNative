@@ -140,7 +140,7 @@ public class Shortcut {
     // 3. SMART AUTO-DISCOVERY
     // We use the EXE path (this.path) to find the game on your Android storage
     ImageFs imageFs = ImageFs.find(container.getManager().getContext());
-    File exeFile = com.winlator.cmod.runtime.wine.WineUtils.getNativePath(imageFs, this.path);
+    File exeFile = com.winlator.cmod.runtime.wine.WineUtils.getNativePath(this.container, imageFs, this.path);
 
     if (exeFile != null && exeFile.exists()) {
       // A. Try extracting the real high-quality icon from the EXE
@@ -192,7 +192,7 @@ public class Shortcut {
         && !this.path.isEmpty()
         && !this.path.equalsIgnoreCase("explorer.exe")) {
       ImageFs imageFs = ImageFs.find(container.getManager().getContext());
-      File exeFile = com.winlator.cmod.runtime.wine.WineUtils.getNativePath(imageFs, this.path);
+      File exeFile = com.winlator.cmod.runtime.wine.WineUtils.getNativePath(this.container, imageFs, this.path);
       if (exeFile != null && exeFile.exists() && !exeFile.isDirectory()) {
         architecture = com.winlator.cmod.runtime.wine.PEHelper.getArchitecture(exeFile);
         if (!architecture.isEmpty()) {

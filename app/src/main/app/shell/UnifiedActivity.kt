@@ -1956,10 +1956,14 @@ class UnifiedActivity :
         // Load all shortcuts once and cache for both custom app discovery and GameCapsule icon lookup
         var cachedShortcuts by remember { mutableStateOf<List<Shortcut>>(emptyList()) }
         var customApps by remember { mutableStateOf<List<SteamApp>>(emptyList()) }
-        LaunchedEffect(libraryRefreshKey) {
+        var localLibraryRefreshKey by remember { mutableIntStateOf(0) }
+        LaunchedEffect(libraryRefreshKey, localLibraryRefreshKey) {
             withContext(Dispatchers.IO) {
                 try {
                     val cm = ContainerManager(context)
+                    cm.upgradeShortcuts {
+                        localLibraryRefreshKey++
+                    }
                     val allShortcuts = cm.loadShortcuts()
                     val apps =
                         allShortcuts
