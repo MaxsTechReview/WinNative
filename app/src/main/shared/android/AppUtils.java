@@ -12,6 +12,7 @@ import android.graphics.Rect;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Process;
 import android.text.Html;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -107,7 +108,7 @@ public abstract class AppUtils {
     Intent mainIntent = Intent.makeRestartActivityTask(intent.getComponent());
     if (selectedMenuItemId > 0) mainIntent.putExtra("selected_menu_item_id", selectedMenuItemId);
     context.startActivity(mainIntent);
-    Runtime.getRuntime().exit(0);
+    Process.killProcess(Process.myPid());
   }
 
   public static void showKeyboard(AppCompatActivity activity) {

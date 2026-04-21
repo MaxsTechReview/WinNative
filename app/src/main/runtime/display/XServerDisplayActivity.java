@@ -2023,7 +2023,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.closeOnUiThread();
                     // Match Ludashi/vanilla behavior: restart the app to ensure native/GL
                     // resources are fully released between sessions.
-                    AppUtils.restartApplication(getApplicationContext());
+                    AppUtils.restartApplication(this);
                 }
             }, 1000);
         });
