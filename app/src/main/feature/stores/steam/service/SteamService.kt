@@ -68,6 +68,7 @@ import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.system.GPUInformation
+import com.winlator.cmod.shared.android.AppTerminationHelper
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.android.NotificationHelper
 import com.winlator.cmod.shared.io.StorageUtils
@@ -319,6 +320,8 @@ class SteamService :
         private const val DOWNLOAD_INFO_FILE = "depot_bytes.json"
         private const val LEGACY_DOWNLOAD_INFO_FILE = "bytes_downloaded.txt"
         private const val COMPONENTS_BASE_URL = "https://github.com/maxjivi05/Components/releases/download/Components"
+        @Volatile
+        private var startupMetadataRepairJob: Job? = null
 
         /**
          * Default timeout to use when making requests
@@ -1023,6 +1026,71 @@ class SteamService :
                     }
                 }
                 repairedCount
+            }
+        }
+
+        private fun countCompletedInstallMarkers(maxCount: Int = Int.MAX_VALUE): Int {
+            var count = 0
+            for (basePath in allInstallPaths) {
+                val baseDir = File(basePath)
+                val appDirs = baseDir.listFiles() ?: continue
+                for (appDir in appDirs) {
+                    if (!appDir.isDirectory) continue
+                    val hasCompleteMarker = File(appDir, Marker.DOWNLOAD_COMPLETE_MARKER.fileName).exists()
+                    if (!hasCompleteMarker) continue
+
+                    val hasInProgressMarker = File(appDir, Marker.DOWNLOAD_IN_PROGRESS_MARKER.fileName).exists()
+                    if (hasInProgressMarker) continue
+
+                    count++
+                    if (count >= maxCount) return count
+                }
+            }
+            return count
+        }
+
+        private fun shouldRepairInstalledMetadata(): Boolean {
+            val db =
+                runCatching { PluviaDatabase.getInstance() }.getOrElse {
+                    Timber.e(it, "Failed to access database for startup metadata repair gate")
+                    return false
+                }
+
+            val knownAppCount =
+                runBlocking(Dispatchers.IO) {
+                    runCatching { db.steamAppDao().getAllAppIds().size }.getOrElse {
+                        Timber.e(it, "Failed to load Steam app ids for startup metadata repair gate")
+                        return@runBlocking 0
+                    }
+                }
+            if (knownAppCount == 0) return false
+
+            val installedDbCount =
+                runBlocking(Dispatchers.IO) {
+                    runCatching { db.appInfoDao().getAllInstalledAppIds().size }.getOrElse {
+                        Timber.e(it, "Failed to load installed Steam app ids for startup metadata repair gate")
+                        return@runBlocking 0
+                    }
+                }
+
+            val diskInstallCount = countCompletedInstallMarkers(maxCount = installedDbCount + 1)
+            return diskInstallCount > installedDbCount
+        }
+
+        fun maybeRepairInstalledMetadataOnStartup(context: Context) {
+            val appContext = context.applicationContext
+            if (!hasStoredCredentials(appContext)) return
+
+            if (startupMetadataRepairJob?.isActive == true) return
+
+            startupMetadataRepairJob =
+                CoroutineScope(Dispatchers.IO).launch {
+                    if (!shouldRepairInstalledMetadata()) return@launch
+                delay(1500L)
+                val repairedCount = repairInstalledMetadataFromDisk()
+                if (repairedCount > 0) {
+                    Timber.i("Startup metadata repair recovered $repairedCount Steam install record(s)")
+                }
             }
         }
 
@@ -4964,9 +5032,7 @@ class SteamService :
         when (intent?.action) {
             NotificationHelper.ACTION_EXIT -> {
                 Timber.d("Exiting app via notification intent")
-
-                val event = AndroidEvent.EndProcess
-                PluviaApp.events.emit(event)
+                AppTerminationHelper.stopManagedServices(applicationContext, "notification_exit")
 
                 return START_NOT_STICKY
             }
@@ -5068,6 +5134,12 @@ class SteamService :
         notificationHelper.cancel()
 
         scope.launch { stop() }
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        Timber.i("Task removed; stopping managed app services")
+        AppTerminationHelper.stopManagedServices(applicationContext, "steam_task_removed")
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

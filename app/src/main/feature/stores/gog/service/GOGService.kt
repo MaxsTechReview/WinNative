@@ -16,6 +16,7 @@ import com.winlator.cmod.feature.stores.steam.events.AndroidEvent
 import com.winlator.cmod.feature.stores.steam.utils.ContainerUtils
 import com.winlator.cmod.feature.stores.steam.utils.MarkerUtils
 import com.winlator.cmod.runtime.container.Container
+import com.winlator.cmod.shared.android.AppTerminationHelper
 import com.winlator.cmod.shared.android.NotificationHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
@@ -909,6 +910,12 @@ class GOGService : Service() {
         stopForeground(STOP_FOREGROUND_REMOVE)
         notificationHelper.cancel()
         instance = null
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        Timber.i("[GOGService] Task removed; stopping managed app services")
+        AppTerminationHelper.stopManagedServices(applicationContext, "gog_task_removed")
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

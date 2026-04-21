@@ -2,6 +2,7 @@ package com.winlator.cmod.app.service
 import android.content.Context
 import android.os.Environment
 import android.os.storage.StorageManager
+import com.winlator.cmod.app.PluviaApp
 import com.winlator.cmod.feature.stores.epic.service.EpicService
 import com.winlator.cmod.feature.stores.gog.service.GOGService
 import com.winlator.cmod.feature.stores.steam.service.SteamService
@@ -14,33 +15,94 @@ import java.io.File
 object DownloadService {
     private var lastUpdateTime: Long = 0
     private var downloadDirectoryApps: MutableList<String>? = null
-    var baseDataDirPath: String = ""
-        private set
-    var baseCacheDirPath: String = ""
-        private set
-    var baseExternalAppDirPath: String = ""
-        private set
-    var externalVolumePaths: List<String> = emptyList()
-        private set
-    var appContext: Context? = null
-        private set
+    @Volatile
+    private var initialized = false
+
+    private var _baseDataDirPath: String = ""
+    private var _baseCacheDirPath: String = ""
+    private var _baseExternalAppDirPath: String = ""
+    private var _externalVolumePaths: List<String> = emptyList()
+    private var _appContext: Context? = null
+
+    var baseDataDirPath: String
+        get() {
+            ensureInitialized()
+            return _baseDataDirPath
+        }
+        private set(value) {
+            _baseDataDirPath = value
+        }
+
+    var baseCacheDirPath: String
+        get() {
+            ensureInitialized()
+            return _baseCacheDirPath
+        }
+        private set(value) {
+            _baseCacheDirPath = value
+        }
+
+    var baseExternalAppDirPath: String
+        get() {
+            ensureInitialized()
+            return _baseExternalAppDirPath
+        }
+        private set(value) {
+            _baseExternalAppDirPath = value
+        }
+
+    var externalVolumePaths: List<String>
+        get() {
+            ensureInitialized()
+            return _externalVolumePaths
+        }
+        private set(value) {
+            _externalVolumePaths = value
+        }
+
+    var appContext: Context?
+        get() {
+            ensureInitialized()
+            return _appContext
+        }
+        private set(value) {
+            _appContext = value
+        }
 
     fun populateDownloadService(context: Context) {
-        appContext = context.applicationContext
-        baseDataDirPath = context.dataDir.path
-        baseCacheDirPath = context.cacheDir.path
-        val extFiles = context.getExternalFilesDir(null)
-        baseExternalAppDirPath = extFiles?.parentFile?.path ?: ""
+        ensureInitialized(context)
+    }
 
-        val storageManager = context.getSystemService(StorageManager::class.java)
-        externalVolumePaths =
-            context
-                .getExternalFilesDirs(null)
-                .filterNotNull()
-                .filter { Environment.getExternalStorageState(it) == Environment.MEDIA_MOUNTED }
-                .filter { storageManager?.getStorageVolume(it)?.isPrimary != true }
-                .map { it.absolutePath }
-                .distinct()
+    private fun ensureInitialized(context: Context? = null) {
+        if (initialized) return
+
+        synchronized(this) {
+            if (initialized) return
+
+            val resolvedContext =
+                context?.applicationContext
+                    ?: _appContext
+                    ?: runCatching { PluviaApp.instance.applicationContext }.getOrNull()
+                    ?: throw IllegalStateException("DownloadService used before application startup")
+
+            appContext = resolvedContext
+            baseDataDirPath = resolvedContext.dataDir.path
+            baseCacheDirPath = resolvedContext.cacheDir.path
+            val extFiles = resolvedContext.getExternalFilesDir(null)
+            baseExternalAppDirPath = extFiles?.parentFile?.path ?: ""
+
+            val storageManager = resolvedContext.getSystemService(StorageManager::class.java)
+            externalVolumePaths =
+                resolvedContext
+                    .getExternalFilesDirs(null)
+                    .filterNotNull()
+                    .filter { Environment.getExternalStorageState(it) == Environment.MEDIA_MOUNTED }
+                    .filter { storageManager?.getStorageVolume(it)?.isPrimary != true }
+                    .map { it.absolutePath }
+                    .distinct()
+
+            initialized = true
+        }
     }
 
     fun getAllDownloads(): List<Pair<String, com.winlator.cmod.feature.stores.steam.data.DownloadInfo>> {

@@ -109,6 +109,7 @@ class OtherSettingsFragment : Fragment() {
                                 UpdateChecker.startBackgroundLoop(ctx)
                             } else {
                                 UpdateChecker.stopBackgroundLoop()
+                                UpdateChecker.cancelPostGameCheck()
                             }
                             refresh()
                         },
@@ -249,7 +250,7 @@ class OtherSettingsFragment : Fragment() {
 
         uiState =
             OtherSettingsState(
-                checkForUpdates = preferences.getBoolean("check_for_updates", true),
+                checkForUpdates = preferences.getBoolean("check_for_updates", false),
                 languageLabels = languageLabels,
                 languageIndex = languageIndex,
                 refreshRateLabels = refreshRateLabels,

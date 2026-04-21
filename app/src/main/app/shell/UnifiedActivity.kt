@@ -5,12 +5,12 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.content.IntentSender
 import android.content.res.Configuration
+import android.hardware.input.InputManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Bundle
-import android.os.Process
 import android.provider.DocumentsContract
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
@@ -187,6 +187,7 @@ import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.input.ControllerHelper
 import com.winlator.cmod.runtime.wine.PeIconExtractor
 import com.winlator.cmod.shared.android.ActivityResultHost
+import com.winlator.cmod.shared.android.AppTerminationHelper
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity
 import com.winlator.cmod.shared.android.RefreshRateUtils
@@ -204,7 +205,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import `in`.dragonbra.javasteam.enums.EPersonaState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -261,6 +261,11 @@ class UnifiedActivity :
         val editContainerId: Int = 0,
     )
 
+    private data class ControllerConnectionState(
+        val isConnected: Boolean = ControllerHelper.isControllerConnected(),
+        val isPlayStation: Boolean = ControllerHelper.isPlayStationController(),
+    )
+
     // Root navigation controller for hub <-> settings transitions
     private var rootNavController: NavHostController? = null
 
@@ -278,8 +283,11 @@ class UnifiedActivity :
     private var selectedLibrarySource: String = ""
     private var selectedGogGameId: String = ""
 
-    // Trigger to refresh library when activity resumes from another container
+    // Full library refresh trigger for installs, shortcuts, and external changes.
     var libraryRefreshSignal by mutableIntStateOf(0)
+    // Lightweight refresh trigger for playtime/order changes when returning from a game.
+    var libraryPlaytimeRefreshSignal by mutableIntStateOf(0)
+    private var hasCompletedInitialResume = false
 
     // Freezes the library/store card chasing borders while any full-screen
     // dialog is open, so the ~120 Hz animation cost isn't paid for content
@@ -525,22 +533,18 @@ class UnifiedActivity :
     override fun onPause() {
         super.onPause()
         chasingBordersPaused.value = true
+        UpdateChecker.stopBackgroundLoop()
+        UpdateChecker.cancelPostGameCheck()
     }
 
     override fun onResume() {
         super.onResume()
         chasingBordersPaused.value = false
-        // Ensure all store services are running when returning from a game or other activity
-        if (GOGService.hasStoredCredentials(this) && !GOGService.isRunning) {
-            GOGService.start(this)
+        if (hasCompletedInitialResume) {
+            libraryPlaytimeRefreshSignal++
+        } else {
+            hasCompletedInitialResume = true
         }
-        if (EpicService.hasStoredCredentials(this) && !EpicService.isRunning) {
-            EpicService.start(this)
-        }
-        if (SteamService.hasStoredCredentials(this) && SteamService.instance == null) {
-            SteamService.start(this)
-        }
-        libraryRefreshSignal++
 
         // (Re)start the background update loop (checks hourly + on first tick)
         UpdateChecker.startBackgroundLoop(this)
@@ -698,7 +702,6 @@ class UnifiedActivity :
     override fun onCreate(savedInstanceState: Bundle?) {
         instance = this
         super.onCreate(savedInstanceState)
-
         if (!SetupWizardActivity.isSetupComplete(this) || !ImageFs.find(this).isValid) {
             startActivity(
                 Intent(this, SetupWizardActivity::class.java)
@@ -711,10 +714,7 @@ class UnifiedActivity :
         }
 
         supportFragmentManager.registerFragmentLifecycleCallbacks(inputControlsFragmentTracker, true)
-        db = PluviaDatabase.getInstance(this)
         EpicAuthManager.updateLoginStatus(this)
-        GOGAuthManager.updateLoginStatus(this)
-        GOGConstants.init(this)
         SteamService.initLoginStatus(this)
 
         // Start EpicService if user is logged in
@@ -728,11 +728,6 @@ class UnifiedActivity :
             }
             // Make sure the background refresh worker is scheduled (idempotent).
             com.winlator.cmod.feature.stores.epic.service.EpicTokenRefreshWorker.schedule(this)
-        }
-
-        // If the refresh worker fired while the app was killed, push the latest tokens to Google now.
-        lifecycleScope.launch {
-            com.winlator.cmod.feature.sync.google.CloudSyncManager.flushPendingAutoBackup(this@UnifiedActivity)
         }
 
         // Surface store-session events (e.g. Epic refresh-token death, cloud restore) as toasts.
@@ -752,13 +747,7 @@ class UnifiedActivity :
                             android.widget.Toast.LENGTH_LONG,
                         )
                     }
-                    is com.winlator.cmod.feature.stores.common.StoreSessionEvent.SessionRestored -> {
-                        com.winlator.cmod.shared.android.AppUtils.showToast(
-                            this@UnifiedActivity,
-                            "$label session restored from cloud",
-                            android.widget.Toast.LENGTH_SHORT,
-                        )
-                    }
+                    is com.winlator.cmod.feature.stores.common.StoreSessionEvent.SessionRestored -> Unit
                     is com.winlator.cmod.feature.stores.common.StoreSessionEvent.SessionRefreshed -> {
                         // informational — no UI surface
                     }
@@ -774,6 +763,8 @@ class UnifiedActivity :
         if (GOGAuthManager.isLoggedIn(this)) {
             GOGService.start(this)
         }
+
+        SteamService.maybeRepairInstalledMetadataOnStartup(this)
 
         enableEdgeToEdge(
             navigationBarStyle = SystemBarStyle.dark(0xFF141B24.toInt()),
@@ -791,9 +782,6 @@ class UnifiedActivity :
                 window.decorView.systemGestureExclusionRects = listOf(exclusionRect)
             }
         }
-
-        // Start the background update loop (first check fires after 5 s)
-        UpdateChecker.startBackgroundLoop(this)
 
         setContent {
             val navController = rememberNavController()
@@ -990,14 +978,12 @@ class UnifiedActivity :
         var showExitDialog by remember { mutableStateOf(false) }
         var searchQueryTfv by remember { mutableStateOf(TextFieldValue("")) }
         val searchQuery = searchQueryTfv.text
-        var libraryRefreshKey by remember { mutableIntStateOf(0) }
+        var localLibraryRefreshKey by remember { mutableIntStateOf(0) }
         var iconRefreshKey by remember { mutableIntStateOf(0) }
 
         val currentRefreshSignal = this@UnifiedActivity.libraryRefreshSignal
-        LaunchedEffect(currentRefreshSignal) {
-            libraryRefreshKey++
-            iconRefreshKey++
-        }
+        val libraryRefreshKey = currentRefreshSignal + localLibraryRefreshKey
+        val playtimeRefreshKey = this@UnifiedActivity.libraryPlaytimeRefreshSignal
 
         val contentFilters = remember { mutableStateMapOf("games" to true, "dlc" to false, "applications" to false, "tools" to false) }
         var libraryLayoutMode by remember {
@@ -1023,30 +1009,27 @@ class UnifiedActivity :
         val epicApps by db.epicGameDao().getAll().collectAsState(initial = emptyList())
         val gogApps by db.gogGameDao().getAll().collectAsState(initial = emptyList())
 
-        var isControllerConnected by remember { mutableStateOf(ControllerHelper.isControllerConnected()) }
-        val isPS = remember(isControllerConnected) { ControllerHelper.isPlayStationController() }
+        val controllerState = rememberControllerConnectionState()
+        val isControllerConnected = controllerState.isConnected
+        val isPS = controllerState.isPlayStation
         val isLibraryTab = tabs.getOrNull(selectedIdx)?.key == "library"
 
-        // Refresh controller state periodically
-        LaunchedEffect(Unit) {
-            while (true) {
-                isControllerConnected = ControllerHelper.isControllerConnected()
-                kotlinx.coroutines.delay(2000)
-            }
-        }
-
-        // Observe library install status changes to refresh UI
-        LaunchedEffect(Unit) {
-            val listener =
+        val libraryInstallStatusListener =
+            remember {
                 object : EventDispatcher.JavaEventListener {
                     override fun onEvent(event: Any) {
                         if (event is AndroidEvent.LibraryInstallStatusChanged) {
-                            libraryRefreshKey++
+                            localLibraryRefreshKey++
                             iconRefreshKey++
                         }
                     }
                 }
-            PluviaApp.events.onJava(AndroidEvent.LibraryInstallStatusChanged::class, listener)
+            }
+        DisposableEffect(libraryInstallStatusListener) {
+            PluviaApp.events.onJava(AndroidEvent.LibraryInstallStatusChanged::class, libraryInstallStatusListener)
+            onDispose {
+                PluviaApp.events.offJava(AndroidEvent.LibraryInstallStatusChanged::class, libraryInstallStatusListener)
+            }
         }
 
         LaunchedEffect(isEpicLoggedIn) {
@@ -1131,23 +1114,18 @@ class UnifiedActivity :
                 }
             }
 
-        // Sync Steam states periodically without forcing full library recomposition
-        LaunchedEffect(Unit) {
-            while (true) {
-                kotlinx.coroutines.delay(10000)
-                SteamService.syncStates()
-            }
-        }
-
         // Clamp selectedIdx if tabs shrink
         var globalSettingsApp by remember { mutableStateOf<SteamApp?>(null) }
         var globalSettingsGogGame by remember { mutableStateOf<GOGGame?>(null) }
 
         LaunchedEffect(tabs.size) { if (selectedIdx >= tabs.size) selectedIdx = 0 }
-        LaunchedEffect(Unit) { SteamService.requestUserPersona() }
+        LaunchedEffect(isLoggedIn, persona) {
+            if (isLoggedIn && persona == null) {
+                SteamService.requestUserPersona()
+            }
+        }
 
         val activity = LocalContext.current as? UnifiedActivity
-        val listState = rememberLazyListState(initialFirstVisibleItemIndex = 0)
 
         LaunchedEffect(tabs) {
             activity?.keyEventFlow?.collect { event ->
@@ -1365,8 +1343,10 @@ class UnifiedActivity :
                                 gogApps = gogApps,
                                 layoutMode = libraryLayoutMode,
                                 libraryRefreshKey = libraryRefreshKey,
+                                playtimeRefreshKey = playtimeRefreshKey,
                                 iconRefreshKey = iconRefreshKey,
                                 searchQuery = searchQuery,
+                                isControllerConnected = isControllerConnected,
                             )
                         }
 
@@ -1460,7 +1440,7 @@ class UnifiedActivity :
         if (showAddCustomGame) {
             AddCustomGameDialog(onDismiss = {
                 showAddCustomGame = false
-                libraryRefreshKey++
+                localLibraryRefreshKey++
             })
         }
 
@@ -1519,9 +1499,7 @@ class UnifiedActivity :
                             // Exit button
                             Button(
                                 onClick = {
-                                    // Kill all WinNative processes and close fully
-                                    finishAffinity()
-                                    Process.killProcess(Process.myPid())
+                                    AppTerminationHelper.exitApplication(this@UnifiedActivity, "hub_exit_menu")
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
                                 shape = RoundedCornerShape(12.dp),
@@ -1921,8 +1899,10 @@ class UnifiedActivity :
         gogApps: List<GOGGame>,
         layoutMode: LibraryLayoutMode,
         libraryRefreshKey: Int = 0,
+        playtimeRefreshKey: Int = 0,
         iconRefreshKey: Int = 0,
         searchQuery: String = "",
+        isControllerConnected: Boolean = false,
     ) {
         val context = LocalContext.current
 
@@ -1967,21 +1947,20 @@ class UnifiedActivity :
             }
         }
 
-        // Move expensive filtering (runBlocking DB queries, file I/O) off the main thread
+        // Move expensive filtering (runBlocking DB queries, file I/O) off the main thread.
+        // This set only changes on real library mutations; playtime resorts are handled separately.
+        var mergedInstalledApps by remember { mutableStateOf<List<SteamApp>>(emptyList()) }
         var installedApps by remember { mutableStateOf<List<SteamApp>>(emptyList()) }
         var gogByPseudoId by remember { mutableStateOf<Map<Int, GOGGame>>(emptyMap()) }
         var libraryLoaded by remember { mutableStateOf(false) }
         // Track whether the LaunchedEffect is still reprocessing after input changes
         // so we don't flash the empty state while filtering is in progress.
-        var inputVersion by remember { mutableIntStateOf(0) }
-        var processedVersion by remember { mutableIntStateOf(0) }
+        var scanVersion by remember { mutableIntStateOf(0) }
+        var processedScanVersion by remember { mutableIntStateOf(0) }
 
         LaunchedEffect(steamApps, epicApps, gogApps, customApps, libraryRefreshKey) {
-            inputVersion++
-            // On first run, wait for DB to emit before declaring loaded
-            if (!libraryLoaded) {
-                db.steamAppDao().getAllOwnedApps().first()
-            }
+            scanVersion++
+            val requestedVersion = scanVersion
             withContext(Dispatchers.IO) {
                 val steamInstalled = steamApps.filter { SteamService.isAppInstalled(it.id) }
 
@@ -2025,11 +2004,36 @@ class UnifiedActivity :
 
                 withContext(Dispatchers.Main) {
                     gogByPseudoId = gogMap
+                    mergedInstalledApps = merged
                     installedApps = sorted
                     libraryLoaded = true
-                    processedVersion = inputVersion
+                    processedScanVersion = requestedVersion
                 }
             }
+        }
+
+        LaunchedEffect(mergedInstalledApps, playtimeRefreshKey) {
+            if (mergedInstalledApps.isEmpty()) {
+                installedApps = emptyList()
+                return@LaunchedEffect
+            }
+
+            val sorted =
+                withContext(Dispatchers.IO) {
+                    val playtimePrefs = context.getSharedPreferences("playtime_stats", android.content.Context.MODE_PRIVATE)
+                    val allPlaytime = playtimePrefs.all
+                    mergedInstalledApps.sortedByDescending { app ->
+                        val searchKey =
+                            if (app.id >= 2000000000 || app.id < 0) {
+                                app.name
+                            } else {
+                                app.name.replace(LIBRARY_NAME_SANITIZE_REGEX, "")
+                            }
+                        (allPlaytime["${searchKey}_last_played"] as? Long) ?: 0L
+                    }
+                }
+
+            installedApps = sorted
         }
 
         val displayedApps =
@@ -2059,7 +2063,7 @@ class UnifiedActivity :
                     (epicApps.isEmpty() && EpicService.hasStoredCredentials(context)) ||
                     (gogApps.isEmpty() && GOGAuthManager.isLoggedIn(context))
             )
-        val showLoading = !libraryLoaded || !minTimeElapsed || processedVersion < inputVersion || awaitingStoreSync
+        val showLoading = !libraryLoaded || !minTimeElapsed || processedScanVersion < scanVersion || awaitingStoreSync
         if (showLoading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 val spinAlpha by animateFloatAsState(
@@ -2201,7 +2205,7 @@ class UnifiedActivity :
                         gogGame = gogByPseudoId[app.id],
                         iconRefreshKey = iconRefreshKey,
                         isFocusedOverride = index == focusIndex,
-                        isControllerActive = ControllerHelper.isControllerConnected(),
+                        isControllerActive = isControllerConnected,
                         shortcuts = cachedShortcuts,
                         onClick = {
                             detailGogGame = gogByPseudoId[app.id]
@@ -2241,7 +2245,7 @@ class UnifiedActivity :
                         gogGame = gogByPseudoId[app.id],
                         iconRefreshKey = iconRefreshKey,
                         isFocusedOverride = isSelected,
-                        isControllerActive = ControllerHelper.isControllerConnected(),
+                        isControllerActive = isControllerConnected,
                         shortcuts = cachedShortcuts,
                         onClick = {
                             detailGogGame = gogByPseudoId[app.id]
@@ -2289,7 +2293,7 @@ class UnifiedActivity :
                         gogGame = gogByPseudoId[app.id],
                         iconRefreshKey = iconRefreshKey,
                         isFocusedOverride = isSelected,
-                        isControllerActive = ControllerHelper.isControllerConnected(),
+                        isControllerActive = isControllerConnected,
                         shortcuts = cachedShortcuts,
                         onClick = {
                             detailGogGame = gogByPseudoId[app.id]
@@ -6493,19 +6497,48 @@ class UnifiedActivity :
         onSelectDownload: (String?) -> Unit,
     ) {
         val downloads = remember { mutableStateListOf<Pair<String, DownloadInfo>>() }
-        // Tick counter forces recomposition so button labels/states refresh with status changes
         var tick by remember { mutableIntStateOf(0) }
+        val scope = rememberCoroutineScope()
 
-        LaunchedEffect(Unit) {
-            while (true) {
-                val currentDownloads = DownloadService.getAllDownloads()
-                downloads.clear()
-                downloads.addAll(currentDownloads)
-                if (selectedId != null && currentDownloads.none { it.first == selectedId }) {
-                    onSelectDownload(null)
+        val syncDownloads =
+            remember(selectedId, onSelectDownload) {
+                {
+                    val currentDownloads = DownloadService.getAllDownloads()
+                    downloads.clear()
+                    downloads.addAll(currentDownloads)
+                    if (selectedId != null && currentDownloads.none { it.first == selectedId }) {
+                        onSelectDownload(null)
+                    }
                 }
-                tick++
-                kotlinx.coroutines.delay(1000)
+            }
+        val latestSyncDownloads by rememberUpdatedState(syncDownloads)
+
+        val downloadStatusListener =
+            remember {
+                object : EventDispatcher.JavaEventListener {
+                    override fun onEvent(event: Any) {
+                        if (event is AndroidEvent.DownloadStatusChanged) {
+                            scope.launch {
+                                latestSyncDownloads()
+                            }
+                        }
+                    }
+                }
+            }
+
+        DisposableEffect(downloadStatusListener, syncDownloads) {
+            syncDownloads()
+            PluviaApp.events.onJava(AndroidEvent.DownloadStatusChanged::class, downloadStatusListener)
+            onDispose {
+                PluviaApp.events.offJava(AndroidEvent.DownloadStatusChanged::class, downloadStatusListener)
+            }
+        }
+
+        downloads.forEach { (_, info) ->
+            LaunchedEffect(info) {
+                info.getStatusFlow().collect {
+                    tick++
+                }
             }
         }
 
@@ -6518,7 +6551,7 @@ class UnifiedActivity :
             val isController = ControllerHelper.isControllerConnected()
             val isPS = ControllerHelper.isPlayStationController()
 
-            // Read tick to ensure recomposition picks up latest status values
+            // Read tick to ensure global button state reacts to per-download status changes.
             @Suppress("UNUSED_EXPRESSION")
             tick
 
@@ -6752,7 +6785,7 @@ class UnifiedActivity :
             }
 
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(downloads) { (id, info) ->
+                items(downloads, key = { it.first }) { (id, info) ->
                     DownloadItemDeck(id, info, isSelected = selectedId == id, onClick = {
                         if (selectedId == id) onSelectDownload(null) else onSelectDownload(id)
                     })
@@ -9743,6 +9776,40 @@ class UnifiedActivity :
                 }
             }
         }
+    }
+
+    @Composable
+    private fun rememberControllerConnectionState(): ControllerConnectionState {
+        val context = LocalContext.current
+        val inputManager = remember(context) { context.getSystemService(InputManager::class.java) }
+        var controllerState by remember { mutableStateOf(ControllerConnectionState()) }
+
+        DisposableEffect(inputManager) {
+            fun refreshState() {
+                controllerState =
+                    ControllerConnectionState(
+                        isConnected = ControllerHelper.isControllerConnected(),
+                        isPlayStation = ControllerHelper.isPlayStationController(),
+                    )
+            }
+
+            val listener =
+                object : InputManager.InputDeviceListener {
+                    override fun onInputDeviceAdded(deviceId: Int) = refreshState()
+
+                    override fun onInputDeviceRemoved(deviceId: Int) = refreshState()
+
+                    override fun onInputDeviceChanged(deviceId: Int) = refreshState()
+                }
+
+            refreshState()
+            inputManager?.registerInputDeviceListener(listener, null)
+            onDispose {
+                inputManager?.unregisterInputDeviceListener(listener)
+            }
+        }
+
+        return controllerState
     }
 }
 
