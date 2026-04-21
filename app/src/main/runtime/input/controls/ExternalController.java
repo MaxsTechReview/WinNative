@@ -518,9 +518,9 @@ public class ExternalController {
       case 105:
         return 11;
       case 106:
-        return 9;
-      case 107:
         return 8;
+      case 107:
+        return 9;
       case 108:
         return 7;
       case 109:
