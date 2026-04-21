@@ -30,6 +30,17 @@ public abstract class WineUtils {
     if (hostPath == null || hostPath.isEmpty()) return "";
 
     String normalizedHostPath = normalizeHostPath(hostPath);
+
+    if (container != null) {
+      String driveCRoot =
+          normalizeHostPath(new File(container.getRootDir(), ".wine/drive_c").getAbsolutePath());
+      if (pathStartsWith(normalizedHostPath, driveCRoot)) {
+        String relativePath = normalizedHostPath.substring(driveCRoot.length()).replace("/", "\\");
+        while (relativePath.startsWith("\\")) relativePath = relativePath.substring(1);
+        return "C:\\" + relativePath;
+      }
+    }
+
     String bestDriveLetter = null;
     String bestDriveRoot = null;
 
