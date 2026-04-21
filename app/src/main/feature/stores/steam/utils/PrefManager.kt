@@ -12,6 +12,9 @@ object PrefManager {
     @Volatile
     private var appContext: Context? = null
 
+    @Volatile
+    private var libraryLayoutModeCache: String? = null
+
     fun install(context: Context) {
         appContext = context.applicationContext
     }
@@ -233,8 +236,13 @@ object PrefManager {
         }
 
     var libraryLayoutMode: String
-        get() = getString("library_layout_mode", "GRID_4")
+        get() =
+            libraryLayoutModeCache
+                ?: getString("library_layout_mode", "GRID_4").also {
+                    libraryLayoutModeCache = it
+                }
         set(value) {
+            libraryLayoutModeCache = value
             setString("library_layout_mode", value)
         }
 
@@ -295,6 +303,7 @@ object PrefManager {
     }
 
     fun clearPreferences() {
+        libraryLayoutModeCache = null
         requirePrefs().edit().clear().commit()
     }
 

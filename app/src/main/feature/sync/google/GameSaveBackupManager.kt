@@ -7,6 +7,8 @@ import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.Scope
 import com.google.android.gms.games.PlayGames
 import com.google.android.gms.tasks.Tasks
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager
 import com.winlator.cmod.feature.stores.gog.service.GOGService
 import com.winlator.cmod.feature.stores.steam.enums.PathType
@@ -839,8 +841,23 @@ object GameSaveBackupManager {
 
     private fun isGoogleSyncEnabled(context: Context): Boolean = prefs(context).getBoolean(KEY_GOOGLE_SYNC_ENABLED, false)
 
-    private suspend fun isAuthenticatedBlocking(activity: Activity): Boolean =
-        try {
+    private fun isActivityValidForPlayGames(activity: Activity): Boolean {
+        if (activity.isFinishing || activity.isDestroyed) {
+            return false
+        }
+        val lifecycleState = (activity as? LifecycleOwner)?.lifecycle?.currentState
+        return lifecycleState?.isAtLeast(Lifecycle.State.STARTED) ?: true
+    }
+
+    private suspend fun isAuthenticatedBlocking(activity: Activity): Boolean {
+        if (!isActivityValidForPlayGames(activity)) {
+            Timber.tag(TAG).i(
+                "Skipping Google auth check because %s is finishing or destroyed",
+                activity::class.java.simpleName,
+            )
+            return false
+        }
+        return try {
             PlayGamesBootstrap.ensureInitialized(activity)
             val task = PlayGames.getGamesSignInClient(activity).isAuthenticated
             val result =
@@ -857,8 +874,12 @@ object GameSaveBackupManager {
             Timber.tag(TAG).e(error, "Failed to read Google authentication state")
             false
         }
+    }
 
     private suspend fun awaitAuthenticatedSession(activity: Activity): Boolean {
+        if (!isActivityValidForPlayGames(activity)) {
+            return false
+        }
         PlayGamesBootstrap.ensureInitialized(activity)
         repeat(AUTH_SESSION_RETRY_COUNT) { attempt ->
             if (isAuthenticatedBlocking(activity)) {
@@ -879,6 +900,13 @@ object GameSaveBackupManager {
     private suspend fun getDriveAccessToken(activity: Activity): String? =
         withContext(Dispatchers.IO) {
             try {
+                if (!isActivityValidForPlayGames(activity)) {
+                    Timber.tag(TAG).w(
+                        "Skipping Drive authorization because %s is no longer active",
+                        activity::class.java.simpleName,
+                    )
+                    return@withContext null
+                }
                 val authRequest =
                     AuthorizationRequest
                         .builder()

@@ -4,6 +4,8 @@ import android.content.Context
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import android.util.Log
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.games.PlayGames
@@ -67,6 +69,14 @@ object CloudSyncManager {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val syncMutex = Mutex()
+
+    private fun isActivityValidForPlayGames(activity: Activity): Boolean {
+        if (activity.isFinishing || activity.isDestroyed) {
+            return false
+        }
+        val lifecycleState = (activity as? LifecycleOwner)?.lifecycle?.currentState
+        return lifecycleState?.isAtLeast(Lifecycle.State.STARTED) ?: true
+    }
 
     data class StoreLoginSyncState(
         val googleSignedIn: Boolean = false,
@@ -756,6 +766,13 @@ object CloudSyncManager {
     }
 
     private suspend fun freshSnapshotsClient(activity: Activity): SnapshotsClient? {
+        if (!isActivityValidForPlayGames(activity)) {
+            Timber.tag(TAG).w(
+                "Skipping snapshot client creation for %s because the activity is no longer active",
+                activity::class.java.simpleName,
+            )
+            return null
+        }
         PlayGamesBootstrap.ensureInitialized(activity)
         return PlayGames.getSnapshotsClient(activity)
     }
@@ -1323,6 +1340,9 @@ object CloudSyncManager {
     }
 
     private suspend fun awaitAuthenticatedSession(activity: Activity): Boolean {
+        if (!isActivityValidForPlayGames(activity)) {
+            return false
+        }
         PlayGamesBootstrap.ensureInitialized(activity)
         repeat(AUTH_SESSION_RETRY_COUNT) { attempt ->
             if (isAuthenticatedBlocking(activity)) {
@@ -1358,8 +1378,15 @@ object CloudSyncManager {
         throw IllegalStateException("Play Games authentication did not become ready for Saved Games access.")
     }
 
-    private suspend fun isAuthenticatedBlocking(activity: Activity): Boolean =
-        try {
+    private suspend fun isAuthenticatedBlocking(activity: Activity): Boolean {
+        if (!isActivityValidForPlayGames(activity)) {
+            Timber.tag(TAG).i(
+                "Skipping Google auth check because %s is finishing or destroyed",
+                activity::class.java.simpleName,
+            )
+            return false
+        }
+        return try {
             PlayGamesBootstrap.ensureInitialized(activity)
             val task = PlayGames.getGamesSignInClient(activity).isAuthenticated
             val result =
@@ -1379,4 +1406,5 @@ object CloudSyncManager {
             Timber.tag(TAG).e(error, "Failed to read Google authentication state")
             false
         }
+    }
 }

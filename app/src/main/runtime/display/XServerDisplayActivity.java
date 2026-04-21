@@ -312,6 +312,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private Runnable realSteamWatchdogRunnable;
     private final AtomicBoolean exitRequested = new AtomicBoolean(false);
     private final AtomicBoolean steamExitWatchRunning = new AtomicBoolean(false);
+    private final AtomicBoolean activityDestroyed = new AtomicBoolean(false);
+    private final AtomicBoolean forcedCleanupStarted = new AtomicBoolean(false);
 
     private boolean isDarkMode;
     private boolean enableLogsMenu;
@@ -1807,7 +1809,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 long startTime = System.currentTimeMillis();
                 long lastNonCoreSeenAt = -1L;
 
-                while (!exitRequested.get() && System.currentTimeMillis() - startTime < STEAM_TERMINATION_TIMEOUT_MS) {
+                while (!exitRequested.get()
+                        && !activityDestroyed.get()
+                        && System.currentTimeMillis() - startTime < STEAM_TERMINATION_TIMEOUT_MS) {
                     ArrayList<ProcessInfo> snapshot = captureWinHandlerProcessSnapshot();
                     if (snapshot != null) {
                         ArrayList<String> activeNames = new ArrayList<>();
@@ -1830,12 +1834,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             lastNonCoreSeenAt = now;
                         } else if (lastNonCoreSeenAt > 0L && now - lastNonCoreSeenAt >= STEAM_TERMINATION_POLL_MS) {
                             Log.d("XServerDisplayActivity", "Steam/game processes drained; exiting session");
-                            runOnUiThread(this::exit);
+                            requestExitOnUiThread("steam/game processes drained");
                             return;
                         } else if (lastNonCoreSeenAt < 0L && now - startTime >= STEAM_TERMINATION_GRACE_MS) {
                             Log.d("XServerDisplayActivity",
                                     "No non-core Steam/game process appeared after wrapper exit; exiting session");
-                            runOnUiThread(this::exit);
+                            requestExitOnUiThread("steam wrapper exited without spawning a game");
                             return;
                         }
                     }
@@ -1843,15 +1847,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     Thread.sleep(STEAM_TERMINATION_POLL_MS);
                 }
 
-                if (!exitRequested.get()) {
+                if (!exitRequested.get() && !activityDestroyed.get()) {
                     Log.d("XServerDisplayActivity", "Steam exit watch timed out; exiting session");
-                    runOnUiThread(this::exit);
+                    requestExitOnUiThread("steam exit watch timed out");
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 Log.w("XServerDisplayActivity", "Steam exit watch interrupted", e);
-                if (!exitRequested.get()) {
-                    runOnUiThread(this::exit);
+                if (!exitRequested.get() && !activityDestroyed.get()) {
+                    requestExitOnUiThread("steam exit watch interrupted");
                 }
             } finally {
                 steamExitWatchRunning.set(false);
@@ -1874,7 +1878,104 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
+    private void requestExitOnUiThread(String reason) {
+        runOnUiThread(() -> {
+            if (activityDestroyed.get() || isFinishing() || isDestroyed()) {
+                Log.d("XServerDisplayActivity", "Skipping exit request after teardown: " + reason);
+                return;
+            }
+            exit();
+        });
+    }
+
+    private void performForcedSessionCleanup(String trigger) {
+        if (!forcedCleanupStarted.compareAndSet(false, true)) {
+            Log.d("XServerLeakCheck", "Forced session cleanup already ran; skipping duplicate request from " + trigger);
+            return;
+        }
+
+        activityDestroyed.set(true);
+        Log.w("XServerLeakCheck", "Starting forced session cleanup from " + trigger);
+
+        try {
+            if (preloaderDialog != null) preloaderDialog.close();
+        } catch (Exception e) {
+            Log.w("XServerLeakCheck", "Failed to close preloader during forced cleanup", e);
+        }
+
+        try {
+            if (handler != null) {
+                if (savePlaytimeRunnable != null) {
+                    handler.removeCallbacks(savePlaytimeRunnable);
+                }
+                if (controllerAutoSwitchRunnable != null) {
+                    handler.removeCallbacks(controllerAutoSwitchRunnable);
+                }
+            }
+        } catch (Exception e) {
+            Log.w("XServerLeakCheck", "Failed to remove handler callbacks during forced cleanup", e);
+        }
+
+        try {
+            if (midiHandler != null) {
+                midiHandler.stop();
+                midiHandler = null;
+            }
+        } catch (Exception e) {
+            Log.e("XServerLeakCheck", "Failed to stop MidiHandler during forced cleanup", e);
+        }
+
+        try {
+            if (sensorManager != null) sensorManager.unregisterListener(gyroListener);
+        } catch (Exception e) {
+            Log.w("XServerLeakCheck", "Failed to unregister sensor listener during forced cleanup", e);
+        }
+
+        try {
+            if (winHandler != null) {
+                winHandler.stop();
+                winHandler = null;
+            }
+        } catch (Exception e) {
+            Log.e("XServerLeakCheck", "Failed to stop WinHandler during forced cleanup", e);
+        }
+
+        try {
+            if (wineRequestHandler != null) {
+                wineRequestHandler.stop();
+                wineRequestHandler = null;
+            }
+        } catch (Exception e) {
+            Log.e("XServerLeakCheck", "Failed to stop WineRequestHandler during forced cleanup", e);
+        }
+
+        try {
+            if (environment != null) {
+                environment.stopEnvironmentComponents();
+                environment = null;
+            }
+        } catch (Exception e) {
+            Log.e("XServerLeakCheck", "Failed to stop environment during forced cleanup", e);
+        }
+
+        xServer = null;
+        xServerView = null;
+
+        ArrayList<String> remaining = ProcessHelper.terminateSessionProcessesAndWait(2000, true);
+        ProcessHelper.drainDeadChildren("forced cleanup (" + trigger + ")");
+        ProcessHelper.scheduleDeadChildReapSweep("forced cleanup (" + trigger + ")", 4000, 200);
+        if (remaining.isEmpty()) {
+            Log.i("XServerLeakCheck", "Forced session cleanup finished cleanly after " + trigger);
+        } else {
+            Log.e("XServerLeakCheck", "Remaining leaked session processes after forced cleanup from " + trigger + ": " + remaining);
+        }
+    }
+
     private void exit() {
+        if (activityDestroyed.get() || isFinishing() || isDestroyed()) {
+            Log.d("XServerDisplayActivity", "Ignoring exit() on torn-down activity");
+            return;
+        }
         if (!exitRequested.compareAndSet(false, true)) {
             Log.d("XServerDisplayActivity", "Exit already in progress; ignoring duplicate request");
             return;
@@ -2209,6 +2310,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        activityDestroyed.set(true);
+        if (preloaderDialog != null) {
+            preloaderDialog.close();
+        }
         super.onDestroy();
         if (preferences != null) {
             preferences.unregisterOnSharedPreferenceChangeListener(prefListener);
@@ -2223,37 +2328,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         if (!exitRequested.get()) {
-            Log.w("XServerLeakCheck", "onDestroy called without exit() — forcing last-resort cleanup");
-            try {
-                if (winHandler != null) winHandler.stop();
-            } catch (Exception e) {
-                Log.e("XServerLeakCheck", "Failed to stop WinHandler during last-resort cleanup", e);
-            }
-            try {
-                if (wineRequestHandler != null) wineRequestHandler.stop();
-            } catch (Exception e) {
-                Log.e("XServerLeakCheck", "Failed to stop WineRequestHandler during last-resort cleanup", e);
-            }
-            try {
-                if (midiHandler != null) midiHandler.stop();
-            } catch (Exception e) {
-                Log.e("XServerLeakCheck", "Failed to stop MidiHandler during last-resort cleanup", e);
-            }
-            try {
-                if (environment != null) {
-                    environment.stopEnvironmentComponents();
-                    environment = null;
-                }
-            } catch (Exception e) {
-                Log.e("XServerLeakCheck", "Failed to stop environment during last-resort cleanup", e);
-            }
-
-            ArrayList<String> remaining = ProcessHelper.terminateSessionProcessesAndWait(2000, true);
-            ProcessHelper.drainDeadChildren("last-resort onDestroy cleanup");
-            ProcessHelper.scheduleDeadChildReapSweep("last-resort onDestroy cleanup", 4000, 200);
-            if (!remaining.isEmpty()) {
-                Log.e("XServerLeakCheck", "Remaining leaked session processes after forced cleanup: " + remaining);
-            }
+            performForcedSessionCleanup("onDestroy");
         }
 
         // Leak detection: log warnings if resources were not cleaned up by exit()
@@ -2307,6 +2382,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         super.onStop();
         savePlaytimeData();
         handler.removeCallbacks(savePlaytimeRunnable);
+        if (!exitRequested.get() && isFinishing() && !isChangingConfigurations()) {
+            performForcedSessionCleanup("onStop finishing");
+        }
     }
 
     private void handleNavigationBackPressed() {

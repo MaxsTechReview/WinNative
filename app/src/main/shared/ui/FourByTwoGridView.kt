@@ -55,6 +55,7 @@ fun <T> FourByTwoGridView(
     gridState: LazyGridState = rememberLazyGridState(),
     clipContent: Boolean = true,
     viewMode: ViewMode = ViewMode.Grid,
+    keyOf: ((T) -> Any)? = null,
     itemContent: @Composable (item: T, index: Int, rowHeight: Dp) -> Unit,
 ) {
     when (viewMode) {
@@ -95,7 +96,15 @@ fun <T> FourByTwoGridView(
                             .fillMaxSize()
                             .then(if (!clipContent) Modifier.graphicsLayer { clip = false } else Modifier),
                 ) {
-                    itemsIndexed(items) { index, item ->
+                    itemsIndexed(
+                        items = items,
+                        key =
+                            if (keyOf != null) {
+                                { _, item -> keyOf(item) }
+                            } else {
+                                null
+                            },
+                    ) { index, item ->
                         itemContent(item, index, rowHeight)
                     }
                 }
