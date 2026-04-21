@@ -1032,6 +1032,7 @@ public class WinHandler {
 
     ExternalController controller = ExternalController.getController(deviceId);
     if (controller != null) {
+      controller.setContext(activity);
       this.controllers.put(deviceId, controller);
     }
     return controller;

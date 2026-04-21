@@ -19,7 +19,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class ControlElement {
-  public static final float STICK_DEAD_ZONE = 0.15f;
+  public static final float STICK_DEAD_ZONE = 0.01f;
   public static final float DPAD_DEAD_ZONE = 0.3f;
   public static final float STICK_SENSITIVITY = 2.0f;
   public static final float TRACKPAD_MIN_SPEED = 0.8f;

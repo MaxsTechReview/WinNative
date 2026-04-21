@@ -4185,6 +4185,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (winHandler != null) {
                 handledByWinHandler = winHandler.onGenericMotionEvent(event);
             }
+            if (inputControlsView != null) {
+                inputControlsView.onGenericMotionEvent(event);
+            }
             if (handledByWinHandler) return true;
         }
 
@@ -4206,19 +4209,25 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 touchpadView.cancelMousePointerTimeout();
             }
         }
-        boolean handled = false;
-        if (event.getAction() != KeyEvent.ACTION_DOWN ||
-                (event.getKeyCode() != KeyEvent.KEYCODE_BUTTON_MODE &&
-                 event.getKeyCode() != KeyEvent.KEYCODE_HOME &&
-                 event.getKeyCode() != KeyEvent.KEYCODE_BUTTON_SELECT)) {
-            return !(inputControlsView.onKeyEvent(event) || winHandler.onKeyEvent(event) || !xServer.keyboard.onKeyEvent(event)) ||
-                    (!ExternalController.isGameController(event.getDevice()) && super.dispatchKeyEvent(event));
+
+        boolean handled = inputControlsView.onKeyEvent(event);
+        if (winHandler != null) {
+            handled |= winHandler.onKeyEvent(event);
         }
-        if (inputControlsView.onKeyEvent(event) ||
-                (winHandler != null && winHandler.onKeyEvent(event) && xServer != null && xServer.keyboard.onKeyEvent(event))) {
-            handled = true;
+        if (xServer != null && xServer.keyboard != null) {
+            handled |= xServer.keyboard.onKeyEvent(event);
         }
-        return true;
+
+        if (handled) return true;
+
+        if (event.getAction() == KeyEvent.ACTION_DOWN &&
+                (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_MODE ||
+                 event.getKeyCode() == KeyEvent.KEYCODE_HOME ||
+                 event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_SELECT)) {
+            return true;
+        }
+
+        return super.dispatchKeyEvent(event);
     }
 
     public InputControlsView getInputControlsView() {

@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.text.HtmlCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
 import com.winlator.cmod.R
 import com.winlator.cmod.runtime.input.ControllerHelper
@@ -45,6 +46,9 @@ import com.winlator.cmod.shared.theme.WinNativeTheme
 import org.json.JSONObject
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class InputControlsFragment : Fragment() {
     private lateinit var manager: InputControlsManager
@@ -394,8 +398,22 @@ class InputControlsFragment : Fragment() {
 
         val profile = currentProfile
         if (profile != null) {
-            visibleControllers.addAll(profile.loadControllers())
-            for (controller in ExternalController.getControllers()) {
+            val profileControllers = profile.loadControllers()
+            val liveControllers = ExternalController.getControllers()
+            
+            for (pController in profileControllers) {
+                val liveMatch = liveControllers.find { it.id == pController.id }
+                if (liveMatch != null) {
+                    for (i in 0 until pController.controllerBindingCount) {
+                        liveMatch.addControllerBinding(pController.getControllerBindingAt(i))
+                    }
+                    visibleControllers.add(liveMatch)
+                } else {
+                    visibleControllers.add(pController)
+                }
+            }
+            
+            for (controller in liveControllers) {
                 if (visibleControllers.none { it.id == controller.id }) {
                     visibleControllers.add(controller)
                 }
@@ -849,9 +867,13 @@ class InputControlsFragment : Fragment() {
             expandedControllerIds.remove(controllerId)
             if (activeBindingController?.id == controllerId) stopControllerInputCapture()
             profile.removeController(controller)
-            profile.save()
-            refreshVisibleControllers()
-            publishUiState()
+            lifecycleScope.launch(Dispatchers.IO) {
+                profile.save()
+                launch(Dispatchers.Main) {
+                    refreshVisibleControllers()
+                    publishUiState()
+                }
+            }
         }
     }
 
@@ -883,8 +905,12 @@ class InputControlsFragment : Fragment() {
                 }
             controller.addControllerBinding(binding)
             profile.putController(controller)
-            profile.save()
-            publishUiState()
+            lifecycleScope.launch(Dispatchers.IO) {
+                profile.save()
+                launch(Dispatchers.Main) {
+                    publishUiState()
+                }
+            }
         }
     }
 
@@ -907,8 +933,12 @@ class InputControlsFragment : Fragment() {
                     else -> Binding.NONE
                 }
             currentProfile?.putController(controller)
-            currentProfile?.save()
-            publishUiState()
+            lifecycleScope.launch(Dispatchers.IO) {
+                currentProfile?.save()
+                launch(Dispatchers.Main) {
+                    publishUiState()
+                }
+            }
         }
     }
 
@@ -939,8 +969,12 @@ class InputControlsFragment : Fragment() {
         ) { which ->
             binding.binding = values[which]
             currentProfile?.putController(controller)
-            currentProfile?.save()
-            publishUiState()
+            lifecycleScope.launch(Dispatchers.IO) {
+                currentProfile?.save()
+                launch(Dispatchers.Main) {
+                    publishUiState()
+                }
+            }
         }
     }
 
@@ -951,8 +985,12 @@ class InputControlsFragment : Fragment() {
         val (controller, binding) = findBinding(controllerId, keyCode) ?: return
         controller.removeControllerBinding(binding)
         currentProfile?.putController(controller)
-        currentProfile?.save()
-        publishUiState()
+        lifecycleScope.launch(Dispatchers.IO) {
+            currentProfile?.save()
+            launch(Dispatchers.Main) {
+                publishUiState()
+            }
+        }
     }
 
     private fun findVisibleController(controllerId: String): ExternalController? = visibleControllers.firstOrNull { it.id == controllerId }

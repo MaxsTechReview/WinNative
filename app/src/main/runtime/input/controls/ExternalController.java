@@ -471,91 +471,27 @@ public class ExternalController {
   }
 
   public float getCenteredAxis(MotionEvent event, int axis, int historyPos) {
-    // D-pad hat axes: pass through as-is
-    if (axis == MotionEvent.AXIS_HAT_X || axis == MotionEvent.AXIS_HAT_Y) {
+    if (axis == 15 || axis == 16) {
       float value = event.getAxisValue(axis);
-      return Math.abs(value) == 1.0f ? value : 0.0f;
-    }
-
-    InputDevice device = event.getDevice();
-    // Try source-specific range first, fall back to source-agnostic lookup.
-    // DualSense registers axes under combined SOURCE_GAMEPAD|SOURCE_JOYSTICK
-    // but events may arrive with just SOURCE_JOYSTICK, causing null range.
-    InputDevice.MotionRange range = device.getMotionRange(axis, event.getSource());
-    if (range == null) {
-      range = device.getMotionRange(axis);
-    }
-    if (range == null) return 0.0f;
-
-    float flat = range.getFlat();
-    float value =
-        historyPos < 0 ? event.getAxisValue(axis) : event.getHistoricalAxisValue(axis, historyPos);
-
-    if (Math.abs(value) <= flat) return 0.0f;
-
-    // Left stick (AXIS_X=0, AXIS_Y=1)
-    if (axis == MotionEvent.AXIS_X || axis == MotionEvent.AXIS_Y) {
-      float correctedValue =
-          useSquareDeadzoneLeft
-              ? applySquareDeadzone(
-                  event.getAxisValue(MotionEvent.AXIS_X),
-                  event.getAxisValue(MotionEvent.AXIS_Y),
-                  this.deadzoneLeft,
-                  this.sensitivityLeft,
-                  axis)
-              : applyDeadzoneAndSensitivity(value, this.deadzoneLeft, this.sensitivityLeft);
-
-      if (axis == MotionEvent.AXIS_X && invertLeftX) correctedValue = -correctedValue;
-      if (axis == MotionEvent.AXIS_Y && invertLeftY) correctedValue = -correctedValue;
-      return correctedValue;
-    }
-
-    // Right stick (AXIS_Z=11, AXIS_RZ=14)
-    if (axis == MotionEvent.AXIS_Z || axis == MotionEvent.AXIS_RZ) {
-      value = applyDeadzoneAndSensitivity(value, this.deadzoneRight, this.sensitivityRight);
-      if (axis == MotionEvent.AXIS_Z && invertRightX) value = -value;
-      if (axis == MotionEvent.AXIS_RZ && invertRightY) value = -value;
-      return value;
-    }
-
-    return 0.0f;
-  }
-
-  private float applySquareDeadzone(float x, float y, float deadzone, float sensitivity, int axis) {
-    final float PiOverFour = (float) (Math.PI / 4);
-    double angle = Math.atan2(y, x) + Math.PI;
-
-    float scale;
-    if (angle <= PiOverFour || angle > 7 * PiOverFour) {
-      scale = (float) (1 / Math.cos(angle));
-    } else if (angle > PiOverFour && angle <= 3 * PiOverFour) {
-      scale = (float) (1 / Math.sin(angle));
-    } else if (angle > 3 * PiOverFour && angle <= 5 * PiOverFour) {
-      scale = (float) (-1 / Math.cos(angle));
-    } else {
-      scale = (float) (-1 / Math.sin(angle));
-    }
-
-    float scaledX = x * scale;
-    float scaledY = y * scale;
-
-    float normalizedX = (Math.abs(scaledX) - deadzone) / (1.0f - deadzone);
-    float normalizedY = (Math.abs(scaledY) - deadzone) / (1.0f - deadzone);
-
-    if (axis == MotionEvent.AXIS_X) {
-      return Math.signum(x) * Math.min(Math.max(normalizedX, 0.0f), 1.0f) * sensitivity;
-    } else {
-      return Math.signum(y) * Math.min(Math.max(normalizedY, 0.0f), 1.0f) * sensitivity;
-    }
-  }
-
-  private float applyDeadzoneAndSensitivity(float value, float deadzone, float sensitivity) {
-    if (Math.abs(value) < deadzone) {
+      if (Math.abs(value) == 1.0f) {
+        return value;
+      }
       return 0.0f;
     }
-    float normalized = (Math.abs(value) - deadzone) / (1.0f - deadzone);
-    normalized = Math.signum(value) * normalized;
-    return normalized * sensitivity;
+    InputDevice device = event.getDevice();
+    InputDevice.MotionRange range = device.getMotionRange(axis, event.getSource());
+    if (range == null) {
+      return 0.0f;
+    }
+    float flat = range.getFlat();
+    float value2 = historyPos < 0 ? event.getAxisValue(axis) : event.getHistoricalAxisValue(axis, historyPos);
+    if (Math.abs(value2) <= flat) {
+      return 0.0f;
+    }
+    if ((axis == 0 || axis == 1 || axis == 11 || axis == 14) && Math.abs(value2) >= 0.15f) {
+      return value2;
+    }
+    return 0.0f;
   }
 
   public static boolean isJoystickDevice(MotionEvent event) {
