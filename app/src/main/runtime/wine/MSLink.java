@@ -1,6 +1,7 @@
 package com.winlator.cmod.runtime.wine;
 
 import android.content.Context;
+import com.winlator.cmod.runtime.container.Container;
 import com.winlator.cmod.runtime.display.environment.ImageFs;
 import com.winlator.cmod.shared.util.ArrayUtils;
 import com.winlator.cmod.shared.util.StringUtils;
