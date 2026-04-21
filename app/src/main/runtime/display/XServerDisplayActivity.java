@@ -1677,6 +1677,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
 
     private void savePlaytimeData() {
+        savePlaytimeData(false);
+    }
+
+    private void savePlaytimeData(boolean synchronous) {
         long endTime = System.currentTimeMillis();
         long playtime = endTime - startTime;
 
@@ -1691,7 +1695,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         // Accumulate the playtime into totalPlaytime
         long totalPlaytime = playtimePrefs.getLong(playtimeKey, 0) + playtime;
         editor.putLong(playtimeKey, totalPlaytime);
-        editor.apply();
+        if (synchronous) {
+            editor.commit();
+        } else {
+            editor.apply();
+        }
 
         // Reset startTime to the current time for the next interval
         startTime = System.currentTimeMillis();
@@ -1884,7 +1892,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             handler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    savePlaytimeData(); // Save on destroy
+                    // We're about to hard-restart the process; make sure playtime is flushed.
+                    savePlaytimeData(true);
                     handler.removeCallbacks(savePlaytimeRunnable);
                     if (midiHandler != null) midiHandler.stop();
                     // Unregister sensor listener to avoid memory leaks
@@ -1911,7 +1920,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     xServer = null;
                     xServerView = null;
                     if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.closeOnUiThread();
-                    finish();
+                    // Match Ludashi/vanilla behavior: restart the app to ensure native/GL
+                    // resources are fully released between sessions.
+                    AppUtils.restartApplication(getApplicationContext());
                 }
             }, 1000);
         });
