@@ -28,9 +28,11 @@ jobs:
       matrix:
         flavor:
           - name: Standard
+            artifactName: apk-standard
             gradleTask: assembleStandardDebug
             apkPath: app/build/outputs/apk/standard/debug/standard.apk
           - name: Ludashi
+            artifactName: apk-ludashi
             gradleTask: assembleLudashiDebug
             apkPath: app/build/outputs/apk/ludashi/debug/ludashi.apk
 
@@ -103,15 +105,15 @@ jobs:
     - name: Compute artifact label
       id: label
       run: |
+        short_sha=$(echo "$GITHUB_SHA" | cut -c1-7)
         if [ "${{ github.event_name }}" = "pull_request" ]; then
-          echo "name=PR${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          echo "name=PR#${{ github.event.pull_request.number }}-${short_sha}" >> "$GITHUB_OUTPUT"
         else
           # Squash-merge commit subjects look like "Title (#123)"; extract the PR number.
           num=$(git log -1 --pretty=%s | grep -oE '\(#[0-9]+\)' | tail -1 | tr -d '(#)')
           if [ -n "$num" ]; then
-            echo "name=PR${num}" >> "$GITHUB_OUTPUT"
+            echo "name=PR#${num}-${short_sha}" >> "$GITHUB_OUTPUT"
           else
-            short_sha=$(echo "$GITHUB_SHA" | cut -c1-7)
             echo "name=main-${short_sha}" >> "$GITHUB_OUTPUT"
           fi
         fi
@@ -124,6 +126,7 @@ jobs:
     - name: Upload APK
       uses: actions/upload-artifact@v7
       with:
+        name: ${{ matrix.flavor.artifactName }}
         path: artifacts/WinNative-${{ matrix.flavor.name }}-debug-${{ steps.label.outputs.name }}.apk
         retention-days: 7
         archive: false

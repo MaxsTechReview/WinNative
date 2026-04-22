@@ -1,0 +1,135 @@
+name: PR Release Publish
+
+on:
+  workflow_run:
+    workflows:
+      - PR CI
+    types:
+      - completed
+
+concurrency:
+  group: pr-release-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.pull_requests[0].number
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    env:
+      SOURCE_REPO: ${{ github.repository }}
+      TARGET_REPO: MaxsTechReview/WinNative-CI
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Download PR build artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p artifacts
+          gh run download "$RUN_ID" --repo "$SOURCE_REPO" --name apk-standard --dir artifacts/standard
+          gh run download "$RUN_ID" --repo "$SOURCE_REPO" --name apk-ludashi --dir artifacts/ludashi
+
+      - name: Build release notes from PR metadata
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api "repos/$SOURCE_REPO/pulls/$PR_NUMBER" > pr.json
+
+          pr_title=$(jq -r '.title' pr.json)
+          pr_url=$(jq -r '.html_url' pr.json)
+          pr_body=$(jq -r '.body // ""' pr.json)
+          head_ref=$(jq -r '.head.ref' pr.json)
+          short_sha=$(printf '%s' "$HEAD_SHA" | cut -c1-7)
+          safe_title=$(printf '%s' "$pr_title" | tr '\r\n' ' ' | sed 's/[[:space:]]\+/ /g')
+          thread_name=$(printf '[#%s] %s' "$PR_NUMBER" "$safe_title" | cut -c1-100)
+          run_url="https://github.com/$SOURCE_REPO/actions/runs/$RUN_ID"
+
+          {
+            echo "title=$safe_title"
+            echo "url=$pr_url"
+            echo "tag=pr-$PR_NUMBER"
+            echo "thread_name=$thread_name"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            printf '# PR #%s\n\n' "$PR_NUMBER"
+            printf 'Title: %s\n\n' "$safe_title"
+            printf 'Source PR: %s\n' "$pr_url"
+            printf 'Source branch: %s\n' "$head_ref"
+            printf 'Source commit: `%s`\n' "$HEAD_SHA"
+            printf 'Build workflow run: %s\n\n' "$run_url"
+            printf '## What This PR Is About\n\n'
+            if [ -n "$pr_body" ]; then
+              printf '%s\n' "$pr_body"
+            else
+              printf 'No PR description was provided.\n'
+            fi
+            printf '\n## Attached Artifacts\n\n'
+            printf '- WinNative Standard debug APK\n'
+            printf '- WinNative Ludashi debug APK\n'
+            printf '\nBuilt from source commit `%s`.\n' "$short_sha"
+          } > release-notes.md
+
+      - name: Create or update release in WinNative-CI
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.WINNATIVE_CI_TOKEN }}
+        run: |
+          tag="${{ steps.pr.outputs.tag }}"
+          title="PR #$PR_NUMBER: ${{ steps.pr.outputs.title }}"
+
+          if gh release view "$tag" --repo "$TARGET_REPO" >/dev/null 2>&1; then
+            created=false
+            gh release edit "$tag" \
+              --repo "$TARGET_REPO" \
+              --title "$title" \
+              --notes-file release-notes.md \
+              --prerelease
+          else
+            created=true
+            gh release create "$tag" \
+              --repo "$TARGET_REPO" \
+              --title "$title" \
+              --notes-file release-notes.md \
+              --prerelease
+          fi
+
+          gh release upload "$tag" \
+            artifacts/standard/*.apk \
+            artifacts/ludashi/*.apk \
+            --repo "$TARGET_REPO" \
+            --clobber
+
+          release_url=$(gh release view "$tag" --repo "$TARGET_REPO" --json url --jq '.url')
+          {
+            echo "created=$created"
+            echo "url=$release_url"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create Discord forum post
+        if: ${{ steps.release.outputs.created == 'true' }}
+        env:
+          DISCORD_FORUM_WEBHOOK: ${{ secrets.DISCORD_FORUM_WEBHOOK }}
+          PR_TITLE: ${{ steps.pr.outputs.title }}
+          PR_URL: ${{ steps.pr.outputs.url }}
+          RELEASE_URL: ${{ steps.release.outputs.url }}
+          THREAD_NAME: ${{ steps.pr.outputs.thread_name }}
+        run: |
+          payload=$(jq -nc \
+            --arg thread_name "$THREAD_NAME" \
+            --arg content "**$PR_TITLE**\nPR: $PR_URL\nRelease: $RELEASE_URL" \
+            '{thread_name: $thread_name, content: $content}')
+
+          curl --fail --silent --show-error \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            "${DISCORD_FORUM_WEBHOOK}?wait=true"
