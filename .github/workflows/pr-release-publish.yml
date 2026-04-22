@@ -52,10 +52,13 @@ jobs:
         run: |
           short_sha=$(jq -r '.head.sha' pr.json | cut -c1-5)
           label="PR#${PR_NUMBER}-${short_sha}"
+          release_label=$(printf '%s' "$label" | tr '#' '.')
           {
             echo "label=$label"
             echo "standard=WinNative-Debug-Standard-${label}.apk"
             echo "ludashi=WinNative-Debug-Ludashi-${label}.apk"
+            echo "release_standard=WinNative-Debug-Standard-${release_label}.apk"
+            echo "release_ludashi=WinNative-Debug-Ludashi-${release_label}.apk"
           } >> "$GITHUB_OUTPUT"
 
       - name: Download PR build artifacts
@@ -103,8 +106,8 @@ jobs:
               printf 'No PR description was provided.\n'
             fi
             printf '\n## Attached Artifacts\n\n'
-            printf -- '%s\n' "- ${{ steps.apk.outputs.standard }}"
-            printf -- '%s\n' "- ${{ steps.apk.outputs.ludashi }}"
+            printf -- '%s\n' "- ${{ steps.apk.outputs.release_standard }}"
+            printf -- '%s\n' "- ${{ steps.apk.outputs.release_ludashi }}"
             printf '\nBuilt from source commit `%s`.\n' "$short_sha"
           } > release-notes.md
 
@@ -137,18 +140,24 @@ jobs:
 
           standard_path="artifacts/standard/${{ steps.apk.outputs.standard }}"
           ludashi_path="artifacts/ludashi/${{ steps.apk.outputs.ludashi }}"
+          release_standard_path="release-assets/${{ steps.apk.outputs.release_standard }}"
+          release_ludashi_path="release-assets/${{ steps.apk.outputs.release_ludashi }}"
           test -f "$standard_path"
           test -f "$ludashi_path"
+          mkdir -p release-assets
+          cp "$standard_path" "$release_standard_path"
+          cp "$ludashi_path" "$release_ludashi_path"
 
           release_json=$(gh api "repos/$TARGET_REPO/releases/tags/$tag")
-          upload_url=$(printf '%s' "$release_json" | jq -r '.upload_url' | sed 's/{.*$//')
+          existing_apk_assets=$(
+            printf '%s' "$release_json" |
+              jq '[.assets[]? | select(.name | endswith(".apk"))] | length'
+          )
 
           upload_asset() {
             local file_path="$1"
             local asset_name
             asset_name=$(basename "$file_path")
-            local encoded_name
-            encoded_name=$(jq -rn --arg v "$asset_name" '$v|@uri')
             local existing_asset_id
             existing_asset_id=$(
               printf '%s' "$release_json" |
@@ -160,26 +169,21 @@ jobs:
               gh api --method DELETE "repos/$TARGET_REPO/releases/assets/$existing_asset_id" >/dev/null
             fi
 
-            curl --fail --silent --show-error \
-              -X POST \
-              -H "Authorization: Bearer $GH_TOKEN" \
-              -H "Content-Type: application/vnd.android.package-archive" \
-              --data-binary @"$file_path" \
-              "${upload_url}?name=${encoded_name}" \
-              >/dev/null
+            gh release upload "$tag" "$file_path" --repo "$TARGET_REPO"
           }
 
-          upload_asset "$standard_path"
-          upload_asset "$ludashi_path"
+          upload_asset "$release_standard_path"
+          upload_asset "$release_ludashi_path"
 
           release_url=$(gh release view "$tag" --repo "$TARGET_REPO" --json url --jq '.url')
           {
             echo "created=$created"
+            echo "had_apk_assets=$([ "$existing_apk_assets" -gt 0 ] && echo true || echo false)"
             echo "url=$release_url"
           } >> "$GITHUB_OUTPUT"
 
       - name: Create Discord forum post
-        if: ${{ steps.scope.outputs.allowed == 'true' && steps.release.outputs.created == 'true' }}
+        if: ${{ steps.scope.outputs.allowed == 'true' && (steps.release.outputs.created == 'true' || steps.release.outputs.had_apk_assets != 'true') }}
         env:
           DISCORD_FORUM_WEBHOOK: ${{ secrets.DISCORD_FORUM_WEBHOOK }}
           PR_TITLE: ${{ steps.pr.outputs.title }}
