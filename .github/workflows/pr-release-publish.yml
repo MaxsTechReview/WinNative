@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: read
-      contents: read
+      contents: none
       pull-requests: read
     env:
       SOURCE_REPO: ${{ github.repository }}
@@ -36,8 +36,8 @@ jobs:
         run: |
           gh api "repos/$SOURCE_REPO/pulls/$PR_NUMBER" > pr.json
 
-          head_repo=$(jq -r '.head.repo.full_name' pr.json)
-          base_repo=$(jq -r '.base.repo.full_name' pr.json)
+          head_repo=$(jq -r '.head.repo.full_name // ""' pr.json)
+          base_repo=$(jq -r '.base.repo.full_name // ""' pr.json)
 
           if [ "$head_repo" = "$SOURCE_REPO" ] && [ "$base_repo" = "$SOURCE_REPO" ]; then
             echo "allowed=true" >> "$GITHUB_OUTPUT"
@@ -100,6 +100,8 @@ jobs:
         if: ${{ steps.scope.outputs.allowed == 'true' }}
         id: release
         env:
+          # Use a fine-grained PAT scoped only to MaxsTechReview/WinNative-CI
+          # with "Contents" repository permission set to write.
           GH_TOKEN: ${{ secrets.WINNATIVE_CI_TOKEN }}
         run: |
           tag="${{ steps.pr.outputs.tag }}"
