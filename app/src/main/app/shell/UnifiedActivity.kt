@@ -1315,7 +1315,7 @@ class UnifiedActivity :
                                 }
                             } else {
                                 val steam = steamApps.find { it.id == selectedSteamAppId }
-                                if (steam != null && SteamService.isAppInstalled(steam.id)) {
+                                if (steam != null) {
                                     launchSteamGame(context, containerManager, steam)
                                 }
                             }
@@ -5102,7 +5102,7 @@ class UnifiedActivity :
                 launchGogGame(context, containerManager, gogGame)
             } else if (isEpic) {
                 epicGame?.let { launchEpicGame(context, containerManager, it) }
-            } else if (SteamService.isAppInstalled(app.id)) {
+            } else {
                 launchSteamGame(context, containerManager, app)
             }
         }
@@ -7284,6 +7284,7 @@ class UnifiedActivity :
         var isLoading by remember { mutableStateOf(true) }
         var manifestSizes by remember { mutableStateOf(SteamService.ManifestSizes()) }
         var dlcApps by remember { mutableStateOf<List<SteamApp>>(emptyList()) }
+        var installed by remember(app.id) { mutableStateOf<Boolean?>(null) }
         val selectedDlcIds = remember { mutableStateListOf<Int>() }
         var customPath by remember { mutableStateOf<String?>(null) }
         var showCustomPathWarning by remember { mutableStateOf(false) }
@@ -7360,13 +7361,17 @@ class UnifiedActivity :
         val selectedDlcIdsKey = selectedDlcIds.toList().sorted().joinToString(",")
 
         LaunchedEffect(app.id) {
-            val (downloadableDlcApps, sizes) =
+            val (downloadableDlcApps, sizes, isInstalled) =
                 withContext(Dispatchers.IO) {
-                    (db.steamAppDao().findDownloadableDLCApps(app.id) ?: emptyList<SteamApp>()) to
-                        SteamService.getSelectedManifestSizes(app.id)
+                    Triple(
+                        db.steamAppDao().findDownloadableDLCApps(app.id) ?: emptyList(),
+                        SteamService.getSelectedManifestSizes(app.id),
+                        SteamService.isAppInstalled(app.id),
+                    )
                 }
             dlcApps = downloadableDlcApps
             manifestSizes = sizes
+            installed = isInstalled
             isLoading = false
         }
 
@@ -7396,7 +7401,6 @@ class UnifiedActivity :
             }
         val isInstallEnabled = availableBytes >= totalInstallSize
         val installPathDisplay = customPath ?: SteamService.defaultAppInstallPath
-        val installed = SteamService.isAppInstalled(app.id)
 
         StoreInstallDialogShell(
             title = app.name,
@@ -7430,7 +7434,7 @@ class UnifiedActivity :
                 }
             },
         ) {
-            if (!installed) {
+            if (installed == false) {
                 InstallButton(
                     loading = isLoading,
                     onClick = {
@@ -8385,34 +8389,34 @@ class UnifiedActivity :
         containerManager: ContainerManager,
         app: SteamApp,
     ) {
-        val gameInstallPath = SteamService.getAppDirPath(app.id)
-        val gameDir = java.io.File(gameInstallPath)
-        if (!gameDir.exists()) {
-            com.winlator.cmod.shared.android.AppUtils.showToast(
-                context,
-                "Game not installed: ${app.name}",
-                android.widget.Toast.LENGTH_SHORT,
-            )
-            return
-        }
-
-        val shortcut =
-            containerManager.loadShortcuts().find {
-                it.getExtra("game_source") == "STEAM" && it.getExtra("app_id") == app.id.toString()
+        lifecycleScope.launch(Dispatchers.IO) {
+            val gameInstallPath = SteamService.getAppDirPath(app.id)
+            val gameDir = java.io.File(gameInstallPath)
+            if (!gameDir.exists()) {
+                withContext(Dispatchers.Main) {
+                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                        context,
+                        "Game not installed: ${app.name}",
+                        android.widget.Toast.LENGTH_SHORT,
+                    )
+                }
+                return@launch
             }
 
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-            val launchExecutable =
-                withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    SteamService.getInstalledExe(app.id)
+            val shortcut =
+                containerManager.loadShortcuts().find {
+                    it.getExtra("game_source") == "STEAM" && it.getExtra("app_id") == app.id.toString()
                 }
+            val launchExecutable = SteamService.getInstalledExe(app.id)
 
             if (shortcut != null) {
                 if (!SetupWizardActivity.isContainerUsable(context, shortcut.container)) {
-                    SetupWizardActivity.promptToInstallWineOrCreateContainer(
-                        context,
-                        shortcut.container.wineVersion,
-                    )
+                    withContext(Dispatchers.Main) {
+                        SetupWizardActivity.promptToInstallWineOrCreateContainer(
+                            context,
+                            shortcut.container.wineVersion,
+                        )
+                    }
                     return@launch
                 }
                 ensureGameDrive(shortcut.container, gameInstallPath)
@@ -8443,12 +8447,16 @@ class UnifiedActivity :
                 intent.putExtra("container_id", shortcut.container.id)
                 intent.putExtra("shortcut_path", shortcut.file.path)
                 intent.putExtra("shortcut_name", shortcut.name)
-                launchGame(context, intent)
+                withContext(Dispatchers.Main) {
+                    launchGame(context, intent)
+                }
             } else {
                 val container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
 
                 if (container == null) {
-                    SetupWizardActivity.promptToInstallWineOrCreateContainer(context)
+                    withContext(Dispatchers.Main) {
+                        SetupWizardActivity.promptToInstallWineOrCreateContainer(context)
+                    }
                     return@launch
                 }
 
@@ -8483,7 +8491,9 @@ class UnifiedActivity :
                 intent.putExtra("container_id", container.id)
                 intent.putExtra("shortcut_path", shortcutFile.path)
                 intent.putExtra("shortcut_name", app.name)
-                launchGame(context, intent)
+                withContext(Dispatchers.Main) {
+                    launchGame(context, intent)
+                }
             }
         }
     }
@@ -8493,40 +8503,40 @@ class UnifiedActivity :
         containerManager: ContainerManager,
         app: EpicGame,
     ) {
-        val gameInstallPath = app.installPath.takeIf { it.isNotEmpty() } ?: EpicConstants.getGameInstallPath(context, app.appName)
-        val gameDir = java.io.File(gameInstallPath)
-        if (!gameDir.exists()) {
-            com.winlator.cmod.shared.android.AppUtils.showToast(
-                context,
-                "Game not installed: ${app.title}",
-                android.widget.Toast.LENGTH_SHORT,
-            )
-            return
-        }
-
-        // Try to find an existing shortcut first (preserves per-game settings)
-        var existingShortcut =
-            containerManager.loadShortcuts().find {
-                it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == app.id.toString()
+        lifecycleScope.launch(Dispatchers.IO) {
+            val gameInstallPath = app.installPath.takeIf { it.isNotEmpty() } ?: EpicConstants.getGameInstallPath(context, app.appName)
+            val gameDir = java.io.File(gameInstallPath)
+            if (!gameDir.exists()) {
+                withContext(Dispatchers.Main) {
+                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                        context,
+                        "Game not installed: ${app.title}",
+                        android.widget.Toast.LENGTH_SHORT,
+                    )
+                }
+                return@launch
             }
 
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-            val launchArgsResult =
-                withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    EpicGameLauncher.buildLaunchParameters(context, app)
+            // Try to find an existing shortcut first (preserves per-game settings)
+            val existingShortcut =
+                containerManager.loadShortcuts().find {
+                    it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == app.id.toString()
                 }
+            val launchArgsResult = EpicGameLauncher.buildLaunchParameters(context, app)
             val args = launchArgsResult.getOrNull()?.joinToString(" ") ?: ""
 
             if (existingShortcut != null) {
-                if (!SetupWizardActivity.isContainerUsable(context, existingShortcut!!.container)) {
-                    SetupWizardActivity.promptToInstallWineOrCreateContainer(
-                        context,
-                        existingShortcut!!.container.wineVersion,
-                    )
+                if (!SetupWizardActivity.isContainerUsable(context, existingShortcut.container)) {
+                    withContext(Dispatchers.Main) {
+                        SetupWizardActivity.promptToInstallWineOrCreateContainer(
+                            context,
+                            existingShortcut.container.wineVersion,
+                        )
+                    }
                     return@launch
                 }
                 // Existing shortcut found: preserve per-game settings and update the mapped install path
-                val shortcut = existingShortcut!!
+                val shortcut = existingShortcut
                 // Ensure game_install_path is always up-to-date
                 shortcut.putExtra("game_install_path", gameInstallPath)
                 ensureGameDrive(shortcut.container, gameInstallPath)
@@ -8537,7 +8547,7 @@ class UnifiedActivity :
                     currentPath == "A:\\" || currentPath == "A:\\\\" ||
                     currentPath.startsWith("A:\\")
                 ) {
-                    var exePath = withContext(kotlinx.coroutines.Dispatchers.IO) { EpicService.getInstalledExe(app.id) }
+                    val exePath = EpicService.getInstalledExe(app.id)
                     val newExecCmd =
                         if (exePath.isNotEmpty()) {
                             buildStoreWineExecCommand(
@@ -8578,15 +8588,18 @@ class UnifiedActivity :
                 intent.putExtra("shortcut_path", shortcut.file.path)
                 intent.putExtra("shortcut_name", shortcut.name)
                 intent.putExtra("extra_exec_args", args) // Pass fresh tokens
-                launchGame(context, intent)
+                withContext(Dispatchers.Main) {
+                    launchGame(context, intent)
+                }
             } else {
                 // No existing shortcut — create a new one
-                var exePath = withContext(kotlinx.coroutines.Dispatchers.IO) { EpicService.getInstalledExe(app.id) }
-
-                var container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
+                val exePath = EpicService.getInstalledExe(app.id)
+                val container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
 
                 if (container == null) {
-                    SetupWizardActivity.promptToInstallWineOrCreateContainer(context)
+                    withContext(Dispatchers.Main) {
+                        SetupWizardActivity.promptToInstallWineOrCreateContainer(context)
+                    }
                     return@launch
                 }
 
@@ -8634,7 +8647,9 @@ class UnifiedActivity :
                 intent.putExtra("shortcut_path", shortcutFile.path)
                 intent.putExtra("shortcut_name", app.title)
                 intent.putExtra("extra_exec_args", args) // Pass fresh tokens
-                launchGame(context, intent)
+                withContext(Dispatchers.Main) {
+                    launchGame(context, intent)
+                }
             }
         }
     }
@@ -8644,35 +8659,37 @@ class UnifiedActivity :
         containerManager: ContainerManager,
         app: GOGGame,
     ) {
-        val gameInstallPath = app.installPath.takeIf { it.isNotEmpty() } ?: GOGConstants.getGameInstallPath(app.title)
-        val gameDir = java.io.File(gameInstallPath)
-        if (!gameDir.exists()) {
-            com.winlator.cmod.shared.android.AppUtils.showToast(
-                context,
-                "Game not installed: ${app.title}",
-                android.widget.Toast.LENGTH_SHORT,
-            )
-            return
-        }
-
-        var existingShortcut =
-            containerManager.loadShortcuts().find {
-                it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == app.id
+        lifecycleScope.launch(Dispatchers.IO) {
+            val gameInstallPath = app.installPath.takeIf { it.isNotEmpty() } ?: GOGConstants.getGameInstallPath(app.title)
+            val gameDir = java.io.File(gameInstallPath)
+            if (!gameDir.exists()) {
+                withContext(Dispatchers.Main) {
+                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                        context,
+                        "Game not installed: ${app.title}",
+                        android.widget.Toast.LENGTH_SHORT,
+                    )
+                }
+                return@launch
             }
 
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+            val existingShortcut =
+                containerManager.loadShortcuts().find {
+                    it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == app.id
+                }
+
             val gogAppId = "GOG_${app.id}"
-            withContext(kotlinx.coroutines.Dispatchers.IO) {
-                GOGService.syncCloudSaves(context, gogAppId)
-            }
+            GOGService.syncCloudSaves(context, gogAppId)
 
             if (existingShortcut != null) {
-                val shortcut = existingShortcut!!
+                val shortcut = existingShortcut
                 if (!SetupWizardActivity.isContainerUsable(context, shortcut.container)) {
-                    SetupWizardActivity.promptToInstallWineOrCreateContainer(
-                        context,
-                        shortcut.container.wineVersion,
-                    )
+                    withContext(Dispatchers.Main) {
+                        SetupWizardActivity.promptToInstallWineOrCreateContainer(
+                            context,
+                            shortcut.container.wineVersion,
+                        )
+                    }
                     return@launch
                 }
                 shortcut.putExtra("game_install_path", gameInstallPath)
@@ -8706,10 +8723,7 @@ class UnifiedActivity :
                         } else {
                             val libraryItem =
                                 LibraryItem("GOG_${app.id}", app.title, com.winlator.cmod.feature.stores.steam.enums.GameSource.GOG)
-                            val exePath =
-                                withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                    GOGService.getInstalledExe(libraryItem)
-                                }
+                            val exePath = GOGService.getInstalledExe(libraryItem)
                             if (exePath.isNotEmpty()) {
                                 buildStoreWineExecCommand(
                                     shortcut.container,
@@ -8749,20 +8763,21 @@ class UnifiedActivity :
                 intent.putExtra("container_id", shortcut.container.id)
                 intent.putExtra("shortcut_path", shortcut.file.path)
                 intent.putExtra("shortcut_name", shortcut.name)
-                launchGame(context, intent)
+                withContext(Dispatchers.Main) {
+                    launchGame(context, intent)
+                }
                 return@launch
             }
 
             val libraryItem = LibraryItem("GOG_${app.id}", app.title, com.winlator.cmod.feature.stores.steam.enums.GameSource.GOG)
-            val exePath =
-                withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    GOGService.getInstalledExe(libraryItem)
-                }
+            val exePath = GOGService.getInstalledExe(libraryItem)
 
-            var container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
+            val container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
 
             if (container == null) {
-                SetupWizardActivity.promptToInstallWineOrCreateContainer(context)
+                withContext(Dispatchers.Main) {
+                    SetupWizardActivity.promptToInstallWineOrCreateContainer(context)
+                }
                 return@launch
             }
 
@@ -8809,7 +8824,9 @@ class UnifiedActivity :
             intent.putExtra("container_id", container.id)
             intent.putExtra("shortcut_path", shortcutFile.path)
             intent.putExtra("shortcut_name", app.title)
-            launchGame(context, intent)
+            withContext(Dispatchers.Main) {
+                launchGame(context, intent)
+            }
         }
     }
 
@@ -8887,55 +8904,61 @@ class UnifiedActivity :
         containerManager: ContainerManager,
         gameName: String,
     ) {
-        val allShortcuts = containerManager.loadShortcuts()
+        lifecycleScope.launch(Dispatchers.IO) {
+            val allShortcuts = containerManager.loadShortcuts()
 
-        // Try matching by app_id (for non-official Steam/Epic), custom_name, or filename
-        var shortcut =
-            allShortcuts.find { it.getExtra("app_id") == gameName }
-                ?: allShortcuts.find { it.getExtra("custom_name") == gameName }
-                ?: allShortcuts.find { it.name == gameName }
-                ?: allShortcuts.find { it.name == gameName.replace("/", "_").replace("\\", "_") }
+            // Try matching by app_id (for non-official Steam/Epic), custom_name, or filename
+            var shortcut =
+                allShortcuts.find { it.getExtra("app_id") == gameName }
+                    ?: allShortcuts.find { it.getExtra("custom_name") == gameName }
+                    ?: allShortcuts.find { it.name == gameName }
+                    ?: allShortcuts.find { it.name == gameName.replace("/", "_").replace("\\", "_") }
 
-        // If still not found, try matching by looking at the safe filename directly
-        if (shortcut == null) {
-            val safeName = gameName.replace("/", "_").replace("\\", "_")
-            for (container in containerManager.containers) {
-                val desktopFile = java.io.File(container.getDesktopDir(), "$safeName.desktop")
-                if (desktopFile.exists()) {
-                    shortcut =
-                        com.winlator.cmod.runtime.container
-                            .Shortcut(container, desktopFile)
-                    break
+            // If still not found, try matching by looking at the safe filename directly
+            if (shortcut == null) {
+                val safeName = gameName.replace("/", "_").replace("\\", "_")
+                for (container in containerManager.containers) {
+                    val desktopFile = java.io.File(container.getDesktopDir(), "$safeName.desktop")
+                    if (desktopFile.exists()) {
+                        shortcut =
+                            com.winlator.cmod.runtime.container
+                                .Shortcut(container, desktopFile)
+                        break
+                    }
                 }
             }
-        }
 
-        if (shortcut == null) {
-            com.winlator.cmod.shared.android.AppUtils.showToast(
-                context,
-                "Custom game shortcut not found: $gameName",
-                android.widget.Toast.LENGTH_SHORT,
-            )
-            return
-        }
+            if (shortcut == null) {
+                withContext(Dispatchers.Main) {
+                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                        context,
+                        "Custom game shortcut not found: $gameName",
+                        android.widget.Toast.LENGTH_SHORT,
+                    )
+                }
+                return@launch
+            }
 
-        // Backfill custom_name if missing (legacy shortcuts)
-        if (shortcut.getExtra("custom_name").isEmpty()) {
-            shortcut.putExtra("custom_name", gameName)
-            shortcut.saveData()
-        }
+            // Backfill custom_name if missing (legacy shortcuts)
+            if (shortcut.getExtra("custom_name").isEmpty()) {
+                shortcut.putExtra("custom_name", gameName)
+                shortcut.saveData()
+            }
 
-        // Ensure the custom game folder is mapped into the container.
-        val gameFolder = shortcut.getExtra("custom_game_folder", "")
-        if (gameFolder.isNotEmpty()) {
-            ensureGameDrive(shortcut.container, gameFolder, "F")
-            shortcut.container.saveData()
+            // Ensure the custom game folder is mapped into the container.
+            val gameFolder = shortcut.getExtra("custom_game_folder", "")
+            if (gameFolder.isNotEmpty()) {
+                ensureGameDrive(shortcut.container, gameFolder, "F")
+                shortcut.container.saveData()
+            }
+            val intent = Intent(context, XServerDisplayActivity::class.java)
+            intent.putExtra("container_id", shortcut.container.id)
+            intent.putExtra("shortcut_path", shortcut.file.path)
+            intent.putExtra("shortcut_name", gameName)
+            withContext(Dispatchers.Main) {
+                launchGame(context, intent)
+            }
         }
-        val intent = Intent(context, XServerDisplayActivity::class.java)
-        intent.putExtra("container_id", shortcut.container.id)
-        intent.putExtra("shortcut_path", shortcut.file.path)
-        intent.putExtra("shortcut_name", gameName)
-        launchGame(context, intent)
     }
 
     private fun launchGame(
