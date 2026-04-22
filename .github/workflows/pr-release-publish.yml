@@ -140,7 +140,8 @@ jobs:
           test -f "$standard_path"
           test -f "$ludashi_path"
 
-          release_id=$(gh api "repos/$TARGET_REPO/releases/tags/$tag" --jq '.id')
+          release_json=$(gh api "repos/$TARGET_REPO/releases/tags/$tag")
+          upload_url=$(printf '%s' "$release_json" | jq -r '.upload_url' | sed 's/{.*$//')
 
           upload_asset() {
             local file_path="$1"
@@ -148,13 +149,23 @@ jobs:
             asset_name=$(basename "$file_path")
             local encoded_name
             encoded_name=$(jq -rn --arg v "$asset_name" '$v|@uri')
+            local existing_asset_id
+            existing_asset_id=$(
+              printf '%s' "$release_json" |
+                jq -r --arg name "$asset_name" '.assets[]? | select(.name == $name) | .id' |
+                head -n 1
+            )
 
-            gh release delete-asset "$tag" "$asset_name" --repo "$TARGET_REPO" --yes >/dev/null 2>&1 || true
-            gh api \
-              --method POST \
+            if [ -n "$existing_asset_id" ]; then
+              gh api --method DELETE "repos/$TARGET_REPO/releases/assets/$existing_asset_id" >/dev/null
+            fi
+
+            curl --fail --silent --show-error \
+              -X POST \
+              -H "Authorization: Bearer $GH_TOKEN" \
               -H "Content-Type: application/vnd.android.package-archive" \
-              --input "$file_path" \
-              "repos/$TARGET_REPO/releases/$release_id/assets?name=$encoded_name" \
+              --data-binary @"$file_path" \
+              "${upload_url}?name=${encoded_name}" \
               >/dev/null
           }
 
