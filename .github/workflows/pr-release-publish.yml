@@ -135,14 +135,31 @@ jobs:
               --prerelease
           fi
 
-          test -f "artifacts/standard/${{ steps.apk.outputs.standard }}"
-          test -f "artifacts/ludashi/${{ steps.apk.outputs.ludashi }}"
+          standard_path="artifacts/standard/${{ steps.apk.outputs.standard }}"
+          ludashi_path="artifacts/ludashi/${{ steps.apk.outputs.ludashi }}"
+          test -f "$standard_path"
+          test -f "$ludashi_path"
 
-          gh release upload "$tag" \
-            "artifacts/standard/${{ steps.apk.outputs.standard }}" \
-            "artifacts/ludashi/${{ steps.apk.outputs.ludashi }}" \
-            --repo "$TARGET_REPO" \
-            --clobber
+          release_id=$(gh api "repos/$TARGET_REPO/releases/tags/$tag" --jq '.id')
+
+          upload_asset() {
+            local file_path="$1"
+            local asset_name
+            asset_name=$(basename "$file_path")
+            local encoded_name
+            encoded_name=$(jq -rn --arg v "$asset_name" '$v|@uri')
+
+            gh release delete-asset "$tag" "$asset_name" --repo "$TARGET_REPO" --yes >/dev/null 2>&1 || true
+            gh api \
+              --method POST \
+              -H "Content-Type: application/vnd.android.package-archive" \
+              --input "$file_path" \
+              "repos/$TARGET_REPO/releases/$release_id/assets?name=$encoded_name" \
+              >/dev/null
+          }
+
+          upload_asset "$standard_path"
+          upload_asset "$ludashi_path"
 
           release_url=$(gh release view "$tag" --repo "$TARGET_REPO" --json url --jq '.url')
           {
