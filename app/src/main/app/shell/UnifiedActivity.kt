@@ -194,7 +194,6 @@ import com.winlator.cmod.shared.android.RefreshRateUtils
 import com.winlator.cmod.shared.io.StorageUtils
 import com.winlator.cmod.shared.ui.CarouselView
 import com.winlator.cmod.shared.ui.FourByTwoGridView
-import com.winlator.cmod.shared.ui.JoystickCarouselScroll
 import com.winlator.cmod.shared.ui.JoystickGridScroll
 import com.winlator.cmod.shared.ui.JoystickListScroll
 import com.winlator.cmod.shared.ui.ListView
@@ -305,7 +304,6 @@ class UnifiedActivity :
 
     val rightStickScrollState = kotlinx.coroutines.flow.MutableStateFlow(0f)
     val leftStickScrollState = kotlinx.coroutines.flow.MutableStateFlow(0f)
-    val leftStickXState = kotlinx.coroutines.flow.MutableStateFlow(0f)
     val keyEventFlow = kotlinx.coroutines.flow.MutableSharedFlow<android.view.KeyEvent>(extraBufferCapacity = 10)
 
     // Library grid focus: tracked index and item count, controlled by DPAD
@@ -579,10 +577,6 @@ class UnifiedActivity :
             // Handle Left Joystick Y axis for scrolling in stores
             val leftY = event.getAxisValue(android.view.MotionEvent.AXIS_Y)
             leftStickScrollState.value = leftY
-
-            // Handle Left Joystick X axis for carousel horizontal scroll
-            val leftX = event.getAxisValue(android.view.MotionEvent.AXIS_X)
-            leftStickXState.value = leftX
 
             // Handle Left Joystick/D-pad for grid navigation on all tabs
             val x = event.getAxisValue(android.view.MotionEvent.AXIS_X)
@@ -2372,15 +2366,6 @@ class UnifiedActivity :
                                 ),
                     )
                 }
-                JoystickCarouselScroll(
-                    listState = carouselState,
-                    stickFlow = activity?.leftStickXState,
-                    currentIndex = focusIndex,
-                    itemCount = displayedApps.size,
-                    onIndexChanged = { newIdx ->
-                        activity?.libraryFocusIndex?.value = newIdx
-                    },
-                )
             }
 
             LibraryLayoutMode.LIST -> {
