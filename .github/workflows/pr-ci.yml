@@ -103,10 +103,11 @@ jobs:
     - name: Compute artifact label
       id: label
       run: |
-        short_sha=$(echo "$GITHUB_SHA" | cut -c1-7)
         if [ "${{ github.event_name }}" = "pull_request" ]; then
+          short_sha=$(printf '%s' "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
           echo "name=PR#${{ github.event.pull_request.number }}-${short_sha}" >> "$GITHUB_OUTPUT"
         else
+          short_sha=$(printf '%s' "$GITHUB_SHA" | cut -c1-7)
           # Squash-merge commit subjects look like "Title (#123)"; extract the PR number.
           num=$(git log -1 --pretty=%s | grep -oE '\(#[0-9]+\)' | tail -1 | tr -d '(#)')
           if [ -n "$num" ]; then
@@ -116,18 +117,18 @@ jobs:
           fi
         fi
 
-    - name: Rename APK for upload
+    - name: Prepare APK for upload
       run: |
-        mkdir -p artifacts
-        cp ${{ matrix.flavor.apkPath }} "artifacts/WinNative-${{ matrix.flavor.name }}-debug-${{ steps.label.outputs.name }}.apk"
+        upload_dir="artifacts/${{ matrix.flavor.artifactName }}"
+        mkdir -p "$upload_dir"
+        cp ${{ matrix.flavor.apkPath }} "$upload_dir/WinNative-${{ matrix.flavor.name }}-debug-${{ steps.label.outputs.name }}.apk"
 
     - name: Upload APK
       uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.flavor.artifactName }}
-        path: artifacts/WinNative-${{ matrix.flavor.name }}-debug-${{ steps.label.outputs.name }}.apk
+        path: artifacts/${{ matrix.flavor.artifactName }}/*.apk
         retention-days: 7
-        archive: false
         if-no-files-found: error
 
   cleanup-caches:
