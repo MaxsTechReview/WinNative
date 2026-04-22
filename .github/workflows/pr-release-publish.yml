@@ -103,8 +103,8 @@ jobs:
               printf 'No PR description was provided.\n'
             fi
             printf '\n## Attached Artifacts\n\n'
-            printf '%s\n' "- ${{ steps.apk.outputs.standard }}"
-            printf '%s\n' "- ${{ steps.apk.outputs.ludashi }}"
+            printf -- '%s\n' "- ${{ steps.apk.outputs.standard }}"
+            printf -- '%s\n' "- ${{ steps.apk.outputs.ludashi }}"
             printf '\nBuilt from source commit `%s`.\n' "$short_sha"
           } > release-notes.md
 
