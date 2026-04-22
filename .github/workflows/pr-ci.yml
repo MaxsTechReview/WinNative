@@ -6,13 +6,11 @@ on:
     paths-ignore:
       - '**.md'
       - '.gitignore'
-      - 'input_controls/**'
   pull_request:
     branches: [ main ]
     paths-ignore:
       - '**.md'
       - '.gitignore'
-      - 'input_controls/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
