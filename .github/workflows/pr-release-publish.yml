@@ -29,7 +29,25 @@ jobs:
       PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
       HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
+      - name: Verify PR is from this repository
+        id: scope
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api "repos/$SOURCE_REPO/pulls/$PR_NUMBER" > pr.json
+
+          head_repo=$(jq -r '.head.repo.full_name' pr.json)
+          base_repo=$(jq -r '.base.repo.full_name' pr.json)
+
+          if [ "$head_repo" = "$SOURCE_REPO" ] && [ "$base_repo" = "$SOURCE_REPO" ]; then
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping publish for fork PR: head=$head_repo base=$base_repo"
+          fi
+
       - name: Download PR build artifacts
+        if: ${{ steps.scope.outputs.allowed == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -38,12 +56,11 @@ jobs:
           gh run download "$RUN_ID" --repo "$SOURCE_REPO" --name apk-ludashi --dir artifacts/ludashi
 
       - name: Build release notes from PR metadata
+        if: ${{ steps.scope.outputs.allowed == 'true' }}
         id: pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh api "repos/$SOURCE_REPO/pulls/$PR_NUMBER" > pr.json
-
           pr_title=$(jq -r '.title' pr.json)
           pr_url=$(jq -r '.html_url' pr.json)
           pr_body=$(jq -r '.body // ""' pr.json)
@@ -80,6 +97,7 @@ jobs:
           } > release-notes.md
 
       - name: Create or update release in WinNative-CI
+        if: ${{ steps.scope.outputs.allowed == 'true' }}
         id: release
         env:
           GH_TOKEN: ${{ secrets.WINNATIVE_CI_TOKEN }}
@@ -116,7 +134,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Create Discord forum post
-        if: ${{ steps.release.outputs.created == 'true' }}
+        if: ${{ steps.scope.outputs.allowed == 'true' && steps.release.outputs.created == 'true' }}
         env:
           DISCORD_FORUM_WEBHOOK: ${{ secrets.DISCORD_FORUM_WEBHOOK }}
           PR_TITLE: ${{ steps.pr.outputs.title }}
