@@ -423,14 +423,26 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return parsePositiveInt(perGameConfig.get("framerate")) > 0;
     }
 
+    private boolean hasActiveVkd3d(KeyValueSet config) {
+        if (config == null) return false;
+
+        String vkd3dVersion = config.get("vkd3dVersion");
+        return vkd3dVersion != null && !vkd3dVersion.isEmpty() && !"None".equalsIgnoreCase(vkd3dVersion);
+    }
+
     /**
      * Per-game settings always win over the global refresh rate when determining DXVK frame limit.
+     * VKD3D-enabled wrappers never inherit refresh-driven DXVK caps because they can throttle DX12.
      * Returns 0 (no override) when no explicit user preference is set, matching Ludashi behavior.
      * The old code fell back to the device's max refresh rate which always injected
      * dxgi.syncInterval=0 and DXVK_FRAME_RATE, interfering with VKD3D frame pacing
      * and causing significant FPS drops in DX12 games.
      */
-    private int getDxvkFrameRateOverride() {
+    private int getDxvkFrameRateOverride(KeyValueSet config) {
+        if (hasActiveVkd3d(config)) {
+            return 0;
+        }
+
         int perGameRate = getPerGameRefreshRateOverride();
         if (perGameRate > 0) {
             return perGameRate;
@@ -4122,7 +4134,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         File rootDir = imageFs.getRootDir();
 
         if (dxwrapper.contains("dxvk")) {
-            int refreshRateOverride = getDxvkFrameRateOverride();
+            int refreshRateOverride = getDxvkFrameRateOverride(dxwrapperConfig);
             DXVKConfigUtils.setEnvVars(this, dxwrapperConfig, envVars, refreshRateOverride);
             String version = dxwrapperConfig.get("version");
             if (version.equals("1.11.1-sarek")) {
