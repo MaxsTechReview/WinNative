@@ -158,15 +158,26 @@ jobs:
             local file_path="$1"
             local asset_name
             asset_name=$(basename "$file_path")
-            local existing_asset_id
-            existing_asset_id=$(
+            local asset_prefix
+            asset_prefix=$(printf '%s' "$asset_name" | sed -E 's/PR\.[0-9]+-[A-Za-z0-9]+\.apk$//')
+            local existing_asset_ids
+            existing_asset_ids=$(
               printf '%s' "$release_json" |
-                jq -r --arg name "$asset_name" '.assets[]? | select(.name == $name) | .id' |
-                head -n 1
+                jq -r --arg prefix "$asset_prefix" '
+                  .assets[]?
+                  | select(.name | startswith($prefix))
+                  | select(.name | endswith(".apk"))
+                  | .id
+                '
             )
 
-            if [ -n "$existing_asset_id" ]; then
-              gh api --method DELETE "repos/$TARGET_REPO/releases/assets/$existing_asset_id" >/dev/null
+            if [ -n "$existing_asset_ids" ]; then
+              while IFS= read -r existing_asset_id; do
+                [ -n "$existing_asset_id" ] || continue
+                gh api --method DELETE "repos/$TARGET_REPO/releases/assets/$existing_asset_id" >/dev/null
+              done <<EOF
+$existing_asset_ids
+EOF
             fi
 
             gh release upload "$tag" "$file_path" --repo "$TARGET_REPO"
