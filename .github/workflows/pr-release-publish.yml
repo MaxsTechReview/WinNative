@@ -121,9 +121,18 @@ jobs:
         run: |
           tag="${{ steps.pr.outputs.tag }}"
           title="PR #$PR_NUMBER: ${{ steps.pr.outputs.title }}"
+          discord_marker='<!-- discord-posted -->'
+          discord_posted=false
 
           if gh release view "$tag" --repo "$TARGET_REPO" >/dev/null 2>&1; then
             created=false
+            existing_body=$(gh release view "$tag" --repo "$TARGET_REPO" --json body --jq '.body // ""')
+            if printf '%s' "$existing_body" | grep -Fq "$discord_marker"; then
+              discord_posted=true
+              if ! grep -Fq "$discord_marker" release-notes.md; then
+                printf '\n%s\n' "$discord_marker" >> release-notes.md
+              fi
+            fi
             gh release edit "$tag" \
               --repo "$TARGET_REPO" \
               --title "$title" \
@@ -189,12 +198,12 @@ EOF
           release_url=$(gh release view "$tag" --repo "$TARGET_REPO" --json url --jq '.url')
           {
             echo "created=$created"
-            echo "had_apk_assets=$([ "$existing_apk_assets" -gt 0 ] && echo true || echo false)"
+            echo "discord_posted=$discord_posted"
             echo "url=$release_url"
           } >> "$GITHUB_OUTPUT"
 
       - name: Create Discord forum post
-        if: ${{ steps.scope.outputs.allowed == 'true' && (steps.release.outputs.created == 'true' || steps.release.outputs.had_apk_assets != 'true') }}
+        if: ${{ steps.scope.outputs.allowed == 'true' && steps.release.outputs.discord_posted != 'true' }}
         env:
           DISCORD_FORUM_WEBHOOK: ${{ secrets.DISCORD_FORUM_WEBHOOK }}
           PR_TITLE: ${{ steps.pr.outputs.title }}
@@ -211,3 +220,22 @@ EOF
             -H "Content-Type: application/json" \
             -d "$payload" \
             "${DISCORD_FORUM_WEBHOOK}?wait=true"
+
+      - name: Mark Discord post on release
+        if: ${{ steps.scope.outputs.allowed == 'true' && steps.release.outputs.discord_posted != 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.WINNATIVE_CI_TOKEN }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          RELEASE_TITLE: ${{ steps.pr.outputs.title }}
+          RELEASE_TAG: ${{ steps.pr.outputs.tag }}
+        run: |
+          discord_marker='<!-- discord-posted -->'
+          if ! grep -Fq "$discord_marker" release-notes.md; then
+            printf '\n%s\n' "$discord_marker" >> release-notes.md
+          fi
+
+          gh release edit "$RELEASE_TAG" \
+            --repo "$TARGET_REPO" \
+            --title "PR #$PR_NUMBER: $RELEASE_TITLE" \
+            --notes-file release-notes.md \
+            --prerelease
