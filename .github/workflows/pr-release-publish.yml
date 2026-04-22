@@ -46,6 +46,18 @@ jobs:
             echo "Skipping publish for PR targeting a different repository: head=$head_repo base=$base_repo"
           fi
 
+      - name: Compute expected APK names
+        if: ${{ steps.scope.outputs.allowed == 'true' }}
+        id: apk
+        run: |
+          short_sha=$(jq -r '.head.sha' pr.json | cut -c1-5)
+          label="PR#${PR_NUMBER}-${short_sha}"
+          {
+            echo "label=$label"
+            echo "standard=WinNative-Debug-Standard-${label}.apk"
+            echo "ludashi=WinNative-Debug-Ludashi-${label}.apk"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Download PR build artifacts
         if: ${{ steps.scope.outputs.allowed == 'true' }}
         env:
@@ -65,7 +77,7 @@ jobs:
           pr_url=$(jq -r '.html_url' pr.json)
           pr_body=$(jq -r '.body // ""' pr.json)
           head_ref=$(jq -r '.head.ref' pr.json)
-          short_sha=$(printf '%s' "$HEAD_SHA" | cut -c1-7)
+          short_sha=$(jq -r '.head.sha' pr.json | cut -c1-5)
           safe_title=$(printf '%s' "$pr_title" | tr '\r\n' ' ' | sed 's/[[:space:]]\+/ /g')
           thread_name=$(printf '[#%s] %s' "$PR_NUMBER" "$safe_title" | cut -c1-100)
           run_url="https://github.com/$SOURCE_REPO/actions/runs/$RUN_ID"
@@ -91,8 +103,8 @@ jobs:
               printf 'No PR description was provided.\n'
             fi
             printf '\n## Attached Artifacts\n\n'
-            printf '- WinNative Standard debug APK\n'
-            printf '- WinNative Ludashi debug APK\n'
+            printf -- '%s\n' "- ${{ steps.apk.outputs.standard }}"
+            printf -- '%s\n' "- ${{ steps.apk.outputs.ludashi }}"
             printf '\nBuilt from source commit `%s`.\n' "$short_sha"
           } > release-notes.md
 
@@ -123,9 +135,12 @@ jobs:
               --prerelease
           fi
 
+          test -f "artifacts/standard/${{ steps.apk.outputs.standard }}"
+          test -f "artifacts/ludashi/${{ steps.apk.outputs.ludashi }}"
+
           gh release upload "$tag" \
-            artifacts/standard/*.apk \
-            artifacts/ludashi/*.apk \
+            "artifacts/standard/${{ steps.apk.outputs.standard }}" \
+            "artifacts/ludashi/${{ steps.apk.outputs.ludashi }}" \
             --repo "$TARGET_REPO" \
             --clobber
 
