@@ -181,12 +181,10 @@ jobs:
             )
 
             if [ -n "$existing_asset_ids" ]; then
-              while IFS= read -r existing_asset_id; do
+              printf '%s\n' "$existing_asset_ids" | while IFS= read -r existing_asset_id; do
                 [ -n "$existing_asset_id" ] || continue
                 gh api --method DELETE "repos/$TARGET_REPO/releases/assets/$existing_asset_id" >/dev/null
-              done <<EOF
-$existing_asset_ids
-EOF
+              done
             fi
 
             gh release upload "$tag" "$file_path" --repo "$TARGET_REPO"
