@@ -3090,10 +3090,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         // Check after applyGeneralPatches — container_pattern_common.tzst provides these files
         ensureWinePrefixEssentialFiles();
 
-        // Self-heal arm64ec containers that still carry the mis-packaged x86_64 xinput DLLs
-        // deployed by pre-Mar-2026 builds. No-op on healthy or non-arm64ec containers.
-        WineUtils.repairArm64ECXinputDlls(this, container, wineInfo);
-
         String dxwrapper = shortcut != null ? getShortcutSetting("dxwrapper", this.dxwrapper) : this.dxwrapper;
 
         if (dxwrapper.contains("dxvk")) {
@@ -3393,6 +3389,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 exclusiveXInput = extra.equals("1");
             }
         }
+        // Proton-version flips repair controller detection because they rebuild the prefix and
+        // restore controller DllOverrides. Keep that correction narrow and explicit here.
+        WineUtils.ensureControllerDllOverrides(container);
         WineUtils.setJoystickRegistryKeys(container, dinputEnabled, exclusiveXInput);
         WineUtils.ensureWinebusConfig(container);
 

@@ -656,51 +656,29 @@ public abstract class WineUtils {
     "xinput1_4.dll", "xinput9_1_0.dll", "xinputuap.dll"
   };
 
-  /**
-   * Heals arm64ec containers corrupted by pre-Mar-2026 builds that extracted a mis-packaged
-   * <code>xinput_virtual_arm64ec.tzst</code> — its name claimed arm64ec but its <code>system32/</code>
-   * payload was x86_64 PE binaries. Those builds also flipped xinput DllOverrides to
-   * {@code native,builtin} and set the container extra <code>xinput_virtual_deployed=10</code>.
-   *
-   * <p>Presence of that extra is the signal. We overwrite system32 xinput DLLs with the arm64
-   * builtins from the Proton tree, reset the xinput DllOverrides to {@code builtin,native}, then
-   * clear the flag so the heal runs at most once per container.
-   */
-  public static void repairArm64ECXinputDlls(
-      Context context, Container container, WineInfo wineInfo) {
-    if (container == null || wineInfo == null || !wineInfo.isArm64EC()) return;
-    if (!"10".equals(container.getExtra("xinput_virtual_deployed"))) return;
-    if (wineInfo.path == null || wineInfo.path.isEmpty()) return;
+  public static void ensureControllerDllOverrides(Container container) {
+    if (container == null) return;
 
-    File rootDir = ImageFs.find(context).getRootDir();
-    File srcDir = new File(wineInfo.path + "/lib/wine/aarch64-windows");
-    File dstDir = new File(rootDir, ImageFs.WINEPREFIX + "/drive_c/windows/system32");
+    File userRegFile = new File(container.getRootDir(), ".wine/user.reg");
+    if (!userRegFile.isFile()) return;
 
-    int restored = 0;
-    for (String dll : XINPUT_DLLS) {
-      File src = new File(srcDir, dll);
-      File dst = new File(dstDir, dll);
-      if (src.exists()) {
-        FileUtils.copy(src, dst);
-        restored++;
-      }
-    }
+    final String dllOverridesKey = "Software\\Wine\\DllOverrides";
+    final String[] dinputLibs = {"dinput", "dinput8"};
 
-    File userRegFile = new File(rootDir, ImageFs.WINEPREFIX + "/user.reg");
     try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
+      for (String name : dinputLibs) {
+        if (!"builtin,native".equals(registryEditor.getStringValue(dllOverridesKey, name, ""))) {
+          registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
+        }
+      }
+
       for (String dll : XINPUT_DLLS) {
         String name = dll.substring(0, dll.length() - 4);
-        registryEditor.setStringValue("Software\\Wine\\DllOverrides", name, "builtin,native");
+        if (!"builtin,native".equals(registryEditor.getStringValue(dllOverridesKey, name, ""))) {
+          registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
+        }
       }
     }
-
-    container.putExtra("xinput_virtual_deployed", null);
-    container.saveData();
-
-    Log.i(
-        "WineUtils",
-        "repairArm64ECXinputDlls: restored " + restored + " arm64 xinput DLL(s) in container "
-            + container.id + " and cleared xinput_virtual_deployed flag.");
   }
 
   /** Registers core Windows fonts and Wine fonts in the registry. */
