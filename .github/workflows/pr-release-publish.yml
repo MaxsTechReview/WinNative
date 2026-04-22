@@ -29,7 +29,7 @@ jobs:
       PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
       HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
-      - name: Verify PR is from this repository
+      - name: Verify PR targets this repository
         id: scope
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -39,11 +39,11 @@ jobs:
           head_repo=$(jq -r '.head.repo.full_name // ""' pr.json)
           base_repo=$(jq -r '.base.repo.full_name // ""' pr.json)
 
-          if [ "$head_repo" = "$SOURCE_REPO" ] && [ "$base_repo" = "$SOURCE_REPO" ]; then
+          if [ "$base_repo" = "$SOURCE_REPO" ]; then
             echo "allowed=true" >> "$GITHUB_OUTPUT"
           else
             echo "allowed=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping publish for fork PR: head=$head_repo base=$base_repo"
+            echo "Skipping publish for PR targeting a different repository: head=$head_repo base=$base_repo"
           fi
 
       - name: Download PR build artifacts
