@@ -27,6 +27,7 @@ import com.winlator.cmod.feature.library.WinComponentItem
 import com.winlator.cmod.runtime.compat.box64.Box64Preset
 import com.winlator.cmod.runtime.compat.box64.Box64PresetManager
 import com.winlator.cmod.runtime.container.Container
+import com.winlator.cmod.runtime.container.ContainerNameUtils
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
@@ -79,6 +80,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     private var box64PresetIds = mutableListOf<String>()
     private var fexcorePresetIds = mutableListOf<String>()
     private var wineVersionIdentifiers = mutableListOf<String>()
+    private var lastAutoContainerName: String? = null
 
     // Drives working copy, mirrored into state.drivesList via syncDrivesState.
     private val drivesWorking = mutableListOf<Pair<String, String>>()
@@ -236,6 +238,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 val wineInfo = WineInfo.fromIdentifier(context, contentsManager, identifier)
                 isArm64EC = wineInfo.isArm64EC()
                 state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
+                syncDefaultContainerName(identifier)
                 // Box64 list depends on arch (box64 vs wowbox64 entries).
                 rebuildEmulatorLists()
                 loadBox64Versions()
@@ -291,8 +294,16 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         if (c != null) {
             state.name.value = c.getName()
         } else {
-            state.name.value = context.getString(R.string.common_ui_container) +
-                "-" + manager.getNextContainerId()
+            val defaultWineVersion = WineInfo.MAIN_WINE_VERSION.identifier()
+            state.name.value =
+                ContainerNameUtils.buildUniqueVersionBasedName(
+                    context,
+                    contentsManager,
+                    defaultWineVersion,
+                    manager.containers,
+                    null
+                )
+            lastAutoContainerName = state.name.value
         }
 
         val inputType = c?.getInputType() ?: WinHandler.DEFAULT_INPUT_TYPE.toInt()
@@ -561,6 +572,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val archChanged = isArm64EC != wineInfo.isArm64EC()
         isArm64EC = wineInfo.isArm64EC()
         state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
+        syncDefaultContainerName(selectedIdentifier, force = true)
 
         rebuildEmulatorLists()
         // Always reset emulator selections when populating for the first time
@@ -882,6 +894,26 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             e32.equals("box64", true) || e64.equals("box64", true) || usesWowbox64
         state.showFexcoreFrame.value =
             e32.equals("fexcore", true) || e64.equals("fexcore", true)
+    }
+
+    private fun syncDefaultContainerName(wineVersion: String, force: Boolean = false) {
+        if (container != null) return
+
+        val currentName = state.name.value.trim()
+        if (!force && currentName.isNotEmpty() && currentName != lastAutoContainerName) {
+            return
+        }
+
+        val autoName =
+            ContainerNameUtils.buildUniqueVersionBasedName(
+                context,
+                contentsManager,
+                wineVersion,
+                manager.containers,
+                null
+            )
+        state.name.value = autoName
+        lastAutoContainerName = autoName
     }
 
     private fun formatWineVersionDisplay(wineInfo: WineInfo): String {

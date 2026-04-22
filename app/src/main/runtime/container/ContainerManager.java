@@ -231,6 +231,11 @@ public class ContainerManager {
       String wineVersion = data.getString("wineVersion");
       Log.d("ContainerManager", "createContainer: wineVersion=" + wineVersion);
       container.setWineVersion(wineVersion);
+      if (ContainerNameUtils.isUnspecifiedName(container.getName(), id)) {
+        container.setName(
+            ContainerNameUtils.buildUniqueVersionBasedName(
+                context, contentsManager, wineVersion, containers, null));
+      }
 
       // Set the correct emulators based on the wine architecture, unless the
       // caller already specified them in the JSON data.  This ensures every

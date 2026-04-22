@@ -11,6 +11,8 @@ import com.google.android.gms.common.api.Scope;
 import com.google.android.gms.games.PlayGames;
 import com.google.android.gms.tasks.Tasks;
 import com.winlator.cmod.runtime.container.Container;
+import com.winlator.cmod.runtime.container.ContainerNameUtils;
+import com.winlator.cmod.runtime.content.ContentsManager;
 import com.winlator.cmod.shared.android.ActivityResultHost;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -155,7 +157,7 @@ public final class ContainerBackupManager {
         return new BackupResult(false, "Failed to access WinNative/Containers on Google Drive.");
       }
 
-      String fileName = buildBackupFileName(container);
+      String fileName = buildBackupFileName(context, container);
       String existingFileId = findDriveFileId(accessToken, folderId, fileName);
       boolean uploaded =
           existingFileId != null
@@ -194,7 +196,7 @@ public final class ContainerBackupManager {
             Collections.emptyList());
       }
 
-      String expectedFileName = buildBackupFileName(container);
+      String expectedFileName = buildBackupFileName(context, container);
       DriveBackupFile matchedFile = findDriveFile(accessToken, folderId, expectedFileName);
       if (matchedFile != null) {
         return new RestorePreparation(true, false, null, matchedFile, Collections.emptyList());
@@ -454,10 +456,14 @@ public final class ContainerBackupManager {
     }
   }
 
-  private static String buildBackupFileName(Container container) {
+  private static String buildBackupFileName(Context context, Container container) {
     String containerName = container.getName();
     if (containerName == null || containerName.trim().isEmpty()) {
-      containerName = "Container-" + container.id;
+      ContentsManager contentsManager = new ContentsManager(context);
+      contentsManager.syncContents();
+      containerName =
+          ContainerNameUtils.buildVersionBasedName(
+              context, contentsManager, container.getWineVersion());
     }
     String safeName =
         containerName.replace('/', '_').replace('\\', '_').replace('\n', '_').replace('\r', '_');
