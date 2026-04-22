@@ -93,6 +93,12 @@ class EpicService : Service() {
 
         fun stop() {
             instance?.let { service ->
+                runCatching {
+                    service.stopForeground(Service.STOP_FOREGROUND_REMOVE)
+                }.onFailure { Timber.w(it, "Failed to remove EpicService foreground state during shutdown") }
+                runCatching {
+                    service.notificationHelper.cancel()
+                }.onFailure { Timber.w(it, "Failed to cancel EpicService notification during shutdown") }
                 service.stopSelf()
             }
         }

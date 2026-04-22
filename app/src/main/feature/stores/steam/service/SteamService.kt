@@ -4771,6 +4771,16 @@ class SteamService :
 
         fun stop() {
             instance?.let { steamInstance ->
+                if (!isStopping) {
+                    isStopping = true
+                    runCatching {
+                        steamInstance.stopForeground(Service.STOP_FOREGROUND_REMOVE)
+                    }.onFailure { Timber.w(it, "Failed to remove SteamService foreground state during shutdown") }
+                    runCatching {
+                        steamInstance.notificationHelper.cancel()
+                    }.onFailure { Timber.w(it, "Failed to cancel SteamService notification during shutdown") }
+                    steamInstance.stopSelf()
+                }
                 steamInstance.scope.launch {
                     steamInstance.stop()
                 }
@@ -5123,6 +5133,9 @@ class SteamService :
 
     override fun onDestroy() {
         super.onDestroy()
+        if (instance === this) {
+            instance = null
+        }
 
         // Persist download progress for all active downloads
         // This is a safety net for OS kills (unlikely but possible)
@@ -5133,7 +5146,9 @@ class SteamService :
         stopForeground(STOP_FOREGROUND_REMOVE)
         notificationHelper.cancel()
 
-        scope.launch { stop() }
+        if (!isStopping) {
+            scope.launch { stop() }
+        }
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
@@ -5200,6 +5215,10 @@ class SteamService :
     }
 
     private fun clearValues() {
+        if (instance === this) {
+            instance = null
+        }
+
         _loginResult = LoginResult.Failed
         isRunning = false
         isConnected = false

@@ -84,6 +84,7 @@ import com.winlator.cmod.runtime.content.ContentProfile;
 import com.winlator.cmod.runtime.content.ContentsManager;
 import com.winlator.cmod.runtime.content.AdrenotoolsManager;
 import com.winlator.cmod.shared.android.AppUtils;
+import com.winlator.cmod.shared.android.AppTerminationHelper;
 import com.winlator.cmod.runtime.wine.DefaultVersion;
 import com.winlator.cmod.runtime.wine.EnvVars;
 import com.winlator.cmod.shared.io.FileUtils;
@@ -301,6 +302,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private Handler handler;
     private Runnable savePlaytimeRunnable;
     private static final long SAVE_INTERVAL_MS = 1000;
+    private static final int EXIT_CLOUD_UPLOAD_MAX_ATTEMPTS = 3;
+    private static final long EXIT_CLOUD_UPLOAD_RETRY_DELAY_MS = 1000L;
 
     private Handler  timeoutHandler = new Handler(Looper.getMainLooper());
     private Runnable hideControlsRunnable;
@@ -313,7 +316,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private final AtomicBoolean exitRequested = new AtomicBoolean(false);
     private final AtomicBoolean steamExitWatchRunning = new AtomicBoolean(false);
     private final AtomicBoolean activityDestroyed = new AtomicBoolean(false);
-    private final AtomicBoolean forcedCleanupStarted = new AtomicBoolean(false);
+    private final AtomicBoolean sessionCleanupStarted = new AtomicBoolean(false);
 
     private boolean isDarkMode;
     private boolean enableLogsMenu;
@@ -323,29 +326,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private GuestProgramLauncherComponent guestProgramLauncherComponent;
     private EnvVars overrideEnvVars;
 
-    // Auto-switch controller profile support
-    private android.hardware.input.InputManager inputDeviceManager;
     private Runnable controllerAutoSwitchRunnable;
-    private final android.hardware.input.InputManager.InputDeviceListener inputDeviceListener =
-            new android.hardware.input.InputManager.InputDeviceListener() {
-        @Override
-        public void onInputDeviceAdded(int deviceId) {
-            android.view.InputDevice device = android.view.InputDevice.getDevice(deviceId);
-            if (device != null && ExternalController.isGameController(device)) {
-                Log.d("XServerDisplayActivity", "Physical controller connected: " + device.getName());
-            }
-        }
-
-        @Override
-        public void onInputDeviceRemoved(int deviceId) {
-            Log.d("XServerDisplayActivity", "Physical controller disconnected: deviceId=" + deviceId);
-        }
-
-        @Override
-        public void onInputDeviceChanged(int deviceId) {
-            // No action needed
-        }
-    };
 
     private final SensorEventListener gyroListener = new SensorEventListener() {
         @Override
@@ -582,10 +563,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         // Initialize handler for periodic saving
         handler = new Handler(Looper.getMainLooper());
-
-        // Register input device listener for controller connect/disconnect auto-switch
-        inputDeviceManager = (android.hardware.input.InputManager) getSystemService(android.content.Context.INPUT_SERVICE);
-        inputDeviceManager.registerInputDeviceListener(inputDeviceListener, handler);
 
         savePlaytimeRunnable = new Runnable() {
             @Override
@@ -1888,19 +1865,30 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         });
     }
 
-    private void performForcedSessionCleanup(String trigger) {
-        if (!forcedCleanupStarted.compareAndSet(false, true)) {
-            Log.d("XServerLeakCheck", "Forced session cleanup already ran; skipping duplicate request from " + trigger);
-            return;
+    private boolean beginSessionCleanup(String trigger) {
+        if (sessionCleanupStarted.compareAndSet(false, true)) {
+            Log.d("XServerDisplayActivity", "Starting session cleanup from " + trigger);
+            return true;
         }
+        Log.d("XServerDisplayActivity", "Session cleanup already in progress; ignoring " + trigger);
+        return false;
+    }
 
+    private void cleanupActivityCallbacks(String trigger) {
         activityDestroyed.set(true);
-        Log.w("XServerLeakCheck", "Starting forced session cleanup from " + trigger);
 
         try {
-            if (preloaderDialog != null) preloaderDialog.close();
+            if (preferences != null) {
+                preferences.unregisterOnSharedPreferenceChangeListener(prefListener);
+            }
         } catch (Exception e) {
-            Log.w("XServerLeakCheck", "Failed to close preloader during forced cleanup", e);
+            Log.w("XServerLeakCheck", "Failed to unregister preference listener during " + trigger, e);
+        }
+
+        try {
+            cancelRealSteamWatchdog();
+        } catch (Exception e) {
+            Log.w("XServerLeakCheck", "Failed to cancel Steam watchdog during " + trigger, e);
         }
 
         try {
@@ -1913,7 +1901,63 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 }
             }
         } catch (Exception e) {
-            Log.w("XServerLeakCheck", "Failed to remove handler callbacks during forced cleanup", e);
+            Log.w("XServerLeakCheck", "Failed to remove handler callbacks during " + trigger, e);
+        }
+
+        try {
+            if (timeoutHandler != null && hideControlsRunnable != null) {
+                timeoutHandler.removeCallbacks(hideControlsRunnable);
+            }
+        } catch (Exception e) {
+            Log.w("XServerLeakCheck", "Failed to remove pointer timeout during " + trigger, e);
+        }
+
+        try {
+            if (sensorManager != null) {
+                sensorManager.unregisterListener(gyroListener);
+            }
+        } catch (Exception e) {
+            Log.w("XServerLeakCheck", "Failed to unregister sensor listener during " + trigger, e);
+        }
+
+        try {
+            if (touchpadView != null) {
+                touchpadView.resetInputState();
+                touchpadView.releasePointerCapture();
+                touchpadView.setOnCapturedPointerListener(null);
+            }
+        } catch (Exception e) {
+            Log.w("XServerLeakCheck", "Failed to release pointer capture during " + trigger, e);
+        }
+
+        try {
+            if (inputControlsView != null) {
+                inputControlsView.cancelActiveTouches();
+            }
+        } catch (Exception e) {
+            Log.w("XServerLeakCheck", "Failed to cancel active touches during " + trigger, e);
+        }
+    }
+
+    private void performForcedSessionCleanup(String trigger) {
+        if (!beginSessionCleanup(trigger)) {
+            Log.d("XServerLeakCheck", "Forced session cleanup already ran; skipping duplicate request from " + trigger);
+            return;
+        }
+
+        Log.w("XServerLeakCheck", "Starting forced session cleanup from " + trigger);
+        cleanupActivityCallbacks("forced cleanup (" + trigger + ")");
+
+        try {
+            AppTerminationHelper.stopManagedServices(getApplicationContext(), "xserver_forced_cleanup_" + trigger);
+        } catch (Exception e) {
+            Log.w("XServerLeakCheck", "Failed to stop managed services during forced cleanup", e);
+        }
+
+        try {
+            if (preloaderDialog != null) preloaderDialog.close();
+        } catch (Exception e) {
+            Log.w("XServerLeakCheck", "Failed to close preloader during forced cleanup", e);
         }
 
         try {
@@ -1923,12 +1967,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         } catch (Exception e) {
             Log.e("XServerLeakCheck", "Failed to stop MidiHandler during forced cleanup", e);
-        }
-
-        try {
-            if (sensorManager != null) sensorManager.unregisterListener(gyroListener);
-        } catch (Exception e) {
-            Log.w("XServerLeakCheck", "Failed to unregister sensor listener during forced cleanup", e);
         }
 
         try {
@@ -1993,12 +2031,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             handler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
+                    if (!beginSessionCleanup("exit")) {
+                        return;
+                    }
                     // We're about to hard-restart the process; make sure playtime is flushed.
                     savePlaytimeData(true);
-                    handler.removeCallbacks(savePlaytimeRunnable);
+                    cleanupActivityCallbacks("exit");
                     if (midiHandler != null) midiHandler.stop();
-                    // Unregister sensor listener to avoid memory leaks
-                    if (sensorManager != null) sensorManager.unregisterListener(gyroListener);
                     if (winHandler != null) winHandler.stop();
                     if (wineRequestHandler != null) wineRequestHandler.stop();
                     /* Gracefully terminate all running wine processes first, so ALSA/audio
@@ -2023,7 +2062,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.closeOnUiThread();
                     // Match Ludashi/vanilla behavior: restart the app to ensure native/GL
                     // resources are fully released between sessions.
-                    AppUtils.restartApplication(getApplicationContext());
+                    AppUtils.restartApplication(XServerDisplayActivity.this, 0);
                 }
             }, 1000);
         });
@@ -2063,6 +2102,154 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         onComplete.run();
+    }
+
+    private interface ExitUploadAction {
+        void start(ExitUploadCallback callback);
+    }
+
+    private interface ExitUploadCallback {
+        void onComplete(ExitUploadResult result);
+    }
+
+    private interface ExitUploadBlockingAction {
+        ExitUploadResult run() throws Exception;
+    }
+
+    private static final class ExitUploadResult {
+        final boolean success;
+        @NonNull final String message;
+        final boolean retryable;
+
+        ExitUploadResult(boolean success, @Nullable String message, boolean retryable) {
+            this.success = success;
+            this.message = message == null ? "" : message;
+            this.retryable = retryable;
+        }
+    }
+
+    private void runExitUploadWithRetries(
+            String uploadName,
+            String retryStatusMessage,
+            ExitUploadAction action,
+            Runnable onComplete) {
+        runExitUploadWithRetries(uploadName, retryStatusMessage, 1, action, onComplete);
+    }
+
+    private void runExitUploadWithRetries(
+            String uploadName,
+            String retryStatusMessage,
+            int attempt,
+            ExitUploadAction action,
+            Runnable onComplete) {
+        if (activityDestroyed.get() || isFinishing() || isDestroyed()) {
+            Log.w("XServerDisplayActivity", "Skipping " + uploadName + " because activity is already torn down");
+            onComplete.run();
+            return;
+        }
+
+        try {
+            action.start(result -> {
+                if (result.success) {
+                    if (result.message.isEmpty()) {
+                        Log.i("XServerDisplayActivity", uploadName + " succeeded on attempt " + attempt);
+                    } else {
+                        Log.i(
+                                "XServerDisplayActivity",
+                                uploadName + " succeeded on attempt " + attempt + ": " + result.message);
+                    }
+                    onComplete.run();
+                    return;
+                }
+
+                String failureMessage = result.message.isEmpty() ? "No error message provided." : result.message;
+                if (result.retryable && attempt < EXIT_CLOUD_UPLOAD_MAX_ATTEMPTS) {
+                    int nextAttempt = attempt + 1;
+                    long delayMs = EXIT_CLOUD_UPLOAD_RETRY_DELAY_MS * attempt;
+                    Log.w(
+                            "XServerDisplayActivity",
+                            uploadName
+                                    + " failed on attempt "
+                                    + attempt
+                                    + "/"
+                                    + EXIT_CLOUD_UPLOAD_MAX_ATTEMPTS
+                                    + ": "
+                                    + failureMessage
+                                    + ". Retrying in "
+                                    + delayMs
+                                    + "ms.");
+                    if (preloaderDialog != null && retryStatusMessage != null && !retryStatusMessage.isEmpty()) {
+                        preloaderDialog.showOnUiThread(
+                                retryStatusMessage + " Retry " + nextAttempt + "/" + EXIT_CLOUD_UPLOAD_MAX_ATTEMPTS + "...");
+                    }
+                    Handler activeHandler = handler != null ? handler : new Handler(Looper.getMainLooper());
+                    activeHandler.postDelayed(
+                            () -> runExitUploadWithRetries(uploadName, retryStatusMessage, nextAttempt, action, onComplete),
+                            delayMs);
+                    return;
+                }
+
+                if (result.retryable) {
+                    Log.e(
+                            "XServerDisplayActivity",
+                            uploadName
+                                    + " failed after "
+                                    + EXIT_CLOUD_UPLOAD_MAX_ATTEMPTS
+                                    + " attempts: "
+                                    + failureMessage);
+                } else {
+                    Log.w("XServerDisplayActivity", uploadName + " failed without retry: " + failureMessage);
+                }
+                onComplete.run();
+            });
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", uploadName + " threw before upload could start", e);
+            onComplete.run();
+        }
+    }
+
+    private void runBlockingExitUpload(
+            String workerName,
+            ExitUploadBlockingAction action,
+            ExitUploadCallback callback) {
+        new Thread(() -> {
+            ExitUploadResult result;
+            try {
+                result = action.run();
+            } catch (Exception e) {
+                String message = e.getMessage() != null ? e.getMessage() : (workerName + " failed");
+                result = new ExitUploadResult(false, message, true);
+            }
+
+            if (activityDestroyed.get() || isFinishing() || isDestroyed()) {
+                Log.w("XServerDisplayActivity", workerName + " finished after activity teardown");
+                return;
+            }
+
+            final ExitUploadResult finalResult = result;
+            runOnUiThread(() -> callback.onComplete(finalResult));
+        }, workerName).start();
+    }
+
+    private boolean isRetryableSteamExitSyncMessage(@Nullable String message) {
+        if (message == null || message.isEmpty()) {
+            return true;
+        }
+        String normalized = message.toLowerCase(java.util.Locale.US);
+        return !normalized.contains("offline");
+    }
+
+    private boolean isRetryableGoogleDriveBackupMessage(@Nullable String message) {
+        if (message == null || message.isEmpty()) {
+            return true;
+        }
+        String normalized = message.toLowerCase(java.util.Locale.US);
+        return !normalized.contains("not enabled")
+                && !normalized.contains("not signed in")
+                && !normalized.contains("authorization required")
+                && !normalized.contains("no local save files")
+                && !normalized.contains("save files are empty")
+                && !normalized.contains("cannot determine save directory");
     }
 
     /**
@@ -2113,26 +2300,30 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         Log.d("XServerDisplayActivity", "Starting auto backup to Google Drive for " + gameSource + "/" + gameId);
         preloaderDialog.showOnUiThread("Backing up save to Google Drive...");
 
-        new Thread(() -> {
-            try {
-                com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupResult result =
-                    (com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupResult) kotlinx.coroutines.BuildersKt.runBlocking(
-                        kotlinx.coroutines.Dispatchers.getIO(),
-                        (scope, continuation) -> com.winlator.cmod.feature.sync.google.GameSaveBackupManager.INSTANCE.autoBackupToGoogle(
-                            this,
-                            source,
-                            gameId,
-                            gameName,
-                            continuation
-                        )
-                    );
-                Log.d("XServerDisplayActivity", "Auto backup result: " + result.getMessage());
-            } catch (Exception e) {
-                Log.w("XServerDisplayActivity", "Auto backup to Google Drive failed", e);
-            } finally {
-                runOnUiThread(onComplete);
-            }
-        }).start();
+        runExitUploadWithRetries(
+                "Google Drive auto backup",
+                "Backing up save to Google Drive...",
+                callback -> runBlockingExitUpload(
+                        "GoogleDriveExitBackup",
+                        () -> {
+                            com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupResult result =
+                                    (com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupResult)
+                                            kotlinx.coroutines.BuildersKt.runBlocking(
+                                                    kotlinx.coroutines.Dispatchers.getIO(),
+                                                    (scope, continuation) ->
+                                                            com.winlator.cmod.feature.sync.google.GameSaveBackupManager.INSTANCE.autoBackupToGoogle(
+                                                                    this,
+                                                                    source,
+                                                                    gameId,
+                                                                    gameName,
+                                                                    continuation));
+                            return new ExitUploadResult(
+                                    result.getSuccess(),
+                                    result.getMessage(),
+                                    isRetryableGoogleDriveBackupMessage(result.getMessage()));
+                        },
+                        callback),
+                onComplete);
     }
 
     private boolean isCloudSyncEnabledForShortcut() {
@@ -2203,23 +2394,33 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             Log.d("XServerDisplayActivity", "Syncing Steam cloud saves for appId=" + appId);
             
             preloaderDialog.showOnUiThread("Cloud Sync Uploading...");
-            
-            com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.CloudSyncCallback callback = new com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.CloudSyncCallback() {
-                @Override
-                public void onProgress(String message, float progress) {
-                    runOnUiThread(() -> {
-                        int pct = (int)(progress * 100);
-                        preloaderDialog.showOnUiThread(message + " (" + pct + "%)");
-                    });
-                }
-                @Override
-                public void onComplete(boolean success, String message) {
-                    Log.d("XServerDisplayActivity", "Steam cloud sync complete for appId=" + appId);
-                    onComplete.run();
-                }
-            };
-            
-            com.winlator.cmod.feature.stores.steam.service.SteamService.syncCloudOnExit(this, appId, callback);
+
+            runExitUploadWithRetries(
+                    "Steam cloud sync for appId=" + appId,
+                    "Cloud Sync Uploading...",
+                    callback ->
+                            com.winlator.cmod.feature.stores.steam.service.SteamService.syncCloudOnExit(
+                                    this,
+                                    appId,
+                                    new com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.CloudSyncCallback() {
+                                        @Override
+                                        public void onProgress(String message, float progress) {
+                                            runOnUiThread(() -> {
+                                                int pct = (int) (progress * 100);
+                                                preloaderDialog.showOnUiThread(message + " (" + pct + "%)");
+                                            });
+                                        }
+
+                                        @Override
+                                        public void onComplete(boolean success, String message) {
+                                            callback.onComplete(
+                                                    new ExitUploadResult(
+                                                            success,
+                                                            message,
+                                                            isRetryableSteamExitSyncMessage(message)));
+                                        }
+                                    }),
+                    onComplete);
         } catch (Exception e) {
             Log.w("XServerDisplayActivity", "Failed to initiate Steam cloud sync", e);
             onComplete.run();
@@ -2238,24 +2439,31 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             Log.d("XServerDisplayActivity", "Syncing Epic cloud saves for appId=" + appId);
             preloaderDialog.showOnUiThread("Cloud Sync Uploading...");
 
-            new Thread(() -> {
-                try {
-                    Boolean syncSuccess = (Boolean) kotlinx.coroutines.BuildersKt.runBlocking(
-                            kotlinx.coroutines.Dispatchers.getIO(),
-                            (scope, continuation) -> com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager.INSTANCE.syncCloudSaves(
-                                    this,
-                                    appId,
-                                    "upload",
-                                    continuation
-                            )
-                    );
-                    Log.d("XServerDisplayActivity", "Epic cloud sync complete for appId=" + appId + ", success=" + syncSuccess);
-                } catch (Exception e) {
-                    Log.w("XServerDisplayActivity", "Failed to initiate Epic cloud sync", e);
-                } finally {
-                    runOnUiThread(onComplete);
-                }
-            }).start();
+            runExitUploadWithRetries(
+                    "Epic cloud sync for appId=" + appId,
+                    "Cloud Sync Uploading...",
+                    callback -> runBlockingExitUpload(
+                            "EpicExitCloudSync",
+                            () -> {
+                                Boolean syncSuccess = (Boolean) kotlinx.coroutines.BuildersKt.runBlocking(
+                                        kotlinx.coroutines.Dispatchers.getIO(),
+                                        (scope, continuation) -> com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager.INSTANCE.syncCloudSaves(
+                                                this,
+                                                appId,
+                                                "upload",
+                                                continuation
+                                        )
+                                );
+                                boolean success = Boolean.TRUE.equals(syncSuccess);
+                                return new ExitUploadResult(
+                                        success,
+                                        success
+                                                ? "Epic cloud upload completed."
+                                                : "Epic cloud upload reported failure.",
+                                        true);
+                            },
+                            callback),
+                    onComplete);
         } catch (Exception e) {
             Log.w("XServerDisplayActivity", "Failed to parse Epic app_id for cloud sync", e);
             onComplete.run();
@@ -2272,24 +2480,31 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         Log.d("XServerDisplayActivity", "Syncing GOG cloud saves for gogId=" + gogId);
         preloaderDialog.showOnUiThread("Cloud Sync Uploading...");
 
-        new Thread(() -> {
-            try {
-                Boolean syncSuccess = (Boolean) kotlinx.coroutines.BuildersKt.runBlocking(
-                        kotlinx.coroutines.Dispatchers.getIO(),
-                        (scope, continuation) -> com.winlator.cmod.feature.stores.gog.service.GOGService.Companion.syncCloudSaves(
-                                this,
-                                "GOG_" + gogId,
-                                "upload",
-                                continuation
-                        )
-                );
-                Log.d("XServerDisplayActivity", "GOG cloud sync complete for gogId=" + gogId + ", success=" + syncSuccess);
-            } catch (Exception e) {
-                Log.w("XServerDisplayActivity", "Failed to initiate GOG cloud sync", e);
-            } finally {
-                runOnUiThread(onComplete);
-            }
-        }).start();
+        runExitUploadWithRetries(
+                "GOG cloud sync for gogId=" + gogId,
+                "Cloud Sync Uploading...",
+                callback -> runBlockingExitUpload(
+                        "GogExitCloudSync",
+                        () -> {
+                            Boolean syncSuccess = (Boolean) kotlinx.coroutines.BuildersKt.runBlocking(
+                                    kotlinx.coroutines.Dispatchers.getIO(),
+                                    (scope, continuation) -> com.winlator.cmod.feature.stores.gog.service.GOGService.Companion.syncCloudSaves(
+                                            this,
+                                            "GOG_" + gogId,
+                                            "upload",
+                                            continuation
+                                    )
+                            );
+                            boolean success = Boolean.TRUE.equals(syncSuccess);
+                            return new ExitUploadResult(
+                                    success,
+                                    success
+                                            ? "GOG cloud upload completed."
+                                            : "GOG cloud upload reported failure.",
+                                    true);
+                        },
+                        callback),
+                onComplete);
     }
 
     private void showLaunchPreloader(String text) {
@@ -2315,19 +2530,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             preloaderDialog.close();
         }
         super.onDestroy();
-        if (preferences != null) {
-            preferences.unregisterOnSharedPreferenceChangeListener(prefListener);
-        }
         // Schedule a deferred update check 10 s after game exit
         UpdateChecker.INSTANCE.schedulePostGameCheck(this);
-        if (inputDeviceManager != null) {
-            inputDeviceManager.unregisterInputDeviceListener(inputDeviceListener);
-        }
-        if (handler != null && controllerAutoSwitchRunnable != null) {
-            handler.removeCallbacks(controllerAutoSwitchRunnable);
-        }
 
-        if (!exitRequested.get()) {
+        if (!sessionCleanupStarted.get()) {
             performForcedSessionCleanup("onDestroy");
         }
 
@@ -2382,7 +2588,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         super.onStop();
         savePlaytimeData();
         handler.removeCallbacks(savePlaytimeRunnable);
-        if (!exitRequested.get() && isFinishing() && !isChangingConfigurations()) {
+        if (!sessionCleanupStarted.get() && isFinishing() && !isChangingConfigurations()) {
             performForcedSessionCleanup("onStop finishing");
         }
     }
