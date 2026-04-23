@@ -40,6 +40,7 @@ public class PresentExtension implements Extension {
   }
 
   private final SparseArray<Event> events = new SparseArray<>();
+  private final SparseArray<PendingScanout> pendingScanouts = new SparseArray<>();
   private SyncExtension syncExtension;
 
   private abstract static class ClientOpcodes {
@@ -53,6 +54,13 @@ public class PresentExtension implements Extension {
     private XClient client;
     private int id;
     private Bitmask mask;
+  }
+
+  private static class PendingScanout {
+    private Window window;
+    private Pixmap pixmap;
+    private int serial;
+    private int idleFence;
   }
 
   @Override
@@ -143,18 +151,58 @@ public class PresentExtension implements Extension {
     long msc = ust / FAKE_INTERVAL;
 
     synchronized (content.renderLock) {
-      content.copyArea(
-          (short) 0,
-          (short) 0,
-          xOff,
-          yOff,
-          pixmap.drawable.width,
-          pixmap.drawable.height,
-          pixmap.drawable);
-      sendIdleNotify(window, pixmap, serial, idleFence);
-      sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.COPY, ust, msc);
+      Mode mode;
+      if (canDirectScanout(content, pixmap.drawable, xOff, yOff)) {
+        releasePendingScanout(window);
+        content.setScanoutSource(pixmap.drawable);
+        PendingScanout pendingScanout = new PendingScanout();
+        pendingScanout.window = window;
+        pendingScanout.pixmap = pixmap;
+        pendingScanout.serial = serial;
+        pendingScanout.idleFence = idleFence;
+        pendingScanouts.put(window.id, pendingScanout);
+        mode = Mode.FLIP;
+      } else {
+        releasePendingScanout(window);
+        content.copyArea(
+            (short) 0,
+            (short) 0,
+            xOff,
+            yOff,
+            pixmap.drawable.width,
+            pixmap.drawable.height,
+            pixmap.drawable);
+        sendIdleNotify(window, pixmap, serial, idleFence);
+        mode = Mode.COPY;
+      }
+      sendCompleteNotify(window, serial, Kind.PIXMAP, mode, ust, msc);
       client.xServer.windowManager.triggerOnFramePresented(window);
     }
+  }
+
+  private void releasePendingScanout(Window window) {
+    PendingScanout pendingScanout = pendingScanouts.get(window.id);
+    if (pendingScanout == null) return;
+
+    pendingScanouts.remove(window.id);
+    Drawable content = window.getContent();
+    if (content != null && content.getScanoutSource() == pendingScanout.pixmap.drawable) {
+      content.clearScanoutSource();
+    }
+    sendIdleNotify(
+        pendingScanout.window,
+        pendingScanout.pixmap,
+        pendingScanout.serial,
+        pendingScanout.idleFence);
+  }
+
+  private boolean canDirectScanout(Drawable content, Drawable pixmap, short xOff, short yOff) {
+    return xOff == 0
+        && yOff == 0
+        && pixmap.isDirectScanout()
+        && pixmap.getTexture() != null
+        && pixmap.width >= content.width
+        && pixmap.height >= content.height;
   }
 
   private void selectInput(XClient client, XInputStream inputStream, XOutputStream outputStream)
@@ -168,9 +216,15 @@ public class PresentExtension implements Extension {
 
     if (client.xServer.isDri3Enabled() && GPUImage.isSupported() && !mask.isEmpty()) {
       Drawable content = window.getContent();
-      final Texture oldTexture = content.getTexture();
-      client.xServer.getRenderer().xServerView.queueEvent(oldTexture::destroy);
-      content.setTexture(new GPUImage(content.width, content.height));
+      GPUImage gpuImage = new GPUImage(content.width, content.height);
+      if (gpuImage.isValid()) {
+        final Texture oldTexture = content.getTexture();
+        if (oldTexture != null)
+          client.xServer.getRenderer().xServerView.queueEvent(oldTexture::destroy);
+        content.setTexture(gpuImage);
+      } else {
+        gpuImage.destroy();
+      }
     }
 
     synchronized (events) {

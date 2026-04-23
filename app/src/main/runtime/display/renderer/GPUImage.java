@@ -9,6 +9,7 @@ public class GPUImage extends Texture {
   private long imageKHRPtr;
   private ByteBuffer virtualData;
   private short stride;
+  private boolean locked;
   private static boolean supported = false;
 
   static {
@@ -16,27 +17,34 @@ public class GPUImage extends Texture {
   }
 
   public GPUImage(short width, short height) {
-    hardwareBufferPtr = createHardwareBuffer(width, height);
-    if (hardwareBufferPtr != 0) {
-      virtualData = lockHardwareBuffer(hardwareBufferPtr);
-      if (virtualData == null) {
-        System.err.println("Error: Failed to lock hardware buffer");
-        destroyHardwareBuffer(hardwareBufferPtr);
-        hardwareBufferPtr = 0;
-      }
-    } else {
-      System.err.println("Error: Failed to create hardware buffer");
+    try {
+      hardwareBufferPtr = createHardwareBuffer(width, height);
+      initializeLockedBuffer();
+    } catch (Throwable e) {
+      System.err.println("Error: Failed to create GPUImage: " + e.getMessage());
+      destroy();
     }
   }
 
   public GPUImage(int socketFd) {
-    hardwareBufferPtr = hardwareBufferFromSocket(socketFd);
+    try {
+      hardwareBufferPtr = hardwareBufferFromSocket(socketFd);
+      initializeLockedBuffer();
+    } catch (Throwable e) {
+      System.err.println("Error: Failed to import GPUImage: " + e.getMessage());
+      destroy();
+    }
+  }
+
+  private void initializeLockedBuffer() {
     if (hardwareBufferPtr != 0) {
       virtualData = lockHardwareBuffer(hardwareBufferPtr);
       if (virtualData == null) {
         System.err.println("Error: Failed to lock hardware buffer");
-        destroyHardwareBuffer(hardwareBufferPtr);
+        destroyHardwareBuffer(hardwareBufferPtr, false);
         hardwareBufferPtr = 0;
+      } else {
+        locked = true;
       }
     } else {
       System.err.println("Error: Failed to create hardware buffer");
@@ -51,8 +59,11 @@ public class GPUImage extends Texture {
       imageKHRPtr = createImageKHR(hardwareBufferPtr, textureId);
       if (imageKHRPtr == 0) {
         System.err.println("Error: Failed to create EGL image");
-        destroyHardwareBuffer(hardwareBufferPtr);
+        destroyHardwareBuffer(hardwareBufferPtr, locked);
         hardwareBufferPtr = 0;
+        locked = false;
+        virtualData = null;
+        super.destroy();
       }
     }
   }
@@ -76,6 +87,10 @@ public class GPUImage extends Texture {
     return virtualData;
   }
 
+  public boolean isValid() {
+    return hardwareBufferPtr != 0 && virtualData != null && stride > 0;
+  }
+
   @Override
   public void destroy() {
     if (imageKHRPtr != 0) {
@@ -83,9 +98,10 @@ public class GPUImage extends Texture {
       imageKHRPtr = 0;
     }
     if (hardwareBufferPtr != 0) {
-      destroyHardwareBuffer(hardwareBufferPtr);
+      destroyHardwareBuffer(hardwareBufferPtr, locked);
       hardwareBufferPtr = 0;
     }
+    locked = false;
     virtualData = null;
     super.destroy();
   }
@@ -96,20 +112,24 @@ public class GPUImage extends Texture {
 
   public static void checkIsSupported() {
     final short size = 8;
-    GPUImage gpuImage = new GPUImage(size, size);
-    gpuImage.allocateTexture(size, size, null);
-    supported =
-        gpuImage.hardwareBufferPtr != 0
-            && gpuImage.imageKHRPtr != 0
-            && gpuImage.virtualData != null;
-    gpuImage.destroy();
+    GPUImage gpuImage = null;
+    try {
+      gpuImage = new GPUImage(size, size);
+      gpuImage.allocateTexture(size, size, null);
+      supported = gpuImage.isValid() && gpuImage.imageKHRPtr != 0;
+    } catch (Throwable e) {
+      supported = false;
+      System.err.println("Error: GPUImage support probe failed: " + e.getMessage());
+    } finally {
+      if (gpuImage != null) gpuImage.destroy();
+    }
   }
 
   private native long hardwareBufferFromSocket(int fd);
 
   private native long createHardwareBuffer(short width, short height);
 
-  private native void destroyHardwareBuffer(long hardwareBufferPtr);
+  private native void destroyHardwareBuffer(long hardwareBufferPtr, boolean locked);
 
   private native ByteBuffer lockHardwareBuffer(long hardwareBufferPtr);
 

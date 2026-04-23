@@ -242,8 +242,11 @@ public class GLRenderer
   private void renderDrawable(Drawable drawable, int x, int y, ShaderMaterial material) {
     if (drawable == null) return;
     synchronized (drawable.renderLock) {
-      Texture texture = drawable.getTexture();
-      texture.updateFromDrawable(drawable);
+      Drawable textureDrawable =
+          drawable.getScanoutSource() != null ? drawable.getScanoutSource() : drawable;
+      Texture texture = textureDrawable.getTexture();
+      if (texture == null) return;
+      texture.updateFromDrawable(textureDrawable);
 
       GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture.getTextureId());
       GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
@@ -578,8 +581,11 @@ public class GLRenderer
   private void renderWindowEffect(Drawable drawable, int x, int y, ShaderMaterial material) {
     // Implement the rendering effect logic here
     synchronized (drawable.renderLock) {
-      Texture texture = drawable.getTexture();
-      texture.updateFromDrawable(drawable);
+      Drawable textureDrawable =
+          drawable.getScanoutSource() != null ? drawable.getScanoutSource() : drawable;
+      Texture texture = textureDrawable.getTexture();
+      if (texture == null) return;
+      texture.updateFromDrawable(textureDrawable);
 
       XForm.set(tmpXForm1, x, y, drawable.width, drawable.height);
       XForm.multiply(tmpXForm1, tmpXForm1, tmpXForm2);

@@ -52,6 +52,8 @@ public class DrawableManager extends XResourceManager
       throw new IllegalStateException("Drawable with id " + id + " has null data during removal.");
     }
 
+    detachScanoutUsers(drawable);
+
     final Texture texture = drawable.getTexture();
     if (texture != null) xServer.getRenderer().xServerView.queueEvent(texture::destroy);
 
@@ -77,6 +79,33 @@ public class DrawableManager extends XResourceManager
 
   public Visual getVisual() {
     return xServer.pixmapManager.visual;
+  }
+
+  private void detachScanoutUsers(Drawable source) {
+    for (Window window : xServer.windowManager.getWindows()) {
+      if (!window.isInputOutput()) continue;
+
+      Drawable content = window.getContent();
+      if (content.getScanoutSource() != source) continue;
+
+      synchronized (content.renderLock) {
+        if (source.getData() != null
+            && source.visual != null
+            && content.visual.depth == source.visual.depth) {
+          content.copyArea(
+              (short) 0,
+              (short) 0,
+              (short) 0,
+              (short) 0,
+              source.width,
+              source.height,
+              source);
+        } else {
+          content.clearScanoutSource();
+          xServer.windowManager.triggerOnUpdateWindowContent(window);
+        }
+      }
+    }
   }
 }
 
