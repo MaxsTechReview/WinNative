@@ -15,8 +15,7 @@ jobs:
   publish:
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.pull_requests[0].number
+      github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -26,21 +25,46 @@ jobs:
       SOURCE_REPO: ${{ github.repository }}
       TARGET_REPO: MaxsTechReview/WinNative-CI
       RUN_ID: ${{ github.event.workflow_run.id }}
-      PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+      HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+      HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
       HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
-      - name: Verify PR targets this repository
+      - name: Resolve PR metadata and scope
         id: scope
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh api "repos/$SOURCE_REPO/pulls/$PR_NUMBER" > pr.json
+          head_owner=$(printf '%s' "$HEAD_REPO" | cut -d/ -f1)
+          pr_number=$(
+            gh pr list \
+              --repo "$SOURCE_REPO" \
+              --state all \
+              --head "$HEAD_BRANCH" \
+              --json number,headRefOid,headRepositoryOwner,baseRefName \
+              --jq '
+                map(
+                  select(.headRepositoryOwner.login == "'"$head_owner"'")
+                  | select(.headRefOid == "'"$HEAD_SHA"'")
+                )
+                | first
+                | .number // ""
+              '
+          )
+
+          if [ -z "$pr_number" ]; then
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+            echo "Unable to resolve PR for head repo $HEAD_REPO branch $HEAD_BRANCH sha $HEAD_SHA"
+            exit 0
+          fi
+
+          gh api "repos/$SOURCE_REPO/pulls/$pr_number" > pr.json
 
           head_repo=$(jq -r '.head.repo.full_name // ""' pr.json)
           base_repo=$(jq -r '.base.repo.full_name // ""' pr.json)
 
           if [ "$base_repo" = "$SOURCE_REPO" ]; then
             echo "allowed=true" >> "$GITHUB_OUTPUT"
+            echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
           else
             echo "allowed=false" >> "$GITHUB_OUTPUT"
             echo "Skipping publish for PR targeting a different repository: head=$head_repo base=$base_repo"
@@ -49,6 +73,8 @@ jobs:
       - name: Compute expected APK names
         if: ${{ steps.scope.outputs.allowed == 'true' }}
         id: apk
+        env:
+          PR_NUMBER: ${{ steps.scope.outputs.pr_number }}
         run: |
           short_sha=$(jq -r '.head.sha' pr.json | cut -c1-5)
           label="PR#${PR_NUMBER}-${short_sha}"
@@ -75,6 +101,7 @@ jobs:
         id: pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.scope.outputs.pr_number }}
         run: |
           pr_title=$(jq -r '.title' pr.json)
           pr_url=$(jq -r '.html_url' pr.json)
@@ -118,6 +145,7 @@ jobs:
           # Use a fine-grained PAT scoped only to MaxsTechReview/WinNative-CI
           # with "Contents" repository permission set to write.
           GH_TOKEN: ${{ secrets.WINNATIVE_CI_TOKEN }}
+          PR_NUMBER: ${{ steps.scope.outputs.pr_number }}
         run: |
           tag="${{ steps.pr.outputs.tag }}"
           title="PR #$PR_NUMBER: ${{ steps.pr.outputs.title }}"
@@ -223,7 +251,7 @@ jobs:
         if: ${{ steps.scope.outputs.allowed == 'true' && steps.release.outputs.discord_posted != 'true' }}
         env:
           GH_TOKEN: ${{ secrets.WINNATIVE_CI_TOKEN }}
-          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          PR_NUMBER: ${{ steps.scope.outputs.pr_number }}
           RELEASE_TITLE: ${{ steps.pr.outputs.title }}
           RELEASE_TAG: ${{ steps.pr.outputs.tag }}
         run: |
