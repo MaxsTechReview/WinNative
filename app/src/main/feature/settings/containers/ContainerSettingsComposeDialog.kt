@@ -9,7 +9,6 @@ import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -33,6 +32,8 @@ import com.winlator.cmod.runtime.content.ContentsManager
 import com.winlator.cmod.feature.settings.DXVKConfigUtils
 import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils
 import com.winlator.cmod.feature.settings.WineD3DConfigUtils
+import com.winlator.cmod.shared.android.AndroidFilePickerContract
+import com.winlator.cmod.shared.android.AndroidFileTreeContract
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.runtime.wine.DefaultVersion
@@ -86,10 +87,23 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     private val directoryPickerLauncher: ActivityResultLauncher<Uri?>? =
         (activity as? ComponentActivity)?.activityResultRegistry?.register(
             "container_drive_picker",
-            ActivityResultContracts.OpenDocumentTree()
+            AndroidFileTreeContract()
         ) { uri: Uri? ->
-            if (uri == null) return@register
-            val path = FileUtils.getFilePathFromUri(context, uri) ?: return@register
+            if (uri == null) {
+                clearPendingEmptyDrive()
+                return@register
+            }
+            val resolvedPath = FileUtils.getFilePathFromUri(context, uri)
+            if (resolvedPath == null) {
+                clearPendingEmptyDrive()
+                return@register
+            }
+            val path = resolvedPath
+            if (!FileUtils.ensureDirectoryWritable(File(path))) {
+                AppUtils.showToast(context, R.string.common_ui_cannot_write_folder, Toast.LENGTH_SHORT)
+                clearPendingEmptyDrive()
+                return@register
+            }
             val idx = pendingDriveIndex
             if (idx in drivesWorking.indices) {
                 val letter = drivesWorking[idx].first
@@ -102,7 +116,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     private val wallpaperPickerLauncher: ActivityResultLauncher<Array<String>>? =
         (activity as? ComponentActivity)?.activityResultRegistry?.register(
             "container_wallpaper_picker",
-            ActivityResultContracts.OpenDocument()
+            AndroidFilePickerContract()
         ) { uri: Uri? ->
             if (uri == null) return@register
             try {
@@ -278,6 +292,15 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 wallpaperPickerLauncher?.launch(arrayOf("image/*"))
             }
         }
+    }
+
+    private fun clearPendingEmptyDrive() {
+        val idx = pendingDriveIndex
+        if (idx in drivesWorking.indices && drivesWorking[idx].second.isBlank()) {
+            drivesWorking.removeAt(idx)
+            syncDrivesState()
+        }
+        pendingDriveIndex = -1
     }
 
     private fun syncDrivesState() {

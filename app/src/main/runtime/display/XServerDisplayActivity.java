@@ -1478,6 +1478,22 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private String resolveSteamGameInstallPath(int appId) {
+        String serviceInstallPath = SteamBridge.getAppDirPath(appId);
+        if (serviceInstallPath != null && !serviceInstallPath.isEmpty()) {
+            File serviceInstallDir = new File(serviceInstallPath);
+            if (serviceInstallDir.isDirectory()) {
+                String canonicalInstallPath = getCanonicalPathOrAbsolute(serviceInstallDir);
+                if (shortcut != null) {
+                    String shortcutInstallPath = shortcut.getExtra("game_install_path");
+                    if (!canonicalInstallPath.equals(shortcutInstallPath)) {
+                        shortcut.putExtra("game_install_path", canonicalInstallPath);
+                        shortcut.saveData();
+                    }
+                }
+                return canonicalInstallPath;
+            }
+        }
+
         if (shortcut != null) {
             String shortcutInstallPath = shortcut.getExtra("game_install_path");
             if (shortcutInstallPath != null && !shortcutInstallPath.isEmpty()) {
@@ -1488,19 +1504,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
 
-        String serviceInstallPath = SteamBridge.getAppDirPath(appId);
-        if (serviceInstallPath == null || serviceInstallPath.isEmpty()) return serviceInstallPath;
-
-        File serviceInstallDir = new File(serviceInstallPath);
-        if (serviceInstallDir.isDirectory() && shortcut != null) {
-            String shortcutInstallPath = shortcut.getExtra("game_install_path");
-            String canonicalInstallPath = getCanonicalPathOrAbsolute(serviceInstallDir);
-            if (!canonicalInstallPath.equals(shortcutInstallPath)) {
-                shortcut.putExtra("game_install_path", canonicalInstallPath);
-                shortcut.saveData();
-            }
-        }
-        return getCanonicalPathOrAbsolute(serviceInstallDir);
+        return serviceInstallPath;
     }
 
     private boolean parseBoolean(String value) {
@@ -5304,7 +5308,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 Log.d("XServerDisplayActivity", "resolveRelativeGameExe: found via SteamBridge.getInstalledExe: " + steamExe);
                 container.setExecutablePath(steamExe);
                 container.saveData();
-                if (shortcut != null && (shortcut.getExtra("launch_exe_path") == null || shortcut.getExtra("launch_exe_path").isEmpty())) {
+                if (shortcut != null && !steamExe.equals(shortcut.getExtra("launch_exe_path"))) {
                     shortcut.putExtra("launch_exe_path", steamExe);
                     shortcut.saveData();
                 }
@@ -5326,7 +5330,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         Log.d("XServerDisplayActivity", "resolveRelativeGameExe: auto-detected: " + relative);
                         container.setExecutablePath(relative);
                         container.saveData();
-                        if (shortcut != null && (shortcut.getExtra("launch_exe_path") == null || shortcut.getExtra("launch_exe_path").isEmpty())) {
+                        if (shortcut != null && !relative.equals(shortcut.getExtra("launch_exe_path"))) {
                             shortcut.putExtra("launch_exe_path", relative);
                             shortcut.saveData();
                         }
@@ -6008,10 +6012,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             String gameInstallPath = resolveSteamGameInstallPath(appId);
             if (gameInstallPath == null || gameInstallPath.isEmpty()) return;
 
-            String executablePath = container.getExecutablePath();
-            if (executablePath == null || executablePath.isEmpty()) {
-                executablePath = com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.getInstalledExe(appId);
-            }
+            String executablePath = resolveRelativeGameExe(appId, gameInstallPath);
             if (executablePath == null || executablePath.isEmpty()) return;
 
             String unixPath = executablePath.replace('\\', '/');
@@ -6043,10 +6044,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             String gameInstallPath = resolveSteamGameInstallPath(appId);
             if (gameInstallPath == null || gameInstallPath.isEmpty()) return false;
 
-            String executablePath = container.getExecutablePath();
-            if (executablePath == null || executablePath.isEmpty()) {
-                executablePath = com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.getInstalledExe(appId);
-            }
+            String executablePath = resolveRelativeGameExe(appId, gameInstallPath);
             if (executablePath == null || executablePath.isEmpty()) return false;
 
             String unixPath = executablePath.replace('\\', '/');
@@ -6275,10 +6273,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         // Find the game executable and run Steamless on it
-        String executablePath = container.getExecutablePath();
-        if (executablePath == null || executablePath.isEmpty()) {
-            executablePath = com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.getInstalledExe(appId);
-        }
+        String executablePath = resolveRelativeGameExe(appId, gameInstallPath);
         if (executablePath == null || executablePath.isEmpty()) {
             Log.w("XServerDisplayActivity", "No executable path found for Steamless");
             return;

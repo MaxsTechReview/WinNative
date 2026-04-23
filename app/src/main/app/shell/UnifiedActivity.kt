@@ -189,6 +189,8 @@ import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.input.ControllerHelper
 import com.winlator.cmod.runtime.wine.PeIconExtractor
 import com.winlator.cmod.shared.android.ActivityResultHost
+import com.winlator.cmod.shared.android.AndroidFilePickerContract
+import com.winlator.cmod.shared.android.AndroidFileTreeContract
 import com.winlator.cmod.shared.android.AppTerminationHelper
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity
@@ -3068,7 +3070,7 @@ class UnifiedActivity :
 
         // Import logic
         val importLauncher =
-            rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            rememberLauncherForActivityResult(AndroidFilePickerContract()) { uri ->
                 if (uri != null) {
                     scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                         try {
@@ -4111,7 +4113,7 @@ class UnifiedActivity :
             }
 
         val importLauncher =
-            rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            rememberLauncherForActivityResult(AndroidFilePickerContract()) { uri ->
                 if (uri != null) {
                     scope.launch(Dispatchers.IO) {
                         try {
@@ -5964,7 +5966,7 @@ class UnifiedActivity :
 
         val folderPickerLauncher =
             rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.OpenDocumentTree(),
+                contract = AndroidFileTreeContract(),
             ) { uri -> uri?.let { customPath = getPathFromTreeUri(it) } }
 
         if (showCustomPathWarning) {
@@ -6048,7 +6050,12 @@ class UnifiedActivity :
                 PrefManager.epicDownloadFolder
                     .isNotEmpty()
             }
-        val effectivePath = customPath ?: EpicConstants.getGameInstallPath(context, app.appName)
+        val epicFolderSourceName = app.title.ifBlank { app.appName }
+        val epicInstallPath =
+            customPath?.let {
+                resolveSelectedStoreInstallPath(it, EpicConstants.getSanitizedGameFolderName(epicFolderSourceName))
+            } ?: EpicConstants.getGameInstallPath(context, epicFolderSourceName)
+        val effectivePath = customPath ?: epicInstallPath
         val availableBytes =
             try {
                 StorageUtils.getAvailableSpace(effectivePath)
@@ -6056,7 +6063,7 @@ class UnifiedActivity :
                 0L
             }
         val isInstallEnabled = installed || availableBytes >= totalInstallSize
-        val installPathDisplay = customPath ?: EpicConstants.defaultEpicGamesPath(context)
+        val installPathDisplay = epicInstallPath
 
         StoreInstallDialogShell(
             title = app.title,
@@ -6138,14 +6145,7 @@ class UnifiedActivity :
                 InstallButton(
                     loading = isLoading,
                     onClick = {
-                        val installPath =
-                            if (customPath != null) {
-                                val sanitizedTitle = app.title.replace(Regex("[^a-zA-Z0-9 \\-_]"), "").trim()
-                                java.io.File(customPath!!, sanitizedTitle).absolutePath
-                            } else {
-                                EpicConstants.getGameInstallPath(context, app.title)
-                            }
-                        EpicService.downloadGame(context, app.id, selectedDlcIds.toList(), installPath, "en-US")
+                        EpicService.downloadGame(context, app.id, selectedDlcIds.toList(), epicInstallPath, "en-US")
                         onDismissRequest()
                     },
                 )
@@ -6397,7 +6397,7 @@ class UnifiedActivity :
 
         val folderPickerLauncher =
             rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.OpenDocumentTree(),
+                contract = AndroidFileTreeContract(),
             ) { uri -> uri?.let { customPath = getPathFromTreeUri(it) } }
 
         if (showCustomPathWarning) {
@@ -6420,7 +6420,7 @@ class UnifiedActivity :
         val installRootPath = customPath ?: GOGConstants.defaultGOGGamesPath
         val installPathDisplay =
             if (customPath != null) {
-                java.io.File(customPath!!, GOGConstants.getSanitizedGameFolderName(app.title)).absolutePath
+                resolveSelectedStoreInstallPath(customPath!!, GOGConstants.getSanitizedGameFolderName(app.title))
             } else {
                 GOGConstants.getGameInstallPath(app.title)
             }
@@ -7452,7 +7452,7 @@ class UnifiedActivity :
 
         val folderPickerLauncher =
             rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.OpenDocumentTree(),
+                contract = AndroidFileTreeContract(),
             ) { uri -> uri?.let { customPath = getPathFromTreeUri(it) } }
 
         if (showCustomPathWarning) {
@@ -7641,19 +7641,53 @@ class UnifiedActivity :
         }
     }
 
-    private fun getPathFromTreeUri(uri: Uri): String? =
-        try {
+    private fun resolveSelectedStoreInstallPath(
+        selectedPath: String,
+        gameFolderName: String,
+    ): String {
+        val selectedFolder = java.io.File(selectedPath)
+        return if (selectedFolder.name.equals(gameFolderName, ignoreCase = true)) {
+            selectedFolder.absolutePath
+        } else {
+            java.io.File(selectedFolder, gameFolderName).absolutePath
+        }
+    }
+
+    private fun getPathFromTreeUri(uri: Uri): String? {
+        return try {
+            val resolvedPath = com.winlator.cmod.shared.io.FileUtils.getFilePathFromUri(this, uri)
+            if (!resolvedPath.isNullOrBlank()) {
+                val dir = java.io.File(resolvedPath)
+                if (com.winlator.cmod.shared.io.FileUtils.ensureDirectoryWritable(dir)) {
+                    return resolvedPath
+                }
+                AppUtils.showToast(this, R.string.common_ui_cannot_write_folder)
+                return null
+            }
+
             val docId = DocumentsContract.getTreeDocumentId(uri)
             if (docId.startsWith("primary:")) {
                 val path = docId.substringAfter(":")
                 val externalStorage = android.os.Environment.getExternalStorageDirectory()
-                if (path.isEmpty()) externalStorage.path else "${externalStorage.path}/$path"
+                val fallbackPath = if (path.isEmpty()) externalStorage.path else "${externalStorage.path}/$path"
+                if (com.winlator.cmod.shared.io.FileUtils.ensureDirectoryWritable(java.io.File(fallbackPath))) {
+                    fallbackPath
+                } else {
+                    AppUtils.showToast(this, R.string.common_ui_cannot_write_folder)
+                    null
+                }
             } else if (docId.contains(":")) {
                 val parts = docId.split(":", limit = 2)
                 if (parts.size == 2) {
                     val volumeId = parts[0]
                     val path = parts[1]
-                    if (path.isEmpty()) "/storage/$volumeId" else "/storage/$volumeId/$path"
+                    val fallbackPath = if (path.isEmpty()) "/storage/$volumeId" else "/storage/$volumeId/$path"
+                    if (com.winlator.cmod.shared.io.FileUtils.ensureDirectoryWritable(java.io.File(fallbackPath))) {
+                        fallbackPath
+                    } else {
+                        AppUtils.showToast(this, R.string.common_ui_cannot_write_folder)
+                        null
+                    }
                 } else {
                     null
                 }
@@ -7661,8 +7695,9 @@ class UnifiedActivity :
                 docId
             }
         } catch (e: Exception) {
-            uri.path
+            null
         }
+    }
 
     private fun findLibraryShortcutForGame(
         containerManager: ContainerManager,
@@ -9656,7 +9691,7 @@ class UnifiedActivity :
 
         val exePickerLauncher =
             rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.OpenDocument(),
+                contract = AndroidFilePickerContract(),
             ) { uri ->
                 if (uri != null) {
                     // Resolve to a real file path
@@ -9715,7 +9750,7 @@ class UnifiedActivity :
 
         val folderPickerLauncher =
             rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.OpenDocumentTree(),
+                contract = AndroidFileTreeContract(),
             ) { uri -> uri?.let { gameFolder = getPathFromTreeUri(it) } }
 
         val defaultDensity = LocalDensity.current

@@ -16,7 +16,6 @@ import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -64,6 +63,7 @@ import com.winlator.cmod.runtime.display.XServerDisplayActivity
 import com.winlator.cmod.runtime.input.controls.InputControlsManager
 import com.winlator.cmod.runtime.audio.midi.MidiManager
 import com.winlator.cmod.runtime.display.winhandler.WinHandler
+import com.winlator.cmod.shared.android.AndroidFilePickerContract
 import java.io.File
 import java.lang.reflect.Field
 import java.util.Arrays
@@ -125,7 +125,7 @@ class ShortcutSettingsComposeDialog private constructor(
     private val exePickerLauncher: ActivityResultLauncher<Array<String>>? =
         (activity as? ComponentActivity)?.activityResultRegistry?.register(
             "shortcut_exe_picker",
-            ActivityResultContracts.OpenDocument()
+            AndroidFilePickerContract()
         ) { uri: Uri? ->
             if (uri == null) return@register
             val path = FileUtils.getFilePathFromUri(context, uri) ?: return@register
@@ -142,7 +142,7 @@ class ShortcutSettingsComposeDialog private constructor(
     private val artworkPickerLauncher: ActivityResultLauncher<Array<String>>? =
         (activity as? ComponentActivity)?.activityResultRegistry?.register(
             "shortcut_artwork_picker",
-            ActivityResultContracts.OpenDocument()
+            AndroidFilePickerContract()
         ) { uri: Uri? ->
             if (uri == null) return@register
             saveSelectedArtwork(uri)

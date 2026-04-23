@@ -207,6 +207,7 @@ public class FEXCorePresetManager {
         if (uriPath != null) {
           Uri uri = Uri.parse(uriPath);
           String path = FileUtils.getFilePathFromUri(context, uri);
+          if (path == null) path = SettingsConfig.DEFAULT_WINLATOR_PATH;
           presetFile = new File(path, "Presets/fexcore_" + preset[1] + ".wbp");
         } else {
           presetFile =

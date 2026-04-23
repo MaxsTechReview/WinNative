@@ -7,7 +7,6 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -26,6 +25,7 @@ import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
 import com.winlator.cmod.runtime.content.Downloader
+import com.winlator.cmod.shared.android.AndroidFilePickerContract
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.io.StorageUtils
@@ -54,7 +54,7 @@ class ContentsFragment : Fragment() {
     private var autoCreateContainer = true
 
     private val contentPicker =
-        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        registerForActivityResult(AndroidFilePickerContract()) { uri ->
             uri?.let {
                 updateDownloadProgress(
                     title = getString(R.string.settings_content_installing_title),

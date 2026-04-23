@@ -104,6 +104,25 @@ public abstract class FileUtils {
     return false;
   }
 
+  public static boolean ensureDirectoryWritable(File dir) {
+    if (dir == null) return false;
+    if (!dir.exists() && !dir.mkdirs()) return false;
+    if (!dir.isDirectory() || !dir.canWrite()) return false;
+
+    File probe = null;
+    try {
+      probe = File.createTempFile(".winnative-write-test", ".tmp", dir);
+      try (FileOutputStream os = new FileOutputStream(probe)) {
+        os.write(0);
+      }
+      return true;
+    } catch (IOException e) {
+      return false;
+    } finally {
+      if (probe != null) probe.delete();
+    }
+  }
+
   public static void symlink(File linkTarget, File linkFile) {
     symlink(linkTarget.getAbsolutePath(), linkFile.getAbsolutePath());
   }
@@ -386,9 +405,9 @@ public abstract class FileUtils {
     }
 
     if ("primary".equalsIgnoreCase(type)) {
-      return Environment.getExternalStorageDirectory() + "/" + path;
+      return Environment.getExternalStorageDirectory() + (path.isEmpty() ? "" : "/" + path);
     } else {
-      return "/mnt/media_rw/" + type + "/" + path;
+      return "/storage/" + type + (path.isEmpty() ? "" : "/" + path);
     }
   }
 
@@ -404,8 +423,11 @@ public abstract class FileUtils {
     String filePath = null;
 
     try {
-      if (DocumentsContract.isDocumentUri(context, uri)) {
-        String docId = DocumentsContract.getDocumentId(uri);
+      if (DocumentsContract.isTreeUri(uri) || DocumentsContract.isDocumentUri(context, uri)) {
+        String docId =
+            DocumentsContract.isTreeUri(uri)
+                ? DocumentsContract.getTreeDocumentId(uri)
+                : DocumentsContract.getDocumentId(uri);
         String[] split = docId.split(":", 2);
         String volume = split[0];
         String path = split.length > 1 ? split[1] : "";
@@ -416,6 +438,8 @@ public abstract class FileUtils {
           filePath = docId.substring(4);
         } else if (split.length == 2) {
           filePath = "/storage/" + volume + (path.isEmpty() ? "" : "/" + path);
+        } else if (docId.startsWith("/")) {
+          filePath = docId;
         }
       }
     } catch (Exception e) {

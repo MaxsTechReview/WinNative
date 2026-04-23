@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -24,6 +23,7 @@ import com.winlator.cmod.runtime.compat.box64.Box64PresetManager
 import com.winlator.cmod.runtime.compat.fexcore.FEXCorePreset
 import com.winlator.cmod.runtime.compat.fexcore.FEXCorePresetManager
 import com.winlator.cmod.runtime.wine.EnvVars
+import com.winlator.cmod.shared.android.AndroidFilePickerContract
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.shared.io.FileUtils
@@ -63,7 +63,7 @@ class PresetsFragment : Fragment() {
     private var pendingImportEngine: PresetEngine? = null
 
     private val importPresetPicker =
-        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        registerForActivityResult(AndroidFilePickerContract()) { uri ->
             val engine = pendingImportEngine
             pendingImportEngine = null
             if (uri == null || engine == null || !isAdded) {

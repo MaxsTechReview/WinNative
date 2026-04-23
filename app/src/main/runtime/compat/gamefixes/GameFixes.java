@@ -117,7 +117,7 @@ public final class GameFixes {
     }
 
     File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
-    String installPathWindows = WineUtils.getDosPath(installPath);
+    String installPathWindows = WineUtils.getWindowsPath(container, installPath);
     applyFix(
         fix,
         appId,
@@ -161,7 +161,7 @@ public final class GameFixes {
     }
 
     File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
-    String installPathWindows = WineUtils.getDosPath(installPath);
+    String installPathWindows = WineUtils.getWindowsPath(container, installPath);
     applyFix(
         fix,
         catalogId,
@@ -191,7 +191,7 @@ public final class GameFixes {
       Container container, Shortcut shortcut, String gogId) {
     String shortcutInstallPath = shortcut.getExtra("game_install_path");
     if (isUsableInstallDir(shortcutInstallPath)) {
-      String installPathWindows = WineUtils.getDosPath(shortcutInstallPath);
+      String installPathWindows = WineUtils.getWindowsPath(container, shortcutInstallPath);
       return new ResolvedPaths(
           shortcutInstallPath, installPathWindows != null ? installPathWindows : "D:\\");
     }
@@ -220,7 +220,7 @@ public final class GameFixes {
       shortcut.saveData();
     }
 
-    String installPathWindows = WineUtils.getDosPath(installPath);
+    String installPathWindows = WineUtils.getWindowsPath(container, installPath);
     return new ResolvedPaths(installPath, installPathWindows != null ? installPathWindows : "D:\\");
   }
 

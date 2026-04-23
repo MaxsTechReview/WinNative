@@ -7,6 +7,7 @@ import com.winlator.cmod.feature.stores.epic.service.manifest.ManifestUtils
 import com.winlator.cmod.feature.stores.steam.data.DownloadInfo
 import com.winlator.cmod.feature.stores.steam.enums.Marker
 import com.winlator.cmod.feature.stores.steam.utils.MarkerUtils
+import com.winlator.cmod.shared.io.FileUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -81,7 +82,9 @@ class EpicDownloadManager
                 try {
                     Timber.tag("Epic").i("Starting download for ${game.title} to $installPath")
 
-                    File(installPath).mkdirs()
+                    if (!FileUtils.ensureDirectoryWritable(File(installPath))) {
+                        return@withContext Result.failure(Exception("Install directory is not writable: $installPath"))
+                    }
                     MarkerUtils.addMarker(installPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
 
                     // Emit download started event so UI can attach progress listeners

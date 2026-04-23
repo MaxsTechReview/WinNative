@@ -339,6 +339,15 @@ public abstract class WineUtils {
         linkTarget.mkdirs();
         FileUtils.chmod(linkTarget, 0771);
       }
+      if (!linkTarget.isDirectory() || !linkTarget.canRead()) {
+        Log.w(
+            "ContainerLaunch",
+            "createDosdevicesSymlinks: skipping unavailable drive "
+                + drive[0]
+                + ": -> "
+                + path);
+        continue;
+      }
       FileUtils.symlink(path, dosdevicesPath + "/" + drive[0].toLowerCase(Locale.ENGLISH) + ":");
       Log.d("ContainerLaunch", "createDosdevicesSymlinks: " + drive[0] + ": -> " + path);
       driveCount++;

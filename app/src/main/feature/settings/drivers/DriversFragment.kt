@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -22,6 +21,7 @@ import com.winlator.cmod.R
 import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.runtime.content.AdrenotoolsManager
 import com.winlator.cmod.runtime.content.Downloader
+import com.winlator.cmod.shared.android.AndroidFilePickerContract
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import kotlinx.coroutines.Dispatchers
@@ -53,7 +53,7 @@ class DriversFragment : Fragment() {
     private var downloadProgress: DownloadProgress? = null
 
     private val driverPicker =
-        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        registerForActivityResult(AndroidFilePickerContract()) { uri ->
             uri?.let { installDriverPackage(it) }
         }
 

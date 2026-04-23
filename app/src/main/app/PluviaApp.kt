@@ -11,6 +11,7 @@ import com.winlator.cmod.feature.stores.steam.events.EventDispatcher
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 import com.winlator.cmod.runtime.display.XServerDisplayActivity
 import com.winlator.cmod.shared.android.RefreshRateUtils
+import com.winlator.cmod.shared.android.StoragePermissionCleanup
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -129,6 +130,8 @@ class PluviaApp : Application() {
                         Log.e("PluviaApp", "PrefManager warmup failed", it)
                         false
                     }
+
+                StoragePermissionCleanup.cleanupUnusedTreeUriPermissions(this@PluviaApp)
 
                 if (UpdateChecker.isEnabled(this@PluviaApp)) {
                     UpdateChecker.refreshInstallTimestamp(this@PluviaApp)

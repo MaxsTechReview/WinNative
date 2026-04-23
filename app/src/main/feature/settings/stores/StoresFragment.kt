@@ -26,6 +26,9 @@ import com.winlator.cmod.feature.stores.gog.ui.auth.GOGOAuthActivity
 import com.winlator.cmod.feature.stores.steam.SteamLoginActivity
 import com.winlator.cmod.feature.stores.steam.service.SteamService
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
+import com.winlator.cmod.shared.android.AndroidFileTreeContract
+import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.android.StoragePermissionCleanup
 import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.theme.WinNativeTheme
@@ -41,46 +44,30 @@ class StoresFragment : Fragment() {
     // Folder-picker launchers
     private val defaultFolderLauncher =
         registerForActivityResult(
-            ActivityResultContracts.OpenDocumentTree(),
+            AndroidFileTreeContract(),
         ) { uri ->
-            uri?.let {
-                persistUri(it)
-                PrefManager.defaultDownloadFolder = it.toString()
-                refresh()
-            }
+            uri?.let { acceptPickedFolder(it) { value -> PrefManager.defaultDownloadFolder = value } }
         }
 
     private val steamFolderLauncher =
         registerForActivityResult(
-            ActivityResultContracts.OpenDocumentTree(),
+            AndroidFileTreeContract(),
         ) { uri ->
-            uri?.let {
-                persistUri(it)
-                PrefManager.steamDownloadFolder = it.toString()
-                refresh()
-            }
+            uri?.let { acceptPickedFolder(it) { value -> PrefManager.steamDownloadFolder = value } }
         }
 
     private val epicFolderLauncher =
         registerForActivityResult(
-            ActivityResultContracts.OpenDocumentTree(),
+            AndroidFileTreeContract(),
         ) { uri ->
-            uri?.let {
-                persistUri(it)
-                PrefManager.epicDownloadFolder = it.toString()
-                refresh()
-            }
+            uri?.let { acceptPickedFolder(it) { value -> PrefManager.epicDownloadFolder = value } }
         }
 
     private val gogFolderLauncher =
         registerForActivityResult(
-            ActivityResultContracts.OpenDocumentTree(),
+            AndroidFileTreeContract(),
         ) { uri ->
-            uri?.let {
-                persistUri(it)
-                PrefManager.gogDownloadFolder = it.toString()
-                refresh()
-            }
+            uri?.let { acceptPickedFolder(it) { value -> PrefManager.gogDownloadFolder = value } }
         }
 
     private val gogLoginLauncher =
@@ -242,14 +229,38 @@ class StoresFragment : Fragment() {
             listOf(0 to "Automatic")
         }
 
-    private fun persistUri(uri: Uri) {
+    private fun persistUri(uri: Uri): String? =
         try {
             requireContext().contentResolver.takePersistableUriPermission(
                 uri,
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
             )
-        } catch (_: SecurityException) {
+            null
+        } catch (e: SecurityException) {
+            e.message.orEmpty()
         }
+
+    private fun acceptPickedFolder(
+        uri: Uri,
+        save: (String) -> Unit,
+    ) {
+        val ctx = context ?: return
+        val path = FileUtils.getFilePathFromUri(ctx, uri)
+        if (path.isNullOrEmpty() || !FileUtils.ensureDirectoryWritable(java.io.File(path))) {
+            AppUtils.showToast(ctx, R.string.common_ui_cannot_write_folder)
+            return
+        }
+        val persistError = persistUri(uri)
+        if (persistError != null) {
+            AppUtils.showToast(
+                ctx,
+                ctx.getString(R.string.settings_other_persistable_permission_failed, persistError),
+            )
+            return
+        }
+        save(uri.toString())
+        StoragePermissionCleanup.cleanupUnusedTreeUriPermissions(ctx)
+        refresh()
     }
 
     private fun resolveUri(

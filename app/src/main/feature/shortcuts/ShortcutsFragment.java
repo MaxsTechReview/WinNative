@@ -243,12 +243,17 @@ public class ShortcutsFragment extends Fragment {
         AppUtils.showToast(getContext(), R.string.common_ui_cannot_write_folder);
         return;
       }
-      shortcutsDir = new File(FileUtils.getFilePathFromUri(getContext(), folderUri));
+      String exportPath = FileUtils.getFilePathFromUri(getContext(), folderUri);
+      if (exportPath == null) {
+        AppUtils.showToast(getContext(), R.string.common_ui_cannot_write_folder);
+        return;
+      }
+      shortcutsDir = new File(exportPath);
     } else {
       shortcutsDir = new File(SettingsConfig.DEFAULT_SHORTCUT_EXPORT_PATH);
     }
 
-    if (!shortcutsDir.exists() && !shortcutsDir.mkdirs()) {
+    if (!FileUtils.ensureDirectoryWritable(shortcutsDir)) {
       AppUtils.showToast(getContext(), R.string.common_ui_failed_create_directory);
       return;
     }

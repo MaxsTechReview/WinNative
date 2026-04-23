@@ -237,10 +237,10 @@ public class InputControlsManager {
     String winlatorPath = sp.getString("winlator_path_uri", null);
     if (winlatorPath != null) {
       Uri winlatorUri = Uri.parse(winlatorPath);
+      String resolvedPath = FileUtils.getFilePathFromUri(context, winlatorUri);
+      if (resolvedPath == null) resolvedPath = SettingsConfig.DEFAULT_WINLATOR_PATH;
       destination =
-          new File(
-              FileUtils.getFilePathFromUri(context, winlatorUri),
-              "profiles/" + profile.getName() + ".icp");
+          new File(resolvedPath, "profiles/" + profile.getName() + ".icp");
     } else {
       destination =
           new File(SettingsConfig.DEFAULT_WINLATOR_PATH, "profiles/" + profile.getName() + ".icp");

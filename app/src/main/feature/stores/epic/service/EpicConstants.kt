@@ -158,6 +158,14 @@ object EpicConstants {
         }
     }
 
+    fun getSanitizedGameFolderName(gameTitle: String): String {
+        val sanitizedTitle = gameTitle.replace(Regex("[^a-zA-Z0-9 \\-_]"), "").trim()
+        if (sanitizedTitle.isBlank()) {
+            throw IllegalArgumentException("Sanitized game title is empty: $gameTitle")
+        }
+        return sanitizedTitle
+    }
+
     /**
      * Get the installation path for a specific Epic game
      * Sanitizes the game title to be filesystem-safe
@@ -169,11 +177,7 @@ object EpicConstants {
         if (gameTitle.isBlank()) {
             throw IllegalArgumentException("Game title cannot be blank when determining install path")
         }
-        // Sanitize game title for filesystem
-        val sanitizedTitle = gameTitle.replace(Regex("[^a-zA-Z0-9 \\-_]"), "").trim()
-        if (sanitizedTitle.isBlank()) {
-            throw IllegalArgumentException("Sanitized game title is empty: $gameTitle")
-        }
+        val sanitizedTitle = getSanitizedGameFolderName(gameTitle)
         return Paths.get(defaultEpicGamesPath(context), sanitizedTitle).toString()
     }
 

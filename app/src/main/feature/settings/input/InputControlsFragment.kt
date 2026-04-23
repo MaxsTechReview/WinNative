@@ -13,7 +13,6 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -37,6 +36,7 @@ import com.winlator.cmod.runtime.input.controls.ExternalController
 import com.winlator.cmod.runtime.input.controls.ExternalControllerBinding
 import com.winlator.cmod.runtime.input.controls.InputControlsManager
 import com.winlator.cmod.runtime.input.ui.InputControlsView
+import com.winlator.cmod.shared.android.AndroidFilePickerContract
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.io.HttpUtils
@@ -77,7 +77,7 @@ class InputControlsFragment : Fragment() {
     private val remoteProfileRequestInFlight = AtomicBoolean(false)
 
     private val importProfileLauncher =
-        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        registerForActivityResult(AndroidFilePickerContract()) { uri ->
             if (uri == null || !isAdded) return@registerForActivityResult
             try {
                 val jsonString = FileUtils.readString(requireContext(), uri)

@@ -10,6 +10,7 @@ import com.winlator.cmod.feature.stores.steam.data.DownloadInfo
 import com.winlator.cmod.feature.stores.steam.enums.Marker
 import com.winlator.cmod.feature.stores.steam.utils.MarkerUtils
 import com.winlator.cmod.feature.stores.steam.utils.Net
+import com.winlator.cmod.shared.io.FileUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -111,6 +112,10 @@ class GOGDownloadManager
 
                     if (supportDir != null) {
                         Timber.tag("GOG").i("Will also put dependencies into ${supportDir.absolutePath}")
+                    }
+
+                    if (!FileUtils.ensureDirectoryWritable(installPath)) {
+                        return@withContext Result.failure(Exception("Install directory is not writable: ${installPath.absolutePath}"))
                     }
 
                     // Get the actual game from database to check what ID we have stored

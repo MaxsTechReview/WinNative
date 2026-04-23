@@ -71,6 +71,7 @@ import com.winlator.cmod.runtime.system.GPUInformation
 import com.winlator.cmod.shared.android.AppTerminationHelper
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.android.NotificationHelper
+import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.io.StorageUtils
 import dagger.hilt.android.AndroidEntryPoint
 import `in`.dragonbra.javasteam.base.ClientMsgProtobuf
@@ -2441,6 +2442,20 @@ class SteamService :
                 appDirPath = finalPath
                 Timber.i("Final custom appDirPath: $appDirPath")
 
+                if (!FileUtils.ensureDirectoryWritable(File(appDirPath))) {
+                    Timber.e("Custom install directory is not writable: $appDirPath")
+                    instance?.let { service ->
+                        service.scope.launch(Dispatchers.Main) {
+                            AppUtils.showToast(
+                                service.applicationContext,
+                                R.string.common_ui_cannot_write_folder,
+                                Toast.LENGTH_LONG,
+                            )
+                        }
+                    }
+                    return null
+                }
+
                 // Update SteamApp in DB
                 runBlocking {
                     if (appInfo != null) {
@@ -2454,22 +2469,18 @@ class SteamService :
             // Ensure the download directory exists
             try {
                 val dir = File(appDirPath)
-                if (!dir.exists()) {
-                    if (dir.mkdirs()) {
-                        Timber.i("Created download directory: $appDirPath")
-                    } else {
-                        Timber.e("Failed to create download directory (mkdirs returned false): $appDirPath")
-                        instance?.let { service ->
-                            service.scope.launch(Dispatchers.Main) {
-                                AppUtils.showToast(
-                                    service.applicationContext,
-                                    "Failed to create download directory. Check permissions.",
-                                    Toast.LENGTH_LONG,
-                                )
-                            }
+                if (!FileUtils.ensureDirectoryWritable(dir)) {
+                    Timber.e("Download directory is not writable: $appDirPath")
+                    instance?.let { service ->
+                        service.scope.launch(Dispatchers.Main) {
+                            AppUtils.showToast(
+                                service.applicationContext,
+                                R.string.common_ui_cannot_write_folder,
+                                Toast.LENGTH_LONG,
+                            )
                         }
-                        return null
                     }
+                    return null
                 }
 
                 // Add in-progress marker

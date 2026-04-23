@@ -11,7 +11,6 @@ import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -30,9 +29,12 @@ import com.winlator.cmod.app.update.UpdateChecker
 import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.runtime.audio.midi.MidiManager
 import com.winlator.cmod.runtime.display.environment.ImageFsInstaller
+import com.winlator.cmod.shared.android.AndroidFilePickerContract
+import com.winlator.cmod.shared.android.AndroidFileTreeContract
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.android.LocaleHelper
 import com.winlator.cmod.shared.android.RefreshRateUtils
+import com.winlator.cmod.shared.android.StoragePermissionCleanup
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.ui.dialog.ContentDialog
 import com.winlator.cmod.shared.ui.dialog.PreloaderDialog
@@ -46,30 +48,25 @@ class OtherSettingsFragment : Fragment() {
     // Activity result launchers
     private val winlatorPathLauncher =
         registerForActivityResult(
-            ActivityResultContracts.OpenDocumentTree(),
+            AndroidFileTreeContract(),
         ) { uri ->
             uri ?: return@registerForActivityResult
-            persistUriPermission(uri)
-            preferences.edit { putString("winlator_path_uri", uri.toString()) }
-            refresh()
+            acceptPickedFolder(uri, "winlator_path_uri")
         }
 
     private val shortcutExportPathLauncher =
         registerForActivityResult(
-            ActivityResultContracts.OpenDocumentTree(),
+            AndroidFileTreeContract(),
         ) { uri ->
             uri ?: return@registerForActivityResult
-            persistUriPermission(uri)
-            preferences.edit { putString("shortcuts_export_path_uri", uri.toString()) }
-            refresh()
+            acceptPickedFolder(uri, "shortcuts_export_path_uri")
         }
 
     private val installSoundFontLauncher =
         registerForActivityResult(
-            ActivityResultContracts.StartActivityForResult(),
-        ) { result ->
-            if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
-            val uri = result.data?.data ?: return@registerForActivityResult
+            AndroidFilePickerContract(),
+        ) { uri ->
+            uri ?: return@registerForActivityResult
             installSoundFont(uri)
         }
 
@@ -149,12 +146,7 @@ class OtherSettingsFragment : Fragment() {
                             uiState = uiState.copy(soundFontIndex = index)
                         },
                         onInstallSoundFont = {
-                            val intent =
-                                Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                                    addCategory(Intent.CATEGORY_OPENABLE)
-                                    type = "*/*"
-                                }
-                            installSoundFontLauncher.launch(intent)
+                            installSoundFontLauncher.launch(arrayOf("*/*"))
                         },
                         onRemoveSoundFont = { removeSelectedSoundFont() },
                         onPickWinlatorPath = { winlatorPathLauncher.launch(null) },
@@ -297,18 +289,35 @@ class OtherSettingsFragment : Fragment() {
         }
     }
 
-    private fun persistUriPermission(uri: Uri) {
+    private fun persistUriPermission(uri: Uri): Boolean =
         try {
             requireContext().contentResolver.takePersistableUriPermission(
                 uri,
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
             )
+            true
         } catch (e: SecurityException) {
             AppUtils.showToast(
                 context,
                 getString(R.string.settings_other_persistable_permission_failed, e.message ?: ""),
             )
+            false
         }
+
+    private fun acceptPickedFolder(
+        uri: Uri,
+        preferenceKey: String,
+    ) {
+        val ctx = context ?: return
+        val path = FileUtils.getFilePathFromUri(ctx, uri)
+        if (path.isNullOrEmpty() || !FileUtils.ensureDirectoryWritable(File(path))) {
+            AppUtils.showToast(ctx, R.string.common_ui_cannot_write_folder)
+            return
+        }
+        if (!persistUriPermission(uri)) return
+        preferences.edit { putString(preferenceKey, uri.toString()) }
+        StoragePermissionCleanup.cleanupUnusedTreeUriPermissions(ctx)
+        refresh()
     }
 
     private fun startImagefsReinstall() {

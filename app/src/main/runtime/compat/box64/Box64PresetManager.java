@@ -249,6 +249,7 @@ public abstract class Box64PresetManager {
         if (uriPath != null) {
           Uri uri = Uri.parse(uriPath);
           String path = FileUtils.getFilePathFromUri(context, uri);
+          if (path == null) path = SettingsConfig.DEFAULT_WINLATOR_PATH;
           presetFile = new File(path, "Presets/" + prefix + "_" + preset[1] + ".wbp");
         } else {
           presetFile =
