@@ -4842,6 +4842,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 }
                 extraArgs = (extraArgs != null && !extraArgs.isEmpty()) ? " " + extraArgs : "";
 
+                // Re-provision the per-container C:\WinNative\Games\<source>\<game> symlink in
+                // the CURRENT container. Needed after a user changes the shortcut's container
+                // via Settings — the symlink was only created in the original container, so the
+                // healthy C:\WinNative\... Exec would otherwise resolve to nothing in the new
+                // prefix. Mirrors Steam's ensureSteamappsCommonSymlink call above.
+                String storeInstallPath = shortcut.getExtra("game_install_path");
+                if (storeInstallPath != null && !storeInstallPath.isEmpty()
+                        && new File(storeInstallPath).exists()) {
+                    WineUtils.ensureDriveCGameSymlink(container, gameSource, storeInstallPath);
+                }
+
                 boolean needsAutoDetect = path == null || path.isEmpty()
                         || "D:\\".equals(path) || "D:\\\\".equals(path)
                         || "A:\\".equals(path) || "A:\\\\".equals(path);
