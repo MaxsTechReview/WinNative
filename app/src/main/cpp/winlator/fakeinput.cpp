@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <ctype.h>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -12,6 +13,7 @@
 #include <dirent.h>
 #include <dlfcn.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <linux/input.h>
 #include <linux/joystick.h>
 #include <poll.h>
@@ -180,10 +182,33 @@ is_fake_input_node_path(const char *pathname) {
                       !strncmp(pathname, "/dev/input/js", 13));
 }
 
+__attribute__((visibility("hidden"))) static bool
+is_relative_fake_input_node_name(const char *pathname) {
+  return pathname && (!strchr(pathname, '/')) &&
+         ((!strncmp(pathname, "event", 5) && isdigit(pathname[5])) ||
+          (!strncmp(pathname, "js", 2) && isdigit(pathname[2])));
+}
+
+__attribute__((visibility("hidden"))) static bool
+dirfd_points_to_hook_dir(int dirfd) {
+  if (dirfd < 0 || !hook_dir)
+    return false;
+
+  char fd_path[64];
+  char target[PATH_MAX];
+  snprintf(fd_path, sizeof(fd_path), "/proc/self/fd/%d", dirfd);
+  ssize_t len = readlink(fd_path, target, sizeof(target) - 1);
+  if (len < 0)
+    return false;
+
+  target[len] = '\0';
+  return !strcmp(target, hook_dir);
+}
+
 __attribute__((visibility("hidden"))) const char *
 get_event(const char *pathname) {
-  const char *event = strrchr(pathname, '/') + 1;
-  return event;
+  const char *slash = strrchr(pathname, '/');
+  return slash ? slash + 1 : pathname;
 }
 
 __attribute__((visibility("hidden"))) int get_event_number(const char *event) {
@@ -274,7 +299,7 @@ EXPORT int open(const char *pathname, int flags, ...) {
   else
     fd = my_open(pathname, flags);
 
-  if (isFromInput) {
+  if (isFromInput && fd >= 0) {
     Logger::log("Adding controller, fd %d event %s\n", fd, get_event(pathname));
     controller_map[fd] = strdup(get_event(pathname));
   }
@@ -307,6 +332,9 @@ EXPORT int openat(int dirfd, const char *pathname, int flags, ...) {
     if (is_fake_input_node_path(pathname)) {
       pathname = from_real_to_fake_path(pathname);
       isFromInput = true;
+    } else if (is_relative_fake_input_node_name(pathname) &&
+               dirfd_points_to_hook_dir(dirfd)) {
+      isFromInput = true;
     } else if (!strcmp(pathname, "/dev/input")) {
       pathname = hook_dir;
     }
@@ -317,7 +345,7 @@ EXPORT int openat(int dirfd, const char *pathname, int flags, ...) {
   else
     fd = my_openat(dirfd, pathname, flags);
 
-  if (isFromInput) {
+  if (isFromInput && fd >= 0) {
     Logger::log("Adding controller, fd %d event %s\n", fd, get_event(pathname));
     controller_map[fd] = strdup(get_event(pathname));
   }
