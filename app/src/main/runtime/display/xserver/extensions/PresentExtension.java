@@ -166,7 +166,7 @@ public class PresentExtension implements Extension {
     Window window = client.xServer.windowManager.getWindow(windowId);
     if (window == null) throw new BadWindow(windowId);
 
-    if (GPUImage.isSupported() && !mask.isEmpty()) {
+    if (client.xServer.isDri3Enabled() && GPUImage.isSupported() && !mask.isEmpty()) {
       Drawable content = window.getContent();
       final Texture oldTexture = content.getTexture();
       client.xServer.getRenderer().xServerView.queueEvent(oldTexture::destroy);

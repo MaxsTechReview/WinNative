@@ -76,7 +76,9 @@ public class GLRenderer
 
   @Override
   public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-    GPUImage.checkIsSupported();
+    if (xServer.isDri3Enabled()) {
+      GPUImage.checkIsSupported();
+    }
 
     GLES20.glFrontFace(GLES20.GL_CCW);
     GLES20.glDisable(GLES20.GL_CULL_FACE);

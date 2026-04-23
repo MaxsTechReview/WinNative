@@ -1088,7 +1088,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         showLaunchPreloader(getString(R.string.preloader_initializing));
 
         inputControlsManager = new InputControlsManager(this);
-        xServer = new XServer(new ScreenInfo(screenSize));
+        xServer = new XServer(new ScreenInfo(screenSize), isNativeRenderingEnabled);
         xServer.setWinHandler(winHandler);
 
         boolean[] winStarted = {false};
@@ -4414,12 +4414,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String resourceType = graphicsDriverConfig.get("resourceType");
         envVars.put("WRAPPER_RESOURCE_TYPE", resourceType);
 
+        ArrayList<String> wsiDebugFlags = new ArrayList<>();
         if (!isNativeRenderingEnabled) {
-            envVars.put("MESA_VK_WSI_DEBUG", "sw");
+            wsiDebugFlags.add("sw");
+            envVars.put("LIBGL_DRI3_DISABLE", "1");
         }
         String syncFrame = graphicsDriverConfig.get("syncFrame");
         if ("1".equals(syncFrame)) {
-            envVars.put("MESA_VK_WSI_DEBUG", "forcesync");
+            wsiDebugFlags.add("forcesync");
+        }
+        if (!wsiDebugFlags.isEmpty()) {
+            envVars.put("MESA_VK_WSI_DEBUG", String.join(",", wsiDebugFlags));
         }
         Log.d("NativeRendering", "use_dri3=" + isNativeRenderingEnabled + " MESA_VK_WSI_DEBUG=" + envVars.get("MESA_VK_WSI_DEBUG"));
 
