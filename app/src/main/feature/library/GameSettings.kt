@@ -40,6 +40,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Monitor
@@ -144,6 +145,14 @@ class GameSettingsStateHolder {
     val selectedScreenSize = mutableIntStateOf(0)
     val customWidth = mutableStateOf("")
     val customHeight = mutableStateOf("")
+    val gameCardArtworkSelected = mutableStateOf(false)
+    val gameCardArtworkSummary = mutableStateOf("")
+    val gridArtworkSelected = mutableStateOf(false)
+    val gridArtworkSummary = mutableStateOf("")
+    val carouselArtworkSelected = mutableStateOf(false)
+    val carouselArtworkSummary = mutableStateOf("")
+    val listArtworkSelected = mutableStateOf(false)
+    val listArtworkSummary = mutableStateOf("")
     val refreshRateEntries = mutableStateOf<List<String>>(emptyList())
     val selectedRefreshRate = mutableIntStateOf(0)
 
@@ -321,6 +330,15 @@ interface GameSettingsCallbacks {
     fun onConfirm()
     fun onDismiss()
     fun onAddToHomeScreen()
+    fun onPickGameCardArtwork() {}
+    fun onRemoveGameCardArtwork() {}
+    fun onPickGridArtwork() {}
+    fun onRemoveGridArtwork() {}
+    fun onPickCarouselArtwork() {}
+    fun onRemoveCarouselArtwork() {}
+    fun onPickListArtwork() {}
+    fun onRemoveListArtwork() {}
+    fun onOpenArtworkSource() {}
     fun onRemoveEnvVar(index: Int)
     fun onUpdateWinComponent(isDirectX: Boolean, index: Int, newValue: Int)
     fun onSelectExe() {}
@@ -829,6 +847,102 @@ private fun GeneralSection(
 ) {
     val isContainer = state.isContainerEditMode.value
 
+    @Composable
+    fun ArtworkPickerRow(
+        title: String,
+        summary: String,
+        selected: Boolean,
+        onPick: () -> Unit,
+        onRemove: () -> Unit,
+    ) {
+        @Composable
+        fun ActionButton(
+            text: String,
+            tint: Color,
+            onClick: () -> Unit,
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(tint.copy(alpha = 0.08f))
+                    .border(1.dp, tint.copy(alpha = 0.2f), RoundedCornerShape(9.dp))
+                    .clickable { onClick() }
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = text,
+                    color = tint,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(InputSurface)
+                .border(1.dp, InputBorder, RoundedCornerShape(12.dp))
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = title,
+                        color = TextPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    if (summary.isNotBlank()) {
+                        Spacer(Modifier.height(3.dp))
+
+                        Text(
+                            text = summary,
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ActionButton(
+                        text =
+                            stringResource(
+                                if (selected) {
+                                    R.string.shortcuts_library_artwork_change
+                                } else {
+                                    R.string.shortcuts_library_artwork_set
+                                }
+                            ),
+                        tint = AccentBlue,
+                        onClick = onPick
+                    )
+
+                    if (selected) {
+                        ActionButton(
+                            text = stringResource(R.string.common_ui_remove),
+                            tint = DangerRed,
+                            onClick = onRemove
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     SettingGroup {
         // Name
         SettingTextField(
@@ -917,6 +1031,91 @@ private fun GeneralSection(
                     )
                 }
             }
+        }
+    }
+
+    if (!isContainer) {
+        Spacer(Modifier.height(16.dp))
+
+        SettingGroup {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = stringResource(R.string.shortcuts_library_artwork_title),
+                    color = TextSecondary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.8.sp
+                )
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(AccentBlue.copy(alpha = 0.08f))
+                        .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                        .clickable { callbacks.onOpenArtworkSource() }
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.AutoMirrored.Outlined.OpenInNew,
+                            contentDescription = null,
+                            tint = AccentBlue,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.shortcuts_library_artwork_open_source),
+                            color = AccentBlue,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            ArtworkPickerRow(
+                title = stringResource(R.string.shortcuts_library_artwork_game_card_title),
+                summary = state.gameCardArtworkSummary.value,
+                selected = state.gameCardArtworkSelected.value,
+                onPick = callbacks::onPickGameCardArtwork,
+                onRemove = callbacks::onRemoveGameCardArtwork
+            )
+
+            Spacer(Modifier.height(10.dp))
+
+            ArtworkPickerRow(
+                title = stringResource(R.string.shortcuts_library_artwork_grid_title),
+                summary = state.gridArtworkSummary.value,
+                selected = state.gridArtworkSelected.value,
+                onPick = callbacks::onPickGridArtwork,
+                onRemove = callbacks::onRemoveGridArtwork
+            )
+
+            Spacer(Modifier.height(10.dp))
+
+            ArtworkPickerRow(
+                title = stringResource(R.string.shortcuts_library_artwork_carousel_title),
+                summary = state.carouselArtworkSummary.value,
+                selected = state.carouselArtworkSelected.value,
+                onPick = callbacks::onPickCarouselArtwork,
+                onRemove = callbacks::onRemoveCarouselArtwork
+            )
+
+            Spacer(Modifier.height(10.dp))
+
+            ArtworkPickerRow(
+                title = stringResource(R.string.shortcuts_library_artwork_list_title),
+                summary = state.listArtworkSummary.value,
+                selected = state.listArtworkSelected.value,
+                onPick = callbacks::onPickListArtwork,
+                onRemove = callbacks::onRemoveListArtwork
+            )
         }
     }
 
