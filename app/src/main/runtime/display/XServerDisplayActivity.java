@@ -317,6 +317,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private final AtomicBoolean steamExitWatchRunning = new AtomicBoolean(false);
     private final AtomicBoolean activityDestroyed = new AtomicBoolean(false);
     private final AtomicBoolean sessionCleanupStarted = new AtomicBoolean(false);
+    private final AtomicBoolean switchLaunchInProgress = new AtomicBoolean(false);
 
     private boolean isDarkMode;
     private boolean enableLogsMenu;
@@ -489,9 +490,37 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         boolean containerChanged = incomingContainerId != 0 && incomingContainerId != currentContainerId;
 
         if (shortcutChanged || shortcutUuidChanged || containerChanged) {
-            Log.d("XServerDisplayActivity", "onNewIntent: launch target changed, recreating activity");
-            recreate();
+            Log.d("XServerDisplayActivity", "onNewIntent: launch target changed, cleaning up before recreation");
+            switchLaunchTargetAfterCleanup(intent);
         }
+    }
+
+    private void switchLaunchTargetAfterCleanup(Intent intent) {
+        if (!switchLaunchInProgress.compareAndSet(false, true)) {
+            Log.d("XServerDisplayActivity", "Switch launch already in progress; ignoring duplicate target intent");
+            return;
+        }
+
+        Intent relaunchIntent = new Intent(intent);
+        relaunchIntent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        setIntent(relaunchIntent);
+        exitRequested.set(true);
+
+        if (preloaderDialog != null) {
+            preloaderDialog.showOnUiThread(getString(R.string.preloader_initializing));
+        }
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            performForcedSessionCleanup("switch launch target");
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    Log.w("XServerDisplayActivity", "Switch cleanup finished after activity was destroyed");
+                    return;
+                }
+                setIntent(relaunchIntent);
+                recreate();
+            });
+        });
     }
 
     @Override
@@ -1608,7 +1637,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             sensorManager.registerListener(gyroListener, gyroSensor, SensorManager.SENSOR_DELAY_GAME);
         }
 
-        if (environment != null) {
+        boolean cleaningUp = exitRequested.get() || sessionCleanupStarted.get() || activityDestroyed.get();
+
+        if (!cleaningUp && environment != null) {
             xServerView.onResume();
             environment.onResume();
         }
@@ -1620,7 +1651,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
         startTime = System.currentTimeMillis();
         handler.postDelayed(savePlaytimeRunnable, SAVE_INTERVAL_MS);
-        ProcessHelper.resumeAllWineProcesses();
+        if (!cleaningUp) {
+            ProcessHelper.resumeAllWineProcesses();
+        }
     }
 
     @Override
@@ -1634,7 +1667,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         // Check if we are entering Picture-in-Picture mode
-        if (!isInPictureInPictureMode()) {
+        boolean cleaningUp = exitRequested.get() || sessionCleanupStarted.get() || activityDestroyed.get();
+
+        if (!cleaningUp && !isInPictureInPictureMode()) {
             // Only pause environment and xServerView if not in PiP mode
             if (environment != null) {
                 environment.onPause();
@@ -1651,7 +1686,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         savePlaytimeData();
         handler.removeCallbacks(savePlaytimeRunnable);
-        ProcessHelper.pauseAllWineProcesses();
+        if (!cleaningUp) {
+            ProcessHelper.pauseAllWineProcesses();
+        }
     }
 
 
@@ -1846,12 +1883,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         ArrayList<String> before = ProcessHelper.listRunningWineProcesses();
         if (before.isEmpty()) return;
 
-        Log.w("XServerDisplayActivity", "Cleaning lingering session processes before " + reason + ": " + before);
+        Log.w("XServerDisplayActivity", "Cleaning lingering session processes before " + reason + ": "
+                + ProcessHelper.listRunningWineProcessDetails());
         ArrayList<String> remaining = ProcessHelper.terminateSessionProcessesAndWait(2000, true);
         ProcessHelper.drainDeadChildren("pre-launch cleanup");
         ProcessHelper.scheduleDeadChildReapSweep("pre-launch cleanup", 2000, 200);
         if (!remaining.isEmpty()) {
-            Log.e("XServerDisplayActivity", "Session cleanup still has remaining processes after " + reason + ": " + remaining);
+            Log.e("XServerDisplayActivity", "Session cleanup still has remaining processes after " + reason + ": "
+                    + ProcessHelper.listRunningWineProcessDetails());
+        } else {
+            Log.i("XServerDisplayActivity", "No lingering session processes remain after " + reason);
         }
     }
 
@@ -1946,6 +1987,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         Log.w("XServerLeakCheck", "Starting forced session cleanup from " + trigger);
+        Log.d("XServerLeakCheck", "Forced cleanup initial process snapshot: "
+                + ProcessHelper.listRunningWineProcessDetails());
+        try {
+            if (playtimePrefs != null) {
+                savePlaytimeData(true);
+            }
+        } catch (Exception e) {
+            Log.w("XServerLeakCheck", "Failed to flush playtime during forced cleanup", e);
+        }
         cleanupActivityCallbacks("forced cleanup (" + trigger + ")");
 
         try {
@@ -1987,6 +2037,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             Log.e("XServerLeakCheck", "Failed to stop WineRequestHandler during forced cleanup", e);
         }
 
+        ArrayList<String> remaining = ProcessHelper.terminateSessionProcessesAndWait(2000, true);
+        ProcessHelper.drainDeadChildren("forced cleanup (" + trigger + ")");
+        ProcessHelper.scheduleDeadChildReapSweep("forced cleanup (" + trigger + ")", 4000, 200);
+
         try {
             if (environment != null) {
                 environment.stopEnvironmentComponents();
@@ -1999,14 +2053,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         xServer = null;
         xServerView = null;
 
-        ArrayList<String> remaining = ProcessHelper.terminateSessionProcessesAndWait(2000, true);
-        ProcessHelper.drainDeadChildren("forced cleanup (" + trigger + ")");
-        ProcessHelper.scheduleDeadChildReapSweep("forced cleanup (" + trigger + ")", 4000, 200);
         if (remaining.isEmpty()) {
             Log.i("XServerLeakCheck", "Forced session cleanup finished cleanly after " + trigger);
         } else {
-            Log.e("XServerLeakCheck", "Remaining leaked session processes after forced cleanup from " + trigger + ": " + remaining);
+            Log.e("XServerLeakCheck", "Remaining leaked session processes after forced cleanup from " + trigger + ": "
+                    + ProcessHelper.listRunningWineProcessDetails());
         }
+        Log.d("XServerLeakCheck", "Forced cleanup final process snapshot: "
+                + ProcessHelper.listRunningWineProcessDetails());
     }
 
     private void exit() {
@@ -2054,6 +2108,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         environment.stopEnvironmentComponents();
                         environment = null;
                     }
+                    Log.d("XServerDisplayActivity", "Process snapshot after environment stop: "
+                            + ProcessHelper.listRunningWineProcessDetails());
                     winHandler = null;
                     wineRequestHandler = null;
                     midiHandler = null;
@@ -2531,7 +2587,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
         super.onDestroy();
         // Schedule a deferred update check 10 s after game exit
-        UpdateChecker.INSTANCE.schedulePostGameCheck(this);
+        if (!switchLaunchInProgress.get()) {
+            UpdateChecker.INSTANCE.schedulePostGameCheck(this);
+        }
 
         if (!sessionCleanupStarted.get()) {
             performForcedSessionCleanup("onDestroy");
@@ -2544,7 +2602,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
         ArrayList<String> remainingProcesses = ProcessHelper.listRunningWineProcesses();
         if (!remainingProcesses.isEmpty()) {
-            Log.e(tag, "Wine processes still running: " + remainingProcesses);
+            Log.e(tag, "Wine processes still running: " + ProcessHelper.listRunningWineProcessDetails());
+        } else {
+            Log.i(tag, "No Wine/session processes remain at onDestroy leak check");
         }
         if (environment != null) {
             Log.w(tag, "Environment not null — components may not have been stopped");
