@@ -223,14 +223,14 @@ public abstract class MSLink {
     return filePath;
   }
 
-  public static void createDesktopFile(File lnkFile, Context context) {
-    createDesktopFile(lnkFile, context, null);
+  public static boolean createDesktopFile(File lnkFile, Context context) {
+    return createDesktopFile(lnkFile, context, null);
   }
 
-  public static void createDesktopFile(File lnkFile, Context context, Container container) {
+  public static boolean createDesktopFile(File lnkFile, Context context, Container container) {
     String lnkFilePath = lnkFile.getPath();
     String windowsPath = parseFilePath(lnkFile);
-    if (windowsPath == null || windowsPath.isEmpty()) return;
+    if (windowsPath == null || windowsPath.isEmpty()) return false;
 
     String filePath = StringUtils.escapeDOSPath(windowsPath);
     ImageFs imageFs = ImageFs.find(context);
@@ -328,7 +328,9 @@ public abstract class MSLink {
       if (!customLibraryIconPath.isEmpty()) {
         pw.write("customCoverArtPath=" + customLibraryIconPath + "\n");
       }
+      return true;
     } catch (IOException e) {
+      return false;
     }
   }
 }

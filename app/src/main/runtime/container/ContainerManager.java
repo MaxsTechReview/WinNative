@@ -386,8 +386,9 @@ public class ContainerManager {
                         }
                     }
                     if (needsUpgrade) {
-                        MSLink.createDesktopFile(file, context, container);
-                        changed = true;
+                        if (MSLink.createDesktopFile(file, context, container)) {
+                            changed = true;
+                        }
                     }
                 }
             }

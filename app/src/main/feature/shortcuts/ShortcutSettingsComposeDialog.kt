@@ -1281,6 +1281,15 @@ class ShortcutSettingsComposeDialog private constructor(
                 val newShortcutFile = File(newDesktopDir, shortcut.file.name)
                 com.winlator.cmod.shared.io.FileUtils.copy(shortcut.file, newShortcutFile)
                 shortcut.file.delete()
+                
+                // Also move the original .lnk file if it exists to prevent ghost shortcuts
+                val lnkFileName = shortcut.file.name.substringBeforeLast(".desktop") + ".lnk"
+                val oldLnkFile = File(shortcut.file.parentFile, lnkFileName)
+                if (oldLnkFile.exists()) {
+                    val newLnkFile = File(newDesktopDir, lnkFileName)
+                    com.winlator.cmod.shared.io.FileUtils.copy(oldLnkFile, newLnkFile)
+                    oldLnkFile.delete()
+                }
             } else {
                 shortcut.saveData()
             }
