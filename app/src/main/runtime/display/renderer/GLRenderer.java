@@ -106,7 +106,6 @@ public class GLRenderer
     } else {
       drawFrame();
     }
-    xServer.windowManager.triggerOnFramePresented(null);
   }
 
   public void drawFrame() {
@@ -452,6 +451,8 @@ public class GLRenderer
     if (cpuSaverMode != enable) {
       cpuSaverMode = enable;
       viewportNeedsUpdate = true;
+      xServerView.setRenderMode(
+          enable ? GLSurfaceView.RENDERMODE_CONTINUOUSLY : GLSurfaceView.RENDERMODE_WHEN_DIRTY);
       xServerView.requestRender();
     }
   }
@@ -477,6 +478,7 @@ public class GLRenderer
       for (int i = renderableWindows.size() - 1; i >= 0; i--) {
         RenderableWindow rWin = renderableWindows.get(i);
         if (rWin.content != null
+            && isDirectScanoutContent(rWin.content)
             && rWin.content.width >= screenW * 0.95f
             && rWin.content.height >= screenH * 0.95f) {
           directCandidate = rWin;
@@ -576,6 +578,11 @@ public class GLRenderer
       // No fullscreen candidate — fall back to normal rendering
       drawFrame();
     }
+  }
+
+  private boolean isDirectScanoutContent(Drawable drawable) {
+    Drawable scanoutSource = drawable.getScanoutSource();
+    return scanoutSource != null && scanoutSource.isDirectScanout();
   }
 
   private void renderWindowEffect(Drawable drawable, int x, int y, ShaderMaterial material) {

@@ -10,6 +10,7 @@ public class GPUImage extends Texture {
   private ByteBuffer virtualData;
   private short stride;
   private boolean locked;
+  private boolean cpuAccessible;
   private static boolean supported = false;
 
   static {
@@ -18,8 +19,9 @@ public class GPUImage extends Texture {
 
   public GPUImage(short width, short height) {
     try {
+      cpuAccessible = true;
       hardwareBufferPtr = createHardwareBuffer(width, height);
-      initializeLockedBuffer();
+      initializeCpuMapping();
     } catch (Throwable e) {
       System.err.println("Error: Failed to create GPUImage: " + e.getMessage());
       destroy();
@@ -28,26 +30,27 @@ public class GPUImage extends Texture {
 
   public GPUImage(int socketFd) {
     try {
+      cpuAccessible = false;
       hardwareBufferPtr = hardwareBufferFromSocket(socketFd);
-      initializeLockedBuffer();
     } catch (Throwable e) {
       System.err.println("Error: Failed to import GPUImage: " + e.getMessage());
       destroy();
     }
   }
 
-  private void initializeLockedBuffer() {
-    if (hardwareBufferPtr != 0) {
-      virtualData = lockHardwareBuffer(hardwareBufferPtr);
-      if (virtualData == null) {
-        System.err.println("Error: Failed to lock hardware buffer");
-        destroyHardwareBuffer(hardwareBufferPtr, false);
-        hardwareBufferPtr = 0;
-      } else {
-        locked = true;
-      }
-    } else {
+  private void initializeCpuMapping() {
+    if (hardwareBufferPtr == 0) {
       System.err.println("Error: Failed to create hardware buffer");
+      return;
+    }
+
+    virtualData = lockHardwareBuffer(hardwareBufferPtr);
+    if (virtualData == null) {
+      System.err.println("Error: Failed to lock hardware buffer");
+      destroyHardwareBuffer(hardwareBufferPtr, false);
+      hardwareBufferPtr = 0;
+    } else {
+      locked = true;
     }
   }
 
@@ -88,7 +91,7 @@ public class GPUImage extends Texture {
   }
 
   public boolean isValid() {
-    return hardwareBufferPtr != 0 && virtualData != null && stride > 0;
+    return hardwareBufferPtr != 0 && (!cpuAccessible || (virtualData != null && stride > 0));
   }
 
   @Override

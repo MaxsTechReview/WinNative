@@ -46,7 +46,10 @@ public class Drawable extends XResource {
   }
 
   public void setTexture(Texture texture) {
-    if (texture instanceof GPUImage) data = ((GPUImage) texture).getVirtualData();
+    if (texture instanceof GPUImage) {
+      ByteBuffer virtualData = ((GPUImage) texture).getVirtualData();
+      if (virtualData != null) data = virtualData;
+    }
     this.texture = texture;
   }
 

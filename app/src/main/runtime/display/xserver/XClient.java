@@ -158,6 +158,10 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
   public void enforceAbsoluteFramerate() {
     com.winlator.cmod.runtime.display.renderer.GLRenderer renderer = xServer.getRenderer();
     if (renderer == null) return;
+    if (renderer.isNativeMode()) {
+      nextFrameTime = 0L;
+      return;
+    }
 
     int targetFps = renderer.getFpsLimit();
     if (targetFps <= 0) {

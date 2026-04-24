@@ -25,7 +25,7 @@ EGLImageKHR createImageKHR(AHardwareBuffer *hardwareBuffer, int textureId) {
     return NULL;
   }
 
-  const EGLint attribList[] = {EGL_IMAGE_PRESERVED_KHR, EGL_TRUE, EGL_NONE};
+  const EGLint attribList[] = {EGL_IMAGE_PRESERVED_KHR, EGL_FALSE, EGL_NONE};
 
   EGLClientBuffer clientBuffer =
       eglGetNativeClientBufferANDROID(hardwareBuffer);

@@ -14,6 +14,7 @@ import java.io.IOException;
 public class SyncExtension implements Extension {
   public static final byte MAJOR_OPCODE = -104;
   private final SparseBooleanArray fences = new SparseBooleanArray();
+  private final Object fenceLock = new Object();
 
   private abstract static class ClientOpcodes {
     private static final byte CREATE_FENCE = 14;
@@ -44,39 +45,44 @@ public class SyncExtension implements Extension {
   }
 
   public void setTriggered(int id) {
-    synchronized (fences) {
-      if (fences.indexOfKey(id) >= 0) fences.put(id, true);
+    synchronized (fenceLock) {
+      if (fences.indexOfKey(id) >= 0) {
+        fences.put(id, true);
+        fenceLock.notifyAll();
+      }
     }
   }
 
   private void createFence(XClient client, XInputStream inputStream, XOutputStream outputStream)
       throws IOException, XRequestError {
-    synchronized (fences) {
-      inputStream.skip(4);
-      int id = inputStream.readInt();
+    inputStream.skip(4);
+    int id = inputStream.readInt();
 
+    boolean initiallyTriggered = inputStream.readByte() == 1;
+    inputStream.skip(3);
+
+    synchronized (fenceLock) {
       if (fences.indexOfKey(id) >= 0) throw new BadIdChoice(id);
 
-      boolean initiallyTriggered = inputStream.readByte() == 1;
-      inputStream.skip(3);
-
       fences.put(id, initiallyTriggered);
+      if (initiallyTriggered) fenceLock.notifyAll();
     }
   }
 
   private void triggerFence(XClient client, XInputStream inputStream, XOutputStream outputStream)
       throws IOException, XRequestError {
-    synchronized (fences) {
-      int id = inputStream.readInt();
+    int id = inputStream.readInt();
+    synchronized (fenceLock) {
       if (fences.indexOfKey(id) < 0) throw new BadFence(id);
       fences.put(id, true);
+      fenceLock.notifyAll();
     }
   }
 
   private void resetFence(XClient client, XInputStream inputStream, XOutputStream outputStream)
       throws IOException, XRequestError {
-    synchronized (fences) {
-      int id = inputStream.readInt();
+    int id = inputStream.readInt();
+    synchronized (fenceLock) {
       if (fences.indexOfKey(id) < 0) throw new BadFence(id);
 
       boolean triggered = fences.get(id);
@@ -88,8 +94,8 @@ public class SyncExtension implements Extension {
 
   private void destroyFence(XClient client, XInputStream inputStream, XOutputStream outputStream)
       throws IOException, XRequestError {
-    synchronized (fences) {
-      int id = inputStream.readInt();
+    int id = inputStream.readInt();
+    synchronized (fenceLock) {
       if (fences.indexOfKey(id) < 0) throw new BadFence(id);
       fences.delete(id);
     }
@@ -97,25 +103,36 @@ public class SyncExtension implements Extension {
 
   private void awaitFence(XClient client, XInputStream inputStream, XOutputStream outputStream)
       throws IOException, XRequestError {
-    synchronized (fences) {
-      int length = client.getRemainingRequestLength();
-      int[] ids = new int[length / 4];
-      int i = 0;
+    int length = client.getRemainingRequestLength();
+    if (length < 0) length = 0;
 
-      while (length != 0) {
-        ids[i++] = inputStream.readInt();
-        length -= 4;
-      }
+    int idCount = length / 4;
+    int[] ids = new int[idCount];
+    for (int i = 0; i < idCount; i++) ids[i] = inputStream.readInt();
 
-      boolean anyTriggered = false;
-      do {
+    int remaining = length - idCount * 4;
+    if (remaining > 0) inputStream.skip(remaining);
+    if (ids.length == 0) return;
+
+    boolean anyTriggered;
+    do {
+      anyTriggered = false;
+      synchronized (fenceLock) {
         for (int id : ids) {
           if (fences.indexOfKey(id) < 0) throw new BadFence(id);
           anyTriggered = fences.get(id);
           if (anyTriggered) break;
         }
-      } while (!anyTriggered);
-    }
+        if (!anyTriggered) {
+          try {
+            fenceLock.wait(2L);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+          }
+        }
+      }
+    } while (!anyTriggered);
   }
 
   @Override
