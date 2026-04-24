@@ -34,6 +34,10 @@ jobs:
             artifactName: apk-ludashi
             gradleTask: assembleLudashiDebug
             apkPath: app/build/outputs/apk/ludashi/debug/ludashi.apk
+          - name: Pubg
+            artifactName: apk-pubg
+            gradleTask: assemblePubgDebug
+            apkPath: app/build/outputs/apk/pubg/debug/pubg.apk
 
     steps:
     - name: Clone repository
