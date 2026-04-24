@@ -11,6 +11,8 @@ import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.content.pm.ShortcutInfo;
 import android.content.pm.ShortcutManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.os.Build;
@@ -439,9 +441,10 @@ public class ShortcutsFragment extends Fragment {
     if (shortcutManager == null || !shortcutManager.isRequestPinShortcutSupported())
       return PinShortcutResult.FAILED;
 
+    Bitmap shortcutBitmap = resolveShortcutIcon(shortcut);
     Icon shortcutIcon =
-        shortcut.icon != null
-            ? Icon.createWithBitmap(shortcut.icon)
+        shortcutBitmap != null
+            ? Icon.createWithBitmap(shortcutBitmap)
             : Icon.createWithResource(requireContext(), R.drawable.icon_shortcut);
 
     return pinOrUpdateShortcut(
@@ -486,6 +489,19 @@ public class ShortcutsFragment extends Fragment {
       } catch (Exception ignored) {
       }
     }
+  }
+
+  private Bitmap resolveShortcutIcon(Shortcut shortcut) {
+    if (shortcut == null) return null;
+
+    File customIconFile = LibraryShortcutArtwork.findPreferredHomeIconFile(requireContext(), shortcut);
+    if (customIconFile != null) {
+      Bitmap bitmap = BitmapFactory.decodeFile(customIconFile.getAbsolutePath());
+      if (bitmap != null) return bitmap;
+    }
+
+    if (shortcut.getCoverArt() != null) return shortcut.getCoverArt();
+    return shortcut.icon;
   }
 
   public void updateShortcutOnScreen(

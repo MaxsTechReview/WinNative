@@ -207,6 +207,16 @@
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Do you want to remove this shortcut?</string>
     <string name="shortcuts_list_add_to_home_screen">Add to Home Screen</string>
+    <string name="shortcuts_library_artwork_title">Library Artwork</string>
+    <string name="shortcuts_library_artwork_game_card_title">Game Card Image</string>
+    <string name="shortcuts_library_artwork_grid_title">Grid Image</string>
+    <string name="shortcuts_library_artwork_carousel_title">Carousel Image</string>
+    <string name="shortcuts_library_artwork_list_title">List Image</string>
+    <string name="shortcuts_library_artwork_selected">Selected: %1$s</string>
+    <string name="shortcuts_library_artwork_set">Set image</string>
+    <string name="shortcuts_library_artwork_change">Change image</string>
+    <string name="shortcuts_library_artwork_failed">Failed to load the selected image.</string>
+    <string name="shortcuts_library_artwork_open_source">Open SteamGridDB</string>
     <string name="shortcuts_list_not_available">This shortcut is no longer available. Please delete or recreate it.</string>
     <string name="shortcuts_list_select_a_container">Select a container</string>
     <string name="shortcuts_list_error_opening_settings">Error opening shortcut settings</string>

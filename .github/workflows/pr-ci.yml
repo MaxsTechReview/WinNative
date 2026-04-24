@@ -6,13 +6,11 @@ on:
     paths-ignore:
       - '**.md'
       - '.gitignore'
-      - 'input_controls/**'
   pull_request:
     branches: [ main ]
     paths-ignore:
       - '**.md'
       - '.gitignore'
-      - 'input_controls/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -23,16 +21,23 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
     strategy:
       fail-fast: false
       matrix:
         flavor:
           - name: Standard
+            artifactName: apk-standard
             gradleTask: assembleStandardDebug
             apkPath: app/build/outputs/apk/standard/debug/standard.apk
           - name: Ludashi
+            artifactName: apk-ludashi
             gradleTask: assembleLudashiDebug
             apkPath: app/build/outputs/apk/ludashi/debug/ludashi.apk
+          - name: Pubg
+            artifactName: apk-pubg
+            gradleTask: assemblePubgDebug
+            apkPath: app/build/outputs/apk/pubg/debug/pubg.apk
 
     steps:
     - name: Clone repository
@@ -102,31 +107,39 @@ jobs:
 
     - name: Compute artifact label
       id: label
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         if [ "${{ github.event_name }}" = "pull_request" ]; then
-          echo "name=PR${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          short_sha=$(printf '%s' "${{ github.event.pull_request.head.sha }}" | cut -c1-5)
+          echo "name=PR#${{ github.event.pull_request.number }}-${short_sha}" >> "$GITHUB_OUTPUT"
         else
-          # Squash-merge commit subjects look like "Title (#123)"; extract the PR number.
-          num=$(git log -1 --pretty=%s | grep -oE '\(#[0-9]+\)' | tail -1 | tr -d '(#)')
+          short_sha=$(printf '%s' "$GITHUB_SHA" | cut -c1-5)
+          # For merged PR commits on main, preserve the source PR number and PR head SHA.
+          num=$(git log -1 --pretty=%s | grep -oE '\(#[0-9]+\)|#[0-9]+' | tail -1 | tr -cd '0-9')
           if [ -n "$num" ]; then
-            echo "name=PR${num}" >> "$GITHUB_OUTPUT"
+            pr_head_sha=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$num" --jq '.head.sha' 2>/dev/null || true)
+            if [ -n "$pr_head_sha" ] && [ "$pr_head_sha" != "null" ]; then
+              short_sha=$(printf '%s' "$pr_head_sha" | cut -c1-5)
+            fi
+            echo "name=PR#${num}-${short_sha}" >> "$GITHUB_OUTPUT"
           else
-            short_sha=$(echo "$GITHUB_SHA" | cut -c1-7)
             echo "name=main-${short_sha}" >> "$GITHUB_OUTPUT"
           fi
         fi
 
-    - name: Rename APK for upload
+    - name: Prepare APK for upload
       run: |
-        mkdir -p artifacts
-        cp ${{ matrix.flavor.apkPath }} "artifacts/WinNative-${{ matrix.flavor.name }}-debug-${{ steps.label.outputs.name }}.apk"
+        upload_dir="artifacts/${{ matrix.flavor.artifactName }}"
+        mkdir -p "$upload_dir"
+        cp ${{ matrix.flavor.apkPath }} "$upload_dir/WinNative-Debug-${{ matrix.flavor.name }}-${{ steps.label.outputs.name }}.apk"
 
     - name: Upload APK
       uses: actions/upload-artifact@v7
       with:
-        path: artifacts/WinNative-${{ matrix.flavor.name }}-debug-${{ steps.label.outputs.name }}.apk
+        name: ${{ matrix.flavor.artifactName }}
+        path: artifacts/${{ matrix.flavor.artifactName }}/*.apk
         retention-days: 7
-        archive: false
         if-no-files-found: error
 
   cleanup-caches:

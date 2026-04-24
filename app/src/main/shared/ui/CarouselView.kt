@@ -29,7 +29,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlin.math.abs
@@ -69,8 +68,6 @@ fun <T> CarouselView(
         val sidePadding = ((maxWidth - baseCardWidth) / 2).coerceAtLeast(0.dp)
         val flingBehavior = rememberSnapFlingBehavior(listState)
         val cardWidthPx = with(density) { baseCardWidth.toPx() }
-        val snapThresholdPx = cardWidthPx * 0.2f
-
         // Scroll to selected index when changed externally (d-pad / joystick)
         LaunchedEffect(selectedIndex) {
             if (selectedIndex in items.indices) {
@@ -96,17 +93,13 @@ fun <T> CarouselView(
                             visibleItems.minByOrNull { item ->
                                 abs((item.offset + item.size / 2) - viewportCenter)
                             }
-                        centeredItem?.let { item ->
-                            val distance = abs((item.offset + item.size / 2) - viewportCenter).toFloat()
-                            Triple(item.index, distance, listState.isScrollInProgress)
-                        }
+                        centeredItem?.let { item -> item.index to listState.isScrollInProgress }
                     }
                 }
             }.filterNotNull()
                 .distinctUntilChanged()
-                .collect { (centeredIndex, distance, isScrolling) ->
-                    val shouldPromote = !isScrolling || distance <= snapThresholdPx
-                    if (shouldPromote && centeredIndex != lastReportedIndex.intValue) {
+                .collect { (centeredIndex, isScrolling) ->
+                    if (!isScrolling && centeredIndex != lastReportedIndex.intValue) {
                         lastReportedIndex.intValue = centeredIndex
                         onCenteredIndexChanged(centeredIndex)
                     }
@@ -188,53 +181,6 @@ fun <T> CarouselView(
                             },
                 ) {
                     itemContent(item, index, isSelected, baseCardWidth, baseCardHeight)
-                }
-            }
-        }
-    }
-}
-
-/**
- * Drives item-by-item horizontal navigation of a [LazyListState] from an analog-stick flow.
- * Updates [onIndexChanged] so the parent can update its focus index, which then drives
- * the carousel's selectedIndex.
- *
- * @param listState The list to scroll.
- * @param stickFlow The analog-stick X-axis value flow (–1..1).
- * @param currentIndex The current focused index.
- * @param itemCount Total number of items.
- * @param onIndexChanged Called with the new target index.
- * @param deadZone Minimum absolute value before navigation triggers.
- * @param cooldownMs Cooldown between item navigations in milliseconds.
- */
-@Composable
-fun JoystickCarouselScroll(
-    listState: LazyListState,
-    stickFlow: StateFlow<Float>?,
-    currentIndex: Int = 0,
-    itemCount: Int = 0,
-    onIndexChanged: (Int) -> Unit = {},
-    deadZone: Float = 0.4f,
-    cooldownMs: Long = 300,
-) {
-    if (stickFlow == null || itemCount <= 0) return
-
-    LaunchedEffect(listState, itemCount) {
-        var lastNavTime = 0L
-        stickFlow.collect { value ->
-            if (abs(value) > deadZone) {
-                val now = System.currentTimeMillis()
-                if (now - lastNavTime > cooldownMs) {
-                    lastNavTime = now
-                    val newIndex =
-                        if (value > 0) {
-                            (currentIndex + 1).coerceAtMost(itemCount - 1)
-                        } else {
-                            (currentIndex - 1).coerceAtLeast(0)
-                        }
-                    if (newIndex != currentIndex) {
-                        onIndexChanged(newIndex)
-                    }
                 }
             }
         }
