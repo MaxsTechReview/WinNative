@@ -2027,27 +2027,17 @@ class UnifiedActivity :
         var cachedShortcuts by remember { mutableStateOf<List<Shortcut>>(emptyList()) }
         var customApps by remember { mutableStateOf<List<SteamApp>>(emptyList()) }
         var localLibraryRefreshKey by remember { mutableIntStateOf(0) }
-        LaunchedEffect(libraryRefreshKey, localLibraryRefreshKey) {
-            withContext(Dispatchers.IO) {
-                try {
-                    val cm = ContainerManager(context)
-                    cm.upgradeShortcuts {
-                        localLibraryRefreshKey++
-                    }
-                    val allShortcuts = cm.loadShortcuts()
-                    val apps =
-                        allShortcuts
-                            .mapNotNull { shortcut ->
-                                if (!LibraryShortcutUtils.isCustomLibraryShortcut(shortcut)) {
-                                    return@mapNotNull null
         var shortcutsLoaded by remember { mutableStateOf(false) }
-        LaunchedEffect(shortcutRefreshKey) {
+        LaunchedEffect(shortcutRefreshKey, localLibraryRefreshKey) {
             shortcutsLoaded = false
 
             val shortcutScanResult =
                 runCatching {
                     withContext(Dispatchers.IO) {
                         val cm = ContainerManager(context)
+                        cm.upgradeShortcuts {
+                            localLibraryRefreshKey++
+                        }
                         val allShortcuts = cm.loadShortcuts()
                         val apps =
                             allShortcuts
