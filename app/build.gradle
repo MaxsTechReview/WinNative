@@ -168,6 +168,8 @@ android {
 }
 
 dependencies {
+    // debugImplementation "com.squareup.leakcanary:leakcanary-android:2.14"
+
     implementation libs.okhttp
     implementation libs.okhttpDnsOverHttps
     implementation libs.okhttpLoggingInterceptor

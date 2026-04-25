@@ -119,6 +119,13 @@ public class XServer {
     this.shmSegmentManager = shmSegmentManager;
   }
 
+  public void stop() {
+    cursorLocker.stop();
+    renderer = null;
+    winHandler = null;
+    shmSegmentManager = null;
+  }
+
   private class SingleXLock implements XLock {
     private final ReentrantLock lock;
 

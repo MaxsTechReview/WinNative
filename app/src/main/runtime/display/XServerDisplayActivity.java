@@ -1967,6 +1967,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
+    private void stopXServer(String trigger) {
+        try {
+            if (xServer != null) {
+                xServer.stop();
+            }
+        } catch (Exception e) {
+            Log.w("XServerLeakCheck", "Failed to stop XServer during " + trigger, e);
+        }
+    }
+
     private void performForcedSessionCleanup(String trigger) {
         if (!beginSessionCleanup(trigger)) {
             Log.d("XServerLeakCheck", "Forced session cleanup already ran; skipping duplicate request from " + trigger);
@@ -2037,6 +2047,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             Log.e("XServerLeakCheck", "Failed to stop environment during forced cleanup", e);
         }
 
+        stopXServer("forced cleanup (" + trigger + ")");
         xServer = null;
         xServerView = null;
 
@@ -2075,7 +2086,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     if (!beginSessionCleanup("exit")) {
                         return;
                     }
-                    // We're about to hard-restart the process; make sure playtime is flushed.
                     savePlaytimeData(true);
                     cleanupActivityCallbacks("exit");
                     if (midiHandler != null) midiHandler.stop();
@@ -2097,18 +2107,24 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     }
                     Log.d("XServerDisplayActivity", "Process snapshot after environment stop: "
                             + ProcessHelper.listRunningWineProcessDetails());
+                    stopXServer("exit");
                     winHandler = null;
                     wineRequestHandler = null;
                     midiHandler = null;
                     xServer = null;
                     xServerView = null;
                     if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.closeOnUiThread();
-                    // Match Ludashi/vanilla behavior: restart the app to ensure native/GL
-                    // resources are fully released between sessions.
-                    AppUtils.restartApplication(XServerDisplayActivity.this, 0);
+                    returnToUnifiedActivity();
                 }
             }, 1000);
         });
+    }
+
+    private void returnToUnifiedActivity() {
+        Intent intent = new Intent(this, UnifiedActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(intent);
+        finish();
     }
     
     /**

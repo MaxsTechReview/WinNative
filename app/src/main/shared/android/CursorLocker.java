@@ -7,15 +7,17 @@ import java.util.TimerTask;
 
 public class CursorLocker extends TimerTask {
   private final XServer xServer;
+  private final Timer timer;
   private float damping = 0.25f;
   private short maxDistance;
   private boolean enabled = true;
+  private boolean stopped = false;
   private final Object pauseLock = new Object();
 
   public CursorLocker(XServer xServer) {
     this.xServer = xServer;
     maxDistance = (short) (xServer.screenInfo.width * 0.05f);
-    Timer timer = new Timer();
+    timer = new Timer("CursorLocker", true);
     timer.scheduleAtFixedRate(this, 0, 1000 / 60);
   }
 
@@ -40,6 +42,7 @@ public class CursorLocker extends TimerTask {
   }
 
   public void setEnabled(boolean enabled) {
+    if (stopped) return;
     if (enabled) {
       synchronized (pauseLock) {
         this.enabled = true;
@@ -48,15 +51,27 @@ public class CursorLocker extends TimerTask {
     } else this.enabled = enabled;
   }
 
+  public void stop() {
+    synchronized (pauseLock) {
+      stopped = true;
+      enabled = true;
+      pauseLock.notifyAll();
+    }
+    cancel();
+    timer.cancel();
+    timer.purge();
+  }
+
   @Override
   public void run() {
     synchronized (pauseLock) {
-      if (!enabled) {
+      while (!enabled && !stopped) {
         try {
           pauseLock.wait();
         } catch (InterruptedException e) {
         }
       }
+      if (stopped) return;
     }
 
     short x =
