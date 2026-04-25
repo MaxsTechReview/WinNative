@@ -14,7 +14,6 @@ import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.concurrent.Executors;
 
 public abstract class ProcessHelper {
   private static final String TAG = "ProcessHelper";
@@ -239,8 +238,7 @@ public abstract class ProcessHelper {
   }
 
   private static void createDebugThread(final InputStream inputStream) {
-    Executors.newSingleThreadExecutor()
-        .execute(
+    new Thread(
             () -> {
               try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
                 String line;
@@ -255,25 +253,26 @@ public abstract class ProcessHelper {
               } catch (IOException e) {
                 Log.e("ProcessHelper", "Error in debug thread", e);
               }
-            });
+            },
+            "ProcessDebugReader")
+        .start();
   }
 
   private static void createWaitForThread(
       java.lang.Process process, final Callback<Integer> terminationCallback) {
-    Executors.newSingleThreadExecutor()
-        .execute(
-            new Runnable() {
-              @Override
-              public void run() {
-                try {
-                  int status = process.waitFor();
-                  drainDeadChildren("process waitFor");
-                  terminationCallback.call(status);
-                } catch (InterruptedException e) {
-                  Log.e("ProcessHelper", "Error waiting for process termination", e);
-                }
+    new Thread(
+            () -> {
+              try {
+                int status = process.waitFor();
+                drainDeadChildren("process waitFor");
+                terminationCallback.call(status);
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                Log.e("ProcessHelper", "Error waiting for process termination", e);
               }
-            });
+            },
+            "ProcessWaitFor")
+        .start();
   }
 
   public static void removeAllDebugCallbacks() {

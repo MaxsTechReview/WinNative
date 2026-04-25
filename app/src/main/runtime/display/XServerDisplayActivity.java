@@ -497,7 +497,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             preloaderDialog.showOnUiThread(getString(R.string.preloader_initializing));
         }
 
-        Executors.newSingleThreadExecutor().execute(() -> {
+        new Thread(() -> {
             performForcedSessionCleanup("switch launch target");
             runOnUiThread(() -> {
                 if (isFinishing() || isDestroyed()) {
@@ -507,7 +507,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 setIntent(relaunchIntent);
                 recreate();
             });
-        });
+        }, "XServerSwitchCleanup").start();
     }
 
     @Override

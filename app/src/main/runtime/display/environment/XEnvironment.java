@@ -67,6 +67,7 @@ public class XEnvironment implements Iterable<EnvironmentComponent> {
     // Stop in reverse order so dependent components (guest launcher) tear down before
     // their underlying services (audio sockets, XServer, shm).
     Log.d(TAG, "Stopping " + components.size() + " environment component(s)");
+    RuntimeException firstFailure = null;
     for (int i = components.size() - 1; i >= 0; i--) {
       EnvironmentComponent component = components.get(i);
       String name = component.getClass().getSimpleName();
@@ -76,8 +77,11 @@ public class XEnvironment implements Iterable<EnvironmentComponent> {
         Log.d(TAG, "Stopped component " + name);
       } catch (RuntimeException e) {
         Log.e(TAG, "Component stop failed for " + name, e);
-        throw e;
+        if (firstFailure == null) firstFailure = e;
       }
+    }
+    if (firstFailure != null) {
+      Log.e(TAG, "Environment component shutdown finished with failure(s)", firstFailure);
     }
     Log.d(TAG, "Environment component shutdown finished");
   }

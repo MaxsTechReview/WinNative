@@ -9,6 +9,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -18,12 +19,13 @@ import jp.kshoji.javax.sound.midi.ShortMessage;
 public class MidiHandler {
   private static final String TAG = "MidiHandler";
   private DatagramSocket socket;
+  private volatile ExecutorService receiveExecutor;
 
   public DatagramSocket getSocket() {
     return socket;
   }
 
-  private boolean running = false;
+  private volatile boolean running = false;
   private static final short SERVER_PORT = 7942;
   private static final short CLIENT_PORT = 7941;
   private static final int BUF_SIZE = 9;
@@ -44,32 +46,50 @@ public class MidiHandler {
     this.sf2SoundBank = soundBank;
   }
 
-  public void start() {
+  public synchronized void start() {
+    if (running) return;
     running = true;
-    Executors.newSingleThreadExecutor()
-        .execute(
+    receiveExecutor = Executors.newSingleThreadExecutor();
+    final ExecutorService activeExecutor = receiveExecutor;
+    activeExecutor.execute(
             () -> {
+              DatagramSocket localSocket = null;
               try {
-                socket = new DatagramSocket(null);
-                socket.setReuseAddress(true);
-                socket.bind(new InetSocketAddress((InetAddress) null, SERVER_PORT));
+                localSocket = new DatagramSocket(null);
+                localSocket.setReuseAddress(true);
+                localSocket.bind(new InetSocketAddress((InetAddress) null, SERVER_PORT));
+                socket = localSocket;
 
                 while (running) {
-                  socket.receive(receivePacket);
+                  localSocket.receive(receivePacket);
                   receiveData.rewind();
                   handleRequest(receiveData);
                 }
               } catch (IOException e) {
+              } finally {
+                if (receiveExecutor == activeExecutor) running = false;
+                if (localSocket != null) {
+                  localSocket.close();
+                }
+                if (socket == localSocket) {
+                  socket = null;
+                }
+                activeExecutor.shutdown();
               }
             });
   }
 
-  public void stop() {
+  public synchronized void stop() {
     running = false;
 
     if (socket != null) {
       socket.close();
       socket = null;
+    }
+
+    if (receiveExecutor != null) {
+      receiveExecutor.shutdownNow();
+      receiveExecutor = null;
     }
 
     clearRecv();
