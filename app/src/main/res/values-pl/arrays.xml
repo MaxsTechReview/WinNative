@@ -119,12 +119,6 @@
         <item>10240 MB</item>
         <item>12288 MB</item>
     </string-array>
-    <string-array name="dxvk_framerate_entries">
-        <item>0 (Domyślnie)</item>
-        <item>30</item>
-        <item>60</item>
-        <item>120</item>
-    </string-array>
     <string-array name="wincomponent_entries">
         <item>Wbudowany (Wine)</item>
         <item>Natywny (Windows)</item>

@@ -599,7 +599,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_effects_profile_selection">Profile Selection</string>
 
     <!-- Session > Display -->
-    <string name="session_display_show_fps">Show FPS</string>
     <string name="session_display_orientation">Orientation</string>
     <string name="session_display_horizontal">Horizontal</string>
     <string name="session_display_vertical">Vertical</string>

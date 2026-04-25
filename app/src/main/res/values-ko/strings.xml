@@ -555,7 +555,6 @@
     <string name="session_effects_profile_selection">프로필 선택</string>
 
     <!-- Session > Display -->
-    <string name="session_display_show_fps">FPS 표시</string>
     <string name="session_display_orientation">화면 방향</string>
     <string name="session_display_horizontal">가로</string>
     <string name="session_display_vertical">세로</string>
