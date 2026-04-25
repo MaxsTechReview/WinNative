@@ -1577,9 +1577,12 @@ class ShortcutSettingsComposeDialog private constructor(
         return merged.joinToString(" ") { "${it.key}=${it.value}" }
     }
 
+    // Emit the enumerated list even when all cores are checked. Returning "" for
+    // all-checked collides with the "fallback / no override" sentinel used by
+    // Container.setCPUList*, Shortcut.getSettingExtra, and the WoW64 fallback
+    // (which is only upper-half cores) — so a user's "all cores" selection
+    // would silently decay on reload.
     private fun buildCpuListString(checked: List<Boolean>): String {
-        val allChecked = checked.all { it }
-        if (allChecked) return "" // empty means all cores
         return checked.mapIndexedNotNull { i, isChecked ->
             if (isChecked) "$i" else null
         }.joinToString(",")

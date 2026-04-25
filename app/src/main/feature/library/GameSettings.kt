@@ -3253,9 +3253,15 @@ private fun AdvancedSection(
                     index = i,
                     isChecked = isChecked,
                     onClick = {
-                        val mutable = checkedList.toMutableList()
-                        mutable[i] = !isChecked
-                        state.cpuChecked.value = mutable
+                        // Block unchecking the last remaining core: zero-selected
+                        // and all-selected would otherwise serialize identically,
+                        // and runtime skips affinity for a zero mask.
+                        val wouldLeaveNone = isChecked && checkedList.count { it } <= 1
+                        if (!wouldLeaveNone) {
+                            val mutable = checkedList.toMutableList()
+                            mutable[i] = !isChecked
+                            state.cpuChecked.value = mutable
+                        }
                     }
                 )
             }
@@ -3280,9 +3286,12 @@ private fun AdvancedSection(
                     index = i,
                     isChecked = isChecked,
                     onClick = {
-                        val mutable = checkedList.toMutableList()
-                        mutable[i] = !isChecked
-                        state.cpuCheckedWoW64.value = mutable
+                        val wouldLeaveNone = isChecked && checkedList.count { it } <= 1
+                        if (!wouldLeaveNone) {
+                            val mutable = checkedList.toMutableList()
+                            mutable[i] = !isChecked
+                            state.cpuCheckedWoW64.value = mutable
+                        }
                     }
                 )
             }
