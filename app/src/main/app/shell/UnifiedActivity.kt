@@ -2051,7 +2051,14 @@ class UnifiedActivity :
                                         shortcut
                                             .getExtra("custom_name", shortcut.name)
                                             .ifBlank { shortcut.name }
-                                    val customId = -(displayName.hashCode().and(0x7FFFFFFF) + 1)
+                                    
+                                    val uuid = shortcut.getExtra("uuid")
+                                    val customId = if (uuid.isNotEmpty()) {
+                                        // Use UUID hash to ensure ID stability across renames
+                                        -(uuid.hashCode().and(0x7FFFFFFF) + 1)
+                                    } else {
+                                        -(displayName.hashCode().and(0x7FFFFFFF) + 1)
+                                    }
 
                                     SteamApp(
                                         id = customId,
@@ -9687,12 +9694,12 @@ class UnifiedActivity :
                     if (path != null && (isExe || java.io.File(path).exists())) {
                         selectedExePath = path
                         gameFolder = detectGameFolder(path)
-                        // Auto-generate a game name from the folder name
+                        // Auto-generate a game name from the EXE name (without extension)
                         if (gameName.isBlank()) {
                             gameName =
                                 java.io
-                                    .File(gameFolder!!)
-                                    .name
+                                    .File(path)
+                                    .nameWithoutExtension
                                     .replace("_", " ")
                                     .replace("-", " ")
                         }

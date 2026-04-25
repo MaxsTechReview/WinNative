@@ -944,16 +944,13 @@ class ShortcutSettingsComposeDialog private constructor(
         else
             shortcut.container
         val name = state.name.value.trim()
-        val nameChanged = shortcut.name != name && name.isNotEmpty()
+        val nameChanged = shortcut.getExtra("custom_name", shortcut.name) != name && name.isNotEmpty()
 
         if (nameChanged) {
-            renameShortcut(name)
+            shortcut.putExtra("custom_name", name)
         }
 
-        val renamingSuccess =
-            !nameChanged || File(shortcut.file.parent, "$name.desktop").exists()
-
-        if (renamingSuccess) {
+        if (true) {
             var hasContainerOverride = false
 
             // Screen size
@@ -1281,6 +1278,7 @@ class ShortcutSettingsComposeDialog private constructor(
             } else {
                 shortcut.saveData()
             }
+            com.winlator.cmod.app.shell.UnifiedActivity.refreshLibrary()
         }
     }
 
@@ -2078,39 +2076,6 @@ class ShortcutSettingsComposeDialog private constructor(
                 "renderer=$renderer"
     }
 
-    private fun renameShortcut(newName: String) {
-        val parent = shortcut.file.parentFile
-        val oldDesktopFile = shortcut.file
-        val newDesktopFile = File(parent, "$newName.desktop")
-
-        if (!newDesktopFile.isFile && oldDesktopFile.renameTo(newDesktopFile)) {
-            try {
-                val fileField = Shortcut::class.java.getDeclaredField("file")
-                fileField.isAccessible = true
-                fileField.set(shortcut, newDesktopFile)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error updating shortcut file reference", e)
-            }
-
-            if (oldDesktopFile.exists()) {
-                oldDesktopFile.delete()
-            }
-        }
-
-        val linkFile = File(parent, "${shortcut.name}.lnk")
-        if (linkFile.isFile) {
-            val newLinkFile = File(parent, "$newName.lnk")
-            if (!newLinkFile.isFile) linkFile.renameTo(newLinkFile)
-        }
-
-        fragment?.loadShortcutsList()
-        fragment?.updateShortcutOnScreen(
-            newName, newName, shortcut.container.id,
-            File(parent, "$newName.desktop").absolutePath,
-            buildPinnedShortcutIcon(),
-            shortcut.getExtra("uuid")
-        )
-    }
 
     // ------------------------------------------------------------------
     // Show / Dismiss
