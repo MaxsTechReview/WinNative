@@ -1,11 +1,14 @@
 package com.winlator.cmod.runtime.display.xserver;
 
 import android.util.SparseArray;
+import android.util.Log;
+import com.winlator.cmod.runtime.display.renderer.GLRenderer;
 import com.winlator.cmod.runtime.display.renderer.Texture;
 import com.winlator.cmod.shared.util.Callback;
 
 public class DrawableManager extends XResourceManager
     implements XResourceManager.OnResourceLifecycleListener {
+  private static final String TAG = "DrawableManager";
   private final XServer xServer;
   private final SparseArray<Drawable> drawables = new SparseArray<>();
 
@@ -46,16 +49,20 @@ public class DrawableManager extends XResourceManager
   public void removeDrawable(int id) {
     Drawable drawable = drawables.get(id);
     if (drawable == null) {
-      throw new IllegalStateException("Attempting to remove non-existent Drawable with id " + id);
+      Log.w(TAG, "Ignoring removal for missing Drawable with id " + id);
+      return;
     }
     if (drawable.getData() == null) {
-      throw new IllegalStateException("Drawable with id " + id + " has null data during removal.");
+      Log.w(TAG, "Ignoring removal for Drawable with null data, id " + id);
+      drawables.remove(id);
+      return;
     }
 
     detachScanoutUsers(drawable);
 
     final Texture texture = drawable.getTexture();
-    if (texture != null) xServer.getRenderer().xServerView.queueEvent(texture::destroy);
+    GLRenderer renderer = xServer.getRenderer();
+    if (texture != null && renderer != null) renderer.xServerView.queueEvent(texture::destroy);
 
     Callback<Drawable> onDestroyListener = drawable.getOnDestroyListener();
     if (onDestroyListener != null) onDestroyListener.call(drawable);

@@ -6,7 +6,6 @@ import com.winlator.cmod.runtime.display.connector.XOutputStream;
 import com.winlator.cmod.runtime.display.xserver.events.Event;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.concurrent.locks.LockSupport;
 
 public class XClient implements XResourceManager.OnResourceLifecycleListener {
   public final XServer xServer;
@@ -20,7 +19,6 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
   private final XOutputStream outputStream;
   private final ArrayMap<Window, EventListener> eventListeners = new ArrayMap<>();
   private final ArrayList<XResource> resources = new ArrayList<>();
-  private long nextFrameTime = 0;
 
   public XClient(XServer xServer, XInputStream inputStream, XOutputStream outputStream) {
 
@@ -159,22 +157,6 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
   public void enforceAbsoluteFramerate() {
     com.winlator.cmod.runtime.display.renderer.GLRenderer renderer = xServer.getRenderer();
     if (renderer == null) return;
-
-    int targetFps = renderer.getFpsLimit();
-    if (targetFps <= 0) {
-      nextFrameTime = 0L;
-      return;
-    }
-
-    long targetFrameTime = 1000000000L / targetFps;
-    long now = System.nanoTime();
-
-    if (nextFrameTime == 0 || now > nextFrameTime) nextFrameTime = now;
-
-    long sleepTime = nextFrameTime - now;
-    if (sleepTime > 0) {
-      LockSupport.parkNanos(sleepTime);
-    }
-    nextFrameTime += targetFrameTime;
+    renderer.enforceFpsLimit();
   }
 }

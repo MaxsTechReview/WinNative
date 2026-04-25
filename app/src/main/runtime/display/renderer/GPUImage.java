@@ -11,6 +11,7 @@ public class GPUImage extends Texture {
   private short stride;
   private boolean locked;
   private boolean cpuAccessible;
+  private boolean samplingFailed;
   private static boolean supported = false;
 
   static {
@@ -62,6 +63,7 @@ public class GPUImage extends Texture {
       imageKHRPtr = createImageKHR(hardwareBufferPtr, textureId);
       if (imageKHRPtr == 0) {
         System.err.println("Error: Failed to create EGL image");
+        samplingFailed = true;
         destroyHardwareBuffer(hardwareBufferPtr, locked);
         hardwareBufferPtr = 0;
         locked = false;
@@ -74,6 +76,7 @@ public class GPUImage extends Texture {
   @Override
   public void updateFromDrawable(Drawable drawable) {
     if (!isAllocated()) allocateTexture(drawable.width, drawable.height, null);
+    if (!isAllocated()) return;
     needsUpdate = false;
   }
 
@@ -94,6 +97,10 @@ public class GPUImage extends Texture {
     return hardwareBufferPtr != 0 && (!cpuAccessible || (virtualData != null && stride > 0));
   }
 
+  public boolean hasSamplingFailed() {
+    return samplingFailed;
+  }
+
   @Override
   public void destroy() {
     if (imageKHRPtr != 0) {
@@ -106,6 +113,7 @@ public class GPUImage extends Texture {
     }
     locked = false;
     virtualData = null;
+    samplingFailed = false;
     super.destroy();
   }
 

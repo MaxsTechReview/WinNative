@@ -12,8 +12,11 @@ import com.winlator.cmod.runtime.display.xserver.Bitmask;
 import com.winlator.cmod.runtime.display.xserver.Drawable;
 import com.winlator.cmod.runtime.display.xserver.Pixmap;
 import com.winlator.cmod.runtime.display.xserver.Window;
+import com.winlator.cmod.runtime.display.xserver.WindowManager;
 import com.winlator.cmod.runtime.display.xserver.XClient;
 import com.winlator.cmod.runtime.display.xserver.XLock;
+import com.winlator.cmod.runtime.display.xserver.XResource;
+import com.winlator.cmod.runtime.display.xserver.XResourceManager;
 import com.winlator.cmod.runtime.display.xserver.XServer;
 import com.winlator.cmod.runtime.display.xserver.errors.BadImplementation;
 import com.winlator.cmod.runtime.display.xserver.errors.BadMatch;
@@ -24,7 +27,10 @@ import com.winlator.cmod.runtime.display.xserver.events.PresentCompleteNotify;
 import com.winlator.cmod.runtime.display.xserver.events.PresentIdleNotify;
 import java.io.IOException;
 
-public class PresentExtension implements Extension {
+public class PresentExtension
+    implements Extension,
+        XResourceManager.OnResourceLifecycleListener,
+        WindowManager.OnWindowModificationListener {
   public static final byte MAJOR_OPCODE = -103;
   private static final int FAKE_INTERVAL = 1000000 / 60;
 
@@ -42,6 +48,7 @@ public class PresentExtension implements Extension {
   private final SparseArray<Event> events = new SparseArray<>();
   private final SparseArray<PendingScanout> pendingScanouts = new SparseArray<>();
   private SyncExtension syncExtension;
+  private boolean lifecycleListenersRegistered = false;
 
   private abstract static class ClientOpcodes {
     private static final byte QUERY_VERSION = 0;
@@ -186,8 +193,12 @@ public class PresentExtension implements Extension {
 
     pendingScanouts.remove(window.id);
     Drawable content = window.getContent();
-    if (content != null && content.getScanoutSource() == pendingScanout.pixmap.drawable) {
-      content.clearScanoutSource();
+    if (content != null) {
+      synchronized (content.renderLock) {
+        if (content.getScanoutSource() == pendingScanout.pixmap.drawable) {
+          content.clearScanoutSource();
+        }
+      }
     }
     sendIdleNotify(
         pendingScanout.window,
@@ -196,11 +207,57 @@ public class PresentExtension implements Extension {
         pendingScanout.idleFence);
   }
 
+  private void releasePendingScanoutsForPixmap(Pixmap pixmap) {
+    for (int i = pendingScanouts.size() - 1; i >= 0; i--) {
+      PendingScanout pendingScanout = pendingScanouts.valueAt(i);
+      if (pendingScanout.pixmap == pixmap) {
+        releasePendingScanout(pendingScanout.window);
+      }
+    }
+  }
+
+  private void removeEventsForWindow(Window window) {
+    synchronized (events) {
+      for (int i = events.size() - 1; i >= 0; i--) {
+        if (events.valueAt(i).window == window) events.removeAt(i);
+      }
+    }
+  }
+
+  private void registerLifecycleListeners(XServer xServer) {
+    if (lifecycleListenersRegistered) return;
+    synchronized (this) {
+      if (lifecycleListenersRegistered) return;
+      xServer.pixmapManager.addOnResourceLifecycleListener(this);
+      xServer.windowManager.addOnWindowModificationListener(this);
+      lifecycleListenersRegistered = true;
+    }
+  }
+
+  @Override
+  public void onFreeResource(XResource resource) {
+    if (resource instanceof Pixmap) {
+      releasePendingScanoutsForPixmap((Pixmap) resource);
+    }
+  }
+
+  @Override
+  public void onDestroyWindow(Window window) {
+    releasePendingScanout(window);
+    removeEventsForWindow(window);
+  }
+
   private boolean canDirectScanout(Drawable content, Drawable pixmap, short xOff, short yOff) {
+    Texture texture = pixmap.getTexture();
+    if (texture instanceof GPUImage) {
+      GPUImage gpuImage = (GPUImage) texture;
+      if (!gpuImage.isValid() || gpuImage.hasSamplingFailed()) return false;
+    }
+
     return xOff == 0
         && yOff == 0
         && pixmap.isDirectScanout()
-        && pixmap.getTexture() != null
+        && texture != null
         && pixmap.width >= content.width
         && pixmap.height >= content.height;
   }
@@ -216,14 +273,18 @@ public class PresentExtension implements Extension {
 
     if (client.xServer.isDri3Enabled() && GPUImage.isSupported() && !mask.isEmpty()) {
       Drawable content = window.getContent();
-      GPUImage gpuImage = new GPUImage(content.width, content.height);
-      if (gpuImage.isValid()) {
-        final Texture oldTexture = content.getTexture();
-        if (oldTexture != null)
-          client.xServer.getRenderer().xServerView.queueEvent(oldTexture::destroy);
-        content.setTexture(gpuImage);
-      } else {
-        gpuImage.destroy();
+      if (content != null) {
+        GPUImage gpuImage = new GPUImage(content.width, content.height);
+        synchronized (content.renderLock) {
+          if (gpuImage.isValid()) {
+            final Texture oldTexture = content.getTexture();
+            if (oldTexture != null && client.xServer.getRenderer() != null)
+              client.xServer.getRenderer().xServerView.queueEvent(oldTexture::destroy);
+            content.setTexture(gpuImage);
+          } else {
+            gpuImage.destroy();
+          }
+        }
       }
     }
 
@@ -249,6 +310,7 @@ public class PresentExtension implements Extension {
   @Override
   public void handleRequest(XClient client, XInputStream inputStream, XOutputStream outputStream)
       throws IOException, XRequestError {
+    registerLifecycleListeners(client.xServer);
     int opcode = client.getRequestData();
     if (syncExtension == null)
       syncExtension = client.xServer.getExtension(SyncExtension.MAJOR_OPCODE);

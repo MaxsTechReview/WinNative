@@ -24,6 +24,7 @@ import com.winlator.cmod.shared.android.AppUtils;
 import com.winlator.cmod.shared.math.Mathf;
 import com.winlator.cmod.shared.math.XForm;
 import java.util.ArrayList;
+import java.util.concurrent.locks.LockSupport;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
@@ -52,7 +53,11 @@ public class GLRenderer
   public int surfaceHeight;
   private final EffectComposer effectComposer;
   private boolean cpuSaverMode = false;
-  private int currentFpsLimit = 0;
+  private static final int MAX_FPS_LIMIT = 1000;
+  private static final long FPS_LIMIT_SPIN_THRESHOLD_NS = 500_000L;
+  private final Object fpsLimiterLock = new Object();
+  private volatile int currentFpsLimit = 0;
+  private long nextFrameTimeNanos = 0;
   private boolean wasDirectMode = false;
 
   public GLRenderer(XServerView xServerView, XServer xServer) {
@@ -108,6 +113,8 @@ public class GLRenderer
   }
 
   public void drawFrame() {
+    resetFrameState();
+
     // Update the viewport if necessary
     if (viewportNeedsUpdate && magnifierEnabled) {
       if (fullscreen) {
@@ -245,6 +252,7 @@ public class GLRenderer
       Texture texture = textureDrawable.getTexture();
       if (texture == null) return;
       texture.updateFromDrawable(textureDrawable);
+      if (!texture.isAllocated()) return;
 
       GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture.getTextureId());
       GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
@@ -460,14 +468,59 @@ public class GLRenderer
   }
 
   public void setFpsLimit(int fps) {
-    currentFpsLimit = fps;
+    int normalizedFps = Math.max(0, Math.min(fps, MAX_FPS_LIMIT));
+    synchronized (fpsLimiterLock) {
+      if (currentFpsLimit != normalizedFps) {
+        currentFpsLimit = normalizedFps;
+        nextFrameTimeNanos = 0;
+      }
+    }
   }
 
   public int getFpsLimit() {
     return currentFpsLimit;
   }
 
+  public void enforceFpsLimit() {
+    int targetFps = currentFpsLimit;
+    if (targetFps <= 0) {
+      synchronized (fpsLimiterLock) {
+        nextFrameTimeNanos = 0;
+      }
+      return;
+    }
+
+    long targetFrameTime = 1_000_000_000L / targetFps;
+    synchronized (fpsLimiterLock) {
+      long now = System.nanoTime();
+      if (nextFrameTimeNanos == 0 || now > nextFrameTimeNanos + targetFrameTime) {
+        nextFrameTimeNanos = now;
+      }
+
+      long sleepTime = nextFrameTimeNanos - now;
+      while (sleepTime > 0) {
+        if (sleepTime > FPS_LIMIT_SPIN_THRESHOLD_NS) {
+          LockSupport.parkNanos(sleepTime - FPS_LIMIT_SPIN_THRESHOLD_NS);
+        } else {
+          Thread.yield();
+        }
+        now = System.nanoTime();
+        sleepTime = nextFrameTimeNanos - now;
+      }
+
+      nextFrameTimeNanos += targetFrameTime;
+    }
+  }
+
+  private void resetFrameState() {
+    GLES20.glDisable(GLES20.GL_SCISSOR_TEST);
+    GLES20.glEnable(GLES20.GL_BLEND);
+    GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
+  }
+
   private void drawFrameOptimized() {
+    resetFrameState();
+
     RenderableWindow directCandidate = null;
     int screenW = xServer.screenInfo.width;
     int screenH = xServer.screenInfo.height;
@@ -571,6 +624,8 @@ public class GLRenderer
       if (!magnifierEnabled && !fullscreen) {
         GLES20.glDisable(GLES20.GL_SCISSOR_TEST);
       }
+      GLES20.glEnable(GLES20.GL_BLEND);
+      GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
       quadVertices.disable();
     } else {
       // No fullscreen candidate — fall back to normal rendering
