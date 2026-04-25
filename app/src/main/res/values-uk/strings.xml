@@ -555,7 +555,6 @@
     <string name="session_effects_profile_selection">Вибір профілю</string>
 
     <!-- Session > Display -->
-    <string name="session_display_show_fps">Показати FPS</string>
     <string name="session_display_orientation">Орієнтація</string>
     <string name="session_display_horizontal">Горизонтальна</string>
     <string name="session_display_vertical">Вертикальна</string>

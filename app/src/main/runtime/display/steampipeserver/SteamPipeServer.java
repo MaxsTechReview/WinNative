@@ -10,6 +10,9 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 public class SteamPipeServer {
   private static final String TAG = "SteamPipeServer";
@@ -21,6 +24,7 @@ public class SteamPipeServer {
 
   private ServerSocket serverSocket;
   private volatile boolean running;
+  private final Set<Socket> clientSockets = Collections.synchronizedSet(new HashSet<>());
 
   private int readNetworkInt(DataInputStream input) throws IOException {
     return Integer.reverseBytes(input.readInt());
@@ -43,6 +47,8 @@ public class SteamPipeServer {
                 while (running) {
                   try {
                     Socket clientSocket = serverSocket.accept();
+                    clientSockets.add(clientSocket);
+                    Log.d(TAG, "Client connected; active clients=" + clientSockets.size());
                     handleClient(clientSocket);
                   } catch (IOException e) {
                     if (running) {
@@ -116,6 +122,8 @@ public class SteamPipeServer {
               } catch (IOException e) {
                 if (running) Log.e(TAG, "Client handler error", e);
               } finally {
+                clientSockets.remove(clientSocket);
+                Log.d(TAG, "Client disconnected; active clients=" + clientSockets.size());
                 try {
                   clientSocket.close();
                 } catch (IOException e) {
@@ -130,6 +138,7 @@ public class SteamPipeServer {
 
   public void stop() {
     running = false;
+    Log.d(TAG, "Stopping server; active clients=" + clientSockets.size());
     try {
       if (serverSocket != null) {
         serverSocket.close();
@@ -137,5 +146,16 @@ public class SteamPipeServer {
     } catch (IOException e) {
       Log.e(TAG, "Error stopping server", e);
     }
+    synchronized (clientSockets) {
+      for (Socket clientSocket : clientSockets) {
+        try {
+          clientSocket.close();
+        } catch (IOException e) {
+          Log.e(TAG, "Error closing client socket during stop", e);
+        }
+      }
+      clientSockets.clear();
+    }
+    Log.d(TAG, "Server stopped; active clients=" + clientSockets.size());
   }
 }

@@ -107,6 +107,7 @@ public class VirGLRendererComponent extends EnvironmentComponent
         return;
       }
 
+      drawable.clearScanoutSource();
       Texture texture = drawable.getTexture();
       if (texture == null) {
         Log.e("VirGLRendererComponent", "Texture is null for drawableId=" + drawableId);

@@ -308,7 +308,12 @@ object UpdateChecker {
         }
 
         // 4.  Build download URL based on package name
-        val apkType = if (context.packageName == "com.ludashi.benchmark") "ludashi" else "standard"
+        val apkType =
+            when (context.packageName) {
+                "com.ludashi.benchmark" -> "ludashi"
+                "com.tencent.ig" -> null
+                else -> "standard"
+            } ?: return null
         val downloadUrl = "${DOWNLOADS_PAGE_URL}download.php?type=$apkType"
 
         // 5.  Fetch optional release notes

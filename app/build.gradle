@@ -108,6 +108,10 @@ android {
             dimension "branding"
             applicationId "com.ludashi.benchmark"
         }
+        pubg {
+            dimension "branding"
+            applicationId "com.tencent.ig"
+        }
     }
 
     ndkVersion '27.3.13750724'
@@ -157,13 +161,15 @@ android {
     applicationVariants.configureEach { variant ->
         if (variant.buildType.name == "debug") {
             variant.outputs.configureEach { output ->
-                output.outputFileName = variant.flavorName == "ludashi" ? "ludashi.apk" : "standard.apk"
+                output.outputFileName = "${variant.flavorName}.apk"
             }
         }
     }
 }
 
 dependencies {
+    // debugImplementation "com.squareup.leakcanary:leakcanary-android:2.14"
+
     implementation libs.okhttp
     implementation libs.okhttpDnsOverHttps
     implementation libs.okhttpLoggingInterceptor

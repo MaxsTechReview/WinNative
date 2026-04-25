@@ -17,14 +17,6 @@ static int reaper_window_active = 0;
 static int reaper_thread_stop = 0;
 static struct timespec reaper_deadline = {0};
 
-static void reap_dead_children(int signo) {
-  (void)signo;
-  int saved_errno = errno;
-  while (waitpid(-1, NULL, WNOHANG) > 0) {
-  }
-  errno = saved_errno;
-}
-
 static int reap_dead_children_now(void) {
   int reaped = 0;
   int saved_errno = errno;
@@ -158,16 +150,17 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
                         "Child subreaper enabled for app process");
   }
 
-  struct sigaction sa;
-  sa.sa_handler = reap_dead_children;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
-  if (sigaction(SIGCHLD, &sa, NULL) != 0) {
-    __android_log_print(ANDROID_LOG_WARN, LOG_TAG,
-                        "Failed to install SIGCHLD handler: errno=%d", errno);
-  } else {
-    __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "SIGCHLD reaper installed");
-  }
+  /*
+   * Do not install a process-wide SIGCHLD reaper here.
+   *
+   * Java Process.waitFor() owns the direct children it starts. A native
+   * waitpid(-1) handler can reap those children first, which prevents the Java
+   * wait thread from observing the exit and skips session termination callbacks.
+   * Explicit cleanup paths still call reapDeadChildrenNow()/startNativeReaperWindow()
+   * after the session has begun shutting down.
+   */
+  __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
+                      "SIGCHLD auto-reaper disabled; using explicit cleanup sweeps");
 
   int reaped = reap_dead_children_now();
   if (reaped > 0) {

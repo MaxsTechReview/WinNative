@@ -555,7 +555,6 @@ Par ex. <b>META</b> pour la <i>touche META</i>, \n
     <string name="session_effects_profile_selection">Sélection du profil</string>
 
     <!-- Session > Display -->
-    <string name="session_display_show_fps">Afficher les FPS</string>
     <string name="session_display_orientation">Orientation</string>
     <string name="session_display_horizontal">Horizontal</string>
     <string name="session_display_vertical">Vertical</string>

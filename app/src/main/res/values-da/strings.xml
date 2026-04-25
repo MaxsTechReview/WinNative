@@ -555,7 +555,6 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_effects_profile_selection">Profilvalg</string>
 
     <!-- Session > Display -->
-    <string name="session_display_show_fps">Vis FPS</string>
     <string name="session_display_orientation">Orientering</string>
     <string name="session_display_horizontal">Vandret</string>
     <string name="session_display_vertical">Lodret</string>

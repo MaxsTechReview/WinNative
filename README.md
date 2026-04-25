@@ -2,7 +2,7 @@
   <img src="logo.png" alt="WinNative" width="500">
 </p>
 <p align="center">
-    <a href="https://discord.gg/fwtkzmzmRj">
+    <a href="https://discord.gg/uhTkvGfakU">
         <img src="https://img.shields.io/discord/1358831699814912141?color=5865F2&label=WinNative&logo=discord&logoColor=white"
             alt="Discord">
     </a>

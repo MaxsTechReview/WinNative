@@ -467,6 +467,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
       }
 
       pid = execGuestProgram();
+      Log.d("GuestProgramLauncherComponent", "Guest process started with pid=" + pid);
     }
   }
 
@@ -522,8 +523,11 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
   public void stop() {
     synchronized (lock) {
       if (pid != -1) {
+        Log.d("GuestProgramLauncherComponent", "Stopping guest process pid=" + pid);
         Process.killProcess(pid);
         pid = -1;
+      } else {
+        Log.d("GuestProgramLauncherComponent", "Stop requested with no tracked guest process");
       }
     }
   }
