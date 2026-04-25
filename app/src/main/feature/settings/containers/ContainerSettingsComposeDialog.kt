@@ -1254,9 +1254,11 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         return merged.joinToString(" ") { "${it.key}=${it.value}" }
     }
 
+    // Always emit the enumerated list. An empty string means "no override" at
+    // the Container layer and would fall back to getFallbackCPUList* — the
+    // WoW64 fallback is only upper-half cores, so saving "all checked" on the
+    // 32-bit chip row would silently reopen as half the cores.
     private fun buildCpuListString(checked: List<Boolean>): String {
-        val allChecked = checked.all { it }
-        if (allChecked) return ""
         return checked.mapIndexedNotNull { i, c -> if (c) "$i" else null }.joinToString(",")
     }
 
