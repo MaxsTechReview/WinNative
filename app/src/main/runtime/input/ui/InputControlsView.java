@@ -866,6 +866,7 @@ public class InputControlsView extends View {
       boolean isActionDown,
       float offset,
       boolean sendUpdate) {
+    if (binding == Binding.NONE) return;
     WinHandler winHandler = xServer != null ? xServer.getWinHandler() : null;
     if (binding.isGamepad()) {
       if (profile == null && controller == null) return;
