@@ -604,13 +604,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         var graphicsDriverConfig = buildGraphicsDriverConfigFromState()
         val parsedGfx = GraphicsDriverConfigUtils.parseGraphicsDriverConfig(graphicsDriverConfig)
         if (parsedGfx.get("version").isNullOrEmpty()) {
-            val defaultVersion = try {
-                if (com.winlator.cmod.runtime.system.GPUInformation.isDriverSupported(DefaultVersion.WRAPPER_ADRENO, context))
-                    DefaultVersion.WRAPPER_ADRENO else DefaultVersion.WRAPPER
-            } catch (e: Throwable) {
-                DefaultVersion.WRAPPER
-            }
-            parsedGfx.put("version", defaultVersion)
+            parsedGfx.put("version", DefaultVersion.WRAPPER)
             graphicsDriverConfig = GraphicsDriverConfigUtils.toGraphicsDriverConfig(parsedGfx)
         }
         val dxwrapper = getIdentifierFromEntries(

@@ -24,7 +24,6 @@ import com.winlator.cmod.runtime.wine.DefaultVersion;
 import com.winlator.cmod.runtime.wine.EnvVars;
 import com.winlator.cmod.runtime.wine.WineInfo;
 import com.winlator.cmod.shared.io.FileUtils;
-import com.winlator.cmod.shared.io.TarCompressorUtils;
 import com.winlator.cmod.shared.util.Callback;
 import java.io.BufferedReader;
 import java.io.File;
@@ -291,68 +290,41 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     return output.toString().trim();
   }
 
-  private String resolveInstalledRuntimeVersion(
-      String currentVersion, ContentProfile.ContentType type) {
-    if (currentVersion != null && !currentVersion.isEmpty()) {
-      ContentProfile currentProfile =
-          contentsManager.getProfileByEntryName(type.toString() + "-" + currentVersion);
-      if (currentProfile != null && currentProfile.isInstalled) {
-        return currentVersion;
-      }
-    }
-
-    ContentProfile preferredProfile = null;
-    for (ContentProfile profile : contentsManager.getProfiles(type)) {
-      if (!profile.isInstalled) continue;
-
-      if (preferredProfile == null
-          || profile.verCode > preferredProfile.verCode
-          || (profile.verCode == preferredProfile.verCode
-              && profile.verName.compareToIgnoreCase(preferredProfile.verName) > 0)) {
-        preferredProfile = profile;
-      }
-    }
-
-    if (preferredProfile != null) {
-      String entryName = ContentsManager.getEntryName(preferredProfile);
-      int firstDashIndex = entryName.indexOf('-');
-      return firstDashIndex >= 0
-          ? entryName.substring(firstDashIndex + 1)
-          : preferredProfile.verName;
-    }
-
-    return currentVersion;
-  }
-
   private void extractBox64Files() {
     ImageFs imageFs = environment.getImageFs();
-    Context context = environment.getContext();
 
-    // Fallback to default if the shared preference is not set or is empty
+    // Use the configured runtime version; legacy containers may only have the app default.
     String box64Version = container.getBox64Version();
     if (box64Version == null || box64Version.isEmpty()) box64Version = DefaultVersion.BOX64;
 
     if (shortcut != null) box64Version = shortcut.getExtra("box64Version", box64Version);
 
-    box64Version =
-        resolveInstalledRuntimeVersion(box64Version, ContentProfile.ContentType.CONTENT_TYPE_BOX64);
-
-    Log.d("GuestProgramLauncherComponent", "box64Version: " + box64Version);
+    Log.i(
+        "GuestProgramLauncherComponent",
+        "Launch runtime selected: Box64 version=" + box64Version);
 
     File rootDir = imageFs.getRootDir();
     boolean box64Missing = !new File(rootDir, "/usr/bin/box64").exists();
 
     if (box64Missing || !box64Version.equals(container.getExtra("box64Version"))) {
       ContentProfile profile = contentsManager.getProfileByEntryName("box64-" + box64Version);
-      if (profile != null) contentsManager.applyContent(profile);
-      else
-        TarCompressorUtils.extract(
-            TarCompressorUtils.Type.ZSTD,
-            context,
-            "box64/box64-" + box64Version + ".tzst",
-            rootDir);
+      if (profile != null) {
+        Log.i(
+            "GuestProgramLauncherComponent",
+            "Loading Box64 content profile: version=" + box64Version);
+        contentsManager.applyContent(profile);
+      } else {
+        Log.w(
+            "GuestProgramLauncherComponent",
+            "Box64 content profile not installed; no bundled Box64 archive will be loaded: version="
+                + box64Version);
+      }
       container.putExtra("box64Version", box64Version);
       container.saveData();
+    } else {
+      Log.i(
+          "GuestProgramLauncherComponent",
+          "Box64 already loaded for launch: version=" + box64Version);
     }
 
     // Set execute permissions for box64 just in case
@@ -363,7 +335,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
   }
 
   private void extractEmulatorsDlls() {
-    Context context = environment.getContext();
     File rootDir = environment.getImageFs().getRootDir();
     File system32dir = new File(rootDir + "/home/xuser/.wine/drive_c/windows/system32");
     boolean containerDataChanged = false;
@@ -371,7 +342,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     String wowbox64Version = container.getBox64Version();
     String fexcoreVersion = container.getFEXCoreVersion();
 
-    // Null-safe fallback to defaults (handles legacy containers without these fields)
+    // Use configured runtime versions; legacy containers may only have app defaults.
     if (wowbox64Version == null || wowbox64Version.isEmpty())
       wowbox64Version = DefaultVersion.BOX64;
     if (fexcoreVersion == null || fexcoreVersion.isEmpty()) fexcoreVersion = DefaultVersion.FEXCORE;
@@ -381,15 +352,12 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
       fexcoreVersion = shortcut.getExtra("fexcoreVersion", fexcoreVersion);
     }
 
-    wowbox64Version =
-        resolveInstalledRuntimeVersion(
-            wowbox64Version, ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64);
-    fexcoreVersion =
-        resolveInstalledRuntimeVersion(
-            fexcoreVersion, ContentProfile.ContentType.CONTENT_TYPE_FEXCORE);
-
-    Log.d("GuestProgramLauncherComponent", "box64Version in use: " + wowbox64Version);
-    Log.d("GuestProgramLauncherComponent", "fexcoreVersion in use: " + fexcoreVersion);
+    Log.i(
+        "GuestProgramLauncherComponent",
+        "Launch runtime selected: WowBox64 version="
+            + wowbox64Version
+            + " FEXCore version="
+            + fexcoreVersion);
 
     // Check if critical FEXCore DLLs actually exist on disk (they may be missing even if version
     // matches)
@@ -411,28 +379,44 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
     if (wowbox64DllMissing || !wowbox64Version.equals(container.getExtra("box64Version"))) {
       ContentProfile profile = contentsManager.getProfileByEntryName("wowbox64-" + wowbox64Version);
-      if (profile != null) contentsManager.applyContent(profile);
-      else
-        TarCompressorUtils.extract(
-            TarCompressorUtils.Type.ZSTD,
-            environment.getContext(),
-            "wowbox64/wowbox64-" + wowbox64Version + ".tzst",
-            system32dir);
+      if (profile != null) {
+        Log.i(
+            "GuestProgramLauncherComponent",
+            "Loading WowBox64 content profile: version=" + wowbox64Version);
+        contentsManager.applyContent(profile);
+      } else {
+        Log.w(
+            "GuestProgramLauncherComponent",
+            "WowBox64 content profile not installed; no bundled WowBox64 archive will be loaded: version="
+                + wowbox64Version);
+      }
       container.putExtra("box64Version", wowbox64Version);
       containerDataChanged = true;
+    } else {
+      Log.i(
+          "GuestProgramLauncherComponent",
+          "WowBox64 already loaded for launch: version=" + wowbox64Version);
     }
 
     if (fexcoreDllsMissing || !fexcoreVersion.equals(container.getExtra("fexcoreVersion"))) {
       ContentProfile profile = contentsManager.getProfileByEntryName("fexcore-" + fexcoreVersion);
-      if (profile != null) contentsManager.applyContent(profile);
-      else
-        TarCompressorUtils.extract(
-            TarCompressorUtils.Type.ZSTD,
-            environment.getContext(),
-            "fexcore/fexcore-" + fexcoreVersion + ".tzst",
-            system32dir);
+      if (profile != null) {
+        Log.i(
+            "GuestProgramLauncherComponent",
+            "Loading FEXCore content profile: version=" + fexcoreVersion);
+        contentsManager.applyContent(profile);
+      } else {
+        Log.w(
+            "GuestProgramLauncherComponent",
+            "FEXCore content profile not installed; no bundled FEXCore archive will be loaded: version="
+                + fexcoreVersion);
+      }
       container.putExtra("fexcoreVersion", fexcoreVersion);
       containerDataChanged = true;
+    } else {
+      Log.i(
+          "GuestProgramLauncherComponent",
+          "FEXCore already loaded for launch: version=" + fexcoreVersion);
     }
     if (containerDataChanged) container.saveData();
   }
@@ -939,24 +923,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     synchronized (lock) {
       if (pid != -1) ProcessHelper.resumeProcess(pid);
     }
-  }
-
-  private String resolveWineBinary(String wineBinDir, boolean prefer64BitWine) {
-    File preferredBinary = new File(wineBinDir, prefer64BitWine ? "wine64" : "wine");
-    if (preferredBinary.exists()) return preferredBinary.getAbsolutePath();
-
-    File fallbackBinary = new File(wineBinDir, "wine");
-    if (fallbackBinary.exists()) return fallbackBinary.getAbsolutePath();
-
-    return preferredBinary.getAbsolutePath();
-  }
-
-  private String resolveWineServerBinary(String wineBinDir, boolean prefer64BitWine) {
-    File preferredBinary = new File(wineBinDir, prefer64BitWine ? "wineserver64" : "wineserver");
-    if (preferredBinary.exists()) return preferredBinary.getAbsolutePath();
-
-    File fallbackBinary = new File(wineBinDir, "wineserver");
-    return fallbackBinary.exists() ? fallbackBinary.getAbsolutePath() : null;
   }
 
   private String pinWineLoader(String command, String wineLoader) {
