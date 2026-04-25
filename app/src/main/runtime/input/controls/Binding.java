@@ -272,7 +272,6 @@ public enum Binding {
 
   public static Binding[] mouseBindingValues() {
     ArrayList<Binding> labels = new ArrayList<>();
-    labels.add(NONE);
     for (Binding binding : values()) if (binding.isMouse()) labels.add(binding);
     return labels.toArray(new Binding[0]);
   }
