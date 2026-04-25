@@ -128,11 +128,11 @@ class ShortcutSettingsComposeDialog private constructor(
             ActivityResultContracts.OpenDocument()
         ) { uri: Uri? ->
             if (uri == null) return@register
-            val path = FileUtils.getFilePathFromUri(context, uri) ?: return@register
+            val path = FileUtils.getFilePathFromUri(context, uri)
             val fileName = FileUtils.getUriFileName(context, uri)
-            val isExe = path.lowercase().endsWith(".exe") ||
+            val isExe = (path != null && path.lowercase().endsWith(".exe")) ||
                 (fileName != null && fileName.lowercase().endsWith(".exe"))
-            if (isExe) {
+            if (isExe && path != null) {
                 state.launchExePath.value = path
             } else {
                 AppUtils.showToast(context, R.string.common_ui_select_valid_exe_file, Toast.LENGTH_SHORT)
@@ -1281,6 +1281,15 @@ class ShortcutSettingsComposeDialog private constructor(
                 val newShortcutFile = File(newDesktopDir, shortcut.file.name)
                 com.winlator.cmod.shared.io.FileUtils.copy(shortcut.file, newShortcutFile)
                 shortcut.file.delete()
+                
+                // Also move the original .lnk file if it exists to prevent ghost shortcuts
+                val lnkFileName = shortcut.file.name.substringBeforeLast(".desktop") + ".lnk"
+                val oldLnkFile = File(shortcut.file.parentFile, lnkFileName)
+                if (oldLnkFile.exists()) {
+                    val newLnkFile = File(newDesktopDir, lnkFileName)
+                    com.winlator.cmod.shared.io.FileUtils.copy(oldLnkFile, newLnkFile)
+                    oldLnkFile.delete()
+                }
             } else {
                 shortcut.saveData()
             }
