@@ -355,11 +355,6 @@ class ShortcutSettingsComposeDialog private constructor(
         state.disableXInput.value = shortcut.getExtra("disableXinput", "0") == "1"
         state.simTouchScreen.value = shortcut.getExtra("simTouchScreen", "0") == "1"
 
-        // Display - Show FPS
-        state.showFPS.value = getShortcutSetting(
-            "showFPS", if (container.isShowFPS) "1" else "0"
-        ) == "1"
-
         // Steam options
         val gameSource = shortcut.getExtra("game_source", "")
         state.isSteamGame.value = gameSource == "STEAM" || gameSource == "steam"
@@ -1171,13 +1166,6 @@ class ShortcutSettingsComposeDialog private constructor(
                 }
             }
 
-            // Show FPS
-            hasContainerOverride = hasContainerOverride or saveOverride(
-                "showFPS",
-                if (state.showFPS.value) "1" else "0",
-                if (container.isShowFPS) "1" else "0"
-            )
-
             // Desktop Theme — stored as compound "THEME,TYPE,COLOR" string
             if (state.desktopThemeEntries.value.isNotEmpty()) {
                 val desktopThemeEntries = state.desktopThemeEntries.value
@@ -1615,9 +1603,6 @@ class ShortcutSettingsComposeDialog private constructor(
         val entries = state.dxvkVersionEntries.value
         val idx = state.dxvkSelectedVersion.intValue
         val version = if (idx in entries.indices) entries[idx] else DefaultVersion.DXVK
-        val framerate = StringUtils.parseNumber(
-            state.dxvkFramerateEntries.value.getOrElse(state.dxvkSelectedFramerate.intValue) { "0" }
-        )
         val isGplAsync = version.contains("gplasync")
         val isAsync = version.contains("async")
         val async = if (state.dxvkAsync.value && (isAsync || isGplAsync)) "1" else "0"
@@ -1632,7 +1617,7 @@ class ShortcutSettingsComposeDialog private constructor(
             state.dxvkDdrawWrapperEntries.value.getOrElse(state.dxvkSelectedDdrawWrapper.intValue) { Container.DEFAULT_DDRAWRAPPER }
         )
 
-        return "version=$version,framerate=$framerate,async=$async,asyncCache=$asyncCache," +
+        return "version=$version,async=$async,asyncCache=$asyncCache," +
                 "vkd3dVersion=$vkd3dVersion,vkd3dLevel=$vkd3dLevel,ddrawrapper=$ddrawWrapper"
     }
 
@@ -1768,9 +1753,8 @@ class ShortcutSettingsComposeDialog private constructor(
         // Feature levels
         state.dxvkVkd3dFeatureLevelEntries.value = DXVKConfigUtils.VKD3D_FEATURE_LEVEL.toList()
 
-        // DDraw wrapper and framerate from resources
+        // DDraw wrapper from resources
         state.dxvkDdrawWrapperEntries.value = context.resources.getStringArray(R.array.ddrawrapper_entries).toList()
-        state.dxvkFramerateEntries.value = context.resources.getStringArray(R.array.dxvk_framerate_entries).toList()
 
         // Load DXVK versions
         loadDxvkVersions(container)
@@ -1781,7 +1765,6 @@ class ShortcutSettingsComposeDialog private constructor(
         // Set selections from config
         selectByIdentifier(state.dxvkVkd3dFeatureLevelEntries.value, config.get("vkd3dLevel"), state.dxvkSelectedVkd3dFeatureLevel)
         selectByIdentifier(state.dxvkDdrawWrapperEntries.value, config.get("ddrawrapper"), state.dxvkSelectedDdrawWrapper)
-        selectByIdentifier(state.dxvkFramerateEntries.value, config.get("framerate"), state.dxvkSelectedFramerate)
 
         state.dxvkAsync.value = config.get("async") == "1"
         state.dxvkAsyncCache.value = config.get("asyncCache") == "1"
@@ -1956,7 +1939,6 @@ class ShortcutSettingsComposeDialog private constructor(
 
         state.lcAll.value = container.getLC_ALL()
         state.fullscreenStretched.value = container.isFullscreenStretched
-        state.showFPS.value = container.isShowFPS
 
         val startupEntries = state.startupSelectionEntries.value
         state.selectedStartupSelection.intValue = container.getStartupSelection().toInt()

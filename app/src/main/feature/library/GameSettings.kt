@@ -162,7 +162,6 @@ class GameSettingsStateHolder {
     val graphicsDriverVersion = mutableStateOf("")
     val dxWrapperEntries = mutableStateOf<List<String>>(emptyList())
     val selectedDxWrapper = mutableIntStateOf(0)
-    val showFPS = mutableStateOf(false)
 
     // Graphics Driver Configuration (inline card)
     val gfxConfigExpanded = mutableStateOf(false)
@@ -201,8 +200,6 @@ class GameSettingsStateHolder {
     val dxvkAsyncCache = mutableStateOf(false)
     val dxvkDdrawWrapperEntries = mutableStateOf<List<String>>(emptyList())
     val dxvkSelectedDdrawWrapper = mutableIntStateOf(0)
-    val dxvkFramerateEntries = mutableStateOf<List<String>>(emptyList())
-    val dxvkSelectedFramerate = mutableIntStateOf(0)
 
     // WineD3D Configuration (inline card)
     val wined3dConfigExpanded = mutableStateOf(false)
@@ -1236,15 +1233,6 @@ private fun DisplaySection(
         WineD3DConfigCard(state)
     }
 
-    Spacer(Modifier.height(12.dp))
-
-    SettingGroup {
-        SettingCheckbox(
-            label = stringResource(R.string.session_display_show_fps),
-            checked = state.showFPS.value,
-            onCheckedChange = { state.showFPS.value = it }
-        )
-    }
 }
 
 // ===================================================================
@@ -1737,15 +1725,6 @@ private fun DXVKConfigCard(
                     entries = state.dxvkDdrawWrapperEntries.value,
                     selectedIndex = state.dxvkSelectedDdrawWrapper.intValue,
                     onSelected = { state.dxvkSelectedDdrawWrapper.intValue = it }
-                )
-
-                Spacer(Modifier.height(12.dp))
-
-                SettingDropdown(
-                    label = stringResource(R.string.session_display_frame_rate),
-                    entries = state.dxvkFramerateEntries.value,
-                    selectedIndex = state.dxvkSelectedFramerate.intValue,
-                    onSelected = { state.dxvkSelectedFramerate.intValue = it }
                 )
             }
         }

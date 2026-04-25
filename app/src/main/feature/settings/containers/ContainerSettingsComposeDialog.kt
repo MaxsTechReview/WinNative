@@ -310,7 +310,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             state.enableDInput.value = true
         }
 
-        state.showFPS.value = c?.isShowFPS() ?: false
         state.fullscreenStretched.value = c?.isFullscreenStretched() ?: false
 
         // Steam fields are shortcut-only in the UI; leave any existing steam
@@ -685,7 +684,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.setEmulator64(emulator64)
             c.setWinComponents(wincomponents)
             c.setDrives(drivesString)
-            c.setShowFPS(state.showFPS.value)
             c.setFullscreenStretched(state.fullscreenStretched.value)
             c.setInputType(finalInputType)
             c.setStartupSelection(startupSelection)
@@ -720,7 +718,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 data.put("emulator64", emulator64)
                 data.put("wincomponents", wincomponents)
                 data.put("drives", drivesString)
-                data.put("showFPS", state.showFPS.value)
                 data.put("fullscreenStretched", state.fullscreenStretched.value)
                 data.put("inputType", finalInputType)
                 data.put("startupSelection", startupSelection.toInt())
@@ -1047,13 +1044,10 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         state.dxvkVkd3dFeatureLevelEntries.value = DXVKConfigUtils.VKD3D_FEATURE_LEVEL.toList()
         state.dxvkDdrawWrapperEntries.value =
             context.resources.getStringArray(R.array.ddrawrapper_entries).toList()
-        state.dxvkFramerateEntries.value =
-            context.resources.getStringArray(R.array.dxvk_framerate_entries).toList()
         loadDxvkVersions()
         loadVkd3dVersions()
         selectByIdentifier(state.dxvkVkd3dFeatureLevelEntries.value, config.get("vkd3dLevel"), state.dxvkSelectedVkd3dFeatureLevel)
         selectByIdentifier(state.dxvkDdrawWrapperEntries.value, config.get("ddrawrapper"), state.dxvkSelectedDdrawWrapper)
-        selectByIdentifier(state.dxvkFramerateEntries.value, config.get("framerate"), state.dxvkSelectedFramerate)
         state.dxvkAsync.value = config.get("async") == "1"
         state.dxvkAsyncCache.value = config.get("asyncCache") == "1"
     }
@@ -1138,9 +1132,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val entries = state.dxvkVersionEntries.value
         val idx = state.dxvkSelectedVersion.intValue
         val version = if (idx in entries.indices) entries[idx] else DefaultVersion.DXVK
-        val framerate = StringUtils.parseNumber(
-            state.dxvkFramerateEntries.value.getOrElse(state.dxvkSelectedFramerate.intValue) { "0" }
-        )
         val isGplAsync = version.contains("gplasync")
         val isAsync = version.contains("async")
         val async = if (state.dxvkAsync.value && (isAsync || isGplAsync)) "1" else "0"
@@ -1152,7 +1143,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val ddrawWrapper = StringUtils.parseIdentifier(
             state.dxvkDdrawWrapperEntries.value.getOrElse(state.dxvkSelectedDdrawWrapper.intValue) { Container.DEFAULT_DDRAWRAPPER }
         )
-        return "version=$version,framerate=$framerate,async=$async,asyncCache=$asyncCache," +
+        return "version=$version,async=$async,asyncCache=$asyncCache," +
             "vkd3dVersion=$vkd3dVersion,vkd3dLevel=$vkd3dLevel,ddrawrapper=$ddrawWrapper"
     }
 

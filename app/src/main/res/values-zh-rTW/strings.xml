@@ -555,7 +555,6 @@
     <string name="session_effects_profile_selection">設定檔選擇</string>
 
     <!-- Session > Display -->
-    <string name="session_display_show_fps">顯示 FPS</string>
     <string name="session_display_orientation">方向</string>
     <string name="session_display_horizontal">水平</string>
     <string name="session_display_vertical">垂直</string>

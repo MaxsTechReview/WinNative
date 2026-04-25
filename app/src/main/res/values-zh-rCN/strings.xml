@@ -555,7 +555,6 @@
     <string name="session_effects_profile_selection">配置文件选择</string>
 
     <!-- Session > Display -->
-    <string name="session_display_show_fps">显示 FPS</string>
     <string name="session_display_orientation">方向</string>
     <string name="session_display_horizontal">横向</string>
     <string name="session_display_vertical">纵向</string>

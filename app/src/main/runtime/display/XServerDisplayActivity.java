@@ -394,16 +394,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return Math.max(0, preferences.getInt("refresh_rate_override", 0));
     }
 
-    private boolean hasPerGameDxvkFrameRateOverride() {
-        if (shortcut == null || shortcutUsesContainerDefaults()) return false;
-
-        String shortcutDxwrapperConfig = shortcut.getExtra("dxwrapperConfig");
-        if (shortcutDxwrapperConfig.isEmpty()) return false;
-
-        KeyValueSet perGameConfig = DXVKConfigUtils.parseConfig(shortcutDxwrapperConfig);
-        return parsePositiveInt(perGameConfig.get("framerate")) > 0;
-    }
-
     /**
      * Per-game settings always win over the global refresh rate when determining DXVK frame limit.
      * Returns 0 (no override) when no explicit user preference is set, matching Ludashi behavior.
@@ -415,9 +405,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         int perGameRate = getPerGameRefreshRateOverride();
         if (perGameRate > 0) {
             return perGameRate;
-        }
-        if (hasPerGameDxvkFrameRateOverride()) {
-            return 0;
         }
 
         int globalRate = getGlobalRefreshRateOverride();

@@ -555,7 +555,6 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="session_effects_profile_selection">Selectie profil</string>
 
     <!-- Session > Display -->
-    <string name="session_display_show_fps">Arata FPS</string>
     <string name="session_display_orientation">Orientare</string>
     <string name="session_display_horizontal">Orizontal</string>
     <string name="session_display_vertical">Vertical</string>

@@ -31,14 +31,6 @@ public final class DXVKConfigUtils {
             content += "dxgi.maxFrameRate = " + rateStr + "; ";
             content += "d3d9.maxFrameRate = " + rateStr;
             envVars.put("DXVK_FRAME_RATE", rateStr);
-        } else {
-            String framerate = config.get("framerate");
-
-            if (!framerate.isEmpty() && !framerate.equals("0")) {
-                content += "dxgi.maxFrameRate = " + framerate + "; ";
-                content += "d3d9.maxFrameRate = " + framerate;
-                envVars.put("DXVK_FRAME_RATE", framerate);
-            }
         }
 
         String async = config.get("async");
