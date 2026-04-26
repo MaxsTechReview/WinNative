@@ -271,23 +271,23 @@ public enum Binding {
   }
 
   public static Binding[] mouseBindingValues() {
-    ArrayList<Binding> list = new ArrayList<>();
-    list.add(NONE);
-    for (Binding binding : values()) if (binding.isMouse()) list.add(binding);
-    return list.toArray(new Binding[0]);
+    ArrayList<Binding> labels = new ArrayList<>();
+    labels.add(NONE);
+    for (Binding binding : Binding.values()) if (binding.isMouse()) labels.add(binding);
+    return labels.toArray(new Binding[0]);
   }
 
   public static Binding[] keyboardBindingValues() {
-    ArrayList<Binding> list = new ArrayList<>();
-    list.add(NONE);
-    for (Binding binding : values()) if (binding.isKeyboard()) list.add(binding);
-    return list.toArray(new Binding[0]);
+    ArrayList<Binding> values = new ArrayList<>();
+    values.add(NONE);
+    for (Binding binding : Binding.values()) if (binding.isKeyboard()) values.add(binding);
+    return values.toArray(new Binding[0]);
   }
 
   public static Binding[] gamepadBindingValues() {
-    ArrayList<Binding> list = new ArrayList<>();
-    list.add(NONE);
-    for (Binding binding : values()) if (binding.isGamepad()) list.add(binding);
-    return list.toArray(new Binding[0]);
+    ArrayList<Binding> labels = new ArrayList<>();
+    labels.add(NONE);
+    for (Binding binding : Binding.values()) if (binding.isGamepad()) labels.add(binding);
+    return labels.toArray(new Binding[0]);
   }
 }
