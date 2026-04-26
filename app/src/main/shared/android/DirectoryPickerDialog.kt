@@ -45,6 +45,7 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenu
@@ -54,6 +55,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +66,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -88,6 +91,8 @@ import java.util.Locale
 
 object DirectoryPickerDialog {
     private val FooterButtonHeight = 36.dp
+    private val DialogHorizontalPadding = 18.dp
+    private val DialogCutoutStartPadding = 14.dp
     private val CurrentPathHorizontalPadding = 10.dp
     private val FolderGridCardPadding = 6.dp
     private val BgDark = WinNativeBackground
@@ -99,10 +104,16 @@ object DirectoryPickerDialog {
     private val TextPrimary = WinNativeTextPrimary
     private val TextSecondary = WinNativeTextSecondary
 
+    private enum class SelectionMode {
+        DIRECTORY,
+        FILE,
+    }
+
     private data class Entry(
         val label: String,
-        val directory: File,
+        val target: File,
         val isParent: Boolean = false,
+        val isSelectableFile: Boolean = false,
     )
 
     @JvmStatic
@@ -150,6 +161,90 @@ object DirectoryPickerDialog {
                                 title = title,
                                 initialDir = initialDir,
                                 roots = roots,
+                                mode = SelectionMode.DIRECTORY,
+                                allowedExtensions = emptySet(),
+                                onDismiss = { dialog.dismiss() },
+                                onSelect = { path ->
+                                    onSelected(path)
+                                    dialog.dismiss()
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+
+        dialog.setContentView(composeView)
+        dialog.show()
+        dialog.window?.apply {
+            val dm = activity.resources.displayMetrics
+            val screenWidthDp = dm.widthPixels / dm.density
+            if (screenWidthDp < 600f) {
+                setLayout((dm.widthPixels * 0.96f).toInt(), (dm.heightPixels * 0.94f).toInt())
+            } else {
+                setLayout((dm.widthPixels * 0.88f).toInt(), (dm.heightPixels * 0.92f).toInt())
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val params = attributes
+                params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+                params.blurBehindRadius = 12
+                attributes = params
+            }
+        }
+    }
+
+    fun showFile(
+        activity: Activity,
+        initialPath: String? = null,
+        title: String = activity.getString(R.string.common_ui_open_file),
+        allowedExtensions: Set<String> = emptySet(),
+        onSelected: (String) -> Unit,
+    ) {
+        if (!ensureAllFilesAccess(activity)) return
+
+        val roots = buildRootDirectories(activity)
+        val initialDir = resolveInitialDirectory(initialPath, roots)
+        val normalizedExtensions =
+            allowedExtensions
+                .map { it.trim().trimStart('.').lowercase(Locale.getDefault()) }
+                .filter { it.isNotEmpty() }
+                .toSet()
+
+        val dialog =
+            Dialog(activity, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar).apply {
+                requestWindowFeature(Window.FEATURE_NO_TITLE)
+                setCancelable(true)
+                setCanceledOnTouchOutside(true)
+                window?.apply {
+                    setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+                    setDimAmount(0.18f)
+                }
+            }
+
+        val composeView =
+            ComposeView(activity).apply {
+                layoutParams =
+                    ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                    )
+                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+                (activity as? ComponentActivity)?.let {
+                    setViewTreeLifecycleOwner(it)
+                    setViewTreeSavedStateRegistryOwner(it)
+                }
+                setContent {
+                    val defaultDensity = LocalDensity.current
+                    CompositionLocalProvider(
+                        LocalDensity provides Density(defaultDensity.density, fontScale = 1f),
+                    ) {
+                        WinNativeTheme {
+                            DirectoryPickerDialogContent(
+                                title = title,
+                                initialDir = initialDir,
+                                roots = roots,
+                                mode = SelectionMode.FILE,
+                                allowedExtensions = normalizedExtensions,
                                 onDismiss = { dialog.dismiss() },
                                 onSelect = { path ->
                                     onSelected(path)
@@ -185,22 +280,63 @@ object DirectoryPickerDialog {
         title: String,
         initialDir: File,
         roots: List<File>,
+        mode: SelectionMode,
+        allowedExtensions: Set<String>,
         onDismiss: () -> Unit,
         onSelect: (String) -> Unit,
     ) {
         var currentDir by remember(initialDir.absolutePath) { mutableStateOf(initialDir) }
+        var selectedFile by remember(currentDir.absolutePath) { mutableStateOf<File?>(null) }
         var rootsExpanded by remember { mutableStateOf(false) }
         val upLabel = activityString(R.string.saves_import_export_up_directory)
-        val entries = remember(currentDir.absolutePath, upLabel) { buildEntries(currentDir, upLabel) }
+        val entries = remember(currentDir.absolutePath, upLabel, mode, allowedExtensions) {
+            buildEntries(currentDir, upLabel, mode, allowedExtensions)
+        }
         val folderCount = remember(entries) { entries.count { !it.isParent } }
-        val footerTitle = activityString(R.string.common_ui_select_folder)
+        val selectableFileCount = remember(entries) { entries.count { it.isSelectableFile } }
+        val folderOnlyCount = remember(entries) { entries.count { !it.isParent && !it.isSelectableFile } }
+        val footerTitle =
+            if (mode == SelectionMode.DIRECTORY) {
+                activityString(R.string.common_ui_select_folder)
+            } else {
+                title
+            }
         val footerSubtitle =
-            title
-                .takeUnless { it.equals(footerTitle, ignoreCase = true) }
-                ?: activityString(R.string.common_ui_browse_local_folders_directly)
+            if (mode == SelectionMode.DIRECTORY) {
+                title
+                    .takeUnless { it.equals(footerTitle, ignoreCase = true) }
+                    ?: activityString(R.string.common_ui_browse_local_folders_directly)
+            } else {
+                selectedFile?.absolutePath ?: currentDir.absolutePath
+        }
 
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             val isLandscape = maxWidth > maxHeight
+            val view = LocalView.current
+            var hasLeftDisplayCutout by remember { mutableStateOf(false) }
+            DisposableEffect(view) {
+                fun updateLeftDisplayCutout(insets: android.view.WindowInsets?) {
+                    hasLeftDisplayCutout =
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
+                            (insets?.displayCutout?.safeInsetLeft ?: 0) > 0
+                }
+
+                updateLeftDisplayCutout(view.rootWindowInsets)
+                view.setOnApplyWindowInsetsListener { _, insets ->
+                    updateLeftDisplayCutout(insets)
+                    insets
+                }
+                view.requestApplyInsets()
+                onDispose {
+                    view.setOnApplyWindowInsetsListener(null)
+                }
+            }
+            val startPadding =
+                if (hasLeftDisplayCutout) {
+                    DialogCutoutStartPadding
+                } else {
+                    DialogHorizontalPadding
+                }
             val folderListMinHeight =
                 (maxHeight * if (isLandscape) 0.44f else 0.5f)
                     .coerceIn(240.dp, 420.dp)
@@ -218,7 +354,12 @@ object DirectoryPickerDialog {
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 18.dp, vertical = 14.dp),
+                            .padding(
+                                start = startPadding,
+                                top = 14.dp,
+                                end = DialogHorizontalPadding,
+                                bottom = 14.dp,
+                            ),
                 ) {
                     Text(
                         text = activityString(R.string.common_ui_current_folder),
@@ -255,7 +396,12 @@ object DirectoryPickerDialog {
                         )
 
                         Text(
-                            text = activityPlural(R.plurals.common_ui_folder_count, folderCount),
+                            text =
+                                if (mode == SelectionMode.DIRECTORY) {
+                                    activityPlural(R.plurals.common_ui_folder_count, folderCount)
+                                } else {
+                                    "$folderOnlyCount folders / $selectableFileCount files"
+                                },
                             color = TextPrimary,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
@@ -297,10 +443,19 @@ object DirectoryPickerDialog {
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
-                                items(entries, key = { it.directory.absolutePath + it.isParent }) { entry ->
+                                items(entries, key = { entry ->
+                                    entry.target.absolutePath + entry.isParent + entry.isSelectableFile
+                                }) { entry ->
                                     EntryTile(
                                         entry = entry,
-                                        onClick = { currentDir = entry.directory },
+                                        selected = selectedFile?.absolutePath == entry.target.absolutePath,
+                                        onClick = {
+                                            if (entry.isSelectableFile) {
+                                                selectedFile = entry.target
+                                            } else {
+                                                currentDir = entry.target
+                                            }
+                                        },
                                     )
                                 }
                             }
@@ -336,7 +491,15 @@ object DirectoryPickerDialog {
                                 modifier = Modifier.height(FooterButtonHeight),
                                 backgroundColor = Accent.copy(alpha = 0.12f),
                                 borderColor = Accent.copy(alpha = 0.3f),
-                                onClick = { onSelect(currentDir.absolutePath) },
+                                onClick = {
+                                    val selectedPath =
+                                        if (mode == SelectionMode.FILE) {
+                                            selectedFile?.absolutePath ?: return@FooterActionButton
+                                        } else {
+                                            currentDir.absolutePath
+                                        }
+                                    onSelect(selectedPath)
+                                },
                             )
                         }
                     }
@@ -472,6 +635,7 @@ object DirectoryPickerDialog {
     @Composable
     private fun EntryTile(
         entry: Entry,
+        selected: Boolean,
         onClick: () -> Unit,
     ) {
         Column(
@@ -479,10 +643,21 @@ object DirectoryPickerDialog {
                 Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
-                    .background(if (entry.isParent) Accent.copy(alpha = 0.1f) else CardDark)
+                    .background(
+                        when {
+                            selected -> Accent.copy(alpha = 0.16f)
+                            entry.isParent -> Accent.copy(alpha = 0.1f)
+                            else -> CardDark
+                        },
+                    )
                     .border(
                         width = 1.dp,
-                        color = if (entry.isParent) Accent.copy(alpha = 0.24f) else CardBorder,
+                        color =
+                            when {
+                                selected -> Accent.copy(alpha = 0.45f)
+                                entry.isParent -> Accent.copy(alpha = 0.24f)
+                                else -> CardBorder
+                            },
                         shape = RoundedCornerShape(10.dp),
                     )
                     .clickable(
@@ -493,7 +668,12 @@ object DirectoryPickerDialog {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = if (entry.isParent) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.Folder,
+                    imageVector =
+                        when {
+                            entry.isParent -> Icons.Outlined.KeyboardArrowUp
+                            entry.isSelectableFile -> Icons.Outlined.Description
+                            else -> Icons.Outlined.Folder
+                        },
                     contentDescription = null,
                     tint = Accent,
                     modifier = Modifier.size(16.dp),
@@ -594,13 +774,15 @@ object DirectoryPickerDialog {
     private fun buildEntries(
         currentDir: File,
         upLabel: String,
+        mode: SelectionMode,
+        allowedExtensions: Set<String>,
     ): List<Entry> {
         val entries = mutableListOf<Entry>()
 
         currentDir.parentFile
             ?.takeIf { canBrowse(it) }
             ?.let {
-                entries += Entry(label = upLabel, directory = it, isParent = true)
+                entries += Entry(label = upLabel, target = it, isParent = true)
             }
 
         val children =
@@ -613,7 +795,26 @@ object DirectoryPickerDialog {
                 ?: emptyList()
 
         for (child in children) {
-            entries += Entry(label = child.name.ifBlank { child.absolutePath }, directory = child)
+            entries += Entry(label = child.name.ifBlank { child.absolutePath }, target = child)
+        }
+
+        if (mode == SelectionMode.FILE) {
+            val files =
+                currentDir
+                    .listFiles()
+                    ?.asSequence()
+                    ?.filter { it.isFile && canSelectFile(it, allowedExtensions) }
+                    ?.sortedWith(compareBy<File>({ it.isHidden }, { it.name.lowercase(Locale.getDefault()) }))
+                    ?.toList()
+                    ?: emptyList()
+
+            for (file in files) {
+                entries += Entry(
+                    label = file.name.ifBlank { file.absolutePath },
+                    target = file,
+                    isSelectableFile = true,
+                )
+            }
         }
 
         return entries
@@ -809,6 +1010,15 @@ object DirectoryPickerDialog {
     }
 
     private fun canBrowse(dir: File?): Boolean = dir != null && dir.exists() && dir.isDirectory && dir.canRead()
+
+    private fun canSelectFile(
+        file: File,
+        allowedExtensions: Set<String>,
+    ): Boolean {
+        if (!file.canRead()) return false
+        if (allowedExtensions.isEmpty()) return true
+        return allowedExtensions.contains(file.extension.lowercase(Locale.getDefault()))
+    }
 
     private fun ensureAllFilesAccess(activity: Activity): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || Environment.isExternalStorageManager()) {

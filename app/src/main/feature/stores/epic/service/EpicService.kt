@@ -12,6 +12,7 @@ import com.winlator.cmod.feature.stores.epic.data.EpicCredentials
 import com.winlator.cmod.feature.stores.epic.data.EpicGame
 import com.winlator.cmod.feature.stores.epic.data.EpicGameToken
 import com.winlator.cmod.feature.stores.epic.ui.util.SnackbarManager
+import com.winlator.cmod.feature.stores.common.StoreInstallPathSafety
 import com.winlator.cmod.feature.stores.steam.data.DownloadInfo
 import com.winlator.cmod.feature.stores.steam.data.LaunchInfo
 import com.winlator.cmod.feature.stores.steam.enums.DownloadPhase
@@ -225,9 +226,15 @@ class EpicService : Service() {
                 val gameDir = File(path)
 
                 // Safety check: Ensure we are NOT deleting the base Epic/games directory
-                val baseDir = EpicConstants.defaultEpicGamesPath(context)
-                if (gameDir.absolutePath == File(baseDir).absolutePath) {
-                    Timber.tag("Epic").e("Safety Triggered: Refusing to delete base Epic games directory: $path")
+                val deleteCheck =
+                    StoreInstallPathSafety.checkInstallDirDelete(
+                        context,
+                        path,
+                        protectedRoots = listOf(EpicConstants.defaultEpicGamesPath(context)),
+                    )
+                if (!deleteCheck.allowed) {
+                    Timber.tag("Epic").e("Safety Triggered: Refusing to delete install path '$path': ${deleteCheck.reason}")
+                    return Result.failure(Exception("Refusing to delete unsafe install path: $path"))
                 } else if (gameDir.exists()) {
                     Timber.tag("Epic").i("Deleting installation folder: $path")
                     try {
@@ -236,9 +243,11 @@ class EpicService : Service() {
                             Timber.tag("Epic").i("Successfully deleted installation folder")
                         } else {
                             Timber.tag("Epic").w("Failed to delete some files in installation folder")
+                            return Result.failure(Exception("Failed to fully delete installation folder: $path"))
                         }
                     } catch (e: Exception) {
                         Timber.tag("Epic").e(e, "Exception while deleting installation folder")
+                        return Result.failure(e)
                     }
 
                     // Cleanup markers
@@ -313,9 +322,19 @@ class EpicService : Service() {
                         if (path.isNotEmpty()) {
                             val dirFile = java.io.File(path)
                             if (dirFile.exists() && dirFile.isDirectory) {
-                                MarkerUtils.removeMarker(path, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
-                                MarkerUtils.removeMarker(path, Marker.DOWNLOAD_COMPLETE_MARKER)
-                                dirFile.deleteRecursively()
+                                val deleteCheck =
+                                    StoreInstallPathSafety.checkInstallDirDelete(
+                                        context,
+                                        path,
+                                        protectedRoots = context?.let { listOf(EpicConstants.defaultEpicGamesPath(it)) } ?: emptyList(),
+                                    )
+                                if (deleteCheck.allowed) {
+                                    MarkerUtils.removeMarker(path, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                                    MarkerUtils.removeMarker(path, Marker.DOWNLOAD_COMPLETE_MARKER)
+                                    dirFile.deleteRecursively()
+                                } else {
+                                    Timber.tag("Epic").e("Refusing to delete cancelled Epic download path '$path': ${deleteCheck.reason}")
+                                }
                             }
                         }
                     }
@@ -411,9 +430,19 @@ class EpicService : Service() {
                         if (path.isNotEmpty()) {
                             val dirFile = java.io.File(path)
                             if (dirFile.exists() && dirFile.isDirectory) {
-                                MarkerUtils.removeMarker(path, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
-                                MarkerUtils.removeMarker(path, Marker.DOWNLOAD_COMPLETE_MARKER)
-                                dirFile.deleteRecursively()
+                                val deleteCheck =
+                                    StoreInstallPathSafety.checkInstallDirDelete(
+                                        context,
+                                        path,
+                                        protectedRoots = context?.let { listOf(EpicConstants.defaultEpicGamesPath(it)) } ?: emptyList(),
+                                    )
+                                if (deleteCheck.allowed) {
+                                    MarkerUtils.removeMarker(path, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                                    MarkerUtils.removeMarker(path, Marker.DOWNLOAD_COMPLETE_MARKER)
+                                    dirFile.deleteRecursively()
+                                } else {
+                                    Timber.tag("Epic").e("Refusing to delete cancelled Epic download path '$path': ${deleteCheck.reason}")
+                                }
                             }
                         }
                     }

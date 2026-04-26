@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.IBinder
 import com.winlator.cmod.app.PluviaApp
 import com.winlator.cmod.feature.stores.epic.ui.util.SnackbarManager
+import com.winlator.cmod.feature.stores.common.StoreInstallPathSafety
 import com.winlator.cmod.feature.stores.gog.data.GOGCredentials
 import com.winlator.cmod.feature.stores.gog.data.GOGGame
 import com.winlator.cmod.feature.stores.gog.data.LibraryItem
@@ -236,9 +237,19 @@ class GOGService : Service() {
                     if (installPath.isNotEmpty()) {
                         val dirFile = File(installPath)
                         if (dirFile.exists() && dirFile.isDirectory) {
-                            MarkerUtils.removeMarker(installPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
-                            MarkerUtils.removeMarker(installPath, Marker.DOWNLOAD_COMPLETE_MARKER)
-                            dirFile.deleteRecursively()
+                            val deleteCheck =
+                                StoreInstallPathSafety.checkInstallDirDelete(
+                                    instance.applicationContext,
+                                    installPath,
+                                    protectedRoots = listOf(GOGConstants.defaultGOGGamesPath),
+                                )
+                            if (deleteCheck.allowed) {
+                                MarkerUtils.removeMarker(installPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                                MarkerUtils.removeMarker(installPath, Marker.DOWNLOAD_COMPLETE_MARKER)
+                                dirFile.deleteRecursively()
+                            } else {
+                                Timber.e("Refusing to delete cancelled GOG download path '$installPath': ${deleteCheck.reason}")
+                            }
                         }
                     }
                     downloadInfo.updateStatus(DownloadPhase.CANCELLED)
@@ -335,9 +346,19 @@ class GOGService : Service() {
                     if (installPath.isNotEmpty()) {
                         val dirFile = File(installPath)
                         if (dirFile.exists() && dirFile.isDirectory) {
-                            MarkerUtils.removeMarker(installPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
-                            MarkerUtils.removeMarker(installPath, Marker.DOWNLOAD_COMPLETE_MARKER)
-                            dirFile.deleteRecursively()
+                            val deleteCheck =
+                                StoreInstallPathSafety.checkInstallDirDelete(
+                                    instance.applicationContext,
+                                    installPath,
+                                    protectedRoots = listOf(GOGConstants.defaultGOGGamesPath),
+                                )
+                            if (deleteCheck.allowed) {
+                                MarkerUtils.removeMarker(installPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                                MarkerUtils.removeMarker(installPath, Marker.DOWNLOAD_COMPLETE_MARKER)
+                                dirFile.deleteRecursively()
+                            } else {
+                                Timber.e("Refusing to delete cancelled GOG download path '$installPath': ${deleteCheck.reason}")
+                            }
                         }
                     }
                     info.updateStatus(DownloadPhase.CANCELLED)

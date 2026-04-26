@@ -3821,16 +3821,27 @@ class UnifiedActivity :
                         message = getString(R.string.library_games_uninstall_confirm, app.title),
                         onConfirm = {
                             scope.launch(Dispatchers.IO) {
-                                GOGService.deleteGame(
+                                val result = GOGService.deleteGame(
                                     context,
                                     LibraryItem("GOG_${app.id}", app.title, com.winlator.cmod.feature.stores.steam.enums.GameSource.GOG),
                                 )
                                 withContext(Dispatchers.Main) {
-                                    com.winlator.cmod.shared.android.AppUtils.showToast(
-                                        context,
-                                        getString(R.string.library_games_game_uninstalled, app.title),
-                                        android.widget.Toast.LENGTH_SHORT,
-                                    )
+                                    if (result.isSuccess) {
+                                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                                            context,
+                                            getString(R.string.library_games_game_uninstalled, app.title),
+                                            android.widget.Toast.LENGTH_SHORT,
+                                        )
+                                    } else {
+                                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                                            context,
+                                            getString(
+                                                R.string.library_games_failed_to_uninstall_reason,
+                                                result.exceptionOrNull()?.message ?: "Unknown error",
+                                            ),
+                                            android.widget.Toast.LENGTH_LONG,
+                                        )
+                                    }
                                     onDismissRequest()
                                 }
                             }
@@ -4875,7 +4886,7 @@ class UnifiedActivity :
                                         onConfirm = {
                                             if (isGog) {
                                                 scope.launch(Dispatchers.IO) {
-                                                    GOGService.deleteGame(
+                                                    val result = GOGService.deleteGame(
                                                         context,
                                                         LibraryItem(
                                                             "GOG_${gogGame!!.id}",
@@ -4884,11 +4895,22 @@ class UnifiedActivity :
                                                         ),
                                                     )
                                                     withContext(Dispatchers.Main) {
-                                                        com.winlator.cmod.shared.android.AppUtils.showToast(
-                                                            context,
-                                                            getString(R.string.library_games_game_uninstalled, app.name),
-                                                            android.widget.Toast.LENGTH_SHORT,
-                                                        )
+                                                        if (result.isSuccess) {
+                                                            com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                                context,
+                                                                getString(R.string.library_games_game_uninstalled, app.name),
+                                                                android.widget.Toast.LENGTH_SHORT,
+                                                            )
+                                                        } else {
+                                                            com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                                context,
+                                                                getString(
+                                                                    R.string.library_games_failed_to_uninstall_reason,
+                                                                    result.exceptionOrNull()?.message ?: "Unknown error",
+                                                                ),
+                                                                android.widget.Toast.LENGTH_LONG,
+                                                            )
+                                                        }
                                                         onDismissRequest()
                                                     }
                                                 }
@@ -6141,9 +6163,21 @@ class UnifiedActivity :
                     bgColor = DangerRed.copy(alpha = 0.12f),
                     onClick = {
                         scope.launch(Dispatchers.IO) {
-                            EpicService.deleteGame(context, app.id)
+                            val result = EpicService.deleteGame(context, app.id)
+                            withContext(Dispatchers.Main) {
+                                if (!result.isSuccess) {
+                                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                                        context,
+                                        getString(
+                                            R.string.library_games_failed_to_uninstall_reason,
+                                            result.exceptionOrNull()?.message ?: "Unknown error",
+                                        ),
+                                        android.widget.Toast.LENGTH_LONG,
+                                    )
+                                }
+                                onDismissRequest()
+                            }
                         }
-                        onDismissRequest()
                     },
                 )
             } else {
@@ -6514,11 +6548,23 @@ class UnifiedActivity :
                     bgColor = DangerRed.copy(alpha = 0.12f),
                     onClick = {
                         scope.launch(Dispatchers.IO) {
-                            GOGService.deleteGame(
+                            val result = GOGService.deleteGame(
                                 context,
                                 LibraryItem("GOG_${app.id}", app.title, com.winlator.cmod.feature.stores.steam.enums.GameSource.GOG),
                             )
-                            withContext(Dispatchers.Main) { onDismissRequest() }
+                            withContext(Dispatchers.Main) {
+                                if (!result.isSuccess) {
+                                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                                        context,
+                                        getString(
+                                            R.string.library_games_failed_to_uninstall_reason,
+                                            result.exceptionOrNull()?.message ?: "Unknown error",
+                                        ),
+                                        android.widget.Toast.LENGTH_LONG,
+                                    )
+                                }
+                                onDismissRequest()
+                            }
                         }
                     },
                 )
@@ -9612,7 +9658,12 @@ class UnifiedActivity :
     // Smart game folder detection
     private fun detectGameFolder(exePath: String): String {
         val exeFile = java.io.File(exePath)
-        // Directories that are typically sub-folders inside a game, not the root
+        val executableRoot = detectExecutableRoot(exeFile)
+        return detectPackageRoot(executableRoot).absolutePath
+    }
+
+    private fun detectExecutableRoot(exeFile: java.io.File): java.io.File {
+        // Directories that are typically sub-folders inside a game, not the root.
         val subDirNames =
             setOf(
                 "bin",
@@ -9631,8 +9682,8 @@ class UnifiedActivity :
                 "retail",
                 "dist",
             )
-        var dir = exeFile.parentFile ?: return exePath
-        // Walk up while the current dir name looks like a sub-directory
+        var dir = exeFile.parentFile ?: return exeFile
+        // Walk up while the current dir name looks like a platform/build sub-directory.
         while (dir.parentFile != null) {
             val name = dir.name.lowercase()
             if (name in subDirNames) {
@@ -9641,7 +9692,44 @@ class UnifiedActivity :
                 break
             }
         }
-        return dir.absolutePath
+        return dir
+    }
+
+    private fun detectPackageRoot(executableRoot: java.io.File): java.io.File {
+        var root = executableRoot
+        repeat(3) {
+            val parent = root.parentFile ?: return root
+            if (shouldPromoteToParentPackageRoot(root, parent)) {
+                root = parent
+            } else {
+                return root
+            }
+        }
+        return root
+    }
+
+    private fun shouldPromoteToParentPackageRoot(
+        currentRoot: java.io.File,
+        parentRoot: java.io.File,
+    ): Boolean {
+        val projectMarkers =
+            listOf("Binaries", "Content", "Plugins", "Resources", "Data", "Managed")
+        val sharedRuntimeMarkers =
+            listOf("Engine", "_CommonRedist", "Redist", "Redistributables", "Support")
+        val currentLooksLikeProjectDir = hasChildDirectoryNamed(currentRoot, projectMarkers)
+        val parentHasSharedRuntime = hasChildDirectoryNamed(parentRoot, sharedRuntimeMarkers)
+        return currentLooksLikeProjectDir && parentHasSharedRuntime
+    }
+
+    private fun hasChildDirectoryNamed(
+        dir: java.io.File,
+        names: List<String>,
+    ): Boolean {
+        val normalizedNames = names.map { it.lowercase() }.toSet()
+        return dir
+            .listFiles()
+            .orEmpty()
+            .any { it.isDirectory && it.name.lowercase() in normalizedNames }
     }
 
     // Add Custom Game Dialog
@@ -9654,52 +9742,28 @@ class UnifiedActivity :
         var gameFolder by remember { mutableStateOf<String?>(null) }
         var isAdding by remember { mutableStateOf(false) }
 
-        val exePickerLauncher =
-            rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.OpenDocument(),
-            ) { uri ->
-                if (uri != null) {
-                    // Resolve to a real file path using the unified FileUtils
-                    var path = FileUtils.getFilePathFromUri(context, uri)
-                    val displayName = FileUtils.getUriFileName(context, uri)
-                    
-                    // Check both path and display name for .exe extension
-                    val pathIsExe = path?.lowercase()?.endsWith(".exe") == true
-                    val nameIsExe = displayName?.lowercase()?.endsWith(".exe") == true
-                    val isExe = pathIsExe || nameIsExe
-
-                    if (!pathIsExe && nameIsExe && path != null) {
-                        // Extension was lost in resolution; attempt to reconstruct if the file exists with the extension
-                        val file = java.io.File(path)
-                        val parent = if (file.isDirectory) file else file.parentFile
-                        if (parent != null) {
-                            val reconstructed = java.io.File(parent, displayName!!)
-                            if (reconstructed.exists()) path = reconstructed.absolutePath
-                        }
-                    }
-
-                    // Validate: must have a path, and either end in .exe (in path or name) OR exist as a file
-                    if (path != null && (isExe || java.io.File(path).exists())) {
-                        selectedExePath = path
-                        gameFolder = detectGameFolder(path)
-                        // Auto-generate a game name from the EXE name (without extension)
-                        if (gameName.isBlank()) {
-                            gameName =
-                                java.io
-                                    .File(path)
-                                    .nameWithoutExtension
-                                    .replace("_", " ")
-                                    .replace("-", " ")
-                        }
-                    } else {
-                        com.winlator.cmod.shared.android.AppUtils.showToast(
-                            context,
-                            "Please select a .exe file",
-                            android.widget.Toast.LENGTH_SHORT,
-                        )
-                    }
-                }
+        fun selectExecutable(path: String) {
+            if (!path.endsWith(".exe", ignoreCase = true) || !java.io.File(path).isFile) {
+                com.winlator.cmod.shared.android.AppUtils.showToast(
+                    context,
+                    R.string.common_ui_select_valid_exe_file,
+                    android.widget.Toast.LENGTH_SHORT,
+                )
+                return
             }
+
+            selectedExePath = path
+            gameFolder = detectGameFolder(path)
+            // Auto-generate a game name from the EXE name (without extension)
+            if (gameName.isBlank()) {
+                gameName =
+                    java.io
+                        .File(path)
+                        .nameWithoutExtension
+                        .replace("_", " ")
+                        .replace("-", " ")
+            }
+        }
 
         val defaultDensity = LocalDensity.current
         Dialog(
@@ -9743,14 +9807,12 @@ class UnifiedActivity :
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(Color.White.copy(alpha = 0.05f))
                                         .clickable {
-                                            if (!ensureAllFilesAccessForImports(context)) return@clickable
-                                            exePickerLauncher.launch(
-                                                arrayOf(
-                                                    "application/octet-stream",
-                                                    "application/x-msdos-program",
-                                                    "application/x-msdownload",
-                                                    "*/*",
-                                                ),
+                                            DirectoryPickerDialog.showFile(
+                                                activity = this@UnifiedActivity,
+                                                initialPath = selectedExePath ?: gameFolder,
+                                                title = getString(R.string.common_ui_select_exe),
+                                                allowedExtensions = setOf("exe"),
+                                                onSelected = ::selectExecutable,
                                             )
                                         }.padding(horizontal = 12.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically,

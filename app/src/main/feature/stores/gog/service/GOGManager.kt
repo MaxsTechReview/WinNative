@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.core.net.toUri
 import com.winlator.cmod.app.PluviaApp
 import com.winlator.cmod.feature.shortcuts.LibraryShortcutUtils
+import com.winlator.cmod.feature.stores.common.StoreInstallPathSafety
 import com.winlator.cmod.feature.stores.gog.data.GOGCloudSavesLocation
 import com.winlator.cmod.feature.stores.gog.data.GOGCloudSavesLocationTemplate
 import com.winlator.cmod.feature.stores.gog.data.GOGGame
@@ -488,6 +489,16 @@ class GOGManager
                         }
                     val installDir = File(installPath)
                     val wasInstalled = game?.isInstalled == true || MarkerUtils.hasMarker(installPath, Marker.DOWNLOAD_COMPLETE_MARKER)
+                    val deleteCheck =
+                        StoreInstallPathSafety.checkInstallDirDelete(
+                            context,
+                            installPath,
+                            protectedRoots = listOf(GOGConstants.defaultGOGGamesPath),
+                        )
+                    if (!deleteCheck.allowed) {
+                        Timber.e("Refusing to delete GOG install path '$installPath': ${deleteCheck.reason}")
+                        return@withContext Result.failure(Exception("Refusing to delete unsafe install path: $installPath"))
+                    }
 
                     // Delete the manifest file
                     val manifestPath = File(context.filesDir, "manifests/$gameId")

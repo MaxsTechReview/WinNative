@@ -1,6 +1,10 @@
 package com.winlator.cmod.runtime.wine;
 
 import android.content.Context;
+import android.os.Build;
+import android.os.Environment;
+import android.os.storage.StorageManager;
+import android.os.storage.StorageVolume;
 import android.util.Log;
 import androidx.annotation.Nullable;
 import com.winlator.cmod.runtime.container.Container;
@@ -119,16 +123,13 @@ public abstract class WineUtils {
     }
 
     String downloadsPath =
-        android.os.Environment.getExternalStoragePublicDirectory(
-                android.os.Environment.DIRECTORY_DOWNLOADS)
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             .getAbsolutePath();
-    String externalStoragePath =
-        android.os.Environment.getExternalStorageDirectory().getAbsolutePath();
-    String sdCardRootPath = getSdCardRootPath();
+    String externalStoragePath = Environment.getExternalStorageDirectory().getAbsolutePath();
 
     ensureDriveMapping(entries, usedLetters, usedPaths, "D", downloadsPath);
     ensureDriveMapping(entries, usedLetters, usedPaths, "F", externalStoragePath);
-    if (sdCardRootPath != null && !sdCardRootPath.isEmpty()) {
+    for (String sdCardRootPath : getMountedSdCardRootPaths(context)) {
       ensureDriveMapping(entries, usedLetters, usedPaths, "G", sdCardRootPath);
     }
 
@@ -161,6 +162,9 @@ public abstract class WineUtils {
   }
 
   public static String getSdCardRootPath() {
+    for (String path : getMountedSdCardRootPaths(null)) {
+      if (path != null && !path.isEmpty()) return path;
+    }
     try {
       if (!com.winlator.cmod.feature.stores.steam.utils.PrefManager.INSTANCE
           .getUseExternalStorage()) return null;
@@ -173,6 +177,105 @@ public abstract class WineUtils {
     } catch (Throwable ignored) {
       return null;
     }
+  }
+
+  public static List<String> getMountedSdCardRootPaths(@Nullable Context context) {
+    ArrayList<String> roots = new ArrayList<>();
+
+    try {
+      if (com.winlator.cmod.feature.stores.steam.utils.PrefManager.INSTANCE
+          .getUseExternalStorage()) {
+        addStorageRoot(
+            roots,
+            com.winlator.cmod.feature.stores.steam.utils.PrefManager.INSTANCE
+                .getExternalStoragePath());
+      }
+    } catch (Throwable ignored) {
+    }
+
+    if (context != null) {
+      StorageManager storageManager = context.getSystemService(StorageManager.class);
+
+      try {
+        for (File dir : context.getExternalFilesDirs(null)) {
+          if (dir == null) continue;
+          StorageVolume volume = storageManager != null ? storageManager.getStorageVolume(dir) : null;
+          if (volume != null && volume.isPrimary()) continue;
+          addStorageRoot(roots, resolveStorageRootFromExternalFilesDir(dir));
+        }
+      } catch (Throwable ignored) {
+      }
+
+      if (storageManager != null) {
+        try {
+          for (StorageVolume volume : storageManager.getStorageVolumes()) {
+            if (volume == null || volume.isPrimary() || !isReadableMountedState(volume.getState())) {
+              continue;
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+              addStorageRoot(roots, volume.getDirectory());
+            }
+            String uuid = volume.getUuid();
+            if (uuid != null && !uuid.isEmpty()) {
+              addStorageRoot(roots, new File("/storage", uuid));
+            }
+          }
+        } catch (Throwable ignored) {
+        }
+      }
+    }
+
+    File storageDir = new File("/storage");
+    File[] children = storageDir.listFiles();
+    if (children != null) {
+      for (File child : children) {
+        if (child == null || !child.isDirectory()) continue;
+        String name = child.getName();
+        if ("self".equals(name) || "emulated".equals(name)) continue;
+        addStorageRoot(roots, child);
+      }
+    }
+
+    return roots;
+  }
+
+  private static void addStorageRoot(List<String> roots, @Nullable String path) {
+    if (path == null || path.isEmpty()) return;
+    addStorageRoot(roots, new File(path));
+  }
+
+  private static void addStorageRoot(List<String> roots, @Nullable File root) {
+    if (!canBrowseStorageRoot(root)) return;
+    String path = root.getAbsolutePath();
+    String normalizedPath = normalizeHostPath(path);
+    for (String existing : roots) {
+      if (normalizeHostPath(existing).equals(normalizedPath)) return;
+    }
+    roots.add(path);
+  }
+
+  @Nullable
+  private static File resolveStorageRootFromExternalFilesDir(@Nullable File dir) {
+    if (dir == null) return null;
+    File current = dir.getAbsoluteFile();
+    while (current != null) {
+      if ("Android".equalsIgnoreCase(current.getName()) && current.getParentFile() != null) {
+        return current.getParentFile();
+      }
+      current = current.getParentFile();
+    }
+    return null;
+  }
+
+  private static boolean canBrowseStorageRoot(@Nullable File root) {
+    if (root == null || !root.exists() || !root.isDirectory() || !root.canRead()) return false;
+    File[] children = root.listFiles();
+    return children != null;
+  }
+
+  private static boolean isReadableMountedState(@Nullable String state) {
+    return Environment.MEDIA_MOUNTED.equals(state)
+        || Environment.MEDIA_MOUNTED_READ_ONLY.equals(state);
   }
 
   public static boolean isOnSdCard(String nativePath) {
@@ -341,10 +444,22 @@ public abstract class WineUtils {
     String packageStorageSuffix = "/com.winnative.cmod/storage";
     String legacyPackageStorageSuffix = "/com.winlator.cmod/storage";
     String packageStoragePath = "/data/data/com.winnative.cmod/storage";
+    Context context = null;
     if (container.getManager() != null && container.getManager().getContext() != null) {
-      String packageName = container.getManager().getContext().getPackageName();
+      context = container.getManager().getContext();
+      String packageName = context.getPackageName();
       packageStorageSuffix = "/" + packageName + "/storage";
       packageStoragePath = "/data/data/" + packageName + "/storage";
+    }
+
+    if (context != null) {
+      String normalizedDrives = normalizePersistentDrives(context, container.getDrives());
+      if (normalizedDrives != null
+          && !normalizedDrives.isEmpty()
+          && !normalizedDrives.equals(container.getDrives())) {
+        container.setDrives(normalizedDrives);
+        Log.d("WineUtils", "Normalized launch drives in memory to: " + normalizedDrives);
+      }
     }
 
     // Auto-fix containers missing D: and E: drives.
@@ -370,8 +485,9 @@ public abstract class WineUtils {
     int driveCount = 0;
     for (String[] drive : container.drivesIterator()) {
       if ("A".equalsIgnoreCase(drive[0])) continue;
-      File linkTarget = new File(drive[1]);
-      String path = linkTarget.getAbsolutePath();
+      String path = resolveReadableDrivePath(drive[1]);
+      File linkTarget = new File(path);
+      path = linkTarget.getAbsolutePath();
       boolean isAppStoragePath =
           path.endsWith(packageStorageSuffix) || path.endsWith(legacyPackageStorageSuffix);
       if (!linkTarget.isDirectory() && isAppStoragePath) {
@@ -389,6 +505,38 @@ public abstract class WineUtils {
       if (exposeSteamGameLink) ensureSteamappsCommonSymlink(container, gameDirectoryPath);
       else removeSteamappsCommonSymlink(container, gameDirectoryPath);
     }
+  }
+
+  private static String resolveReadableDrivePath(@Nullable String path) {
+    if (path == null || path.isEmpty()) return "";
+
+    File target = new File(path);
+    if (canBrowseStorageRoot(target)) return target.getAbsolutePath();
+
+    String storageAlias = toStorageAlias(path);
+    if (storageAlias != null) {
+      File aliasTarget = new File(storageAlias);
+      if (canBrowseStorageRoot(aliasTarget)) return aliasTarget.getAbsolutePath();
+    }
+
+    return target.getAbsolutePath();
+  }
+
+  @Nullable
+  private static String toStorageAlias(String path) {
+    if (path == null) return null;
+    String normalized = path.replace('\\', '/');
+    String mediaPrefix = "/mnt/media_rw/";
+    if (!normalized.startsWith(mediaPrefix)) return null;
+
+    String relative = normalized.substring(mediaPrefix.length());
+    if (relative.isEmpty()) return null;
+
+    int separator = relative.indexOf('/');
+    String uuid = separator >= 0 ? relative.substring(0, separator) : relative;
+    String rest = separator >= 0 ? relative.substring(separator) : "";
+    if (uuid.isEmpty()) return null;
+    return "/storage/" + uuid + rest;
   }
 
   /**

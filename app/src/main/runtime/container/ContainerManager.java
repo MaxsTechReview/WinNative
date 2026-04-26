@@ -499,15 +499,24 @@ public class ContainerManager {
     // Step 1: Try to extract the versioned container pattern from bundled assets
     // e.g. "proton-9.0-x86_64_container_pattern.tzst"
     String containerPattern = wineVersion + "_container_pattern.tzst";
-    Log.d("ContainerManager", "extractContainerPatternFile: trying asset: " + containerPattern);
-    boolean result =
-        TarCompressorUtils.extract(
-            TarCompressorUtils.Type.ZSTD,
-            context,
-            containerPattern,
-            containerDir,
-            onExtractFileListener);
-    Log.d("ContainerManager", "extractContainerPatternFile: asset extraction result=" + result);
+    boolean result = false;
+    try {
+      context.getAssets().open(containerPattern).close();
+      Log.d("ContainerManager", "extractContainerPatternFile: trying asset: " + containerPattern);
+      result =
+          TarCompressorUtils.extract(
+              TarCompressorUtils.Type.ZSTD,
+              context,
+              containerPattern,
+              containerDir,
+              onExtractFileListener);
+      Log.d("ContainerManager", "extractContainerPatternFile: asset extraction result=" + result);
+    } catch (Exception ignored) {
+      Log.d(
+          "ContainerManager",
+          "extractContainerPatternFile: asset not bundled, trying installed profile prefix pack: "
+              + containerPattern);
+    }
 
     // Step 2: If asset extraction failed, look for the prefix pack from the installed custom proton
     if (!result) {
