@@ -374,7 +374,7 @@ public class ControlElement {
     int snappingSize = inputControlsView.getSnappingSize();
     Paint paint = inputControlsView.getPaint();
     int primaryColor = customColor != -1 
-        ? ColorUtils.setAlphaComponent(customColor, (int)(inputControlsView.getOverlayOpacity() * 255))
+        ? ColorUtils.setAlphaComponent(customColor, (int)(Math.min(1.0f, inputControlsView.getOverlayOpacity() * 2.0f) * 255))
         : inputControlsView.getPrimaryColor();
     int fillColor = ColorUtils.setAlphaComponent(primaryColor, 70);
 
