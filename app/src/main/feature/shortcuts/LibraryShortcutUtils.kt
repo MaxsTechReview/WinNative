@@ -96,6 +96,7 @@ object LibraryShortcutUtils {
         var deletedAny = false
 
         disablePinnedHomeShortcut(context, shortcut)
+        LibraryShortcutArtwork.deleteShortcutArtwork(context, shortcut)
 
         try {
             ShortcutsFragment.disableShortcutOnScreen(context, shortcut)

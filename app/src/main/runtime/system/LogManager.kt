@@ -59,6 +59,7 @@ object LogManager {
      */
     @JvmStatic
     fun rotateLogsOnAppStart(context: Context) {
+        if (!isAnyLoggingEnabled(context)) return
         val logsDir = getLogsDir(context)
         // Delete any existing .old.log files first
         logsDir.listFiles()?.filter { it.name.endsWith(".old.log") }?.forEach { it.delete() }

@@ -1153,17 +1153,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         if (preferredDriver.isNotBlank() && installedDrivers.contains(preferredDriver)) {
             return preferredDriver
         }
-        return try {
-            if (com.winlator.cmod.runtime.system.GPUInformation
-                    .isDriverSupported(DefaultVersion.WRAPPER_ADRENO, this)
-            ) {
-                DefaultVersion.WRAPPER_ADRENO
-            } else {
-                DefaultVersion.WRAPPER
-            }
-        } catch (_: Throwable) {
-            DefaultVersion.WRAPPER
-        }
+        return DefaultVersion.WRAPPER
     }
 
     private fun resolvePreferredContentVersion(

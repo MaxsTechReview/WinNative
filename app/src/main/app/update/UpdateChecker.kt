@@ -13,6 +13,8 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.preference.PreferenceManager
+import com.winlator.cmod.app.PluviaApp
+import com.winlator.cmod.runtime.display.XServerDisplayActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -72,7 +74,7 @@ object UpdateChecker {
      */
     fun isEnabled(context: Context): Boolean {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-        return prefs.getBoolean(PREF_CHECK_FOR_UPDATES, true)
+        return prefs.getBoolean(PREF_CHECK_FOR_UPDATES, false)
     }
 
     /**
@@ -108,13 +110,14 @@ object UpdateChecker {
     fun startBackgroundLoop(context: Context) {
         stopBackgroundLoop()
         if (!isEnabled(context)) return
+        if (!isAutoCheckAllowed()) return
 
         val appContext = context.applicationContext
         backgroundHandler = Handler(Looper.getMainLooper())
         backgroundRunnable =
             object : Runnable {
                 override fun run() {
-                    if (isEnabled(appContext)) {
+                    if (isEnabled(appContext) && isAutoCheckAllowed()) {
                         checkForUpdate(appContext, force = false)
                         backgroundHandler?.postDelayed(this, CHECK_INTERVAL_MS)
                     }
@@ -143,6 +146,7 @@ object UpdateChecker {
         force: Boolean = false,
     ) {
         if (!isEnabled(context)) return
+        if (!isAutoCheckAllowed()) return
         if (!force && !isDueForCheck(context)) return
         launchCheck(context)
     }
@@ -177,11 +181,15 @@ object UpdateChecker {
      */
     fun schedulePostGameCheck(context: Context) {
         cancelPostGameCheck()
+        if (!isEnabled(context)) return
+        if (!isAutoCheckAllowed()) return
         val appContext = context.applicationContext
         postGameHandler = Handler(Looper.getMainLooper())
         postGameRunnable =
             Runnable {
-                checkForUpdate(appContext, force = true)
+                if (isAutoCheckAllowed()) {
+                    checkForUpdate(appContext, force = true)
+                }
             }
         postGameHandler?.postDelayed(postGameRunnable!!, POST_GAME_CHECK_DELAY_MS)
     }
@@ -208,11 +216,17 @@ object UpdateChecker {
 
     // ── Internal ──────────────────────────────────────────────────────
 
+    private fun isAutoCheckAllowed(): Boolean {
+        val activity = PluviaApp.currentForegroundActivity ?: return false
+        return activity !is XServerDisplayActivity
+    }
+
     private fun launchCheck(context: Context) {
         if (!isChecking.compareAndSet(false, true)) return
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                refreshInstallTimestamp(context)
                 val result = fetchUpdateInfo(context)
                 if (result != null) {
                     withContext(Dispatchers.Main) {
@@ -294,7 +308,12 @@ object UpdateChecker {
         }
 
         // 4.  Build download URL based on package name
-        val apkType = if (context.packageName == "com.ludashi.benchmark") "ludashi" else "standard"
+        val apkType =
+            when (context.packageName) {
+                "com.ludashi.benchmark" -> "ludashi"
+                "com.tencent.ig" -> null
+                else -> "standard"
+            } ?: return null
         val downloadUrl = "${DOWNLOADS_PAGE_URL}download.php?type=$apkType"
 
         // 5.  Fetch optional release notes

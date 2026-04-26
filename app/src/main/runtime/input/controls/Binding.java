@@ -235,7 +235,7 @@ public enum Binding {
   }
 
   public boolean isKeyboard() {
-    return name().startsWith("KEY_") || this == NONE;
+    return name().startsWith("KEY_");
   }
 
   public boolean isGamepad() {

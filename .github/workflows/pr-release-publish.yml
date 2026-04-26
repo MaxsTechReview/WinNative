@@ -1,0 +1,276 @@
+name: PR Release Publish
+
+on:
+  workflow_run:
+    workflows:
+      - PR CI
+    types:
+      - completed
+
+concurrency:
+  group: pr-release-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: none
+      pull-requests: read
+    env:
+      SOURCE_REPO: ${{ github.repository }}
+      TARGET_REPO: MaxsTechReview/WinNative-CI
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+      HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Resolve PR metadata and scope
+        id: scope
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          head_owner=$(printf '%s' "$HEAD_REPO" | cut -d/ -f1)
+          pr_number=$(
+            gh pr list \
+              --repo "$SOURCE_REPO" \
+              --state all \
+              --head "$HEAD_BRANCH" \
+              --json number,headRefOid,headRepositoryOwner,baseRefName \
+              --jq '
+                map(
+                  select(.headRepositoryOwner.login == "'"$head_owner"'")
+                  | select(.headRefOid == "'"$HEAD_SHA"'")
+                )
+                | first
+                | .number // ""
+              '
+          )
+
+          if [ -z "$pr_number" ]; then
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+            echo "Unable to resolve PR for head repo $HEAD_REPO branch $HEAD_BRANCH sha $HEAD_SHA"
+            exit 0
+          fi
+
+          gh api "repos/$SOURCE_REPO/pulls/$pr_number" > pr.json
+
+          head_repo=$(jq -r '.head.repo.full_name // ""' pr.json)
+          base_repo=$(jq -r '.base.repo.full_name // ""' pr.json)
+
+          if [ "$base_repo" = "$SOURCE_REPO" ]; then
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+            echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+          else
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping publish for PR targeting a different repository: head=$head_repo base=$base_repo"
+          fi
+
+      - name: Compute expected APK names
+        if: ${{ steps.scope.outputs.allowed == 'true' }}
+        id: apk
+        env:
+          PR_NUMBER: ${{ steps.scope.outputs.pr_number }}
+        run: |
+          short_sha=$(jq -r '.head.sha' pr.json | cut -c1-5)
+          label="PR#${PR_NUMBER}-${short_sha}"
+          release_label=$(printf '%s' "$label" | tr '#' '.')
+          {
+            echo "label=$label"
+            echo "standard=WinNative-Debug-Standard-${label}.apk"
+            echo "ludashi=WinNative-Debug-Ludashi-${label}.apk"
+            echo "pubg=WinNative-Debug-Pubg-${label}.apk"
+            echo "release_standard=WinNative-Debug-Standard-${release_label}.apk"
+            echo "release_ludashi=WinNative-Debug-Ludashi-${release_label}.apk"
+            echo "release_pubg=WinNative-Debug-Pubg-${release_label}.apk"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Download PR build artifacts
+        if: ${{ steps.scope.outputs.allowed == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p artifacts
+          gh run download "$RUN_ID" --repo "$SOURCE_REPO" --name apk-standard --dir artifacts/standard
+          gh run download "$RUN_ID" --repo "$SOURCE_REPO" --name apk-ludashi --dir artifacts/ludashi
+          gh run download "$RUN_ID" --repo "$SOURCE_REPO" --name apk-pubg --dir artifacts/pubg
+
+      - name: Build release notes from PR metadata
+        if: ${{ steps.scope.outputs.allowed == 'true' }}
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.scope.outputs.pr_number }}
+        run: |
+          pr_title=$(jq -r '.title' pr.json)
+          pr_url=$(jq -r '.html_url' pr.json)
+          pr_body=$(jq -r '.body // ""' pr.json)
+          head_ref=$(jq -r '.head.ref' pr.json)
+          short_sha=$(jq -r '.head.sha' pr.json | cut -c1-5)
+          safe_title=$(printf '%s' "$pr_title" | tr '\r\n' ' ' | sed 's/[[:space:]]\+/ /g')
+          thread_name=$(printf '[#%s] %s' "$PR_NUMBER" "$safe_title" | cut -c1-100)
+          run_url="https://github.com/$SOURCE_REPO/actions/runs/$RUN_ID"
+
+          {
+            echo "title=$safe_title"
+            echo "url=$pr_url"
+            echo "tag=pr-$PR_NUMBER"
+            echo "thread_name=$thread_name"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            printf '# PR #%s\n\n' "$PR_NUMBER"
+            printf 'Title: %s\n\n' "$safe_title"
+            printf 'Source PR: %s\n' "$pr_url"
+            printf 'Source branch: %s\n' "$head_ref"
+            printf 'Source commit: `%s`\n' "$HEAD_SHA"
+            printf 'Build workflow run: %s\n\n' "$run_url"
+            printf '## What This PR Is About\n\n'
+            if [ -n "$pr_body" ]; then
+              printf '%s\n' "$pr_body"
+            else
+              printf 'No PR description was provided.\n'
+            fi
+            printf '\n## Attached Artifacts\n\n'
+            printf -- '%s\n' "- ${{ steps.apk.outputs.release_standard }}"
+            printf -- '%s\n' "- ${{ steps.apk.outputs.release_ludashi }}"
+            printf -- '%s\n' "- ${{ steps.apk.outputs.release_pubg }}"
+            printf '\nBuilt from source commit `%s`.\n' "$short_sha"
+          } > release-notes.md
+
+      - name: Create or update release in WinNative-CI
+        if: ${{ steps.scope.outputs.allowed == 'true' }}
+        id: release
+        env:
+          # Use a fine-grained PAT scoped only to MaxsTechReview/WinNative-CI
+          # with "Contents" repository permission set to write.
+          GH_TOKEN: ${{ secrets.WINNATIVE_CI_TOKEN }}
+          PR_NUMBER: ${{ steps.scope.outputs.pr_number }}
+        run: |
+          tag="${{ steps.pr.outputs.tag }}"
+          title="PR #$PR_NUMBER: ${{ steps.pr.outputs.title }}"
+          discord_marker='<!-- discord-posted -->'
+          discord_posted=false
+
+          if gh release view "$tag" --repo "$TARGET_REPO" >/dev/null 2>&1; then
+            created=false
+            existing_body=$(gh release view "$tag" --repo "$TARGET_REPO" --json body --jq '.body // ""')
+            if printf '%s' "$existing_body" | grep -Fq "$discord_marker"; then
+              discord_posted=true
+              if ! grep -Fq "$discord_marker" release-notes.md; then
+                printf '\n%s\n' "$discord_marker" >> release-notes.md
+              fi
+            fi
+            gh release edit "$tag" \
+              --repo "$TARGET_REPO" \
+              --title "$title" \
+              --notes-file release-notes.md \
+              --prerelease
+          else
+            created=true
+            gh release create "$tag" \
+              --repo "$TARGET_REPO" \
+              --title "$title" \
+              --notes-file release-notes.md \
+              --prerelease
+          fi
+
+          standard_path="artifacts/standard/${{ steps.apk.outputs.standard }}"
+          ludashi_path="artifacts/ludashi/${{ steps.apk.outputs.ludashi }}"
+          pubg_path="artifacts/pubg/${{ steps.apk.outputs.pubg }}"
+          release_standard_path="release-assets/${{ steps.apk.outputs.release_standard }}"
+          release_ludashi_path="release-assets/${{ steps.apk.outputs.release_ludashi }}"
+          release_pubg_path="release-assets/${{ steps.apk.outputs.release_pubg }}"
+          test -f "$standard_path"
+          test -f "$ludashi_path"
+          test -f "$pubg_path"
+          mkdir -p release-assets
+          cp "$standard_path" "$release_standard_path"
+          cp "$ludashi_path" "$release_ludashi_path"
+          cp "$pubg_path" "$release_pubg_path"
+
+          release_json=$(gh api "repos/$TARGET_REPO/releases/tags/$tag")
+          existing_apk_assets=$(
+            printf '%s' "$release_json" |
+              jq '[.assets[]? | select(.name | endswith(".apk"))] | length'
+          )
+
+          upload_asset() {
+            local file_path="$1"
+            local asset_name
+            asset_name=$(basename "$file_path")
+            local asset_prefix
+            asset_prefix=$(printf '%s' "$asset_name" | sed -E 's/PR\.[0-9]+-[A-Za-z0-9]+\.apk$//')
+            local existing_asset_ids
+            existing_asset_ids=$(
+              printf '%s' "$release_json" |
+                jq -r --arg prefix "$asset_prefix" '
+                  .assets[]?
+                  | select(.name | startswith($prefix))
+                  | select(.name | endswith(".apk"))
+                  | .id
+                '
+            )
+
+            if [ -n "$existing_asset_ids" ]; then
+              printf '%s\n' "$existing_asset_ids" | while IFS= read -r existing_asset_id; do
+                [ -n "$existing_asset_id" ] || continue
+                gh api --method DELETE "repos/$TARGET_REPO/releases/assets/$existing_asset_id" >/dev/null
+              done
+            fi
+
+            gh release upload "$tag" "$file_path" --repo "$TARGET_REPO"
+          }
+
+          upload_asset "$release_standard_path"
+          upload_asset "$release_ludashi_path"
+          upload_asset "$release_pubg_path"
+
+          release_url=$(gh release view "$tag" --repo "$TARGET_REPO" --json url --jq '.url')
+          {
+            echo "created=$created"
+            echo "discord_posted=$discord_posted"
+            echo "url=$release_url"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create Discord forum post
+        if: ${{ steps.scope.outputs.allowed == 'true' && steps.release.outputs.discord_posted != 'true' }}
+        env:
+          DISCORD_FORUM_WEBHOOK: ${{ secrets.DISCORD_FORUM_WEBHOOK }}
+          PR_TITLE: ${{ steps.pr.outputs.title }}
+          PR_URL: ${{ steps.pr.outputs.url }}
+          RELEASE_URL: ${{ steps.release.outputs.url }}
+          THREAD_NAME: ${{ steps.pr.outputs.thread_name }}
+        run: |
+          payload=$(jq -nc \
+            --arg thread_name "$THREAD_NAME" \
+            --arg content "**$PR_TITLE**\nPR: $PR_URL\nRelease: $RELEASE_URL" \
+            '{thread_name: $thread_name, content: $content}')
+
+          curl --fail --silent --show-error \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            "${DISCORD_FORUM_WEBHOOK}?wait=true"
+
+      - name: Mark Discord post on release
+        if: ${{ steps.scope.outputs.allowed == 'true' && steps.release.outputs.discord_posted != 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.WINNATIVE_CI_TOKEN }}
+          PR_NUMBER: ${{ steps.scope.outputs.pr_number }}
+          RELEASE_TITLE: ${{ steps.pr.outputs.title }}
+          RELEASE_TAG: ${{ steps.pr.outputs.tag }}
+        run: |
+          discord_marker='<!-- discord-posted -->'
+          if ! grep -Fq "$discord_marker" release-notes.md; then
+            printf '\n%s\n' "$discord_marker" >> release-notes.md
+          fi
+
+          gh release edit "$RELEASE_TAG" \
+            --repo "$TARGET_REPO" \
+            --title "PR #$PR_NUMBER: $RELEASE_TITLE" \
+            --notes-file release-notes.md \
+            --prerelease

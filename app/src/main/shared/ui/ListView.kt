@@ -46,6 +46,7 @@ fun <T> ListView(
     contentPadding: PaddingValues = PaddingValues(0.dp),
     selectedIndex: Int = 0,
     onSelectedIndexChanged: (Int) -> Unit = {},
+    keyOf: ((T) -> Any)? = null,
     itemContent: @Composable (item: T, index: Int, isSelected: Boolean) -> Unit,
 ) {
     val layoutDirection = LocalLayoutDirection.current
@@ -72,7 +73,15 @@ fun <T> ListView(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.fillMaxSize(),
     ) {
-        itemsIndexed(items) { index, item ->
+        itemsIndexed(
+            items = items,
+            key =
+                if (keyOf != null) {
+                    { _, item -> keyOf(item) }
+                } else {
+                    null
+                },
+        ) { index, item ->
             Box(
                 modifier = Modifier.widthIn(max = 500.dp).fillMaxWidth(),
                 contentAlignment = Alignment.Center,

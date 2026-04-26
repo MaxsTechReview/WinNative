@@ -26,6 +26,7 @@ import android.view.PointerIcon;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import java.util.HashMap;
 import androidx.preference.PreferenceManager;
 import com.winlator.cmod.R;
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
@@ -65,7 +66,8 @@ public class InputControlsView extends View {
   private XServer xServer;
   private final Bitmap[] icons = new Bitmap[17];
   private Timer mouseMoveTimer;
-  private final PointF mouseMoveOffset = new PointF();
+  private volatile float mouseMoveOffsetX = 0f;
+  private volatile float mouseMoveOffsetY = 0f;
   private boolean showTouchscreenControls = false;
 
   private Handler timeoutHandler; // Reference to the activity's timeout handler
@@ -449,19 +451,17 @@ public class InputControlsView extends View {
           new TimerTask() {
             @Override
             public void run() {
-              if (mouseMoveOffset.x != 0
-                  || mouseMoveOffset.y
-                      != 0) { // Only move if there's an offsete if there's an offset
+              if (mouseMoveOffsetX != 0 || mouseMoveOffsetY != 0) {
                 if (xServer.isRelativeMouseMovement())
                   winHandler.mouseEvent(
                       MouseEventFlags.MOVE,
-                      (int) (mouseMoveOffset.x * cursorSpeed * 10),
-                      (int) (mouseMoveOffset.y * cursorSpeed * 10),
+                      (int) (mouseMoveOffsetX * cursorSpeed * 20),
+                      (int) (mouseMoveOffsetY * cursorSpeed * 20),
                       0);
                 else
                   xServer.injectPointerMoveDelta(
-                      (int) (mouseMoveOffset.x * cursorSpeed * 10),
-                      (int) (mouseMoveOffset.y * cursorSpeed * 10));
+                      (int) (mouseMoveOffsetX * cursorSpeed * 20),
+                      (int) (mouseMoveOffsetY * cursorSpeed * 20));
               }
             }
           },
@@ -501,6 +501,8 @@ public class InputControlsView extends View {
   //        }
   //    }
 
+  private final HashMap<String, int[]> lastAxisSign = new HashMap<>();
+
   private void processJoystickInput(ExternalController controller) {
     final int[] axes = {
       MotionEvent.AXIS_X, MotionEvent.AXIS_Y,
@@ -516,22 +518,41 @@ public class InputControlsView extends View {
       controller.state.getDPadY()
     };
 
+    int[] lastSigns = lastAxisSign.get(controller.getId());
+    if (lastSigns == null) {
+      lastSigns = new int[axes.length];
+      lastAxisSign.put(controller.getId(), lastSigns);
+    }
+
     for (int i = 0; i < axes.length; i++) {
       float value = values[i];
-      if (Math.abs(value) > ControlElement.STICK_DEAD_ZONE) {
-        byte sign = Mathf.sign(value);
-        int keyCode = ExternalControllerBinding.getKeyCodeForAxis(axes[i], sign);
-        ExternalControllerBinding controllerBinding = controller.getControllerBinding(keyCode);
-        if (controllerBinding != null) {
-          handleInputEvent(controller, controllerBinding.getBinding(), true, value, false);
-        }
-      } else {
-        for (byte sign = -1; sign <= 1; sign += 2) {
-          int keyCode = ExternalControllerBinding.getKeyCodeForAxis(axes[i], sign);
-          ExternalControllerBinding controllerBinding = controller.getControllerBinding(keyCode);
-          if (controllerBinding != null) {
-            handleInputEvent(controller, controllerBinding.getBinding(), false, value, false);
+      int currentSign = Math.abs(value) > ControlElement.STICK_DEAD_ZONE ? (int) Mathf.sign(value) : 0;
+      int lastSign = lastSigns[i];
+
+      if (currentSign != lastSign) {
+        if (lastSign != 0) {
+          int oldKeyCode = ExternalControllerBinding.getKeyCodeForAxis(axes[i], (byte) lastSign);
+          ExternalControllerBinding oldBinding = controller.getControllerBinding(oldKeyCode);
+          if (oldBinding != null) {
+            handleInputEvent(controller, oldBinding.getBinding(), false, 0, false);
           }
+        }
+
+        if (currentSign != 0) {
+          int newKeyCode = ExternalControllerBinding.getKeyCodeForAxis(axes[i], (byte) currentSign);
+          ExternalControllerBinding newBinding = controller.getControllerBinding(newKeyCode);
+          if (newBinding != null) {
+            handleInputEvent(controller, newBinding.getBinding(), true, value, false);
+          }
+        }
+        lastSigns[i] = currentSign;
+      } else if (currentSign != 0) {
+        // Sign hasn't changed, but deflection might have.
+        // If it's a mouse move binding, we MUST update the offset for speed.
+        int keyCode = ExternalControllerBinding.getKeyCodeForAxis(axes[i], (byte) currentSign);
+        ExternalControllerBinding binding = controller.getControllerBinding(keyCode);
+        if (binding != null && binding.getBinding().isMouseMove()) {
+          handleInputEvent(controller, binding.getBinding(), true, value, false);
         }
       }
     }
@@ -589,7 +610,8 @@ public class InputControlsView extends View {
     if (!editMode && profile != null) {
       ExternalController controller = profile.getController(event.getDeviceId());
 
-      if (controller != null && controller.updateStateFromMotionEvent(event)) {
+      if (controller != null) {
+        controller.updateStateFromMotionEvent(event);
         ExternalControllerBinding controllerBinding;
 
         controllerBinding = controller.getControllerBinding(KeyEvent.KEYCODE_BUTTON_L2);
@@ -905,13 +927,13 @@ public class InputControlsView extends View {
       }
     } else {
       if (binding == Binding.MOUSE_MOVE_LEFT || binding == Binding.MOUSE_MOVE_RIGHT) {
-        mouseMoveOffset.x =
+        mouseMoveOffsetX =
             isActionDown
                 ? (offset != 0 ? offset : (binding == Binding.MOUSE_MOVE_LEFT ? -1 : 1))
                 : 0;
         if (isActionDown) createMouseMoveTimer();
       } else if (binding == Binding.MOUSE_MOVE_DOWN || binding == Binding.MOUSE_MOVE_UP) {
-        mouseMoveOffset.y =
+        mouseMoveOffsetY =
             isActionDown ? (offset != 0 ? offset : (binding == Binding.MOUSE_MOVE_UP ? -1 : 1)) : 0;
         if (isActionDown) createMouseMoveTimer();
       } else {

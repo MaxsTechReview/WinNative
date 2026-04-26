@@ -24,7 +24,7 @@ public class PreloaderDialog {
   }
 
   private void create() {
-    if (dialog != null) return;
+    if (dialog != null || isHostActivityInvalid()) return;
     dialog = new Dialog(activity, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
     dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
     dialog.setCancelable(false);
@@ -55,6 +55,19 @@ public class PreloaderDialog {
     dialog.setContentView(composeView);
   }
 
+  private boolean isHostActivityInvalid() {
+    return activity.isFinishing() || activity.isDestroyed();
+  }
+
+  private void showDialogSafely() {
+    if (dialog == null || isShowing() || isHostActivityInvalid()) return;
+
+    try {
+      dialog.show();
+    } catch (WindowManager.BadTokenException | IllegalStateException ignored) {
+    }
+  }
+
   private void clearLaunchMetadata() {
     composeState.setGameName("");
     composeState.setPlatform("");
@@ -68,33 +81,36 @@ public class PreloaderDialog {
 
   public synchronized void show(int textResId, boolean indeterminate) {
     if (dialog == null) create();
+    if (dialog == null) return;
     clearLaunchMetadata();
     composeState.setText(activity.getString(textResId));
     composeState.setIndeterminate(indeterminate);
     if (!indeterminate) {
       composeState.setProgress(0);
     }
-    if (!isShowing()) dialog.show();
+    showDialogSafely();
   }
 
   public synchronized void show(String text) {
     if (dialog == null) create();
+    if (dialog == null) return;
     clearLaunchMetadata();
     composeState.setText(text);
     composeState.setIndeterminate(true);
-    if (!isShowing()) dialog.show();
+    showDialogSafely();
   }
 
   public synchronized void show(
       String text, String gameName, String platform, String containerName) {
     if (dialog == null) create();
+    if (dialog == null) return;
     composeState.setText(text);
     composeState.setGameName(gameName != null ? gameName : "");
     composeState.setPlatform(platform != null ? platform : "");
     composeState.setContainerName(containerName != null ? containerName : "");
     composeState.setStableLaunchLayout(true);
     composeState.setIndeterminate(true);
-    if (!isShowing()) dialog.show();
+    showDialogSafely();
   }
 
   public synchronized void show(
@@ -113,24 +129,24 @@ public class PreloaderDialog {
   }
 
   public void setProgressOnUiThread(final int percent) {
-    activity.runOnUiThread(() -> setProgress(percent));
+    uiHandler.post(() -> setProgress(percent));
   }
 
   public void setIndeterminateOnUiThread(final boolean indeterminate) {
-    activity.runOnUiThread(() -> setIndeterminate(indeterminate));
+    uiHandler.post(() -> setIndeterminate(indeterminate));
   }
 
   public void showOnUiThread(final int textResId) {
-    activity.runOnUiThread(() -> show(textResId));
+    uiHandler.post(() -> show(textResId));
   }
 
   public void showOnUiThread(final String text) {
-    activity.runOnUiThread(() -> show(text));
+    uiHandler.post(() -> show(text));
   }
 
   public void showOnUiThread(
       final String text, final String gameName, final String platform, final String containerName) {
-    activity.runOnUiThread(() -> show(text, gameName, platform, containerName));
+    uiHandler.post(() -> show(text, gameName, platform, containerName));
   }
 
   public void showProgressOnUiThread(
@@ -139,7 +155,7 @@ public class PreloaderDialog {
       final String platform,
       final String containerName,
       final int percent) {
-    activity.runOnUiThread(
+    uiHandler.post(
         () -> {
           show(text, gameName, platform, containerName);
           composeState.setIndeterminate(false);
@@ -148,7 +164,7 @@ public class PreloaderDialog {
   }
 
   public void setStepOnUiThread(final String step) {
-    activity.runOnUiThread(
+    uiHandler.post(
         () -> {
           if (dialog != null) composeState.setText(step);
         });
@@ -176,7 +192,7 @@ public class PreloaderDialog {
   }
 
   public void closeOnUiThread() {
-    activity.runOnUiThread(this::close);
+    uiHandler.post(this::close);
   }
 
   public boolean isShowing() {

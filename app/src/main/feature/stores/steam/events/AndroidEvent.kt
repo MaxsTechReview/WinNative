@@ -15,4 +15,6 @@ sealed interface AndroidEvent<T> : Event<T> {
     data class LibraryInstallStatusChanged(
         val appId: Int,
     ) : AndroidEvent<Unit>
+
+    data object LibraryArtworkChanged : AndroidEvent<Unit>
 }

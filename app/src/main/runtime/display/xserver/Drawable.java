@@ -15,6 +15,7 @@ public class Drawable extends XResource {
   private Texture texture = new Texture();
   private ByteBuffer data;
   private boolean directScanout = false;
+  private Drawable scanoutSource;
   private Runnable onDrawListener;
   private Callback<Drawable> onDestroyListener;
   public final Object renderLock = new Object();
@@ -45,8 +46,27 @@ public class Drawable extends XResource {
   }
 
   public void setTexture(Texture texture) {
-    if (texture instanceof GPUImage) data = ((GPUImage) texture).getVirtualData();
+    if (texture instanceof GPUImage) {
+      ByteBuffer virtualData = ((GPUImage) texture).getVirtualData();
+      if (virtualData != null) data = virtualData;
+    }
     this.texture = texture;
+  }
+
+  public Drawable getScanoutSource() {
+    return scanoutSource;
+  }
+
+  public void setScanoutSource(Drawable scanoutSource) {
+    this.scanoutSource = scanoutSource;
+    if (texture != null) texture.setNeedsUpdate(true);
+    if (onDrawListener != null) onDrawListener.run();
+  }
+
+  public void clearScanoutSource() {
+    if (scanoutSource == null) return;
+    scanoutSource = null;
+    if (texture != null) texture.setNeedsUpdate(true);
   }
 
   public ByteBuffer getData() {
@@ -99,6 +119,7 @@ public class Drawable extends XResource {
       ByteBuffer data,
       short totalWidth,
       short totalHeight) {
+    clearScanoutSource();
     if (depth == 1) {
       drawBitmap(width, height, data, this.data);
     } else if (depth == 24 || depth == 32) {
@@ -155,6 +176,7 @@ public class Drawable extends XResource {
       short height,
       Drawable drawable,
       GraphicsContext.Function gcFunction) {
+    clearScanoutSource();
     dstX = (short) Mathf.clamp(dstX, 0, this.width - 1);
     dstY = (short) Mathf.clamp(dstY, 0, this.height - 1);
     if ((dstX + width) > this.width) width = (short) (this.width - dstX);
@@ -198,6 +220,7 @@ public class Drawable extends XResource {
   }
 
   public void fillRect(int x, int y, int width, int height, int color) {
+    clearScanoutSource();
     x = (short) Mathf.clamp(x, 0, this.width - 1);
     y = (short) Mathf.clamp(y, 0, this.height - 1);
     if ((x + width) > this.width) width = (short) ((this.width - x));
@@ -219,6 +242,7 @@ public class Drawable extends XResource {
   }
 
   public void drawLine(int x0, int y0, int x1, int y1, int color, int lineWidth) {
+    clearScanoutSource();
     x0 = Mathf.clamp(x0, 0, width - lineWidth);
     y0 = Mathf.clamp(y0, 0, height - lineWidth);
     x1 = Mathf.clamp(x1, 0, width - lineWidth);
@@ -249,6 +273,7 @@ public class Drawable extends XResource {
       byte backBlue,
       Drawable srcDrawable,
       Drawable maskDrawable) {
+    clearScanoutSource();
     drawAlphaMaskedBitmap(
         foreRed,
         foreGreen,

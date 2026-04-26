@@ -1,0 +1,24 @@
+diff --git a/app/src/main/app/shell/UnifiedActivity.kt b/app/src/main/app/shell/UnifiedActivity.kt
+index 1998f55..c945d69 100644
+--- a/app/src/main/app/shell/UnifiedActivity.kt
++++ b/app/src/main/app/shell/UnifiedActivity.kt
+@@ -2026,14 +2026,18 @@ class UnifiedActivity :
+         // Load all shortcuts once and cache for both custom app discovery and GameCapsule icon lookup
+         var cachedShortcuts by remember { mutableStateOf<List<Shortcut>>(emptyList()) }
+         var customApps by remember { mutableStateOf<List<SteamApp>>(emptyList()) }
++        var localLibraryRefreshKey by remember { mutableIntStateOf(0) }
+         var shortcutsLoaded by remember { mutableStateOf(false) }
+-        LaunchedEffect(shortcutRefreshKey) {
++        LaunchedEffect(shortcutRefreshKey, localLibraryRefreshKey) {
+             shortcutsLoaded = false
+ 
+             val shortcutScanResult =
+                 runCatching {
+                     withContext(Dispatchers.IO) {
+                         val cm = ContainerManager(context)
++                        cm.upgradeShortcuts {
++                            localLibraryRefreshKey++
++                        }
+                         val allShortcuts = cm.loadShortcuts()
+                         val apps =
+                             allShortcuts

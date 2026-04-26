@@ -73,6 +73,15 @@ class EventDispatcher {
         listeners.getOrPut(eventClass) { mutableListOf() }.add(typedListener)
     }
 
+    fun offJava(
+        eventClass: KClass<out Event<*>>,
+        listener: JavaEventListener,
+    ) {
+        listeners[eventClass]?.removeIf {
+            it.first == listener.toString()
+        }
+    }
+
     @Suppress("UNCHECKED_CAST")
     inline fun <reified E : Event<T>, reified T> emit(
         event: E,

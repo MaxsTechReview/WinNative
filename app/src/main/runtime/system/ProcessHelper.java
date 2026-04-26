@@ -14,9 +14,10 @@ import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.concurrent.Executors;
 
 public abstract class ProcessHelper {
+  private static final String TAG = "ProcessHelper";
+  private static final int MAX_PROCESS_DETAIL_LENGTH = 240;
   public static final boolean PRINT_DEBUG = false;
   private static final ArrayList<Callback<String>> debugCallbacks = new ArrayList<>();
   private static final String[] SESSION_PROCESS_FILTERS = {
@@ -117,6 +118,13 @@ public abstract class ProcessHelper {
   public static ArrayList<String> terminateSessionProcessesAndWait(
       long timeoutMs, boolean forceKillAfterTimeout) {
     drainDeadChildren("pre-terminate sweep");
+    ArrayList<String> before = listRunningWineProcessDetails();
+    if (before.isEmpty()) {
+      Log.d(TAG, "No session processes found before termination");
+    } else {
+      Log.w(TAG, "Terminating session processes: " + before);
+    }
+    resumeAllWineProcesses();
     terminateAllWineProcesses();
     long start = System.currentTimeMillis();
     ArrayList<String> remaining = listRunningWineProcesses();
@@ -132,6 +140,7 @@ public abstract class ProcessHelper {
     }
 
     if (!remaining.isEmpty() && forceKillAfterTimeout) {
+      Log.w(TAG, "Session processes still alive after SIGTERM: " + listRunningWineProcessDetails());
       forceKillAllWineProcesses();
       long forceKillStart = System.currentTimeMillis();
       while (!(remaining = listRunningWineProcesses()).isEmpty()
@@ -147,17 +156,27 @@ public abstract class ProcessHelper {
     }
 
     drainDeadChildren("post-terminate sweep");
-    return listRunningWineProcesses();
+    ArrayList<String> finalRemaining = listRunningWineProcesses();
+    if (finalRemaining.isEmpty()) {
+      Log.i(TAG, "Session process cleanup finished with no remaining Wine/session processes");
+    } else {
+      Log.e(TAG, "Session process cleanup left remaining processes: " + listRunningWineProcessDetails());
+    }
+    return finalRemaining;
   }
 
   public static void pauseAllWineProcesses() {
-    for (String process : listRunningWineProcesses()) {
+    ArrayList<String> processes = listRunningWineProcesses();
+    if (!processes.isEmpty()) Log.d(TAG, "Pausing session processes: " + processes);
+    for (String process : processes) {
       suspendProcess(Integer.parseInt(process));
     }
   }
 
   public static void resumeAllWineProcesses() {
-    for (String process : listRunningWineProcesses()) {
+    ArrayList<String> processes = listRunningWineProcesses();
+    if (!processes.isEmpty()) Log.d(TAG, "Resuming session processes: " + processes);
+    for (String process : processes) {
       resumeProcess(Integer.parseInt(process));
     }
   }
@@ -219,8 +238,7 @@ public abstract class ProcessHelper {
   }
 
   private static void createDebugThread(final InputStream inputStream) {
-    Executors.newSingleThreadExecutor()
-        .execute(
+    new Thread(
             () -> {
               try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
                 String line;
@@ -235,25 +253,26 @@ public abstract class ProcessHelper {
               } catch (IOException e) {
                 Log.e("ProcessHelper", "Error in debug thread", e);
               }
-            });
+            },
+            "ProcessDebugReader")
+        .start();
   }
 
   private static void createWaitForThread(
       java.lang.Process process, final Callback<Integer> terminationCallback) {
-    Executors.newSingleThreadExecutor()
-        .execute(
-            new Runnable() {
-              @Override
-              public void run() {
-                try {
-                  int status = process.waitFor();
-                  drainDeadChildren("process waitFor");
-                  terminationCallback.call(status);
-                } catch (InterruptedException e) {
-                  Log.e("ProcessHelper", "Error waiting for process termination", e);
-                }
+    new Thread(
+            () -> {
+              try {
+                int status = process.waitFor();
+                drainDeadChildren("process waitFor");
+                terminationCallback.call(status);
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                Log.e("ProcessHelper", "Error waiting for process termination", e);
               }
-            });
+            },
+            "ProcessWaitFor")
+        .start();
   }
 
   public static void removeAllDebugCallbacks() {
@@ -375,27 +394,80 @@ public abstract class ProcessHelper {
       return filteredPids;
     }
 
-    for (int index = 0; index < allPids.length; index++) {
-      String statData = "";
-      try (FileInputStream fr = new FileInputStream(proc + "/" + allPids[index] + "/stat");
-          BufferedReader br = new BufferedReader(new InputStreamReader(fr))) {
-        statData = br.readLine();
-      } catch (IOException e) {
-      }
-      String cmdlineData = "";
-      try (FileInputStream fr = new FileInputStream(proc + "/" + allPids[index] + "/cmdline")) {
-        byte[] bytes = fr.readAllBytes();
-        cmdlineData = new String(bytes, StandardCharsets.UTF_8).replace('\0', ' ');
-      } catch (IOException e) {
-      }
-
+    for (String pid : allPids) {
+      String statData = readProcStat(proc, pid);
+      String cmdlineData = readProcCmdline(proc, pid);
       String normalized = (statData + " " + cmdlineData).toLowerCase();
-      for (String filter : SESSION_PROCESS_FILTERS) {
-        if (normalized.contains(filter) && !filteredPids.contains(allPids[index])) {
-          filteredPids.add(allPids[index]);
-        }
-      }
+      if (isSessionProcess(normalized) && !filteredPids.contains(pid)) filteredPids.add(pid);
     }
     return filteredPids;
+  }
+
+  public static ArrayList<String> listRunningWineProcessDetails() {
+    File proc = new File("/proc");
+    String[] allPids =
+        proc.list(
+            new FilenameFilter() {
+              public boolean accept(File proc, String filename) {
+                return new File(proc, filename).isDirectory() && filename.matches("[0-9]+");
+              }
+            });
+    ArrayList<String> details = new ArrayList<>();
+    if (allPids == null) return details;
+
+    for (String pid : allPids) {
+      String statData = readProcStat(proc, pid);
+      String cmdlineData = readProcCmdline(proc, pid);
+      String normalized = (statData + " " + cmdlineData).toLowerCase();
+      if (!isSessionProcess(normalized)) continue;
+
+      String name = getStatProcessName(statData);
+      String command = cmdlineData.trim();
+      String detail =
+          pid
+              + " "
+              + (!name.isEmpty() ? name : "<unknown>")
+              + (!command.isEmpty() ? " :: " + command : "");
+      details.add(trimProcessDetail(detail));
+    }
+    return details;
+  }
+
+  private static boolean isSessionProcess(String normalizedProcessData) {
+    for (String filter : SESSION_PROCESS_FILTERS) {
+      if (normalizedProcessData.contains(filter)) return true;
+    }
+    return false;
+  }
+
+  private static String readProcStat(File proc, String pid) {
+    try (FileInputStream fr = new FileInputStream(proc + "/" + pid + "/stat");
+        BufferedReader br = new BufferedReader(new InputStreamReader(fr))) {
+      String line = br.readLine();
+      return line != null ? line : "";
+    } catch (IOException e) {
+      return "";
+    }
+  }
+
+  private static String readProcCmdline(File proc, String pid) {
+    try (FileInputStream fr = new FileInputStream(proc + "/" + pid + "/cmdline")) {
+      byte[] bytes = fr.readAllBytes();
+      return new String(bytes, StandardCharsets.UTF_8).replace('\0', ' ');
+    } catch (IOException e) {
+      return "";
+    }
+  }
+
+  private static String getStatProcessName(String statData) {
+    int start = statData.indexOf('(');
+    int end = statData.lastIndexOf(')');
+    if (start < 0 || end <= start) return "";
+    return statData.substring(start + 1, end);
+  }
+
+  private static String trimProcessDetail(String detail) {
+    if (detail.length() <= MAX_PROCESS_DETAIL_LENGTH) return detail;
+    return detail.substring(0, MAX_PROCESS_DETAIL_LENGTH - 3) + "...";
   }
 }

@@ -3,33 +3,30 @@ import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 import android.util.Log
-import com.google.android.gms.games.PlayGamesSdk
-import com.winlator.cmod.app.service.DownloadService
+import com.winlator.cmod.app.db.PluviaDatabase
 import com.winlator.cmod.app.update.UpdateChecker
-import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.feature.stores.gog.service.GOGAuthManager
 import com.winlator.cmod.feature.stores.gog.service.GOGConstants
-import com.winlator.cmod.feature.stores.gog.service.GOGService
 import com.winlator.cmod.feature.stores.steam.events.EventDispatcher
-import com.winlator.cmod.feature.stores.steam.service.SteamService
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 import com.winlator.cmod.runtime.display.XServerDisplayActivity
 import com.winlator.cmod.shared.android.RefreshRateUtils
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.security.Security
 
 @HiltAndroidApp
 class PluviaApp : Application() {
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
     override fun onCreate() {
         super.onCreate()
         instance = this
-
-        // Initialize Play Games Services SDK (v2) eagerly so auto sign-in fires at app launch.
-        PlayGamesSdk.initialize(this)
 
         registerRefreshRateLifecycleCallbacks()
 
@@ -38,55 +35,14 @@ class PluviaApp : Application() {
         Security.removeProvider("BC")
         Security.addProvider(BouncyCastleProvider())
 
-        // Init our datastore preferences.
-        PrefManager.init(this)
+        // Register application context so secure Steam prefs can initialize lazily.
+        PrefManager.install(this)
         GOGConstants.init(this)
-        GOGAuthManager.updateLoginStatus(this)
-
-        if (PrefManager.enableSteamLogs) {
-            timber.log.Timber.plant(timber.log.Timber.DebugTree())
-        }
-
-        // Record install timestamp for update checker
-        UpdateChecker.refreshInstallTimestamp(this)
-
-        // Rotate logs on app cold start (.log → .old.log) so previous
-        // session's logs are preserved until the next full launch.
-        com.winlator.cmod.runtime.system.LogManager
-            .rotateLogsOnAppStart(this)
-
-        // Start Application debug logging if enabled (writes PID logcat
-        // in real-time so crash data is persisted even on unexpected termination)
-        com.winlator.cmod.runtime.system.LogManager
-            .startAppLogging(this)
-
-        DownloadService.populateDownloadService(this)
 
         // Initialize process-wide reactive network state
         com.winlator.cmod.app.service.NetworkMonitor
             .init(this)
-
-        // Initialize database
-        com.winlator.cmod.app.db.PluviaDatabase
-            .init(this)
-
-        CoroutineScope(Dispatchers.IO).launch {
-            SteamService.repairInstalledMetadataFromDisk()
-        }
-
-        // Start SteamService only if setup is complete to avoid premature permission popups
-        try {
-            if (SetupWizardActivity.isSetupComplete(this)) {
-                val intent = android.content.Intent(this, com.winlator.cmod.feature.stores.steam.service.SteamService::class.java)
-                startForegroundService(intent)
-                if (GOGAuthManager.isLoggedIn(this)) {
-                    val gogIntent = android.content.Intent(this, GOGService::class.java)
-                    startForegroundService(gogIntent)
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("PluviaApp", "Failed to start SteamService", e)
-        }
+        scheduleColdStartWarmups()
 
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             Log.e("PluviaApp", "CRASH in thread ${thread.name}", throwable)
@@ -154,5 +110,46 @@ class PluviaApp : Application() {
     private fun shouldManageAppRefreshRate(activity: Activity): Boolean {
         // Game windows own per-title refresh policy and should not inherit the global app override.
         return activity !is XServerDisplayActivity
+    }
+
+    private fun scheduleColdStartWarmups() {
+        appScope.launch {
+            // Release the main thread for Activity launch and first Compose work.
+            withContext(Dispatchers.IO) {
+                GOGAuthManager.updateLoginStatus(this@PluviaApp)
+
+                // Pre-warm encrypted preferences off the UI thread so launcher auth checks
+                // are less likely to pay MasterKey/EncryptedSharedPreferences startup cost.
+                val steamLogsEnabled =
+                    runCatching {
+                        PrefManager.init(this@PluviaApp)
+                        PrefManager.libraryLayoutMode
+                        PrefManager.enableSteamLogs
+                    }.getOrElse {
+                        Log.e("PluviaApp", "PrefManager warmup failed", it)
+                        false
+                    }
+
+                if (UpdateChecker.isEnabled(this@PluviaApp)) {
+                    UpdateChecker.refreshInstallTimestamp(this@PluviaApp)
+                }
+
+                runCatching { PluviaDatabase.init(this@PluviaApp) }
+                    .onFailure { Log.e("PluviaApp", "Database warmup failed", it) }
+
+                com.winlator.cmod.runtime.system.LogManager
+                    .rotateLogsOnAppStart(this@PluviaApp)
+                com.winlator.cmod.runtime.system.LogManager
+                    .startAppLogging(this@PluviaApp)
+
+                if (steamLogsEnabled) {
+                    withContext(Dispatchers.Main.immediate) {
+                        if (timber.log.Timber.forest().none { it is timber.log.Timber.DebugTree }) {
+                            timber.log.Timber.plant(timber.log.Timber.DebugTree())
+                        }
+                    }
+                }
+            }
+        }
     }
 }

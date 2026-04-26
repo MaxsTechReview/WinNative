@@ -1,8 +1,8 @@
 package com.winlator.cmod.shared.ui.dialog
 import android.app.Activity
-import android.app.Dialog
 import android.content.Context
 import android.view.WindowManager
+import androidx.appcompat.app.AppCompatDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -186,8 +186,8 @@ object WinNativeComposeDialogs {
         return true
     }
 
-    private fun buildDialog(activity: Activity): Dialog =
-        Dialog(activity, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar).apply {
+    private fun buildDialog(activity: Activity): AppCompatDialog =
+        AppCompatDialog(activity, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar).apply {
             setCancelable(true)
             setCanceledOnTouchOutside(true)
         }

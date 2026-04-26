@@ -24,7 +24,9 @@ public class WineRequestHandler {
   }
 
   private Context context;
-  private ServerSocket serverSocket;
+  private volatile ServerSocket serverSocket;
+  private volatile boolean running;
+  private volatile ExecutorService executor;
 
   public ServerSocket getServerSocket() {
     return serverSocket;
@@ -34,30 +36,53 @@ public class WineRequestHandler {
     this.context = context;
   }
 
-  public void start() {
-    ExecutorService executor = Executors.newSingleThreadExecutor();
-    executor.execute(
+  public synchronized void start() {
+    if (running) return;
+    running = true;
+    executor = Executors.newSingleThreadExecutor();
+    final ExecutorService activeExecutor = executor;
+    activeExecutor.execute(
         () -> {
+          ServerSocket localServerSocket = null;
           try {
-            serverSocket = new ServerSocket(20000);
-            while (true) {
-              Socket socket = serverSocket.accept();
-              DataInputStream inputStream = new DataInputStream(socket.getInputStream());
-              DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
-              int requestCode = inputStream.readInt();
-              handleRequest(inputStream, outputStream, requestCode);
+            localServerSocket = new ServerSocket(20000);
+            serverSocket = localServerSocket;
+            while (running) {
+              try (Socket socket = localServerSocket.accept();
+                  DataInputStream inputStream = new DataInputStream(socket.getInputStream());
+                  DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream())) {
+                int requestCode = inputStream.readInt();
+                handleRequest(inputStream, outputStream, requestCode);
+              }
             }
           } catch (IOException e) {
+            if (running) {
+              Log.e("WineRequestHandler", "Server error", e);
+            }
+          } finally {
+            if (executor == activeExecutor) running = false;
+            try {
+              if (localServerSocket != null) localServerSocket.close();
+            } catch (IOException ignored) {
+            }
+            if (serverSocket == localServerSocket) serverSocket = null;
+            activeExecutor.shutdown();
           }
         });
   }
 
-  public void stop() {
+  public synchronized void stop() {
+    running = false;
     if (serverSocket != null) {
       try {
         serverSocket.close();
       } catch (IOException e) {
       }
+      serverSocket = null;
+    }
+    if (executor != null) {
+      executor.shutdownNow();
+      executor = null;
     }
   }
 

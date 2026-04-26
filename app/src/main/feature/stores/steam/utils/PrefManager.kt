@@ -6,38 +6,70 @@ import androidx.security.crypto.MasterKey
 import timber.log.Timber
 
 object PrefManager {
+    @Volatile
     private var prefs: SharedPreferences? = null
 
+    @Volatile
+    private var appContext: Context? = null
+
+    @Volatile
+    private var libraryLayoutModeCache: String? = null
+
+    fun install(context: Context) {
+        appContext = context.applicationContext
+    }
+
     fun init(context: Context) {
-        val legacyPrefs = context.getSharedPreferences("PluviaPreferences", Context.MODE_PRIVATE)
+        install(context)
+        ensurePrefsInitialized(context.applicationContext)
+    }
 
-        prefs =
-            try {
-                val masterKey =
-                    MasterKey
-                        .Builder(context)
-                        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                        .build()
-                EncryptedSharedPreferences.create(
-                    context,
-                    "PluviaPreferences_enc",
-                    masterKey,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-                )
-            } catch (e: Exception) {
-                Timber.e(e, "EncryptedSharedPreferences init failed")
-                throw RuntimeException("Failed to initialize secure storage", e)
-            }
+    private fun requirePrefs(): SharedPreferences {
+        prefs?.let { return it }
+        val context = appContext ?: throw IllegalStateException("PrefManager not installed. Call install() or init() first.")
+        return ensurePrefsInitialized(context)
+    }
 
-        migrateLegacyPrefsIfNeeded(legacyPrefs, context)
+    private fun ensurePrefsInitialized(context: Context): SharedPreferences {
+        prefs?.let { return it }
+
+        synchronized(this) {
+            prefs?.let { return it }
+
+            val appContext = context.applicationContext
+            this.appContext = appContext
+            val legacyPrefs = appContext.getSharedPreferences("PluviaPreferences", Context.MODE_PRIVATE)
+
+            val encryptedPrefs =
+                try {
+                    val masterKey =
+                        MasterKey
+                            .Builder(appContext)
+                            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                            .build()
+                    EncryptedSharedPreferences.create(
+                        appContext,
+                        "PluviaPreferences_enc",
+                        masterKey,
+                        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+                    )
+                } catch (e: Exception) {
+                    Timber.e(e, "EncryptedSharedPreferences init failed")
+                    throw RuntimeException("Failed to initialize secure storage", e)
+                }
+
+            prefs = encryptedPrefs
+            migrateLegacyPrefsIfNeeded(legacyPrefs, appContext, encryptedPrefs)
+            return encryptedPrefs
+        }
     }
 
     private fun migrateLegacyPrefsIfNeeded(
         legacyPrefs: SharedPreferences,
         context: Context,
+        encryptedPrefs: SharedPreferences,
     ) {
-        val encryptedPrefs = prefs ?: return
         val legacyEntries = legacyPrefs.all
         if (legacyEntries.isEmpty()) return
 
@@ -62,49 +94,49 @@ object PrefManager {
     private fun getString(
         key: String,
         defaultValue: String,
-    ): String = prefs?.getString(key, defaultValue) ?: defaultValue
+    ): String = requirePrefs().getString(key, defaultValue) ?: defaultValue
 
     private fun setString(
         key: String,
         value: String,
     ) {
-        prefs?.edit()?.putString(key, value)?.apply()
+        requirePrefs().edit().putString(key, value).apply()
     }
 
     private fun getInt(
         key: String,
         defaultValue: Int,
-    ): Int = prefs?.getInt(key, defaultValue) ?: defaultValue
+    ): Int = requirePrefs().getInt(key, defaultValue)
 
     private fun setInt(
         key: String,
         value: Int,
     ) {
-        prefs?.edit()?.putInt(key, value)?.apply()
+        requirePrefs().edit().putInt(key, value).apply()
     }
 
     private fun getLong(
         key: String,
         defaultValue: Long,
-    ): Long = prefs?.getLong(key, defaultValue) ?: defaultValue
+    ): Long = requirePrefs().getLong(key, defaultValue)
 
     private fun setLong(
         key: String,
         value: Long,
     ) {
-        prefs?.edit()?.putLong(key, value)?.apply()
+        requirePrefs().edit().putLong(key, value).apply()
     }
 
     private fun getBoolean(
         key: String,
         defaultValue: Boolean,
-    ): Boolean = prefs?.getBoolean(key, defaultValue) ?: defaultValue
+    ): Boolean = requirePrefs().getBoolean(key, defaultValue)
 
     private fun setBoolean(
         key: String,
         value: Boolean,
     ) {
-        prefs?.edit()?.putBoolean(key, value)?.apply()
+        requirePrefs().edit().putBoolean(key, value).apply()
     }
 
     var username: String
@@ -204,8 +236,13 @@ object PrefManager {
         }
 
     var libraryLayoutMode: String
-        get() = getString("library_layout_mode", "GRID_4")
+        get() =
+            libraryLayoutModeCache
+                ?: getString("library_layout_mode", "GRID_4").also {
+                    libraryLayoutModeCache = it
+                }
         set(value) {
+            libraryLayoutModeCache = value
             setString("library_layout_mode", value)
         }
 
@@ -252,7 +289,7 @@ object PrefManager {
         }
 
     fun clearAuthTokens() {
-        prefs?.edit()?.apply {
+        requirePrefs().edit().apply {
             remove("user_name")
             remove("refresh_token")
             remove("access_token")
@@ -266,7 +303,8 @@ object PrefManager {
     }
 
     fun clearPreferences() {
-        prefs?.edit()?.clear()?.commit()
+        libraryLayoutModeCache = null
+        requirePrefs().edit().clear().commit()
     }
 
     // Legacy support for Winlator properties if needed

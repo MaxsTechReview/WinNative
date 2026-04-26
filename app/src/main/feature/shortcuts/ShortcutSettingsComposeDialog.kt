@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
+import android.graphics.BitmapFactory
 import android.graphics.drawable.Icon
 import android.net.Uri
 import android.util.DisplayMetrics
@@ -24,6 +25,7 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.winlator.cmod.BuildConfig
 import com.winlator.cmod.R
+import com.winlator.cmod.app.PluviaApp
 import com.winlator.cmod.feature.library.DriveItem
 import com.winlator.cmod.feature.library.EnvVarItem
 import com.winlator.cmod.feature.library.GameSettingsCallbacks
@@ -34,6 +36,7 @@ import com.winlator.cmod.feature.settings.DXVKConfigUtils
 import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils
 import com.winlator.cmod.feature.settings.WineD3DConfigUtils
 import com.winlator.cmod.feature.setup.SetupWizardActivity
+import com.winlator.cmod.feature.stores.steam.events.AndroidEvent
 import com.winlator.cmod.runtime.compat.box64.Box64Preset
 import com.winlator.cmod.runtime.compat.box64.Box64PresetManager
 import com.winlator.cmod.runtime.container.Container
@@ -42,6 +45,7 @@ import com.winlator.cmod.runtime.container.Shortcut
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
 import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.android.ImageUtils
 import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.runtime.wine.DefaultVersion
 import com.winlator.cmod.runtime.wine.EnvVars
@@ -65,6 +69,13 @@ import java.lang.reflect.Field
 import java.util.Arrays
 import java.util.Locale
 import java.util.concurrent.Executors
+
+private enum class LibraryArtworkTarget {
+    GAME_CARD,
+    GRID,
+    CAROUSEL,
+    LIST,
+}
 
 class ShortcutSettingsComposeDialog private constructor(
     private val activity: Activity,
@@ -90,6 +101,8 @@ class ShortcutSettingsComposeDialog private constructor(
     // Preset ID lists (parallel to display name lists)
     private var box64PresetIds = mutableListOf<String>()
     private var fexcorePresetIds = mutableListOf<String>()
+    private var shouldRefreshLibraryOnSave = false
+    private var pendingArtworkTarget = LibraryArtworkTarget.GAME_CARD
 
     // SDL2 Compatibility env vars — must match ContainerDetailFragment.SDL2_ENV_VARS.
     private val sdl2EnvVars = listOf(
@@ -115,15 +128,24 @@ class ShortcutSettingsComposeDialog private constructor(
             ActivityResultContracts.OpenDocument()
         ) { uri: Uri? ->
             if (uri == null) return@register
-            val path = FileUtils.getFilePathFromUri(context, uri) ?: return@register
+            val path = FileUtils.getFilePathFromUri(context, uri)
             val fileName = FileUtils.getUriFileName(context, uri)
-            val isExe = path.lowercase().endsWith(".exe") ||
+            val isExe = (path != null && path.lowercase().endsWith(".exe")) ||
                 (fileName != null && fileName.lowercase().endsWith(".exe"))
-            if (isExe) {
+            if (isExe && path != null) {
                 state.launchExePath.value = path
             } else {
                 AppUtils.showToast(context, R.string.common_ui_select_valid_exe_file, Toast.LENGTH_SHORT)
             }
+        }
+
+    private val artworkPickerLauncher: ActivityResultLauncher<Array<String>>? =
+        (activity as? ComponentActivity)?.activityResultRegistry?.register(
+            "shortcut_artwork_picker",
+            ActivityResultContracts.OpenDocument()
+        ) { uri: Uri? ->
+            if (uri == null) return@register
+            saveSelectedArtwork(uri)
         }
 
     init {
@@ -185,6 +207,7 @@ class ShortcutSettingsComposeDialog private constructor(
         return object : GameSettingsCallbacks {
             override fun onConfirm() {
                 saveSettings()
+                emitLibraryRefreshIfNeeded()
                 dismiss()
             }
 
@@ -207,6 +230,53 @@ class ShortcutSettingsComposeDialog private constructor(
                             R.string.library_games_failed_to_create_shortcut,
                             shortcut.name
                         )
+                    )
+                }
+            }
+
+            override fun onPickGameCardArtwork() {
+                pendingArtworkTarget = LibraryArtworkTarget.GAME_CARD
+                artworkPickerLauncher?.launch(arrayOf("image/*"))
+            }
+
+            override fun onRemoveGameCardArtwork() {
+                clearLibraryArtwork(LibraryArtworkTarget.GAME_CARD)
+            }
+
+            override fun onPickGridArtwork() {
+                pendingArtworkTarget = LibraryArtworkTarget.GRID
+                artworkPickerLauncher?.launch(arrayOf("image/*"))
+            }
+
+            override fun onRemoveGridArtwork() {
+                clearLibraryArtwork(LibraryArtworkTarget.GRID)
+            }
+
+            override fun onPickCarouselArtwork() {
+                pendingArtworkTarget = LibraryArtworkTarget.CAROUSEL
+                artworkPickerLauncher?.launch(arrayOf("image/*"))
+            }
+
+            override fun onRemoveCarouselArtwork() {
+                clearLibraryArtwork(LibraryArtworkTarget.CAROUSEL)
+            }
+
+            override fun onPickListArtwork() {
+                pendingArtworkTarget = LibraryArtworkTarget.LIST
+                artworkPickerLauncher?.launch(arrayOf("image/*"))
+            }
+
+            override fun onRemoveListArtwork() {
+                clearLibraryArtwork(LibraryArtworkTarget.LIST)
+            }
+
+            override fun onOpenArtworkSource() {
+                runCatching {
+                    context.startActivity(
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://www.steamgriddb.com/"),
+                        ),
                     )
                 }
             }
@@ -274,6 +344,7 @@ class ShortcutSettingsComposeDialog private constructor(
         // General
         state.name.value = shortcut.name
         state.launchExePath.value = resolveInitialLaunchExePath()
+        syncLibraryArtworkState()
 
         // Input
         val inputType = Integer.parseInt(
@@ -287,11 +358,6 @@ class ShortcutSettingsComposeDialog private constructor(
             if ((inputType and WinHandler.FLAG_DINPUT_MAPPER_STANDARD.toInt()) == WinHandler.FLAG_DINPUT_MAPPER_STANDARD.toInt()) 0 else 1
         state.disableXInput.value = shortcut.getExtra("disableXinput", "0") == "1"
         state.simTouchScreen.value = shortcut.getExtra("simTouchScreen", "0") == "1"
-
-        // Display - Show FPS
-        state.showFPS.value = getShortcutSetting(
-            "showFPS", if (container.isShowFPS) "1" else "0"
-        ) == "1"
 
         // Steam options
         val gameSource = shortcut.getExtra("game_source", "")
@@ -882,16 +948,13 @@ class ShortcutSettingsComposeDialog private constructor(
         else
             shortcut.container
         val name = state.name.value.trim()
-        val nameChanged = shortcut.name != name && name.isNotEmpty()
+        val nameChanged = shortcut.getExtra("custom_name", shortcut.name) != name && name.isNotEmpty()
 
         if (nameChanged) {
-            renameShortcut(name)
+            shortcut.putExtra("custom_name", name)
         }
 
-        val renamingSuccess =
-            !nameChanged || File(shortcut.file.parent, "$name.desktop").exists()
-
-        if (renamingSuccess) {
+        if (true) {
             var hasContainerOverride = false
 
             // Screen size
@@ -1104,13 +1167,6 @@ class ShortcutSettingsComposeDialog private constructor(
                 }
             }
 
-            // Show FPS
-            hasContainerOverride = hasContainerOverride or saveOverride(
-                "showFPS",
-                if (state.showFPS.value) "1" else "0",
-                if (container.isShowFPS) "1" else "0"
-            )
-
             // Desktop Theme — stored as compound "THEME,TYPE,COLOR" string
             if (state.desktopThemeEntries.value.isNotEmpty()) {
                 val desktopThemeEntries = state.desktopThemeEntries.value
@@ -1214,9 +1270,19 @@ class ShortcutSettingsComposeDialog private constructor(
                 val newShortcutFile = File(newDesktopDir, shortcut.file.name)
                 com.winlator.cmod.shared.io.FileUtils.copy(shortcut.file, newShortcutFile)
                 shortcut.file.delete()
+                
+                // Also move the original .lnk file if it exists to prevent ghost shortcuts
+                val lnkFileName = shortcut.file.name.substringBeforeLast(".desktop") + ".lnk"
+                val oldLnkFile = File(shortcut.file.parentFile, lnkFileName)
+                if (oldLnkFile.exists()) {
+                    val newLnkFile = File(newDesktopDir, lnkFileName)
+                    com.winlator.cmod.shared.io.FileUtils.copy(oldLnkFile, newLnkFile)
+                    oldLnkFile.delete()
+                }
             } else {
                 shortcut.saveData()
             }
+            com.winlator.cmod.app.shell.UnifiedActivity.refreshLibrary()
         }
     }
 
@@ -1235,8 +1301,7 @@ class ShortcutSettingsComposeDialog private constructor(
             ?: return ShortcutsFragment.PinShortcutResult.FAILED
         if (!shortcutManager.isRequestPinShortcutSupported) return ShortcutsFragment.PinShortcutResult.FAILED
 
-        val shortcutIcon = if (shortcut.icon != null) Icon.createWithBitmap(shortcut.icon)
-        else Icon.createWithResource(context, R.drawable.icon_shortcut)
+        val shortcutIcon = buildPinnedShortcutIcon()
 
         val info = ShortcutInfo.Builder(context, shortcutIds.last())
             .setShortLabel(shortcut.name)
@@ -1272,6 +1337,155 @@ class ShortcutSettingsComposeDialog private constructor(
         }
 
         return ""
+    }
+
+    private fun syncLibraryArtworkState() {
+        syncLibraryArtworkSlotState(
+            target = LibraryArtworkTarget.GAME_CARD,
+        )
+        syncLibraryArtworkSlotState(
+            target = LibraryArtworkTarget.GRID,
+        )
+        syncLibraryArtworkSlotState(
+            target = LibraryArtworkTarget.CAROUSEL,
+        )
+        syncLibraryArtworkSlotState(
+            target = LibraryArtworkTarget.LIST,
+        )
+    }
+
+    private fun syncLibraryArtworkSlotState(
+        target: LibraryArtworkTarget,
+    ) {
+        val file =
+            getLibraryArtworkExtraKey(target)
+                ?.let { shortcut.getExtra(it) }
+                ?.takeIf { it.isNotBlank() }
+                ?.let(::File)
+                ?.takeIf { it.isFile() }
+
+        when (target) {
+            LibraryArtworkTarget.GAME_CARD -> {
+                state.gameCardArtworkSelected.value = file != null
+                state.gameCardArtworkSummary.value =
+                    if (file != null) {
+                        context.getString(R.string.shortcuts_library_artwork_selected, file.name)
+                    } else {
+                        ""
+                    }
+            }
+            LibraryArtworkTarget.GRID -> {
+                state.gridArtworkSelected.value = file != null
+                state.gridArtworkSummary.value =
+                    if (file != null) {
+                        context.getString(R.string.shortcuts_library_artwork_selected, file.name)
+                    } else {
+                        ""
+                    }
+            }
+            LibraryArtworkTarget.CAROUSEL -> {
+                state.carouselArtworkSelected.value = file != null
+                state.carouselArtworkSummary.value =
+                    if (file != null) {
+                        context.getString(R.string.shortcuts_library_artwork_selected, file.name)
+                    } else {
+                        ""
+                    }
+            }
+            LibraryArtworkTarget.LIST -> {
+                state.listArtworkSelected.value = file != null
+                state.listArtworkSummary.value =
+                    if (file != null) {
+                        context.getString(R.string.shortcuts_library_artwork_selected, file.name)
+                    } else {
+                        ""
+                    }
+            }
+        }
+    }
+
+    private fun saveSelectedArtwork(uri: Uri) =
+        saveSelectedLibraryArtwork(uri, pendingArtworkTarget)
+
+    private fun saveSelectedLibraryArtwork(
+        uri: Uri,
+        target: LibraryArtworkTarget,
+    ) {
+        val bitmap = ImageUtils.getBitmapFromUri(context, uri, 1024)
+        if (bitmap == null) {
+            AppUtils.showToast(context, R.string.shortcuts_library_artwork_failed, Toast.LENGTH_SHORT)
+            return
+        }
+
+        val extraKey = getLibraryArtworkExtraKey(target) ?: return
+        val previousPath = shortcut.getExtra(extraKey)
+        val slot = getLibraryArtworkSlot(target) ?: return
+        val outputFile = LibraryShortcutArtwork.buildManagedViewArtworkFile(context, shortcut, slot)
+        if (!FileUtils.saveBitmapToFile(bitmap, outputFile)) {
+            AppUtils.showToast(context, R.string.shortcuts_library_artwork_failed, Toast.LENGTH_SHORT)
+            return
+        }
+
+        if (previousPath.isNotBlank() && previousPath != outputFile.absolutePath) {
+            LibraryShortcutArtwork.deleteManagedArtwork(context, previousPath)
+        }
+
+        shortcut.putExtra(extraKey, outputFile.absolutePath)
+        shortcut.saveData()
+        shouldRefreshLibraryOnSave = true
+        syncLibraryArtworkState()
+    }
+
+    private fun clearLibraryArtwork(target: LibraryArtworkTarget) {
+        val extraKey = getLibraryArtworkExtraKey(target) ?: return
+        LibraryShortcutArtwork.deleteManagedArtwork(context, shortcut.getExtra(extraKey))
+        shortcut.putExtra(extraKey, null)
+        shortcut.saveData()
+        shouldRefreshLibraryOnSave = true
+        syncLibraryArtworkState()
+    }
+
+    private fun getLibraryArtworkExtraKey(target: LibraryArtworkTarget): String? =
+        when (target) {
+            LibraryArtworkTarget.GAME_CARD -> LibraryShortcutArtwork.LibraryArtworkSlot.GAME_CARD.extraKey
+            LibraryArtworkTarget.GRID -> LibraryShortcutArtwork.LibraryArtworkSlot.GRID.extraKey
+            LibraryArtworkTarget.CAROUSEL -> LibraryShortcutArtwork.LibraryArtworkSlot.CAROUSEL.extraKey
+            LibraryArtworkTarget.LIST -> LibraryShortcutArtwork.LibraryArtworkSlot.LIST.extraKey
+        }
+
+    private fun getLibraryArtworkSlot(target: LibraryArtworkTarget): LibraryShortcutArtwork.LibraryArtworkSlot? =
+        when (target) {
+            LibraryArtworkTarget.GAME_CARD -> LibraryShortcutArtwork.LibraryArtworkSlot.GAME_CARD
+            LibraryArtworkTarget.GRID -> LibraryShortcutArtwork.LibraryArtworkSlot.GRID
+            LibraryArtworkTarget.CAROUSEL -> LibraryShortcutArtwork.LibraryArtworkSlot.CAROUSEL
+            LibraryArtworkTarget.LIST -> LibraryShortcutArtwork.LibraryArtworkSlot.LIST
+        }
+
+    private fun emitLibraryRefreshIfNeeded() {
+        if (!shouldRefreshLibraryOnSave) {
+            return
+        }
+        shouldRefreshLibraryOnSave = false
+        PluviaApp.events.emit(AndroidEvent.LibraryArtworkChanged)
+    }
+
+    private fun refreshPinnedHomeShortcutIfNeeded() {
+        if (!LibraryShortcutUtils.hasPinnedHomeShortcut(context, shortcut)) {
+            return
+        }
+        addShortcutToScreen(shortcut)
+    }
+
+    private fun buildPinnedShortcutIcon(): Icon {
+        val preferredIconBitmap =
+            LibraryShortcutArtwork
+                .findPreferredHomeIconFile(context, shortcut)
+                ?.let { BitmapFactory.decodeFile(it.absolutePath) }
+                ?: shortcut.coverArt
+                ?: shortcut.icon
+
+        return preferredIconBitmap?.let { Icon.createWithBitmap(it) }
+            ?: Icon.createWithResource(context, R.drawable.icon_shortcut)
     }
 
     private fun getShortcutSetting(key: String, containerValue: String): String {
@@ -1362,9 +1576,12 @@ class ShortcutSettingsComposeDialog private constructor(
         return merged.joinToString(" ") { "${it.key}=${it.value}" }
     }
 
+    // Emit the enumerated list even when all cores are checked. Returning "" for
+    // all-checked collides with the "fallback / no override" sentinel used by
+    // Container.setCPUList*, Shortcut.getSettingExtra, and the WoW64 fallback
+    // (which is only upper-half cores) — so a user's "all cores" selection
+    // would silently decay on reload.
     private fun buildCpuListString(checked: List<Boolean>): String {
-        val allChecked = checked.all { it }
-        if (allChecked) return "" // empty means all cores
         return checked.mapIndexedNotNull { i, isChecked ->
             if (isChecked) "$i" else null
         }.joinToString(",")
@@ -1397,9 +1614,6 @@ class ShortcutSettingsComposeDialog private constructor(
         val entries = state.dxvkVersionEntries.value
         val idx = state.dxvkSelectedVersion.intValue
         val version = if (idx in entries.indices) entries[idx] else DefaultVersion.DXVK
-        val framerate = StringUtils.parseNumber(
-            state.dxvkFramerateEntries.value.getOrElse(state.dxvkSelectedFramerate.intValue) { "0" }
-        )
         val isGplAsync = version.contains("gplasync")
         val isAsync = version.contains("async")
         val async = if (state.dxvkAsync.value && (isAsync || isGplAsync)) "1" else "0"
@@ -1414,7 +1628,7 @@ class ShortcutSettingsComposeDialog private constructor(
             state.dxvkDdrawWrapperEntries.value.getOrElse(state.dxvkSelectedDdrawWrapper.intValue) { Container.DEFAULT_DDRAWRAPPER }
         )
 
-        return "version=$version,framerate=$framerate,async=$async,asyncCache=$asyncCache," +
+        return "version=$version,async=$async,asyncCache=$asyncCache," +
                 "vkd3dVersion=$vkd3dVersion,vkd3dLevel=$vkd3dLevel,ddrawrapper=$ddrawWrapper"
     }
 
@@ -1550,9 +1764,8 @@ class ShortcutSettingsComposeDialog private constructor(
         // Feature levels
         state.dxvkVkd3dFeatureLevelEntries.value = DXVKConfigUtils.VKD3D_FEATURE_LEVEL.toList()
 
-        // DDraw wrapper and framerate from resources
+        // DDraw wrapper from resources
         state.dxvkDdrawWrapperEntries.value = context.resources.getStringArray(R.array.ddrawrapper_entries).toList()
-        state.dxvkFramerateEntries.value = context.resources.getStringArray(R.array.dxvk_framerate_entries).toList()
 
         // Load DXVK versions
         loadDxvkVersions(container)
@@ -1563,7 +1776,6 @@ class ShortcutSettingsComposeDialog private constructor(
         // Set selections from config
         selectByIdentifier(state.dxvkVkd3dFeatureLevelEntries.value, config.get("vkd3dLevel"), state.dxvkSelectedVkd3dFeatureLevel)
         selectByIdentifier(state.dxvkDdrawWrapperEntries.value, config.get("ddrawrapper"), state.dxvkSelectedDdrawWrapper)
-        selectByIdentifier(state.dxvkFramerateEntries.value, config.get("framerate"), state.dxvkSelectedFramerate)
 
         state.dxvkAsync.value = config.get("async") == "1"
         state.dxvkAsyncCache.value = config.get("asyncCache") == "1"
@@ -1738,7 +1950,6 @@ class ShortcutSettingsComposeDialog private constructor(
 
         state.lcAll.value = container.getLC_ALL()
         state.fullscreenStretched.value = container.isFullscreenStretched
-        state.showFPS.value = container.isShowFPS
 
         val startupEntries = state.startupSelectionEntries.value
         state.selectedStartupSelection.intValue = container.getStartupSelection().toInt()
@@ -1869,39 +2080,6 @@ class ShortcutSettingsComposeDialog private constructor(
                 "renderer=$renderer"
     }
 
-    private fun renameShortcut(newName: String) {
-        val parent = shortcut.file.parentFile
-        val oldDesktopFile = shortcut.file
-        val newDesktopFile = File(parent, "$newName.desktop")
-
-        if (!newDesktopFile.isFile && oldDesktopFile.renameTo(newDesktopFile)) {
-            try {
-                val fileField = Shortcut::class.java.getDeclaredField("file")
-                fileField.isAccessible = true
-                fileField.set(shortcut, newDesktopFile)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error updating shortcut file reference", e)
-            }
-
-            if (oldDesktopFile.exists()) {
-                oldDesktopFile.delete()
-            }
-        }
-
-        val linkFile = File(parent, "${shortcut.name}.lnk")
-        if (linkFile.isFile) {
-            val newLinkFile = File(parent, "$newName.lnk")
-            if (!newLinkFile.isFile) linkFile.renameTo(newLinkFile)
-        }
-
-        fragment?.loadShortcutsList()
-        fragment?.updateShortcutOnScreen(
-            newName, newName, shortcut.container.id,
-            File(parent, "$newName.desktop").absolutePath,
-            Icon.createWithBitmap(shortcut.icon),
-            shortcut.getExtra("uuid")
-        )
-    }
 
     // ------------------------------------------------------------------
     // Show / Dismiss

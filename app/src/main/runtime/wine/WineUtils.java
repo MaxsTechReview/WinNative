@@ -34,6 +34,18 @@ public abstract class WineUtils {
     if (hostPath == null || hostPath.isEmpty()) return "";
 
     String normalizedHostPath = normalizeHostPath(hostPath);
+
+    if (container != null) {
+      String driveCRoot =
+          normalizeHostPath(new File(container.getRootDir(), ".wine/drive_c").getAbsolutePath());
+      if (pathStartsWith(normalizedHostPath, driveCRoot)) {
+        String relativePath = normalizedHostPath.substring(driveCRoot.length()).replace("/", "\\");
+        while (relativePath.startsWith("\\")) relativePath = relativePath.substring(1);
+        if (relativePath.isEmpty()) return "C:\\";
+        return "C:\\" + relativePath;
+      }
+    }
+
     String bestDriveLetter = null;
     String bestDriveRoot = null;
 
@@ -683,51 +695,29 @@ public abstract class WineUtils {
     "xinput1_4.dll", "xinput9_1_0.dll", "xinputuap.dll"
   };
 
-  /**
-   * Heals arm64ec containers corrupted by pre-Mar-2026 builds that extracted a mis-packaged
-   * <code>xinput_virtual_arm64ec.tzst</code> — its name claimed arm64ec but its <code>system32/</code>
-   * payload was x86_64 PE binaries. Those builds also flipped xinput DllOverrides to
-   * {@code native,builtin} and set the container extra <code>xinput_virtual_deployed=10</code>.
-   *
-   * <p>Presence of that extra is the signal. We overwrite system32 xinput DLLs with the arm64
-   * builtins from the Proton tree, reset the xinput DllOverrides to {@code builtin,native}, then
-   * clear the flag so the heal runs at most once per container.
-   */
-  public static void repairArm64ECXinputDlls(
-      Context context, Container container, WineInfo wineInfo) {
-    if (container == null || wineInfo == null || !wineInfo.isArm64EC()) return;
-    if (!"10".equals(container.getExtra("xinput_virtual_deployed"))) return;
-    if (wineInfo.path == null || wineInfo.path.isEmpty()) return;
+  public static void ensureControllerDllOverrides(Container container) {
+    if (container == null) return;
 
-    File rootDir = ImageFs.find(context).getRootDir();
-    File srcDir = new File(wineInfo.path + "/lib/wine/aarch64-windows");
-    File dstDir = new File(rootDir, ImageFs.WINEPREFIX + "/drive_c/windows/system32");
+    File userRegFile = new File(container.getRootDir(), ".wine/user.reg");
+    if (!userRegFile.isFile()) return;
 
-    int restored = 0;
-    for (String dll : XINPUT_DLLS) {
-      File src = new File(srcDir, dll);
-      File dst = new File(dstDir, dll);
-      if (src.exists()) {
-        FileUtils.copy(src, dst);
-        restored++;
-      }
-    }
+    final String dllOverridesKey = "Software\\Wine\\DllOverrides";
+    final String[] dinputLibs = {"dinput", "dinput8"};
 
-    File userRegFile = new File(rootDir, ImageFs.WINEPREFIX + "/user.reg");
     try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
+      for (String name : dinputLibs) {
+        if (!"builtin,native".equals(registryEditor.getStringValue(dllOverridesKey, name, ""))) {
+          registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
+        }
+      }
+
       for (String dll : XINPUT_DLLS) {
         String name = dll.substring(0, dll.length() - 4);
-        registryEditor.setStringValue("Software\\Wine\\DllOverrides", name, "builtin,native");
+        if (!"builtin,native".equals(registryEditor.getStringValue(dllOverridesKey, name, ""))) {
+          registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
+        }
       }
     }
-
-    container.putExtra("xinput_virtual_deployed", null);
-    container.saveData();
-
-    Log.i(
-        "WineUtils",
-        "repairArm64ECXinputDlls: restored " + restored + " arm64 xinput DLL(s) in container "
-            + container.id + " and cleared xinput_virtual_deployed flag.");
   }
 
   /** Registers core Windows fonts and Wine fonts in the registry. */
@@ -1316,7 +1306,7 @@ public abstract class WineUtils {
     }
   }
 
-  public static File getNativePath(ImageFs imageFs, String winPath) {
+  public static File getNativePath(Container container, ImageFs imageFs, String winPath) {
     if (winPath == null || winPath.isEmpty()) return null;
     String path = winPath.replace("\\", "/");
     if (path.startsWith("\"") && path.endsWith("\"")) path = path.substring(1, path.length() - 1);
@@ -1324,23 +1314,25 @@ public abstract class WineUtils {
     if (path.matches("^[a-zA-Z]:.*")) {
       String drive = path.substring(0, 1).toLowerCase(Locale.ENGLISH);
       String relPath = path.substring(2);
-      if (relPath.startsWith("/")) relPath = relPath.substring(1);
+      while (relPath.startsWith("/")) relPath = relPath.substring(1);
 
+      File homePrefix = container != null ? container.getRootDir() : new File(imageFs.getRootDir(), "home/" + ImageFs.USER);
+      File dosdevices = new File(homePrefix, ".wine/dosdevices");
+      File link = new File(dosdevices, drive + ":");
+      if (link.exists()) {
+        return new File(link.getAbsolutePath(), relPath);
+      }
+
+      // Direct drive_c fallback
       if (drive.equals("c")) {
-        return new File(imageFs.getRootDir(), ImageFs.WINEPREFIX + "/drive_c/" + relPath);
-      } else {
-        File dosdevices = new File(imageFs.getRootDir(), ImageFs.WINEPREFIX + "/dosdevices");
-        File link = new File(dosdevices, drive + ":");
-        if (link.exists()) {
-          try {
-            return new File(link.getCanonicalPath(), relPath);
-          } catch (Exception e) {
-            return new File(link.getAbsolutePath(), relPath);
-          }
-        }
+        return new File(homePrefix, ".wine/drive_c/" + relPath);
       }
     }
     return new File(imageFs.getRootDir(), path);
+  }
+
+  public static File getNativePath(ImageFs imageFs, String winPath) {
+    return getNativePath(null, imageFs, winPath);
   }
 
   public static String getDosPath(String path) {

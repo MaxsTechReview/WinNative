@@ -86,7 +86,11 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
 
   public ExternalController addController(String id) {
     ExternalController controller = getController(id);
-    if (controller == null) controllers.add(controller = ExternalController.getController(id));
+    if (controller == null) {
+      controller = ExternalController.getController(id);
+      if (controller != null) controller.setContext(context);
+      controllers.add(controller);
+    }
     controllersLoaded = true;
     return controller;
   }
@@ -240,6 +244,7 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
         JSONObject controllerJSONObject = controllersJSONArray.getJSONObject(i);
         String id = controllerJSONObject.getString("id");
         ExternalController controller = new ExternalController();
+        controller.setContext(context);
         controller.setId(id);
         controller.setName(controllerJSONObject.getString("name"));
 

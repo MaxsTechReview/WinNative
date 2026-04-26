@@ -50,9 +50,15 @@ public class XServer {
   private boolean simulateTouchScreen = false;
   private boolean isGrabbed = false;
   private XClient grabbingClient = null;
+  private final boolean dri3Enabled;
 
   public XServer(ScreenInfo screenInfo) {
+    this(screenInfo, true);
+  }
+
+  public XServer(ScreenInfo screenInfo, boolean dri3Enabled) {
     this.screenInfo = screenInfo;
+    this.dri3Enabled = dri3Enabled;
     cursorLocker = new CursorLocker(this);
     for (Lockable lockable : Lockable.values()) locks.put(lockable, new ReentrantLock());
 
@@ -66,6 +72,10 @@ public class XServer {
 
     DesktopHelper.attachTo(this);
     setupExtensions();
+  }
+
+  public boolean isDri3Enabled() {
+    return dri3Enabled;
   }
 
   public boolean isRelativeMouseMovement() {
@@ -107,6 +117,13 @@ public class XServer {
 
   public void setSHMSegmentManager(SHMSegmentManager shmSegmentManager) {
     this.shmSegmentManager = shmSegmentManager;
+  }
+
+  public void stop() {
+    cursorLocker.stop();
+    renderer = null;
+    winHandler = null;
+    shmSegmentManager = null;
   }
 
   private class SingleXLock implements XLock {
@@ -202,7 +219,9 @@ public class XServer {
   private void setupExtensions() {
     extensions.put(BigReqExtension.MAJOR_OPCODE, new BigReqExtension());
     extensions.put(MITSHMExtension.MAJOR_OPCODE, new MITSHMExtension());
-    extensions.put(DRI3Extension.MAJOR_OPCODE, new DRI3Extension());
+    if (dri3Enabled) {
+      extensions.put(DRI3Extension.MAJOR_OPCODE, new DRI3Extension());
+    }
     extensions.put(PresentExtension.MAJOR_OPCODE, new PresentExtension());
     extensions.put(SyncExtension.MAJOR_OPCODE, new SyncExtension());
   }

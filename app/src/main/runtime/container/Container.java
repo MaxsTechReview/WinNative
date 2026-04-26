@@ -27,7 +27,7 @@ public class Container {
     public static final String DEFAULT_EMULATOR = "FEXCore";
     public static final String DEFAULT_EMULATOR64 = "FEXCore";
     public static final String DEFAULT_DXWRAPPER = "dxvk+vkd3d";
-    public static final String DEFAULT_DXWRAPPERCONFIG = "version=" + DefaultVersion.DXVK + ",framerate=0,async=0,asyncCache=0" + ",vkd3dVersion=" + DefaultVersion.VKD3D + ",vkd3dLevel=12_1" + ",ddrawrapper=" + Container.DEFAULT_DDRAWRAPPER + ",csmt=3" + ",gpuName=NVIDIA GeForce GTX 480" + ",videoMemorySize=2048" + ",strict_shader_math=1" + ",OffscreenRenderingMode=fbo" + ",renderer=gl";
+    public static final String DEFAULT_DXWRAPPERCONFIG = "version=" + DefaultVersion.DXVK + ",async=0,asyncCache=0" + ",vkd3dVersion=" + DefaultVersion.VKD3D + ",vkd3dLevel=12_1" + ",ddrawrapper=" + Container.DEFAULT_DDRAWRAPPER + ",csmt=3" + ",gpuName=NVIDIA GeForce GTX 480" + ",videoMemorySize=2048" + ",strict_shader_math=1" + ",OffscreenRenderingMode=fbo" + ",renderer=gl";
     public static final String DEFAULT_GRAPHICSDRIVERCONFIG =
             "vulkanVersion=1.3" + ";version=" + ";blacklistedExtensions=" + ";maxDeviceMemory=0" + ";presentMode=mailbox" + ";syncFrame=0" + ";disablePresentWait=1" + ";resourceType=auto" + ";bcnEmulation=none" + ";bcnEmulationType=compute" + ";bcnEmulationCache=0" + ";gpuName=Device";
     public static final String DEFAULT_DDRAWRAPPER = "none";
@@ -50,7 +50,6 @@ public class Container {
     private String audioDriver = DEFAULT_AUDIO_DRIVER;
     private String drives = DEFAULT_DRIVES;
     private String wineVersion = WineInfo.MAIN_WINE_VERSION.identifier();
-    private boolean showFPS;
     private boolean fullscreenStretched;
     private byte startupSelection = STARTUP_SELECTION_ESSENTIAL;
     private String cpuList;
@@ -211,15 +210,7 @@ public class Container {
 
     public boolean isFullscreenStretched() { return fullscreenStretched; }
 
-    public boolean isShowFPS() {
-        return showFPS;
-    }
-
     public void setFullscreenStretched(boolean fullscreenStretched) { this.fullscreenStretched = fullscreenStretched; }
-
-    public void setShowFPS(boolean showFPS) {
-        this.showFPS = showFPS;
-    }
 
     public byte getStartupSelection() {
         return startupSelection;
@@ -429,7 +420,6 @@ public class Container {
             data.put("audioDriver", audioDriver);
             data.put("wincomponents", wincomponents);
             data.put("drives", drives);
-            data.put("showFPS", showFPS);
             data.put("fullscreenStretched", fullscreenStretched);
             data.put("inputType", inputType);
             data.put("startupSelection", startupSelection);
@@ -512,9 +502,6 @@ public class Container {
                     break;
                 case "drives" :
                     setDrives(data.getString(key));
-                    break;
-                case "showFPS" :
-                    setShowFPS(data.getBoolean(key));
                     break;
                 case "fullscreenStretched" :
                     setFullscreenStretched(data.getBoolean(key));
