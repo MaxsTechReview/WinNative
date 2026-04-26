@@ -24,6 +24,8 @@ import com.winlator.cmod.feature.stores.steam.db.dao.EncryptedAppTicketDao
 import com.winlator.cmod.feature.stores.steam.db.dao.FileChangeListsDao
 import com.winlator.cmod.feature.stores.steam.db.dao.SteamAppDao
 import com.winlator.cmod.feature.stores.steam.db.dao.SteamLicenseDao
+import com.winlator.cmod.app.db.download.DownloadRecord
+import com.winlator.cmod.app.db.download.DownloadRecordDao
 
 const val DATABASE_NAME = "pluvia_database"
 
@@ -39,8 +41,9 @@ const val DATABASE_NAME = "pluvia_database"
         com.winlator.cmod.feature.stores.epic.data.EpicGame::class,
         com.winlator.cmod.feature.stores.gog.data.GOGGame::class,
         DownloadingAppInfo::class,
+        DownloadRecord::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 @TypeConverters(
@@ -72,6 +75,8 @@ abstract class PluviaDatabase : RoomDatabase() {
     abstract fun encryptedAppTicketDao(): EncryptedAppTicketDao
 
     abstract fun downloadingAppInfoDao(): DownloadingAppInfoDao
+
+    abstract fun downloadRecordDao(): DownloadRecordDao
 
     companion object {
         @Volatile

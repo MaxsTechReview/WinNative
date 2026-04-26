@@ -110,8 +110,56 @@ object DownloadService {
         SteamService.getAllDownloads().forEach { (id, info) -> list.add("STEAM_$id" to info) }
         EpicService.getAllDownloads().forEach { (id, info) -> list.add("EPIC_$id" to info) }
         GOGService.getAllDownloads().forEach { (id, info) -> list.add("GOG_$id" to info) }
+
+        // Cover the cross-restart case: the DownloadCoordinator may know about records
+        // (PAUSED or QUEUED) for which no store has yet created an in-memory DownloadInfo.
+        // Fabricate stub DownloadInfos for those so the Downloads tab shows them and the user
+        // can Resume / Cancel them.
+        val knownIds = list.map { it.first }.toSet()
+        val coord = com.winlator.cmod.app.service.download.DownloadCoordinator
+        coord.snapshotRecords().forEach { record ->
+            val id = "${record.store}_${record.storeGameId}"
+            if (id in knownIds) return@forEach
+            val phase = mapRecordStatusToPhase(record.status)
+            val gameIdInt = record.storeGameId.toIntOrNull() ?: 0
+            val stub =
+                com.winlator.cmod.feature.stores.steam.data.DownloadInfo(
+                    jobCount = 1,
+                    gameId = gameIdInt,
+                    downloadingAppIds = java.util.concurrent.CopyOnWriteArrayList(),
+                ).apply {
+                    setActive(false)
+                    updateStatus(phase, "Paused — tap Resume to continue".takeIf {
+                        phase == com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.PAUSED
+                    })
+                    if (record.bytesTotal > 0L) {
+                        setTotalExpectedBytes(record.bytesTotal)
+                        initializeBytesDownloaded(record.bytesDownloaded)
+                    }
+                }
+            list.add(id to stub)
+        }
         return list
     }
+
+    private fun mapRecordStatusToPhase(
+        status: String,
+    ): com.winlator.cmod.feature.stores.steam.enums.DownloadPhase =
+        when (status) {
+            com.winlator.cmod.app.db.download.DownloadRecord.STATUS_DOWNLOADING ->
+                com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.DOWNLOADING
+            com.winlator.cmod.app.db.download.DownloadRecord.STATUS_QUEUED ->
+                com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.QUEUED
+            com.winlator.cmod.app.db.download.DownloadRecord.STATUS_PAUSED ->
+                com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.PAUSED
+            com.winlator.cmod.app.db.download.DownloadRecord.STATUS_COMPLETE ->
+                com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.COMPLETE
+            com.winlator.cmod.app.db.download.DownloadRecord.STATUS_CANCELLED ->
+                com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.CANCELLED
+            com.winlator.cmod.app.db.download.DownloadRecord.STATUS_FAILED ->
+                com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.FAILED
+            else -> com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.UNKNOWN
+        }
 
     fun pauseAll() {
         SteamService.pauseAll()
@@ -173,6 +221,10 @@ object DownloadService {
         SteamService.clearCompletedDownloads()
         EpicService.clearCompletedDownloads()
         GOGService.clearCompletedDownloads()
+        // Sweep finished records from the cross-store coordinator table too.
+        com.winlator.cmod.app.service.download.DownloadCoordinator.runOnScope {
+            com.winlator.cmod.app.service.download.DownloadCoordinator.clear()
+        }
     }
 
     fun cancelDownload(id: String) {
