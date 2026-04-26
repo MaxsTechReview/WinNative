@@ -3,11 +3,15 @@ package com.winlator.cmod.runtime.display.xserver;
 import androidx.collection.ArrayMap;
 import com.winlator.cmod.runtime.display.connector.XInputStream;
 import com.winlator.cmod.runtime.display.connector.XOutputStream;
+import com.winlator.cmod.runtime.display.renderer.GLRenderer;
 import com.winlator.cmod.runtime.display.xserver.events.Event;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.concurrent.locks.LockSupport;
 
 public class XClient implements XResourceManager.OnResourceLifecycleListener {
+  private static final long FPS_LIMIT_SPIN_THRESHOLD_NS = 1_500_000L;
+  private static final long NANOS_PER_SECOND = 1_000_000_000L;
   public final XServer xServer;
   private boolean authenticated = false;
   public final Integer resourceIDBase;
@@ -19,6 +23,8 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
   private final XOutputStream outputStream;
   private final ArrayMap<Window, EventListener> eventListeners = new ArrayMap<>();
   private final ArrayList<XResource> resources = new ArrayList<>();
+  private long nextFrameTimeNanos = 0;
+  private long frameTimeRemainderNanos = 0;
 
   public XClient(XServer xServer, XInputStream inputStream, XOutputStream outputStream) {
 
@@ -155,8 +161,43 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
   }
 
   public void enforceAbsoluteFramerate() {
-    com.winlator.cmod.runtime.display.renderer.GLRenderer renderer = xServer.getRenderer();
+    GLRenderer renderer = xServer.getRenderer();
     if (renderer == null) return;
-    renderer.enforceFpsLimit();
+
+    int targetFps = renderer.getFpsLimit();
+    if (targetFps <= 0) {
+      nextFrameTimeNanos = 0;
+      frameTimeRemainderNanos = 0;
+      return;
+    }
+
+    long now = System.nanoTime();
+    if (nextFrameTimeNanos == 0 || now > nextFrameTimeNanos) {
+      nextFrameTimeNanos = now;
+      frameTimeRemainderNanos = 0;
+    }
+
+    long deadlineNanos = nextFrameTimeNanos;
+    long targetFrameTime = NANOS_PER_SECOND / targetFps;
+    frameTimeRemainderNanos += NANOS_PER_SECOND % targetFps;
+    if (frameTimeRemainderNanos >= targetFps) {
+      targetFrameTime++;
+      frameTimeRemainderNanos -= targetFps;
+    }
+    nextFrameTimeNanos += targetFrameTime;
+
+    waitUntilFrameDeadline(deadlineNanos);
+  }
+
+  private void waitUntilFrameDeadline(long deadlineNanos) {
+    long sleepTime = deadlineNanos - System.nanoTime();
+    while (sleepTime > FPS_LIMIT_SPIN_THRESHOLD_NS) {
+      LockSupport.parkNanos(sleepTime - FPS_LIMIT_SPIN_THRESHOLD_NS);
+      sleepTime = deadlineNanos - System.nanoTime();
+    }
+
+    while (System.nanoTime() < deadlineNanos) {
+      // Busy-wait during the final margin for sub-millisecond pacing precision.
+    }
   }
 }
