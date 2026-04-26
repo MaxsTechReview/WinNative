@@ -153,6 +153,10 @@ public class InputControlsView extends View {
     this.overlayOpacity = overlayOpacity;
   }
 
+  public float getOverlayOpacity() {
+    return overlayOpacity;
+  }
+
   public int getSnappingSize() {
     return snappingSize;
   }
