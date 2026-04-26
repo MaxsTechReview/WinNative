@@ -183,7 +183,11 @@ class DriversFragment : Fragment() {
     private fun defaultRepoList(): List<DriverRepo> =
         listOf(
             DriverRepo(name = GITHUB_REPO_NAME, repoUrl = GITHUB_REPO_URL, apiUrl = GITHUB_API_URL),
-            DriverRepo(name = XNICK_REPO_NAME, repoUrl = XNICK_REPO_URL, apiUrl = XNICK_API_URL),
+            DriverRepo(
+                name = WHITEBELYASH_REPO_NAME,
+                repoUrl = WHITEBELYASH_REPO_URL,
+                apiUrl = WHITEBELYASH_API_URL,
+            ),
         )
 
     private fun loadRepos() {
@@ -544,9 +548,9 @@ class DriversFragment : Fragment() {
         private const val GITHUB_REPO_URL = "https://github.com/StevenMXZ/freedreno_turnip-CI/releases"
         private const val GITHUB_API_URL = "https://api.github.com/repos/StevenMXZ/freedreno_turnip-CI/releases"
 
-        private const val XNICK_REPO_NAME = "Xnick417x"
-        private const val XNICK_REPO_URL = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases"
-        private const val XNICK_API_URL = "https://api.github.com/repos/Xnick417x/Winlator-Bionic-Nightly-wcp/releases"
+        private const val WHITEBELYASH_REPO_NAME = "whitebelyash/freedreno_turnip-CI"
+        private const val WHITEBELYASH_REPO_URL = "https://github.com/whitebelyash/freedreno_turnip-CI/releases"
+        private const val WHITEBELYASH_API_URL = "https://api.github.com/repos/whitebelyash/freedreno_turnip-CI/releases"
     }
 }
 

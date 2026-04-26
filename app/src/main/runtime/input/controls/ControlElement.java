@@ -774,14 +774,16 @@ public class ControlElement {
 
   public boolean handleTouchDown(int pointerId, float x, float y) {
     if (currentPointerId == -1 && containsPoint(x, y)) {
-      boolean hasBinding = false;
-      for (Binding binding : bindings) {
-        if (binding != Binding.NONE) {
-          hasBinding = true;
-          break;
+      if (type != Type.RANGE_BUTTON) {
+        boolean hasBinding = false;
+        for (Binding binding : bindings) {
+          if (binding != Binding.NONE) {
+            hasBinding = true;
+            break;
+          }
         }
+        if (!hasBinding) return false;
       }
-      if (!hasBinding) return false;
 
       currentPointerId = pointerId;
       if (type == Type.BUTTON) {

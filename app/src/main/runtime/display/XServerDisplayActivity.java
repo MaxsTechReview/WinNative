@@ -3264,8 +3264,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             setSteamClientVisibility(false);
         }
 
-        if (launchRealSteamSetup || isSteamGame) {
-            Log.d("XServerDisplayActivity", "Ensuring Steam client is ready (isSteamGame=" + isSteamGame + ")...");
+        if (launchRealSteamSetup) {
+            Log.d("XServerDisplayActivity", "Ensuring real Steam client is ready...");
             boolean steamReady = false;
             while (!steamReady) {
                 steamReady = SteamBridge.ensureSteamReady(this);
@@ -3280,16 +3280,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 }
             }
 
-            // Download and extract the experimental-drm file to provide steamclient_loader_x64.exe
-            if (isSteamGame && !launchRealSteamSetup) {
-                SteamBridge.ensureColdClientSupportReady(this);
-            } else if (launchRealSteamSetup) {
-                SteamBridge.ensureRealSteamSupportReady(this);
-            }
+            SteamBridge.ensureRealSteamSupportReady(this);
 
             // Verify essential Steam client DLLs exist in the wine prefix
-            verifySteamClientFiles(isSteamGame && !launchRealSteamSetup);
+            verifySteamClientFiles(false);
+        } else if (isSteamGame) {
+            Log.d("XServerDisplayActivity", "Real Steam client disabled; preparing ColdClient support only");
+            SteamBridge.ensureColdClientSupportReady(this);
 
+            // Verify ColdClient loader/support files without downloading or extracting steam.tzst.
+            verifySteamClientFiles(true);
+        }
+
+        if (launchRealSteamSetup || isSteamGame) {
             // Replace the game's steam_api DLLs and set up steam_settings for auth
             if (isSteamGame) {
                 try {
@@ -3336,6 +3339,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             MarkerUtils.INSTANCE.removeMarker(gameInstallPath, Marker.STEAM_DLL_REPLACED);
                             MarkerUtils.INSTANCE.removeMarker(gameInstallPath, Marker.STEAM_COLDCLIENT_USED);
                             MarkerUtils.INSTANCE.removeMarker(gameInstallPath, Marker.STEAM_DRM_PATCHED);
+                            MarkerUtils.INSTANCE.removeMarker(gameInstallPath, Marker.STEAM_DRM_UNPACK_CHECKED);
 
                             // Clean up a side-effect of an old "MoveSteamExe" hack: if a game
                             // dir still has a local steam.exe copy, real Steam's integrity
@@ -4990,12 +4994,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         if (!allPresent) {
             Log.w("XServerDisplayActivity", "Steam client files missing in container, forcing re-extraction");
-            // Force re-extraction by extracting both archives to imageFs root
-            // The xuser symlink will direct files to the active container
+            // Force re-extraction by extracting the archive required by the active mode.
+            // Real Steam mode uses steam.tzst. ColdClient mode uses only experimental-drm.tzst
+            // so normal Steam game launches do not download or unpack the full Steam client.
             try {
                 File steamFile = new File(getFilesDir(), "steam.tzst");
                 File expFile = new File(getFilesDir(), "experimental-drm.tzst");
-                if (steamFile.exists()) {
+                if (!requireColdClientSupport && steamFile.exists()) {
                     com.winlator.cmod.shared.io.TarCompressorUtils.extract(
                             com.winlator.cmod.shared.io.TarCompressorUtils.Type.ZSTD,
                             steamFile, imageFs.getRootDir(), null);
@@ -5964,6 +5969,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             Log.w("XServerDisplayActivity", "Skipping Steamless — Mono not installed yet, will retry next launch");
             return;
         }
+        if (isSteamUnpackAlreadyHandled()) {
+            Log.d("XServerDisplayActivity", "Skipping Steamless/unpack check; executable already handled");
+            return;
+        }
         boolean unpackedExeExists = doesUnpackedExeExist();
         if (needsUnpacking || unpackFiles || !unpackedExeExists) {
             if (needsUnpacking || !unpackedExeExists) {
@@ -5973,6 +5982,77 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 // in case something (e.g. mode switch) restored the original.
                 ensureUnpackedExeActive();
             }
+        }
+    }
+
+    private boolean isSteamUnpackAlreadyHandled() {
+        if (shortcut == null || !"STEAM".equals(shortcut.getExtra("game_source"))) return false;
+        try {
+            int appId = Integer.parseInt(shortcut.getExtra("app_id"));
+            String gameInstallPath = resolveSteamGameInstallPath(appId);
+            if (gameInstallPath == null || gameInstallPath.isEmpty()) return false;
+
+            SteamExecutableInfo executableInfo = resolveSteamExecutableInfo(appId, gameInstallPath);
+            if (executableInfo == null) return false;
+
+            File unpackedExe = new File(gameInstallPath, executableInfo.relativePath + ".unpacked.exe");
+            File originalExe = new File(gameInstallPath, executableInfo.relativePath + ".original.exe");
+            if (MarkerUtils.INSTANCE.hasMarker(gameInstallPath, Marker.STEAM_DRM_PATCHED)
+                    && unpackedExe.exists()
+                    && originalExe.exists()) {
+                ensureUnpackedExeActive();
+                return true;
+            }
+
+            File checkedMarker = new File(gameInstallPath, Marker.STEAM_DRM_UNPACK_CHECKED.getFileName());
+            String expectedSignature = buildSteamUnpackSignature(executableInfo);
+            String actualSignature = checkedMarker.exists() ? FileUtils.readString(checkedMarker) : null;
+            return expectedSignature.equals(actualSignature);
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Steamless handled-state check failed", e);
+            return false;
+        }
+    }
+
+    private void markSteamUnpackChecked(int appId, String gameInstallPath, String executablePath) {
+        try {
+            File exe = new File(gameInstallPath, executablePath.replace('\\', '/'));
+            if (!exe.exists()) return;
+            SteamExecutableInfo executableInfo =
+                    new SteamExecutableInfo(executablePath.replace('\\', '/'), exe);
+            File checkedMarker = new File(gameInstallPath, Marker.STEAM_DRM_UNPACK_CHECKED.getFileName());
+            FileUtils.writeString(checkedMarker, buildSteamUnpackSignature(executableInfo));
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Failed to write Steamless checked marker", e);
+        }
+    }
+
+    private SteamExecutableInfo resolveSteamExecutableInfo(int appId, String gameInstallPath) {
+        String executablePath = container.getExecutablePath();
+        if (executablePath == null || executablePath.isEmpty()) {
+            executablePath = com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.getInstalledExe(appId);
+        }
+        if (executablePath == null || executablePath.isEmpty()) return null;
+
+        String relativePath = executablePath.replace('\\', '/');
+        File exe = new File(gameInstallPath, relativePath);
+        if (!exe.exists()) return null;
+        return new SteamExecutableInfo(relativePath, exe);
+    }
+
+    private String buildSteamUnpackSignature(SteamExecutableInfo executableInfo) {
+        return executableInfo.relativePath + "\n"
+                + executableInfo.file.length() + "\n"
+                + executableInfo.file.lastModified() + "\n";
+    }
+
+    private static class SteamExecutableInfo {
+        final String relativePath;
+        final File file;
+
+        SteamExecutableInfo(String relativePath, File file) {
+            this.relativePath = relativePath;
+            this.file = file;
         }
     }
 
@@ -6341,6 +6421,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             "Steamless: game does not use SteamStub DRM (all unpackers failed). "
                             + "Disabling Legacy DRM for this game to avoid future overhead.");
                     launcher.execShellCommand("wineserver -k");
+                    markSteamUnpackChecked(appId, gameInstallPath, executablePath);
                     container.setNeedsUnpacking(false);
                     container.saveData();
                 } else {

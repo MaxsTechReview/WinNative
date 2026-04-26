@@ -5,7 +5,6 @@ import com.winlator.cmod.app.db.PluviaDatabase
 import com.winlator.cmod.app.db.download.DownloadRecord
 import com.winlator.cmod.app.db.download.DownloadRecordDao
 import com.winlator.cmod.feature.stores.steam.events.AndroidEvent
-import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,7 +24,7 @@ import timber.log.Timber
  * Single source of truth for downloads across Steam / Epic / GOG.
  *
  * Responsibilities:
- *  * Enforces a global concurrency limit (PrefManager.downloadQueueSize) shared across all stores.
+ *  * Enforces a single active download shared across all stores.
  *  * Persists every download as a [DownloadRecord] so they survive app restarts.
  *  * Auto-resumes downloads that were active when the app exited; leaves PAUSED ones paused.
  *
@@ -40,6 +39,8 @@ import timber.log.Timber
  *     delete partial files, etc.).
  */
 object DownloadCoordinator {
+    private const val MAX_PARALLEL_DOWNLOADS = 1
+
     /**
      * A per-store hook the coordinator uses to start, pause, resume, or cancel an actual
      * download. Stores register their dispatcher at service startup.
@@ -134,10 +135,9 @@ object DownloadCoordinator {
                 return@withLock Decision.Start(existing)
             }
 
-            val maxParallel = PrefManager.downloadQueueSize.coerceAtLeast(1)
             val activeCount = daoRef.countByStatus(DownloadRecord.STATUS_DOWNLOADING)
 
-            val canStartNow = activeCount < maxParallel
+            val canStartNow = activeCount < MAX_PARALLEL_DOWNLOADS
 
             val (status, decisionFactory) =
                 if (canStartNow) {
@@ -312,13 +312,12 @@ object DownloadCoordinator {
         val daoRef = dao ?: return
         val toStart = mutableListOf<DownloadRecord>()
         mutex.withLock {
-            val maxParallel = PrefManager.downloadQueueSize.coerceAtLeast(1)
             var activeCount = daoRef.countByStatus(DownloadRecord.STATUS_DOWNLOADING)
             val queued = daoRef.findByStatus(DownloadRecord.STATUS_QUEUED)
             val now = System.currentTimeMillis()
 
             for (record in queued) {
-                if (activeCount >= maxParallel) break
+                if (activeCount >= MAX_PARALLEL_DOWNLOADS) break
                 val started = record.copy(status = DownloadRecord.STATUS_DOWNLOADING, updatedAt = now)
                 daoRef.update(started)
                 toStart.add(started)

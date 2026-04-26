@@ -282,12 +282,6 @@ object PrefManager {
             setString("gog_download_folder", value)
         }
 
-    var downloadQueueSize: Int
-        get() = getInt("download_queue_size", 1)
-        set(value) {
-            setInt("download_queue_size", value)
-        }
-
     fun clearAuthTokens() {
         requirePrefs().edit().apply {
             remove("user_name")

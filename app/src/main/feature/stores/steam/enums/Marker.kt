@@ -9,6 +9,7 @@ enum class Marker(
     STEAM_DLL_RESTORED(".steam_dll_restored"),
     STEAM_COLDCLIENT_USED(".steam_coldclient_used"),
     STEAM_DRM_PATCHED(".steam_drm_patched"),
+    STEAM_DRM_UNPACK_CHECKED(".steam_drm_unpack_checked"),
     VCREDIST_INSTALLED(".vcredist_installed"),
     GOG_SCRIPT_INSTALLED(".gog_script_installed"),
     PHYSX_INSTALLED(".physx_installed"),
