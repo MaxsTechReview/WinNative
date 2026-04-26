@@ -20,7 +20,6 @@ import com.winlator.cmod.runtime.display.environment.EnvironmentComponent;
 import com.winlator.cmod.runtime.display.environment.ImageFs;
 import com.winlator.cmod.runtime.system.GPUInformation;
 import com.winlator.cmod.runtime.system.ProcessHelper;
-import com.winlator.cmod.runtime.wine.DefaultVersion;
 import com.winlator.cmod.runtime.wine.EnvVars;
 import com.winlator.cmod.runtime.wine.WineInfo;
 import com.winlator.cmod.shared.io.FileUtils;
@@ -295,7 +294,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
     // Use the configured runtime version; legacy containers may only have the app default.
     String box64Version = container.getBox64Version();
-    if (box64Version == null || box64Version.isEmpty()) box64Version = DefaultVersion.BOX64;
+    if (box64Version == null) box64Version = "";
 
     if (shortcut != null) box64Version = shortcut.getExtra("box64Version", box64Version);
 
@@ -307,17 +306,21 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     boolean box64Missing = !new File(rootDir, "/usr/bin/box64").exists();
 
     if (box64Missing || !box64Version.equals(container.getExtra("box64Version"))) {
-      ContentProfile profile = contentsManager.getProfileByEntryName("box64-" + box64Version);
-      if (profile != null) {
-        Log.i(
-            "GuestProgramLauncherComponent",
-            "Loading Box64 content profile: version=" + box64Version);
-        contentsManager.applyContent(profile);
+      if (box64Version.isEmpty()) {
+        Log.w("GuestProgramLauncherComponent", "No Box64 version selected; skipping content extraction");
       } else {
-        Log.w(
-            "GuestProgramLauncherComponent",
-            "Box64 content profile not installed; no bundled Box64 archive will be loaded: version="
-                + box64Version);
+        ContentProfile profile = contentsManager.getProfileByEntryName("box64-" + box64Version);
+        if (profile != null) {
+          Log.i(
+              "GuestProgramLauncherComponent",
+              "Loading Box64 content profile: version=" + box64Version);
+          contentsManager.applyContent(profile);
+        } else {
+          Log.w(
+              "GuestProgramLauncherComponent",
+              "Box64 content profile not installed; no bundled Box64 archive will be loaded: version="
+                  + box64Version);
+        }
       }
       container.putExtra("box64Version", box64Version);
       container.saveData();
@@ -343,9 +346,8 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     String fexcoreVersion = container.getFEXCoreVersion();
 
     // Use configured runtime versions; legacy containers may only have app defaults.
-    if (wowbox64Version == null || wowbox64Version.isEmpty())
-      wowbox64Version = DefaultVersion.BOX64;
-    if (fexcoreVersion == null || fexcoreVersion.isEmpty()) fexcoreVersion = DefaultVersion.FEXCORE;
+    if (wowbox64Version == null) wowbox64Version = "";
+    if (fexcoreVersion == null) fexcoreVersion = "";
 
     if (shortcut != null) {
       wowbox64Version = shortcut.getExtra("box64Version", wowbox64Version);
@@ -378,17 +380,21 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     }
 
     if (wowbox64DllMissing || !wowbox64Version.equals(container.getExtra("box64Version"))) {
-      ContentProfile profile = contentsManager.getProfileByEntryName("wowbox64-" + wowbox64Version);
-      if (profile != null) {
-        Log.i(
-            "GuestProgramLauncherComponent",
-            "Loading WowBox64 content profile: version=" + wowbox64Version);
-        contentsManager.applyContent(profile);
+      if (wowbox64Version.isEmpty()) {
+        Log.w("GuestProgramLauncherComponent", "No WowBox64 version selected; skipping content extraction");
       } else {
-        Log.w(
-            "GuestProgramLauncherComponent",
-            "WowBox64 content profile not installed; no bundled WowBox64 archive will be loaded: version="
-                + wowbox64Version);
+        ContentProfile profile = contentsManager.getProfileByEntryName("wowbox64-" + wowbox64Version);
+        if (profile != null) {
+          Log.i(
+              "GuestProgramLauncherComponent",
+              "Loading WowBox64 content profile: version=" + wowbox64Version);
+          contentsManager.applyContent(profile);
+        } else {
+          Log.w(
+              "GuestProgramLauncherComponent",
+              "WowBox64 content profile not installed; no bundled WowBox64 archive will be loaded: version="
+                  + wowbox64Version);
+        }
       }
       container.putExtra("box64Version", wowbox64Version);
       containerDataChanged = true;
@@ -399,17 +405,21 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     }
 
     if (fexcoreDllsMissing || !fexcoreVersion.equals(container.getExtra("fexcoreVersion"))) {
-      ContentProfile profile = contentsManager.getProfileByEntryName("fexcore-" + fexcoreVersion);
-      if (profile != null) {
-        Log.i(
-            "GuestProgramLauncherComponent",
-            "Loading FEXCore content profile: version=" + fexcoreVersion);
-        contentsManager.applyContent(profile);
+      if (fexcoreVersion.isEmpty()) {
+        Log.w("GuestProgramLauncherComponent", "No FEXCore version selected; skipping content extraction");
       } else {
-        Log.w(
-            "GuestProgramLauncherComponent",
-            "FEXCore content profile not installed; no bundled FEXCore archive will be loaded: version="
-                + fexcoreVersion);
+        ContentProfile profile = contentsManager.getProfileByEntryName("fexcore-" + fexcoreVersion);
+        if (profile != null) {
+          Log.i(
+              "GuestProgramLauncherComponent",
+              "Loading FEXCore content profile: version=" + fexcoreVersion);
+          contentsManager.applyContent(profile);
+        } else {
+          Log.w(
+              "GuestProgramLauncherComponent",
+              "FEXCore content profile not installed; no bundled FEXCore archive will be loaded: version="
+                  + fexcoreVersion);
+        }
       }
       container.putExtra("fexcoreVersion", fexcoreVersion);
       containerDataChanged = true;

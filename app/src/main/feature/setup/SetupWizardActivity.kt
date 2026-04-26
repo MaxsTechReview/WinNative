@@ -107,7 +107,6 @@ import com.winlator.cmod.runtime.content.ContentsManager
 import com.winlator.cmod.runtime.content.Downloader
 import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.display.environment.ImageFsInstaller
-import com.winlator.cmod.runtime.wine.DefaultVersion
 import com.winlator.cmod.runtime.wine.WineInfo
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.android.FixedFontScaleFragmentActivity
@@ -1108,7 +1107,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     resolvePreferredContentVersion(
                         contentsManager,
                         ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-                        DefaultVersion.DXVK,
+                        "",
                         if (isArm64) Regex("arm64ec", RegexOption.IGNORE_CASE) else null,
                         if (isArm64) null else Regex("arm64ec", RegexOption.IGNORE_CASE),
                     ),
@@ -1118,7 +1117,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 resolvePreferredContentVersion(
                     contentsManager,
                     ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
-                    DefaultVersion.VKD3D,
+                    "None",
                     if (isArm64) Regex("arm64ec", RegexOption.IGNORE_CASE) else null,
                     if (isArm64) null else Regex("arm64ec", RegexOption.IGNORE_CASE),
                 ),
@@ -1132,14 +1131,14 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 resolvePreferredContentVersion(
                     contentsManager,
                     ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64,
-                    DefaultVersion.WOWBOX64,
+                    "",
                 ),
             )
             container.setFEXCoreVersion(
                 resolvePreferredContentVersion(
                     contentsManager,
                     ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
-                    DefaultVersion.FEXCORE,
+                    "",
                 ),
             )
         } else {
@@ -1149,14 +1148,14 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 resolvePreferredContentVersion(
                     contentsManager,
                     ContentProfile.ContentType.CONTENT_TYPE_BOX64,
-                    DefaultVersion.BOX64,
+                    "",
                 ),
             )
             container.setFEXCoreVersion(
                 resolvePreferredContentVersion(
                     contentsManager,
                     ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
-                    DefaultVersion.FEXCORE,
+                    "",
                 ),
             )
         }
@@ -1171,7 +1170,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         if (preferredDriver.isNotBlank() && installedDrivers.contains(preferredDriver)) {
             return preferredDriver
         }
-        return DefaultVersion.WRAPPER
+        return "System"
     }
 
     private fun resolvePreferredContentVersion(

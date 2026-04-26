@@ -47,7 +47,6 @@ import com.winlator.cmod.runtime.content.ContentsManager
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.android.ImageUtils
 import com.winlator.cmod.shared.io.AssetPaths
-import com.winlator.cmod.runtime.wine.DefaultVersion
 import com.winlator.cmod.runtime.wine.EnvVars
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.util.KeyValueSet
@@ -768,8 +767,7 @@ class ShortcutSettingsComposeDialog private constructor(
         if (currentVersion != null) {
             selectByValue(itemList, currentVersion, state.selectedBox64Version)
         } else {
-            val default = if (isArm64EC) DefaultVersion.WOWBOX64 else DefaultVersion.BOX64
-            selectByValue(itemList, default, state.selectedBox64Version)
+            selectByValue(itemList, "", state.selectedBox64Version)
         }
 
         // Show/hide Box64 frame
@@ -1613,7 +1611,7 @@ class ShortcutSettingsComposeDialog private constructor(
     private fun buildDxvkConfigFromState(): String {
         val entries = state.dxvkVersionEntries.value
         val idx = state.dxvkSelectedVersion.intValue
-        val version = if (idx in entries.indices) entries[idx] else DefaultVersion.DXVK
+        val version = if (idx in entries.indices) entries[idx] else ""
         val isGplAsync = version.contains("gplasync")
         val isAsync = version.contains("async")
         val async = if (state.dxvkAsync.value && (isAsync || isGplAsync)) "1" else "0"
@@ -1862,7 +1860,7 @@ class ShortcutSettingsComposeDialog private constructor(
             if (curMajor != null && curMajor >= 2) {
                 selectByIdentifier(filtered, currentDxvk, state.dxvkSelectedVersion)
             } else {
-                selectByIdentifier(filtered, DefaultVersion.DXVK, state.dxvkSelectedVersion)
+                selectByIdentifier(filtered, "", state.dxvkSelectedVersion)
             }
         } else {
             // Reload all DXVK versions
