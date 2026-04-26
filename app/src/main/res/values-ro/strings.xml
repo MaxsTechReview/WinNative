@@ -186,6 +186,7 @@
     <string name="downloads_queue_phase_cancelled">Anulat</string>
     <string name="downloads_queue_phase_failed">Esuat: %1$s</string>
     <string name="downloads_queue_cancel_download">Anuleaza descarcarea</string>
+    <string name="downloads_queue_empty">Nu exista descarcari active.</string>
 
     <!-- Containers > List -->
     <string name="containers_list_new">Container nou</string>

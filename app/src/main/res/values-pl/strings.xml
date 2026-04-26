@@ -186,6 +186,7 @@
     <string name="downloads_queue_phase_cancelled">Anulowano</string>
     <string name="downloads_queue_phase_failed">Błąd: %1$s</string>
     <string name="downloads_queue_cancel_download">Anuluj pobieranie</string>
+    <string name="downloads_queue_empty">Brak aktywnych pobrań.</string>
 
     <!-- Containers > List -->
     <string name="containers_list_new">Nowy kontener</string>

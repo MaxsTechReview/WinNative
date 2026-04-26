@@ -187,6 +187,7 @@
     <string name="downloads_queue_phase_cancelled">Cancelled</string>
     <string name="downloads_queue_phase_failed">Failed: %1$s</string>
     <string name="downloads_queue_cancel_download">Cancel Download</string>
+    <string name="downloads_queue_empty">No active downloads.</string>
 
     <!-- Containers > List -->
     <string name="containers_list_new">New Container</string>

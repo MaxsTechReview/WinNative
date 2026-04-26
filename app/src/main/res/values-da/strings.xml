@@ -186,6 +186,7 @@
     <string name="downloads_queue_phase_cancelled">Annulleret</string>
     <string name="downloads_queue_phase_failed">Mislykkedes: %1$s</string>
     <string name="downloads_queue_cancel_download">Annuller download</string>
+    <string name="downloads_queue_empty">Ingen aktive downloads.</string>
 
     <!-- Containers > List -->
     <string name="containers_list_new">Ny container</string>

@@ -186,6 +186,7 @@
     <string name="downloads_queue_phase_cancelled">Annulé</string>
     <string name="downloads_queue_phase_failed">Échec : %1$s</string>
     <string name="downloads_queue_cancel_download">Annuler le téléchargement</string>
+    <string name="downloads_queue_empty">Aucun téléchargement actif.</string>
 
     <!-- Containers > List -->
     <string name="containers_list_new">Nouveau conteneur</string>

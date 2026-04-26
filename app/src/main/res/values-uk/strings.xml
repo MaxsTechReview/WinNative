@@ -186,6 +186,7 @@
     <string name="downloads_queue_phase_cancelled">Скасовано</string>
     <string name="downloads_queue_phase_failed">Помилка: %1$s</string>
     <string name="downloads_queue_cancel_download">Скасувати завантаження</string>
+    <string name="downloads_queue_empty">Немає активних завантажень.</string>
 
     <!-- Containers > List -->
     <string name="containers_list_new">Новий контейнер</string>

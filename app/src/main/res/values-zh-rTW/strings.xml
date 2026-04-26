@@ -186,6 +186,7 @@
     <string name="downloads_queue_phase_cancelled">已取消</string>
     <string name="downloads_queue_phase_failed">失敗：%1$s</string>
     <string name="downloads_queue_cancel_download">取消下載</string>
+    <string name="downloads_queue_empty">沒有進行中的下載。</string>
 
     <!-- Containers > List -->
     <string name="containers_list_new">新建容器</string>

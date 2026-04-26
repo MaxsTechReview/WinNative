@@ -186,6 +186,7 @@
     <string name="downloads_queue_phase_cancelled">취소됨</string>
     <string name="downloads_queue_phase_failed">실패: %1$s</string>
     <string name="downloads_queue_cancel_download">다운로드 취소</string>
+    <string name="downloads_queue_empty">활성 다운로드가 없습니다.</string>
 
     <!-- Containers > List -->
     <string name="containers_list_new">새 컨테이너</string>

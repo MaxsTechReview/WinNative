@@ -77,8 +77,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -6989,67 +6987,6 @@ class UnifiedActivity :
                         pausableDownloads.isNotEmpty()
                     }
 
-                // Download Queue Size
-                var queueSize by remember { mutableIntStateOf(PrefManager.downloadQueueSize) }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier =
-                        Modifier
-                            .height(buttonHeight)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(SurfaceDark)
-                            .padding(horizontal = 4.dp),
-                ) {
-                    IconButton(
-                        onClick = {
-                            if (queueSize > 1) {
-                                queueSize--
-                                PrefManager.downloadQueueSize = queueSize
-                                // Tick the global coordinator so the new (lower) limit is
-                                // applied across all stores. Lowering doesn't auto-pause an
-                                // in-flight download; it just prevents new ones from starting
-                                // until the count drains under the new limit.
-                                com.winlator.cmod.app.service.download.DownloadCoordinator
-                                    .blockingTick()
-                            }
-                        },
-                        modifier = Modifier.size(24.dp),
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
-                            contentDescription = "Decrease Queue",
-                            tint = TextPrimary,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-                    Text(
-                        text = queueSize.toString(),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = TextPrimary,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 2.dp),
-                    )
-                    IconButton(
-                        onClick = {
-                            queueSize++
-                            PrefManager.downloadQueueSize = queueSize
-                            // Drain the global queue across all stores (Steam + Epic + GOG).
-                            com.winlator.cmod.app.service.download.DownloadCoordinator
-                                .blockingTick()
-                        },
-                        modifier = Modifier.size(24.dp),
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-                            contentDescription = "Increase Queue",
-                            tint = TextPrimary,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-                }
-
-                Spacer(Modifier.width(12.dp))
-
                 Button(
                     onClick = {
                         if (selectedId == null) {
@@ -7192,14 +7129,20 @@ class UnifiedActivity :
                     }
                 }
 
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(sortedDownloads, key = { it.first }) { (id, info) ->
-                    DownloadItemDeck(id, info, isSelected = selectedId == id, onClick = {
-                        if (selectedId == id) onSelectDownload(null) else onSelectDownload(id)
-                    })
+            if (sortedDownloads.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    EmptyStateMessage(stringResource(R.string.downloads_queue_empty))
                 }
-                if (sortedDownloads.isEmpty()) {
-                    item { EmptyStateMessage("No active downloads.") }
+            } else {
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(sortedDownloads, key = { it.first }) { (id, info) ->
+                        DownloadItemDeck(id, info, isSelected = selectedId == id, onClick = {
+                            if (selectedId == id) onSelectDownload(null) else onSelectDownload(id)
+                        })
+                    }
                 }
             }
         }
