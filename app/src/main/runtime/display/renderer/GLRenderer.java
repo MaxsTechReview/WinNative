@@ -130,20 +130,13 @@ public class GLRenderer
 
     // Apply basic transformations and draw windows
     if (!fullscreen) {
-      int pointerY = 0;
+      float pointerY = 0;
       if (screenOffsetYRelativeToCursor) {
-        short halfScreenHeight = (short) (xServer.screenInfo.height / 2);
-        pointerY =
-            Mathf.clamp(xServer.pointer.getY() - halfScreenHeight / 2, 0, halfScreenHeight);
+        float offsetY = xServer.screenInfo.height * 0.25f;
+        pointerY = Mathf.clamp(xServer.pointer.getY() - offsetY, 0, xServer.screenInfo.height * 0.5f);
       }
 
-      XForm.makeTransform(
-          tmpXForm2,
-          viewTransformation.sceneOffsetX,
-          viewTransformation.sceneOffsetY - pointerY,
-          viewTransformation.sceneScaleX,
-          viewTransformation.sceneScaleY,
-          0);
+      XForm.makeTransform(tmpXForm2, 0, -pointerY, 1.0f, 1.0f, 0);
 
       GLES20.glEnable(GLES20.GL_SCISSOR_TEST);
       GLES20.glScissor(
@@ -518,19 +511,12 @@ public class GLRenderer
       GLES20.glDisable(GLES20.GL_BLEND);
 
       if (!fullscreen) {
-        int pointerY = 0;
+        float pointerY = 0;
         if (screenOffsetYRelativeToCursor) {
-          short halfScreenHeight = (short) (xServer.screenInfo.height / 2);
-          pointerY =
-              Mathf.clamp(xServer.pointer.getY() - halfScreenHeight / 2, 0, halfScreenHeight);
+          float offsetY = xServer.screenInfo.height * 0.25f;
+          pointerY = Mathf.clamp(xServer.pointer.getY() - offsetY, 0, xServer.screenInfo.height * 0.5f);
         }
-        XForm.makeTransform(
-            tmpXForm2,
-            viewTransformation.sceneOffsetX,
-            viewTransformation.sceneOffsetY - pointerY,
-            viewTransformation.sceneScaleX,
-            viewTransformation.sceneScaleY,
-            0);
+        XForm.makeTransform(tmpXForm2, 0, -pointerY, 1.0f, 1.0f, 0);
         GLES20.glEnable(GLES20.GL_SCISSOR_TEST);
         GLES20.glScissor(
             viewTransformation.viewOffsetX,
