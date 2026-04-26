@@ -4010,6 +4010,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         // Initialize checkbox states
         dialog.getShowTouchscreenControls().setValue(preferences.getBoolean("show_touchscreen_controls_enabled", false));
+        dialog.getOverlayOpacity().setValue(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
         dialog.getTouchscreenHaptics().setValue(preferences.getBoolean("touchscreen_haptics_enabled", false));
         dialog.getGamepadVibration().setValue(preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true));
 
@@ -4039,10 +4040,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         // Confirm callback
         dialog.setOnConfirmCallback(() -> {
             inputControlsView.setShowTouchscreenControls(dialog.getShowTouchscreenControls().getValue());
+            float overlayOpacity = dialog.getOverlayOpacity().getValue();
+            inputControlsView.setOverlayOpacity(overlayOpacity);
             boolean isHapticsEnabled = dialog.getTouchscreenHaptics().getValue();
             boolean isGamepadVibrationEnabled = dialog.getGamepadVibration().getValue();
             SharedPreferences.Editor editor = preferences.edit();
             editor.putBoolean("show_touchscreen_controls_enabled", dialog.getShowTouchscreenControls().getValue());
+            editor.putFloat("overlay_opacity", overlayOpacity);
             editor.putBoolean("touchscreen_haptics_enabled", isHapticsEnabled);
             editor.putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, isGamepadVibrationEnabled);
             editor.apply();
