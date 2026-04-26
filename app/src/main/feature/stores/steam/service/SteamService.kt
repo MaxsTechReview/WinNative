@@ -3482,6 +3482,7 @@ class SteamService :
                     MarkerUtils.removeMarker(appDirPath, Marker.STEAM_DLL_REPLACED)
                     MarkerUtils.removeMarker(appDirPath, Marker.STEAM_COLDCLIENT_USED)
                     MarkerUtils.removeMarker(appDirPath, Marker.STEAM_DRM_PATCHED)
+                    MarkerUtils.removeMarker(appDirPath, Marker.STEAM_DRM_UNPACK_CHECKED)
 
                     // Ensure the main app is marked as downloaded in the DB
                     val mainAppId = downloadInfo.gameId
