@@ -57,4 +57,8 @@ class DatabaseModule {
     @Provides
     @Singleton
     fun provideGogGameDao(db: PluviaDatabase): com.winlator.cmod.feature.stores.gog.db.dao.GOGGameDao = db.gogGameDao()
+
+    @Provides
+    @Singleton
+    fun provideDownloadRecordDao(db: PluviaDatabase): com.winlator.cmod.app.db.download.DownloadRecordDao = db.downloadRecordDao()
 }

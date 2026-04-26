@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import com.winlator.cmod.app.PluviaApp
+import com.winlator.cmod.app.db.download.DownloadRecord
+import com.winlator.cmod.app.service.download.DownloadCoordinator
 import com.winlator.cmod.feature.stores.epic.ui.util.SnackbarManager
 import com.winlator.cmod.feature.stores.gog.data.GOGCredentials
 import com.winlator.cmod.feature.stores.gog.data.GOGGame
@@ -182,7 +184,7 @@ class GOGService : Service() {
         // SYNC & OPERATIONS
         // ==========================================================================
 
-        fun hasActiveOperations(): Boolean = syncInProgress || backgroundSyncJob?.isActive == true
+        fun hasActiveOperations(): Boolean = syncInProgress || backgroundSyncJob?.isActive == true || hasActiveDownload()
 
         private fun setSyncInProgress(inProgress: Boolean) {
             syncInProgress = inProgress
@@ -209,141 +211,36 @@ class GOGService : Service() {
         }
 
         fun cancelDownload(gameId: String): Boolean {
-            val instance = getInstance()
-            val downloadInfo = instance?.activeDownloads?.get(gameId)
-
-            return if (downloadInfo != null) {
-                Timber.i("Cancelling download for game: $gameId")
-                downloadInfo.isCancelling = true
-                downloadInfo.cancel("Cancelled by user")
-                // Delete partially downloaded files
-                CoroutineScope(Dispatchers.IO).launch {
-                    downloadInfo.awaitCompletion(timeoutMs = 3000L)
-                    val game = instance.gogManager.getGameFromDbById(gameId)
-                    val installPath =
-                        if (game != null) {
-                            if (game.installPath.isNotEmpty()) {
-                                game.installPath
-                            } else {
-                                instance.gogManager.getGameInstallPath(
-                                    gameId,
-                                    game.title,
-                                )
-                            }
-                        } else {
-                            ""
-                        }
-                    if (installPath.isNotEmpty()) {
-                        val dirFile = File(installPath)
-                        if (dirFile.exists() && dirFile.isDirectory) {
-                            MarkerUtils.removeMarker(installPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
-                            MarkerUtils.removeMarker(installPath, Marker.DOWNLOAD_COMPLETE_MARKER)
-                            dirFile.deleteRecursively()
-                        }
-                    }
-                    downloadInfo.updateStatus(DownloadPhase.CANCELLED)
-                    instance.activeDownloads.remove(gameId)
-                }
-                Timber.d("Download cancelled for game: $gameId")
-                true
-            } else {
-                Timber.w("No active download found for game: $gameId")
-                false
+            // Route through the coordinator: it persists CANCELLED and asks our dispatcher to
+            // stop the running job and delete the partial install directory.
+            DownloadCoordinator.runOnScope {
+                DownloadCoordinator.cancel(DownloadRecord.STORE_GOG, gameId)
             }
+            return true
         }
 
         fun pauseDownload(gameId: String) {
-            val info = getInstance()?.activeDownloads?.get(gameId) ?: return
-            val status = info.getStatusFlow().value
-            if (status == DownloadPhase.COMPLETE || status == DownloadPhase.CANCELLED) return
-
-            if (info.isActive()) {
-                info.isCancelling = false
-                info.updateStatus(DownloadPhase.PAUSED)
-                info.cancel("Paused by user")
-            } else {
-                info.updateStatus(DownloadPhase.PAUSED)
-                info.setActive(false)
+            DownloadCoordinator.runOnScope {
+                DownloadCoordinator.pause(DownloadRecord.STORE_GOG, gameId)
             }
         }
 
         fun pauseAll() {
-            getInstance()?.activeDownloads?.values?.forEach { info ->
-                val status = info.getStatusFlow().value
-                if (info.isActive()) {
-                    info.isCancelling = false
-                    info.updateStatus(DownloadPhase.PAUSED)
-                    info.cancel("Paused all")
-                } else if (status != DownloadPhase.COMPLETE && status != DownloadPhase.CANCELLED) {
-                    info.updateStatus(DownloadPhase.PAUSED)
-                    info.setActive(false)
-                }
-            }
+            DownloadCoordinator.runOnScope { DownloadCoordinator.pauseAll() }
         }
 
         fun resumeDownload(gameId: String) {
-            val instance = getInstance() ?: return
-            val context = com.winlator.cmod.app.service.DownloadService.appContext ?: return
-            val info = instance.activeDownloads[gameId]
-            val status = info?.getStatusFlow()?.value
-            if (info != null && info.isActive()) return
-            if (status != null && status != DownloadPhase.PAUSED && status != DownloadPhase.QUEUED && status != DownloadPhase.FAILED) {
-                return
+            DownloadCoordinator.runOnScope {
+                DownloadCoordinator.resume(DownloadRecord.STORE_GOG, gameId)
             }
-            val game = runBlocking(Dispatchers.IO) { instance.gogManager.getGameFromDbById(gameId) } ?: return
-            instance.activeDownloads.remove(gameId)
-            val installPath =
-                if (game.installPath.isNotEmpty()) {
-                    game.installPath
-                } else {
-                    instance.gogManager.getGameInstallPath(
-                        gameId,
-                        game.title,
-                    )
-                }
-            downloadGame(context, gameId, installPath, "")
         }
 
         fun resumeAll() {
-            val instance = getInstance() ?: return
-            instance.activeDownloads.keys
-                .toList()
-                .forEach(::resumeDownload)
+            DownloadCoordinator.runOnScope { DownloadCoordinator.resumeAll() }
         }
 
         fun cancelAll() {
-            val instance = getInstance() ?: return
-            CoroutineScope(Dispatchers.IO).launch {
-                instance.activeDownloads.entries.toList().forEach { (gameId, info) ->
-                    info.isCancelling = true
-                    info.cancel("Cancelled all")
-                    info.awaitCompletion(timeoutMs = 3000L)
-                    val game = instance.gogManager.getGameFromDbById(gameId)
-                    val installPath =
-                        if (game != null) {
-                            if (game.installPath.isNotEmpty()) {
-                                game.installPath
-                            } else {
-                                instance.gogManager.getGameInstallPath(
-                                    gameId,
-                                    game.title,
-                                )
-                            }
-                        } else {
-                            ""
-                        }
-                    if (installPath.isNotEmpty()) {
-                        val dirFile = File(installPath)
-                        if (dirFile.exists() && dirFile.isDirectory) {
-                            MarkerUtils.removeMarker(installPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
-                            MarkerUtils.removeMarker(installPath, Marker.DOWNLOAD_COMPLETE_MARKER)
-                            dirFile.deleteRecursively()
-                        }
-                    }
-                    info.updateStatus(DownloadPhase.CANCELLED)
-                    instance.activeDownloads.remove(gameId)
-                }
-            }
+            DownloadCoordinator.runOnScope { DownloadCoordinator.cancelAll() }
         }
 
         fun clearCompletedDownloads() {
@@ -353,9 +250,17 @@ class GOGService : Service() {
                     .filterValues {
                         val status = it.getStatusFlow().value
                         status == com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.COMPLETE ||
-                            status == com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.CANCELLED
+                            status == com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.CANCELLED ||
+                            status == com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.FAILED
                     }.keys
-            toRemove.forEach { instance.activeDownloads.remove(it) }
+            if (toRemove.isNotEmpty()) {
+                toRemove.forEach { instance.activeDownloads.remove(it) }
+                // Notify the Downloads tab so the list re-syncs and the cleared rows disappear.
+                toRemove.forEach { gameId ->
+                    val numericId = gameId.toIntOrNull() ?: 0
+                    PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(numericId, false))
+                }
+            }
         }
 
         // ==========================================================================
@@ -459,6 +364,16 @@ class GOGService : Service() {
                     )
                 }
 
+            // Persist the chosen install path BEFORE the download starts so cancel/pause/resume
+            // can find the partial files even when the user picked a non-default path.
+            // (Previously installPath was only written on successful completion, causing cancel
+            // to delete the default directory instead of the actual partial install.)
+            if (game.installPath != effectiveInstallPath) {
+                runBlocking(Dispatchers.IO) {
+                    activeInstance.gogManager.updateGame(game.copy(installPath = effectiveInstallPath))
+                }
+            }
+
             val existingDownload = activeInstance.activeDownloads[gameId]
             if (existingDownload != null) {
                 if (existingDownload.isActive()) {
@@ -476,8 +391,43 @@ class GOGService : Service() {
                     downloadingAppIds = CopyOnWriteArrayList<Int>(),
                 )
 
+            // Stash the original parameters so resume() can restore them after pause.
+            activeInstance.downloadParams[gameId] =
+                DownloadParams(
+                    containerLanguage = containerLanguage,
+                    installPath = effectiveInstallPath,
+                )
+
             // Track in activeDownloads first
             activeInstance.activeDownloads[gameId] = downloadInfo
+
+            // Ask the global coordinator whether to start now or queue. The coordinator
+            // persists a DownloadRecord either way so the download survives an app restart.
+            val decision =
+                runBlocking {
+                    DownloadCoordinator.requestSlot(
+                        store = DownloadRecord.STORE_GOG,
+                        storeGameId = gameId,
+                        title = game.title,
+                        artUrl = game.iconUrl,
+                        installPath = effectiveInstallPath,
+                        language = containerLanguage,
+                    )
+                }
+            when (decision) {
+                is DownloadCoordinator.Decision.Queue -> {
+                    downloadInfo.setActive(false)
+                    downloadInfo.isCancelling = false
+                    downloadInfo.updateStatus(DownloadPhase.QUEUED, "Queued...")
+                    val numericId = gameId.toIntOrNull() ?: 0
+                    PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(numericId, true))
+                    return Result.success(downloadInfo)
+                }
+                is DownloadCoordinator.Decision.Start -> {
+                    // Fall through to launch the coroutine immediately.
+                }
+            }
+
             downloadInfo.setActive(true)
             downloadInfo.isCancelling = false
             downloadInfo.updateStatus(DownloadPhase.DOWNLOADING)
@@ -554,10 +504,23 @@ class GOGService : Service() {
                             }
                         }
                     } finally {
-                        val finalStatus = downloadInfo.getStatusFlow().value
-                        if (finalStatus == DownloadPhase.COMPLETE || finalStatus == DownloadPhase.FAILED) {
-                            activeInstance.activeDownloads.remove(gameId)
-                        }
+                        // Notify coordinator of the terminal status so the global queue can
+                        // advance and the persisted DownloadRecord stays in sync.
+                        val finalCoordStatus =
+                            when (downloadInfo.getStatusFlow().value) {
+                                DownloadPhase.COMPLETE -> DownloadRecord.STATUS_COMPLETE
+                                DownloadPhase.PAUSED -> DownloadRecord.STATUS_PAUSED
+                                DownloadPhase.CANCELLED -> DownloadRecord.STATUS_CANCELLED
+                                DownloadPhase.FAILED -> DownloadRecord.STATUS_FAILED
+                                else -> DownloadRecord.STATUS_FAILED
+                            }
+                        DownloadCoordinator.notifyFinished(
+                            DownloadRecord.STORE_GOG,
+                            gameId,
+                            finalCoordStatus,
+                        )
+                        val numericId = gameId.toIntOrNull() ?: 0
+                        PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(numericId, false))
                         Timber.d(
                             "[Download] Finished for game $gameId, progress: ${downloadInfo.getProgress()}, active: ${downloadInfo.isActive()}",
                         )
@@ -811,7 +774,73 @@ class GOGService : Service() {
     // Track active downloads by game ID
     private val activeDownloads = ConcurrentHashMap<String, DownloadInfo>()
 
+    // Original download parameters per gameId so resume can restore container language and
+    // install path instead of falling back to defaults.
+    // (Phase 2 will move this into a persistent record.)
+    data class DownloadParams(
+        val containerLanguage: String,
+        val installPath: String,
+    )
+
+    private val downloadParams = ConcurrentHashMap<String, DownloadParams>()
+
     private val onEndProcess: (AndroidEvent.EndProcess) -> Unit = { stop() }
+
+    private val coordinatorDispatcher =
+        object : DownloadCoordinator.Dispatcher {
+            override fun startQueued(record: DownloadRecord) {
+                val context = com.winlator.cmod.app.service.DownloadService.appContext ?: return
+                val gameId = record.storeGameId
+                val params = downloadParams[gameId]
+                val installPath = params?.installPath ?: record.installPath
+                val containerLanguage = params?.containerLanguage ?: record.language
+
+                // Drop the queued in-memory entry so downloadGame() doesn't short-circuit on
+                // "already downloading" — it will recreate the DownloadInfo and launch.
+                activeDownloads.remove(gameId)
+
+                downloadGame(context, gameId, installPath, containerLanguage)
+            }
+
+            override fun pauseRunning(record: DownloadRecord) {
+                val gameId = record.storeGameId
+                val info = activeDownloads[gameId] ?: return
+                if (info.isActive()) {
+                    info.isCancelling = false
+                    info.updateStatus(DownloadPhase.PAUSED)
+                    info.cancel("Paused by user")
+                } else {
+                    info.updateStatus(DownloadPhase.PAUSED)
+                    info.setActive(false)
+                    val numericId = gameId.toIntOrNull() ?: 0
+                    PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(numericId, false))
+                }
+            }
+
+            override fun cancelRunning(record: DownloadRecord) {
+                val gameId = record.storeGameId
+                val info = activeDownloads[gameId]
+                if (info != null) {
+                    info.isCancelling = true
+                    info.cancel("Cancelled by user")
+                }
+                CoroutineScope(Dispatchers.IO).launch {
+                    info?.awaitCompletion(timeoutMs = 3000L)
+                    val pathToDelete = record.installPath
+                    if (pathToDelete.isNotEmpty()) {
+                        val dirFile = File(pathToDelete)
+                        if (dirFile.exists() && dirFile.isDirectory) {
+                            MarkerUtils.removeMarker(pathToDelete, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                            MarkerUtils.removeMarker(pathToDelete, Marker.DOWNLOAD_COMPLETE_MARKER)
+                            dirFile.deleteRecursively()
+                        }
+                    }
+                    info?.updateStatus(DownloadPhase.CANCELLED)
+                    val numericId = gameId.toIntOrNull() ?: 0
+                    PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(numericId, false))
+                }
+            }
+        }
 
     // GOGManager is injected by Hilt
     override fun onCreate() {
@@ -821,6 +850,8 @@ class GOGService : Service() {
         // Initialize notification helper for foreground service
         notificationHelper = NotificationHelper(applicationContext)
         PluviaApp.events.on<AndroidEvent.EndProcess, Unit>(onEndProcess)
+
+        DownloadCoordinator.registerDispatcher(DownloadRecord.STORE_GOG, coordinatorDispatcher)
     }
 
     override fun onStartCommand(
@@ -907,6 +938,7 @@ class GOGService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         PluviaApp.events.off<AndroidEvent.EndProcess, Unit>(onEndProcess)
+        DownloadCoordinator.unregisterDispatcher(DownloadRecord.STORE_GOG)
 
         // Cancel sync operations
         backgroundSyncJob?.cancel()

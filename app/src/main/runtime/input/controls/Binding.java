@@ -251,37 +251,43 @@ public enum Binding {
 
   public static String[] mouseBindingLabels() {
     ArrayList<String> names = new ArrayList<>();
+    names.add(NONE.toString());
     for (Binding binding : values()) if (binding.isMouse()) names.add(binding.toString());
     return names.toArray(new String[0]);
   }
 
   public static String[] keyboardBindingLabels() {
     ArrayList<String> labels = new ArrayList<>();
+    labels.add(NONE.toString());
     for (Binding binding : values()) if (binding.isKeyboard()) labels.add(binding.toString());
     return labels.toArray(new String[0]);
   }
 
   public static String[] gamepadBindingLabels() {
     ArrayList<String> names = new ArrayList<>();
+    names.add(NONE.toString());
     for (Binding binding : values()) if (binding.isGamepad()) names.add(binding.toString());
     return names.toArray(new String[0]);
   }
 
   public static Binding[] mouseBindingValues() {
     ArrayList<Binding> labels = new ArrayList<>();
-    for (Binding binding : values()) if (binding.isMouse()) labels.add(binding);
+    labels.add(NONE);
+    for (Binding binding : Binding.values()) if (binding.isMouse()) labels.add(binding);
     return labels.toArray(new Binding[0]);
   }
 
   public static Binding[] keyboardBindingValues() {
     ArrayList<Binding> values = new ArrayList<>();
-    for (Binding binding : values()) if (binding.isKeyboard()) values.add(binding);
+    values.add(NONE);
+    for (Binding binding : Binding.values()) if (binding.isKeyboard()) values.add(binding);
     return values.toArray(new Binding[0]);
   }
 
   public static Binding[] gamepadBindingValues() {
     ArrayList<Binding> labels = new ArrayList<>();
-    for (Binding binding : values()) if (binding.isGamepad()) labels.add(binding);
+    labels.add(NONE);
+    for (Binding binding : Binding.values()) if (binding.isGamepad()) labels.add(binding);
     return labels.toArray(new Binding[0]);
   }
 }

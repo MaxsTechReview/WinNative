@@ -6,7 +6,9 @@ import android.os.IBinder
 import com.winlator.cmod.BuildConfig
 import com.winlator.cmod.R
 import com.winlator.cmod.app.PluviaApp
+import com.winlator.cmod.app.db.download.DownloadRecord
 import com.winlator.cmod.app.service.DownloadService
+import com.winlator.cmod.app.service.download.DownloadCoordinator
 import com.winlator.cmod.feature.shortcuts.LibraryShortcutUtils
 import com.winlator.cmod.feature.stores.epic.data.EpicCredentials
 import com.winlator.cmod.feature.stores.epic.data.EpicGame
@@ -287,140 +289,39 @@ class EpicService : Service() {
         }
 
         fun cancelDownload(appId: Int): Boolean {
-            val instance = getInstance()
-            val downloadInfo = instance?.activeDownloads?.get(appId)
-
-            return if (downloadInfo != null) {
-                Timber.tag("EPIC").i("Cancelling download for Epic game: $appId")
-                downloadInfo.isCancelling = true
-                downloadInfo.cancel("Cancelled by user")
-                // Delete partially downloaded files
-                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                    downloadInfo.awaitCompletion(timeoutMs = 3000L)
-                    val game = instance.epicManager.getGameById(appId)
-                    if (game != null) {
-                        val context = DownloadService.appContext
-                        val path =
-                            if (game.installPath.isNotEmpty()) {
-                                game.installPath
-                            } else if (context !=
-                                null
-                            ) {
-                                EpicConstants.getGameInstallPath(context, game.appName)
-                            } else {
-                                ""
-                            }
-                        if (path.isNotEmpty()) {
-                            val dirFile = java.io.File(path)
-                            if (dirFile.exists() && dirFile.isDirectory) {
-                                MarkerUtils.removeMarker(path, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
-                                MarkerUtils.removeMarker(path, Marker.DOWNLOAD_COMPLETE_MARKER)
-                                dirFile.deleteRecursively()
-                            }
-                        }
-                    }
-                    downloadInfo.updateStatus(DownloadPhase.CANCELLED)
-                    instance.activeDownloads.remove(appId)
-                }
-                Timber.tag("EPIC").d("Download cancelled for Epic game: $appId")
-                true
-            } else {
-                Timber.w("No active download found for Epic game: $appId")
-                false
+            // Route through the coordinator: it persists CANCELLED and asks our dispatcher to
+            // stop the running job and delete the partial install directory.
+            DownloadCoordinator.runOnScope {
+                DownloadCoordinator.cancel(DownloadRecord.STORE_EPIC, appId.toString())
             }
+            return true
         }
 
         fun pauseDownload(appId: Int) {
-            val info = getInstance()?.activeDownloads?.get(appId) ?: return
-            val status = info.getStatusFlow().value
-            if (status == DownloadPhase.COMPLETE || status == DownloadPhase.CANCELLED) return
-
-            if (info.isActive()) {
-                info.isCancelling = false
-                info.updateStatus(DownloadPhase.PAUSED)
-                info.cancel("Paused by user")
-            } else {
-                info.updateStatus(DownloadPhase.PAUSED)
-                info.setActive(false)
+            DownloadCoordinator.runOnScope {
+                DownloadCoordinator.pause(DownloadRecord.STORE_EPIC, appId.toString())
             }
         }
 
         fun pauseAll() {
-            getInstance()?.activeDownloads?.values?.forEach { info ->
-                val status = info.getStatusFlow().value
-                if (info.isActive()) {
-                    info.isCancelling = false
-                    info.updateStatus(DownloadPhase.PAUSED)
-                    info.cancel("Paused all")
-                } else if (status != DownloadPhase.COMPLETE && status != DownloadPhase.CANCELLED) {
-                    info.updateStatus(DownloadPhase.PAUSED)
-                    info.setActive(false)
-                }
-            }
+            DownloadCoordinator.runOnScope { DownloadCoordinator.pauseAll() }
         }
 
         fun resumeDownload(appId: Int) {
-            val instance = getInstance() ?: return
-            val context = DownloadService.appContext ?: return
-            val info = instance.activeDownloads[appId]
-            val status = info?.getStatusFlow()?.value
-            if (info != null && info.isActive()) return
-            if (status != null && status != DownloadPhase.PAUSED && status != DownloadPhase.QUEUED && status != DownloadPhase.FAILED) {
-                return
-            }
-            instance.activeDownloads.remove(appId)
-            val game = kotlinx.coroutines.runBlocking { instance.epicManager.getGameById(appId) }
-            if (game != null) {
-                val installPath =
-                    if (game.installPath.isNotEmpty()) {
-                        game.installPath
-                    } else {
-                        EpicConstants.getGameInstallPath(context, game.appName)
-                    }
-                downloadGame(context, appId, emptyList(), installPath, "")
+            // Coordinator marks the record as QUEUED and ticks. The dispatcher will be invoked
+            // to launch the actual download (it pulls saved DLC/language/install-path either
+            // from the in-memory params cache or from the persisted record).
+            DownloadCoordinator.runOnScope {
+                DownloadCoordinator.resume(DownloadRecord.STORE_EPIC, appId.toString())
             }
         }
 
         fun resumeAll() {
-            val instance = getInstance() ?: return
-            instance.activeDownloads.keys
-                .toList()
-                .forEach(::resumeDownload)
+            DownloadCoordinator.runOnScope { DownloadCoordinator.resumeAll() }
         }
 
         fun cancelAll() {
-            val instance = getInstance() ?: return
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                instance.activeDownloads.entries.toList().forEach { (appId, info) ->
-                    info.isCancelling = true
-                    info.cancel("Cancelled all")
-                    info.awaitCompletion(timeoutMs = 3000L)
-                    val game = instance.epicManager.getGameById(appId)
-                    if (game != null) {
-                        val context = DownloadService.appContext
-                        val path =
-                            if (game.installPath.isNotEmpty()) {
-                                game.installPath
-                            } else if (context !=
-                                null
-                            ) {
-                                EpicConstants.getGameInstallPath(context, game.appName)
-                            } else {
-                                ""
-                            }
-                        if (path.isNotEmpty()) {
-                            val dirFile = java.io.File(path)
-                            if (dirFile.exists() && dirFile.isDirectory) {
-                                MarkerUtils.removeMarker(path, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
-                                MarkerUtils.removeMarker(path, Marker.DOWNLOAD_COMPLETE_MARKER)
-                                dirFile.deleteRecursively()
-                            }
-                        }
-                    }
-                    info.updateStatus(DownloadPhase.CANCELLED)
-                    instance.activeDownloads.remove(appId)
-                }
-            }
+            DownloadCoordinator.runOnScope { DownloadCoordinator.cancelAll() }
         }
 
         fun clearCompletedDownloads() {
@@ -430,9 +331,16 @@ class EpicService : Service() {
                     .filterValues {
                         val status = it.getStatusFlow().value
                         status == com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.COMPLETE ||
-                            status == com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.CANCELLED
+                            status == com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.CANCELLED ||
+                            status == com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.FAILED
                     }.keys
-            toRemove.forEach { instance.activeDownloads.remove(it) }
+            if (toRemove.isNotEmpty()) {
+                toRemove.forEach { instance.activeDownloads.remove(it) }
+                // Notify the Downloads tab so the list re-syncs and the cleared rows disappear.
+                toRemove.forEach { appId ->
+                    PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(appId, false))
+                }
+            }
         }
 
         // ==========================================================================
@@ -552,6 +460,14 @@ class EpicService : Service() {
                     )
                 }
 
+            // Persist the chosen install path BEFORE the download starts so cancel/pause/resume
+            // can find the partial files even when the user picked a non-default path.
+            if (game.installPath != effectiveInstallPath) {
+                runBlocking(Dispatchers.IO) {
+                    instance.epicManager.updateGame(game.copy(installPath = effectiveInstallPath))
+                }
+            }
+
             // Check if already downloading
             val existingDownload = instance.activeDownloads[appId]
             if (existingDownload != null) {
@@ -570,7 +486,45 @@ class EpicService : Service() {
                     downloadingAppIds = CopyOnWriteArrayList<Int>(),
                 )
 
+            // Stash the original parameters so resume() can restore them after pause.
+            instance.downloadParams[appId] =
+                DownloadParams(
+                    dlcGameIds = dlcGameIds,
+                    containerLanguage = containerLanguage,
+                    installPath = effectiveInstallPath,
+                )
+
             instance.activeDownloads[appId] = downloadInfo
+
+            // Ask the global coordinator whether we can start now or must wait. The coordinator
+            // persists a DownloadRecord either way, so the download survives an app restart.
+            val decision =
+                runBlocking {
+                    DownloadCoordinator.requestSlot(
+                        store = DownloadRecord.STORE_EPIC,
+                        storeGameId = appId.toString(),
+                        title = game.title,
+                        artUrl = game.iconUrl,
+                        installPath = effectiveInstallPath,
+                        selectedDlcs = dlcGameIds.joinToString(","),
+                        language = containerLanguage,
+                    )
+                }
+            when (decision) {
+                is DownloadCoordinator.Decision.Queue -> {
+                    // No slot available right now. Show the entry as queued; the coordinator
+                    // will call back via the dispatcher when a slot frees up.
+                    downloadInfo.setActive(false)
+                    downloadInfo.isCancelling = false
+                    downloadInfo.updateStatus(DownloadPhase.QUEUED, "Queued...")
+                    PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(appId, true))
+                    return Result.success(downloadInfo)
+                }
+                is DownloadCoordinator.Decision.Start -> {
+                    // Fall through to launch the coroutine immediately.
+                }
+            }
+
             downloadInfo.setActive(true)
             downloadInfo.isCancelling = false
             downloadInfo.updateStatus(DownloadPhase.DOWNLOADING)
@@ -652,10 +606,24 @@ class EpicService : Service() {
                             }
                         }
                     } finally {
-                        val finalStatus = downloadInfo.getStatusFlow().value
-                        if (finalStatus == DownloadPhase.COMPLETE || finalStatus == DownloadPhase.FAILED) {
-                            instance.activeDownloads.remove(appId)
-                        }
+                        // Notify coordinator of the terminal status so the global queue can
+                        // advance and the persisted DownloadRecord stays in sync.
+                        val finalCoordStatus =
+                            when (downloadInfo.getStatusFlow().value) {
+                                DownloadPhase.COMPLETE -> DownloadRecord.STATUS_COMPLETE
+                                DownloadPhase.PAUSED -> DownloadRecord.STATUS_PAUSED
+                                DownloadPhase.CANCELLED -> DownloadRecord.STATUS_CANCELLED
+                                DownloadPhase.FAILED -> DownloadRecord.STATUS_FAILED
+                                else -> DownloadRecord.STATUS_FAILED
+                            }
+                        DownloadCoordinator.notifyFinished(
+                            DownloadRecord.STORE_EPIC,
+                            appId.toString(),
+                            finalCoordStatus,
+                        )
+                        // Keep COMPLETE and FAILED entries in the map so the Downloads tab can
+                        // show them until the user clicks Clear.
+                        PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(appId, false))
                         Timber.d(
                             "[Download] Finished for game $gameId, progress: ${downloadInfo.getProgress()}, active: ${downloadInfo.isActive()}",
                         )
@@ -738,7 +706,79 @@ class EpicService : Service() {
     // Track active downloads by internal Int id
     private val activeDownloads = ConcurrentHashMap<Int, DownloadInfo>()
 
+    // Original download parameters per appId so resume can restore DLC selection,
+    // language, and install path instead of falling back to defaults.
+    // (Phase 2 will move this into a persistent record.)
+    data class DownloadParams(
+        val dlcGameIds: List<Int>,
+        val containerLanguage: String,
+        val installPath: String,
+    )
+
+    private val downloadParams = ConcurrentHashMap<Int, DownloadParams>()
+
     private val onEndProcess: (AndroidEvent.EndProcess) -> Unit = { stop() }
+
+    private val coordinatorDispatcher =
+        object : DownloadCoordinator.Dispatcher {
+            override fun startQueued(record: DownloadRecord) {
+                val context = DownloadService.appContext ?: return
+                val appId = record.storeGameId.toIntOrNull() ?: return
+                // Restore params from the in-memory cache, falling back to the persisted record
+                // (covers the post-restart case where memory was cleared).
+                val params = downloadParams[appId]
+                val dlcGameIds =
+                    params?.dlcGameIds
+                        ?: record.selectedDlcs
+                            .split(',')
+                            .mapNotNull { it.trim().toIntOrNull() }
+                val containerLanguage = params?.containerLanguage ?: record.language
+                val installPath = params?.installPath ?: record.installPath
+
+                // Drop the queued in-memory entry so downloadGame() doesn't short-circuit on
+                // "already downloading" — it will recreate the DownloadInfo and launch.
+                activeDownloads.remove(appId)
+
+                downloadGame(context, appId, dlcGameIds, installPath, containerLanguage)
+            }
+
+            override fun pauseRunning(record: DownloadRecord) {
+                val appId = record.storeGameId.toIntOrNull() ?: return
+                val info = activeDownloads[appId] ?: return
+                if (info.isActive()) {
+                    info.isCancelling = false
+                    info.updateStatus(DownloadPhase.PAUSED)
+                    info.cancel("Paused by user")
+                } else {
+                    info.updateStatus(DownloadPhase.PAUSED)
+                    info.setActive(false)
+                    PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(appId, false))
+                }
+            }
+
+            override fun cancelRunning(record: DownloadRecord) {
+                val appId = record.storeGameId.toIntOrNull() ?: return
+                val info = activeDownloads[appId]
+                if (info != null) {
+                    info.isCancelling = true
+                    info.cancel("Cancelled by user")
+                }
+                CoroutineScope(Dispatchers.IO).launch {
+                    info?.awaitCompletion(timeoutMs = 3000L)
+                    val pathToDelete = record.installPath
+                    if (pathToDelete.isNotEmpty()) {
+                        val dirFile = File(pathToDelete)
+                        if (dirFile.exists() && dirFile.isDirectory) {
+                            MarkerUtils.removeMarker(pathToDelete, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                            MarkerUtils.removeMarker(pathToDelete, Marker.DOWNLOAD_COMPLETE_MARKER)
+                            dirFile.deleteRecursively()
+                        }
+                    }
+                    info?.updateStatus(DownloadPhase.CANCELLED)
+                    PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(appId, false))
+                }
+            }
+        }
 
     override fun onCreate() {
         super.onCreate()
@@ -748,6 +788,8 @@ class EpicService : Service() {
         // Initialize notification helper for foreground service
         notificationHelper = NotificationHelper(applicationContext)
         PluviaApp.events.on<AndroidEvent.EndProcess, Unit>(onEndProcess)
+
+        DownloadCoordinator.registerDispatcher(DownloadRecord.STORE_EPIC, coordinatorDispatcher)
     }
 
     override fun onStartCommand(
@@ -839,6 +881,7 @@ class EpicService : Service() {
         super.onDestroy()
         Timber.tag("Epic").i("[EpicService] Service destroyed")
         PluviaApp.events.off<AndroidEvent.EndProcess, Unit>(onEndProcess)
+        DownloadCoordinator.unregisterDispatcher(DownloadRecord.STORE_EPIC)
 
         // Cancel sync operations
         backgroundSyncJob?.cancel()

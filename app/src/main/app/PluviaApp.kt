@@ -137,6 +137,17 @@ class PluviaApp : Application() {
                 runCatching { PluviaDatabase.init(this@PluviaApp) }
                     .onFailure { Log.e("PluviaApp", "Database warmup failed", it) }
 
+                // Initialize the cross-store DownloadCoordinator and auto-resume any
+                // downloads that were running when the app was killed. PAUSED downloads
+                // stay PAUSED; DOWNLOADING ones are demoted to QUEUED and dispatched as
+                // store services start.
+                runCatching {
+                    val db = PluviaDatabase.getInstance(this@PluviaApp)
+                    com.winlator.cmod.app.service.download.DownloadCoordinator.init(db)
+                    com.winlator.cmod.app.service.download.DownloadCoordinator
+                        .attemptStartupRestoration()
+                }.onFailure { Log.e("PluviaApp", "DownloadCoordinator startup failed", it) }
+
                 com.winlator.cmod.runtime.system.LogManager
                     .rotateLogsOnAppStart(this@PluviaApp)
                 com.winlator.cmod.runtime.system.LogManager

@@ -606,6 +606,14 @@ class EpicDownloadManager
                                             val buffer = ByteArray(8192)
                                             var bytesRead: Int
                                             while (input.read(buffer).also { bytesRead = it } != -1) {
+                                                // Cooperative cancellation: bail out of the byte
+                                                // read loop immediately on pause/cancel instead of
+                                                // waiting until the chunk finishes.
+                                                if (!downloadInfo.isActive() || downloadInfo.isCancelling) {
+                                                    throw kotlinx.coroutines.CancellationException(
+                                                        "Download cancelled mid-chunk",
+                                                    )
+                                                }
                                                 output.write(buffer, 0, bytesRead)
                                                 downloadInfo.updateBytesDownloaded(bytesRead.toLong())
                                             }

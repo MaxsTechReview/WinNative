@@ -1344,9 +1344,28 @@ class GOGDownloadManager
                             )
                         }
 
+                        // Stream the chunk body so pause/cancel takes effect mid-chunk instead
+                        // of waiting for body.bytes() to complete.
+                        val body = response.body
+                            ?: return@withContext Result.failure(Exception("Empty response for chunk $chunkMd5"))
                         val compressedBytes =
-                            response.body?.bytes()
-                                ?: return@withContext Result.failure(Exception("Empty response for chunk $chunkMd5"))
+                            java.io.ByteArrayOutputStream().use { buffer ->
+                                body.byteStream().use { input ->
+                                    val chunkBuffer = ByteArray(64 * 1024)
+                                    var bytesRead: Int
+                                    while (input.read(chunkBuffer).also { bytesRead = it } != -1) {
+                                        if (!downloadInfo.isActive() || downloadInfo.isCancelling) {
+                                            return@withContext Result.failure(
+                                                kotlinx.coroutines.CancellationException(
+                                                    "Download cancelled mid-chunk",
+                                                ),
+                                            )
+                                        }
+                                        buffer.write(chunkBuffer, 0, bytesRead)
+                                    }
+                                }
+                                buffer.toByteArray()
+                            }
 
                         // Verify compressed MD5
                         val actualMd5 = calculateMd5(compressedBytes)
