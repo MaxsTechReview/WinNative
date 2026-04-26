@@ -47,7 +47,6 @@ import com.winlator.cmod.runtime.content.ContentsManager
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.android.ImageUtils
 import com.winlator.cmod.shared.io.AssetPaths
-import com.winlator.cmod.runtime.wine.DefaultVersion
 import com.winlator.cmod.runtime.wine.EnvVars
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.util.KeyValueSet
@@ -128,11 +127,11 @@ class ShortcutSettingsComposeDialog private constructor(
             ActivityResultContracts.OpenDocument()
         ) { uri: Uri? ->
             if (uri == null) return@register
-            val path = FileUtils.getFilePathFromUri(context, uri) ?: return@register
+            val path = FileUtils.getFilePathFromUri(context, uri)
             val fileName = FileUtils.getUriFileName(context, uri)
-            val isExe = path.lowercase().endsWith(".exe") ||
+            val isExe = (path != null && path.lowercase().endsWith(".exe")) ||
                 (fileName != null && fileName.lowercase().endsWith(".exe"))
-            if (isExe) {
+            if (isExe && path != null) {
                 state.launchExePath.value = path
             } else {
                 AppUtils.showToast(context, R.string.common_ui_select_valid_exe_file, Toast.LENGTH_SHORT)
@@ -764,8 +763,7 @@ class ShortcutSettingsComposeDialog private constructor(
         if (currentVersion != null) {
             selectByValue(itemList, currentVersion, state.selectedBox64Version)
         } else {
-            val default = if (isArm64EC) DefaultVersion.WOWBOX64 else DefaultVersion.BOX64
-            selectByValue(itemList, default, state.selectedBox64Version)
+            selectByValue(itemList, "", state.selectedBox64Version)
         }
 
         // Show/hide Box64 frame
@@ -944,16 +942,13 @@ class ShortcutSettingsComposeDialog private constructor(
         else
             shortcut.container
         val name = state.name.value.trim()
-        val nameChanged = shortcut.name != name && name.isNotEmpty()
+        val nameChanged = shortcut.getExtra("custom_name", shortcut.name) != name && name.isNotEmpty()
 
         if (nameChanged) {
-            renameShortcut(name)
+            shortcut.putExtra("custom_name", name)
         }
 
-        val renamingSuccess =
-            !nameChanged || File(shortcut.file.parent, "$name.desktop").exists()
-
-        if (renamingSuccess) {
+        if (true) {
             var hasContainerOverride = false
 
             // Screen size
@@ -1269,9 +1264,19 @@ class ShortcutSettingsComposeDialog private constructor(
                 val newShortcutFile = File(newDesktopDir, shortcut.file.name)
                 com.winlator.cmod.shared.io.FileUtils.copy(shortcut.file, newShortcutFile)
                 shortcut.file.delete()
+                
+                // Also move the original .lnk file if it exists to prevent ghost shortcuts
+                val lnkFileName = shortcut.file.name.substringBeforeLast(".desktop") + ".lnk"
+                val oldLnkFile = File(shortcut.file.parentFile, lnkFileName)
+                if (oldLnkFile.exists()) {
+                    val newLnkFile = File(newDesktopDir, lnkFileName)
+                    com.winlator.cmod.shared.io.FileUtils.copy(oldLnkFile, newLnkFile)
+                    oldLnkFile.delete()
+                }
             } else {
                 shortcut.saveData()
             }
+            com.winlator.cmod.app.shell.UnifiedActivity.refreshLibrary()
         }
     }
 
@@ -1602,7 +1607,7 @@ class ShortcutSettingsComposeDialog private constructor(
     private fun buildDxvkConfigFromState(): String {
         val entries = state.dxvkVersionEntries.value
         val idx = state.dxvkSelectedVersion.intValue
-        val version = if (idx in entries.indices) entries[idx] else DefaultVersion.DXVK
+        val version = if (idx in entries.indices) entries[idx] else ""
         val isGplAsync = version.contains("gplasync")
         val isAsync = version.contains("async")
         val async = if (state.dxvkAsync.value && (isAsync || isGplAsync)) "1" else "0"
@@ -1851,7 +1856,7 @@ class ShortcutSettingsComposeDialog private constructor(
             if (curMajor != null && curMajor >= 2) {
                 selectByIdentifier(filtered, currentDxvk, state.dxvkSelectedVersion)
             } else {
-                selectByIdentifier(filtered, DefaultVersion.DXVK, state.dxvkSelectedVersion)
+                selectByIdentifier(filtered, "", state.dxvkSelectedVersion)
             }
         } else {
             // Reload all DXVK versions
@@ -2069,39 +2074,6 @@ class ShortcutSettingsComposeDialog private constructor(
                 "renderer=$renderer"
     }
 
-    private fun renameShortcut(newName: String) {
-        val parent = shortcut.file.parentFile
-        val oldDesktopFile = shortcut.file
-        val newDesktopFile = File(parent, "$newName.desktop")
-
-        if (!newDesktopFile.isFile && oldDesktopFile.renameTo(newDesktopFile)) {
-            try {
-                val fileField = Shortcut::class.java.getDeclaredField("file")
-                fileField.isAccessible = true
-                fileField.set(shortcut, newDesktopFile)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error updating shortcut file reference", e)
-            }
-
-            if (oldDesktopFile.exists()) {
-                oldDesktopFile.delete()
-            }
-        }
-
-        val linkFile = File(parent, "${shortcut.name}.lnk")
-        if (linkFile.isFile) {
-            val newLinkFile = File(parent, "$newName.lnk")
-            if (!newLinkFile.isFile) linkFile.renameTo(newLinkFile)
-        }
-
-        fragment?.loadShortcutsList()
-        fragment?.updateShortcutOnScreen(
-            newName, newName, shortcut.container.id,
-            File(parent, "$newName.desktop").absolutePath,
-            buildPinnedShortcutIcon(),
-            shortcut.getExtra("uuid")
-        )
-    }
 
     // ------------------------------------------------------------------
     // Show / Dismiss

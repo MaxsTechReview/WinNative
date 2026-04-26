@@ -564,6 +564,10 @@ class DownloadInfo(
                 file.writeText(jsonText)
                 tempFile.delete()
             }
+            // Diagnostic: log every snapshot write so we can correlate WHO wrote what value
+            // when — especially the case of a depot getting persisted at depotSize even
+            // though its actual progress was small. Also logs caller stack for context.
+            Timber.i(Throwable("snapshot-write-trace"), "PERSIST-SNAPSHOT path=$appDirPath content=$jsonText")
         }
         return true
     }

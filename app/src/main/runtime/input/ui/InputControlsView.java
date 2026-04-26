@@ -405,14 +405,6 @@ public class InputControlsView extends View {
     createMouseMoveTimer();
   }
 
-  public boolean hasMouseLeftButtonElement() {
-    if (profile == null) return false;
-    for (ControlElement element : profile.getElements()) {
-      if (element.getBindingAt(0) == Binding.MOUSE_LEFT_BUTTON) return true;
-    }
-    return false;
-  }
-
   private void releaseActiveTouchElements() {
     for (int i = 0; i < activeTouchElements.size(); i++) {
       int activePointerId = activeTouchElements.keyAt(i);
@@ -700,7 +692,6 @@ public class InputControlsView extends View {
             float x = event.getX(actionIndex);
             float y = event.getY(actionIndex);
 
-            touchpadView.setPointerButtonLeftEnabled(!hasMouseLeftButtonElement());
             for (ControlElement element : profile.getElements()) {
               if (element.handleTouchDown(pointerId, x, y)) {
                 handled = true;
@@ -866,6 +857,7 @@ public class InputControlsView extends View {
       boolean isActionDown,
       float offset,
       boolean sendUpdate) {
+    if (binding == Binding.NONE) return;
     WinHandler winHandler = xServer != null ? xServer.getWinHandler() : null;
     if (binding.isGamepad()) {
       if (profile == null && controller == null) return;

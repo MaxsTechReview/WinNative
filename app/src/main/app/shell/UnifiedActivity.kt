@@ -194,6 +194,7 @@ import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity
 import com.winlator.cmod.shared.android.RefreshRateUtils
 import com.winlator.cmod.shared.io.StorageUtils
+import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.ui.CarouselView
 import com.winlator.cmod.shared.ui.FourByTwoGridView
 import com.winlator.cmod.shared.ui.JoystickGridScroll
@@ -2026,14 +2027,18 @@ class UnifiedActivity :
         // Load all shortcuts once and cache for both custom app discovery and GameCapsule icon lookup
         var cachedShortcuts by remember { mutableStateOf<List<Shortcut>>(emptyList()) }
         var customApps by remember { mutableStateOf<List<SteamApp>>(emptyList()) }
+        var localLibraryRefreshKey by remember { mutableIntStateOf(0) }
         var shortcutsLoaded by remember { mutableStateOf(false) }
-        LaunchedEffect(shortcutRefreshKey) {
+        LaunchedEffect(shortcutRefreshKey, localLibraryRefreshKey) {
             shortcutsLoaded = false
 
             val shortcutScanResult =
                 runCatching {
                     withContext(Dispatchers.IO) {
                         val cm = ContainerManager(context)
+                        cm.upgradeShortcuts {
+                            localLibraryRefreshKey++
+                        }
                         val allShortcuts = cm.loadShortcuts()
                         val apps =
                             allShortcuts
@@ -2046,7 +2051,14 @@ class UnifiedActivity :
                                         shortcut
                                             .getExtra("custom_name", shortcut.name)
                                             .ifBlank { shortcut.name }
-                                    val customId = -(displayName.hashCode().and(0x7FFFFFFF) + 1)
+                                    
+                                    val uuid = shortcut.getExtra("uuid")
+                                    val customId = if (uuid.isNotEmpty()) {
+                                        // Use UUID hash to ensure ID stability across renames
+                                        -(uuid.hashCode().and(0x7FFFFFFF) + 1)
+                                    } else {
+                                        -(displayName.hashCode().and(0x7FFFFFFF) + 1)
+                                    }
 
                                     SteamApp(
                                         id = customId,
@@ -6887,6 +6899,15 @@ class UnifiedActivity :
             }
         }
 
+        // Re-sync the list whenever the cross-store DownloadCoordinator records change. This
+        // is what makes PAUSED records (loaded from DB after app restart) appear in the tab,
+        // and what removes COMPLETE/CANCELLED/FAILED rows after Clear.
+        LaunchedEffect(syncDownloads) {
+            com.winlator.cmod.app.service.download.DownloadCoordinator.changes.collect {
+                latestSyncDownloads()
+            }
+        }
+
         downloads.forEach { (_, info) ->
             LaunchedEffect(info) {
                 info.getStatusFlow().collect {
@@ -6984,6 +7005,12 @@ class UnifiedActivity :
                             if (queueSize > 1) {
                                 queueSize--
                                 PrefManager.downloadQueueSize = queueSize
+                                // Tick the global coordinator so the new (lower) limit is
+                                // applied across all stores. Lowering doesn't auto-pause an
+                                // in-flight download; it just prevents new ones from starting
+                                // until the count drains under the new limit.
+                                com.winlator.cmod.app.service.download.DownloadCoordinator
+                                    .blockingTick()
                             }
                         },
                         modifier = Modifier.size(24.dp),
@@ -7006,8 +7033,9 @@ class UnifiedActivity :
                         onClick = {
                             queueSize++
                             PrefManager.downloadQueueSize = queueSize
-                            com.winlator.cmod.feature.stores.steam.service.SteamService
-                                .checkQueue()
+                            // Drain the global queue across all stores (Steam + Epic + GOG).
+                            com.winlator.cmod.app.service.download.DownloadCoordinator
+                                .blockingTick()
                         },
                         modifier = Modifier.size(24.dp),
                     ) {
@@ -7078,11 +7106,11 @@ class UnifiedActivity :
                     }
                 }
 
-                // Clear button - clears completed and cancelled downloads
+                // Clear button - clears completed, cancelled, and failed downloads
                 val hasCompletedOrCancelled =
                     downloads.any {
                         val s = it.second.getStatusFlow().value
-                        s == DownloadPhase.COMPLETE || s == DownloadPhase.CANCELLED
+                        s == DownloadPhase.COMPLETE || s == DownloadPhase.CANCELLED || s == DownloadPhase.FAILED
                     }
 
                 Spacer(Modifier.width(12.dp))
@@ -7137,13 +7165,40 @@ class UnifiedActivity :
                 }
             }
 
+            // Sort so the user always sees what's actually running first, then everything
+            // they can resume, then finished items, with cancelled at the very bottom.
+            // The list re-sorts on phase transitions because `tick` (incremented by the
+            // status flow collectors above) is read here, forcing recomposition.
+            @Suppress("UNUSED_EXPRESSION")
+            tick
+            val sortedDownloads =
+                downloads.sortedBy { (_, info) ->
+                    when (info.getStatusFlow().value) {
+                        // In-progress states grouped together at the top.
+                        DownloadPhase.DOWNLOADING,
+                        DownloadPhase.PREPARING,
+                        DownloadPhase.VERIFYING,
+                        DownloadPhase.PATCHING,
+                        DownloadPhase.APPLYING_DATA,
+                        DownloadPhase.FINALIZING,
+                        DownloadPhase.UNPACKING,
+                        DownloadPhase.UNKNOWN,
+                        -> 0
+                        DownloadPhase.PAUSED -> 1
+                        DownloadPhase.QUEUED -> 2
+                        DownloadPhase.COMPLETE -> 3
+                        DownloadPhase.FAILED -> 4
+                        DownloadPhase.CANCELLED -> 5
+                    }
+                }
+
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(downloads, key = { it.first }) { (id, info) ->
+                items(sortedDownloads, key = { it.first }) { (id, info) ->
                     DownloadItemDeck(id, info, isSelected = selectedId == id, onClick = {
                         if (selectedId == id) onSelectDownload(null) else onSelectDownload(id)
                     })
                 }
-                if (downloads.isEmpty()) {
+                if (sortedDownloads.isEmpty()) {
                     item { EmptyStateMessage("No active downloads.") }
                 }
             }
@@ -9659,47 +9714,35 @@ class UnifiedActivity :
                 contract = ActivityResultContracts.OpenDocument(),
             ) { uri ->
                 if (uri != null) {
-                    // Resolve to a real file path
-                    var path = getPathFromContentUri(context, uri)
-                    // If path resolution didn't yield an .exe, check the URI display name
-                    val isExe = path != null && path.lowercase().endsWith(".exe")
-                    if (!isExe && path != null) {
-                        // Try getting the display name from ContentResolver as fallback
-                        val displayName =
-                            try {
-                                context.contentResolver
-                                    .query(
-                                        uri,
-                                        arrayOf(android.provider.OpenableColumns.DISPLAY_NAME),
-                                        null,
-                                        null,
-                                        null,
-                                    )?.use { cursor ->
-                                        if (cursor.moveToFirst()) cursor.getString(0) else null
-                                    }
-                            } catch (_: Exception) {
-                                null
-                            }
-                        if (displayName != null && displayName.lowercase().endsWith(".exe")) {
-                            // Path is valid but extension was lost in resolution; append or recombine
-                            if (!path.lowercase().endsWith(".exe")) {
-                                val parent = java.io.File(path).let { if (it.isDirectory) it else it.parentFile }
-                                if (parent != null) {
-                                    val reconstructed = java.io.File(parent, displayName)
-                                    if (reconstructed.exists()) path = reconstructed.absolutePath
-                                }
-                            }
+                    // Resolve to a real file path using the unified FileUtils
+                    var path = FileUtils.getFilePathFromUri(context, uri)
+                    val displayName = FileUtils.getUriFileName(context, uri)
+                    
+                    // Check both path and display name for .exe extension
+                    val pathIsExe = path?.lowercase()?.endsWith(".exe") == true
+                    val nameIsExe = displayName?.lowercase()?.endsWith(".exe") == true
+                    val isExe = pathIsExe || nameIsExe
+
+                    if (!pathIsExe && nameIsExe && path != null) {
+                        // Extension was lost in resolution; attempt to reconstruct if the file exists with the extension
+                        val file = java.io.File(path)
+                        val parent = if (file.isDirectory) file else file.parentFile
+                        if (parent != null) {
+                            val reconstructed = java.io.File(parent, displayName!!)
+                            if (reconstructed.exists()) path = reconstructed.absolutePath
                         }
                     }
-                    if (path != null && (path.lowercase().endsWith(".exe") || java.io.File(path).exists())) {
+
+                    // Validate: must have a path, and either end in .exe (in path or name) OR exist as a file
+                    if (path != null && (isExe || java.io.File(path).exists())) {
                         selectedExePath = path
                         gameFolder = detectGameFolder(path)
-                        // Auto-generate a game name from the folder name
+                        // Auto-generate a game name from the EXE name (without extension)
                         if (gameName.isBlank()) {
                             gameName =
                                 java.io
-                                    .File(gameFolder!!)
-                                    .name
+                                    .File(path)
+                                    .nameWithoutExtension
                                     .replace("_", " ")
                                     .replace("-", " ")
                         }
@@ -9927,97 +9970,6 @@ class UnifiedActivity :
         }
     }
 
-    // Resolve content URI to real file path
-    private fun getPathFromContentUri(
-        context: android.content.Context,
-        uri: Uri,
-    ): String? {
-        val displayName =
-            try {
-                context.contentResolver
-                    .query(
-                        uri,
-                        arrayOf(android.provider.OpenableColumns.DISPLAY_NAME),
-                        null,
-                        null,
-                        null,
-                    )?.use { cursor ->
-                        if (cursor.moveToFirst()) cursor.getString(0) else null
-                    }
-            } catch (_: Exception) {
-                null
-            }
-
-        // Try DocumentsContract first
-        try {
-            if (DocumentsContract.isDocumentUri(context, uri)) {
-                val docId = DocumentsContract.getDocumentId(uri)
-                // raw: prefix contains the actual filesystem path directly
-                if (docId.startsWith("raw:")) {
-                    return docId.substringAfter("raw:")
-                }
-                if (docId.startsWith("primary:")) {
-                    return "${android.os.Environment.getExternalStorageDirectory().path}/${docId.substringAfter(":")}"
-                }
-                // Downloads provider on some Android versions uses "msf:NNN"
-                if (docId.startsWith("msf:") || docId.all { it.isDigit() }) {
-                    val resolved = queryContentResolverForPath(context, uri)
-                    if (resolved != null) return resolved
-                    if (displayName != null) {
-                        val downloadsFile =
-                            java.io.File(
-                                android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
-                                displayName,
-                            )
-                        if (downloadsFile.exists()) return downloadsFile.absolutePath
-                    }
-                }
-                if (docId.contains(":")) {
-                    val parts = docId.split(":", limit = 2)
-                    if (parts.size == 2 && parts[1].isNotEmpty()) {
-                        return "/storage/${parts[0]}/${parts[1]}"
-                    }
-                }
-            }
-        } catch (_: Exception) {
-        }
-
-        // Try querying ContentResolver for _data column (works for many providers)
-        try {
-            val resolved = queryContentResolverForPath(context, uri)
-            if (resolved != null) return resolved
-        } catch (_: Exception) {
-        }
-
-        // Fallback: uri.path — strip common prefixes
-        val rawPath = uri.path
-        if (rawPath != null) {
-            // Handle /document/raw:/actual/path format
-            val rawPrefix = "/document/raw:"
-            if (rawPath.startsWith(rawPrefix)) {
-                return rawPath.substringAfter(rawPrefix)
-            }
-            // Handle /document/primary:path format
-            val primaryPrefix = "/document/primary:"
-            if (rawPath.startsWith(primaryPrefix)) {
-                return "${android.os.Environment.getExternalStorageDirectory().path}/${rawPath.substringAfter(primaryPrefix)}"
-            }
-            // If the path looks like a real file path, return it
-            if (rawPath.startsWith("/storage/") || rawPath.startsWith("/data/")) {
-                return rawPath
-            }
-        }
-        if (displayName != null) {
-            val downloadsFile =
-                java.io.File(
-                    android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
-                    displayName,
-                )
-            if (downloadsFile.exists()) return downloadsFile.absolutePath
-        }
-        return rawPath
-    }
-
     private fun ensureAllFilesAccessForImports(context: android.content.Context): Boolean {
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R || android.os.Environment.isExternalStorageManager()) {
             return true
@@ -10036,24 +9988,6 @@ class UnifiedActivity :
         startActivity(intent)
         return false
     }
-
-    // Query ContentResolver for the actual file path via _data column
-    private fun queryContentResolverForPath(
-        context: android.content.Context,
-        uri: Uri,
-    ): String? =
-        try {
-            context.contentResolver.query(uri, arrayOf(android.provider.MediaStore.MediaColumns.DATA), null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val idx = cursor.getColumnIndex(android.provider.MediaStore.MediaColumns.DATA)
-                    if (idx >= 0) cursor.getString(idx) else null
-                } else {
-                    null
-                }
-            }
-        } catch (_: Exception) {
-            null
-        }
 
     // Create custom game shortcut + container
     private fun addCustomGame(

@@ -30,6 +30,18 @@ public abstract class WineUtils {
     if (hostPath == null || hostPath.isEmpty()) return "";
 
     String normalizedHostPath = normalizeHostPath(hostPath);
+
+    if (container != null) {
+      String driveCRoot =
+          normalizeHostPath(new File(container.getRootDir(), ".wine/drive_c").getAbsolutePath());
+      if (pathStartsWith(normalizedHostPath, driveCRoot)) {
+        String relativePath = normalizedHostPath.substring(driveCRoot.length()).replace("/", "\\");
+        while (relativePath.startsWith("\\")) relativePath = relativePath.substring(1);
+        if (relativePath.isEmpty()) return "C:\\";
+        return "C:\\" + relativePath;
+      }
+    }
+
     String bestDriveLetter = null;
     String bestDriveRoot = null;
 
@@ -1267,7 +1279,7 @@ public abstract class WineUtils {
     }
   }
 
-  public static File getNativePath(ImageFs imageFs, String winPath) {
+  public static File getNativePath(Container container, ImageFs imageFs, String winPath) {
     if (winPath == null || winPath.isEmpty()) return null;
     String path = winPath.replace("\\", "/");
     if (path.startsWith("\"") && path.endsWith("\"")) path = path.substring(1, path.length() - 1);
@@ -1275,23 +1287,25 @@ public abstract class WineUtils {
     if (path.matches("^[a-zA-Z]:.*")) {
       String drive = path.substring(0, 1).toLowerCase(Locale.ENGLISH);
       String relPath = path.substring(2);
-      if (relPath.startsWith("/")) relPath = relPath.substring(1);
+      while (relPath.startsWith("/")) relPath = relPath.substring(1);
 
+      File homePrefix = container != null ? container.getRootDir() : new File(imageFs.getRootDir(), "home/" + ImageFs.USER);
+      File dosdevices = new File(homePrefix, ".wine/dosdevices");
+      File link = new File(dosdevices, drive + ":");
+      if (link.exists()) {
+        return new File(link.getAbsolutePath(), relPath);
+      }
+
+      // Direct drive_c fallback
       if (drive.equals("c")) {
-        return new File(imageFs.getRootDir(), ImageFs.WINEPREFIX + "/drive_c/" + relPath);
-      } else {
-        File dosdevices = new File(imageFs.getRootDir(), ImageFs.WINEPREFIX + "/dosdevices");
-        File link = new File(dosdevices, drive + ":");
-        if (link.exists()) {
-          try {
-            return new File(link.getCanonicalPath(), relPath);
-          } catch (Exception e) {
-            return new File(link.getAbsolutePath(), relPath);
-          }
-        }
+        return new File(homePrefix, ".wine/drive_c/" + relPath);
       }
     }
     return new File(imageFs.getRootDir(), path);
+  }
+
+  public static File getNativePath(ImageFs imageFs, String winPath) {
+    return getNativePath(null, imageFs, winPath);
   }
 
   public static String getDosPath(String path) {
