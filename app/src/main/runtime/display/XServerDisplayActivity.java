@@ -85,7 +85,6 @@ import com.winlator.cmod.runtime.content.ContentsManager;
 import com.winlator.cmod.runtime.content.AdrenotoolsManager;
 import com.winlator.cmod.shared.android.AppUtils;
 import com.winlator.cmod.shared.android.AppTerminationHelper;
-import com.winlator.cmod.runtime.wine.DefaultVersion;
 import com.winlator.cmod.runtime.wine.EnvVars;
 import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.runtime.system.GPUInformation;
@@ -161,6 +160,8 @@ import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -178,6 +179,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private static final String STEAM_REGISTRY_KEY = "Software\\Valve\\Steam";
     private static final String STEAM_ROOT_PATH = "C:\\Program Files (x86)\\Steam";
     private static final String STEAM_EXE_PATH = STEAM_ROOT_PATH + "\\steam.exe";
+    private static final String D8VK_ASSET_PATH = "dxwrapper/d8vk-1.0.tzst";
     private static final String STEAM_USER_REGISTRY_BACKUP_FILE = "steam_registry_backup.reg";
     private static final String STEAM_SYSTEM_REGISTRY_BACKUP_FILE = "steam_system_registry_backup.reg";
     private static final String STEAM_CLIENT_STORE_RELATIVE_PATH = ".shared/steam-client-store";
@@ -4428,6 +4430,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (dxvkProfile != null) {
                 Log.d(TAG, "Applying user-defined DXVK content profile: " + dxvkWrapper);
                 contentsManager.applyContent(dxvkProfile);
+                extractD8VKIfNeeded(dxvkWrapper, windowsDir);
             } else {
                 Log.w(TAG, "DXVK content profile not installed; no bundled DXVK archive will be loaded: " + dxvkWrapper);
             }
@@ -4465,6 +4468,62 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         } else if (dxwrapper.contains("wined3d")) {
             Log.d(TAG, "Restoring original DLL files for wined3d.");
             restoreOriginalDllFiles(dlls);
+        }
+    }
+
+    private void extractD8VKIfNeeded(String dxvkWrapper, File windowsDir) {
+        if (compareVersion(dxvkWrapper, "2.4") >= 0) return;
+
+        Log.d(TAG, "Extracting d8vk as part of DXVK version " + dxvkWrapper);
+        TarCompressorUtils.extract(
+                TarCompressorUtils.Type.ZSTD,
+                this,
+                D8VK_ASSET_PATH,
+                windowsDir,
+                onExtractFileListener
+        );
+    }
+
+    private static int compareVersion(String varA, String varB) {
+        int[] a = parseSemverLoose(varA);
+        int[] b = parseSemverLoose(varB);
+
+        if (a[0] != b[0]) return a[0] - b[0];
+        if (a[1] != b[1]) return a[1] - b[1];
+        return a[2] - b[2];
+    }
+
+    private static final Pattern SEMVER_LOOSE =
+            Pattern.compile("(\\d+)\\.(\\d+)(?:\\.(\\d+))?");
+
+    private static int[] parseSemverLoose(String s) {
+        if (s == null) return new int[]{0, 0, 0};
+
+        Matcher m = SEMVER_LOOSE.matcher(s);
+
+        String g1 = null, g2 = null, g3 = null;
+        while (m.find()) {
+            g1 = m.group(1);
+            g2 = m.group(2);
+            g3 = m.group(3);
+        }
+
+        if (g1 == null || g2 == null) {
+            return new int[]{0, 0, 0};
+        }
+
+        int major = safeParseInt(g1);
+        int minor = safeParseInt(g2);
+        int patch = safeParseInt(g3);
+        return new int[]{major, minor, patch};
+    }
+
+    private static int safeParseInt(String s) {
+        if (s == null || s.isEmpty()) return 0;
+        try {
+            return Integer.parseInt(s);
+        } catch (NumberFormatException ignored) {
+            return 0;
         }
     }
 

@@ -10,7 +10,6 @@ import com.winlator.cmod.app.config.SettingsConfig;
 import com.winlator.cmod.runtime.container.Container;
 import com.winlator.cmod.runtime.container.Shortcut;
 import com.winlator.cmod.runtime.container.ContainerManager;
-import com.winlator.cmod.runtime.wine.DefaultVersion;
 import com.winlator.cmod.runtime.wine.EnvVars;
 import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils;
@@ -115,7 +114,7 @@ public class AdrenotoolsManager {
             Log.d("AdrenotoolsManager", "Checking if container driver version " + version + " matches " + driverName);
             if (version != null && driverName != null && version.contains(driverName)) {
                 Log.d("AdrenotoolsManager", "Found a match for container " + container.getName());
-                config.put("version", DefaultVersion.WRAPPER);
+                config.put("version", "System");
                 container.setGraphicsDriverConfig(GraphicsDriverConfigUtils.toGraphicsDriverConfig(config));
                 container.saveData();
             }     
@@ -126,7 +125,7 @@ public class AdrenotoolsManager {
             Log.d("AdrenotoolsManager", "Checking if shortcut driver version " + version + " matches " + driverName);
             if (version != null && driverName != null && version.contains(driverName)) {
                 Log.d("AdrenotoolsManager", "Found a match for shortcut " + shortcut.name);
-                config.put("version", DefaultVersion.WRAPPER);
+                config.put("version", "System");
                 shortcut.putExtra("graphicsDriverConfig", GraphicsDriverConfigUtils.toGraphicsDriverConfig(config));
                 shortcut.saveData();
             }

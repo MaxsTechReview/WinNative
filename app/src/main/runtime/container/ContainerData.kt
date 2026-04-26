@@ -1,7 +1,6 @@
 package com.winlator.cmod.runtime.container
 import androidx.compose.runtime.saveable.mapSaver
 import com.winlator.cmod.runtime.compat.box64.Box64Preset
-import com.winlator.cmod.runtime.wine.DefaultVersion
 import com.winlator.cmod.runtime.wine.WineThemeManager
 import kotlin.String
 
@@ -20,7 +19,7 @@ data class ContainerData(
     val wow64Mode: Boolean = false,
     val startupSelection: Byte = Container.STARTUP_SELECTION_ESSENTIAL,
     val box86Version: String = "",
-    val box64Version: String = DefaultVersion.BOX64,
+    val box64Version: String = "",
     val box86Preset: String = Box64Preset.COMPATIBILITY,
     val box64Preset: String = Box64Preset.COMPATIBILITY,
     val desktopTheme: String = WineThemeManager.DEFAULT_DESKTOP_THEME,

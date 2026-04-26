@@ -35,7 +35,6 @@ import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils
 import com.winlator.cmod.feature.settings.WineD3DConfigUtils
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.io.AssetPaths
-import com.winlator.cmod.runtime.wine.DefaultVersion
 import com.winlator.cmod.runtime.wine.EnvVars
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.util.KeyValueSet
@@ -604,7 +603,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         var graphicsDriverConfig = buildGraphicsDriverConfigFromState()
         val parsedGfx = GraphicsDriverConfigUtils.parseGraphicsDriverConfig(graphicsDriverConfig)
         if (parsedGfx.get("version").isNullOrEmpty()) {
-            parsedGfx.put("version", DefaultVersion.WRAPPER)
+            parsedGfx.put("version", "System")
             graphicsDriverConfig = GraphicsDriverConfigUtils.toGraphicsDriverConfig(parsedGfx)
         }
         val dxwrapper = getIdentifierFromEntries(
@@ -652,11 +651,11 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val startupSelection = state.selectedStartupSelection.intValue.toByte()
 
         val box64VersionEntries = state.box64VersionEntries.value
-        val box64Version = box64VersionEntries.getOrElse(state.selectedBox64Version.intValue) { DefaultVersion.BOX64 }
+        val box64Version = box64VersionEntries.getOrElse(state.selectedBox64Version.intValue) { "" }
         val box64Preset = box64PresetIds.getOrElse(state.selectedBox64Preset.intValue) { Box64Preset.COMPATIBILITY }
 
         val fexcoreVersionEntries = state.fexcoreVersionEntries.value
-        val fexcoreVersion = fexcoreVersionEntries.getOrElse(state.selectedFexcoreVersion.intValue) { DefaultVersion.FEXCORE }
+        val fexcoreVersion = fexcoreVersionEntries.getOrElse(state.selectedFexcoreVersion.intValue) { "" }
         val fexcorePreset = fexcorePresetIds.getOrElse(state.selectedFexcorePreset.intValue) { FEXCorePreset.COMPATIBILITY }
 
         val desktopTheme = buildDesktopThemeString()
@@ -844,8 +843,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             if (firstDash >= 0) itemList.add(entryName.substring(firstDash + 1))
         }
         state.box64VersionEntries.value = itemList
-        val current = container?.getBox64Version()
-            ?: (if (isArm64EC) DefaultVersion.WOWBOX64 else DefaultVersion.BOX64)
+        val current = container?.getBox64Version() ?: ""
         selectByValue(itemList, current, state.selectedBox64Version)
         updateEmulatorFrameVisibility()
     }
@@ -859,7 +857,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             if (firstDash >= 0) items.add(entryName.substring(firstDash + 1))
         }
         state.fexcoreVersionEntries.value = items
-        val saved = container?.getFEXCoreVersion() ?: DefaultVersion.FEXCORE
+        val saved = container?.getFEXCoreVersion() ?: ""
         selectByValue(items, saved, state.selectedFexcoreVersion)
     }
 
@@ -1125,7 +1123,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     private fun buildDxvkConfigFromState(): String {
         val entries = state.dxvkVersionEntries.value
         val idx = state.dxvkSelectedVersion.intValue
-        val version = if (idx in entries.indices) entries[idx] else DefaultVersion.DXVK
+        val version = if (idx in entries.indices) entries[idx] else ""
         val isGplAsync = version.contains("gplasync")
         val isAsync = version.contains("async")
         val async = if (state.dxvkAsync.value && (isAsync || isGplAsync)) "1" else "0"
@@ -1173,7 +1171,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             if (curMajor != null && curMajor >= 2) {
                 selectByIdentifier(filtered, currentDxvk, state.dxvkSelectedVersion)
             } else {
-                selectByIdentifier(filtered, DefaultVersion.DXVK, state.dxvkSelectedVersion)
+                selectByIdentifier(filtered, "", state.dxvkSelectedVersion)
             }
         } else {
             loadDxvkVersions()
