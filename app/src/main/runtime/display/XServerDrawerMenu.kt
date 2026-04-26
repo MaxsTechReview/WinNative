@@ -217,7 +217,6 @@ fun buildXServerDrawerState(
     mouseDisabled: Boolean,
     fpsMonitorEnabled: Boolean,
     paused: Boolean,
-    showMagnifier: Boolean,
     showLogs: Boolean,
     nativeRenderingEnabled: Boolean,
     nativeRenderingTitle: String,
@@ -288,12 +287,6 @@ fun buildXServerDrawerState(
                 active = !mouseDisabled,
             ),
             XServerDrawerItem(
-                itemId = R.id.main_menu_screen_effects,
-                title = context.getString(R.string.session_effects_title),
-                subtitle = context.getString(R.string.session_drawer_screen_effects_subtitle),
-                icon = Icons.Outlined.Tune,
-            ),
-            XServerDrawerItem(
                 itemId = R.id.main_menu_toggle_fullscreen,
                 title = context.getString(R.string.session_drawer_toggle_fullscreen),
                 subtitle = context.getString(R.string.session_drawer_fullscreen_subtitle),
@@ -337,22 +330,6 @@ fun buildXServerDrawerState(
     //         icon = Icons.Outlined.SportsEsports,
     //     ),
     // )
-
-    if (showMagnifier) {
-        items +=
-            XServerDrawerItem(
-                itemId = R.id.main_menu_magnifier,
-                title = context.getString(R.string.session_drawer_magnifier),
-                subtitle =
-                    if (nativeRenderingEnabled) {
-                        context.getString(R.string.session_drawer_magnifier_disabled_native_subtitle)
-                    } else {
-                        context.getString(R.string.session_drawer_magnifier_subtitle)
-                    },
-                icon = Icons.Outlined.ZoomIn,
-                enabled = !nativeRenderingEnabled,
-            )
-    }
 
     if (showLogs) {
         items +=

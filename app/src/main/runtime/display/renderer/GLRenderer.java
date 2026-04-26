@@ -47,11 +47,8 @@ public class GLRenderer
   private boolean cursorVisible = true;
   private boolean screenOffsetYRelativeToCursor = false;
   private String[] unviewableWMClasses = null;
-  private float magnifierZoom = 1.0f;
-  private boolean magnifierEnabled = true;
   public int surfaceWidth;
   public int surfaceHeight;
-  private final EffectComposer effectComposer;
   private boolean cpuSaverMode = false;
   private static final int MAX_FPS_LIMIT = 1000;
   private static final long FPS_LIMIT_SPIN_THRESHOLD_NS = 500_000L;
@@ -63,7 +60,6 @@ public class GLRenderer
   public GLRenderer(XServerView xServerView, XServer xServer) {
     this.xServerView = xServerView;
     this.xServer = xServer;
-    this.effectComposer = new EffectComposer(this);
     rootCursorDrawable = createRootCursorDrawable();
 
     quadVertices.put(
@@ -116,7 +112,7 @@ public class GLRenderer
     resetFrameState();
 
     // Update the viewport if necessary
-    if (viewportNeedsUpdate && magnifierEnabled) {
+    if (viewportNeedsUpdate) {
       if (fullscreen) {
         GLES20.glViewport(0, 0, surfaceWidth, surfaceHeight);
       } else {
@@ -133,57 +129,30 @@ public class GLRenderer
     GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
 
     // Apply basic transformations and draw windows
-    if (magnifierEnabled) {
-      // Apply magnifier transformations if enabled
-      float pointerX = 0;
-      float pointerY = 0;
-      float magnifierZoom = !screenOffsetYRelativeToCursor ? this.magnifierZoom : 1.0f;
-
-      if (magnifierZoom != 1.0f) {
-        pointerX =
-            Mathf.clamp(
-                xServer.pointer.getX() * magnifierZoom - xServer.screenInfo.width * 0.5f,
-                0,
-                xServer.screenInfo.width * Math.abs(1.0f - magnifierZoom));
-      }
-
-      if (screenOffsetYRelativeToCursor || magnifierZoom != 1.0f) {
-        float scaleY = magnifierZoom != 1.0f ? Math.abs(1.0f - magnifierZoom) : 0.5f;
-        float offsetY = xServer.screenInfo.height * (screenOffsetYRelativeToCursor ? 0.25f : 0.5f);
+    if (!fullscreen) {
+      int pointerY = 0;
+      if (screenOffsetYRelativeToCursor) {
+        short halfScreenHeight = (short) (xServer.screenInfo.height / 2);
         pointerY =
-            Mathf.clamp(
-                xServer.pointer.getY() * magnifierZoom - offsetY,
-                0,
-                xServer.screenInfo.height * scaleY);
+            Mathf.clamp(xServer.pointer.getY() - halfScreenHeight / 2, 0, halfScreenHeight);
       }
 
-      XForm.makeTransform(tmpXForm2, -pointerX, -pointerY, magnifierZoom, magnifierZoom, 0);
+      XForm.makeTransform(
+          tmpXForm2,
+          viewTransformation.sceneOffsetX,
+          viewTransformation.sceneOffsetY - pointerY,
+          viewTransformation.sceneScaleX,
+          viewTransformation.sceneScaleY,
+          0);
+
+      GLES20.glEnable(GLES20.GL_SCISSOR_TEST);
+      GLES20.glScissor(
+          viewTransformation.viewOffsetX,
+          viewTransformation.viewOffsetY,
+          viewTransformation.viewWidth,
+          viewTransformation.viewHeight);
     } else {
-      if (!fullscreen) {
-        int pointerY = 0;
-        if (screenOffsetYRelativeToCursor) {
-          short halfScreenHeight = (short) (xServer.screenInfo.height / 2);
-          pointerY =
-              Mathf.clamp(xServer.pointer.getY() - halfScreenHeight / 2, 0, halfScreenHeight);
-        }
-
-        XForm.makeTransform(
-            tmpXForm2,
-            viewTransformation.sceneOffsetX,
-            viewTransformation.sceneOffsetY - pointerY,
-            viewTransformation.sceneScaleX,
-            viewTransformation.sceneScaleY,
-            0);
-
-        GLES20.glEnable(GLES20.GL_SCISSOR_TEST);
-        GLES20.glScissor(
-            viewTransformation.viewOffsetX,
-            viewTransformation.viewOffsetY,
-            viewTransformation.viewWidth,
-            viewTransformation.viewHeight);
-      } else {
-        XForm.identity(tmpXForm2);
-      }
+      XForm.identity(tmpXForm2);
     }
 
     renderWindows();
@@ -195,8 +164,8 @@ public class GLRenderer
       renderCursor();
     }
 
-    // Disable scissor test if magnifier is disabled and not in fullscreen mode
-    if (!magnifierEnabled && !fullscreen) {
+    // Disable scissor test if not in fullscreen mode
+    if (!fullscreen) {
       GLES20.glDisable(GLES20.GL_SCISSOR_TEST);
     }
   }
@@ -421,15 +390,6 @@ public class GLRenderer
     return fullscreen;
   }
 
-  public float getMagnifierZoom() {
-    return magnifierZoom;
-  }
-
-  public void setMagnifierZoom(float magnifierZoom) {
-    this.magnifierZoom = magnifierZoom;
-    xServerView.requestRender();
-  }
-
   public int getSurfaceWidth() {
     return surfaceWidth;
   }
@@ -448,10 +408,6 @@ public class GLRenderer
 
   public VertexAttribute getQuadVertices() {
     return quadVertices;
-  }
-
-  public EffectComposer getEffectComposer() {
-    return effectComposer;
   }
 
   public void setNativeMode(boolean enable) {
@@ -561,29 +517,7 @@ public class GLRenderer
       GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
       GLES20.glDisable(GLES20.GL_BLEND);
 
-      if (magnifierEnabled) {
-        float pointerX = 0;
-        float pointerY = 0;
-        float currentZoom = !screenOffsetYRelativeToCursor ? magnifierZoom : 1.0f;
-        if (currentZoom != 1.0f) {
-          pointerX =
-              Mathf.clamp(
-                  xServer.pointer.getX() * currentZoom - xServer.screenInfo.width * 0.5f,
-                  0,
-                  xServer.screenInfo.width * Math.abs(1.0f - currentZoom));
-        }
-        if (screenOffsetYRelativeToCursor || currentZoom != 1.0f) {
-          float scaleY = currentZoom != 1.0f ? Math.abs(1.0f - currentZoom) : 0.5f;
-          float offsetY =
-              xServer.screenInfo.height * (screenOffsetYRelativeToCursor ? 0.25f : 0.5f);
-          pointerY =
-              Mathf.clamp(
-                  xServer.pointer.getY() * currentZoom - offsetY,
-                  0,
-                  xServer.screenInfo.height * scaleY);
-        }
-        XForm.makeTransform(tmpXForm2, -pointerX, -pointerY, currentZoom, currentZoom, 0);
-      } else if (!fullscreen) {
+      if (!fullscreen) {
         int pointerY = 0;
         if (screenOffsetYRelativeToCursor) {
           short halfScreenHeight = (short) (xServer.screenInfo.height / 2);
@@ -621,7 +555,7 @@ public class GLRenderer
         GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
         renderCursor();
       }
-      if (!magnifierEnabled && !fullscreen) {
+      if (!fullscreen) {
         GLES20.glDisable(GLES20.GL_SCISSOR_TEST);
       }
       GLES20.glEnable(GLES20.GL_BLEND);
@@ -636,31 +570,6 @@ public class GLRenderer
   private boolean isDirectScanoutContent(Drawable drawable) {
     Drawable scanoutSource = drawable.getScanoutSource();
     return scanoutSource != null && scanoutSource.isDirectScanout();
-  }
-
-  private void renderWindowEffect(Drawable drawable, int x, int y, ShaderMaterial material) {
-    // Implement the rendering effect logic here
-    synchronized (drawable.renderLock) {
-      Drawable textureDrawable =
-          drawable.getScanoutSource() != null ? drawable.getScanoutSource() : drawable;
-      Texture texture = textureDrawable.getTexture();
-      if (texture == null) return;
-      texture.updateFromDrawable(textureDrawable);
-
-      XForm.set(tmpXForm1, x, y, drawable.width, drawable.height);
-      XForm.multiply(tmpXForm1, tmpXForm1, tmpXForm2);
-
-      GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-      GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture.getTextureId());
-      if (GLES20.glIsTexture(texture.getTextureId()) == false) {
-        Log.e("GLRenderer", "Invalid texture binding!");
-      }
-
-      GLES20.glUniform1i(material.getUniformLocation("texture"), 0);
-      GLES20.glUniform1fv(material.getUniformLocation("xform"), tmpXForm1.length, tmpXForm1, 0);
-      GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, quadVertices.count());
-      GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
-    }
   }
 
   public void setUnviewableWMClasses(String... unviewableWMNames) {

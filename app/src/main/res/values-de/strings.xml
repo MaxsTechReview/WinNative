@@ -498,7 +498,6 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="session_drawer_keyboard">Tastatur</string>
     <string name="session_drawer_toggle_fullscreen">Vollbild umschalten</string>
     <string name="session_drawer_show_touchscreen_controls">Touchscreen-Steuerung anzeigen</string>
-    <string name="session_drawer_magnifier">Lupe</string>
     <string name="session_drawer_logs">Protokolle</string>
     <string name="session_drawer_pip_mode">PiP-Modus</string>
     <string name="session_drawer_toggle_relative_mouse">Relative Mausbewegung umschalten</string>
@@ -508,12 +507,10 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="session_drawer_input_controls_subtitle">Bildschirmsteuerung konfigurieren oder umschalten</string>
     <string name="session_drawer_relative_mouse_movement">Relative Mausbewegung</string>
     <string name="session_drawer_mouse_input">Mauseingabe</string>
-    <string name="session_drawer_screen_effects_subtitle">Farbe, CRT, FXAA und Shader-Optionen</string>
     <string name="session_drawer_fullscreen_subtitle">Vollbild-Rendering umschalten</string>
     <string name="session_drawer_picture_in_picture">Bild-in-Bild</string>
     <string name="session_drawer_pip_subtitle">Spiel in ein schwebendes Fenster verkleinern</string>
     <string name="session_drawer_task_manager_subtitle">Laufende Prozesse prüfen und verwalten</string>
-    <string name="session_drawer_magnifier_subtitle">In die Anzeige hineinzoomen</string>
     <string name="session_drawer_logs_subtitle">Wine- und Box64-Protokolle öffnen</string>
     <string name="session_drawer_exit_subtitle">Laufende Sitzung schließen</string>
     <string name="session_drawer_touchscreen_overlay">Touchscreen-Overlay</string>
@@ -541,19 +538,6 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
 
     <!-- Session > Screen Effects -->
-    <string name="session_effects_brightness">Helligkeit</string>
-    <string name="session_effects_contrast">Kontrast</string>
-    <string name="session_effects_gamma">Gamma</string>
-    <string name="session_effects_color_adjustment">Farbanpassung</string>
-    <string name="session_effects_enable_fxaa">FXAA aktivieren</string>
-    <string name="session_effects_enable_crt_shader">CRT-Shader aktivieren</string>
-    <string name="session_effects_confirm_add_profile">Möchtest du ein neues Profil hinzufügen?</string>
-    <string name="session_effects_default_profile">Standardprofil</string>
-    <string name="session_effects_title">Bildschirmeffekte</string>
-    <string name="session_effects_enable_toon_shader">Toon-Shader aktivieren</string>
-    <string name="session_effects_enable_ntsc_effect">NTSC-Effekt aktivieren</string>
-    <string name="session_effects_post_processing">Nachbearbeitung</string>
-    <string name="session_effects_profile_selection">Profilauswahl</string>
 
     <!-- Session > Display -->
     <string name="session_display_orientation">Ausrichtung</string>

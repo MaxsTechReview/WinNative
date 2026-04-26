@@ -498,7 +498,6 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="session_drawer_keyboard">Tastatura</string>
     <string name="session_drawer_toggle_fullscreen">Comuta ecran complet</string>
     <string name="session_drawer_show_touchscreen_controls">Arata controalele tactile</string>
-    <string name="session_drawer_magnifier">Lupa</string>
     <string name="session_drawer_logs">Jurnale</string>
     <string name="session_drawer_pip_mode">Mod PiP</string>
     <string name="session_drawer_toggle_relative_mouse">Comuta miscarea relativa a mouse-ului</string>
@@ -508,12 +507,10 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="session_drawer_input_controls_subtitle">Configureaza sau comuta controalele de pe ecran</string>
     <string name="session_drawer_relative_mouse_movement">Miscare relativa mouse</string>
     <string name="session_drawer_mouse_input">Intrare mouse</string>
-    <string name="session_drawer_screen_effects_subtitle">Culoare, CRT, FXAA si optiuni shader</string>
     <string name="session_drawer_fullscreen_subtitle">Comuta randarea pe ecran complet</string>
     <string name="session_drawer_picture_in_picture">Imagine in imagine</string>
     <string name="session_drawer_pip_subtitle">Micsoreaza jocul intr-o fereastra plutitoare</string>
     <string name="session_drawer_task_manager_subtitle">Inspecteaza si gestioneaza procesele active</string>
-    <string name="session_drawer_magnifier_subtitle">Mareste afisajul</string>
     <string name="session_drawer_logs_subtitle">Deschide jurnalele Wine si Box64</string>
     <string name="session_drawer_exit_subtitle">Inchide sesiunea curenta</string>
     <string name="session_drawer_touchscreen_overlay">Suprapunere tactila</string>
@@ -541,19 +538,6 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
 
     <!-- Session > Screen Effects -->
-    <string name="session_effects_brightness">Luminozitate</string>
-    <string name="session_effects_contrast">Contrast</string>
-    <string name="session_effects_gamma">Gamma</string>
-    <string name="session_effects_color_adjustment">Ajustare culori</string>
-    <string name="session_effects_enable_fxaa">Activeaza FXAA</string>
-    <string name="session_effects_enable_crt_shader">Activeaza shader CRT</string>
-    <string name="session_effects_confirm_add_profile">Doresti sa adaugi un profil nou?</string>
-    <string name="session_effects_default_profile">Profil implicit</string>
-    <string name="session_effects_title">Efecte ecran</string>
-    <string name="session_effects_enable_toon_shader">Activeaza shader Toon</string>
-    <string name="session_effects_enable_ntsc_effect">Activeaza efect NTSC</string>
-    <string name="session_effects_post_processing">Post-procesare</string>
-    <string name="session_effects_profile_selection">Selectie profil</string>
 
     <!-- Session > Display -->
     <string name="session_display_orientation">Orientare</string>

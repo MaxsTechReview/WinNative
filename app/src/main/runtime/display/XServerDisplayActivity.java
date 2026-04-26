@@ -116,7 +116,6 @@ import com.winlator.cmod.runtime.audio.midi.MidiHandler;
 import com.winlator.cmod.runtime.audio.midi.MidiManager;
 import com.winlator.cmod.runtime.display.renderer.GLRenderer;
 import com.winlator.cmod.runtime.display.ui.FrameRating;
-import com.winlator.cmod.runtime.display.ui.MagnifierView;
 import com.winlator.cmod.runtime.display.ui.XServerView;
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity;
 import com.winlator.cmod.runtime.input.ui.InputControlsView;
@@ -261,7 +260,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private WinHandler winHandler;
     private WineRequestHandler wineRequestHandler;
     private float globalCursorSpeed = 1.0f;
-    private MagnifierView magnifierView;
     private DebugDialog debugDialog;
     private short taskAffinityMask = 0;
     private short taskAffinityMaskWoW64 = 0;
@@ -322,8 +320,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private boolean isDarkMode;
     private boolean enableLogsMenu;
-
-    private String screenEffectProfile;
 
     private GuestProgramLauncherComponent guestProgramLauncherComponent;
     private EnvVars overrideEnvVars;
@@ -2720,7 +2716,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 isMouseDisabled,
                 frameRating != null && frameRating.getVisibility() == View.VISIBLE,
                 isPaused,
-                true,
                 enableLogsMenu,
                 isNativeRenderingEnabled,
                 getString(R.string.session_xserver_native_rendering),
@@ -3026,32 +3021,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 break;
             case R.id.main_menu_task_manager:
                 new TaskManagerDialog(this).show();
-                break;
-            case R.id.main_menu_magnifier:
-                if (isNativeRenderingEnabled) {
-                    showToast(this, getString(R.string.session_drawer_magnifier_disabled_native_subtitle));
-                    renderDrawerMenu();
-                    break;
-                }
-                if (magnifierView == null) {
-                    FrameLayout container = findViewById(R.id.FLXServerDisplay);
-                    magnifierView = new MagnifierView(this);
-                    magnifierView.setZoomButtonCallback(value -> {
-                        renderer.setMagnifierZoom(Mathf.clamp(renderer.getMagnifierZoom() + value, 1.0f, 3.0f));
-                        magnifierView.setZoomValue(renderer.getMagnifierZoom());
-                    });
-                    magnifierView.setZoomValue(renderer.getMagnifierZoom());
-                    magnifierView.setHideButtonCallback(() -> {
-                        container.removeView(magnifierView);
-                        magnifierView = null;
-                    });
-                    container.addView(magnifierView);
-                }
-                renderDrawerMenu();
-                break;
-            case R.id.main_menu_screen_effects:
-                new ScreenEffectDialog(this).show();
-                drawerLayout.closeDrawers();
                 break;
             case R.id.main_menu_logs:
                 debugDialog.show();
@@ -7456,14 +7425,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private void updateHUDRenderMode() {
         // Render mode is always CONTINUOUSLY for best game performance
-    }
-
-    public String getScreenEffectProfile() {
-        return screenEffectProfile;
-    }
-
-    public void setScreenEffectProfile(String screenEffectProfile) {
-        this.screenEffectProfile = screenEffectProfile;
     }
 
     /**

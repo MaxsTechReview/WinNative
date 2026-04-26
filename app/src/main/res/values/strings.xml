@@ -529,7 +529,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_dual_series_battery">Dual Series Battery</string>
     <string name="session_drawer_toggle_fullscreen">Toggle Fullscreen</string>
     <string name="session_drawer_show_touchscreen_controls">Show Touchscreen Controls</string>
-    <string name="session_drawer_magnifier">Magnifier</string>
+
     <string name="session_drawer_logs">Logs</string>
     <string name="session_drawer_pip_mode">PiP Mode</string>
     <string name="session_drawer_toggle_relative_mouse">Toggle Relative Mouse Movement</string>
@@ -539,13 +539,13 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_input_controls_subtitle">Configure or toggle on-screen controls</string>
     <string name="session_drawer_relative_mouse_movement">Relative Mouse Movement</string>
     <string name="session_drawer_mouse_input">Mouse Input</string>
-    <string name="session_drawer_screen_effects_subtitle">Color, CRT, FXAA and shader options</string>
+
     <string name="session_drawer_fullscreen_subtitle">Switch fullscreen rendering</string>
     <string name="session_drawer_picture_in_picture">Picture in Picture</string>
     <string name="session_drawer_pip_subtitle">Shrink the game into a floating window</string>
     <string name="session_drawer_task_manager_subtitle">Inspect and manage running processes</string>
-    <string name="session_drawer_magnifier_subtitle">Zoom into the display</string>
-    <string name="session_drawer_magnifier_disabled_native_subtitle">Disabled while Native Rendering is enabled</string>
+
+
     <string name="session_drawer_logs_subtitle">Open Wine and Box64 logs</string>
     <string name="session_drawer_exit_subtitle">Close the running session</string>
     <string name="session_drawer_touchscreen_overlay">Touchscreen Overlay</string>
@@ -585,19 +585,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
 
     <!-- Session > Screen Effects -->
-    <string name="session_effects_brightness">Brightness</string>
-    <string name="session_effects_contrast">Contrast</string>
-    <string name="session_effects_gamma">Gamma</string>
-    <string name="session_effects_color_adjustment">Color Adjustment</string>
-    <string name="session_effects_enable_fxaa">Enable FXAA</string>
-    <string name="session_effects_enable_crt_shader">Enable CRT Shader</string>
-    <string name="session_effects_confirm_add_profile">Do you want to add a new profile?</string>
-    <string name="session_effects_default_profile">Default Profile</string>
-    <string name="session_effects_title">Screen Effects</string>
-    <string name="session_effects_enable_toon_shader">Enable Toon Shader</string>
-    <string name="session_effects_enable_ntsc_effect">Enable NTSC Effect</string>
-    <string name="session_effects_post_processing">Post-Processing</string>
-    <string name="session_effects_profile_selection">Profile Selection</string>
+
 
     <!-- Session > Display -->
     <string name="session_display_orientation">Orientation</string>
