@@ -237,6 +237,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private ImageFs imageFs;
     private FrameRating frameRating = null;
     private boolean effectiveShowFPS = false;
+    private int runtimeFpsLimit = 0;
     private String lastRendererName = "OpenGL";
     private String lastGpuName = null;
     private Runnable editInputControlsCallback;
@@ -440,7 +441,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         Runnable applyRefresh = () -> {
             if (isFinishing() || isDestroyed()) return;
 
-            RefreshRateUtils.applyPreferredRefreshRate(this, getRefreshRateOverride());
+            RefreshRateUtils.applyPreferredRefreshRate(this, getRefreshRateOverride(), runtimeFpsLimit);
         };
 
         if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -1439,23 +1440,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String customExe = shortcut.getExtra("custom_exe");
         if (customExe != null && !customExe.isEmpty()) {
             File customExeFile = new File(customExe);
-            if (customExeFile.isFile()) {
-                return WineUtils.hostPathToRootWinePath(container, customExeFile.getAbsolutePath());
-            }
+            return WineUtils.hostPathToRootWinePath(container, customExeFile.getAbsolutePath());
         }
 
         String launchExePath = shortcut.getExtra("launch_exe_path");
         if (launchExePath != null && !launchExePath.isEmpty()) {
             File launchExeFile = new File(launchExePath);
-            if (launchExeFile.isFile()) {
-                return WineUtils.hostPathToRootWinePath(container, launchExeFile.getAbsolutePath());
-            }
+            return WineUtils.hostPathToRootWinePath(container, launchExeFile.getAbsolutePath());
         }
 
         String customGameFolder = resolveCustomMountPath(shortcut);
         if (!customGameFolder.isEmpty()) {
             File exeFile = findGameExe(new File(customGameFolder));
-            if (exeFile != null && exeFile.isFile()) {
+            if (exeFile != null) {
                 if ((shortcut.getExtra("launch_exe_path") == null || shortcut.getExtra("launch_exe_path").isEmpty())) {
                     shortcut.putExtra("launch_exe_path", exeFile.getAbsolutePath());
                     shortcut.saveData();
@@ -1477,8 +1474,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         for (String candidatePath : candidatePaths) {
             if (candidatePath == null || candidatePath.isEmpty()) continue;
-            File candidateDir = new File(candidatePath);
-            if (candidateDir.isDirectory()) return candidateDir.getAbsolutePath();
+            return new File(candidatePath).getAbsolutePath();
         }
 
         return null;
@@ -2877,9 +2873,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
                     @Override
                     public void onFPSLimitChanged(int limit) {
+                        runtimeFpsLimit = Math.max(0, limit);
                         if (xServerView != null) {
-                            xServerView.getRenderer().setFpsLimit(limit);
+                            xServerView.getRenderer().setFpsLimit(runtimeFpsLimit);
                         }
+                        applyPreferredRefreshRate();
                         renderDrawerMenu();
                     }
                 };
@@ -3476,7 +3474,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         // Set environment variables
         envVars.put("LC_ALL", lc_all);
-        envVars.put("WINEPREFIX", imageFs.wineprefix);
+        String winePrefix = (shortcut != null && container != null && shortcut.path != null && shortcut.path.matches("^[cC]:.*")) ? new File(container.getRootDir(), ".wine").getAbsolutePath() : imageFs.wineprefix;
+        envVars.put("WINEPREFIX", winePrefix);
 
         boolean enableWineDebug = preferences.getBoolean("enable_wine_debug", false);
         String wineDebugChannels = preferences.getString("wine_debug_channels", SettingsConfig.DEFAULT_WINE_DEBUG_CHANNELS);
@@ -4776,21 +4775,26 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 if (path != null && (path.startsWith("explorer") || path.contains(" /desktop"))) {
                     return path + extraArgs;
                 } else if (path != null) {
-                    int lastBackslash = path.lastIndexOf("\\");
-                    if (lastBackslash >= 0) {
-                        String dir = path.substring(0, lastBackslash);
-                        if (dir.endsWith(":")) dir += "\\";
-
-                        File nativeDir = com.winlator.cmod.runtime.wine.WineUtils.getNativePath(imageFs, dir);
-                        if (nativeDir != null && nativeDir.exists()) {
-                            launcherComponent.setWorkingDir(nativeDir);
-                            Log.d("XServerDisplayActivity", "Set native working dir for Custom process: " + nativeDir.getPath());
-                        }
-
-                        args = "\"" + path + "\"" + extraArgs;
+                    String nativeDirPath = getActiveGameDirectoryPath();
+                    if (nativeDirPath != null) {
+                        File nativeDir = new File(nativeDirPath);
+                        launcherComponent.setWorkingDir(nativeDir);
+                        Log.d("XServerDisplayActivity", "Set native working dir for Custom process: " + nativeDir.getPath());
                     } else {
-                        args = "\"" + path + "\"" + extraArgs;
+                        int lastBackslash = path.lastIndexOf("\\");
+                        if (lastBackslash >= 0) {
+                            String dir = path.substring(0, lastBackslash);
+                            if (dir.endsWith(":")) dir += "\\";
+
+                            File nativeDir = com.winlator.cmod.runtime.wine.WineUtils.getNativePath(this.container, imageFs, dir);
+                            if (nativeDir != null) {
+                                launcherComponent.setWorkingDir(nativeDir);
+                                Log.d("XServerDisplayActivity", "Set native working dir for Custom process: " + nativeDir.getPath());
+                            }
+                        }
                     }
+
+                    args = "\"" + path + "\"" + extraArgs;
                 } else {
                     args = "\"wfm.exe\"";
                 }

@@ -1,5 +1,6 @@
 package com.winlator.cmod.shared.io;
 
+import android.content.ContentUris;
 import android.content.Context;
 import android.content.res.AssetManager;
 import android.database.Cursor;
@@ -8,6 +9,7 @@ import android.net.Uri;
 import android.os.Environment;
 import android.os.StatFs;
 import android.provider.DocumentsContract;
+import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 import android.system.ErrnoException;
 import android.system.Os;
@@ -33,6 +35,7 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 import java.util.UUID;
@@ -406,28 +409,72 @@ public abstract class FileUtils {
     try {
       if (DocumentsContract.isDocumentUri(context, uri)) {
         String docId = DocumentsContract.getDocumentId(uri);
-        String[] split = docId.split(":", 2);
-        String volume = split[0];
-        String path = split.length > 1 ? split[1] : "";
-
-        if ("primary".equalsIgnoreCase(volume)) {
-          filePath = Environment.getExternalStorageDirectory() + (path.isEmpty() ? "" : "/" + path);
-        } else if (docId.startsWith("raw:")) {
+        if (docId.startsWith("raw:")) {
           filePath = docId.substring(4);
-        } else if (split.length == 2) {
-          filePath = "/storage/" + volume + (path.isEmpty() ? "" : "/" + path);
+        } else {
+          // Attempt resolution via ContentResolver, verifying file existence
+          filePath = queryContentResolverForPath(context, uri);
+
+          // Special handling for MediaStore-backed Downloads (msf:NNN)
+          if (filePath == null && (docId.startsWith("msf:") || docId.matches("\\d+"))) {
+            try {
+              String idStr = docId.startsWith("msf:") ? docId.substring(4) : docId;
+              long id = Long.parseLong(idStr);
+              Uri contentUri = ContentUris.withAppendedId(MediaStore.Files.getContentUri("external"), id);
+              filePath = queryContentResolverForPath(context, contentUri);
+            } catch (Exception e) {}
+          }
+
+          if (filePath == null) {
+            String[] split = docId.split(":", 2);
+            if (split.length == 2) {
+              String volume = split[0];
+              String path = split[1];
+
+              if ("primary".equalsIgnoreCase(volume)) {
+                filePath = Environment.getExternalStorageDirectory() + (path.isEmpty() ? "" : "/" + path);
+              } else if (!"msf".equalsIgnoreCase(volume)) { // Reject virtual msf volume
+                // Try common mount points for external storage
+                String[] roots = {"/storage", "/mnt/media_rw", "/mnt"};
+                for (String root : roots) {
+                  File file = new File(root, volume + (path.isEmpty() ? "" : "/" + path));
+                  if (file.exists()) {
+                    filePath = file.getAbsolutePath();
+                    break;
+                  }
+                }
+
+                if (filePath == null) {
+                  filePath = "/storage/" + volume + (path.isEmpty() ? "" : "/" + path);
+                }
+              }
+            }
+          }
         }
       }
-    } catch (Exception e) {
-      Log.w(TAG, "Document URI resolution failed for: " + uri, e);
+    } catch (Exception e) {}
+
+    // Generic Content URI fallback
+    if (filePath == null) {
+      filePath = queryContentResolverForPath(context, uri);
     }
 
+    // SAF Tree fallback
     if (filePath == null) {
       filePath = getFilePathFromUriUsingSAF(context, uri);
     }
 
+    // Direct file scheme
     if (filePath == null && "file".equalsIgnoreCase(uri.getScheme())) {
       filePath = uri.getPath();
+    }
+
+    // Final validation: must be a physical file that exists
+    if (filePath != null) {
+      File file = new File(filePath);
+      if (!file.exists() || filePath.startsWith("/storage/msf")) {
+        filePath = null;
+      }
     }
 
     if (filePath != null) {
@@ -610,6 +657,24 @@ public abstract class FileUtils {
     }
 
     return fileName;
+  }
+
+  private static String queryContentResolverForPath(Context context, Uri uri) {
+    try {
+      String[] projection = {MediaStore.MediaColumns.DATA};
+      try (Cursor cursor = context.getContentResolver().query(uri, projection, null, null, null)) {
+        if (cursor != null && cursor.moveToFirst()) {
+          int index = cursor.getColumnIndex(MediaStore.MediaColumns.DATA);
+          if (index != -1) {
+            String path = cursor.getString(index);
+            if (path != null && new File(path).exists() && !path.startsWith("/storage/msf")) {
+              return path;
+            }
+          }
+        }
+      }
+    } catch (Exception e) {}
+    return null;
   }
 
   public static boolean saveBitmapToFile(Bitmap bitmap, File file) {

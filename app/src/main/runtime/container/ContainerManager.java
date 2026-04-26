@@ -352,16 +352,50 @@ public class ContainerManager {
             File desktopFile =
                 new File(filePath.substring(0, filePath.lastIndexOf(".")) + ".desktop");
             if (!desktopFile.exists()) {
-              MSLink.createDesktopFile(file, context);
+              MSLink.createDesktopFile(file, context, container);
               shortcuts.add(new Shortcut(container, desktopFile));
             }
-          } else if (fileName.endsWith(".desktop")) shortcuts.add(new Shortcut(container, file));
+          } else if (fileName.endsWith(".desktop")) {
+            shortcuts.add(new Shortcut(container, file));
+          }
         }
       }
     }
 
     shortcuts.sort(Comparator.comparing(a -> a.name));
     return shortcuts;
+  }
+
+  public void upgradeShortcuts(final Runnable onDone) {
+    new Thread(() -> {
+        boolean changed = false;
+        for (Container container : getContainers()) {
+            File desktopDir = container.getDesktopDir();
+            if (!desktopDir.exists()) continue;
+            File[] files = desktopDir.listFiles();
+            if (files == null) continue;
+            for (File file : files) {
+                if (file.getName().endsWith(".lnk")) {
+                    File desktopFile = new File(file.getPath().substring(0, file.getPath().lastIndexOf(".")) + ".desktop");
+                    boolean needsUpgrade = true;
+                    if (desktopFile.exists()) {
+                        String content = FileUtils.readString(desktopFile);
+                        if (content != null && content.contains("game_source=CUSTOM")) {
+                            needsUpgrade = false;
+                        }
+                    }
+                    if (needsUpgrade) {
+                        if (MSLink.createDesktopFile(file, context, container)) {
+                            changed = true;
+                        }
+                    }
+                }
+            }
+        }
+        if (changed && onDone != null) {
+            new Handler(Looper.getMainLooper()).post(onDone);
+        }
+    }).start();
   }
 
   public int getNextContainerId() {
