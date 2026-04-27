@@ -4,8 +4,10 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.os.SystemClock;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.CheckBox;
@@ -64,6 +66,8 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
     container.findViewById(R.id.BTRemoveElement).setOnClickListener(this);
     container.findViewById(R.id.BTElementSettings).setOnClickListener(this);
     container.findViewById(R.id.BTColorPicker).setOnClickListener(this);
+
+    setupToolbarDragging();
 
     getOnBackPressedDispatcher()
         .addCallback(
@@ -547,5 +551,73 @@ private void showControlElementSettings(View anchorView) {
 
       parent.addView(imageView);
     }
+  }
+
+  private void setupToolbarDragging() {
+    View toolbar = findViewById(R.id.LLToolbar);
+    if (toolbar != null) {
+      toolbar.setOnTouchListener(new View.OnTouchListener() {
+        private int activePointerId = -1;
+        private float dX, dY;
+        private float downRawX, downRawY;
+        private boolean isDragging = false;
+        private static final float TAP_SLOP = 20f;
+
+        @Override
+        public boolean onTouch(View view, MotionEvent event) {
+          if (event.getPointerCount() > 1) {
+            this.activePointerId = -1;
+            return false;
+          }
+          switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+              this.activePointerId = event.getPointerId(0);
+              this.dX = view.getX() - event.getRawX();
+              this.dY = view.getY() - event.getRawY();
+              this.downRawX = event.getRawX();
+              this.downRawY = event.getRawY();
+              this.isDragging = false;
+              view.bringToFront();
+              return true;
+            case MotionEvent.ACTION_MOVE:
+              if (this.activePointerId != -1) {
+                float dx = Math.abs(event.getRawX() - this.downRawX);
+                float dy = Math.abs(event.getRawY() - this.downRawY);
+                if (dx > TAP_SLOP || dy > TAP_SLOP) {
+                  this.isDragging = true;
+                }
+                if (this.isDragging) {
+                  view.setX(event.getRawX() + this.dX);
+                  view.setY(event.getRawY() + this.dY);
+                  clampToParentBounds(view);
+                }
+                return true;
+              }
+              break;
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+              if (this.activePointerId != -1) {
+                if (this.isDragging) {
+                  clampToParentBounds(view);
+                }
+                this.activePointerId = -1;
+                return this.isDragging;
+              }
+              return false;
+          }
+          return false;
+        }
+      });
+    }
+  }
+
+  private void clampToParentBounds(View view) {
+    View parentView = (View) view.getParent();
+    if (parentView == null) return;
+    if (parentView.getWidth() <= 0 || parentView.getHeight() <= 0 || view.getWidth() <= 0 || view.getHeight() <= 0) return;
+    float maxX = Math.max(0f, parentView.getWidth() - view.getWidth());
+    float maxY = Math.max(0f, parentView.getHeight() - view.getHeight());
+    view.setX(Math.max(0f, Math.min(view.getX(), maxX)));
+    view.setY(Math.max(0f, Math.min(view.getY(), maxY)));
   }
 }

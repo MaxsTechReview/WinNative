@@ -15,18 +15,18 @@
     <color name="white">#ffffff</color>
 
     
-    <color name="control_editor_background">#060C23</color>
-    <color name="settings_card_surface">#212E3F</color>
-    <color name="settings_outline">#20344B</color>
+    <color name="control_editor_background">#12121B</color>
+    <color name="settings_card_surface">#22202A</color>
+    <color name="settings_outline">#2A2A3A</color>
     <color name="settings_chip_selected_stroke">#74D0FF</color>
     <color name="settings_text_primary">#F5F9FF</color>
     <color name="settings_text_secondary">#9CB0C7</color>
     <color name="settings_icon_tint">#D7E6F7</color>
-    <color name="settings_action_surface">#192A3F</color>
-    <color name="settings_action_surface_pressed">#20344B</color>
+    <color name="settings_action_surface">#12121B</color>
+    <color name="settings_action_surface_pressed">#2A2A3A</color>
     <color name="settings_accent">#1A9FFF</color>
-    <color name="settings_popup_surface">#1C2B3E</color>
-    <color name="settings_popup_surface_edge">#344C68</color>
+    <color name="settings_popup_surface">#22202A</color>
+    <color name="settings_popup_surface_edge">#2A2A3A</color>
     <color name="settings_input_outline_soft">#52F5F9FF</color>
 
 </resources>
