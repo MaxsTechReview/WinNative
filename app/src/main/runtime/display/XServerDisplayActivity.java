@@ -327,8 +327,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean isDarkMode;
     private boolean enableLogsMenu;
 
-    private String screenEffectProfile;
-
     private GuestProgramLauncherComponent guestProgramLauncherComponent;
     private EnvVars overrideEnvVars;
 
@@ -3072,10 +3070,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     container.addView(magnifierView);
                 }
                 renderDrawerMenu();
-                break;
-            case R.id.main_menu_screen_effects:
-                new ScreenEffectDialog(this).show();
-                drawerLayout.closeDrawers();
                 break;
             case R.id.main_menu_logs:
                 debugDialog.show();
@@ -7489,14 +7483,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private void updateHUDRenderMode() {
         // Render mode is always CONTINUOUSLY for best game performance
-    }
-
-    public String getScreenEffectProfile() {
-        return screenEffectProfile;
-    }
-
-    public void setScreenEffectProfile(String screenEffectProfile) {
-        this.screenEffectProfile = screenEffectProfile;
     }
 
     /**

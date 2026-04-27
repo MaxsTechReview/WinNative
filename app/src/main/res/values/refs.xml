@@ -18,7 +18,6 @@
     <item type="id" name="main_menu_controller_manager" />
     <item type="id" name="main_menu_relative_mouse_movement" />
     <item type="id" name="main_menu_disable_mouse" />
-    <item type="id" name="main_menu_screen_effects" />
     <item type="id" name="main_menu_toggle_fullscreen" />
     <item type="id" name="main_menu_native_rendering" />
     <item type="id" name="main_menu_pause" />

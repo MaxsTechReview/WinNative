@@ -508,7 +508,6 @@
     <string name="session_drawer_input_controls_subtitle">화면 컨트롤 구성 또는 전환</string>
     <string name="session_drawer_relative_mouse_movement">상대 마우스 이동</string>
     <string name="session_drawer_mouse_input">마우스 입력</string>
-    <string name="session_drawer_screen_effects_subtitle">색상, CRT, FXAA 및 셰이더 옵션</string>
     <string name="session_drawer_fullscreen_subtitle">전체 화면 렌더링 전환</string>
     <string name="session_drawer_picture_in_picture">PiP (화면 속 화면)</string>
     <string name="session_drawer_pip_subtitle">게임을 플로팅 창으로 축소</string>
@@ -540,20 +539,6 @@
     <string name="session_task_bring_to_front">앞으로 가져오기</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
 
-    <!-- Session > Screen Effects -->
-    <string name="session_effects_brightness">밝기</string>
-    <string name="session_effects_contrast">대비</string>
-    <string name="session_effects_gamma">감마</string>
-    <string name="session_effects_color_adjustment">색상 조정</string>
-    <string name="session_effects_enable_fxaa">FXAA 활성화</string>
-    <string name="session_effects_enable_crt_shader">CRT 셰이더 활성화</string>
-    <string name="session_effects_confirm_add_profile">새 프로필을 추가하시겠습니까?</string>
-    <string name="session_effects_default_profile">기본 프로필</string>
-    <string name="session_effects_title">화면 효과</string>
-    <string name="session_effects_enable_toon_shader">툰 셰이더 활성화</string>
-    <string name="session_effects_enable_ntsc_effect">NTSC 효과 활성화</string>
-    <string name="session_effects_post_processing">후처리</string>
-    <string name="session_effects_profile_selection">프로필 선택</string>
 
     <!-- Session > Display -->
     <string name="session_display_orientation">화면 방향</string>

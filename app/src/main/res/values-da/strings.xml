@@ -508,7 +508,6 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_drawer_input_controls_subtitle">Konfigurer eller skift skærmkontroller</string>
     <string name="session_drawer_relative_mouse_movement">Relativ musebevægelse</string>
     <string name="session_drawer_mouse_input">Museinput</string>
-    <string name="session_drawer_screen_effects_subtitle">Farve-, CRT-, FXAA- og shader-indstillinger</string>
     <string name="session_drawer_fullscreen_subtitle">Skift fuldskærmsrendering</string>
     <string name="session_drawer_picture_in_picture">Billede-i-billede</string>
     <string name="session_drawer_pip_subtitle">Formindsk spillet til et flydende vindue</string>
@@ -540,20 +539,6 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_task_bring_to_front">Bring til forgrunden</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
 
-    <!-- Session > Screen Effects -->
-    <string name="session_effects_brightness">Lysstyrke</string>
-    <string name="session_effects_contrast">Kontrast</string>
-    <string name="session_effects_gamma">Gamma</string>
-    <string name="session_effects_color_adjustment">Farvejustering</string>
-    <string name="session_effects_enable_fxaa">Aktiver FXAA</string>
-    <string name="session_effects_enable_crt_shader">Aktiver CRT-shader</string>
-    <string name="session_effects_confirm_add_profile">Vil du tilføje en ny profil?</string>
-    <string name="session_effects_default_profile">Standardprofil</string>
-    <string name="session_effects_title">Skærmeffekter</string>
-    <string name="session_effects_enable_toon_shader">Aktiver Toon-shader</string>
-    <string name="session_effects_enable_ntsc_effect">Aktiver NTSC-effekt</string>
-    <string name="session_effects_post_processing">Efterbehandling</string>
-    <string name="session_effects_profile_selection">Profilvalg</string>
 
     <!-- Session > Display -->
     <string name="session_display_orientation">Orientering</string>

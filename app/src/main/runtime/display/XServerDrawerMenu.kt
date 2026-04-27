@@ -288,12 +288,6 @@ fun buildXServerDrawerState(
                 active = !mouseDisabled,
             ),
             XServerDrawerItem(
-                itemId = R.id.main_menu_screen_effects,
-                title = context.getString(R.string.session_effects_title),
-                subtitle = context.getString(R.string.session_drawer_screen_effects_subtitle),
-                icon = Icons.Outlined.Tune,
-            ),
-            XServerDrawerItem(
                 itemId = R.id.main_menu_toggle_fullscreen,
                 title = context.getString(R.string.session_drawer_toggle_fullscreen),
                 subtitle = context.getString(R.string.session_drawer_fullscreen_subtitle),

@@ -508,7 +508,6 @@ Ad es. <b>META</b> per il <i>tasto META</i>, \n
     <string name="session_drawer_input_controls_subtitle">Configura o attiva i controlli su schermo</string>
     <string name="session_drawer_relative_mouse_movement">Movimento relativo del mouse</string>
     <string name="session_drawer_mouse_input">Input mouse</string>
-    <string name="session_drawer_screen_effects_subtitle">Opzioni colore, CRT, FXAA e shader</string>
     <string name="session_drawer_fullscreen_subtitle">Attiva il rendering a schermo intero</string>
     <string name="session_drawer_picture_in_picture">Picture in Picture</string>
     <string name="session_drawer_pip_subtitle">Riduci il gioco in una finestra flottante</string>
@@ -540,20 +539,6 @@ Ad es. <b>META</b> per il <i>tasto META</i>, \n
     <string name="session_task_bring_to_front">Porta in primo piano</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
 
-    <!-- Session > Screen Effects -->
-    <string name="session_effects_brightness">Luminosità</string>
-    <string name="session_effects_contrast">Contrasto</string>
-    <string name="session_effects_gamma">Gamma</string>
-    <string name="session_effects_color_adjustment">Regolazione colore</string>
-    <string name="session_effects_enable_fxaa">Abilita FXAA</string>
-    <string name="session_effects_enable_crt_shader">Abilita shader CRT</string>
-    <string name="session_effects_confirm_add_profile">Vuoi aggiungere un nuovo profilo?</string>
-    <string name="session_effects_default_profile">Profilo predefinito</string>
-    <string name="session_effects_title">Effetti schermo</string>
-    <string name="session_effects_enable_toon_shader">Abilita shader Toon</string>
-    <string name="session_effects_enable_ntsc_effect">Abilita effetto NTSC</string>
-    <string name="session_effects_post_processing">Post-elaborazione</string>
-    <string name="session_effects_profile_selection">Selezione profilo</string>
 
     <!-- Session > Display -->
     <string name="session_display_orientation">Orientamento</string>

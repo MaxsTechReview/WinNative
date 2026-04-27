@@ -508,7 +508,6 @@
     <string name="session_drawer_input_controls_subtitle">配置或切换屏幕控制</string>
     <string name="session_drawer_relative_mouse_movement">相对鼠标移动</string>
     <string name="session_drawer_mouse_input">鼠标输入</string>
-    <string name="session_drawer_screen_effects_subtitle">颜色、CRT、FXAA 和着色器选项</string>
     <string name="session_drawer_fullscreen_subtitle">切换全屏渲染</string>
     <string name="session_drawer_picture_in_picture">画中画</string>
     <string name="session_drawer_pip_subtitle">将游戏缩小为浮动窗口</string>
@@ -540,20 +539,6 @@
     <string name="session_task_bring_to_front">置于前台</string>
     <string name="session_task_cpu_usage_format">CPU（%1$d%%）</string>
 
-    <!-- Session > Screen Effects -->
-    <string name="session_effects_brightness">亮度</string>
-    <string name="session_effects_contrast">对比度</string>
-    <string name="session_effects_gamma">伽马</string>
-    <string name="session_effects_color_adjustment">颜色调整</string>
-    <string name="session_effects_enable_fxaa">启用 FXAA</string>
-    <string name="session_effects_enable_crt_shader">启用 CRT 着色器</string>
-    <string name="session_effects_confirm_add_profile">您要添加新的配置文件吗？</string>
-    <string name="session_effects_default_profile">默认配置文件</string>
-    <string name="session_effects_title">屏幕效果</string>
-    <string name="session_effects_enable_toon_shader">启用卡通着色器</string>
-    <string name="session_effects_enable_ntsc_effect">启用 NTSC 效果</string>
-    <string name="session_effects_post_processing">后处理</string>
-    <string name="session_effects_profile_selection">配置文件选择</string>
 
     <!-- Session > Display -->
     <string name="session_display_orientation">方向</string>

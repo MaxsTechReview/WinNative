@@ -508,7 +508,6 @@
     <string name="session_drawer_input_controls_subtitle">Налаштувати або перемкнути екранні елементи керування</string>
     <string name="session_drawer_relative_mouse_movement">Відносний рух миші</string>
     <string name="session_drawer_mouse_input">Введення миші</string>
-    <string name="session_drawer_screen_effects_subtitle">Колір, CRT, FXAA та параметри шейдерів</string>
     <string name="session_drawer_fullscreen_subtitle">Перемкнути повноекранний рендеринг</string>
     <string name="session_drawer_picture_in_picture">Картинка в картинці</string>
     <string name="session_drawer_pip_subtitle">Згорнути гру у плаваюче вікно</string>
@@ -540,20 +539,6 @@
     <string name="session_task_bring_to_front">На передній план</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
 
-    <!-- Session > Screen Effects -->
-    <string name="session_effects_brightness">Яскравість</string>
-    <string name="session_effects_contrast">Контрастність</string>
-    <string name="session_effects_gamma">Гамма</string>
-    <string name="session_effects_color_adjustment">Налаштування кольору</string>
-    <string name="session_effects_enable_fxaa">Увімкнути FXAA</string>
-    <string name="session_effects_enable_crt_shader">Увімкнути шейдер CRT</string>
-    <string name="session_effects_confirm_add_profile">Ви хочете додати новий профіль?</string>
-    <string name="session_effects_default_profile">Типовий профіль</string>
-    <string name="session_effects_title">Ефекти екрана</string>
-    <string name="session_effects_enable_toon_shader">Увімкнути мультяшний шейдер</string>
-    <string name="session_effects_enable_ntsc_effect">Увімкнути ефект NTSC</string>
-    <string name="session_effects_post_processing">Постобробка</string>
-    <string name="session_effects_profile_selection">Вибір профілю</string>
 
     <!-- Session > Display -->
     <string name="session_display_orientation">Орієнтація</string>

@@ -508,7 +508,6 @@ Par ex. <b>META</b> pour la <i>touche META</i>, \n
     <string name="session_drawer_input_controls_subtitle">Configurer ou basculer les contrôles à l\'écran</string>
     <string name="session_drawer_relative_mouse_movement">Mouvement relatif de la souris</string>
     <string name="session_drawer_mouse_input">Saisie souris</string>
-    <string name="session_drawer_screen_effects_subtitle">Options de couleur, CRT, FXAA et shaders</string>
     <string name="session_drawer_fullscreen_subtitle">Basculer le rendu plein écran</string>
     <string name="session_drawer_picture_in_picture">Image dans l\'image</string>
     <string name="session_drawer_pip_subtitle">Réduire le jeu dans une fenêtre flottante</string>
@@ -540,20 +539,6 @@ Par ex. <b>META</b> pour la <i>touche META</i>, \n
     <string name="session_task_bring_to_front">Mettre au premier plan</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
 
-    <!-- Session > Screen Effects -->
-    <string name="session_effects_brightness">Luminosité</string>
-    <string name="session_effects_contrast">Contraste</string>
-    <string name="session_effects_gamma">Gamma</string>
-    <string name="session_effects_color_adjustment">Ajustement des couleurs</string>
-    <string name="session_effects_enable_fxaa">Activer FXAA</string>
-    <string name="session_effects_enable_crt_shader">Activer le shader CRT</string>
-    <string name="session_effects_confirm_add_profile">Voulez-vous ajouter un nouveau profil ?</string>
-    <string name="session_effects_default_profile">Profil par défaut</string>
-    <string name="session_effects_title">Effets d\'écran</string>
-    <string name="session_effects_enable_toon_shader">Activer le shader Toon</string>
-    <string name="session_effects_enable_ntsc_effect">Activer l\'effet NTSC</string>
-    <string name="session_effects_post_processing">Post-traitement</string>
-    <string name="session_effects_profile_selection">Sélection du profil</string>
 
     <!-- Session > Display -->
     <string name="session_display_orientation">Orientation</string>

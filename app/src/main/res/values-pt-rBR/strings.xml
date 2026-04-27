@@ -508,7 +508,6 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="session_drawer_input_controls_subtitle">Configurar ou alternar controles na tela</string>
     <string name="session_drawer_relative_mouse_movement">Movimento Relativo do Mouse</string>
     <string name="session_drawer_mouse_input">Entrada do Mouse</string>
-    <string name="session_drawer_screen_effects_subtitle">Opcoes de cor, CRT, FXAA e shader</string>
     <string name="session_drawer_fullscreen_subtitle">Alternar renderizacao em tela cheia</string>
     <string name="session_drawer_picture_in_picture">Picture in Picture</string>
     <string name="session_drawer_pip_subtitle">Reduzir o jogo a uma janela flutuante</string>
@@ -540,20 +539,6 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="session_task_bring_to_front">Trazer para Frente</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
 
-    <!-- Session > Screen Effects -->
-    <string name="session_effects_brightness">Brilho</string>
-    <string name="session_effects_contrast">Contraste</string>
-    <string name="session_effects_gamma">Gama</string>
-    <string name="session_effects_color_adjustment">Ajuste de Cor</string>
-    <string name="session_effects_enable_fxaa">Ativar FXAA</string>
-    <string name="session_effects_enable_crt_shader">Ativar Shader CRT</string>
-    <string name="session_effects_confirm_add_profile">Deseja adicionar um novo perfil?</string>
-    <string name="session_effects_default_profile">Perfil Padrao</string>
-    <string name="session_effects_title">Efeitos de Tela</string>
-    <string name="session_effects_enable_toon_shader">Ativar Shader Toon</string>
-    <string name="session_effects_enable_ntsc_effect">Ativar Efeito NTSC</string>
-    <string name="session_effects_post_processing">Pos-Processamento</string>
-    <string name="session_effects_profile_selection">Selecao de Perfil</string>
 
     <!-- Session > Display -->
     <string name="session_display_orientation">Orientacao</string>

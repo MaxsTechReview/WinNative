@@ -558,7 +558,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_input_controls_subtitle">Configure or toggle on-screen controls</string>
     <string name="session_drawer_relative_mouse_movement">Relative Mouse Movement</string>
     <string name="session_drawer_mouse_input">Mouse Input</string>
-    <string name="session_drawer_screen_effects_subtitle">Color, CRT, FXAA and shader options</string>
     <string name="session_drawer_fullscreen_subtitle">Switch fullscreen rendering</string>
     <string name="session_drawer_picture_in_picture">Picture in Picture</string>
     <string name="session_drawer_pip_subtitle">Shrink the game into a floating window</string>
@@ -602,21 +601,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_task_processes">Processes</string>
     <string name="session_task_bring_to_front">Bring to Front</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
-
-    <!-- Session > Screen Effects -->
-    <string name="session_effects_brightness">Brightness</string>
-    <string name="session_effects_contrast">Contrast</string>
-    <string name="session_effects_gamma">Gamma</string>
-    <string name="session_effects_color_adjustment">Color Adjustment</string>
-    <string name="session_effects_enable_fxaa">Enable FXAA</string>
-    <string name="session_effects_enable_crt_shader">Enable CRT Shader</string>
-    <string name="session_effects_confirm_add_profile">Do you want to add a new profile?</string>
-    <string name="session_effects_default_profile">Default Profile</string>
-    <string name="session_effects_title">Screen Effects</string>
-    <string name="session_effects_enable_toon_shader">Enable Toon Shader</string>
-    <string name="session_effects_enable_ntsc_effect">Enable NTSC Effect</string>
-    <string name="session_effects_post_processing">Post-Processing</string>
-    <string name="session_effects_profile_selection">Profile Selection</string>
 
     <!-- Session > Display -->
     <string name="session_display_orientation">Orientation</string>

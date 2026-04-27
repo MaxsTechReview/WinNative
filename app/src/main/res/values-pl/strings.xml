@@ -508,7 +508,6 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="session_drawer_input_controls_subtitle">Konfiguruj lub przełączaj kontrolki ekranowe</string>
     <string name="session_drawer_relative_mouse_movement">Ruch względny myszy</string>
     <string name="session_drawer_mouse_input">Wejście myszy</string>
-    <string name="session_drawer_screen_effects_subtitle">Kolor, CRT, FXAA i opcje shaderów</string>
     <string name="session_drawer_fullscreen_subtitle">Przełącz renderowanie pełnoekranowe</string>
     <string name="session_drawer_picture_in_picture">Obraz w obrazie</string>
     <string name="session_drawer_pip_subtitle">Zmniejsz grę do pływającego okna</string>
@@ -540,20 +539,6 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="session_task_bring_to_front">Przenieś na wierzch</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
 
-    <!-- Session > Screen Effects -->
-    <string name="session_effects_brightness">Jasność</string>
-    <string name="session_effects_contrast">Kontrast</string>
-    <string name="session_effects_gamma">Gamma</string>
-    <string name="session_effects_color_adjustment">Korekcja kolorów</string>
-    <string name="session_effects_enable_fxaa">Włącz FXAA</string>
-    <string name="session_effects_enable_crt_shader">Włącz shader CRT</string>
-    <string name="session_effects_confirm_add_profile">Czy chcesz dodać nowy profil?</string>
-    <string name="session_effects_default_profile">Profil domyślny</string>
-    <string name="session_effects_title">Efekty ekranu</string>
-    <string name="session_effects_enable_toon_shader">Włącz shader Toon</string>
-    <string name="session_effects_enable_ntsc_effect">Włącz efekt NTSC</string>
-    <string name="session_effects_post_processing">Post-processing</string>
-    <string name="session_effects_profile_selection">Wybór profilu</string>
 
     <!-- Session > Display -->
     <string name="session_display_orientation">Orientacja</string>
