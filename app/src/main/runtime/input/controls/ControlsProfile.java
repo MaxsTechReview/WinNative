@@ -297,9 +297,12 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
           element.setRange(ControlElement.Range.valueOf(elementJSONObject.getString("range")));
         if (elementJSONObject.has("orientation"))
           element.setOrientation((byte) elementJSONObject.getInt("orientation"));
+        if (elementJSONObject.has("opacity"))
+          element.setOpacity((float) elementJSONObject.getDouble("opacity"));
 
         boolean hasGamepadBinding = false;
         JSONArray bindingsJSONArray = elementJSONObject.getJSONArray("bindings");
+        element.setBindingCount(bindingsJSONArray.length());
         for (int j = 0; j < bindingsJSONArray.length(); j++) {
           Binding binding = Binding.fromString(bindingsJSONArray.getString(j));
           element.setBindingAt(j, Binding.fromString(bindingsJSONArray.getString(j)));

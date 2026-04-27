@@ -1104,11 +1104,6 @@ public class WinHandler {
 
   public void updateGyroData(float rawGyroX, float rawGyroY) {
     GyroSettings gyroSettings = getGyroSettings();
-    if (this.preferences.getBoolean("mouse_gyro_enabled", false)) {
-        updateGyroDataMouse(rawGyroX, rawGyroY, gyroSettings);
-        return;
-    }
-    
     if (!gyroSettings.enabled) {
       this.smoothedGyroX = 0.0f;
       this.smoothedGyroY = 0.0f;
@@ -1116,10 +1111,17 @@ public class WinHandler {
       this.currentGyroStickY = 0.0f;
       this.gyroToggleEnabled = false;
       this.gyroActivatorPressed = false;
+      this.accumulatedGyroX = 0.0f;
+      this.accumulatedGyroY = 0.0f;
       clearLastGyroTarget();
       return;
     }
 
+    if (this.preferences.getBoolean("mouse_gyro_enabled", false)) {
+        updateGyroDataMouse(rawGyroX, rawGyroY, gyroSettings);
+        return;
+    }
+    
     if (Math.abs(rawGyroX) < gyroSettings.deadzone) rawGyroX = 0.0f;
     if (Math.abs(rawGyroY) < gyroSettings.deadzone) rawGyroY = 0.0f;
     if (gyroSettings.invertX) rawGyroX = -rawGyroX;

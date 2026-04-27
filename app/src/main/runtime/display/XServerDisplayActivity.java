@@ -349,7 +349,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private final SharedPreferences.OnSharedPreferenceChangeListener prefListener = (sharedPreferences, key) -> {
         if ("gyro_enabled".equals(key) || "mouse_gyro_enabled".equals(key)) {
-            boolean gyroEnabled = sharedPreferences.getBoolean("gyro_enabled", false) || sharedPreferences.getBoolean("mouse_gyro_enabled", false);
+            boolean gyroEnabled = sharedPreferences.getBoolean("gyro_enabled", false);
             if (gyroEnabled) {
                 sensorManager.registerListener(gyroListener, gyroSensor, SensorManager.SENSOR_DELAY_GAME);
             } else {
@@ -566,7 +566,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         gyroSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
         preferences.registerOnSharedPreferenceChangeListener(prefListener);
 
-        boolean gyroEnabled = preferences.getBoolean("gyro_enabled", false) || preferences.getBoolean("mouse_gyro_enabled", false);
+        boolean gyroEnabled = preferences.getBoolean("gyro_enabled", false);
 
         if (gyroEnabled) {
             // Register the sensor event listener
@@ -1606,7 +1606,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     public void onResume() {
         super.onResume();
         applyPreferredRefreshRate();
-        boolean gyroEnabled = preferences.getBoolean("gyro_enabled", false) || preferences.getBoolean("mouse_gyro_enabled", false);
+        boolean gyroEnabled = preferences.getBoolean("gyro_enabled", false);
 
         if (gyroEnabled) {
             // Re-register the sensor listener when the activity is resumed
@@ -1635,7 +1635,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     @Override
     public void onPause() {
         super.onPause();
-        boolean gyroEnabled = preferences.getBoolean("gyro_enabled", false) || preferences.getBoolean("mouse_gyro_enabled", false);
+        boolean gyroEnabled = preferences.getBoolean("gyro_enabled", false);
 
         if (gyroEnabled) {
             // Unregister the sensor listener when the activity is paused
@@ -2730,7 +2730,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 hudElements,
                 dualSeriesBattery,
                 hudCardExpanded,
-                preferences.getBoolean("gyro_enabled", false) || preferences.getBoolean("mouse_gyro_enabled", false),
+                preferences.getBoolean("gyro_enabled", false),
                 preferences.getInt("gyro_mode", 0),
                 currentGyroActivatorLabel(),
                 preferences.getBoolean("process_gyro_with_left_trigger", false),
@@ -2795,9 +2795,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onGyroscopeEnabledChanged(boolean enabled) {
                         SharedPreferences.Editor editor = preferences.edit();
                         editor.putBoolean("gyro_enabled", enabled);
-                        if (!enabled) {
-                            editor.putBoolean("mouse_gyro_enabled", false);
-                        }
                         editor.apply();
                         renderDrawerMenu();
                     }
