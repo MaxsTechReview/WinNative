@@ -804,7 +804,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
 
     <!-- Settings > Content Packages -->
     <string name="settings_content_install">Install Content</string>
-    <string name="settings_content_type">Content Type</string>
+    <string name="settings_content_type">Category</string>
     <string name="settings_content_components">Components</string>
     <string name="settings_content_auto_create_container">Auto-create container</string>
     <string name="settings_content_remove_title">Remove component?</string>
@@ -812,13 +812,13 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_content_container_created">Created container: %1$s</string>
     <string name="settings_content_download_failed">Download failed.</string>
     <string name="common_ui_working">Working…</string>
-    <string name="settings_content_desc_wine">The Windows compatibility layer used to run games and apps. You need at least one Wine or FEXCore version installed.</string>
-    <string name="settings_content_desc_proton">Valve\'s Wine-based build with extra patches for games. Useful for some titles, but standard Wine usually works fine.</string>
-    <string name="settings_content_desc_dxvk">Translates DirectX 9, 10, and 11 to Vulkan. This usually improves performance in older Windows games.</string>
-    <string name="settings_content_desc_vkd3d">Translates DirectX 12 to Vulkan. Needed for many newer Windows games.</string>
-    <string name="settings_content_desc_box64">Translates x86 / x64 Windows code so it can run on ARM devices. Box64 or FEXCore is required for most games.</string>
-    <string name="settings_content_desc_wowbox64">A Box64 build for Wine WoW64 mode. Only needed when using a 64-bit prefix with 32-bit app support.</string>
-    <string name="settings_content_desc_fexcore">An alternative x86 / x64 translator. Try it if a game has issues or poor performance with Box64.</string>
+    <string name="settings_content_desc_wine">Made by the Wine project; translates Win32 calls to native Linux/Android services.</string>
+    <string name="settings_content_desc_proton">Made by Valve; a Wine-based runtime with game patches for Windows games.</string>
+    <string name="settings_content_desc_dxvk">Translates Direct3D 9, 10, and 11 graphics calls to Vulkan.</string>
+    <string name="settings_content_desc_vkd3d">Translates Direct3D 12 graphics calls to Vulkan.</string>
+    <string name="settings_content_desc_box64">Translates x86_64 Linux code so it can run on ARM64 devices.</string>
+    <string name="settings_content_desc_wowbox64">Box64 build used by WoW64 to run 32-bit Windows apps inside 64-bit Wine.</string>
+    <string name="settings_content_desc_fexcore">Translates x86 and x86_64 code so it can run on ARM64 devices.</string>
     <string name="settings_content_unable_to_install">Unable to install content.</string>
     <string name="settings_content_install_failed">Install Failed</string>
     <string name="settings_content_file_cannot_be_recognized">File cannot be recognized.</string>
