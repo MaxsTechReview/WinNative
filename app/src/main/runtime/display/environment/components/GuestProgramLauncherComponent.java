@@ -342,21 +342,37 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     File system32dir = new File(rootDir + "/home/xuser/.wine/drive_c/windows/system32");
     boolean containerDataChanged = false;
 
+    String emulator = container.getEmulator();
+    String emulator64 = container.getEmulator64();
     String wowbox64Version = container.getBox64Version();
     String fexcoreVersion = container.getFEXCoreVersion();
 
     // Use configured runtime versions; legacy containers may only have app defaults.
+    if (emulator == null) emulator = "";
+    if (emulator64 == null) emulator64 = "";
     if (wowbox64Version == null) wowbox64Version = "";
     if (fexcoreVersion == null) fexcoreVersion = "";
 
     if (shortcut != null) {
+      emulator = shortcut.getExtra("emulator", emulator);
+      emulator64 = shortcut.getExtra("emulator64", emulator64);
       wowbox64Version = shortcut.getExtra("box64Version", wowbox64Version);
       fexcoreVersion = shortcut.getExtra("fexcoreVersion", fexcoreVersion);
     }
 
+    boolean usesWowbox64 = emulator.equalsIgnoreCase("wowbox64");
+    boolean usesFexcore =
+        emulator.equalsIgnoreCase("fexcore")
+            || emulator64.equalsIgnoreCase("fexcore")
+            || !usesWowbox64;
+
     Log.i(
         "GuestProgramLauncherComponent",
-        "Launch runtime selected: WowBox64 version="
+        "Launch runtime selected: emulator="
+            + emulator
+            + " emulator64="
+            + emulator64
+            + " WowBox64 version="
             + wowbox64Version
             + " FEXCore version="
             + fexcoreVersion);
@@ -368,18 +384,19 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
             || !new File(system32dir, "libarm64ecfex.dll").exists();
     boolean wowbox64DllMissing = !new File(system32dir, "wowbox64.dll").exists();
 
-    if (fexcoreDllsMissing) {
+    if (usesFexcore && fexcoreDllsMissing) {
       Log.w(
           "GuestProgramLauncherComponent",
           "FEXCore DLLs missing from system32 (libwow64fex.dll or libarm64ecfex.dll), forcing re-extraction");
     }
-    if (wowbox64DllMissing) {
+    if (usesWowbox64 && wowbox64DllMissing) {
       Log.w(
           "GuestProgramLauncherComponent",
           "wowbox64.dll missing from system32, forcing re-extraction");
     }
 
-    if (wowbox64DllMissing || !wowbox64Version.equals(container.getExtra("box64Version"))) {
+    if (usesWowbox64
+        && (wowbox64DllMissing || !wowbox64Version.equals(container.getExtra("box64Version")))) {
       if (wowbox64Version.isEmpty()) {
         Log.w("GuestProgramLauncherComponent", "No WowBox64 version selected; skipping content extraction");
       } else {
@@ -398,13 +415,14 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
       }
       container.putExtra("box64Version", wowbox64Version);
       containerDataChanged = true;
-    } else {
+    } else if (usesWowbox64) {
       Log.i(
           "GuestProgramLauncherComponent",
           "WowBox64 already loaded for launch: version=" + wowbox64Version);
     }
 
-    if (fexcoreDllsMissing || !fexcoreVersion.equals(container.getExtra("fexcoreVersion"))) {
+    if (usesFexcore
+        && (fexcoreDllsMissing || !fexcoreVersion.equals(container.getExtra("fexcoreVersion")))) {
       if (fexcoreVersion.isEmpty()) {
         Log.w("GuestProgramLauncherComponent", "No FEXCore version selected; skipping content extraction");
       } else {
@@ -423,7 +441,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
       }
       container.putExtra("fexcoreVersion", fexcoreVersion);
       containerDataChanged = true;
-    } else {
+    } else if (usesFexcore) {
       Log.i(
           "GuestProgramLauncherComponent",
           "FEXCore already loaded for launch: version=" + fexcoreVersion);
@@ -826,10 +844,10 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     if (overriddenCommand.isEmpty()) {
       if (wineInfo.isArm64EC()) {
         command = winePath + "/" + guestExecutable;
-        if (emulator.toLowerCase().equals("fexcore")) {
-          envVars.put("HODLL", "libwow64fex.dll");
-        } else {
+        if (emulator.equalsIgnoreCase("wowbox64")) {
           envVars.put("HODLL", "wowbox64.dll");
+        } else {
+          envVars.put("HODLL", "libwow64fex.dll");
         }
       } else {
         command = imageFs.getBinDir() + "/box64 " + guestExecutable;

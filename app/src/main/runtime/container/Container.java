@@ -23,8 +23,8 @@ public class Container {
     public static final String DEFAULT_SCREEN_SIZE = "1280x720";
     public static final String DEFAULT_GRAPHICS_DRIVER = "wrapper";
     public static final String DEFAULT_AUDIO_DRIVER = "alsa";
-    public static final String DEFAULT_EMULATOR = "FEXCore";
-    public static final String DEFAULT_EMULATOR64 = "FEXCore";
+    public static final String DEFAULT_EMULATOR = "Box64";
+    public static final String DEFAULT_EMULATOR64 = "Box64";
     public static final String DEFAULT_DXWRAPPER = "dxvk+vkd3d";
     public static final String DEFAULT_DXWRAPPERCONFIG = "version=,async=0,asyncCache=0" + ",vkd3dVersion=None,vkd3dLevel=12_1" + ",ddrawrapper=" + Container.DEFAULT_DDRAWRAPPER + ",csmt=3" + ",gpuName=NVIDIA GeForce GTX 480" + ",videoMemorySize=2048" + ",strict_shader_math=1" + ",OffscreenRenderingMode=fbo" + ",renderer=gl";
     public static final String DEFAULT_GRAPHICSDRIVERCONFIG =

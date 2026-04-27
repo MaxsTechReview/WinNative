@@ -3097,7 +3097,7 @@ private fun AdvancedSection(
                 state.selectedEmulator64.intValue = it
                 callbacks.onEmulatorChanged()
             },
-            enabled = state.emulator64Entries.value.size > 1
+            enabled = state.emulator64Entries.value.isNotEmpty()
         )
         Spacer(Modifier.height(14.dp))
         SettingDropdown(
@@ -3108,7 +3108,7 @@ private fun AdvancedSection(
                 state.selectedEmulator.intValue = it
                 callbacks.onEmulatorChanged()
             },
-            enabled = state.emulator32Entries.value.size > 1
+            enabled = state.emulator32Entries.value.isNotEmpty()
         )
     }
     Spacer(Modifier.height(16.dp))
@@ -3140,9 +3140,11 @@ private fun AdvancedSection(
     if (state.showBox64Frame.value) {
         val box64Usage = emulatorUsageLabel(state, setOf("box64", "wowbox64"))
         val box64Id32 = state.emulator32Entries.value
-            .getOrNull(state.selectedEmulator.intValue)?.lowercase() ?: ""
+            .getOrNull(state.selectedEmulator.intValue)
+            ?.let { com.winlator.cmod.shared.util.StringUtils.parseIdentifier(it) } ?: ""
         val box64Id64 = state.emulator64Entries.value
-            .getOrNull(state.selectedEmulator64.intValue)?.lowercase() ?: ""
+            .getOrNull(state.selectedEmulator64.intValue)
+            ?.let { com.winlator.cmod.shared.util.StringUtils.parseIdentifier(it) } ?: ""
         val usesPlainBox64 = box64Id32 == "box64" || box64Id64 == "box64"
         val usesWowbox64 = box64Id32 == "wowbox64" || box64Id64 == "wowbox64"
         val box64Title = when {
