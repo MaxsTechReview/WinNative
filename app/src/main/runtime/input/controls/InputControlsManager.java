@@ -25,7 +25,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class InputControlsManager {
-  private static final int ASSET_PROFILE_SYNC_REVISION = 1;
+  private static final int ASSET_PROFILE_SYNC_REVISION = 3;
   private final Context context;
   private ArrayList<ControlsProfile> profiles;
   private int maxProfileId;
@@ -68,11 +68,11 @@ public class InputControlsManager {
     int newVersion = AppUtils.getVersionCode(context);
     int oldVersion = preferences.getInt("inputcontrols_app_version", 0);
     int oldSyncRevision = preferences.getInt("inputcontrols_asset_sync_revision", 0);
-    if (oldVersion == newVersion && oldSyncRevision >= 2) return;
+    if (oldVersion == newVersion && oldSyncRevision >= ASSET_PROFILE_SYNC_REVISION) return;
     preferences
         .edit()
         .putInt("inputcontrols_app_version", newVersion)
-        .putInt("inputcontrols_asset_sync_revision", 2)
+        .putInt("inputcontrols_asset_sync_revision", ASSET_PROFILE_SYNC_REVISION)
         .apply();
 
     File[] files = profilesDir.listFiles();

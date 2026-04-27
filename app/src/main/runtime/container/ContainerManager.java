@@ -371,7 +371,6 @@ public class ContainerManager {
   }
 
   public void upgradeShortcuts(final Runnable onDone) {
-    if (!shortcutUpgradeAttempted.compareAndSet(false, true)) return;
     if (!shortcutUpgradeRunning.compareAndSet(false, true)) return;
 
     new Thread(() -> {

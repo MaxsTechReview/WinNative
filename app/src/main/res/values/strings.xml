@@ -289,6 +289,10 @@
     <string name="input_controls_editor_binding_down">Binding Down</string>
     <string name="input_controls_editor_binding_left">Binding Left</string>
     <string name="input_controls_editor_overlay_opacity">Overlay Opacity</string>
+    <string name="input_controls_editor_opacity">Opacity</string>
+    <string name="input_controls_editor_radial_menu">Radial Menu</string>
+    <string name="input_controls_editor_radial_menu_options">Radial Menu Options</string>
+    <string name="input_controls_editor_number_of_bindings">Number of Bindings</string>
     <string name="input_controls_editor_select_profile">Select Profile</string>
     <string name="input_controls_editor_profile_name">Profile Name</string>
     <string name="input_controls_editor_no_profile_selected">No profile selected</string>
