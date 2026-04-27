@@ -8479,6 +8479,7 @@ class UnifiedActivity :
                 putExtra("shortcut_name", shortcut.name)
                 putExtra("shortcut_uuid", shortcutId)
                 putExtra("shortcut_path_hash", shortcutPathHash)
+                putExtra(XServerDisplayActivity.EXTRA_LAUNCHED_FROM_PINNED_SHORTCUT, true)
             }
 
         val customIconPath =
