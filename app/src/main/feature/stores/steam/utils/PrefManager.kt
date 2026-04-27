@@ -246,6 +246,18 @@ object PrefManager {
             setString("library_layout_mode", value)
         }
 
+    var libraryStoreVisible: String
+        get() = getString("library_store_visible", "steam,epic,gog")
+        set(value) {
+            setString("library_store_visible", value)
+        }
+
+    var libraryContentFilters: String
+        get() = getString("library_content_filters", "games")
+        set(value) {
+            setString("library_content_filters", value)
+        }
+
     var enableSteamLogs: Boolean
         get() = getBoolean("enable_steam_logs", false)
         set(value) {

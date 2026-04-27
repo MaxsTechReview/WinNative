@@ -32,6 +32,8 @@ import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -69,6 +71,7 @@ data class InputControlsState(
     val profileNames: List<String> = emptyList(),
     val selectedProfileIndex: Int = 0,
     val showTouchscreenControls: Boolean = false,
+    val overlayOpacity: Float = 0.4f,
     val touchscreenHaptics: Boolean = false,
     val gamepadVibration: Boolean = true,
 )
@@ -79,6 +82,7 @@ fun InputControlsDialogContent(
     onProfileSelected: (Int) -> Unit,
     onSettingsClick: () -> Unit,
     onShowTouchscreenControlsChange: (Boolean) -> Unit,
+    onOverlayOpacityChange: (Float) -> Unit,
     onTouchscreenHapticsChange: (Boolean) -> Unit,
     onGamepadVibrationChange: (Boolean) -> Unit,
     onCancel: () -> Unit,
@@ -154,6 +158,14 @@ fun InputControlsDialogContent(
                             checked = state.showTouchscreenControls,
                             onCheckedChange = onShowTouchscreenControlsChange,
                         )
+
+                        if (state.showTouchscreenControls) {
+                            OverlayOpacitySlider(
+                                value = state.overlayOpacity,
+                                onValueChange = onOverlayOpacityChange
+                            )
+                        }
+
                         OptionCheckbox(
                             label = stringResource(R.string.settings_general_touchscreen_haptics),
                             checked = state.touchscreenHaptics,
@@ -518,6 +530,53 @@ private fun OptionCheckbox(
             fontSize = 12.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun OverlayOpacitySlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(11.dp))
+            .background(InputControlsSecondarySurface)
+            .border(1.dp, InputControlsSecondaryOutline, RoundedCornerShape(11.dp))
+            .padding(horizontal = 9.dp, vertical = 7.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.input_controls_editor_overlay_opacity),
+                color = WinNativeTextPrimary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = "${(value * 100).toInt()}%",
+                color = WinNativeAccent,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = 0.1f..1.0f,
+            colors = SliderDefaults.colors(
+                thumbColor = WinNativeAccent,
+                activeTrackColor = WinNativeAccent,
+                inactiveTrackColor = InputControlsSecondaryOutline,
+                activeTickColor = Color.Transparent,
+                inactiveTickColor = Color.Transparent
+            ),
+            modifier = Modifier.height(32.dp).padding(horizontal = 0.dp)
         )
     }
 }

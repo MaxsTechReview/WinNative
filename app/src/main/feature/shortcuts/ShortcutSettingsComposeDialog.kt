@@ -818,9 +818,11 @@ class ShortcutSettingsComposeDialog private constructor(
         return if (archLabel.isNotEmpty()) "$base ($archLabel)" else base
     }
 
-    // ARM64EC → 64=FEXCore, 32=FEXCore|Wowbox64. x86_64 → 64=Box64, 32=Wowbox64.
+    // ARM64EC -> 64=FEXCore, 32=FEXCore|Wowbox64.
+    // x86_64 -> 64=Box64, 32=Box64.
     private fun rebuildEmulatorLists() {
         val fullList = state.emulatorEntries.value
+        val hasWowbox64 = hasInstalledWowbox64()
         fun entryById(id: String): String? = fullList.firstOrNull {
             StringUtils.parseIdentifier(it).equals(id, ignoreCase = true)
         }
@@ -835,10 +837,13 @@ class ShortcutSettingsComposeDialog private constructor(
         if (isArm64EC) {
             state.emulator64Entries.value = listOfNotNull(entryById("fexcore"))
             state.emulator32Entries.value =
-                listOfNotNull(entryById("fexcore"), entryById("wowbox64"))
+                listOfNotNull(
+                    entryById("fexcore"),
+                    if (hasWowbox64) entryById("wowbox64") else null
+                )
         } else {
             state.emulator64Entries.value = listOfNotNull(entryById("box64"))
-            state.emulator32Entries.value = listOfNotNull(entryById("wowbox64"))
+            state.emulator32Entries.value = listOfNotNull(entryById("box64"))
         }
 
         val new32 = state.emulator32Entries.value
@@ -852,6 +857,11 @@ class ShortcutSettingsComposeDialog private constructor(
             StringUtils.parseIdentifier(it).equals(prev64Id, ignoreCase = true)
         }
         state.selectedEmulator64.intValue = if (new64Idx >= 0) new64Idx else 0
+    }
+
+    private fun hasInstalledWowbox64(): Boolean {
+        return contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64)
+            ?.any { it.isInstalled } == true
     }
 
     private fun loadWinComponents() {
