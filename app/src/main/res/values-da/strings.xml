@@ -372,7 +372,8 @@
         &lt;b&gt;0&lt;/b&gt; : Forsøg ikke noget særligt&lt;br /&gt;
         &lt;b&gt;1&lt;/b&gt; : Aktiver nogle hukommelsesbarrierer ved skrivning til hukommelse (på visse MOV-opkoder)&lt;br /&gt;
         &lt;b&gt;2&lt;/b&gt; : Alt fra 1 plus en hukommelsesbarriere ved hver skrivning til hukommelse via MOV&lt;br /&gt;
-        &lt;b&gt;3&lt;/b&gt; : Alt fra 2 plus hukommelsesbarriere ved læsning fra hukommelse og på visse SSE/SSE2-opkoder
+        &lt;b&gt;3&lt;/b&gt; : Alt fra 2 plus hukommelsesbarriere ved læsning fra hukommelse og på visse SSE/SSE2-opkoder&lt;br /&gt;
+        &lt;b&gt;4&lt;/b&gt; : Mimics x86 TSO similarly to QEMU.
     </string>
     <string name="box64_env_var_help__dynarec_forward">Definerer den maksimalt tilladte forward-værdi ved blokopbygning</string>
     <string name="box64_env_var_help__dynarec_callret">Optimering af CALL/RET-opkoder</string>
@@ -407,7 +408,7 @@
         &lt;b&gt;3&lt;/b&gt; : Brug SEVL+WFE til at emulere x86 PAUSE-instruktion.
     </string>
     <string name="box64_env_var_help__avx">
-        AVX og AVX2 implementeret, sammen med BMI1, BMI2, ADX, FMA, F16C og RDANDR-udvidelser!&lt;br /&gt;&lt;br /&gt;
+        AVX og AVX2 implementeret, sammen med BMI1, BMI2, ADX, FMA, F16C og RDRAND-udvidelser!&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt; : Deaktiver AVX-udvidelse&lt;br /&gt;
         &lt;b&gt;1&lt;/b&gt; : Aktiver AVX, BMI1, F16C og VAES-udvidelse.&lt;br /&gt;
         &lt;b&gt;2&lt;/b&gt; : Alt fra 1 plus aktiver AVX2, BMI2, FMA, ADX, VPCLMULQDQ og RDRAND.&lt;br /&gt;\
@@ -991,4 +992,24 @@ Installeret sti:
     <string name="cloud_saves_backing_up">Sikkerhedskopierer cloud-save…</string>
     <string name="cloud_saves_restoring">Gendanner cloud-save…</string>
 
+    <!-- Synced Box64/FEXCore environment help strings -->
+    <string name="box64_env_var_help__aes">Exposes AES CPU capabilities to the guest.</string>
+    <string name="box64_env_var_help__cputype">Selects the Intel or AMD CPU model exposed to the guest.</string>
+    <string name="box64_env_var_help__dynarec_noarch">Reduces dynarec block metadata to save memory, with compatibility tradeoffs.</string>
+    <string name="box64_env_var_help__dynarec_sep">Adds secondary entry points to optimize CALL/RET when CALLRET is enabled.</string>
+    <string name="box64_env_var_help__dynarec_volatile_metadata">Uses PE volatile metadata to guide strong memory emulation for 64-bit Windows games.</string>
+    <string name="box64_env_var_help__dynarec">Enables or disables the Box64 dynamic recompiler.</string>
+    <string name="box64_env_var_help__pclmulqdq">Exposes PCLMULQDQ CPU capabilities to the guest.</string>
+    <string name="box64_env_var_help__shaext">Exposes SHA extension CPU capabilities to the guest.</string>
+    <string name="box64_env_var_help__sse_flushto0">Controls SSE flush-to-zero behavior and exception flag tracking.</string>
+    <string name="box64_env_var_help__sse42">Exposes SSE4.2 CPU capabilities to the guest.</string>
+    <string name="box64_env_var_help__unity">Marks the app as a Unity game and enables Unity-specific compatibility handling.</string>
+    <string name="box64_env_var_help__x87_no80bits">Uses 64-bit double precision instead of 80-bit long double for x87.</string>
+    <string name="fexcore_env_var_help__dynamicl1cachedecreasecountheuristic">Lookups-per-second threshold for shrinking the dynamic L1 cache.</string>
+    <string name="fexcore_env_var_help__dynamicl1cacheincreasecountheuristic">Lookups-per-second threshold for growing the dynamic L1 cache.</string>
+    <string name="fexcore_env_var_help__hidehybrid">Hides hybrid CPU core layout from the guest.</string>
+    <string name="fexcore_env_var_help__kernelunalignedatomicbackpatching">Backpatches kernel-handled unaligned atomics to reduce kernel context switches.</string>
+    <string name="fexcore_env_var_help__maxinst">Maximum number of instructions stored in a compiled block.</string>
+    <string name="fexcore_env_var_help__smcchecks">Kontrol af selvmodificerende kode.</string>
+    <string name="fexcore_env_var_help__strictinprocesssplitlocks">Uses a strict process-wide lock for split unaligned atomic accesses.</string>
 </resources>
