@@ -433,7 +433,10 @@ return boundingBox;
     int snappingSize = inputControlsView.getSnappingSize();
     Paint paint = inputControlsView.getPaint();
     float effectiveOpacity = inputControlsView.isEditMode() ? Math.max(0.15f, opacity) : opacity;
-    int primaryColor = customColor != -1 ? customColor : inputControlsView.getPrimaryColor();
+    int primaryColor = customColor != -1
+        ? ColorUtils.setAlphaComponent(customColor, (int) (Math.min(1.0f,
+            inputControlsView.getOverlayOpacity() * 2.0f) * 255))
+        : inputControlsView.getPrimaryColor();
     int alpha = (int) (Color.alpha(primaryColor) * effectiveOpacity);
     primaryColor = ColorUtils.setAlphaComponent(primaryColor, alpha);
     int fillColor = ColorUtils.setAlphaComponent(primaryColor, (int) (70 * effectiveOpacity));
