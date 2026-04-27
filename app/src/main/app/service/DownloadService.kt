@@ -2,6 +2,7 @@ package com.winlator.cmod.app.service
 import android.content.Context
 import android.os.Environment
 import android.os.storage.StorageManager
+import com.winlator.cmod.R
 import com.winlator.cmod.app.PluviaApp
 import com.winlator.cmod.feature.stores.epic.service.EpicService
 import com.winlator.cmod.feature.stores.gog.service.GOGService
@@ -129,9 +130,12 @@ object DownloadService {
                     downloadingAppIds = java.util.concurrent.CopyOnWriteArrayList(),
                 ).apply {
                     setActive(false)
-                    updateStatus(phase, "Paused — tap Resume to continue".takeIf {
-                        phase == com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.PAUSED
-                    })
+                    updateStatus(
+                        phase,
+                        appContext?.getString(R.string.downloads_queue_paused_resume_hint).takeIf {
+                            phase == com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.PAUSED
+                        },
+                    )
                     if (record.bytesTotal > 0L) {
                         setTotalExpectedBytes(record.bytesTotal)
                         initializeBytesDownloaded(record.bytesDownloaded)
@@ -225,6 +229,14 @@ object DownloadService {
         com.winlator.cmod.app.service.download.DownloadCoordinator.runOnScope {
             com.winlator.cmod.app.service.download.DownloadCoordinator.clear()
         }
+    }
+
+    fun clearCompletedDownloadsBlocking() {
+        SteamService.clearCompletedDownloadsForShutdown()
+        EpicService.clearCompletedDownloads()
+        GOGService.clearCompletedDownloads()
+        // Shutdown can kill the process immediately, so wait for persisted history cleanup.
+        com.winlator.cmod.app.service.download.DownloadCoordinator.clearBlocking()
     }
 
     fun cancelDownload(id: String) {

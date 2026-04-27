@@ -32,6 +32,9 @@ object AppTerminationHelper {
             com.winlator.cmod.app.service.download.DownloadCoordinator.onAppExit()
         }.onFailure { Timber.w(it, "Failed to notify DownloadCoordinator during shutdown") }
 
+        runCatching { DownloadService.clearCompletedDownloadsBlocking() }
+            .onFailure { Timber.w(it, "Failed to clear completed download history during shutdown") }
+
         runCatching { EpicTokenRefreshWorker.cancel(appContext) }
             .onFailure { Timber.w(it, "Failed to cancel Epic refresh worker during shutdown") }
 

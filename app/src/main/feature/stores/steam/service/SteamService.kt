@@ -431,6 +431,16 @@ class SteamService :
         }
 
         fun clearCompletedDownloads() {
+            clearCompletedDownloadsInternal(dispatchQueueAfterClear = true)
+            // Also remove finished records from the cross-store coordinator table.
+            DownloadCoordinator.runOnScope { DownloadCoordinator.clear() }
+        }
+
+        fun clearCompletedDownloadsForShutdown() {
+            clearCompletedDownloadsInternal(dispatchQueueAfterClear = false)
+        }
+
+        private fun clearCompletedDownloadsInternal(dispatchQueueAfterClear: Boolean) {
             val toRemove =
                 downloadJobs
                     .filterValues {
@@ -439,9 +449,15 @@ class SteamService :
                             status == DownloadPhase.CANCELLED ||
                             status == DownloadPhase.FAILED
                     }.keys
-            toRemove.forEach { removeDownloadJob(it, forceRemove = true) }
-            // Also remove finished records from the cross-store coordinator table.
-            DownloadCoordinator.runOnScope { DownloadCoordinator.clear() }
+            toRemove.forEach { appId ->
+                val removed = downloadJobs.remove(appId)
+                if (removed != null) {
+                    notifyDownloadStopped(appId)
+                }
+            }
+            if (dispatchQueueAfterClear && toRemove.isNotEmpty()) {
+                checkQueue()
+            }
         }
 
         /** Returns true if there is an incomplete download on disk (in-progress marker or actively downloading). */

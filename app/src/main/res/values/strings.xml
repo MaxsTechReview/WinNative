@@ -182,11 +182,26 @@
     <string name="downloads_queue_resume_all">Resume All</string>
     <string name="downloads_queue_pause_all">Pause All</string>
     <string name="downloads_queue_clear">Clear</string>
+    <string name="downloads_queue_status_label">Status:</string>
+    <string name="downloads_queue_phase_downloading">Downloading…</string>
+    <string name="downloads_queue_phase_downloading_file">Downloading… [%1$s]</string>
+    <string name="downloads_queue_phase_queued">Queued</string>
     <string name="downloads_queue_phase_paused">Paused</string>
+    <string name="downloads_queue_phase_preparing">Preparing…</string>
+    <string name="downloads_queue_phase_verifying">Verifying…</string>
+    <string name="downloads_queue_phase_verifying_file">Verifying… [%1$s]</string>
+    <string name="downloads_queue_phase_patching">Patching…</string>
+    <string name="downloads_queue_phase_applying_data">Applying data…</string>
+    <string name="downloads_queue_phase_finalizing">Finalizing…</string>
+    <string name="downloads_queue_phase_unpacking">Unpacking…</string>
     <string name="downloads_queue_phase_complete">Complete</string>
     <string name="downloads_queue_phase_cancelled">Cancelled</string>
     <string name="downloads_queue_phase_failed">Failed: %1$s</string>
+    <string name="downloads_queue_phase_unknown">Unknown</string>
+    <string name="downloads_queue_paused_resume_hint">Paused - tap Resume to continue</string>
     <string name="downloads_queue_cancel_download">Cancel Download</string>
+    <string name="downloads_queue_cancel_download_confirm">Cancel the download for %1$s and delete all downloaded files?</string>
+    <string name="downloads_queue_this_game">this game</string>
     <string name="downloads_queue_empty">No active downloads.</string>
 
     <!-- Containers > List -->

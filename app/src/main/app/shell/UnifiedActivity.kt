@@ -27,6 +27,7 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -101,6 +102,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -225,6 +227,24 @@ private val DangerRed = Color(0xFFFF6B6B)
 private val StatusOnline = Color(0xFF3FB950)
 private val StatusAway = Color(0xFFF0C040)
 private val StatusOffline = Color(0xFF6E7681)
+private val DownloadCardBlack = Color.Black.copy(alpha = 0.46f)
+private val DownloadCardSelectedBlack = Color.Black.copy(alpha = 0.58f)
+private val DownloadButtonBlack = Color.Black.copy(alpha = 0.38f)
+private val DownloadChaseBlue = Color(0xFF2196F3)
+private val DownloadChaseSky = Color(0xFF29B6F6)
+private val DownloadChaseCyan = Color(0xFF00E5FF)
+private val DownloadChaseGradientStops =
+    arrayOf(
+        0.00f to DownloadChaseBlue,
+        0.125f to DownloadChaseSky,
+        0.25f to DownloadChaseCyan,
+        0.375f to DownloadChaseSky,
+        0.50f to DownloadChaseBlue,
+        0.625f to DownloadChaseSky,
+        0.75f to DownloadChaseCyan,
+        0.875f to DownloadChaseSky,
+        1.00f to DownloadChaseBlue,
+    )
 private val TabScreenHorizontalPadding = 16.dp
 private val TabScreenBottomPadding = 8.dp
 private val UnifiedTopBarHorizontalPadding = 8.dp
@@ -564,6 +584,9 @@ class UnifiedActivity :
     }
 
     override fun onDestroy() {
+        if (isFinishing && !isChangingConfigurations) {
+            DownloadService.clearCompletedDownloads()
+        }
         supportFragmentManager.unregisterFragmentLifecycleCallbacks(inputControlsFragmentTracker)
         if (instance === this) {
             instance = null
@@ -1508,7 +1531,11 @@ class UnifiedActivity :
                             ) { animatedKey ->
                                 when (animatedKey) {
                                     "downloads" -> {
-                                        DownloadsTab(selectedDownloadId, onSelectDownload = { selectedDownloadId = it })
+                                        DownloadsTab(
+                                            selectedDownloadId,
+                                            animationsActive = key == "downloads",
+                                            onSelectDownload = { selectedDownloadId = it },
+                                        )
                                     }
 
                                     "steam" -> {
@@ -6890,6 +6917,7 @@ class UnifiedActivity :
     @Composable
     fun DownloadsTab(
         selectedId: String?,
+        animationsActive: Boolean = true,
         onSelectDownload: (String?) -> Unit,
     ) {
         val downloads = remember { mutableStateListOf<Pair<String, DownloadInfo>>() }
@@ -6960,11 +6988,9 @@ class UnifiedActivity :
             @Suppress("UNUSED_EXPRESSION")
             tick
 
-            // Global Actions row
-            val buttonHeight = 40.dp
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 val selectedInfo = downloads.find { it.first == selectedId }?.second
@@ -6997,12 +7023,10 @@ class UnifiedActivity :
                     }
 
                 val cancelLabel =
-                    if (selectedId ==
-                        null
-                    ) {
-                        getString(R.string.downloads_queue_cancel_all)
+                    if (selectedId == null) {
+                        stringResource(R.string.downloads_queue_cancel_all)
                     } else {
-                        getString(R.string.common_ui_cancel)
+                        stringResource(R.string.common_ui_cancel)
                     }
 
                 // Disable pause/resume for completed or cancelled downloads
@@ -7020,7 +7044,11 @@ class UnifiedActivity :
                         pausableDownloads.isNotEmpty()
                     }
 
-                Button(
+                DownloadsQueueButton(
+                    label = pauseResumeLabel,
+                    icon = if (isPaused || allPausableDownloadsPaused) Icons.Outlined.PlayArrow else Icons.Outlined.Pause,
+                    accentColor = Accent,
+                    controllerBadge = if (isController) if (isPS) "L2" else "LT" else null,
                     onClick = {
                         if (selectedId == null) {
                             if (allPausableDownloadsPaused) {
@@ -7037,22 +7065,13 @@ class UnifiedActivity :
                         }
                     },
                     enabled = pauseResumeEnabled,
-                    modifier = Modifier.height(buttonHeight),
-                    colors = ButtonDefaults.buttonColors(containerColor = SurfaceDark),
-                    shape = RoundedCornerShape(8.dp),
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(pauseResumeLabel, color = TextPrimary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        if (isController) {
-                            Spacer(Modifier.width(8.dp))
-                            ControllerBadge(if (isPS) "L2" else "LT")
-                        }
-                    }
-                }
+                )
 
-                Spacer(Modifier.width(12.dp))
-
-                Button(
+                DownloadsQueueButton(
+                    label = cancelLabel,
+                    icon = Icons.Outlined.Close,
+                    accentColor = DangerRed,
+                    controllerBadge = if (isController) if (isPS) "R2" else "RT" else null,
                     onClick = {
                         if (selectedId == null) {
                             DownloadService.cancelAll()
@@ -7063,18 +7082,7 @@ class UnifiedActivity :
                         }
                     },
                     enabled = cancelEnabled,
-                    modifier = Modifier.height(buttonHeight),
-                    colors = ButtonDefaults.buttonColors(containerColor = SurfaceDark),
-                    shape = RoundedCornerShape(8.dp),
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(cancelLabel, color = TextPrimary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        if (isController) {
-                            Spacer(Modifier.width(8.dp))
-                            ControllerBadge(if (isPS) "R2" else "RT")
-                        }
-                    }
-                }
+                )
 
                 // Clear button - clears completed, cancelled, and failed downloads
                 val hasCompletedOrCancelled =
@@ -7083,25 +7091,15 @@ class UnifiedActivity :
                         s == DownloadPhase.COMPLETE || s == DownloadPhase.CANCELLED || s == DownloadPhase.FAILED
                     }
 
-                Spacer(Modifier.width(12.dp))
-
-                Button(
+                DownloadsQueueButton(
+                    label = stringResource(R.string.downloads_queue_clear),
+                    icon = Icons.Outlined.Delete,
+                    accentColor = TextSecondary,
                     onClick = {
                         DownloadService.clearCompletedDownloads()
                     },
                     enabled = hasCompletedOrCancelled,
-                    modifier = Modifier.height(buttonHeight),
-                    colors = ButtonDefaults.buttonColors(containerColor = SurfaceDark),
-                    shape = RoundedCornerShape(8.dp),
-                ) {
-                    Text(
-                        stringResource(R.string.downloads_queue_clear),
-                        color = TextPrimary,
-                        fontSize = 12.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                )
             }
 
             val listState = rememberLazyListState()
@@ -7172,10 +7170,158 @@ class UnifiedActivity :
             } else {
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(sortedDownloads, key = { it.first }) { (id, info) ->
-                        DownloadItemDeck(id, info, isSelected = selectedId == id, onClick = {
-                            if (selectedId == id) onSelectDownload(null) else onSelectDownload(id)
-                        })
+                        DownloadItemDeck(
+                            id,
+                            info,
+                            isSelected = selectedId == id,
+                            animationsActive = animationsActive,
+                            onClick = {
+                                if (selectedId == id) onSelectDownload(null) else onSelectDownload(id)
+                            },
+                        )
                     }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun DownloadsQueueButton(
+        label: String,
+        icon: ImageVector,
+        accentColor: Color,
+        enabled: Boolean,
+        modifier: Modifier = Modifier,
+        controllerBadge: String? = null,
+        onClick: () -> Unit,
+    ) {
+        val contentColor = if (enabled) accentColor else TextSecondary.copy(alpha = 0.48f)
+
+        Button(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = modifier.height(40.dp).widthIn(min = 96.dp),
+            colors =
+                ButtonDefaults.buttonColors(
+                    containerColor = DownloadButtonBlack,
+                    contentColor = contentColor,
+                    disabledContainerColor = DownloadButtonBlack.copy(alpha = 0.18f),
+                    disabledContentColor = TextSecondary.copy(alpha = 0.48f),
+                ),
+            border = BorderStroke(1.dp, contentColor.copy(alpha = if (enabled) 0.55f else 0.24f)),
+            contentPadding = PaddingValues(horizontal = 8.dp),
+            shape = RoundedCornerShape(8.dp),
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = contentColor)
+            Spacer(Modifier.width(6.dp))
+            Text(
+                label,
+                color = contentColor,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (controllerBadge != null) {
+                Spacer(Modifier.width(6.dp))
+                ControllerBadge(controllerBadge)
+            }
+        }
+    }
+
+    @Composable
+    private fun AnimatedDownloadProgressFill(
+        modifier: Modifier,
+        widthPx: Float,
+    ) {
+        val infiniteTransition = rememberInfiniteTransition(label = "downloadProgressGradient")
+        val gradientOffset by infiniteTransition.animateFloat(
+            initialValue = -widthPx,
+            targetValue = 0f,
+                animationSpec =
+                    infiniteRepeatable(
+                    animation = tween(durationMillis = 5000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart,
+                ),
+            label = "downloadProgressGradientOffset",
+        )
+
+        Box(
+            modifier.background(
+                Brush.horizontalGradient(
+                    colorStops = DownloadChaseGradientStops,
+                    startX = gradientOffset,
+                    endX = gradientOffset + (widthPx * 2f),
+                    tileMode = TileMode.Repeated,
+                ),
+            ),
+        )
+    }
+
+    @Composable
+    private fun DownloadChasingProgressBar(
+        progress: Float,
+        status: DownloadPhase,
+        animationsActive: Boolean,
+        modifier: Modifier = Modifier,
+    ) {
+        val clampedProgress = progress.coerceIn(0f, 1f)
+        val shouldUseActiveGradient =
+            when (status) {
+                DownloadPhase.DOWNLOADING,
+                DownloadPhase.QUEUED,
+                DownloadPhase.PREPARING,
+                DownloadPhase.VERIFYING,
+                DownloadPhase.PATCHING,
+                DownloadPhase.APPLYING_DATA,
+                DownloadPhase.FINALIZING,
+                DownloadPhase.UNPACKING,
+                -> true
+                else -> false
+            }
+        val shouldAnimate = shouldUseActiveGradient && animationsActive
+        val fillColor =
+            when (status) {
+                DownloadPhase.FAILED,
+                DownloadPhase.CANCELLED,
+                -> DangerRed
+                DownloadPhase.COMPLETE -> StatusOnline
+                DownloadPhase.PAUSED -> TextSecondary
+                else -> Accent
+            }
+
+        BoxWithConstraints(
+            modifier =
+                modifier
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.34f)),
+        ) {
+            val density = LocalDensity.current
+            val widthPx = with(density) { maxWidth.toPx().coerceAtLeast(1f) }
+
+            if (clampedProgress > 0f) {
+                val fillModifier =
+                    Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(clampedProgress)
+                        .clip(RectangleShape)
+
+                if (shouldUseActiveGradient) {
+                    if (shouldAnimate) {
+                        AnimatedDownloadProgressFill(fillModifier, widthPx)
+                    } else {
+                        Box(
+                            fillModifier.background(
+                                Brush.horizontalGradient(
+                                    colorStops = DownloadChaseGradientStops,
+                                    endX = widthPx * 2f,
+                                    tileMode = TileMode.Repeated,
+                                ),
+                            ),
+                        )
+                    }
+                } else {
+                    Box(fillModifier.background(fillColor))
                 }
             }
         }
@@ -7186,6 +7332,7 @@ class UnifiedActivity :
         id: String,
         info: DownloadInfo,
         isSelected: Boolean,
+        animationsActive: Boolean,
         onClick: () -> Unit,
     ) {
         var progress by remember { mutableFloatStateOf(info.getProgress()) }
@@ -7198,6 +7345,8 @@ class UnifiedActivity :
         }
         val status by info.getStatusFlow().collectAsState()
         val statusMessage by info.getStatusMessageFlow().collectAsState()
+        var previousStatus by remember { mutableStateOf(status) }
+        var showCompletedProgressBar by remember { mutableStateOf(status != DownloadPhase.COMPLETE) }
         val isSteam = id.startsWith("STEAM_")
         val isEpic = id.startsWith("EPIC_")
         val isGog = id.startsWith("GOG_")
@@ -7216,7 +7365,25 @@ class UnifiedActivity :
         var gogGame by remember(gogId) { mutableStateOf<GOGGame?>(null) }
         val context = LocalContext.current
         var isFocused by remember { mutableStateOf(false) }
-        val borderColor = if (isFocused || isSelected) Accent.copy(alpha = 0.8f) else Color.Transparent
+        val clickInteractionSource = remember { MutableInteractionSource() }
+        val animatedProgress by animateFloatAsState(
+            targetValue = if (status == DownloadPhase.COMPLETE) 1f else progress.coerceIn(0f, 1f),
+            animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
+            label = "downloadItemProgress",
+        )
+
+        LaunchedEffect(status) {
+            if (status == DownloadPhase.COMPLETE) {
+                if (previousStatus != DownloadPhase.COMPLETE) {
+                    showCompletedProgressBar = true
+                    delay(900)
+                }
+                showCompletedProgressBar = false
+            } else {
+                showCompletedProgressBar = true
+            }
+            previousStatus = status
+        }
 
         LaunchedEffect(appId, gogId, isSteam, isEpic, isGog) {
             withContext(Dispatchers.IO) {
@@ -7253,15 +7420,25 @@ class UnifiedActivity :
             }
 
         Surface(
-            color = if (isSelected) SurfaceDark else CardDark,
+            color = if (isSelected) DownloadCardSelectedBlack else DownloadCardBlack,
             shape = RoundedCornerShape(12.dp),
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .border(4.dp, borderColor, RoundedCornerShape(12.dp))
+                    .chasingBorder(
+                        isFocused = isFocused || isSelected,
+                        paused = chasingBordersPaused.value || !animationsActive,
+                        cornerRadius = 12.dp,
+                        borderWidth = 2.dp,
+                        animationDurationMs = 8000,
+                    )
                     .onFocusChanged { isFocused = it.isFocused }
                     .focusable()
-                    .clickable(onClick = onClick),
+                    .clickable(
+                        interactionSource = clickInteractionSource,
+                        indication = null,
+                        onClick = onClick,
+                    ),
         ) {
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 AsyncImage(
@@ -7282,7 +7459,11 @@ class UnifiedActivity :
                     val currentFile by info.getCurrentFileNameFlow().collectAsState()
                     val (downloadedBytes, totalBytes) = info.getBytesProgress()
                     val speed = info.getCurrentDownloadSpeed() ?: 0L
-                    val percentage = (progress * 100).toInt()
+                    val percentage = (animatedProgress * 100).roundToInt()
+                    val showDownloadSpeed =
+                        status == DownloadPhase.DOWNLOADING &&
+                            progress < 1f &&
+                            speed > 0
 
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                         Text(
@@ -7304,7 +7485,7 @@ class UnifiedActivity :
                         )
 
                         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                            if (status == DownloadPhase.DOWNLOADING && speed > 0) {
+                            if (showDownloadSpeed) {
                                 Text(
                                     text = "${StorageUtils.formatBinarySize(speed)}/s",
                                     style = MaterialTheme.typography.labelMedium,
@@ -7318,25 +7499,43 @@ class UnifiedActivity :
                     val statusText =
                         when (status) {
                             DownloadPhase.DOWNLOADING -> {
-                                val filePart = currentFile?.let { " [${it.take(10)}]" } ?: ""
-                                "Downloading...$filePart"
+                                currentFile?.let {
+                                    stringResource(R.string.downloads_queue_phase_downloading_file, it.take(10))
+                                } ?: stringResource(R.string.downloads_queue_phase_downloading)
                             }
 
                             DownloadPhase.PAUSED -> {
                                 stringResource(R.string.downloads_queue_phase_paused)
                             }
 
+                            DownloadPhase.QUEUED -> {
+                                stringResource(R.string.downloads_queue_phase_queued)
+                            }
+
                             DownloadPhase.PREPARING -> {
-                                "Preparing..."
+                                stringResource(R.string.downloads_queue_phase_preparing)
                             }
 
                             DownloadPhase.VERIFYING -> {
-                                val filePart = currentFile?.let { " [${it.take(10)}]" } ?: ""
-                                "Verifying...$filePart"
+                                currentFile?.let {
+                                    stringResource(R.string.downloads_queue_phase_verifying_file, it.take(10))
+                                } ?: stringResource(R.string.downloads_queue_phase_verifying)
                             }
 
                             DownloadPhase.PATCHING -> {
-                                "Patching..."
+                                stringResource(R.string.downloads_queue_phase_patching)
+                            }
+
+                            DownloadPhase.APPLYING_DATA -> {
+                                stringResource(R.string.downloads_queue_phase_applying_data)
+                            }
+
+                            DownloadPhase.FINALIZING -> {
+                                stringResource(R.string.downloads_queue_phase_finalizing)
+                            }
+
+                            DownloadPhase.UNPACKING -> {
+                                stringResource(R.string.downloads_queue_phase_unpacking)
                             }
 
                             DownloadPhase.COMPLETE -> {
@@ -7361,38 +7560,45 @@ class UnifiedActivity :
                             }
 
                             else -> {
-                                status.name.lowercase().replaceFirstChar { it.uppercase() }
+                                stringResource(R.string.downloads_queue_phase_unknown)
                             }
                         }
 
-                    Text(
-                        "Status: $statusText",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                        LinearProgressIndicator(
-                            progress = { progress },
-                            modifier = Modifier.weight(1f).height(8.dp).clip(CircleShape),
-                            color =
-                                when (status) {
-                                    DownloadPhase.FAILED -> Color(0xFFFF6B6B)
-                                    DownloadPhase.CANCELLED -> Color(0xFFFF6B6B)
-                                    DownloadPhase.COMPLETE -> Color(0xFF4CAF50)
-                                    else -> Accent
-                                },
-                            trackColor = Color.Black.copy(alpha = 0.3f),
-                        )
-                        Spacer(Modifier.width(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = "$percentage%",
-                            style = MaterialTheme.typography.labelMedium,
+                            stringResource(R.string.downloads_queue_status_label),
+                            style = MaterialTheme.typography.bodySmall,
                             color = TextPrimary,
-                            modifier = Modifier.width(40.dp),
+                            maxLines = 1,
                         )
+                        Text(
+                            statusText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (status == DownloadPhase.COMPLETE) StatusOnline else TextPrimary,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+
+                    AnimatedVisibility(
+                        visible = status != DownloadPhase.COMPLETE || showCompletedProgressBar,
+                        exit = fadeOut(tween(180)) + shrinkVertically(tween(180)),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                            DownloadChasingProgressBar(
+                                progress = if (status == DownloadPhase.COMPLETE) 1f else animatedProgress,
+                                status = status,
+                                animationsActive = animationsActive,
+                                modifier = Modifier.weight(1f).height(9.dp).padding(end = 10.dp),
+                            )
+                            Text(
+                                text = "$percentage%",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (status == DownloadPhase.COMPLETE) StatusOnline else TextPrimary,
+                                modifier = Modifier.width(40.dp),
+                            )
+                        }
                     }
                 }
 
@@ -7402,7 +7608,7 @@ class UnifiedActivity :
                 ) {
                     Icon(
                         Icons.Outlined.Close,
-                        contentDescription = "Cancel Download",
+                        contentDescription = stringResource(R.string.downloads_queue_cancel_download),
                         tint =
                             if (status != DownloadPhase.COMPLETE &&
                                 status != DownloadPhase.CANCELLED
@@ -7437,7 +7643,10 @@ class UnifiedActivity :
                 title = { Text(stringResource(R.string.downloads_queue_cancel_download), color = TextPrimary) },
                 text = {
                     Text(
-                        "Cancel the download for ${gameName ?: "this game"} and delete all downloaded files?",
+                        stringResource(
+                            R.string.downloads_queue_cancel_download_confirm,
+                            gameName ?: stringResource(R.string.downloads_queue_this_game),
+                        ),
                         color = TextSecondary,
                     )
                 },
@@ -9155,6 +9364,7 @@ class UnifiedActivity :
         context: android.content.Context,
         intent: Intent,
     ) {
+        DownloadService.clearCompletedDownloads()
         context.startActivity(intent)
         // Suppress the default activity transition so the preloader stays seamless
         if (context is android.app.Activity) {
