@@ -370,6 +370,7 @@ public class ShortcutsFragment extends Fragment {
     intent.putExtra("shortcut_path", shortcutPath);
     intent.putExtra("shortcut_name", shortcutName);
     intent.putExtra("shortcut_uuid", uuid);
+    intent.putExtra(XServerDisplayActivity.EXTRA_LAUNCHED_FROM_PINNED_SHORTCUT, true);
     return intent;
   }
 

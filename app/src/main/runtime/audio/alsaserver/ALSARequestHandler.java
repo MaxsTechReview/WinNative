@@ -51,7 +51,11 @@ public class ALSARequestHandler implements RequestHandler {
         ByteBuffer buffer = alsaClient.getSharedBuffer();
         if (buffer != null) {
           buffer.limit(requestLength);
-          alsaClient.writeDataToStream(buffer);
+          ByteBuffer auxBuffer = alsaClient.getAuxBuffer();
+          auxBuffer.position(0).limit(requestLength);
+          buffer.position(0).limit(requestLength);
+          auxBuffer.put(buffer);
+          alsaClient.writeDataToStream(auxBuffer);
         } else {
           if (inputStream.available() < requestLength) return false;
           alsaClient.writeDataToStream(inputStream.readByteBuffer(requestLength));

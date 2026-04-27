@@ -53,6 +53,7 @@ import androidx.core.app.NotificationManagerCompat;
 import androidx.compose.ui.platform.ComposeView;
 import androidx.core.view.GravityCompat;
 import androidx.core.view.WindowInsetsCompat;
+import com.winlator.cmod.BuildConfig;
 import com.winlator.cmod.feature.stores.steam.enums.Marker;
 import com.winlator.cmod.feature.stores.steam.utils.MarkerUtils;
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager;
@@ -104,6 +105,7 @@ import com.winlator.cmod.runtime.wine.WineThemeManager;
 import com.winlator.cmod.runtime.wine.WineUtils;
 import com.winlator.cmod.runtime.compat.fexcore.FEXCoreManager;
 import com.winlator.cmod.runtime.compat.gamefixes.GameFixes;
+import com.winlator.cmod.runtime.audio.alsaserver.ALSAClient;
 import com.winlator.cmod.runtime.input.ControllerAssignmentDialog;
 import com.winlator.cmod.runtime.input.InputControlsDialog;
 import com.winlator.cmod.runtime.input.controls.ControlsProfile;
@@ -187,6 +189,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private static final String PREVIOUS_STEAM_CLIENT_STORE_RELATIVE_PATH = ".steam-client-store";
     private static final String PREVIOUS_CONTAINER_STEAM_CLIENT_STORE_RELATIVE_PATH = ".wine/.steam-client-store";
     private static final String LEGACY_STEAM_CLIENT_STORE_RELATIVE_PATH = ".wine/drive_c/WinNative/SteamClient";
+    public static final String EXTRA_LAUNCHED_FROM_PINNED_SHORTCUT = "launched_from_pinned_shortcut";
 
     // Real Steam launch flags. Keep this minimal set; CEF-workaround flags (-no-cef-sandbox,
     // -cef-single-process, -no-browser) all made things worse in testing (V8 proxy errors
@@ -244,6 +247,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private String lastGpuName = null;
     private Runnable editInputControlsCallback;
     private Shortcut shortcut;
+    private boolean launchedFromPinnedShortcut = false;
     private String graphicsDriver = Container.DEFAULT_GRAPHICS_DRIVER;
     private HashMap<String, String> graphicsDriverConfig;
     private String audioDriver = Container.DEFAULT_AUDIO_DRIVER;
@@ -468,6 +472,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         // Ensure all later getIntent() reads use the latest launch intent.
         setIntent(intent);
+        launchedFromPinnedShortcut = isPinnedShortcutLaunchIntent(intent);
 
         boolean shortcutChanged = incomingShortcutPath != null
                 && !incomingShortcutPath.isEmpty()
@@ -523,6 +528,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         // Initialize preferences early so pickHighestRefreshRate can read global override
         preferences = PreferenceManager.getDefaultSharedPreferences(this);
         applyPreferredRefreshRate();
+        launchedFromPinnedShortcut = isPinnedShortcutLaunchIntent(getIntent());
         
         setContentView(R.layout.xserver_display_activity);
 
@@ -2103,10 +2109,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     xServer = null;
                     xServerView = null;
                     if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.closeOnUiThread();
-                    returnToUnifiedActivity();
+                    closeAfterSessionExit();
                 }
             }, 1000);
         });
+    }
+
+    private void closeAfterSessionExit() {
+        if (launchedFromPinnedShortcut) {
+            AppTerminationHelper.exitApplication(this, "shortcut_session_exit");
+            return;
+        }
+
+        returnToUnifiedActivity();
     }
 
     private void returnToUnifiedActivity() {
@@ -2114,6 +2129,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         startActivity(intent);
         finish();
+    }
+
+    private boolean isPinnedShortcutLaunchIntent(@Nullable Intent intent) {
+        if (intent == null) return false;
+        if (intent.getBooleanExtra(EXTRA_LAUNCHED_FROM_PINNED_SHORTCUT, false)) return true;
+        if (!Intent.ACTION_VIEW.equals(intent.getAction())) return false;
+
+        android.net.Uri data = intent.getData();
+        return data != null
+                && "winnative".equals(data.getScheme())
+                && BuildConfig.APPLICATION_ID.equals(data.getAuthority())
+                && data.getPathSegments().contains("shortcut");
     }
     
     /**
@@ -3194,7 +3221,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 if (!steamReady) {
                     boolean shouldRetry = promptSteamClientDownloadRetry();
                     if (!shouldRetry) {
-                        closeLaunchAttemptToUnified();
+                        closeLaunchAttempt();
                         return;
                     }
                     preloaderDialog.showOnUiThread("Retrying Steam client download...");
@@ -3634,7 +3661,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             envVars.put("ANDROID_ASERVER_USE_SHM", "true");
             environment.addComponent(
                     new ALSAServerComponent(
-                            UnixSocketConfig.createSocket(rootPath, UnixSocketConfig.ALSA_SERVER_PATH)
+                            UnixSocketConfig.createSocket(rootPath, UnixSocketConfig.ALSA_SERVER_PATH),
+                            ALSAClient.Options.fromEnvVars(envVars)
                     )
             );
         } else if (audioDriver.equals("pulseaudio")) {
@@ -3971,10 +3999,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return retry[0];
     }
 
-    private void closeLaunchAttemptToUnified() {
+    private void closeLaunchAttempt() {
         runOnUiThread(() -> {
             if (preloaderDialog != null && preloaderDialog.isShowing()) {
                 preloaderDialog.close();
+            }
+            if (launchedFromPinnedShortcut) {
+                AppTerminationHelper.exitApplication(this, "shortcut_launch_cancelled");
+                return;
             }
             Intent intent = new Intent(this, UnifiedActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -4007,6 +4039,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         // Initialize checkbox states
         dialog.getShowTouchscreenControls().setValue(preferences.getBoolean("show_touchscreen_controls_enabled", false));
+        dialog.getOverlayOpacity().setValue(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
         dialog.getTouchscreenHaptics().setValue(preferences.getBoolean("touchscreen_haptics_enabled", false));
         dialog.getGamepadVibration().setValue(preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true));
 
@@ -4036,10 +4069,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         // Confirm callback
         dialog.setOnConfirmCallback(() -> {
             inputControlsView.setShowTouchscreenControls(dialog.getShowTouchscreenControls().getValue());
+            float overlayOpacity = dialog.getOverlayOpacity().getValue();
+            inputControlsView.setOverlayOpacity(overlayOpacity);
             boolean isHapticsEnabled = dialog.getTouchscreenHaptics().getValue();
             boolean isGamepadVibrationEnabled = dialog.getGamepadVibration().getValue();
             SharedPreferences.Editor editor = preferences.edit();
             editor.putBoolean("show_touchscreen_controls_enabled", dialog.getShowTouchscreenControls().getValue());
+            editor.putFloat("overlay_opacity", overlayOpacity);
             editor.putBoolean("touchscreen_haptics_enabled", isHapticsEnabled);
             editor.putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, isGamepadVibrationEnabled);
             editor.apply();

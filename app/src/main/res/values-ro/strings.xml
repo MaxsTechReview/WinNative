@@ -752,7 +752,7 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
 
     <!-- Settings > Content Packages -->
     <string name="settings_content_install">Instaleaza continut</string>
-    <string name="settings_content_type">Tip continut</string>
+    <string name="settings_content_type">Categorie</string>
     <string name="settings_content_components">Componente</string>
     <string name="settings_content_auto_create_container">Creează container automat</string>
     <string name="settings_content_remove_title">Elimini componenta?</string>
@@ -760,13 +760,13 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_content_container_created">Container creat: %1$s</string>
     <string name="settings_content_download_failed">Descărcare eșuată.</string>
     <string name="common_ui_working">Se lucrează…</string>
-    <string name="settings_content_desc_wine">Stratul de compatibilitate Windows utilizat pentru a rula jocuri și aplicații. Ai nevoie de cel puțin o versiune Wine sau FEXCore instalată.</string>
-    <string name="settings_content_desc_proton">Build-ul Valve bazat pe Wine cu patch-uri suplimentare pentru jocuri. Util pentru unele titluri, dar Wine standard funcționează de obicei bine.</string>
-    <string name="settings_content_desc_dxvk">Traduce DirectX 9, 10 și 11 în Vulkan. De obicei îmbunătățește performanța în jocurile Windows mai vechi.</string>
-    <string name="settings_content_desc_vkd3d">Traduce DirectX 12 în Vulkan. Necesar pentru multe jocuri Windows mai noi.</string>
-    <string name="settings_content_desc_box64">Traduce codul Windows x86 / x64 astfel încât să poată rula pe dispozitive ARM. Box64 sau FEXCore este necesar pentru majoritatea jocurilor.</string>
-    <string name="settings_content_desc_wowbox64">O build Box64 pentru modul Wine WoW64. Necesară doar la utilizarea unui prefix pe 64 de biți cu suport pentru aplicații pe 32 de biți.</string>
-    <string name="settings_content_desc_fexcore">Un traducător x86 / x64 alternativ. Încearcă-l dacă un joc are probleme sau performanță slabă cu Box64.</string>
+    <string name="settings_content_desc_wine">Creat de proiectul Wine; traduce apelurile Win32 în servicii native Linux/Android.</string>
+    <string name="settings_content_desc_proton">Creat de Valve; runtime bazat pe Wine cu patch-uri pentru jocuri Windows.</string>
+    <string name="settings_content_desc_dxvk">Traduce apelurile grafice Direct3D 9, 10 și 11 în Vulkan.</string>
+    <string name="settings_content_desc_vkd3d">Traduce apelurile grafice Direct3D 12 în Vulkan.</string>
+    <string name="settings_content_desc_box64">Traduce cod Linux x86_64 pentru rulare pe dispozitive ARM64.</string>
+    <string name="settings_content_desc_wowbox64">Build Box64 folosit de WoW64 pentru a rula aplicații Windows pe 32 de biți în Wine pe 64 de biți.</string>
+    <string name="settings_content_desc_fexcore">Traduce cod x86 și x86_64 pentru rulare pe dispozitive ARM64.</string>
     <string name="settings_content_unable_to_install">Nu se poate instala continutul.</string>
     <string name="settings_content_install_failed">Instalare esuata</string>
     <string name="settings_content_file_cannot_be_recognized">Fisierul nu poate fi recunoscut.</string>
