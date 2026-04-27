@@ -835,7 +835,7 @@ return boundingBox;
   }
 
   private void drawIcon(Canvas canvas, float cx, float cy, float width, float height, int iconId) {
-    drawIcon(canvas, cx, cy, width, height, iconId, false);
+    drawIcon(canvas, cx, cy, width, height, iconId, true);
   }
 
   private void drawIcon(Canvas canvas, float cx, float cy, float width, float height, int iconId, boolean automargin) {
@@ -844,16 +844,15 @@ return boundingBox;
     Paint paint = inputControlsView.getPaint();
     paint.setColorFilter(inputControlsView.getColorFilter());
     int margin = automargin ? (int) (inputControlsSize() * (shape == Shape.CIRCLE || shape == Shape.SQUARE ? 2.0f : 1.0f) * scale) : 0;
-    int halfWidth = (int) ((width - margin) * 0.5f);
-    int halfHeight = (int) ((height - margin) * 0.5f);
+    int halfSize = (int) ((Math.min(width, height) - margin) * 0.5f);
 
     Rect srcRect = new Rect(0, 0, icon.getWidth(), icon.getHeight());
     Rect dstRect =
         new Rect(
-            (int) (cx - halfWidth),
-            (int) (cy - halfHeight),
-            (int) (cx + halfWidth),
-            (int) (cy + halfHeight));
+            (int) (cx - halfSize),
+            (int) (cy - halfSize),
+            (int) (cx + halfSize),
+            (int) (cy + halfSize));
     canvas.drawBitmap(icon, srcRect, dstRect, paint);
     paint.setColorFilter(null);
   }
