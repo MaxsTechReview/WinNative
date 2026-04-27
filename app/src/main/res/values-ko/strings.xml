@@ -752,7 +752,7 @@
 
     <!-- Settings > Content Packages -->
     <string name="settings_content_install">콘텐츠 설치</string>
-    <string name="settings_content_type">콘텐츠 유형</string>
+    <string name="settings_content_type">카테고리</string>
     <string name="settings_content_components">구성 요소</string>
     <string name="settings_content_auto_create_container">컨테이너 자동 생성</string>
     <string name="settings_content_remove_title">구성 요소를 제거하시겠습니까?</string>
@@ -760,13 +760,13 @@
     <string name="settings_content_container_created">컨테이너 생성됨: %1$s</string>
     <string name="settings_content_download_failed">다운로드 실패.</string>
     <string name="common_ui_working">처리 중…</string>
-    <string name="settings_content_desc_wine">게임 및 앱을 실행하는 데 사용되는 Windows 호환성 계층입니다. 최소 하나의 Wine 또는 FEXCore 버전이 설치되어 있어야 합니다.</string>
-    <string name="settings_content_desc_proton">게임용 추가 패치가 포함된 Valve의 Wine 기반 빌드입니다. 일부 타이틀에 유용하지만 일반적으로 표준 Wine도 잘 작동합니다.</string>
-    <string name="settings_content_desc_dxvk">DirectX 9, 10 및 11을 Vulkan으로 변환합니다. 일반적으로 오래된 Windows 게임의 성능을 향상시킵니다.</string>
-    <string name="settings_content_desc_vkd3d">DirectX 12를 Vulkan으로 변환합니다. 많은 최신 Windows 게임에 필요합니다.</string>
-    <string name="settings_content_desc_box64">x86 / x64 Windows 코드를 변환하여 ARM 기기에서 실행할 수 있도록 합니다. 대부분의 게임에는 Box64 또는 FEXCore가 필요합니다.</string>
-    <string name="settings_content_desc_wowbox64">Wine WoW64 모드용 Box64 빌드입니다. 32비트 앱을 지원하는 64비트 프리픽스를 사용할 때만 필요합니다.</string>
-    <string name="settings_content_desc_fexcore">대체 x86 / x64 변환기입니다. Box64에서 게임에 문제가 있거나 성능이 좋지 않은 경우 시도해 보세요.</string>
+    <string name="settings_content_desc_wine">Wine 프로젝트에서 제작했으며 Win32 호출을 네이티브 Linux/Android 서비스로 변환합니다.</string>
+    <string name="settings_content_desc_proton">Valve에서 제작한 Wine 기반 런타임이며 Windows 게임용 패치를 포함합니다.</string>
+    <string name="settings_content_desc_dxvk">Direct3D 9, 10, 11 그래픽 호출을 Vulkan으로 변환합니다.</string>
+    <string name="settings_content_desc_vkd3d">Direct3D 12 그래픽 호출을 Vulkan으로 변환합니다.</string>
+    <string name="settings_content_desc_box64">x86_64 Linux 코드를 ARM64 기기에서 실행되도록 변환합니다.</string>
+    <string name="settings_content_desc_wowbox64">64비트 Wine에서 32비트 Windows 앱을 실행하기 위해 WoW64가 사용하는 Box64 빌드입니다.</string>
+    <string name="settings_content_desc_fexcore">x86 및 x86_64 코드를 ARM64 기기에서 실행되도록 변환합니다.</string>
     <string name="settings_content_unable_to_install">콘텐츠를 설치할 수 없습니다.</string>
     <string name="settings_content_install_failed">설치 실패</string>
     <string name="settings_content_file_cannot_be_recognized">파일을 인식할 수 없습니다.</string>

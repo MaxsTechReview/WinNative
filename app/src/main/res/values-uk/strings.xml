@@ -752,7 +752,7 @@
 
     <!-- Settings > Content Packages -->
     <string name="settings_content_install">Встановити контент</string>
-    <string name="settings_content_type">Тип контенту</string>
+    <string name="settings_content_type">Категорія</string>
     <string name="settings_content_components">Компоненти</string>
     <string name="settings_content_auto_create_container">Автоматично створити контейнер</string>
     <string name="settings_content_remove_title">Видалити компонент?</string>
@@ -760,13 +760,13 @@
     <string name="settings_content_container_created">Створено контейнер: %1$s</string>
     <string name="settings_content_download_failed">Помилка завантаження.</string>
     <string name="common_ui_working">Зачекайте…</string>
-    <string name="settings_content_desc_wine">Рівень сумісності Windows для запуску ігор і застосунків. Потрібна принаймні одна встановлена версія Wine або FEXCore.</string>
-    <string name="settings_content_desc_proton">Збірка Valve на основі Wine з додатковими патчами для ігор. Корисна для деяких тайтлів, але стандартний Wine зазвичай працює добре.</string>
-    <string name="settings_content_desc_dxvk">Транслює DirectX 9, 10 та 11 у Vulkan. Зазвичай покращує продуктивність у старих іграх Windows.</string>
-    <string name="settings_content_desc_vkd3d">Транслює DirectX 12 у Vulkan. Потрібно для багатьох новіших ігор Windows.</string>
-    <string name="settings_content_desc_box64">Транслює код Windows x86 / x64 для роботи на пристроях ARM. Box64 або FEXCore потрібен для більшості ігор.</string>
-    <string name="settings_content_desc_wowbox64">Збірка Box64 для режиму Wine WoW64. Потрібна лише при використанні 64-бітного префіксу з підтримкою 32-бітних застосунків.</string>
-    <string name="settings_content_desc_fexcore">Альтернативний транслятор x86 / x64. Спробуйте, якщо гра має проблеми або низьку продуктивність з Box64.</string>
+    <string name="settings_content_desc_wine">Створено проєктом Wine; транслює виклики Win32 у нативні служби Linux/Android.</string>
+    <string name="settings_content_desc_proton">Створено Valve; runtime на основі Wine з патчами для Windows-ігор.</string>
+    <string name="settings_content_desc_dxvk">Транслює графічні виклики Direct3D 9, 10 та 11 у Vulkan.</string>
+    <string name="settings_content_desc_vkd3d">Транслює графічні виклики Direct3D 12 у Vulkan.</string>
+    <string name="settings_content_desc_box64">Транслює Linux-код x86_64 для запуску на пристроях ARM64.</string>
+    <string name="settings_content_desc_wowbox64">Збірка Box64, яку WoW64 використовує для запуску 32-бітних Windows-застосунків у 64-бітному Wine.</string>
+    <string name="settings_content_desc_fexcore">Транслює код x86 і x86_64 для запуску на пристроях ARM64.</string>
     <string name="settings_content_unable_to_install">Неможливо встановити контент.</string>
     <string name="settings_content_install_failed">Помилка встановлення</string>
     <string name="settings_content_file_cannot_be_recognized">Файл не розпізнано.</string>
