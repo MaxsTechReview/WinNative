@@ -304,6 +304,8 @@ class UnifiedActivity :
     // hit cold-start work here and can stall input.
     private var startupBootstrapReady by mutableStateOf(false)
     private var startupLibraryLayoutMode by mutableStateOf<LibraryLayoutMode?>(null)
+    private var startupStoreVisible: Map<String, Boolean>? = null
+    private var startupContentFilters: Map<String, Boolean>? = null
 
     // LibraryCarousel is always composed (kept alive behind an alpha(0f) when
     // another tab is active). This flag lets GameCapsule skip its animation
@@ -717,6 +719,8 @@ class UnifiedActivity :
     private fun bootstrapStartupState() {
         startupBootstrapReady = false
         startupLibraryLayoutMode = null
+        startupStoreVisible = null
+        startupContentFilters = null
 
         lifecycleScope.launch(Dispatchers.IO) {
             val appContext = applicationContext
@@ -728,6 +732,23 @@ class UnifiedActivity :
                     Log.w("UnifiedActivity", "Failed to resolve initial library layout", error)
                     LibraryLayoutMode.GRID_4
                 }
+
+            val resolvedStoreVisible =
+                runCatching {
+                    val saved = PrefManager.libraryStoreVisible.split(",").toSet()
+                    mapOf("steam" to ("steam" in saved), "epic" to ("epic" in saved), "gog" to ("gog" in saved))
+                }.getOrElse { mapOf("steam" to true, "epic" to true, "gog" to true) }
+
+            val resolvedContentFilters =
+                runCatching {
+                    val saved = PrefManager.libraryContentFilters.split(",").toSet()
+                    mapOf(
+                        "games" to ("games" in saved),
+                        "dlc" to ("dlc" in saved),
+                        "applications" to ("applications" in saved),
+                        "tools" to ("tools" in saved),
+                    )
+                }.getOrElse { mapOf("games" to true, "dlc" to false, "applications" to false, "tools" to false) }
 
             runCatching { dbProvider.get() }
                 .onFailure { Log.w("UnifiedActivity", "Database warmup failed", it) }
@@ -741,6 +762,8 @@ class UnifiedActivity :
             withContext(Dispatchers.Main.immediate) {
                 startupLibraryLayoutMode = resolvedLayoutMode
                 currentLibraryLayoutMode = resolvedLayoutMode
+                startupStoreVisible = resolvedStoreVisible
+                startupContentFilters = resolvedContentFilters
                 startupBootstrapReady = true
             }
         }
@@ -1054,6 +1077,8 @@ class UnifiedActivity :
     @Composable
     fun UnifiedHub() {
         val initialLibraryLayoutMode = startupLibraryLayoutMode
+        val initialStoreVisible = startupStoreVisible ?: mapOf("steam" to true, "epic" to true, "gog" to true)
+        val initialContentFilters = startupContentFilters ?: mapOf("games" to true, "dlc" to false, "applications" to false, "tools" to false)
         if (!startupBootstrapReady || initialLibraryLayoutMode == null) {
             Box(
                 modifier =
@@ -1077,7 +1102,7 @@ class UnifiedActivity :
             return
         }
 
-        val storeVisible = remember { mutableStateMapOf("steam" to true, "epic" to true, "gog" to true) }
+        val storeVisible = remember { mutableStateMapOf(*initialStoreVisible.entries.map { it.key to it.value }.toTypedArray()) }
         var showAddCustomGame by remember { mutableStateOf(false) }
         var showExitDialog by remember { mutableStateOf(false) }
         var searchQueryTfv by remember { mutableStateOf(TextFieldValue("")) }
@@ -1091,7 +1116,7 @@ class UnifiedActivity :
         val shortcutRefreshKey = libraryRefreshKey + shortcutDataRefreshKey
         val playtimeRefreshKey = this@UnifiedActivity.libraryPlaytimeRefreshSignal
 
-        val contentFilters = remember { mutableStateMapOf("games" to true, "dlc" to false, "applications" to false, "tools" to false) }
+        val contentFilters = remember { mutableStateMapOf(*initialContentFilters.entries.map { it.key to it.value }.toTypedArray()) }
         var libraryLayoutMode by remember {
             mutableStateOf(
                 initialLibraryLayoutMode,
@@ -1380,6 +1405,14 @@ class UnifiedActivity :
                     onLibraryLayoutSelected = {
                         libraryLayoutMode = it
                         PrefManager.libraryLayoutMode = it.name
+                    },
+                    onStoreVisibleChanged = { key, value ->
+                        storeVisible[key] = value
+                        PrefManager.libraryStoreVisible = storeVisible.entries.filter { it.value }.joinToString(",") { it.key }
+                    },
+                    onContentFiltersChanged = { key, value ->
+                        contentFilters[key] = value
+                        PrefManager.libraryContentFilters = contentFilters.entries.filter { it.value }.joinToString(",") { it.key }
                     },
                     onClose = { scope.launch { drawerState.close() } },
                 )
@@ -9279,6 +9312,8 @@ class UnifiedActivity :
         contentFilters: SnapshotStateMap<String, Boolean>,
         libraryLayoutMode: LibraryLayoutMode,
         onLibraryLayoutSelected: (LibraryLayoutMode) -> Unit,
+        onStoreVisibleChanged: (String, Boolean) -> Unit,
+        onContentFiltersChanged: (String, Boolean) -> Unit,
         onClose: () -> Unit,
     ) {
         val currentState = persona?.state ?: EPersonaState.Online
@@ -9512,12 +9547,12 @@ class UnifiedActivity :
                 Spacer(Modifier.height(8.dp))
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DrawerFilterButton("Steam", storeVisible["steam"] == true, Modifier.weight(1f)) { storeVisible["steam"] = it }
-                    DrawerFilterButton("Epic", storeVisible["epic"] == true, Modifier.weight(1f)) { storeVisible["epic"] = it }
+                    DrawerFilterButton("Steam", storeVisible["steam"] == true, Modifier.weight(1f)) { onStoreVisibleChanged("steam", it) }
+                    DrawerFilterButton("Epic", storeVisible["epic"] == true, Modifier.weight(1f)) { onStoreVisibleChanged("epic", it) }
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DrawerFilterButton("GOG", storeVisible["gog"] == true, Modifier.weight(1f)) { storeVisible["gog"] = it }
+                    DrawerFilterButton("GOG", storeVisible["gog"] == true, Modifier.weight(1f)) { onStoreVisibleChanged("gog", it) }
                     Spacer(Modifier.weight(1f))
                 }
 
@@ -9535,16 +9570,13 @@ class UnifiedActivity :
                 Spacer(Modifier.height(8.dp))
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DrawerFilterButton("Games", contentFilters["games"] == true, Modifier.weight(1f)) { contentFilters["games"] = it }
-                    DrawerFilterButton("DLC", contentFilters["dlc"] == true, Modifier.weight(1f)) { contentFilters["dlc"] = it }
+                    DrawerFilterButton("Games", contentFilters["games"] == true, Modifier.weight(1f)) { onContentFiltersChanged("games", it) }
+                    DrawerFilterButton("DLC", contentFilters["dlc"] == true, Modifier.weight(1f)) { onContentFiltersChanged("dlc", it) }
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DrawerFilterButton("Applications", contentFilters["applications"] == true, Modifier.weight(1f)) {
-                        contentFilters["applications"] =
-                            it
-                    }
-                    DrawerFilterButton("Tools", contentFilters["tools"] == true, Modifier.weight(1f)) { contentFilters["tools"] = it }
+                    DrawerFilterButton("Applications", contentFilters["applications"] == true, Modifier.weight(1f)) { onContentFiltersChanged("applications", it) }
+                    DrawerFilterButton("Tools", contentFilters["tools"] == true, Modifier.weight(1f)) { onContentFiltersChanged("tools", it) }
                 }
             }
         }
