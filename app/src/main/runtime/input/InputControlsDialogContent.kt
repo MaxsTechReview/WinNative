@@ -139,7 +139,7 @@ fun InputControlsDialogContent(
                 verticalArrangement = Arrangement.spacedBy(if (compactLayout) 7.dp else 8.dp),
             ) {
                 SectionCard {
-                    SectionLabel(stringResource(R.string.session_effects_profile_selection))
+                    SectionLabel(stringResource(R.string.input_controls_editor_select_profile))
                     Spacer(Modifier.height(5.dp))
                     ProfileRow(
                         profileNames = state.profileNames,
