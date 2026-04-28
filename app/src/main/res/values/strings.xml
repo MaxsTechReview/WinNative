@@ -558,6 +558,12 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_input_controls_subtitle">Configure or toggle on-screen controls</string>
     <string name="session_drawer_relative_mouse_movement">Relative Mouse Movement</string>
     <string name="session_drawer_mouse_input">Mouse Input</string>
+    <string name="session_drawer_screen_effects">Screen Effects</string>
+    <string name="session_drawer_screen_effects_subtitle">Upscaling and color profiles</string>
+    <string name="session_drawer_super_resolution">Super Resolution</string>
+    <string name="session_drawer_upscaler_mode">Upscaler Mode</string>
+    <string name="session_drawer_sharpness">Sharpness</string>
+    <string name="session_drawer_color_profile">Color Profile</string>
     <string name="session_drawer_fullscreen_subtitle">Switch fullscreen rendering</string>
     <string name="session_drawer_picture_in_picture">Picture in Picture</string>
     <string name="session_drawer_pip_subtitle">Shrink the game into a floating window</string>

@@ -59,9 +59,12 @@ public class GLRenderer
   private long nextFrameTimeNanos = 0;
   private boolean wasDirectMode = false;
 
+  private final EffectComposer effectComposer;
+
   public GLRenderer(XServerView xServerView, XServer xServer) {
     this.xServerView = xServerView;
     this.xServer = xServer;
+    this.effectComposer = new EffectComposer(this);
     rootCursorDrawable = createRootCursorDrawable();
 
     quadVertices.put(
@@ -103,11 +106,17 @@ public class GLRenderer
 
   @Override
   public void onDrawFrame(GL10 gl) {
-    if (cpuSaverMode) {
+    if (effectComposer.hasEffects()) {
+      effectComposer.render();
+    } else if (cpuSaverMode) {
       drawFrameOptimized();
     } else {
       drawFrame();
     }
+  }
+
+  public EffectComposer getEffectComposer() {
+    return effectComposer;
   }
 
   public void drawFrame() {
