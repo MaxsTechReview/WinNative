@@ -2961,6 +2961,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 };
         }
 
+        if (drawerStateHolder == null) {
+            drawerStateHolder = new XServerDrawerStateHolder(state);
+            XServerDrawerMenuKt.setupXServerDrawerComposeView(
+                    navigationComposeView,
+                    drawerStateHolder,
+                    this,
+                    drawerActionListener
+            );
+            return;
+        }
+
+        drawerStateHolder.setState(state);
+    }
+
     private void applyScreenEffects() {
         GLRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
         if (renderer == null) return;
@@ -2996,20 +3010,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 composer.addEffect(new CRTEffect());
                 break;
         }
-    }
-
-        if (drawerStateHolder == null) {
-            drawerStateHolder = new XServerDrawerStateHolder(state);
-            XServerDrawerMenuKt.setupXServerDrawerComposeView(
-                    navigationComposeView,
-                    drawerStateHolder,
-                    this,
-                    drawerActionListener
-            );
-            return;
-        }
-
-        drawerStateHolder.setState(state);
     }
 
     private void loadScreenEffectsSettings() {
