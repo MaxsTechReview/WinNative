@@ -405,7 +405,8 @@
         &lt;b&gt;0&lt;/b&gt; : Nu incerca nimic special&lt;br /&gt;
         &lt;b&gt;1&lt;/b&gt; : Activeaza unele bariere de memorie la scrierea in memorie (la unele operatii MOV)&lt;br /&gt;
         &lt;b&gt;2&lt;/b&gt; : Toate din 1 plus o bariera de memorie la fiecare scriere in memorie folosind MOV&lt;br /&gt;
-        &lt;b&gt;3&lt;/b&gt; : Toate din 2 plus bariera de memorie la citirea din memorie si la unele operatii SSE/SSE2
+        &lt;b&gt;3&lt;/b&gt; : Toate din 2 plus bariera de memorie la citirea din memorie si la unele operatii SSE/SSE2&lt;br /&gt;
+        &lt;b&gt;4&lt;/b&gt; : Mimics x86 TSO similarly to QEMU.
     </string>
     <string name="box64_env_var_help__dynarec_forward">Defineste valoarea maxima de avansare permisa la construirea blocurilor</string>
     <string name="box64_env_var_help__dynarec_callret">Optimizarea operatiilor CALL/RET</string>
@@ -440,7 +441,7 @@
         &lt;b&gt;3&lt;/b&gt; : Foloseste SEVL+WFE pentru a emula instructiunea x86 PAUSE.
     </string>
     <string name="box64_env_var_help__avx">
-        AVX si AVX2 implementate, impreuna cu extensiile BMI1, BMI2, ADX, FMA, F16C si RDANDR!&lt;br /&gt;&lt;br /&gt;
+        AVX si AVX2 implementate, impreuna cu extensiile BMI1, BMI2, ADX, FMA, F16C si RDRAND!&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt; : Dezactiveaza extensia AVX&lt;br /&gt;
         &lt;b&gt;1&lt;/b&gt; : Activeaza extensiile AVX, BMI1, F16C si VAES.&lt;br /&gt;
         &lt;b&gt;2&lt;/b&gt; : Toate din 1 plus activeaza AVX2, BMI2, FMA, ADX, VPCLMULQDQ si RDRAND.&lt;br /&gt;\
@@ -1013,4 +1014,24 @@ Cale instalata:
     <string name="cloud_saves_backing_up">Se face backup salvării în cloud…</string>
     <string name="cloud_saves_restoring">Se restaurează salvarea în cloud…</string>
 
+    <!-- Synced Box64/FEXCore environment help strings -->
+    <string name="box64_env_var_help__aes">Exposes AES CPU capabilities to the guest.</string>
+    <string name="box64_env_var_help__cputype">Selects the Intel or AMD CPU model exposed to the guest.</string>
+    <string name="box64_env_var_help__dynarec_noarch">Reduces dynarec block metadata to save memory, with compatibility tradeoffs.</string>
+    <string name="box64_env_var_help__dynarec_sep">Adds secondary entry points to optimize CALL/RET when CALLRET is enabled.</string>
+    <string name="box64_env_var_help__dynarec_volatile_metadata">Uses PE volatile metadata to guide strong memory emulation for 64-bit Windows games.</string>
+    <string name="box64_env_var_help__dynarec">Enables or disables the Box64 dynamic recompiler.</string>
+    <string name="box64_env_var_help__pclmulqdq">Exposes PCLMULQDQ CPU capabilities to the guest.</string>
+    <string name="box64_env_var_help__shaext">Exposes SHA extension CPU capabilities to the guest.</string>
+    <string name="box64_env_var_help__sse_flushto0">Controls SSE flush-to-zero behavior and exception flag tracking.</string>
+    <string name="box64_env_var_help__sse42">Exposes SSE4.2 CPU capabilities to the guest.</string>
+    <string name="box64_env_var_help__unity">Marks the app as a Unity game and enables Unity-specific compatibility handling.</string>
+    <string name="box64_env_var_help__x87_no80bits">Uses 64-bit double precision instead of 80-bit long double for x87.</string>
+    <string name="fexcore_env_var_help__dynamicl1cachedecreasecountheuristic">Lookups-per-second threshold for shrinking the dynamic L1 cache.</string>
+    <string name="fexcore_env_var_help__dynamicl1cacheincreasecountheuristic">Lookups-per-second threshold for growing the dynamic L1 cache.</string>
+    <string name="fexcore_env_var_help__hidehybrid">Hides hybrid CPU core layout from the guest.</string>
+    <string name="fexcore_env_var_help__kernelunalignedatomicbackpatching">Backpatches kernel-handled unaligned atomics to reduce kernel context switches.</string>
+    <string name="fexcore_env_var_help__maxinst">Maximum number of instructions stored in a compiled block.</string>
+    <string name="fexcore_env_var_help__smcchecks">Verificari cod auto-modificabil.</string>
+    <string name="fexcore_env_var_help__strictinprocesssplitlocks">Uses a strict process-wide lock for split unaligned atomic accesses.</string>
 </resources>
