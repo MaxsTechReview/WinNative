@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -25,11 +24,13 @@ import com.winlator.cmod.runtime.compat.fexcore.FEXCorePreset
 import com.winlator.cmod.runtime.compat.fexcore.FEXCorePresetManager
 import com.winlator.cmod.runtime.wine.EnvVars
 import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import com.winlator.cmod.shared.util.StringUtils
 import org.json.JSONArray
+import java.io.File
 import java.util.Locale
 
 /**
@@ -58,35 +59,8 @@ class PresetsFragment : Fragment() {
         mutableMapOf<PresetEngine, LinkedHashMap<String, String>>(
             PresetEngine.BOX64 to linkedMapOf(),
             PresetEngine.FEXCORE to linkedMapOf(),
-        )
+    )
     private var currentEngine = PresetEngine.BOX64
-    private var pendingImportEngine: PresetEngine? = null
-
-    private val importPresetPicker =
-        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            val engine = pendingImportEngine
-            pendingImportEngine = null
-            if (uri == null || engine == null || !isAdded) {
-                return@registerForActivityResult
-            }
-            runCatching {
-                requireContext().contentResolver.openInputStream(uri)?.use { stream ->
-                    when (engine) {
-                        PresetEngine.BOX64 -> {
-                            Box64PresetManager.importPreset("box64", requireContext(), stream)
-                        }
-
-                        PresetEngine.FEXCORE -> {
-                            FEXCorePresetManager.importPreset(requireContext(), stream)
-                        }
-                    }
-                } ?: error("Missing input stream")
-            }.onSuccess {
-                refresh(selectLatestPreset = true)
-            }.onFailure {
-                AppUtils.showToast(requireContext(), R.string.container_presets_unable_to_import)
-            }
-        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -212,8 +186,7 @@ class PresetsFragment : Fragment() {
                             }
                         },
                         onImportPreset = {
-                            pendingImportEngine = currentEngine
-                            importPresetPicker.launch(arrayOf("*/*"))
+                            promptImportPreset()
                         },
                         onRemovePreset = {
                             val selected = selectedPresetOption() ?: return@PresetsScreen
@@ -242,6 +215,35 @@ class PresetsFragment : Fragment() {
                         suggestedNewPresetName = { buildDefaultPresetName(currentEngine) },
                     )
                 }
+            }
+        }
+    }
+
+    private fun promptImportPreset() {
+        val activity = activity ?: return
+        val engine = currentEngine
+        DirectoryPickerDialog.showFile(
+            activity = activity,
+            title = getString(R.string.container_presets_import),
+            allowedExtensions = setOf("wbp"),
+        ) { path ->
+            if (!isAdded) return@showFile
+            runCatching {
+                File(path).inputStream().use { stream ->
+                    when (engine) {
+                        PresetEngine.BOX64 -> {
+                            Box64PresetManager.importPreset("box64", requireContext(), stream)
+                        }
+
+                        PresetEngine.FEXCORE -> {
+                            FEXCorePresetManager.importPreset(requireContext(), stream)
+                        }
+                    }
+                }
+            }.onSuccess {
+                refresh(selectLatestPreset = true)
+            }.onFailure {
+                AppUtils.showToast(requireContext(), R.string.container_presets_unable_to_import)
             }
         }
     }

@@ -51,6 +51,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
@@ -601,31 +602,34 @@ object DirectoryPickerDialog {
                 border = BorderStroke(1.dp, CardBorder),
                 modifier = Modifier.widthIn(max = 420.dp),
             ) {
-                Column(
-                    modifier =
-                        Modifier
-                            .heightIn(max = 360.dp)
-                            .verticalScroll(rememberScrollState()),
-                ) {
-                    roots.forEach { root ->
-                        val selected = isSameOrDescendant(currentDir, root)
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = root.absolutePath,
-                                    color = if (selected) Accent else TextPrimary,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            },
-                            onClick = { onRootSelected(root) },
-                            modifier =
-                                Modifier.background(
-                                    if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
-                                ),
-                        )
+                @Suppress("DEPRECATION")
+                CompositionLocalProvider(LocalRippleConfiguration provides null) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .heightIn(max = 360.dp)
+                                .verticalScroll(rememberScrollState()),
+                    ) {
+                        roots.forEach { root ->
+                            val selected = isSameOrDescendant(currentDir, root)
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = root.absolutePath,
+                                        color = if (selected) Accent else TextPrimary,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                },
+                                onClick = { onRootSelected(root) },
+                                modifier =
+                                    Modifier.background(
+                                        if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
+                                    ),
+                            )
+                        }
                     }
                 }
             }

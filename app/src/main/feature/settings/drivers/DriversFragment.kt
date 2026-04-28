@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -23,6 +22,7 @@ import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.runtime.content.AdrenotoolsManager
 import com.winlator.cmod.runtime.content.Downloader
 import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -51,11 +51,6 @@ class DriversFragment : Fragment() {
     private var expandedReleaseId: Long? = null
     private var loadingSourceApiUrl: String? = null
     private var downloadProgress: DownloadProgress? = null
-
-    private val driverPicker =
-        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            uri?.let { installDriverPackage(it) }
-        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -94,9 +89,7 @@ class DriversFragment : Fragment() {
                 ) {
                     DriversScreen(
                         state = driversState,
-                        onInstallFromFile = {
-                            driverPicker.launch(arrayOf("*/*"))
-                        },
+                        onInstallFromFile = { promptInstallDriverFromFile() },
                         onSourceTapped = { source -> onSourceSelected(source) },
                         onReleaseTapped = { release ->
                             expandedReleaseId = if (expandedReleaseId == release.id) null else release.id
@@ -144,6 +137,17 @@ class DriversFragment : Fragment() {
         super.onResume()
         refreshInstalledDrivers()
         publishState()
+    }
+
+    private fun promptInstallDriverFromFile() {
+        val activity = activity ?: return
+        DirectoryPickerDialog.showFile(
+            activity = activity,
+            title = getString(R.string.settings_drivers_install),
+            allowedExtensions = setOf("zip"),
+        ) { path ->
+            installDriverPackage(Uri.fromFile(File(path)))
+        }
     }
 
     private fun publishState() {

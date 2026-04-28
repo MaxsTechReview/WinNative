@@ -7,7 +7,6 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -27,6 +26,7 @@ import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
 import com.winlator.cmod.runtime.content.Downloader
 import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.io.StorageUtils
 import com.winlator.cmod.shared.ui.dialog.ContentDialog
@@ -52,21 +52,6 @@ class ContentsFragment : Fragment() {
     private var downloadProgress: ComponentsDownloadProgress? = null
 
     private var autoCreateContainer = true
-
-    private val contentPicker =
-        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            uri?.let {
-                updateDownloadProgress(
-                    title = getString(R.string.settings_content_installing_title),
-                    message = getString(R.string.settings_content_preparing_package),
-                    indeterminate = true,
-                )
-                installSelectedContent(
-                    it,
-                    getString(R.string.settings_content_installed_success),
-                )
-            }
-        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -317,7 +302,22 @@ class ContentsFragment : Fragment() {
     // ------------------------------------------------------------------
 
     private fun promptInstallFromFile() {
-        contentPicker.launch(arrayOf("*/*"))
+        val activity = activity ?: return
+        DirectoryPickerDialog.showFile(
+            activity = activity,
+            title = getString(R.string.settings_content_install),
+            allowedExtensions = setOf("wcp"),
+        ) { path ->
+            updateDownloadProgress(
+                title = getString(R.string.settings_content_installing_title),
+                message = getString(R.string.settings_content_preparing_package),
+                indeterminate = true,
+            )
+            installSelectedContent(
+                Uri.fromFile(File(path)),
+                getString(R.string.settings_content_installed_success),
+            )
+        }
     }
 
     private fun onRemoveRequested(profile: ContentProfile) {
