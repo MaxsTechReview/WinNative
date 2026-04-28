@@ -1070,6 +1070,8 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             )
 
         container.setGraphicsDriver(Container.DEFAULT_GRAPHICS_DRIVER)
+        container.setCPUList(Container.getFallbackCPUList())
+        container.setCPUListWoW64(Container.getFallbackCPUListWoW64())
         container.setDrives(normalizedDrives)
         container.setGraphicsDriverConfig(
             replaceDelimitedConfigValue(

@@ -322,8 +322,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
         val cpuCount = Runtime.getRuntime().availableProcessors()
         state.cpuCount.intValue = cpuCount
-        state.cpuChecked.value = parseCpuList(c?.getCPUList(true) ?: "", cpuCount)
-        state.cpuCheckedWoW64.value = parseCpuList(c?.getCPUListWoW64(true) ?: "", cpuCount)
+        state.cpuChecked.value = parseCpuList(c?.getCPUList(true) ?: Container.getFallbackCPUList(), cpuCount)
+        state.cpuCheckedWoW64.value = parseCpuList(c?.getCPUListWoW64(true) ?: Container.getFallbackCPUListWoW64(), cpuCount)
 
         val wincomponentsStr = c?.getWinComponents() ?: Container.DEFAULT_WINCOMPONENTS
         val directX = mutableListOf<WinComponentItem>()

@@ -267,8 +267,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private float globalCursorSpeed = 1.0f;
     private MagnifierView magnifierView;
     private DebugDialog debugDialog;
-    private short taskAffinityMask = 0;
-    private short taskAffinityMaskWoW64 = 0;
+    private int taskAffinityMask = 0;
+    private int taskAffinityMaskWoW64 = 0;
     private int frameRatingWindowId = -1;
     private boolean cursorLock; // Flag to track if pointer capture was requested
     private final float[] xform = XForm.getInstance();
@@ -810,8 +810,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String containerCpuListWoW64 = container.getCPUListWoW64(true);
         String effectiveCpuList = containerCpuList;
         String effectiveCpuListWoW64 = containerCpuListWoW64;
-        taskAffinityMask = (short) ProcessHelper.getAffinityMask(containerCpuList);
-        taskAffinityMaskWoW64 = (short) ProcessHelper.getAffinityMask(containerCpuListWoW64);
+        taskAffinityMask = ProcessHelper.getAffinityMask(containerCpuList);
+        taskAffinityMaskWoW64 = ProcessHelper.getAffinityMask(containerCpuListWoW64);
 
         String rawShortcutCpuList = "";
         String rawShortcutCpuListWoW64 = "";
@@ -821,8 +821,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             rawShortcutCpuListWoW64 = cpuShortcutUsesDefaults ? "" : shortcut.getExtra("cpuListWoW64");
             effectiveCpuList = getShortcutSetting("cpuList", containerCpuList);
             effectiveCpuListWoW64 = getShortcutSetting("cpuListWoW64", containerCpuListWoW64);
-            taskAffinityMask = (short) ProcessHelper.getAffinityMask(effectiveCpuList);
-            taskAffinityMaskWoW64 = (short) ProcessHelper.getAffinityMask(effectiveCpuListWoW64);
+            taskAffinityMask = ProcessHelper.getAffinityMask(effectiveCpuList);
+            taskAffinityMaskWoW64 = ProcessHelper.getAffinityMask(effectiveCpuListWoW64);
         }
         Log.d("XServerDisplayActivity", "CPUList source=shortcutOrContainer shortcutRaw='" +
                 rawShortcutCpuList + "' container='" + containerCpuList +
@@ -7375,10 +7375,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void assignTaskAffinity(Window window) {
-        if (taskAffinityMask == 0 || taskAffinityMaskWoW64 == 0) return;
+        if (taskAffinityMask == 0 && taskAffinityMaskWoW64 == 0) return;
         int processId = window.getProcessId();
         String className = window.getClassName();
         int processAffinity = window.isWoW64() ? taskAffinityMaskWoW64 : taskAffinityMask;
+
+        if (processAffinity == 0) return;
 
         if (processId > 0) {
             winHandler.setProcessAffinity(processId, processAffinity);

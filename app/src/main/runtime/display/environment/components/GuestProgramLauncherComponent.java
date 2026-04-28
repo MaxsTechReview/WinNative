@@ -919,6 +919,14 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     envVars.put("BOX64_NORCFILES", "1");
     ImageFs imageFs = ImageFs.find(environment.getContext());
     envVars.put("BOX64_RCFILE", imageFs.getRootDir().getPath() + "/etc/config.box64rc");
+
+    if (container != null) {
+      String cpuList = container.getCPUList(true);
+      if (cpuList != null && !cpuList.isEmpty()) {
+        envVars.put("BOX64_CPULIST", cpuList);
+        envVars.put("BOX86_CPULIST", cpuList);
+      }
+    }
   }
 
   private void repairRuntimeExecutablePermissions(Context context, ImageFs imageFs) {
