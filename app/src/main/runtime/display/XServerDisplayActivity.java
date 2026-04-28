@@ -2902,6 +2902,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             xServerView.getRenderer().setFpsLimit(runtimeFpsLimit);
                         }
                         applyPreferredRefreshRate();
+                        if (shortcut != null) {
+                            shortcut.putExtra("fpsLimit", runtimeFpsLimit > 0 ? String.valueOf(runtimeFpsLimit) : null);
+                            shortcut.saveData();
+                        }
                         renderDrawerMenu();
                     }
                 };
@@ -3748,6 +3752,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         if (shortcut != null) {
             renderer.setUnviewableWMClasses("explorer.exe");
+            String savedFpsLimit = shortcut.getExtra("fpsLimit", "0");
+            try {
+                runtimeFpsLimit = Integer.parseInt(savedFpsLimit);
+                renderer.setFpsLimit(runtimeFpsLimit);
+            } catch (NumberFormatException e) {
+                runtimeFpsLimit = 0;
+            }
         }
 
         xServer.setRenderer(renderer);

@@ -451,6 +451,10 @@ class ShortcutSettingsComposeDialog private constructor(
             Log.e(TAG, "Error loading refresh rate entries", e)
         }
 
+        // FPS Limit
+        val savedFpsLimit = shortcut.getExtra("fpsLimit", "0")
+        state.fpsLimit.intValue = savedFpsLimit.toIntOrNull() ?: 0
+
         // Graphics driver (basic entries - will be updated after contents sync)
         val graphicsDriverArr =
             context.resources.getStringArray(R.array.graphics_driver_entries).toList()
@@ -1170,6 +1174,10 @@ class ShortcutSettingsComposeDialog private constructor(
                     shortcut.putExtra("refreshRate", selectedRate.toString())
                 }
             }
+
+            // FPS Limit
+            val fpsLimit = state.fpsLimit.intValue
+            shortcut.putExtra("fpsLimit", if (fpsLimit > 0) fpsLimit.toString() else null)
 
             // Desktop Theme — stored as compound "THEME,TYPE,COLOR" string
             if (state.desktopThemeEntries.value.isNotEmpty()) {

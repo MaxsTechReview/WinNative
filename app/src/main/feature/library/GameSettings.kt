@@ -155,6 +155,7 @@ class GameSettingsStateHolder {
     val listArtworkSummary = mutableStateOf("")
     val refreshRateEntries = mutableStateOf<List<String>>(emptyList())
     val selectedRefreshRate = mutableIntStateOf(0)
+    val fpsLimit = mutableIntStateOf(0)
 
     // Display
     val graphicsDriverEntries = mutableStateOf<List<String>>(emptyList())
@@ -1183,6 +1184,51 @@ private fun GeneralSection(
             selectedIndex = state.selectedMidiSoundFont.intValue,
             onSelected = { state.selectedMidiSoundFont.intValue = it }
         )
+    }
+
+    if (!isContainer) {
+        Spacer(Modifier.height(16.dp))
+        SettingGroup {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "FPS Limiter",
+                    color = TextPrimary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                val limits = listOf(0, 30, 45, 60, 90, 120)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    limits.forEach { limit ->
+                        val isChecked = state.fpsLimit.intValue == limit
+                        val bgColor = if (isChecked) AccentBlue.copy(alpha = 0.15f) else ChipSurface
+                        val borderColor = if (isChecked) AccentBlue.copy(alpha = 0.4f) else ChipBorder
+                        val textColor = if (isChecked) AccentBlue else TextDim
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(bgColor)
+                                .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                                .clickable { state.fpsLimit.intValue = limit }
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                if (limit == 0) "None" else "$limit",
+                                color = textColor,
+                                fontSize = 12.sp,
+                                fontWeight = if (isChecked) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
