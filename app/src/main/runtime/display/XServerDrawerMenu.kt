@@ -158,6 +158,11 @@ data class XServerDrawerState(
     val invertGyroY: Boolean = false,
     val gyroscopeCardExpanded: Boolean = false,
     val fpsLimit: Int = 0,
+    val screenEffectsCardExpanded: Boolean = false,
+    val fsrEnabled: Boolean = false,
+    val fsrMode: Int = 0,
+    val fsrSharpness: Int = 100,
+    val colorProfile: Int = 0,
 )
 
 class XServerDrawerStateHolder(
@@ -209,6 +214,16 @@ interface XServerDrawerActionListener {
     fun onGyroscopeCardExpandedChanged(expanded: Boolean)
 
     fun onFPSLimitChanged(limit: Int)
+
+    fun onScreenEffectsCardExpandedChanged(expanded: Boolean)
+
+    fun onFSREnabledChanged(enabled: Boolean)
+
+    fun onFSRModeSelected(mode: Int)
+
+    fun onFSRSharpnessChanged(sharpness: Int)
+
+    fun onColorProfileSelected(profile: Int)
 }
 
 fun buildXServerDrawerState(
@@ -241,6 +256,11 @@ fun buildXServerDrawerState(
     invertGyroY: Boolean = false,
     gyroscopeCardExpanded: Boolean = false,
     fpsLimit: Int = 0,
+    screenEffectsCardExpanded: Boolean = false,
+    fsrEnabled: Boolean = false,
+    fsrMode: Int = 0,
+    fsrSharpness: Int = 100,
+    colorProfile: Int = 0,
 ): XServerDrawerState {
     val items =
         mutableListOf(
@@ -288,16 +308,17 @@ fun buildXServerDrawerState(
                 active = !mouseDisabled,
             ),
             XServerDrawerItem(
-                itemId = R.id.main_menu_screen_effects,
-                title = context.getString(R.string.session_effects_title),
-                subtitle = context.getString(R.string.session_drawer_screen_effects_subtitle),
-                icon = Icons.Outlined.Tune,
-            ),
-            XServerDrawerItem(
                 itemId = R.id.main_menu_toggle_fullscreen,
                 title = context.getString(R.string.session_drawer_toggle_fullscreen),
                 subtitle = context.getString(R.string.session_drawer_fullscreen_subtitle),
                 icon = Icons.Outlined.Fullscreen,
+            ),
+            XServerDrawerItem(
+                itemId = R.id.main_menu_screen_effects,
+                title = context.getString(R.string.session_drawer_screen_effects),
+                subtitle = context.getString(R.string.session_drawer_screen_effects_subtitle),
+                icon = Icons.Outlined.Tune,
+                active = fsrEnabled || colorProfile > 0,
             ),
             XServerDrawerItem(
                 itemId = R.id.main_menu_native_rendering,
@@ -393,6 +414,11 @@ fun buildXServerDrawerState(
         invertGyroY = invertGyroY,
         gyroscopeCardExpanded = gyroscopeCardExpanded,
         fpsLimit = fpsLimit,
+        screenEffectsCardExpanded = screenEffectsCardExpanded,
+        fsrEnabled = fsrEnabled,
+        fsrMode = fsrMode,
+        fsrSharpness = fsrSharpness,
+        colorProfile = colorProfile,
     )
 }
 
@@ -473,10 +499,21 @@ private fun XServerDrawerContent(
             }
 
             secondaryItems.forEach { item ->
-                XServerDrawerActionCard(
-                    item = item,
-                    onClick = { listener.onActionSelected(item.itemId) },
-                )
+                when (item.itemId) {
+                    R.id.main_menu_screen_effects -> {
+                        XServerScreenEffectsCard(
+                            item = item,
+                            state = state,
+                            listener = listener
+                        )
+                    }
+                    else -> {
+                        XServerDrawerActionCard(
+                            item = item,
+                            onClick = { listener.onActionSelected(item.itemId) },
+                        )
+                    }
+                }
             }
             Spacer(Modifier.height(6.dp))
         }
@@ -1540,6 +1577,263 @@ private fun XServerGyroscopeSettingsExpanded(
                     borderColor = WinNativeAccent.copy(alpha = 0.3f),
                     onClick = { listener.onActionSelected(R.id.main_menu_gyroscope_reset) }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun XServerScreenEffectsCard(
+    item: XServerDrawerItem,
+    state: XServerDrawerState,
+    listener: XServerDrawerActionListener,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed = interactionSource.collectIsPressedAsState().value
+    val statusInteractionSource = remember { MutableInteractionSource() }
+    val active = item.active
+    val expanded = state.screenEffectsCardExpanded
+    val cardClick = { listener.onScreenEffectsCardExpandedChanged(!state.screenEffectsCardExpanded) }
+
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.985f else 1f,
+        animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
+        label = "effectsCardScale",
+    )
+    val cardColor by animateColorAsState(
+        targetValue =
+            when {
+                active -> DrawerActiveSurface
+                pressed -> WinNativeSurfaceAlt
+                else -> WinNativeSurface
+            },
+        animationSpec = tween(180),
+        label = "effectsCardColor",
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (active) WinNativeAccent.copy(alpha = 0.34f) else WinNativeOutline,
+        animationSpec = tween(180),
+        label = "effectsCardBorder",
+    )
+    val iconBoxColor by animateColorAsState(
+        targetValue = if (active) WinNativeAccent.copy(alpha = 0.16f) else DrawerIconBox,
+        animationSpec = tween(180),
+        label = "effectsIconBoxColor",
+    )
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+        label = "effectsChevronRotation",
+    )
+    val shape = RoundedCornerShape(20.dp)
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }.clip(shape)
+                .background(cardColor)
+                .border(BorderStroke(1.dp, borderColor), shape),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = cardClick,
+                    ).padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .width(4.dp)
+                        .height(42.dp)
+                        .clip(CircleShape)
+                        .background(if (active) WinNativeAccent else Color.Transparent),
+            )
+            Spacer(Modifier.width(10.dp))
+            Box(
+                modifier =
+                    Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(iconBoxColor),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = item.icon,
+                    contentDescription = null,
+                    tint = if (active) WinNativeAccent else WinNativeTextPrimary,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.title,
+                    color = WinNativeTextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    text = item.subtitle,
+                    color = WinNativeTextSecondary,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            val chevronSource = remember { MutableInteractionSource() }
+            Box(
+                modifier =
+                    Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(WinNativePanel)
+                        .border(1.dp, WinNativeOutline, RoundedCornerShape(12.dp))
+                        .clickable(
+                            interactionSource = chevronSource,
+                            indication = null,
+                            onClick = cardClick,
+                        ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = WinNativeAccent,
+                    modifier =
+                        Modifier
+                            .size(18.dp)
+                            .rotate(chevronRotation),
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn(tween(180)) + expandVertically(tween(220, easing = FastOutSlowInEasing)),
+            exit = fadeOut(tween(140)) + shrinkVertically(tween(180, easing = FastOutSlowInEasing)),
+        ) {
+            XServerScreenEffectsSettingsExpanded(state = state, listener = listener)
+        }
+    }
+}
+
+@Composable
+private fun XServerScreenEffectsSettingsExpanded(
+    state: XServerDrawerState,
+    listener: XServerDrawerActionListener,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 14.dp, end = 14.dp, bottom = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(WinNativePanel)
+                    .border(1.dp, WinNativeOutline, RoundedCornerShape(18.dp))
+                    .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            DrawerBooleanRow(
+                title = stringResource(R.string.session_drawer_super_resolution),
+                checked = state.fsrEnabled,
+                onCheckedChange = listener::onFSREnabledChanged
+            )
+
+            if (state.fsrEnabled) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.session_drawer_upscaler_mode),
+                        color = WinNativeTextSecondary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 0.3.sp,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(
+                            "Super Resolution",
+                            "DLS",
+                        ).forEachIndexed { index, label ->
+                            HUDToggleChip(
+                                label = label,
+                                checked = state.fsrMode == index,
+                                onClick = { listener.onFSRModeSelected(index) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    DrawerSliderRow(
+                        label = stringResource(R.string.session_drawer_sharpness),
+                        valueText = "${state.fsrSharpness}%",
+                        value = state.fsrSharpness.toFloat(),
+                        valueRange = 0f..100f,
+                        steps = 99,
+                        onValueChange = { listener.onFSRSharpnessChanged(it.roundToInt()) }
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = stringResource(R.string.session_drawer_color_profile),
+                    color = WinNativeTextSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 0.3.sp,
+                )
+                
+                val profiles = listOf("Disabled", "HDR", "Natural", "CRT Effect")
+                
+                // Show profiles in 2 rows of 2
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        profiles.take(2).forEachIndexed { index, label ->
+                            HUDToggleChip(
+                                label = label,
+                                checked = state.colorProfile == index,
+                                onClick = { listener.onColorProfileSelected(index) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        profiles.drop(2).forEachIndexed { index, label ->
+                            HUDToggleChip(
+                                label = label,
+                                checked = state.colorProfile == (index + 2),
+                                onClick = { listener.onColorProfileSelected(index + 2) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
             }
         }
     }

@@ -377,8 +377,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
         val cpuCount = Runtime.getRuntime().availableProcessors()
         state.cpuCount.intValue = cpuCount
-        state.cpuChecked.value = parseCpuList(c?.getCPUList(true) ?: "", cpuCount)
-        state.cpuCheckedWoW64.value = parseCpuList(c?.getCPUListWoW64(true) ?: "", cpuCount)
+        state.cpuChecked.value = parseCpuList(c?.getCPUList(true) ?: Container.getFallbackCPUList(), cpuCount)
+        state.cpuCheckedWoW64.value = parseCpuList(c?.getCPUListWoW64(true) ?: Container.getFallbackCPUListWoW64(), cpuCount)
 
         val wincomponentsStr = c?.getWinComponents() ?: Container.DEFAULT_WINCOMPONENTS
         val directX = mutableListOf<WinComponentItem>()
@@ -962,6 +962,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
     private fun rebuildEmulatorLists() {
         val fullList = state.emulatorEntries.value
+        val hasWowbox64 = hasInstalledWowbox64()
         fun entryById(id: String): String? = fullList.firstOrNull {
             StringUtils.parseIdentifier(it).equals(id, ignoreCase = true)
         }
@@ -976,7 +977,10 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         if (isArm64EC) {
             state.emulator64Entries.value = listOfNotNull(entryById("fexcore"))
             state.emulator32Entries.value =
-                listOfNotNull(entryById("fexcore"), entryById("wowbox64"))
+                listOfNotNull(
+                    entryById("fexcore"),
+                    if (hasWowbox64) entryById("wowbox64") else null
+                )
         } else {
             state.emulator64Entries.value = listOfNotNull(entryById("box64"))
             state.emulator32Entries.value = listOfNotNull(entryById("box64"))
@@ -993,6 +997,11 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             StringUtils.parseIdentifier(it).equals(prev64Id, ignoreCase = true)
         }
         state.selectedEmulator64.intValue = if (new64Idx >= 0) new64Idx else 0
+    }
+
+    private fun hasInstalledWowbox64(): Boolean {
+        return contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64)
+            ?.any { it.isInstalled } == true
     }
 
     private fun loadGraphicsDriverConfigState() {

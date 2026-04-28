@@ -542,7 +542,6 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_drawer_input_controls_subtitle">Konfigurer eller skift skærmkontroller</string>
     <string name="session_drawer_relative_mouse_movement">Relativ musebevægelse</string>
     <string name="session_drawer_mouse_input">Museinput</string>
-    <string name="session_drawer_screen_effects_subtitle">Farve-, CRT-, FXAA- og shader-indstillinger</string>
     <string name="session_drawer_fullscreen_subtitle">Skift fuldskærmsrendering</string>
     <string name="session_drawer_picture_in_picture">Billede-i-billede</string>
     <string name="session_drawer_pip_subtitle">Formindsk spillet til et flydende vindue</string>
@@ -574,20 +573,6 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_task_bring_to_front">Bring til forgrunden</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
 
-    <!-- Session > Screen Effects -->
-    <string name="session_effects_brightness">Lysstyrke</string>
-    <string name="session_effects_contrast">Kontrast</string>
-    <string name="session_effects_gamma">Gamma</string>
-    <string name="session_effects_color_adjustment">Farvejustering</string>
-    <string name="session_effects_enable_fxaa">Aktiver FXAA</string>
-    <string name="session_effects_enable_crt_shader">Aktiver CRT-shader</string>
-    <string name="session_effects_confirm_add_profile">Vil du tilføje en ny profil?</string>
-    <string name="session_effects_default_profile">Standardprofil</string>
-    <string name="session_effects_title">Skærmeffekter</string>
-    <string name="session_effects_enable_toon_shader">Aktiver Toon-shader</string>
-    <string name="session_effects_enable_ntsc_effect">Aktiver NTSC-effekt</string>
-    <string name="session_effects_post_processing">Efterbehandling</string>
-    <string name="session_effects_profile_selection">Profilvalg</string>
 
     <!-- Session > Display -->
     <string name="session_display_orientation">Orientering</string>
@@ -789,7 +774,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
 
     <!-- Settings > Content Packages -->
     <string name="settings_content_install">Installer indhold</string>
-    <string name="settings_content_type">Indholdstype</string>
+    <string name="settings_content_type">Kategori</string>
     <string name="settings_content_components">Komponenter</string>
     <string name="settings_content_auto_create_container">Auto-opret container</string>
     <string name="settings_content_remove_title">Fjern komponent?</string>
@@ -797,13 +782,13 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_content_container_created">Container oprettet: %1$s</string>
     <string name="settings_content_download_failed">Download mislykkedes.</string>
     <string name="common_ui_working">Arbejder…</string>
-    <string name="settings_content_desc_wine">Windows-kompatibilitetslaget der bruges til at køre spil og apps. Du skal have mindst én Wine- eller FEXCore-version installeret.</string>
-    <string name="settings_content_desc_proton">Valves Wine-baserede build med ekstra patches til spil. Nyttig til nogle titler, men standard-Wine fungerer normalt fint.</string>
-    <string name="settings_content_desc_dxvk">Oversætter DirectX 9, 10 og 11 til Vulkan. Dette forbedrer normalt ydeevnen i ældre Windows-spil.</string>
-    <string name="settings_content_desc_vkd3d">Oversætter DirectX 12 til Vulkan. Nødvendig for mange nyere Windows-spil.</string>
-    <string name="settings_content_desc_box64">Oversætter x86 / x64 Windows-kode så det kan køre på ARM-enheder. Box64 eller FEXCore kræves til de fleste spil.</string>
-    <string name="settings_content_desc_wowbox64">Et Box64-build til Wine WoW64-tilstand. Kun nødvendig ved brug af et 64-bit-præfiks med 32-bit app-understøttelse.</string>
-    <string name="settings_content_desc_fexcore">En alternativ x86 / x64-oversætter. Prøv den hvis et spil har problemer eller dårlig ydeevne med Box64.</string>
+    <string name="settings_content_desc_wine">Lavet af Wine-projektet; oversætter Win32-kald til native Linux/Android-tjenester.</string>
+    <string name="settings_content_desc_proton">Lavet af Valve; en Wine-baseret runtime med spilrettelser til Windows-spil.</string>
+    <string name="settings_content_desc_dxvk">Oversætter Direct3D 9-, 10- og 11-grafikkald til Vulkan.</string>
+    <string name="settings_content_desc_vkd3d">Oversætter Direct3D 12-grafikkald til Vulkan.</string>
+    <string name="settings_content_desc_box64">Oversætter x86_64 Linux-kode, så den kan køre på ARM64-enheder.</string>
+    <string name="settings_content_desc_wowbox64">Box64-build brugt af WoW64 til at køre 32-bit Windows-apps i 64-bit Wine.</string>
+    <string name="settings_content_desc_fexcore">Oversætter x86- og x86_64-kode, så den kan køre på ARM64-enheder.</string>
     <string name="settings_content_unable_to_install">Kan ikke installere indhold.</string>
     <string name="settings_content_install_failed">Installation mislykkedes</string>
     <string name="settings_content_file_cannot_be_recognized">Filen kan ikke genkendes.</string>

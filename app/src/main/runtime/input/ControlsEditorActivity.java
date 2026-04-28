@@ -4,8 +4,10 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.os.SystemClock;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.CheckBox;
@@ -39,6 +41,7 @@ import java.util.Arrays;
 public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity implements View.OnClickListener {
   private InputControlsView inputControlsView;
   private ControlsProfile profile;
+  private boolean blockingUpdate = false;
 
   @Override
   public void onCreate(Bundle bundle) {
@@ -63,6 +66,8 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
     container.findViewById(R.id.BTRemoveElement).setOnClickListener(this);
     container.findViewById(R.id.BTElementSettings).setOnClickListener(this);
     container.findViewById(R.id.BTColorPicker).setOnClickListener(this);
+
+    setupToolbarDragging();
 
     getOnBackPressedDispatcher()
         .addCallback(
@@ -186,28 +191,35 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
               popupWindow.dismiss();
             });
   }
-
-  private void showControlElementSettings(View anchorView) {
-    final ControlElement element = inputControlsView.getSelectedElement();
-    View view = LayoutInflater.from(this).inflate(R.layout.control_element_settings, null);
+private void showControlElementSettings(View anchorView) {
+  final ControlElement element = inputControlsView.getSelectedElement();
+  View view = LayoutInflater.from(this).inflate(R.layout.control_element_settings, null);
 
     final Runnable updateLayout =
         () -> {
+          if (blockingUpdate) return;
+          blockingUpdate = true;
           ControlElement.Type type = element.getType();
           view.findViewById(R.id.LLShape).setVisibility(View.GONE);
           view.findViewById(R.id.CBToggleSwitch).setVisibility(View.GONE);
           view.findViewById(R.id.LLCustomTextIcon).setVisibility(View.GONE);
           view.findViewById(R.id.LLRangeOptions).setVisibility(View.GONE);
+          view.findViewById(R.id.LLRadialMenuOptions).setVisibility(View.GONE);
 
-          if (type == ControlElement.Type.BUTTON) {
-            view.findViewById(R.id.LLShape).setVisibility(View.VISIBLE);
-            view.findViewById(R.id.CBToggleSwitch).setVisibility(View.VISIBLE);
+          if (type == ControlElement.Type.BUTTON || type == ControlElement.Type.RADIAL_MENU) {
             view.findViewById(R.id.LLCustomTextIcon).setVisibility(View.VISIBLE);
+            if (type == ControlElement.Type.BUTTON) {
+              view.findViewById(R.id.LLShape).setVisibility(View.VISIBLE);
+              view.findViewById(R.id.CBToggleSwitch).setVisibility(View.VISIBLE);
+            } else {
+              view.findViewById(R.id.LLRadialMenuOptions).setVisibility(View.VISIBLE);
+            }
           } else if (type == ControlElement.Type.RANGE_BUTTON) {
             view.findViewById(R.id.LLRangeOptions).setVisibility(View.VISIBLE);
           }
 
           loadBindingSpinners(element, view);
+          blockingUpdate = false;
         };
 
     loadTypeSpinner(element, view.findViewById(R.id.SType), updateLayout);
@@ -223,14 +235,22 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
           inputControlsView.invalidate();
         });
 
-    NumberPicker npColumns = view.findViewById(R.id.NPColumns);
-    npColumns.setValue(element.getBindingCount());
-    npColumns.setOnValueChangeListener(
-        (numberPicker, value) -> {
-          element.setBindingCount(value);
-          profile.save();
-          inputControlsView.invalidate();
-        });
+    loadNumberSpinner(view.findViewById(R.id.SColumns), element.getBindingCount(), 3, 8, (value) -> {
+      if (element.getType() == ControlElement.Type.RANGE_BUTTON && element.getBindingCount() != value) {
+        element.setBindingCount(value);
+        profile.save();
+        inputControlsView.invalidate();
+      }
+    });
+
+    loadNumberSpinner(view.findViewById(R.id.SBindingsCount), element.getBindingCount(), 3, 12, (value) -> {
+      if (element.getType() == ControlElement.Type.RADIAL_MENU && element.getBindingCount() != value) {
+        element.setBindingCount(value);
+        profile.save();
+        updateLayout.run();
+        inputControlsView.invalidate();
+      }
+    });
 
     final TextView tvScale = view.findViewById(R.id.TVScale);
     SeekBar sbScale = view.findViewById(R.id.SBScale);
@@ -256,6 +276,29 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
         });
     sbScale.setProgress((int) (element.getScale() * 100));
 
+    final TextView tvOpacity = view.findViewById(R.id.TVOpacity);
+    SeekBar sbOpacity = view.findViewById(R.id.SBOpacity);
+    sbOpacity.setOnSeekBarChangeListener(
+        new SeekBar.OnSeekBarChangeListener() {
+          @Override
+          public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+            tvOpacity.setText(progress + "%");
+            if (fromUser) {
+              element.setOpacity(progress / 100.0f);
+              profile.save();
+              inputControlsView.invalidate();
+            }
+          }
+
+          @Override
+          public void onStartTrackingTouch(SeekBar seekBar) {}
+
+          @Override
+          public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+    sbOpacity.setProgress((int) (element.getOpacity() * 100));
+    tvOpacity.setText(sbOpacity.getProgress() + "%");
+
     CheckBox cbToggleSwitch = view.findViewById(R.id.CBToggleSwitch);
     cbToggleSwitch.setChecked(element.isToggleSwitch());
     cbToggleSwitch.setOnCheckedChangeListener(
@@ -270,6 +313,7 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
     loadIcons(llIconList, element.getIconId());
 
     updateLayout.run();
+    blockingUpdate = false;
 
     PopupWindow popupWindow = AppUtils.showPopupWindow(anchorView, view, 340, 0);
     popupWindow.setOnDismissListener(
@@ -291,6 +335,21 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
         });
   }
 
+  private void loadNumberSpinner(Spinner spinner, int currentValue, int min, int max, com.winlator.cmod.shared.util.Callback<Integer> callback) {
+    java.util.ArrayList<String> items = new java.util.ArrayList<>();
+    for (int i = min; i <= max; i++) items.add(String.valueOf(i));
+    AppUtils.setupThemedSpinner(spinner, this, items);
+    spinner.setSelection(Mathf.clamp(currentValue - min, 0, max - min), false);
+    spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+      @Override
+      public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+        if (!blockingUpdate) callback.call(position + min);
+      }
+      @Override
+      public void onNothingSelected(AdapterView<?> parent) {}
+    });
+  }
+
   private void loadTypeSpinner(final ControlElement element, Spinner spinner, Runnable callback) {
     AppUtils.setupThemedSpinner(spinner, this, Arrays.asList(ControlElement.Type.names()));
     spinner.setSelection(element.getType().ordinal(), false);
@@ -298,10 +357,12 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
         new AdapterView.OnItemSelectedListener() {
           @Override
           public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-            element.setType(ControlElement.Type.values()[position]);
-            profile.save();
-            callback.run();
-            inputControlsView.invalidate();
+            if (!blockingUpdate) {
+              element.setType(ControlElement.Type.values()[position]);
+              profile.save();
+              callback.run();
+              inputControlsView.invalidate();
+            }
           }
 
           @Override
@@ -316,9 +377,11 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
         new AdapterView.OnItemSelectedListener() {
           @Override
           public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-            element.setShape(ControlElement.Shape.values()[position]);
-            profile.save();
-            inputControlsView.invalidate();
+            if (!blockingUpdate) {
+              element.setShape(ControlElement.Shape.values()[position]);
+              profile.save();
+              inputControlsView.invalidate();
+            }
           }
 
           @Override
@@ -331,23 +394,26 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
     container.removeAllViews();
 
     ControlElement.Type type = element.getType();
-    if (type == ControlElement.Type.BUTTON) {
-      loadBindingSpinner(element, container, 0, R.string.input_controls_editor_binding);
-      loadBindingSpinner(element, container, 1, R.string.binding_secondary);
+    if (type == ControlElement.Type.BUTTON || type == ControlElement.Type.RADIAL_MENU) {
+      int count = element.getBindingCount();
+      for (int i = 0; i < count; i++) {
+        String title = (type == ControlElement.Type.RADIAL_MENU) ? "Binding " + (i + 1) : (i == 0 ? getString(R.string.input_controls_editor_binding) : getString(R.string.binding_secondary));
+        loadBindingSpinner(element, container, i, title);
+      }
     } else if (type == ControlElement.Type.D_PAD
         || type == ControlElement.Type.STICK
         || type == ControlElement.Type.TRACKPAD) {
-      loadBindingSpinner(element, container, 0, R.string.input_controls_editor_binding_up);
-      loadBindingSpinner(element, container, 1, R.string.input_controls_editor_binding_right);
-      loadBindingSpinner(element, container, 2, R.string.input_controls_editor_binding_down);
-      loadBindingSpinner(element, container, 3, R.string.input_controls_editor_binding_left);
+      loadBindingSpinner(element, container, 0, getString(R.string.input_controls_editor_binding_up));
+      loadBindingSpinner(element, container, 1, getString(R.string.input_controls_editor_binding_right));
+      loadBindingSpinner(element, container, 2, getString(R.string.input_controls_editor_binding_down));
+      loadBindingSpinner(element, container, 3, getString(R.string.input_controls_editor_binding_left));
     }
   }
 
   private void loadBindingSpinner(
-      final ControlElement element, LinearLayout container, final int index, int titleResId) {
+      final ControlElement element, LinearLayout container, final int index, String title) {
     View view = LayoutInflater.from(this).inflate(R.layout.binding_field, container, false);
-    ((TextView) view.findViewById(R.id.TVTitle)).setText(titleResId);
+    ((TextView) view.findViewById(R.id.TVTitle)).setText(title);
     final Spinner sBindingType = view.findViewById(R.id.SBindingType);
     final Spinner sBinding = view.findViewById(R.id.SBinding);
 
@@ -387,18 +453,19 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
         });
 
     Binding selectedBinding = element.getBindingAt(index);
-    if (selectedBinding.isKeyboard()) {
-      sBindingType.setSelection(0, false);
-    } else if (selectedBinding.isMouse()) {
-      sBindingType.setSelection(1, false);
+    int typeIndex = 0;
+    if (selectedBinding.isMouse()) {
+      typeIndex = 1;
     } else if (selectedBinding.isGamepad()) {
-      sBindingType.setSelection(2, false);
+      typeIndex = 2;
     }
+    sBindingType.setSelection(typeIndex);
 
     sBinding.setOnItemSelectedListener(
         new AdapterView.OnItemSelectedListener() {
           @Override
           public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+            if (blockingUpdate) return;
             Binding binding = Binding.NONE;
             switch (sBindingType.getSelectedItemPosition()) {
               case 0:
@@ -484,5 +551,73 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
 
       parent.addView(imageView);
     }
+  }
+
+  private void setupToolbarDragging() {
+    View toolbar = findViewById(R.id.LLToolbar);
+    if (toolbar != null) {
+      toolbar.setOnTouchListener(new View.OnTouchListener() {
+        private int activePointerId = -1;
+        private float dX, dY;
+        private float downRawX, downRawY;
+        private boolean isDragging = false;
+        private static final float TAP_SLOP = 20f;
+
+        @Override
+        public boolean onTouch(View view, MotionEvent event) {
+          if (event.getPointerCount() > 1) {
+            this.activePointerId = -1;
+            return false;
+          }
+          switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+              this.activePointerId = event.getPointerId(0);
+              this.dX = view.getX() - event.getRawX();
+              this.dY = view.getY() - event.getRawY();
+              this.downRawX = event.getRawX();
+              this.downRawY = event.getRawY();
+              this.isDragging = false;
+              view.bringToFront();
+              return true;
+            case MotionEvent.ACTION_MOVE:
+              if (this.activePointerId != -1) {
+                float dx = Math.abs(event.getRawX() - this.downRawX);
+                float dy = Math.abs(event.getRawY() - this.downRawY);
+                if (dx > TAP_SLOP || dy > TAP_SLOP) {
+                  this.isDragging = true;
+                }
+                if (this.isDragging) {
+                  view.setX(event.getRawX() + this.dX);
+                  view.setY(event.getRawY() + this.dY);
+                  clampToParentBounds(view);
+                }
+                return true;
+              }
+              break;
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+              if (this.activePointerId != -1) {
+                if (this.isDragging) {
+                  clampToParentBounds(view);
+                }
+                this.activePointerId = -1;
+                return this.isDragging;
+              }
+              return false;
+          }
+          return false;
+        }
+      });
+    }
+  }
+
+  private void clampToParentBounds(View view) {
+    View parentView = (View) view.getParent();
+    if (parentView == null) return;
+    if (parentView.getWidth() <= 0 || parentView.getHeight() <= 0 || view.getWidth() <= 0 || view.getHeight() <= 0) return;
+    float maxX = Math.max(0f, parentView.getWidth() - view.getWidth());
+    float maxY = Math.max(0f, parentView.getHeight() - view.getHeight());
+    view.setX(Math.max(0f, Math.min(view.getX(), maxX)));
+    view.setY(Math.max(0f, Math.min(view.getY(), maxY)));
   }
 }

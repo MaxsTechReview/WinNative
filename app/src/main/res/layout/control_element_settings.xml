@@ -69,6 +69,33 @@
             android:max="150" />
 
         <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp"
+            android:orientation="horizontal">
+
+            <TextView
+                style="@style/OtherSettingsSectionLabel"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:text="@string/input_controls_editor_opacity"/>
+
+            <TextView
+                android:id="@+id/TVOpacity"
+                style="@style/OtherSettingsSectionLabel"
+                android:layout_width="wrap_content"
+                android:textColor="@color/settings_accent" />
+        </LinearLayout>
+
+        <SeekBar
+            android:id="@+id/SBOpacity"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:min="10"
+            android:max="100" />
+
+        <LinearLayout
             android:id="@+id/LLRangeOptions"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -115,13 +142,30 @@
                 style="@style/OtherSettingsSectionLabel"
                 android:text="@string/session_display_columns" />
 
-            <com.winlator.cmod.shared.ui.widget.NumberPicker
-                android:id="@+id/NPColumns"
+            <Spinner
+                style="@style/OtherSettingsSpinner"
+                android:id="@+id/SColumns"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
-                app:minValue="3"
-                app:maxValue="8" />
+                android:spinnerMode="dropdown" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/LLRadialMenuOptions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                style="@style/OtherSettingsSectionLabel"
+                android:text="@string/input_controls_editor_number_of_bindings" />
+
+            <Spinner
+                style="@style/OtherSettingsSpinner"
+                android:id="@+id/SBindingsCount"
+                android:layout_width="match_parent"
+                android:layout_marginBottom="12dp"
+                android:spinnerMode="dropdown" />
         </LinearLayout>
 
         <LinearLayout

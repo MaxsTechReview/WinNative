@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -43,7 +42,6 @@ import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeveloperBoard
 import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Science
@@ -186,16 +184,11 @@ fun ComponentsScreen(
             HeroHeader(
                 installedCount = state.installed.size,
                 availableCount = state.available.size,
+                currentType = state.currentType,
                 autoCreateContainer = state.autoCreateContainer,
+                onTypeSelected = onTypeSelected,
                 onInstallFromFile = onInstallFromFile,
                 onToggleAutoCreateContainer = onToggleAutoCreateContainer,
-            )
-        }
-
-        item(key = "type_tabs") {
-            TypeTabsCard(
-                currentType = state.currentType,
-                onTypeSelected = onTypeSelected,
             )
         }
 
@@ -259,11 +252,13 @@ fun ComponentsScreen(
 private fun HeroHeader(
     installedCount: Int,
     availableCount: Int,
+    currentType: ContentProfile.ContentType,
     autoCreateContainer: Boolean,
+    onTypeSelected: (ContentProfile.ContentType) -> Unit,
     onInstallFromFile: () -> Unit,
     onToggleAutoCreateContainer: (Boolean) -> Unit,
 ) {
-    BoxWithConstraints(
+    Box(
         modifier =
             Modifier
                 .fillMaxWidth()
@@ -272,105 +267,24 @@ private fun HeroHeader(
                 .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
                 .padding(horizontal = 14.dp, vertical = 11.dp),
     ) {
-        val stackActionsBelowCounts = maxWidth < 620.dp
-
-        if (stackActionsBelowCounts) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(9.dp))
-                                .background(IconBoxBg),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Extension,
-                            contentDescription = null,
-                            tint = Accent,
-                            modifier = Modifier.size(17.dp),
-                        )
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.settings_content_components),
-                            color = TextPrimary,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CountPill(label = stringResource(R.string.common_ui_installed), count = installedCount)
-                            Spacer(Modifier.width(6.dp))
-                            CountPill(label = stringResource(R.string.common_ui_available), count = availableCount)
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    ToggleChip(
-                        label = stringResource(R.string.settings_content_auto_create_container),
-                        enabled = autoCreateContainer,
-                        onToggle = { onToggleAutoCreateContainer(!autoCreateContainer) },
-                    )
-                    SmallPillButton(
-                        label = stringResource(R.string.settings_content_install),
-                        icon = Icons.Outlined.Upload,
-                        tint = Accent,
-                        onClick = onInstallFromFile,
-                    )
-                }
-            }
-        } else {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(34.dp)
-                            .clip(RoundedCornerShape(9.dp))
-                            .background(IconBoxBg),
-                    contentAlignment = Alignment.Center,
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Extension,
-                        contentDescription = null,
-                        tint = Accent,
-                        modifier = Modifier.size(17.dp),
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.settings_content_components),
-                        color = TextPrimary,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CountPill(label = stringResource(R.string.common_ui_installed), count = installedCount)
-                        Spacer(Modifier.width(6.dp))
-                        CountPill(label = stringResource(R.string.common_ui_available), count = availableCount)
-                    }
+                    CountPill(label = stringResource(R.string.common_ui_installed), count = installedCount)
+                    Spacer(Modifier.width(6.dp))
+                    CountPill(label = stringResource(R.string.common_ui_available), count = availableCount)
                 }
                 Spacer(Modifier.width(10.dp))
                 ToggleChip(
                     label = stringResource(R.string.settings_content_auto_create_container),
                     enabled = autoCreateContainer,
+                    compact = true,
                     onToggle = { onToggleAutoCreateContainer(!autoCreateContainer) },
                 )
                 Spacer(Modifier.width(8.dp))
@@ -378,9 +292,16 @@ private fun HeroHeader(
                     label = stringResource(R.string.settings_content_install),
                     icon = Icons.Outlined.Upload,
                     tint = Accent,
+                    compact = true,
                     onClick = onInstallFromFile,
                 )
             }
+
+            Spacer(Modifier.height(12.dp))
+            TypeTabsContent(
+                currentType = currentType,
+                onTypeSelected = onTypeSelected,
+            )
         }
     }
 }
@@ -389,11 +310,16 @@ private fun HeroHeader(
 private fun ToggleChip(
     label: String,
     enabled: Boolean,
+    compact: Boolean = false,
     onToggle: () -> Unit,
 ) {
     val tint = if (enabled) SuccessGreen else TextSecondary
     val background = if (enabled) SuccessGreen.copy(alpha = 0.14f) else SurfaceDark
     val borderColor = if (enabled) SuccessGreen.copy(alpha = 0.45f) else CardBorder
+    val horizontalPadding = if (compact) 8.dp else 10.dp
+    val verticalPadding = if (compact) 4.dp else 5.dp
+    val dotSize = if (compact) 5.dp else 6.dp
+    val fontSize = if (compact) 10.sp else 11.sp
     Row(
         modifier =
             Modifier
@@ -401,13 +327,13 @@ private fun ToggleChip(
                 .background(background)
                 .border(1.dp, borderColor, RoundedCornerShape(8.dp))
                 .noRippleClickable(onClick = onToggle)
-                .padding(horizontal = 10.dp, vertical = 5.dp),
+                .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier =
                 Modifier
-                    .size(6.dp)
+                    .size(dotSize)
                     .clip(RoundedCornerShape(3.dp))
                     .background(tint),
         )
@@ -415,7 +341,7 @@ private fun ToggleChip(
         Text(
             text = label,
             color = tint,
-            fontSize = 11.sp,
+            fontSize = fontSize,
             fontWeight = FontWeight.SemiBold,
         )
     }
@@ -458,65 +384,55 @@ private fun CountPill(
 // ============================================================================
 
 @Composable
-private fun TypeTabsCard(
+private fun TypeTabsContent(
     currentType: ContentProfile.ContentType,
     onTypeSelected: (ContentProfile.ContentType) -> Unit,
 ) {
-    Box(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(CardDark)
-                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = stringResource(R.string.settings_content_type).uppercase(),
+            color = TextSecondary,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.4.sp,
+            modifier = Modifier.padding(start = 2.dp, bottom = 8.dp),
+        )
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val types = ContentProfile.ContentType.values()
+            types.forEachIndexed { index, type ->
+                TypeTabChip(
+                    label = type.toString(),
+                    selected = type == currentType,
+                    onClick = { onTypeSelected(type) },
+                )
+                if (index < types.lastIndex) {
+                    Spacer(Modifier.width(8.dp))
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Crossfade(
+            targetState = currentType,
+            animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
+            label = "componentsTypeDescription",
+        ) { type ->
             Text(
-                text = stringResource(R.string.settings_content_type).uppercase(),
-                color = TextSecondary,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.4.sp,
-                modifier = Modifier.padding(start = 2.dp, bottom = 8.dp),
-            )
-            Row(
+                text = stringResource(descriptionResFor(type)),
+                color = TextPrimary,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                textAlign = TextAlign.Center,
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                val types = ContentProfile.ContentType.values()
-                types.forEachIndexed { index, type ->
-                    TypeTabChip(
-                        label = type.toString(),
-                        selected = type == currentType,
-                        onClick = { onTypeSelected(type) },
-                    )
-                    if (index < types.lastIndex) {
-                        Spacer(Modifier.width(8.dp))
-                    }
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-            Crossfade(
-                targetState = currentType,
-                animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
-                label = "componentsTypeDescription",
-            ) { type ->
-                Text(
-                    text = stringResource(descriptionResFor(type)),
-                    color = TextPrimary,
-                    fontSize = 11.sp,
-                    lineHeight = 15.sp,
-                    textAlign = TextAlign.Center,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 2.dp),
-                )
-            }
+                        .padding(horizontal = 2.dp),
+            )
         }
     }
 }
@@ -700,8 +616,13 @@ private fun SmallPillButton(
     label: String,
     icon: ImageVector?,
     tint: Color,
+    compact: Boolean = false,
     onClick: () -> Unit,
 ) {
+    val horizontalPadding = if (compact) 8.dp else 10.dp
+    val verticalPadding = if (compact) 4.dp else 6.dp
+    val iconSize = if (compact) 11.dp else 12.dp
+    val fontSize = if (compact) 10.sp else 11.sp
     Row(
         modifier =
             Modifier
@@ -709,7 +630,7 @@ private fun SmallPillButton(
                 .background(tint.copy(alpha = 0.14f))
                 .border(1.dp, tint.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
                 .noRippleClickable(onClick = onClick)
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
@@ -717,14 +638,14 @@ private fun SmallPillButton(
                 imageVector = icon,
                 contentDescription = null,
                 tint = tint,
-                modifier = Modifier.size(12.dp),
+                modifier = Modifier.size(iconSize),
             )
             Spacer(Modifier.width(5.dp))
         }
         Text(
             text = label,
             color = tint,
-            fontSize = 11.sp,
+            fontSize = fontSize,
             fontWeight = FontWeight.SemiBold,
         )
     }

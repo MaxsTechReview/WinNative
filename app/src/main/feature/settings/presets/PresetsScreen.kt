@@ -3,12 +3,16 @@
 package com.winlator.cmod.feature.settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -18,11 +22,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,7 +34,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -53,18 +56,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -100,8 +100,6 @@ private val BgDark = Color(0xFF18181D)
 private val CardDark = Color(0xFF1C1C2A)
 private val CardDarker = Color(0xFF15151E)
 private val CardBorder = Color(0xFF2A2A3A)
-private val IconBoxBg = Color(0xFF242434)
-private val SurfaceDark = Color(0xFF21212A)
 private val Accent = Color(0xFF1A9FFF)
 private val DangerRed = Color(0xFFFF7A88)
 private val TextPrimary = Color(0xFFF0F4FF)
@@ -152,9 +150,8 @@ data class EnvVarDefinition(
 
 /**
  * Full per-engine snapshot. Keeping a copy for each engine in [PresetsState] means
- * the AnimatedContent crossfade can render the *outgoing* engine's data during the
- * fade-out phase instead of momentarily flashing the new engine's data through the
- * old layout.
+ * the selector crossfade can render the outgoing engine's data during fade-out
+ * instead of momentarily flashing the new engine's data through the old layout.
  */
 data class PresetEngineData(
     val presets: List<PresetOption> = emptyList(),
@@ -278,26 +275,16 @@ fun PresetsScreen(
             ),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item(key = "hero_header") {
-            PresetHeroHeader(
-                engine = state.currentEngine,
-                presetCount = currentData.presets.size,
-                customCount = currentData.presets.count { it.isCustom },
-                onCreatePreset = { showNewDialog = true },
-                onImportPreset = onImportPreset,
-            )
-        }
-
         item(key = "selector_card") {
             // Combined engine-tabs + preset selector card. The tabs themselves stay
-            // static; only the preset dropdown / badge / menu / hint and env-var grid
-            // are inside the AnimatedContent below, so tapping a tab doesn't make the
-            // tab itself flicker.
+            // static; only the preset dropdown / badge / menu / hint are inside
+            // AnimatedContent below, so tapping a tab doesn't make the tab flicker.
             PresetSelectorCard(
                 engine = state.currentEngine,
                 state = state,
                 onEngineSelected = onEngineSelected,
                 onPresetSelected = onPresetSelected,
+                onCreatePreset = { showNewDialog = true },
                 onRename = { showRenameDialog = true },
                 onDuplicate = { showDuplicateConfirm = true },
                 onExport = onExportPreset,
@@ -313,28 +300,28 @@ fun PresetsScreen(
             )
         }
 
-        item(key = "env_var_grid") {
-            // Env var grid crossfades + slides when switching engines. Keyed on the
-            // engine enum so AnimatedContent can gracefully interrupt rapid taps:
-            // mid-animation state changes swap to the new target from current progress
-            // instead of completing the old animation first.
-            AnimatedContent(
-                targetState = state.currentEngine,
-                transitionSpec = { engineSwapTransition() },
-                contentKey = { it },
-                label = "presetEnvVarGrid",
-            ) { frameEngine ->
-                val data = state.engines[frameEngine] ?: PresetEngineData()
-                if (data.envVarDefinitions.isEmpty()) {
-                    EmptyEnvVarsCard()
-                } else {
-                    EnvVarGrid(
-                        definitions = data.envVarDefinitions,
-                        values = data.currentValues,
-                        editable = data.editable,
-                        onValueChanged = onEnvVarValueChanged,
-                    )
-                }
+        if (currentData.envVarDefinitions.isEmpty()) {
+            item(key = "env_var_empty_${state.currentEngine}") {
+                EmptyEnvVarsCard()
+            }
+        } else {
+            items(
+                items = currentData.envVarDefinitions,
+                key = { def -> "${state.currentEngine.name}:${def.name}" },
+                contentType = { def -> def.controlType },
+            ) { def ->
+                EnvVarCard(
+                    definition = def,
+                    value = currentData.currentValues[def.name] ?: def.defaultValue,
+                    editable = currentData.editable,
+                    modifier =
+                        Modifier.animateItem(
+                            fadeInSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
+                            fadeOutSpec = tween(durationMillis = 100, easing = FastOutSlowInEasing),
+                            placementSpec = null,
+                        ),
+                    onValueChanged = { onEnvVarValueChanged(def.name, it) },
+                )
             }
         }
 
@@ -390,116 +377,8 @@ private fun AnimatedContentTransitionScope<PresetEngine>.engineSwapTransition():
     )
 }
 
-// ============================================================================
-// Hero header
-// ============================================================================
-
 @Composable
-private fun PresetHeroHeader(
-    engine: PresetEngine,
-    presetCount: Int,
-    customCount: Int,
-    onCreatePreset: () -> Unit,
-    onImportPreset: () -> Unit,
-) {
-    Box(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(CardDark)
-                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(28.dp)
-                        .clip(RoundedCornerShape(7.dp))
-                        .background(IconBoxBg),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Tune,
-                    contentDescription = null,
-                    tint = Accent,
-                    modifier = Modifier.size(15.dp),
-                )
-            }
-            Spacer(Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.container_presets_title),
-                    color = TextPrimary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CountPill(
-                        label =
-                            when (engine) {
-                                PresetEngine.BOX64 -> "Box64"
-                                PresetEngine.FEXCORE -> "FEXCore"
-                            },
-                        count = presetCount,
-                    )
-                    Spacer(Modifier.width(5.dp))
-                    CountPill(label = "Custom", count = customCount)
-                }
-            }
-            Spacer(Modifier.width(8.dp))
-            HeroPillButton(
-                label = stringResource(R.string.container_presets_new),
-                icon = Icons.Outlined.Add,
-                onClick = onCreatePreset,
-            )
-            Spacer(Modifier.width(6.dp))
-            HeroPillButton(
-                label = stringResource(R.string.container_presets_import),
-                icon = Icons.Outlined.FileDownload,
-                onClick = onImportPreset,
-            )
-        }
-    }
-}
-
-@Composable
-private fun CountPill(
-    label: String,
-    count: Int,
-) {
-    Row(
-        modifier =
-            Modifier
-                .clip(RoundedCornerShape(6.dp))
-                .background(Accent.copy(alpha = 0.12f))
-                .border(1.dp, Accent.copy(alpha = 0.28f), RoundedCornerShape(6.dp))
-                .padding(horizontal = 7.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = count.toString(),
-            color = Accent,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-        )
-        Spacer(Modifier.width(4.dp))
-        Text(
-            text = label,
-            color = TextSecondary,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Medium,
-        )
-    }
-}
-
-@Composable
-private fun HeroPillButton(
+private fun PresetActionButton(
     label: String,
     icon: ImageVector,
     onClick: () -> Unit,
@@ -527,6 +406,63 @@ private fun HeroPillButton(
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
         )
+    }
+}
+
+@Composable
+private fun PresetSelectorHeader(
+    engine: PresetEngine,
+    isCustom: Boolean,
+    onEngineSelected: (PresetEngine) -> Unit,
+    onCreatePreset: () -> Unit,
+    onImportPreset: () -> Unit,
+) {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val actions: @Composable () -> Unit = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                PresetActionButton(
+                    label = stringResource(R.string.container_presets_new),
+                    icon = Icons.Outlined.Add,
+                    onClick = onCreatePreset,
+                )
+                Spacer(Modifier.width(6.dp))
+                PresetActionButton(
+                    label = stringResource(R.string.container_presets_import),
+                    icon = Icons.Outlined.FileDownload,
+                    onClick = onImportPreset,
+                )
+            }
+        }
+
+        if (maxWidth < 390.dp) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    EngineTabs(
+                        selected = engine,
+                        onEngineSelected = onEngineSelected,
+                    )
+                    PresetTypeBadge(isCustom = isCustom)
+                }
+                actions()
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                EngineTabs(
+                    selected = engine,
+                    onEngineSelected = onEngineSelected,
+                )
+                PresetTypeBadge(isCustom = isCustom)
+                Spacer(Modifier.weight(1f))
+                actions()
+            }
+        }
     }
 }
 
@@ -601,6 +537,7 @@ private fun PresetSelectorCard(
     state: PresetsState,
     onEngineSelected: (PresetEngine) -> Unit,
     onPresetSelected: (String) -> Unit,
+    onCreatePreset: () -> Unit,
     onRename: () -> Unit,
     onDuplicate: () -> Unit,
     onExport: () -> Unit,
@@ -619,39 +556,18 @@ private fun PresetSelectorCard(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
         ) {
-            // Single row — engine tabs stay static on the left, the dropdown /
-            // badge / menu group on the right swaps via AnimatedContent keyed on
-            // the current engine. Keeping the tabs outside the AnimatedContent
-            // means tapping a tab doesn't cause the tab itself to flash in/out.
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                EngineTabs(
-                    selected = engine,
-                    onEngineSelected = onEngineSelected,
-                )
-
-                Spacer(Modifier.width(10.dp))
-
-                AnimatedContent(
-                    targetState = engine,
-                    transitionSpec = { engineSwapTransition() },
-                    contentKey = { it },
-                    label = "presetSelectorRow",
-                    modifier = Modifier.weight(1f),
-                ) { frameEngine ->
-                    val data = state.engines[frameEngine] ?: PresetEngineData()
-                    PresetSelectorRowContent(
-                        data = data,
-                        onPresetSelected = onPresetSelected,
-                        onRename = onRename,
-                        onDuplicate = onDuplicate,
-                        onExport = onExport,
-                        onImport = onImport,
-                        onRemove = onRemove,
-                    )
-                }
-            }
+            val currentEngineData = state.engines[engine] ?: PresetEngineData()
+            val selectedPreset =
+                currentEngineData.presets.firstOrNull { it.id == currentEngineData.selectedPresetId }
+            PresetSelectorHeader(
+                engine = engine,
+                isCustom = selectedPreset?.isCustom == true,
+                onEngineSelected = onEngineSelected,
+                onCreatePreset = onCreatePreset,
+                onImportPreset = onImport,
+            )
 
             Spacer(Modifier.height(8.dp))
 
@@ -659,23 +575,20 @@ private fun PresetSelectorCard(
                 targetState = engine,
                 transitionSpec = { engineSwapTransition() },
                 contentKey = { it },
-                label = "presetHint",
+                label = "presetSelectorRow",
             ) { frameEngine ->
-                val editable = state.engines[frameEngine]?.editable == true
-                Text(
-                    text =
-                        stringResource(
-                            if (editable) {
-                                R.string.container_presets_changes_auto_saved
-                            } else {
-                                R.string.container_presets_builtin_readonly_hint
-                            },
-                        ),
-                    color = TextSecondary,
-                    fontSize = 11.sp,
-                    lineHeight = 14.sp,
+                val data = state.engines[frameEngine] ?: PresetEngineData()
+                PresetSelectorRowContent(
+                    data = data,
+                    onPresetSelected = onPresetSelected,
+                    onRename = onRename,
+                    onDuplicate = onDuplicate,
+                    onExport = onExport,
+                    onImport = onImport,
+                    onRemove = onRemove,
                 )
             }
+
         }
     }
 }
@@ -700,153 +613,173 @@ private fun PresetSelectorRowContent(
     var dropdownOpen by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     val selected = data.presets.firstOrNull { it.id == data.selectedPresetId }
+    val hintText =
+        stringResource(
+            if (data.editable) {
+                R.string.container_presets_changes_auto_saved
+            } else {
+                R.string.container_presets_builtin_readonly_hint
+            },
+        )
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        // Dropdown trigger — takes the middle space.
-        Box(
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(CardDarker)
-                    .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
-                    .noRippleClickable(enabled = data.presets.isNotEmpty()) { dropdownOpen = true }
-                    .padding(horizontal = 11.dp, vertical = 7.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = selected?.name ?: "—",
-                    color = TextPrimary,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Icon(
-                    imageVector = Icons.Outlined.ExpandMore,
-                    contentDescription = null,
-                    tint = TextSecondary,
-                    modifier =
-                        Modifier
-                            .size(16.dp)
-                            .rotate(if (dropdownOpen) 180f else 0f),
-                )
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // Dropdown trigger — full width within the selector column.
+            Box(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .requiredHeightIn(min = 38.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(CardDarker)
+                        .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                        .noRippleClickable(enabled = data.presets.isNotEmpty()) { dropdownOpen = true }
+                        .padding(horizontal = 11.dp, vertical = 7.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = selected?.name ?: "—",
+                        color = TextPrimary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Icon(
+                        imageVector = Icons.Outlined.ExpandMore,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier =
+                            Modifier
+                                .size(16.dp)
+                                .rotate(if (dropdownOpen) 180f else 0f),
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = dropdownOpen,
+                    onDismissRequest = { dropdownOpen = false },
+                    containerColor = CardDark,
+                ) {
+                    data.presets.forEach { option ->
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text(
+                                        text = option.name,
+                                        color = if (option.id == data.selectedPresetId) Accent else TextPrimary,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (option.id == data.selectedPresetId) FontWeight.SemiBold else FontWeight.Normal,
+                                        modifier = Modifier.weight(1f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    if (option.isCustom) {
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            text = stringResource(R.string.container_presets_custom),
+                                            color = TextSecondary,
+                                            fontSize = 10.sp,
+                                        )
+                                    }
+                                }
+                            },
+                            onClick = {
+                                dropdownOpen = false
+                                if (option.id != data.selectedPresetId) {
+                                    onPresetSelected(option.id)
+                                }
+                            },
+                        )
+                    }
+                }
             }
 
-            DropdownMenu(
-                expanded = dropdownOpen,
-                onDismissRequest = { dropdownOpen = false },
-                containerColor = CardDark,
-            ) {
-                data.presets.forEach { option ->
-                    DropdownMenuItem(
-                        text = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(
-                                    text = option.name,
-                                    color = if (option.id == data.selectedPresetId) Accent else TextPrimary,
-                                    fontSize = 13.sp,
-                                    fontWeight = if (option.id == data.selectedPresetId) FontWeight.SemiBold else FontWeight.Normal,
-                                    modifier = Modifier.weight(1f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                if (option.isCustom) {
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        text = stringResource(R.string.container_presets_custom),
-                                        color = TextSecondary,
-                                        fontSize = 10.sp,
-                                    )
-                                }
-                            }
-                        },
+            Spacer(Modifier.width(8.dp))
+            Box {
+                IconTapButton(
+                    icon = Icons.Outlined.MoreVert,
+                    tint = TextPrimary,
+                    onClick = { menuOpen = true },
+                )
+                DropdownMenu(
+                    expanded = menuOpen,
+                    onDismissRequest = { menuOpen = false },
+                    containerColor = CardDark,
+                ) {
+                    MenuRow(
+                        icon = Icons.Outlined.Edit,
+                        iconTint = Accent,
+                        label = stringResource(R.string.container_presets_rename),
+                        textColor = TextPrimary,
+                        enabled = data.editable,
                         onClick = {
-                            dropdownOpen = false
-                            if (option.id != data.selectedPresetId) {
-                                onPresetSelected(option.id)
-                            }
+                            menuOpen = false
+                            onRename()
+                        },
+                    )
+                    MenuRow(
+                        icon = Icons.Outlined.ContentCopy,
+                        iconTint = Accent,
+                        label = stringResource(R.string.common_ui_duplicate),
+                        textColor = TextPrimary,
+                        enabled = true,
+                        onClick = {
+                            menuOpen = false
+                            onDuplicate()
+                        },
+                    )
+                    MenuRow(
+                        icon = Icons.Outlined.FileUpload,
+                        iconTint = Accent,
+                        label = stringResource(R.string.common_ui_export),
+                        textColor = TextPrimary,
+                        enabled = data.editable,
+                        onClick = {
+                            menuOpen = false
+                            onExport()
+                        },
+                    )
+                    MenuRow(
+                        icon = Icons.Outlined.FileDownload,
+                        iconTint = Accent,
+                        label = stringResource(R.string.common_ui_import),
+                        textColor = TextPrimary,
+                        enabled = true,
+                        onClick = {
+                            menuOpen = false
+                            onImport()
+                        },
+                    )
+                    MenuRow(
+                        icon = Icons.Outlined.Delete,
+                        iconTint = DangerRed,
+                        label = stringResource(R.string.common_ui_remove),
+                        textColor = DangerRed,
+                        enabled = data.editable,
+                        onClick = {
+                            menuOpen = false
+                            onRemove()
                         },
                     )
                 }
             }
         }
 
-        Spacer(Modifier.width(8.dp))
-        PresetTypeBadge(isCustom = selected?.isCustom == true)
-        Spacer(Modifier.width(2.dp))
-        Box {
-            IconTapButton(
-                icon = Icons.Outlined.MoreVert,
-                tint = TextPrimary,
-                onClick = { menuOpen = true },
-            )
-            DropdownMenu(
-                expanded = menuOpen,
-                onDismissRequest = { menuOpen = false },
-                containerColor = CardDark,
-            ) {
-                MenuRow(
-                    icon = Icons.Outlined.Edit,
-                    iconTint = Accent,
-                    label = stringResource(R.string.container_presets_rename),
-                    textColor = TextPrimary,
-                    enabled = data.editable,
-                    onClick = {
-                        menuOpen = false
-                        onRename()
-                    },
-                )
-                MenuRow(
-                    icon = Icons.Outlined.ContentCopy,
-                    iconTint = Accent,
-                    label = stringResource(R.string.common_ui_duplicate),
-                    textColor = TextPrimary,
-                    enabled = true,
-                    onClick = {
-                        menuOpen = false
-                        onDuplicate()
-                    },
-                )
-                MenuRow(
-                    icon = Icons.Outlined.FileUpload,
-                    iconTint = Accent,
-                    label = stringResource(R.string.common_ui_export),
-                    textColor = TextPrimary,
-                    enabled = data.editable,
-                    onClick = {
-                        menuOpen = false
-                        onExport()
-                    },
-                )
-                MenuRow(
-                    icon = Icons.Outlined.FileDownload,
-                    iconTint = Accent,
-                    label = stringResource(R.string.common_ui_import),
-                    textColor = TextPrimary,
-                    enabled = true,
-                    onClick = {
-                        menuOpen = false
-                        onImport()
-                    },
-                )
-                MenuRow(
-                    icon = Icons.Outlined.Delete,
-                    iconTint = DangerRed,
-                    label = stringResource(R.string.common_ui_remove),
-                    textColor = DangerRed,
-                    enabled = data.editable,
-                    onClick = {
-                        menuOpen = false
-                        onRemove()
-                    },
-                )
-            }
-        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = hintText,
+            color = TextSecondary,
+            fontSize = 11.sp,
+            lineHeight = 14.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 11.dp),
+        )
     }
 }
 
@@ -924,134 +857,161 @@ private fun SectionLabel(
 }
 
 // ============================================================================
-// Env var grid — square cards with toggle / dropdown / text input
+// Env var list — compact cards with expandable help
 // ============================================================================
-
-@Composable
-private fun EnvVarGrid(
-    definitions: List<EnvVarDefinition>,
-    values: Map<String, String>,
-    editable: Boolean,
-    onValueChanged: (name: String, value: String) -> Unit,
-) {
-    // 3-column layout via chunked rows to match the original recyclerview
-    // grid span count. LazyVerticalGrid is harder to size inside the parent
-    // ScrollView, so we flow rows manually and let each card wrap its content.
-    val columns = 3
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        definitions.chunked(columns).forEach { rowItems ->
-            // height(IntrinsicSize.Min) lets every card in the row grow to match
-            // the tallest card's content, so cards in a row align visually even
-            // when one has a much longer description.
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                rowItems.forEach { def ->
-                    Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
-                    ) {
-                        EnvVarCard(
-                            definition = def,
-                            value = values[def.name] ?: def.defaultValue,
-                            editable = editable,
-                            onValueChanged = { onValueChanged(def.name, it) },
-                        )
-                    }
-                }
-                // Filler spacer so a lone trailing card keeps the same width as
-                // its siblings in earlier rows (prevents the last odd card from
-                // stretching to full row width).
-                repeat(columns - rowItems.size) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun EnvVarCard(
     definition: EnvVarDefinition,
     value: String,
     editable: Boolean,
+    modifier: Modifier = Modifier,
     onValueChanged: (String) -> Unit,
 ) {
-    // Card layout mirrors the original preset_env_var_card.xml: variable name on
-    // top, control in the middle, multi-line description underneath. minHeight
-    // matches the old 140dp so all cards in a row align neatly even when their
-    // descriptions vary in length.
+    var expanded by remember(definition.name) { mutableStateOf(false) }
+    val borderColor = if (expanded) Accent.copy(alpha = 0.45f) else CardBorder
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+        label = "envVarChevron_${definition.name}",
+    )
+    val helpText =
+        remember(definition.fullDescription, definition.summary) {
+            definition.fullDescription
+                .htmlToPlainText()
+                .ifBlank { definition.summary }
+        }
+
     Box(
         modifier =
-            Modifier
-                .fillMaxSize()
-                .heightIn(min = 150.dp)
-                .alpha(if (editable) 1f else 0.55f)
+            modifier
+                .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
                 .background(CardDark)
-                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .border(1.dp, borderColor, RoundedCornerShape(12.dp)),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = definition.name,
-                color = TextPrimary,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                lineHeight = 15.sp,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(10.dp))
-            when (definition.controlType) {
-                PresetControlType.TOGGLE -> {
-                    EnvVarToggleControl(
-                        value = value,
-                        editable = editable,
-                        onValueChanged = onValueChanged,
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .noRippleClickable { expanded = !expanded }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.ExpandMore,
+                    contentDescription = null,
+                    tint = if (expanded) Accent else TextSecondary,
+                    modifier =
+                        Modifier
+                            .size(18.dp)
+                            .rotate(chevronRotation),
+                )
+                Spacer(Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = definition.name,
+                        color = TextPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        lineHeight = 16.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
-
-                PresetControlType.DROPDOWN -> {
-                    EnvVarDropdownControl(
-                        values = definition.values,
-                        value = value,
-                        editable = editable,
-                        onValueChanged = onValueChanged,
-                    )
-                }
-
-                PresetControlType.TEXT -> {
-                    EnvVarTextControl(
-                        value = value,
-                        editable = editable,
-                        onValueChanged = onValueChanged,
-                    )
-                }
+                Spacer(Modifier.width(12.dp))
+                EnvVarInlineControl(
+                    definition = definition,
+                    value = value,
+                    editable = editable,
+                    onValueChanged = onValueChanged,
+                )
             }
-            if (definition.summary.isNotBlank()) {
-                Spacer(Modifier.height(10.dp))
+
+            AnimatedVisibility(
+                visible = expanded && helpText.isNotBlank(),
+                enter =
+                    fadeIn(tween(110)) +
+                        expandVertically(
+                            animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
+                            expandFrom = Alignment.Top,
+                        ),
+                exit =
+                    fadeOut(tween(90)) +
+                        shrinkVertically(
+                            animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
+                            shrinkTowards = Alignment.Top,
+                        ),
+            ) {
                 Text(
-                    text = definition.summary,
+                    text = helpText,
                     color = TextPrimary,
-                    fontSize = 11.sp,
-                    lineHeight = 14.sp,
-                    maxLines = 7,
-                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .background(CardDarker)
+                            .padding(horizontal = 38.dp, vertical = 10.dp),
                 )
             }
         }
     }
 }
+
+@Composable
+private fun EnvVarInlineControl(
+    definition: EnvVarDefinition,
+    value: String,
+    editable: Boolean,
+    onValueChanged: (String) -> Unit,
+) {
+    Box(
+        modifier =
+            Modifier
+                .widthIn(min = 112.dp, max = 172.dp)
+                .alpha(if (editable) 1f else 0.55f),
+        contentAlignment = Alignment.CenterEnd,
+    ) {
+        when (definition.controlType) {
+            PresetControlType.TOGGLE -> {
+                EnvVarToggleControl(
+                    value = value,
+                    editable = editable,
+                    onValueChanged = onValueChanged,
+                )
+            }
+
+            PresetControlType.DROPDOWN -> {
+                EnvVarDropdownControl(
+                    values = definition.values,
+                    value = value,
+                    editable = editable,
+                    onValueChanged = onValueChanged,
+                )
+            }
+
+            PresetControlType.TEXT -> {
+                EnvVarTextControl(
+                    value = value,
+                    editable = editable,
+                    onValueChanged = onValueChanged,
+                )
+            }
+        }
+    }
+}
+
+private fun String.htmlToPlainText(): String =
+    android.text.Html
+        .fromHtml(this, android.text.Html.FROM_HTML_MODE_LEGACY)
+        .toString()
+        .lineSequence()
+        .map { it.trim() }
+        .joinToString("\n")
+        .replace(Regex("\n{3,}"), "\n\n")
+        .trim()
 
 @Composable
 private fun EnvVarToggleControl(
@@ -1060,31 +1020,41 @@ private fun EnvVarToggleControl(
     onValueChanged: (String) -> Unit,
 ) {
     val checked = value == "1"
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
+    Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .noRippleClickable {
+                    if (editable) onValueChanged(if (checked) "0" else "1")
+                }
+                .padding(start = 10.dp, end = 2.dp, top = 4.dp, bottom = 4.dp),
     ) {
-        Text(
-            text = if (checked) "Enabled" else "Disabled",
-            color = if (checked) Accent else TextSecondary,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.weight(1f),
-        )
-        Switch(
-            checked = checked,
-            enabled = editable,
-            onCheckedChange = { onValueChanged(if (it) "1" else "0") },
-            colors =
-                outlinedSwitchColors(
-                    accentColor = Accent,
-                    textSecondaryColor = TextSecondary,
-                ),
-            // scale() preserves the switch's native proportions and just shrinks
-            // the whole thing; using .size() with a custom width/height ends up
-            // squishing the thumb vs. track ratio.
-            modifier = Modifier.scale(0.72f),
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = if (checked) "Enabled" else "Disabled",
+                color = if (checked) Accent else TextSecondary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f),
+            )
+            Switch(
+                checked = checked,
+                enabled = editable,
+                onCheckedChange = null,
+                colors =
+                    outlinedSwitchColors(
+                        accentColor = Accent,
+                        textSecondaryColor = TextSecondary,
+                    ),
+                // scale() preserves the switch's native proportions and just shrinks
+                // the whole thing; using .size() with a custom width/height ends up
+                // squishing the thumb vs. track ratio.
+                modifier = Modifier.scale(0.8f),
+            )
+        }
     }
 }
 
@@ -1224,7 +1194,8 @@ private fun IconTapButton(
     Box(
         modifier =
             Modifier
-                .size(30.dp)
+                .width(34.dp)
+                .height(38.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .noRippleClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -1233,7 +1204,7 @@ private fun IconTapButton(
             imageVector = icon,
             contentDescription = null,
             tint = tint,
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(20.dp),
         )
     }
 }

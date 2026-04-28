@@ -64,7 +64,7 @@ public class InputControlsView extends View {
   private float overlayOpacity = DEFAULT_OVERLAY_OPACITY;
   private TouchpadView touchpadView;
   private XServer xServer;
-  private final Bitmap[] icons = new Bitmap[17];
+  private final Bitmap[] icons = new Bitmap[64];
   private Timer mouseMoveTimer;
   private volatile float mouseMoveOffsetX = 0f;
   private volatile float mouseMoveOffsetY = 0f;
@@ -149,8 +149,16 @@ public class InputControlsView extends View {
     this.editMode = editMode;
   }
 
+  public boolean isEditMode() {
+    return editMode;
+  }
+
   public void setOverlayOpacity(float overlayOpacity) {
     this.overlayOpacity = overlayOpacity;
+  }
+
+  public float getOverlayOpacity() {
+    return overlayOpacity;
   }
 
   public int getSnappingSize() {
@@ -237,7 +245,7 @@ public class InputControlsView extends View {
     paint.setStrokeWidth(snappingSize * 0.0625f);
 
     // Background color from theme
-    int bgColor = 0xFF060C23;
+    int bgColor = 0xFF12121B;
     canvas.drawColor(bgColor);
 
     paint.setAntiAlias(false);
@@ -746,12 +754,14 @@ public class InputControlsView extends View {
         case MotionEvent.ACTION_POINTER_UP:
           {
             ControlElement activeElement = activeTouchElements.get(pointerId);
+            float x = event.getX(actionIndex);
+            float y = event.getY(actionIndex);
             if (activeElement != null) {
-              handled = activeElement.handleTouchUp(pointerId);
+              handled = activeElement.handleTouchUp(pointerId, x, y);
               activeTouchElements.remove(pointerId);
             } else {
               for (ControlElement element : profile.getElements()) {
-                if (element.handleTouchUp(pointerId)) {
+                if (element.handleTouchUp(pointerId, x, y)) {
                   handled = true;
                   break;
                 }
@@ -959,6 +969,7 @@ public class InputControlsView extends View {
   }
 
   public Bitmap getIcon(byte id) {
+    if (id < 0 || id >= icons.length) return null;
     if (icons[id] == null) {
       Context context = getContext();
       try (InputStream is = context.getAssets().open("inputcontrols/icons/" + id + ".png")) {

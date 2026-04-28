@@ -542,7 +542,6 @@
     <string name="session_drawer_input_controls_subtitle">配置或切换屏幕控制</string>
     <string name="session_drawer_relative_mouse_movement">相对鼠标移动</string>
     <string name="session_drawer_mouse_input">鼠标输入</string>
-    <string name="session_drawer_screen_effects_subtitle">颜色、CRT、FXAA 和着色器选项</string>
     <string name="session_drawer_fullscreen_subtitle">切换全屏渲染</string>
     <string name="session_drawer_picture_in_picture">画中画</string>
     <string name="session_drawer_pip_subtitle">将游戏缩小为浮动窗口</string>
@@ -574,20 +573,6 @@
     <string name="session_task_bring_to_front">置于前台</string>
     <string name="session_task_cpu_usage_format">CPU（%1$d%%）</string>
 
-    <!-- Session > Screen Effects -->
-    <string name="session_effects_brightness">亮度</string>
-    <string name="session_effects_contrast">对比度</string>
-    <string name="session_effects_gamma">伽马</string>
-    <string name="session_effects_color_adjustment">颜色调整</string>
-    <string name="session_effects_enable_fxaa">启用 FXAA</string>
-    <string name="session_effects_enable_crt_shader">启用 CRT 着色器</string>
-    <string name="session_effects_confirm_add_profile">您要添加新的配置文件吗？</string>
-    <string name="session_effects_default_profile">默认配置文件</string>
-    <string name="session_effects_title">屏幕效果</string>
-    <string name="session_effects_enable_toon_shader">启用卡通着色器</string>
-    <string name="session_effects_enable_ntsc_effect">启用 NTSC 效果</string>
-    <string name="session_effects_post_processing">后处理</string>
-    <string name="session_effects_profile_selection">配置文件选择</string>
 
     <!-- Session > Display -->
     <string name="session_display_orientation">方向</string>
@@ -789,7 +774,7 @@
 
     <!-- Settings > Content Packages -->
     <string name="settings_content_install">安装内容</string>
-    <string name="settings_content_type">内容类型</string>
+    <string name="settings_content_type">类别</string>
     <string name="settings_content_components">组件</string>
     <string name="settings_content_auto_create_container">自动创建容器</string>
     <string name="settings_content_remove_title">移除组件？</string>
@@ -797,13 +782,13 @@
     <string name="settings_content_container_created">已创建容器：%1$s</string>
     <string name="settings_content_download_failed">下载失败。</string>
     <string name="common_ui_working">处理中…</string>
-    <string name="settings_content_desc_wine">用于运行游戏和应用的 Windows 兼容层。您至少需要安装一个 Wine 或 FEXCore 版本。</string>
-    <string name="settings_content_desc_proton">Valve 基于 Wine 的构建版本，带有针对游戏的额外补丁。对某些游戏有用，但标准 Wine 通常也能正常工作。</string>
-    <string name="settings_content_desc_dxvk">将 DirectX 9、10 和 11 转换为 Vulkan。通常可提升旧 Windows 游戏的性能。</string>
-    <string name="settings_content_desc_vkd3d">将 DirectX 12 转换为 Vulkan。许多较新的 Windows 游戏需要此组件。</string>
-    <string name="settings_content_desc_box64">转换 x86 / x64 Windows 代码，使其可在 ARM 设备上运行。大多数游戏都需要 Box64 或 FEXCore。</string>
-    <string name="settings_content_desc_wowbox64">用于 Wine WoW64 模式的 Box64 构建。仅在使用支持 32 位应用的 64 位前缀时需要。</string>
-    <string name="settings_content_desc_fexcore">备用的 x86 / x64 翻译器。如果游戏在 Box64 上出现问题或性能不佳，可以尝试使用。</string>
+    <string name="settings_content_desc_wine">由 Wine 项目制作；将 Win32 调用转换为原生 Linux/Android 服务。</string>
+    <string name="settings_content_desc_proton">由 Valve 制作；基于 Wine 的运行时，带有 Windows 游戏补丁。</string>
+    <string name="settings_content_desc_dxvk">将 Direct3D 9、10 和 11 图形调用转换为 Vulkan。</string>
+    <string name="settings_content_desc_vkd3d">将 Direct3D 12 图形调用转换为 Vulkan。</string>
+    <string name="settings_content_desc_box64">转换 x86_64 Linux 代码，使其可在 ARM64 设备上运行。</string>
+    <string name="settings_content_desc_wowbox64">WoW64 使用的 Box64 构建，用于在 64 位 Wine 中运行 32 位 Windows 应用。</string>
+    <string name="settings_content_desc_fexcore">转换 x86 和 x86_64 代码，使其可在 ARM64 设备上运行。</string>
     <string name="settings_content_unable_to_install">无法安装内容。</string>
     <string name="settings_content_install_failed">安装失败</string>
     <string name="settings_content_file_cannot_be_recognized">无法识别此文件。</string>

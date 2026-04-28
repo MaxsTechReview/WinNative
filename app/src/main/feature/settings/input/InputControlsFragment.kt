@@ -168,9 +168,6 @@ class InputControlsFragment : Fragment() {
                                 onGyroscopeEnabledChanged = { enabled ->
                                     val editor = preferences.edit()
                                     editor.putBoolean("gyro_enabled", enabled)
-                                    if (!enabled) {
-                                        editor.putBoolean("mouse_gyro_enabled", false)
-                                    }
                                     editor.apply()
                                     publishUiState()
                                 },
@@ -329,7 +326,7 @@ class InputControlsFragment : Fragment() {
                 selectedProfileName = profile?.name,
                 selectedProfileElementCount = profile?.elementCountFromFile ?: 0,
                 overlayOpacity = (preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY) * 100).toInt(),
-                gyroscopeEnabled = preferences.getBoolean("gyro_enabled", false) || preferences.getBoolean("mouse_gyro_enabled", false),
+                gyroscopeEnabled = preferences.getBoolean("gyro_enabled", false),
                 gyroscopeModeIndex = preferences.getInt("gyro_mode", 0),
                 gyroscopeActivatorLabel = currentGyroActivatorLabel(),
                 rightStickGyroEnabled = preferences.getBoolean("process_gyro_with_left_trigger", false),

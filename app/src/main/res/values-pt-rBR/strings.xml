@@ -542,7 +542,6 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="session_drawer_input_controls_subtitle">Configurar ou alternar controles na tela</string>
     <string name="session_drawer_relative_mouse_movement">Movimento Relativo do Mouse</string>
     <string name="session_drawer_mouse_input">Entrada do Mouse</string>
-    <string name="session_drawer_screen_effects_subtitle">Opcoes de cor, CRT, FXAA e shader</string>
     <string name="session_drawer_fullscreen_subtitle">Alternar renderizacao em tela cheia</string>
     <string name="session_drawer_picture_in_picture">Picture in Picture</string>
     <string name="session_drawer_pip_subtitle">Reduzir o jogo a uma janela flutuante</string>
@@ -574,20 +573,6 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="session_task_bring_to_front">Trazer para Frente</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
 
-    <!-- Session > Screen Effects -->
-    <string name="session_effects_brightness">Brilho</string>
-    <string name="session_effects_contrast">Contraste</string>
-    <string name="session_effects_gamma">Gama</string>
-    <string name="session_effects_color_adjustment">Ajuste de Cor</string>
-    <string name="session_effects_enable_fxaa">Ativar FXAA</string>
-    <string name="session_effects_enable_crt_shader">Ativar Shader CRT</string>
-    <string name="session_effects_confirm_add_profile">Deseja adicionar um novo perfil?</string>
-    <string name="session_effects_default_profile">Perfil Padrao</string>
-    <string name="session_effects_title">Efeitos de Tela</string>
-    <string name="session_effects_enable_toon_shader">Ativar Shader Toon</string>
-    <string name="session_effects_enable_ntsc_effect">Ativar Efeito NTSC</string>
-    <string name="session_effects_post_processing">Pos-Processamento</string>
-    <string name="session_effects_profile_selection">Selecao de Perfil</string>
 
     <!-- Session > Display -->
     <string name="session_display_orientation">Orientacao</string>
@@ -789,7 +774,7 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
 
     <!-- Settings > Content Packages -->
     <string name="settings_content_install">Instalar Conteudo</string>
-    <string name="settings_content_type">Tipo de Conteudo</string>
+    <string name="settings_content_type">Categoria</string>
     <string name="settings_content_components">Componentes</string>
     <string name="settings_content_auto_create_container">Criar contêiner automaticamente</string>
     <string name="settings_content_remove_title">Remover componente?</string>
@@ -797,13 +782,13 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_content_container_created">Contêiner criado: %1$s</string>
     <string name="settings_content_download_failed">Falha no download.</string>
     <string name="common_ui_working">Processando…</string>
-    <string name="settings_content_desc_wine">A camada de compatibilidade do Windows usada para executar jogos e aplicativos. Você precisa de pelo menos uma versão do Wine ou FEXCore instalada.</string>
-    <string name="settings_content_desc_proton">Build da Valve baseada no Wine com patches extras para jogos. Útil para alguns títulos, mas o Wine padrão geralmente funciona bem.</string>
-    <string name="settings_content_desc_dxvk">Traduz DirectX 9, 10 e 11 para Vulkan. Geralmente melhora o desempenho em jogos antigos do Windows.</string>
-    <string name="settings_content_desc_vkd3d">Traduz DirectX 12 para Vulkan. Necessário para muitos jogos mais recentes do Windows.</string>
-    <string name="settings_content_desc_box64">Traduz código Windows x86 / x64 para que possa ser executado em dispositivos ARM. Box64 ou FEXCore é necessário para a maioria dos jogos.</string>
-    <string name="settings_content_desc_wowbox64">Uma build do Box64 para o modo Wine WoW64. Necessária apenas ao usar um prefixo de 64 bits com suporte a aplicativos de 32 bits.</string>
-    <string name="settings_content_desc_fexcore">Um tradutor x86 / x64 alternativo. Experimente se um jogo apresentar problemas ou desempenho ruim com o Box64.</string>
+    <string name="settings_content_desc_wine">Criado pelo projeto Wine; traduz chamadas Win32 para serviços nativos Linux/Android.</string>
+    <string name="settings_content_desc_proton">Criado pela Valve; runtime baseado no Wine com patches para jogos Windows.</string>
+    <string name="settings_content_desc_dxvk">Traduz chamadas gráficas Direct3D 9, 10 e 11 para Vulkan.</string>
+    <string name="settings_content_desc_vkd3d">Traduz chamadas gráficas Direct3D 12 para Vulkan.</string>
+    <string name="settings_content_desc_box64">Traduz código Linux x86_64 para execução em dispositivos ARM64.</string>
+    <string name="settings_content_desc_wowbox64">Build Box64 usado pelo WoW64 para executar apps Windows de 32 bits no Wine de 64 bits.</string>
+    <string name="settings_content_desc_fexcore">Traduz código x86 e x86_64 para execução em dispositivos ARM64.</string>
     <string name="settings_content_unable_to_install">Nao foi possivel instalar o conteudo.</string>
     <string name="settings_content_install_failed">Falha na Instalacao</string>
     <string name="settings_content_file_cannot_be_recognized">O arquivo nao pode ser reconhecido.</string>

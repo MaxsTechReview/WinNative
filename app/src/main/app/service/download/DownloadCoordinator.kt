@@ -304,6 +304,11 @@ object DownloadCoordinator {
         PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(0, false))
     }
 
+    /** Blocking variant for shutdown paths that may kill the process immediately after cleanup. */
+    fun clearBlocking() {
+        runBlocking { clear() }
+    }
+
     /**
      * Drain the queue: while there are free slots and queued records, dispatch the oldest one
      * to its store-specific dispatcher.
