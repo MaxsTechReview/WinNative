@@ -912,14 +912,13 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
 
         manager.extraContentFile(Uri.fromFile(file), callback)
         if (failed) {
-            lastInstallFailureMessage = buildString {
-                append("Install failed: ")
-                append(failureReason?.name ?: "unknown error")
-                failureException?.message?.takeIf { it.isNotBlank() }?.let {
-                    append(" - ")
-                    append(it)
-                }
-            }
+            val reason = failureReason?.name ?: getString(R.string.common_ui_unknown_error)
+            val baseMessage = getString(R.string.setup_wizard_install_failed_reason, reason)
+            lastInstallFailureMessage =
+                failureException?.message
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { getString(R.string.setup_wizard_install_failed_detail, baseMessage, it) }
+                    ?: baseMessage
             Log.e("SetupWizardActivity", lastInstallFailureMessage, failureException)
         }
         return if (failed) null else installedProfile
@@ -1347,11 +1346,16 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                             downloaded.delete()
                             if (installed == null) {
                                 wizardError.value =
-                                    lastInstallFailureMessage ?: "Install failed: ${spec.verName}"
+                                    lastInstallFailureMessage
+                                        ?: getString(R.string.setup_wizard_install_failed_reason, spec.verName)
                             }
                             installed
                         } catch (e: Exception) {
-                            wizardError.value = "Install failed: ${e.message}"
+                            wizardError.value =
+                                getString(
+                                    R.string.setup_wizard_install_failed_reason,
+                                    e.message ?: getString(R.string.common_ui_unknown_error),
+                                )
                             null
                         }
                     }
@@ -1416,11 +1420,16 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         downloaded.delete()
                         if (installed == null) {
                             wizardError.value =
-                                lastInstallFailureMessage ?: "Install failed: ${spec.verName}"
+                                lastInstallFailureMessage
+                                    ?: getString(R.string.setup_wizard_install_failed_reason, spec.verName)
                         }
                         installed
                     } catch (e: Exception) {
-                        wizardError.value = "Install failed: ${e.message}"
+                        wizardError.value =
+                            getString(
+                                R.string.setup_wizard_install_failed_reason,
+                                e.message ?: getString(R.string.common_ui_unknown_error),
+                            )
                         null
                     } finally {
                         transferState.value = null

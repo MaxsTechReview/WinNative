@@ -115,6 +115,8 @@
     <string name="common_ui_disabled_placeholder">-- Dezactivat --</string>
     <string name="common_ui_enabled">Activat</string>
     <string name="common_ui_unknown_error">Eroare necunoscuta</string>
+    <string name="common_ui_auto_detected">Detectat automat</string>
+    <string name="common_ui_change">Schimba</string>
     <string name="common_ui_proceed">Continua</string>
     <string name="common_ui_sign_out">Deconectare</string>
     <string name="common_ui_name_cannot_be_empty">Numele nu poate fi gol</string>
@@ -125,6 +127,10 @@
     <plurals name="common_ui_folder_count">
         <item quantity="one">%d folder</item>
         <item quantity="other">%d foldere</item>
+    </plurals>
+    <plurals name="common_ui_file_count">
+        <item quantity="one">%d fisier</item>
+        <item quantity="other">%d fisiere</item>
     </plurals>
 
     <!-- Library > Games -->
@@ -160,6 +166,7 @@
     <string name="library_games_play">Joaca</string>
     <string name="library_games_add_custom_game">Adauga joc personalizat</string>
     <string name="library_games_game_name">Nume joc</string>
+    <string name="library_games_game_folder_mapped_drive">Folder joc (unitate de joc mapata)</string>
     <string name="library_games_select_exe_provide_name">Selecteaza un exe si introdu un nume</string>
     <string name="library_games_sign_in_prompt">Autentifica-te intr-un magazin sau adauga un joc personalizat pentru a-ti construi biblioteca.</string>
 
@@ -858,6 +865,8 @@ Cale instalata:
     <string name="setup_wizard_denied">Refuzat</string>
     <string name="setup_wizard_allow">Permite</string>
     <string name="setup_wizard_installing">Se instaleaza</string>
+    <string name="setup_wizard_install_failed_reason">Instalarea a esuat: %1$s</string>
+    <string name="setup_wizard_install_failed_detail">%1$s - %2$s</string>
     <string name="setup_wizard_required_access">Acces necesar</string>
     <string name="setup_wizard_select_components">Selecteaza componente</string>
     <string name="setup_wizard_recommended_wine_proton">Wine / Proton recomandat</string>

@@ -115,6 +115,8 @@
     <string name="common_ui_disabled_placeholder">-- Вимкнено --</string>
     <string name="common_ui_enabled">Увімкнено</string>
     <string name="common_ui_unknown_error">Невідома помилка</string>
+    <string name="common_ui_auto_detected">Визначено автоматично</string>
+    <string name="common_ui_change">Змінити</string>
     <string name="common_ui_proceed">Продовжити</string>
     <string name="common_ui_sign_out">Вийти</string>
     <string name="common_ui_name_cannot_be_empty">Назва не може бути порожньою</string>
@@ -127,6 +129,12 @@
         <item quantity="few">%d теки</item>
         <item quantity="many">%d тек</item>
         <item quantity="other">%d теки</item>
+    </plurals>
+    <plurals name="common_ui_file_count">
+        <item quantity="one">%d файл</item>
+        <item quantity="few">%d файли</item>
+        <item quantity="many">%d файлів</item>
+        <item quantity="other">%d файла</item>
     </plurals>
 
     <!-- Library > Games -->
@@ -162,6 +170,7 @@
     <string name="library_games_play">Грати</string>
     <string name="library_games_add_custom_game">Додати користувацьку гру</string>
     <string name="library_games_game_name">Назва гри</string>
+    <string name="library_games_game_folder_mapped_drive">Папка гри (зіставлений ігровий диск)</string>
     <string name="library_games_select_exe_provide_name">Виберіть exe та вкажіть назву</string>
     <string name="library_games_sign_in_prompt">Увійдіть до магазину або додайте користувацьку гру, щоб побудувати свою бібліотеку.</string>
 
@@ -860,6 +869,8 @@
     <string name="setup_wizard_denied">Відмовлено</string>
     <string name="setup_wizard_allow">Дозволити</string>
     <string name="setup_wizard_installing">Встановлення</string>
+    <string name="setup_wizard_install_failed_reason">Не вдалося встановити: %1$s</string>
+    <string name="setup_wizard_install_failed_detail">%1$s - %2$s</string>
     <string name="setup_wizard_required_access">Необхідний доступ</string>
     <string name="setup_wizard_select_components">Вибрати компоненти</string>
     <string name="setup_wizard_recommended_wine_proton">Рекомендовані Wine / Proton</string>

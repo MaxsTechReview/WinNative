@@ -116,6 +116,8 @@
     <string name="common_ui_disabled_placeholder">-- Disabled --</string>
     <string name="common_ui_enabled">Enabled</string>
     <string name="common_ui_unknown_error">Unknown error</string>
+    <string name="common_ui_auto_detected">Auto-detected</string>
+    <string name="common_ui_change">Change</string>
     <string name="common_ui_proceed">Proceed</string>
     <string name="common_ui_sign_out">Sign Out</string>
     <string name="common_ui_name_cannot_be_empty">Name cannot be empty</string>
@@ -126,6 +128,10 @@
     <plurals name="common_ui_folder_count">
         <item quantity="one">%d folder</item>
         <item quantity="other">%d folders</item>
+    </plurals>
+    <plurals name="common_ui_file_count">
+        <item quantity="one">%d file</item>
+        <item quantity="other">%d files</item>
     </plurals>
 
     <!-- Library > Games -->
@@ -161,6 +167,7 @@
     <string name="library_games_play">Play</string>
     <string name="library_games_add_custom_game">Add Custom Game</string>
     <string name="library_games_game_name">Game Name</string>
+    <string name="library_games_game_folder_mapped_drive">Game Folder (Mapped Game Drive)</string>
     <string name="library_games_select_exe_provide_name">Select an exe and provide a name</string>
     <string name="library_games_sign_in_prompt">Sign into a store or add a custom game to build your library.</string>
 
@@ -953,6 +960,8 @@ Installed path:
     <string name="setup_wizard_denied">Denied</string>
     <string name="setup_wizard_allow">Allow</string>
     <string name="setup_wizard_installing">Installing</string>
+    <string name="setup_wizard_install_failed_reason">Install failed: %1$s</string>
+    <string name="setup_wizard_install_failed_detail">%1$s - %2$s</string>
     <string name="setup_wizard_required_access">Required Access</string>
     <string name="setup_wizard_select_components">Select Components</string>
     <string name="setup_wizard_recommended_wine_proton">Recommended Wine / Proton</string>

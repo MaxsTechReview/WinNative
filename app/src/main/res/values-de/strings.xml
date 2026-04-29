@@ -115,6 +115,8 @@
     <string name="common_ui_disabled_placeholder">-- Deaktiviert --</string>
     <string name="common_ui_enabled">Aktiviert</string>
     <string name="common_ui_unknown_error">Unbekannter Fehler</string>
+    <string name="common_ui_auto_detected">Automatisch erkannt</string>
+    <string name="common_ui_change">Ändern</string>
     <string name="common_ui_proceed">Fortfahren</string>
     <string name="common_ui_sign_out">Abmelden</string>
     <string name="common_ui_name_cannot_be_empty">Name darf nicht leer sein</string>
@@ -125,6 +127,10 @@
     <plurals name="common_ui_folder_count">
         <item quantity="one">%d Ordner</item>
         <item quantity="other">%d Ordner</item>
+    </plurals>
+    <plurals name="common_ui_file_count">
+        <item quantity="one">%d Datei</item>
+        <item quantity="other">%d Dateien</item>
     </plurals>
 
     <!-- Library > Games -->
@@ -160,6 +166,7 @@
     <string name="library_games_play">Spielen</string>
     <string name="library_games_add_custom_game">Benutzerdefiniertes Spiel hinzufügen</string>
     <string name="library_games_game_name">Spielname</string>
+    <string name="library_games_game_folder_mapped_drive">Spieleordner (zugeordnetes Spielelaufwerk)</string>
     <string name="library_games_select_exe_provide_name">Wähle eine EXE-Datei und gib einen Namen ein</string>
     <string name="library_games_sign_in_prompt">Melde dich bei einem Store an oder füge ein benutzerdefiniertes Spiel hinzu, um deine Bibliothek aufzubauen.</string>
 
@@ -858,6 +865,8 @@ Installierter Pfad:
     <string name="setup_wizard_denied">Verweigert</string>
     <string name="setup_wizard_allow">Erlauben</string>
     <string name="setup_wizard_installing">Installiere</string>
+    <string name="setup_wizard_install_failed_reason">Installation fehlgeschlagen: %1$s</string>
+    <string name="setup_wizard_install_failed_detail">%1$s - %2$s</string>
     <string name="setup_wizard_required_access">Erforderlicher Zugriff</string>
     <string name="setup_wizard_select_components">Komponenten auswählen</string>
     <string name="setup_wizard_recommended_wine_proton">Empfohlenes Wine / Proton</string>

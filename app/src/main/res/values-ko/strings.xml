@@ -115,6 +115,8 @@
     <string name="common_ui_disabled_placeholder">-- 비활성화됨 --</string>
     <string name="common_ui_enabled">활성화됨</string>
     <string name="common_ui_unknown_error">알 수 없는 오류</string>
+    <string name="common_ui_auto_detected">자동 감지됨</string>
+    <string name="common_ui_change">변경</string>
     <string name="common_ui_proceed">진행</string>
     <string name="common_ui_sign_out">로그아웃</string>
     <string name="common_ui_name_cannot_be_empty">이름은 비워 둘 수 없습니다</string>
@@ -125,6 +127,10 @@
     <plurals name="common_ui_folder_count">
         <item quantity="one">%d개 폴더</item>
         <item quantity="other">%d개 폴더</item>
+    </plurals>
+    <plurals name="common_ui_file_count">
+        <item quantity="one">%d개 파일</item>
+        <item quantity="other">%d개 파일</item>
     </plurals>
 
     <!-- Library > Games -->
@@ -160,6 +166,7 @@
     <string name="library_games_play">플레이</string>
     <string name="library_games_add_custom_game">사용자 지정 게임 추가</string>
     <string name="library_games_game_name">게임 이름</string>
+    <string name="library_games_game_folder_mapped_drive">게임 폴더(매핑된 게임 드라이브)</string>
     <string name="library_games_select_exe_provide_name">exe를 선택하고 이름을 입력하세요</string>
     <string name="library_games_sign_in_prompt">스토어에 로그인하거나 사용자 지정 게임을 추가하여 라이브러리를 구성하세요.</string>
 
@@ -858,6 +865,8 @@
     <string name="setup_wizard_denied">거부됨</string>
     <string name="setup_wizard_allow">허용</string>
     <string name="setup_wizard_installing">설치 중</string>
+    <string name="setup_wizard_install_failed_reason">설치 실패: %1$s</string>
+    <string name="setup_wizard_install_failed_detail">%1$s - %2$s</string>
     <string name="setup_wizard_required_access">필수 접근 권한</string>
     <string name="setup_wizard_select_components">구성 요소 선택</string>
     <string name="setup_wizard_recommended_wine_proton">권장 Wine / Proton</string>

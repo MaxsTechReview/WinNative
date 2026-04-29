@@ -115,6 +115,8 @@
     <string name="common_ui_disabled_placeholder">-- Desactivado --</string>
     <string name="common_ui_enabled">Activado</string>
     <string name="common_ui_unknown_error">Error desconocido</string>
+    <string name="common_ui_auto_detected">Detectado automáticamente</string>
+    <string name="common_ui_change">Cambiar</string>
     <string name="common_ui_proceed">Proceder</string>
     <string name="common_ui_sign_out">Cerrar sesión</string>
     <string name="common_ui_name_cannot_be_empty">El nombre no puede estar vacío</string>
@@ -125,6 +127,10 @@
     <plurals name="common_ui_folder_count">
         <item quantity="one">%d carpeta</item>
         <item quantity="other">%d carpetas</item>
+    </plurals>
+    <plurals name="common_ui_file_count">
+        <item quantity="one">%d archivo</item>
+        <item quantity="other">%d archivos</item>
     </plurals>
 
     <!-- Library > Games -->
@@ -160,6 +166,7 @@
     <string name="library_games_play">Jugar</string>
     <string name="library_games_add_custom_game">Añadir juego personalizado</string>
     <string name="library_games_game_name">Nombre del juego</string>
+    <string name="library_games_game_folder_mapped_drive">Carpeta del juego (unidad de juego asignada)</string>
     <string name="library_games_select_exe_provide_name">Selecciona un exe e indica un nombre</string>
     <string name="library_games_sign_in_prompt">Inicia sesión en una tienda o añade un juego personalizado para construir tu biblioteca.</string>
 
@@ -858,6 +865,8 @@ Ruta instalada:
     <string name="setup_wizard_denied">Denegado</string>
     <string name="setup_wizard_allow">Permitir</string>
     <string name="setup_wizard_installing">Instalando</string>
+    <string name="setup_wizard_install_failed_reason">Error de instalación: %1$s</string>
+    <string name="setup_wizard_install_failed_detail">%1$s - %2$s</string>
     <string name="setup_wizard_required_access">Acceso requerido</string>
     <string name="setup_wizard_select_components">Seleccionar componentes</string>
     <string name="setup_wizard_recommended_wine_proton">Wine / Proton recomendado</string>

@@ -115,6 +115,8 @@
     <string name="common_ui_disabled_placeholder">-- 已停用 --</string>
     <string name="common_ui_enabled">已啟用</string>
     <string name="common_ui_unknown_error">未知錯誤</string>
+    <string name="common_ui_auto_detected">自動偵測</string>
+    <string name="common_ui_change">變更</string>
     <string name="common_ui_proceed">繼續</string>
     <string name="common_ui_sign_out">登出</string>
     <string name="common_ui_name_cannot_be_empty">名稱不能為空</string>
@@ -125,6 +127,10 @@
     <plurals name="common_ui_folder_count">
         <item quantity="one">%d 個資料夾</item>
         <item quantity="other">%d 個資料夾</item>
+    </plurals>
+    <plurals name="common_ui_file_count">
+        <item quantity="one">%d 個檔案</item>
+        <item quantity="other">%d 個檔案</item>
     </plurals>
 
     <!-- Library > Games -->
@@ -160,6 +166,7 @@
     <string name="library_games_play">遊玩</string>
     <string name="library_games_add_custom_game">新增自訂遊戲</string>
     <string name="library_games_game_name">遊戲名稱</string>
+    <string name="library_games_game_folder_mapped_drive">遊戲資料夾（映射的遊戲磁碟機）</string>
     <string name="library_games_select_exe_provide_name">選擇一個 exe 並提供名稱</string>
     <string name="library_games_sign_in_prompt">登入商店或新增自訂遊戲來建立您的遊戲庫。</string>
 
@@ -858,6 +865,8 @@
     <string name="setup_wizard_denied">已拒絕</string>
     <string name="setup_wizard_allow">允許</string>
     <string name="setup_wizard_installing">正在安裝</string>
+    <string name="setup_wizard_install_failed_reason">安裝失敗：%1$s</string>
+    <string name="setup_wizard_install_failed_detail">%1$s - %2$s</string>
     <string name="setup_wizard_required_access">必要的存取權限</string>
     <string name="setup_wizard_select_components">選擇元件</string>
     <string name="setup_wizard_recommended_wine_proton">推薦 Wine / Proton</string>

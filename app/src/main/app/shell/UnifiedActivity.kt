@@ -3546,7 +3546,8 @@ class UnifiedActivity :
                                                 context,
                                                 getString(
                                                     R.string.library_games_failed_to_uninstall_reason,
-                                                    result.exceptionOrNull()?.message ?: "Unknown error",
+                                                    result.exceptionOrNull()?.message
+                                                        ?: getString(R.string.common_ui_unknown_error),
                                                 ),
                                                 android.widget.Toast.LENGTH_LONG,
                                             )
@@ -3895,7 +3896,8 @@ class UnifiedActivity :
                                             context,
                                             getString(
                                                 R.string.library_games_failed_to_uninstall_reason,
-                                                result.exceptionOrNull()?.message ?: "Unknown error",
+                                                result.exceptionOrNull()?.message
+                                                    ?: getString(R.string.common_ui_unknown_error),
                                             ),
                                             android.widget.Toast.LENGTH_LONG,
                                         )
@@ -4964,7 +4966,8 @@ class UnifiedActivity :
                                                                 context,
                                                                 getString(
                                                                     R.string.library_games_failed_to_uninstall_reason,
-                                                                    result.exceptionOrNull()?.message ?: "Unknown error",
+                                                                    result.exceptionOrNull()?.message
+                                                                        ?: getString(R.string.common_ui_unknown_error),
                                                                 ),
                                                                 android.widget.Toast.LENGTH_LONG,
                                                             )
@@ -6228,7 +6231,8 @@ class UnifiedActivity :
                                         context,
                                         getString(
                                             R.string.library_games_failed_to_uninstall_reason,
-                                            result.exceptionOrNull()?.message ?: "Unknown error",
+                                            result.exceptionOrNull()?.message
+                                                ?: getString(R.string.common_ui_unknown_error),
                                         ),
                                         android.widget.Toast.LENGTH_LONG,
                                     )
@@ -6616,7 +6620,8 @@ class UnifiedActivity :
                                         context,
                                         getString(
                                             R.string.library_games_failed_to_uninstall_reason,
-                                            result.exceptionOrNull()?.message ?: "Unknown error",
+                                            result.exceptionOrNull()?.message
+                                                ?: getString(R.string.common_ui_unknown_error),
                                         ),
                                         android.widget.Toast.LENGTH_LONG,
                                     )
@@ -9884,83 +9889,6 @@ class UnifiedActivity :
         }
     }
 
-    // Smart game folder detection
-    private fun detectGameFolder(exePath: String): String {
-        val exeFile = java.io.File(exePath)
-        val executableRoot = detectExecutableRoot(exeFile)
-        return detectPackageRoot(executableRoot).absolutePath
-    }
-
-    private fun detectExecutableRoot(exeFile: java.io.File): java.io.File {
-        // Directories that are typically sub-folders inside a game, not the root.
-        val subDirNames =
-            setOf(
-                "bin",
-                "binaries",
-                "x64",
-                "x86",
-                "win64",
-                "win32",
-                "bin64",
-                "bin32",
-                "game",
-                "build",
-                "release",
-                "shipping",
-                "debug",
-                "retail",
-                "dist",
-            )
-        var dir = exeFile.parentFile ?: return exeFile
-        // Walk up while the current dir name looks like a platform/build sub-directory.
-        while (dir.parentFile != null) {
-            val name = dir.name.lowercase()
-            if (name in subDirNames) {
-                dir = dir.parentFile!!
-            } else {
-                break
-            }
-        }
-        return dir
-    }
-
-    private fun detectPackageRoot(executableRoot: java.io.File): java.io.File {
-        var root = executableRoot
-        repeat(3) {
-            val parent = root.parentFile ?: return root
-            if (shouldPromoteToParentPackageRoot(root, parent)) {
-                root = parent
-            } else {
-                return root
-            }
-        }
-        return root
-    }
-
-    private fun shouldPromoteToParentPackageRoot(
-        currentRoot: java.io.File,
-        parentRoot: java.io.File,
-    ): Boolean {
-        val projectMarkers =
-            listOf("Binaries", "Content", "Plugins", "Resources", "Data", "Managed")
-        val sharedRuntimeMarkers =
-            listOf("Engine", "_CommonRedist", "Redist", "Redistributables", "Support")
-        val currentLooksLikeProjectDir = hasChildDirectoryNamed(currentRoot, projectMarkers)
-        val parentHasSharedRuntime = hasChildDirectoryNamed(parentRoot, sharedRuntimeMarkers)
-        return currentLooksLikeProjectDir && parentHasSharedRuntime
-    }
-
-    private fun hasChildDirectoryNamed(
-        dir: java.io.File,
-        names: List<String>,
-    ): Boolean {
-        val normalizedNames = names.map { it.lowercase() }.toSet()
-        return dir
-            .listFiles()
-            .orEmpty()
-            .any { it.isDirectory && it.name.lowercase() in normalizedNames }
-    }
-
     // Add Custom Game Dialog
     @Composable
     private fun AddCustomGameDialog(onDismiss: () -> Unit) {
@@ -9982,7 +9910,7 @@ class UnifiedActivity :
             }
 
             selectedExePath = path
-            gameFolder = detectGameFolder(path)
+            gameFolder = LibraryShortcutUtils.detectCustomGameFolder(path)
             // Auto-generate a game name from the EXE name (without extension)
             if (gameName.isBlank()) {
                 gameName =
@@ -10041,6 +9969,8 @@ class UnifiedActivity :
                                                 initialPath = selectedExePath ?: gameFolder,
                                                 title = getString(R.string.common_ui_select_exe),
                                                 allowedExtensions = setOf("exe"),
+                                                dimAmount = 0.5f,
+                                                preserveBackdropBlur = true,
                                                 onSelected = ::selectExecutable,
                                             )
                                         }.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -10110,9 +10040,13 @@ class UnifiedActivity :
                                     )
                                     Spacer(Modifier.width(6.dp))
                                     Column(Modifier.weight(1f)) {
-                                        Text("Game Folder (Mapped Game Drive)", color = TextSecondary, fontSize = 9.sp)
                                         Text(
-                                            gameFolder ?: "Auto-detected",
+                                            stringResource(R.string.library_games_game_folder_mapped_drive),
+                                            color = TextSecondary,
+                                            fontSize = 9.sp,
+                                        )
+                                        Text(
+                                            gameFolder ?: stringResource(R.string.common_ui_auto_detected),
                                             color = if (gameFolder != null) TextPrimary else TextSecondary,
                                             fontSize = 10.sp,
                                             maxLines = 1,
@@ -10125,11 +10059,13 @@ class UnifiedActivity :
                                             activity = this@UnifiedActivity,
                                             initialPath = gameFolder,
                                             title = getString(R.string.common_ui_select_folder),
+                                            dimAmount = 0.5f,
+                                            preserveBackdropBlur = true,
                                         ) { path -> gameFolder = path }
                                     }, modifier = Modifier.size(28.dp)) {
                                         Icon(
                                             Icons.Outlined.Edit,
-                                            contentDescription = "Change",
+                                            contentDescription = stringResource(R.string.common_ui_change),
                                             tint = Accent,
                                             modifier = Modifier.size(14.dp),
                                         )

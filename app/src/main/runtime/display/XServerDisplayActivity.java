@@ -5411,6 +5411,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (shortcut != null) {
             String launchExe = shortcut.getExtra("launch_exe_path");
             if (launchExe != null && !launchExe.isEmpty() && gameInstPath != null) {
+                File configuredLaunchExe = new File(launchExe);
+                if (configuredLaunchExe.isAbsolute()) {
+                    String configuredAbsolutePath = getCanonicalPathOrAbsolute(configuredLaunchExe);
+                    String gameInstallPath = getCanonicalPathOrAbsolute(new File(gameInstPath));
+                    String gameInstallPrefix = gameInstallPath.endsWith(File.separator)
+                            ? gameInstallPath
+                            : gameInstallPath + File.separator;
+                    if (configuredLaunchExe.isFile()
+                            && configuredAbsolutePath.startsWith(gameInstallPrefix)) {
+                        String relative = configuredAbsolutePath.substring(gameInstallPrefix.length());
+                        Log.d("XServerDisplayActivity", "resolveRelativeGameExe: normalized absolute shortcut.launch_exe_path: " + relative);
+                        return relative;
+                    }
+                }
+
                 File test = new File(gameInstPath, launchExe.replace("\\", "/"));
                 if (test.isFile()) {
                     Log.d("XServerDisplayActivity", "resolveRelativeGameExe: found via shortcut.launch_exe_path: " + launchExe);

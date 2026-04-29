@@ -115,6 +115,8 @@
     <string name="common_ui_disabled_placeholder">-- Deaktiveret --</string>
     <string name="common_ui_enabled">Aktiveret</string>
     <string name="common_ui_unknown_error">Ukendt fejl</string>
+    <string name="common_ui_auto_detected">Automatisk registreret</string>
+    <string name="common_ui_change">Skift</string>
     <string name="common_ui_proceed">Fortsæt</string>
     <string name="common_ui_sign_out">Log ud</string>
     <string name="common_ui_name_cannot_be_empty">Navn må ikke være tomt</string>
@@ -125,6 +127,10 @@
     <plurals name="common_ui_folder_count">
         <item quantity="one">%d mappe</item>
         <item quantity="other">%d mapper</item>
+    </plurals>
+    <plurals name="common_ui_file_count">
+        <item quantity="one">%d fil</item>
+        <item quantity="other">%d filer</item>
     </plurals>
 
     <!-- Library > Games -->
@@ -160,6 +166,7 @@
     <string name="library_games_play">Spil</string>
     <string name="library_games_add_custom_game">Tilføj brugerdefineret spil</string>
     <string name="library_games_game_name">Spilnavn</string>
+    <string name="library_games_game_folder_mapped_drive">Spilmappe (tilknyttet spildrev)</string>
     <string name="library_games_select_exe_provide_name">Vælg en exe og angiv et navn</string>
     <string name="library_games_sign_in_prompt">Log ind på en butik eller tilføj et brugerdefineret spil for at opbygge dit bibliotek.</string>
 
@@ -858,6 +865,8 @@ Installeret sti:
     <string name="setup_wizard_denied">Afvist</string>
     <string name="setup_wizard_allow">Tillad</string>
     <string name="setup_wizard_installing">Installerer</string>
+    <string name="setup_wizard_install_failed_reason">Installation mislykkedes: %1$s</string>
+    <string name="setup_wizard_install_failed_detail">%1$s - %2$s</string>
     <string name="setup_wizard_required_access">Påkrævet adgang</string>
     <string name="setup_wizard_select_components">Vælg komponenter</string>
     <string name="setup_wizard_recommended_wine_proton">Anbefalet Wine / Proton</string>

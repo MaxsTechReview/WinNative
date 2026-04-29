@@ -322,6 +322,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         DirectoryPickerDialog.show(
             activity = activity,
             initialPath = drivesWorking[idx].path.ifBlank { null },
+            dimAmount = 0.5f,
+            preserveBackdropBlur = true,
         ) { path ->
             val currentIndex = pendingDriveIndex
             if (currentIndex in drivesWorking.indices) {

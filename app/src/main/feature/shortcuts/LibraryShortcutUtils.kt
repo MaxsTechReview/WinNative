@@ -34,6 +34,16 @@ object LibraryShortcutUtils {
     fun isCustomLibraryShortcut(shortcut: Shortcut): Boolean = inferGameSource(shortcut) == "CUSTOM"
 
     @JvmStatic
+    fun detectCustomGameFolder(exeFile: File): File {
+        val executableRoot = detectExecutableRoot(exeFile)
+        return detectPackageRoot(executableRoot)
+    }
+
+    @JvmStatic
+    fun detectCustomGameFolder(exePath: String): String =
+        detectCustomGameFolder(File(exePath)).absolutePath
+
+    @JvmStatic
     fun buildPinnedHomeShortcutId(shortcut: Shortcut): String? {
         val shortcutId = shortcut.getExtra("uuid")
         if (shortcutId.isEmpty()) {
@@ -165,5 +175,72 @@ object LibraryShortcutUtils {
             }
 
         return deletedCount
+    }
+
+    private fun detectExecutableRoot(exeFile: File): File {
+        val subDirNames =
+            setOf(
+                "bin",
+                "binaries",
+                "x64",
+                "x86",
+                "win64",
+                "win32",
+                "bin64",
+                "bin32",
+                "game",
+                "build",
+                "release",
+                "shipping",
+                "debug",
+                "retail",
+                "dist",
+            )
+        var dir = exeFile.parentFile ?: return exeFile
+        while (dir.parentFile != null) {
+            if (dir.name.lowercase(Locale.getDefault()) in subDirNames) {
+                dir = dir.parentFile!!
+            } else {
+                break
+            }
+        }
+        return dir
+    }
+
+    private fun detectPackageRoot(executableRoot: File): File {
+        var root = executableRoot
+        repeat(3) {
+            val parent = root.parentFile ?: return root
+            if (shouldPromoteToParentPackageRoot(root, parent)) {
+                root = parent
+            } else {
+                return root
+            }
+        }
+        return root
+    }
+
+    private fun shouldPromoteToParentPackageRoot(
+        currentRoot: File,
+        parentRoot: File,
+    ): Boolean {
+        val projectMarkers =
+            listOf("Binaries", "Content", "Plugins", "Resources", "Data", "Managed")
+        val sharedRuntimeMarkers =
+            listOf("Engine", "_CommonRedist", "Redist", "Redistributables", "Support")
+        val currentLooksLikeProjectDir = hasChildDirectoryNamed(currentRoot, projectMarkers)
+        val parentHasSharedRuntime = hasChildDirectoryNamed(parentRoot, sharedRuntimeMarkers)
+        return currentLooksLikeProjectDir && parentHasSharedRuntime
+    }
+
+    private fun hasChildDirectoryNamed(
+        dir: File,
+        names: List<String>,
+    ): Boolean {
+        val normalizedNames = names.map { it.lowercase(Locale.getDefault()) }.toSet()
+        return dir
+            .listFiles()
+            .orEmpty()
+            .any { it.isDirectory && it.name.lowercase(Locale.getDefault()) in normalizedNames }
     }
 }

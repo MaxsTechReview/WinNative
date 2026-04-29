@@ -115,6 +115,8 @@
     <string name="common_ui_disabled_placeholder">-- Disabilitato --</string>
     <string name="common_ui_enabled">Abilitato</string>
     <string name="common_ui_unknown_error">Errore sconosciuto</string>
+    <string name="common_ui_auto_detected">Rilevato automaticamente</string>
+    <string name="common_ui_change">Cambia</string>
     <string name="common_ui_proceed">Procedi</string>
     <string name="common_ui_sign_out">Disconnetti</string>
     <string name="common_ui_name_cannot_be_empty">Il nome non può essere vuoto</string>
@@ -125,6 +127,10 @@
     <plurals name="common_ui_folder_count">
         <item quantity="one">%d cartella</item>
         <item quantity="other">%d cartelle</item>
+    </plurals>
+    <plurals name="common_ui_file_count">
+        <item quantity="one">%d file</item>
+        <item quantity="other">%d file</item>
     </plurals>
 
     <!-- Library > Games -->
@@ -160,6 +166,7 @@
     <string name="library_games_play">Gioca</string>
     <string name="library_games_add_custom_game">Aggiungi gioco personalizzato</string>
     <string name="library_games_game_name">Nome del gioco</string>
+    <string name="library_games_game_folder_mapped_drive">Cartella del gioco (unità di gioco mappata)</string>
     <string name="library_games_select_exe_provide_name">Seleziona un exe e inserisci un nome</string>
     <string name="library_games_sign_in_prompt">Accedi a un negozio o aggiungi un gioco personalizzato per costruire la tua libreria.</string>
 
@@ -858,6 +865,8 @@ Percorso installato:
     <string name="setup_wizard_denied">Negato</string>
     <string name="setup_wizard_allow">Consenti</string>
     <string name="setup_wizard_installing">Installazione</string>
+    <string name="setup_wizard_install_failed_reason">Installazione non riuscita: %1$s</string>
+    <string name="setup_wizard_install_failed_detail">%1$s - %2$s</string>
     <string name="setup_wizard_required_access">Accesso richiesto</string>
     <string name="setup_wizard_select_components">Seleziona componenti</string>
     <string name="setup_wizard_recommended_wine_proton">Wine / Proton consigliati</string>
