@@ -504,9 +504,8 @@
     <string name="container_presets_rename">Zmień nazwę presetu</string>
     <string name="container_presets_import">Importuj preset</string>
     <string name="container_presets_custom">Własne</string>
-    <string name="container_presets_built_in">Wbudowane</string>
+    <string name="container_presets_built_in">Domyślne</string>
     <string name="container_presets_changes_auto_saved">Zmiany zapisują się automatycznie podczas edycji tego własnego presetu.</string>
-    <string name="container_presets_builtin_readonly_hint">Wbudowane presety są tylko do odczytu. Utwórz lub zduplikuj preset, aby dostosować te zmienne.</string>
     <string name="container_presets_cannot_rename">Nie można zmienić nazwy wbudowanych presetów</string>
     <string name="container_presets_unable_to_import">Nie można zaimportować presetu</string>
     <string name="container_presets_no_description">Brak dostępnego opisu</string>

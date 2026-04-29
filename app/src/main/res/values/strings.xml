@@ -565,9 +565,8 @@
     <string name="container_presets_rename">Rename Preset</string>
     <string name="container_presets_import">Import Preset</string>
     <string name="container_presets_custom">Custom</string>
-    <string name="container_presets_built_in">Built-In</string>
+    <string name="container_presets_built_in">Default</string>
     <string name="container_presets_changes_auto_saved">Changes save automatically while editing this custom preset.</string>
-    <string name="container_presets_builtin_readonly_hint">Built-in presets are read-only. Create or duplicate a preset to customize these variables.</string>
     <string name="container_presets_cannot_rename">Built-in presets cannot be renamed</string>
     <string name="container_presets_unable_to_import">Unable to import preset</string>
     <string name="container_presets_no_description">No description available</string>

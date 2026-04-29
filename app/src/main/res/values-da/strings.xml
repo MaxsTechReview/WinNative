@@ -500,9 +500,8 @@
     <string name="container_presets_rename">Omdøb forudindstilling</string>
     <string name="container_presets_import">Importer forudindstilling</string>
     <string name="container_presets_custom">Brugerdefineret</string>
-    <string name="container_presets_built_in">Indbygget</string>
+    <string name="container_presets_built_in">Standard</string>
     <string name="container_presets_changes_auto_saved">Ændringer gemmes automatisk mens du redigerer denne brugerdefinerede forudindstilling.</string>
-    <string name="container_presets_builtin_readonly_hint">Indbyggede forudindstillinger er skrivebeskyttede. Opret eller dupliker en forudindstilling for at tilpasse disse variabler.</string>
     <string name="container_presets_cannot_rename">Indbyggede forudindstillinger kan ikke omdøbes</string>
     <string name="container_presets_unable_to_import">Kan ikke importere forudindstilling</string>
     <string name="container_presets_no_description">Ingen beskrivelse tilgængelig</string>

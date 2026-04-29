@@ -133,7 +133,7 @@ fun GoogleScreen() {
                 start = 16.dp + navBarStartPadding,
                 top = 16.dp,
                 end = 16.dp + navBarEndPadding,
-                bottom = 4.dp + navBarBottomPadding,
+                bottom = 16.dp + navBarBottomPadding,
             ),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {

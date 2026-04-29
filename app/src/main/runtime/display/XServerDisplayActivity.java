@@ -3447,6 +3447,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     }
 
                     if (gameDir.exists()) {
+                        syncContainerSteamExecutableFromShortcut(appId, gameInstallPath);
                         boolean useColdClient = shortcut != null
                                 ? parseBoolean(getShortcutSetting("useColdClient", container.isUseColdClient() ? "1" : "0"))
                                 : container.isUseColdClient();
@@ -5391,46 +5392,90 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return normalizedPath;
     }
 
+    private void syncContainerSteamExecutableFromShortcut(int appId, String gameInstallPath) {
+        String shortcutExePath = resolveShortcutSteamExecutablePath(gameInstallPath);
+        if (shortcutExePath.isEmpty() || container == null) return;
+
+        String currentPath = container.getExecutablePath();
+        if (!shortcutExePath.equals(currentPath)) {
+            container.setExecutablePath(shortcutExePath);
+            container.saveData();
+            Log.d("XServerDisplayActivity", "Synced Steam executable from shortcut for appId="
+                    + appId + ": " + shortcutExePath);
+        }
+    }
+
+    private String resolveShortcutSteamExecutablePath(String gameInstallPath) {
+        if (shortcut == null || gameInstallPath == null || gameInstallPath.isEmpty()) return "";
+
+        String launchExePath = shortcut.getExtra("launch_exe_path");
+        if (launchExePath == null || launchExePath.isEmpty()) return "";
+
+        File gameDir = new File(gameInstallPath);
+        if (!gameDir.isDirectory()) return "";
+
+        File configuredFile = new File(launchExePath);
+        if (configuredFile.isAbsolute()) {
+            if (!configuredFile.isFile()) return "";
+
+            String configuredAbsolutePath = getCanonicalPathOrAbsolute(configuredFile);
+            String gameInstallCanonicalPath = getCanonicalPathOrAbsolute(gameDir);
+            String gameInstallPrefix = gameInstallCanonicalPath.endsWith(File.separator)
+                    ? gameInstallCanonicalPath
+                    : gameInstallCanonicalPath + File.separator;
+            if (!configuredAbsolutePath.startsWith(gameInstallPrefix)) return "";
+
+            return configuredAbsolutePath
+                    .substring(gameInstallPrefix.length())
+                    .replace(File.separatorChar, '/');
+        }
+
+        String relativePath = launchExePath.replace('\\', '/');
+        while (relativePath.startsWith("/")) {
+            relativePath = relativePath.substring(1);
+        }
+        if (relativePath.isEmpty() || relativePath.matches("^[A-Za-z]:/.*")) return "";
+
+        File resolvedFile = resolvePathCaseInsensitive(gameDir, relativePath);
+        if (resolvedFile == null || !resolvedFile.isFile()) return "";
+
+        String resolvedAbsolutePath = getCanonicalPathOrAbsolute(resolvedFile);
+        String gameInstallCanonicalPath = getCanonicalPathOrAbsolute(gameDir);
+        String gameInstallPrefix = gameInstallCanonicalPath.endsWith(File.separator)
+                ? gameInstallCanonicalPath
+                : gameInstallCanonicalPath + File.separator;
+        if (!resolvedAbsolutePath.startsWith(gameInstallPrefix)) return relativePath;
+
+        return resolvedAbsolutePath
+                .substring(gameInstallPrefix.length())
+                .replace(File.separatorChar, '/');
+    }
+
     /**
      * Resolves the game executable as a RELATIVE path within the game install directory.
      * Tries multiple strategies with caching so subsequent launches are fast.
      * Returns "" if no exe can be found.
      */
     private String resolveRelativeGameExe(int appId, String gameInstPath) {
-        // Strategy 1: container.executablePath (cached from previous launch or container setup)
+        // Strategy 1: shortcut launch_exe_path. This is the user's per-game selection
+        // and must win over the shared container cache.
+        String shortcutExePath = resolveShortcutSteamExecutablePath(gameInstPath);
+        if (!shortcutExePath.isEmpty()) {
+            if (container != null && !shortcutExePath.equals(container.getExecutablePath())) {
+                container.setExecutablePath(shortcutExePath);
+                container.saveData();
+            }
+            Log.d("XServerDisplayActivity", "resolveRelativeGameExe: found via shortcut.launch_exe_path: " + shortcutExePath);
+            return shortcutExePath;
+        }
+
+        // Strategy 2: container.executablePath (cached from previous launch or container setup)
         String exePath = container.getExecutablePath();
         if (exePath != null && !exePath.isEmpty() && gameInstPath != null) {
             File test = new File(gameInstPath, exePath.replace("\\", "/"));
             if (test.isFile()) {
                 Log.d("XServerDisplayActivity", "resolveRelativeGameExe: found via container.executablePath: " + exePath);
                 return exePath;
-            }
-        }
-
-        // Strategy 2: shortcut launch_exe_path
-        if (shortcut != null) {
-            String launchExe = shortcut.getExtra("launch_exe_path");
-            if (launchExe != null && !launchExe.isEmpty() && gameInstPath != null) {
-                File configuredLaunchExe = new File(launchExe);
-                if (configuredLaunchExe.isAbsolute()) {
-                    String configuredAbsolutePath = getCanonicalPathOrAbsolute(configuredLaunchExe);
-                    String gameInstallPath = getCanonicalPathOrAbsolute(new File(gameInstPath));
-                    String gameInstallPrefix = gameInstallPath.endsWith(File.separator)
-                            ? gameInstallPath
-                            : gameInstallPath + File.separator;
-                    if (configuredLaunchExe.isFile()
-                            && configuredAbsolutePath.startsWith(gameInstallPrefix)) {
-                        String relative = configuredAbsolutePath.substring(gameInstallPrefix.length());
-                        Log.d("XServerDisplayActivity", "resolveRelativeGameExe: normalized absolute shortcut.launch_exe_path: " + relative);
-                        return relative;
-                    }
-                }
-
-                File test = new File(gameInstPath, launchExe.replace("\\", "/"));
-                if (test.isFile()) {
-                    Log.d("XServerDisplayActivity", "resolveRelativeGameExe: found via shortcut.launch_exe_path: " + launchExe);
-                    return launchExe;
-                }
             }
         }
 
@@ -5489,24 +5534,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String gameInstallPath = getCanonicalPathOrAbsolute(gameDir);
 
         if (appId > 0) {
-            String launchExePath = shortcut != null ? shortcut.getExtra("launch_exe_path") : "";
-            if (launchExePath == null) launchExePath = "";
-
-            String resolvedRelativePath = launchExePath;
-            if (!resolvedRelativePath.isEmpty()) {
-                File configuredFile = new File(resolvedRelativePath);
-                if (configuredFile.isAbsolute()) {
-                    String configuredAbsolutePath = getCanonicalPathOrAbsolute(configuredFile);
-                    if (configuredAbsolutePath.equals(gameInstallPath) || configuredAbsolutePath.startsWith(gameInstallPath + File.separator)) {
-                        resolvedRelativePath = configuredAbsolutePath.substring(gameInstallPath.length());
-                        if (resolvedRelativePath.startsWith(File.separator)) {
-                            resolvedRelativePath = resolvedRelativePath.substring(1);
-                        }
-                    } else {
-                        resolvedRelativePath = "";
-                    }
-                }
-            }
+            String resolvedRelativePath = resolveShortcutSteamExecutablePath(gameInstallPath);
 
             if (resolvedRelativePath.isEmpty()) {
                 resolvedRelativePath = SteamBridge.getInstalledExe(appId);
@@ -5608,7 +5636,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         Log.w("XServerDisplayActivity", "No steam_api DLLs found in game directory — injecting Goldberg steam_api next to game exe");
         try {
             // Find the game exe to determine architecture
-            String exePath = shortcut != null ? shortcut.getExtra("launch_exe_path") : null;
+            String exePath = resolveShortcutSteamExecutablePath(getCanonicalPathOrAbsolute(gameDir));
+            if ((exePath == null || exePath.isEmpty()) && shortcut != null) {
+                exePath = shortcut.getExtra("launch_exe_path");
+            }
             File gameExe = null;
             if (exePath != null && !exePath.isEmpty()) {
                 File candidate = new File(exePath);
@@ -6181,7 +6212,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private SteamExecutableInfo resolveSteamExecutableInfo(int appId, String gameInstallPath) {
-        String executablePath = container.getExecutablePath();
+        String executablePath = resolveShortcutSteamExecutablePath(gameInstallPath);
+        if (executablePath == null || executablePath.isEmpty()) {
+            executablePath = container.getExecutablePath();
+        }
         if (executablePath == null || executablePath.isEmpty()) {
             executablePath = com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.getInstalledExe(appId);
         }
@@ -6221,7 +6255,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             String gameInstallPath = resolveSteamGameInstallPath(appId);
             if (gameInstallPath == null || gameInstallPath.isEmpty()) return;
 
-            String executablePath = container.getExecutablePath();
+            String executablePath = resolveShortcutSteamExecutablePath(gameInstallPath);
+            if (executablePath == null || executablePath.isEmpty()) {
+                executablePath = container.getExecutablePath();
+            }
             if (executablePath == null || executablePath.isEmpty()) {
                 executablePath = com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.getInstalledExe(appId);
             }
@@ -6256,7 +6293,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             String gameInstallPath = resolveSteamGameInstallPath(appId);
             if (gameInstallPath == null || gameInstallPath.isEmpty()) return false;
 
-            String executablePath = container.getExecutablePath();
+            String executablePath = resolveShortcutSteamExecutablePath(gameInstallPath);
+            if (executablePath == null || executablePath.isEmpty()) {
+                executablePath = container.getExecutablePath();
+            }
             if (executablePath == null || executablePath.isEmpty()) {
                 executablePath = com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.getInstalledExe(appId);
             }
@@ -6488,7 +6528,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         // Find the game executable and run Steamless on it
-        String executablePath = container.getExecutablePath();
+        String executablePath = resolveShortcutSteamExecutablePath(gameInstallPath);
+        if (executablePath == null || executablePath.isEmpty()) {
+            executablePath = container.getExecutablePath();
+        }
         if (executablePath == null || executablePath.isEmpty()) {
             executablePath = com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.getInstalledExe(appId);
         }
