@@ -6,6 +6,7 @@ import android.os.Build
 import android.util.Log
 import android.view.ViewGroup
 import android.view.Window
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -1452,10 +1453,23 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val needsNearFullWidth = screenWidthDp < 820f
         val widthFactor = if (needsNearFullWidth) 0.96f else 0.88f
         val heightFactor = if (needsNearFullWidth) 0.90f else 0.88f
+        val systemInsets =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                activity.windowManager.currentWindowMetrics.windowInsets.getInsetsIgnoringVisibility(
+                    WindowInsets.Type.navigationBars() or WindowInsets.Type.displayCutout()
+                )
+            } else {
+                null
+            }
+        val edgePaddingPx = (12f * dm.density).toInt().coerceAtLeast(1)
+        val horizontalInsetPx = maxOf(systemInsets?.left ?: 0, systemInsets?.right ?: 0)
+        val verticalInsetPx = maxOf(systemInsets?.top ?: 0, systemInsets?.bottom ?: 0)
+        val maxDialogWidth = (bounds.first - ((horizontalInsetPx + edgePaddingPx) * 2)).coerceAtLeast(1)
+        val maxDialogHeight = (bounds.second - ((verticalInsetPx + edgePaddingPx) * 2)).coerceAtLeast(1)
 
         setLayout(
-            (bounds.first * widthFactor).toInt(),
-            (bounds.second * heightFactor).toInt(),
+            (bounds.first * widthFactor).toInt().coerceAtMost(maxDialogWidth),
+            (bounds.second * heightFactor).toInt().coerceAtMost(maxDialogHeight),
         )
     }
 
