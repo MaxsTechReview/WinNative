@@ -1,15 +1,13 @@
 package com.winlator.cmod.runtime.wine;
 
 import android.content.Context;
-import android.os.Build;
 import android.os.Environment;
-import android.os.storage.StorageManager;
-import android.os.storage.StorageVolume;
 import android.util.Log;
 import androidx.annotation.Nullable;
 import com.winlator.cmod.runtime.container.Container;
 import com.winlator.cmod.runtime.display.environment.ImageFs;
 import com.winlator.cmod.runtime.system.GPUInformation;
+import com.winlator.cmod.shared.android.StoragePathUtils;
 import com.winlator.cmod.shared.io.FileUtils;
 import java.io.File;
 import java.io.IOException;
@@ -90,12 +88,7 @@ public abstract class WineUtils {
   }
 
   private static String normalizeHostPath(String path) {
-    if (path == null || path.isEmpty()) return "";
-    try {
-      return new File(path).getCanonicalPath();
-    } catch (IOException e) {
-      return new File(path).getAbsolutePath();
-    }
+    return StoragePathUtils.normalizePath(path);
   }
 
   public static String normalizePersistentDrives(Context context, String drives) {
@@ -193,47 +186,11 @@ public abstract class WineUtils {
     } catch (Throwable ignored) {
     }
 
-    if (context != null) {
-      StorageManager storageManager = context.getSystemService(StorageManager.class);
-
-      try {
-        for (File dir : context.getExternalFilesDirs(null)) {
-          if (dir == null) continue;
-          StorageVolume volume = storageManager != null ? storageManager.getStorageVolume(dir) : null;
-          if (volume != null && volume.isPrimary()) continue;
-          addStorageRoot(roots, resolveStorageRootFromExternalFilesDir(dir));
-        }
-      } catch (Throwable ignored) {
+    try {
+      for (File root : StoragePathUtils.getMountedStorageRoots(context, false, false, true)) {
+        addStorageRoot(roots, root);
       }
-
-      if (storageManager != null) {
-        try {
-          for (StorageVolume volume : storageManager.getStorageVolumes()) {
-            if (volume == null || volume.isPrimary() || !isReadableMountedState(volume.getState())) {
-              continue;
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-              addStorageRoot(roots, volume.getDirectory());
-            }
-            String uuid = volume.getUuid();
-            if (uuid != null && !uuid.isEmpty()) {
-              addStorageRoot(roots, new File("/storage", uuid));
-            }
-          }
-        } catch (Throwable ignored) {
-        }
-      }
-    }
-
-    File storageDir = new File("/storage");
-    File[] children = storageDir.listFiles();
-    if (children != null) {
-      for (File child : children) {
-        if (child == null || !child.isDirectory()) continue;
-        String name = child.getName();
-        if ("self".equals(name) || "emulated".equals(name)) continue;
-        addStorageRoot(roots, child);
-      }
+    } catch (Throwable ignored) {
     }
 
     return roots;
@@ -254,28 +211,10 @@ public abstract class WineUtils {
     roots.add(path);
   }
 
-  @Nullable
-  private static File resolveStorageRootFromExternalFilesDir(@Nullable File dir) {
-    if (dir == null) return null;
-    File current = dir.getAbsoluteFile();
-    while (current != null) {
-      if ("Android".equalsIgnoreCase(current.getName()) && current.getParentFile() != null) {
-        return current.getParentFile();
-      }
-      current = current.getParentFile();
-    }
-    return null;
-  }
-
   private static boolean canBrowseStorageRoot(@Nullable File root) {
-    if (root == null || !root.exists() || !root.isDirectory() || !root.canRead()) return false;
+    if (!StoragePathUtils.canBrowse(root)) return false;
     File[] children = root.listFiles();
     return children != null;
-  }
-
-  private static boolean isReadableMountedState(@Nullable String state) {
-    return Environment.MEDIA_MOUNTED.equals(state)
-        || Environment.MEDIA_MOUNTED_READ_ONLY.equals(state);
   }
 
   public static boolean isOnSdCard(String nativePath) {

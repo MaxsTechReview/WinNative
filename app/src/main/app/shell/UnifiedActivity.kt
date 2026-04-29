@@ -8857,7 +8857,7 @@ class UnifiedActivity :
                     }
                     return@launch
                 }
-                ensureGameDrive(shortcut.container, gameInstallPath)
+                normalizeContainerDrives(shortcut.container)
                 shortcut.putExtra("game_source", "STEAM")
                 shortcut.putExtra("game_install_path", gameInstallPath)
                 shortcut.putExtra("launch_exe_path", launchExecutable)
@@ -8898,7 +8898,7 @@ class UnifiedActivity :
                     return@launch
                 }
 
-                ensureGameDrive(container, gameInstallPath)
+                normalizeContainerDrives(container)
 
                 val execPath = "wine \"C:\\\\Program Files (x86)\\\\Steam\\\\steamclient_loader_x64.exe\""
 
@@ -8977,7 +8977,7 @@ class UnifiedActivity :
                 val shortcut = existingShortcut
                 // Ensure game_install_path is always up-to-date
                 shortcut.putExtra("game_install_path", gameInstallPath)
-                ensureGameDrive(shortcut.container, gameInstallPath)
+                normalizeContainerDrives(shortcut.container)
 
                 // Repair broken Exec line if the executable is missing or still points at a legacy placeholder mapping.
                 val currentPath = shortcut.path
@@ -9041,7 +9041,7 @@ class UnifiedActivity :
                     return@launch
                 }
 
-                ensureGameDrive(container, gameInstallPath)
+                normalizeContainerDrives(container)
                 val execCmd =
                     if (exePath.isNotEmpty()) {
                         buildStoreWineExecCommand(
@@ -9131,7 +9131,7 @@ class UnifiedActivity :
                     return@launch
                 }
                 shortcut.putExtra("game_install_path", gameInstallPath)
-                ensureGameDrive(shortcut.container, gameInstallPath)
+                normalizeContainerDrives(shortcut.container)
 
                 // Repair broken Exec line if the executable is missing or still points at a legacy placeholder mapping.
                 val currentPath = shortcut.path
@@ -9219,7 +9219,7 @@ class UnifiedActivity :
                 return@launch
             }
 
-            ensureGameDrive(container, gameInstallPath)
+            normalizeContainerDrives(container)
             val execCmd =
                 if (exePath.isNotEmpty()) {
                     buildStoreWineExecCommand(
@@ -9268,10 +9268,7 @@ class UnifiedActivity :
         }
     }
 
-    private fun ensureGameDrive(
-        container: com.winlator.cmod.runtime.container.Container,
-        gamePath: String,
-    ) {
+    private fun normalizeContainerDrives(container: com.winlator.cmod.runtime.container.Container) {
         container.drives =
             com.winlator.cmod.runtime.wine.WineUtils.normalizePersistentDrives(
                 this,
@@ -9384,10 +9381,10 @@ class UnifiedActivity :
                 shortcut.saveData()
             }
 
-            // Ensure the custom game folder is mapped into the container.
+            // Refresh storage-root mappings; custom game paths launch through the drive_c game symlink.
             val gameFolder = shortcut.getExtra("custom_game_folder", "")
             if (gameFolder.isNotEmpty()) {
-                ensureGameDrive(shortcut.container, gameFolder)
+                normalizeContainerDrives(shortcut.container)
                 shortcut.container.saveData()
             }
             val intent = Intent(context, XServerDisplayActivity::class.java)
@@ -10175,7 +10172,7 @@ class UnifiedActivity :
         }
 
         val exeFile = java.io.File(exePath)
-        ensureGameDrive(container, gameFolderPath)
+        normalizeContainerDrives(container)
         val execCmd = buildWineExecCommand(container, gameFolderPath, exeFile)
 
         // Write .desktop shortcut
