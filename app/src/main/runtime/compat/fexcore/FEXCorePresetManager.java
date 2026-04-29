@@ -65,21 +65,8 @@ public class FEXCorePresetManager {
       }
     }
 
-    normalizeLegacyEnvVars(envVars);
     Log.d(TAG, "getEnvVars resolved presetId='" + id + "' -> envVars='" + envVars.toString() + "'");
     return envVars;
-  }
-
-  private static void normalizeLegacyEnvVars(EnvVars envVars) {
-    String smcChecks = envVars.get("FEX_SMC_CHECKS");
-    String legacySmcChecks = envVars.get("FEX_SMCCHECKS");
-    if (smcChecks.isEmpty()) {
-      smcChecks = legacySmcChecks;
-    }
-    if (!smcChecks.isEmpty()) {
-      envVars.put("FEX_SMC_CHECKS", smcChecks);
-      envVars.put("FEX_SMCCHECKS", smcChecks);
-    }
   }
 
   public static ArrayList<FEXCorePreset> getPresets(Context context) {
