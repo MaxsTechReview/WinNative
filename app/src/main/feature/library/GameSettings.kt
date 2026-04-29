@@ -11,6 +11,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.animation.AnimatedVisibility
@@ -63,6 +64,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -77,6 +79,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -86,6 +90,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -131,6 +136,26 @@ private val SettingControlIconSize = 16.dp
 private val SettingLabelSize = 11.sp
 private val SettingValueSize = 13.sp
 private val SettingSectionLabelSize = 12.sp
+
+@Composable
+private fun rememberSmartDropdownOffset(): MutableState<DpOffset> =
+    remember { mutableStateOf(DpOffset.Zero) }
+
+@Composable
+private fun Modifier.smartDropdownAnchor(
+    enabled: Boolean = true,
+    offset: MutableState<DpOffset>,
+    onOpen: () -> Unit,
+): Modifier {
+    if (!enabled) return this
+    val density = LocalDensity.current
+    return pointerInput(enabled, density, onOpen) {
+        detectTapGestures { tapOffset ->
+            offset.value = with(density) { DpOffset(tapOffset.x.toDp(), 0.dp) }
+            onOpen()
+        }
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Data classes
@@ -1927,6 +1952,7 @@ private fun WineSection(
             }
             Spacer(Modifier.width(8.dp))
             var showLocalePicker by remember { mutableStateOf(false) }
+            val localeMenuOffset = rememberSmartDropdownOffset()
             Box(
                 modifier = Modifier.padding(top = 22.dp)
             ) {
@@ -1936,7 +1962,7 @@ private fun WineSection(
                         .clip(RoundedCornerShape(8.dp))
                         .background(InputSurface)
                         .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
-                        .clickable { showLocalePicker = true },
+                        .smartDropdownAnchor(offset = localeMenuOffset) { showLocalePicker = true },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -1949,6 +1975,7 @@ private fun WineSection(
                 DropdownMenu(
                     expanded = showLocalePicker,
                     onDismissRequest = { showLocalePicker = false },
+                    offset = localeMenuOffset.value,
                     shape = RoundedCornerShape(8.dp),
                     containerColor = CardSurface,
                     modifier = Modifier.height(300.dp)
@@ -2395,6 +2422,7 @@ private fun DriveLetterSelector(
     onSelected: (String) -> Unit,
 ) {
     var expanded by remember(selectedLetter, availableLetters) { mutableStateOf(false) }
+    val menuOffset = rememberSmartDropdownOffset()
     val showDropdown = canChangeLetter && availableLetters.size > 1
 
     Box {
@@ -2406,11 +2434,7 @@ private fun DriveLetterSelector(
                     .clip(RoundedCornerShape(6.dp))
                     .background(AccentBlue.copy(alpha = 0.1f))
                     .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
-                    .clickable(
-                        enabled = showDropdown,
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) { expanded = true }
+                    .smartDropdownAnchor(enabled = showDropdown, offset = menuOffset) { expanded = true }
                     .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
@@ -2435,6 +2459,7 @@ private fun DriveLetterSelector(
         DropdownMenu(
             expanded = showDropdown && expanded,
             onDismissRequest = { expanded = false },
+            offset = menuOffset.value,
             shape = RoundedCornerShape(8.dp),
             containerColor = CardSurface,
             modifier = Modifier.widthIn(min = 88.dp),
@@ -2482,6 +2507,7 @@ private fun EnvVarRow(
     trailing: (@Composable () -> Unit)? = null
 ) {
     var nameMenuExpanded by remember { mutableStateOf(false) }
+    val nameMenuOffset = rememberSmartDropdownOffset()
     var isCustomMode by remember(name) {
         mutableStateOf(name.isNotEmpty() && findKnownEnvVar(name) == null)
     }
@@ -2537,7 +2563,7 @@ private fun EnvVarRow(
                         .clip(RoundedCornerShape(8.dp))
                         .background(InputSurface)
                         .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                        .clickable { nameMenuExpanded = true }
+                        .smartDropdownAnchor(offset = nameMenuOffset) { nameMenuExpanded = true }
                         .padding(horizontal = SettingFieldHorizontalPadding),
                     contentAlignment = Alignment.CenterStart
                 ) {
@@ -2562,6 +2588,7 @@ private fun EnvVarRow(
             DropdownMenu(
                 expanded = nameMenuExpanded,
                 onDismissRequest = { nameMenuExpanded = false },
+                offset = nameMenuOffset.value,
                 shape = RoundedCornerShape(8.dp),
                 containerColor = CardSurface,
                 modifier = Modifier
@@ -2696,6 +2723,7 @@ private fun EnvValueDropdown(
     onSelected: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val menuOffset = rememberSmartDropdownOffset()
     Box {
         Box(
             modifier = Modifier
@@ -2704,7 +2732,7 @@ private fun EnvValueDropdown(
                 .clip(RoundedCornerShape(8.dp))
                 .background(InputSurface)
                 .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                .clickable { expanded = true }
+                .smartDropdownAnchor(offset = menuOffset) { expanded = true }
                 .padding(horizontal = SettingFieldHorizontalPadding),
             contentAlignment = Alignment.CenterStart
         ) {
@@ -2728,6 +2756,7 @@ private fun EnvValueDropdown(
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
+            offset = menuOffset.value,
             shape = RoundedCornerShape(8.dp),
             containerColor = CardSurface,
             modifier = Modifier.width(220.dp)
@@ -2754,6 +2783,7 @@ private fun EnvValueMultiDropdown(
     onChanged: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val menuOffset = rememberSmartDropdownOffset()
     val selectedSet = remember(current) {
         current.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toMutableSet()
     }
@@ -2765,7 +2795,7 @@ private fun EnvValueMultiDropdown(
                 .clip(RoundedCornerShape(8.dp))
                 .background(InputSurface)
                 .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                .clickable { expanded = true }
+                .smartDropdownAnchor(offset = menuOffset) { expanded = true }
                 .padding(horizontal = SettingFieldHorizontalPadding),
             contentAlignment = Alignment.CenterStart
         ) {
@@ -2789,6 +2819,7 @@ private fun EnvValueMultiDropdown(
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
+            offset = menuOffset.value,
             shape = RoundedCornerShape(8.dp),
             containerColor = CardSurface,
             modifier = Modifier
@@ -2963,6 +2994,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
                 )
             }
             var showXInputHelp by remember { mutableStateOf(false) }
+            val xInputHelpOffset = rememberSmartDropdownOffset()
             Box {
                 Box(
                     modifier = Modifier
@@ -2970,7 +3002,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
                         .clip(RoundedCornerShape(6.dp))
                         .background(InputSurface)
                         .border(1.dp, InputBorder, RoundedCornerShape(6.dp))
-                        .clickable { showXInputHelp = !showXInputHelp },
+                        .smartDropdownAnchor(offset = xInputHelpOffset) { showXInputHelp = !showXInputHelp },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -2983,6 +3015,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
                 DropdownMenu(
                     expanded = showXInputHelp,
                     onDismissRequest = { showXInputHelp = false },
+                    offset = xInputHelpOffset.value,
                     shape = RoundedCornerShape(8.dp),
                     containerColor = CardSurface,
                     modifier = Modifier
@@ -3015,6 +3048,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
                 )
             }
             var showDInputHelp by remember { mutableStateOf(false) }
+            val dInputHelpOffset = rememberSmartDropdownOffset()
             Box {
                 Box(
                     modifier = Modifier
@@ -3022,7 +3056,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
                         .clip(RoundedCornerShape(6.dp))
                         .background(InputSurface)
                         .border(1.dp, InputBorder, RoundedCornerShape(6.dp))
-                        .clickable { showDInputHelp = !showDInputHelp },
+                        .smartDropdownAnchor(offset = dInputHelpOffset) { showDInputHelp = !showDInputHelp },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -3035,6 +3069,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
                 DropdownMenu(
                     expanded = showDInputHelp,
                     onDismissRequest = { showDInputHelp = false },
+                    offset = dInputHelpOffset.value,
                     shape = RoundedCornerShape(8.dp),
                     containerColor = CardSurface,
                     modifier = Modifier
@@ -3302,6 +3337,7 @@ private fun AdvancedSection(
 @Composable
 private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
+    val menuOffset = rememberSmartDropdownOffset()
 
     Box(modifier = Modifier.padding(top = 22.dp)) {
         Box(
@@ -3310,7 +3346,7 @@ private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
                 .clip(RoundedCornerShape(8.dp))
                 .background(InputSurface)
                 .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
-                .clickable { expanded = true },
+                .smartDropdownAnchor(offset = menuOffset) { expanded = true },
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -3324,6 +3360,7 @@ private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
+            offset = menuOffset.value,
             shape = RoundedCornerShape(8.dp),
             containerColor = CardSurface,
             modifier = Modifier
@@ -3531,6 +3568,7 @@ private fun SettingDropdown(
     enabled: Boolean = true
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val menuOffset = rememberSmartDropdownOffset()
     val selectedText = entries.getOrElse(selectedIndex) { "" }
     val alpha = if (enabled) 1f else 0.4f
 
@@ -3550,7 +3588,7 @@ private fun SettingDropdown(
                     .clip(RoundedCornerShape(SettingFieldCorner))
                     .background(InputSurface)
                     .border(1.dp, InputBorder, RoundedCornerShape(SettingFieldCorner))
-                    .then(if (enabled) Modifier.clickable { expanded = true } else Modifier)
+                    .smartDropdownAnchor(enabled = enabled, offset = menuOffset) { expanded = true }
                     .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -3571,6 +3609,7 @@ private fun SettingDropdown(
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
+                offset = menuOffset.value,
                 shape = RoundedCornerShape(8.dp),
                 containerColor = CardSurface,
             ) {
