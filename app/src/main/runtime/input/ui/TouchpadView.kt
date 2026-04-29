@@ -60,13 +60,14 @@ class TouchpadView(
     private var lastTouchedPosY = 0
     private var resolutionScale = 0f
     private var mouseEnabled = true
+    var tapToClickEnabled = true
     private var fourFingersTapCallback: Runnable? = null
     private val preferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
     private val longPressHandler = Handler(Looper.getMainLooper())
     private var longPressActive = false
     private val longPressRunnable =
         Runnable {
-            if (numFingers.toInt() == 1 && fingers[0] != null && fingers[0]!!.travelDistance() < MAX_TAP_TRAVEL_DISTANCE) {
+            if (tapToClickEnabled && numFingers.toInt() == 1 && fingers[0] != null && fingers[0]!!.travelDistance() < MAX_TAP_TRAVEL_DISTANCE) {
                 longPressActive = true
                 if (xServer.isRelativeMouseMovement) {
                     xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTDOWN, 0, 0, 0)
@@ -415,7 +416,7 @@ class TouchpadView(
             xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
         }
 
-        if (numFingers.toInt() == 1) {
+        if (tapToClickEnabled && numFingers.toInt() == 1) {
             if (xServer.isRelativeMouseMovement) {
                 xServer.winHandler.mouseEvent(MouseEventFlags.LEFTDOWN, 0, 0, 0)
             } else {
@@ -434,10 +435,12 @@ class TouchpadView(
     }
 
     private fun handleTouchUp() {
-        if (xServer.isRelativeMouseMovement) {
-            xServer.winHandler.mouseEvent(MouseEventFlags.LEFTUP, 0, 0, 0)
-        } else {
-            xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+        if (tapToClickEnabled) {
+            if (xServer.isRelativeMouseMovement) {
+                xServer.winHandler.mouseEvent(MouseEventFlags.LEFTUP, 0, 0, 0)
+            } else {
+                xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+            }
         }
     }
 
@@ -455,6 +458,7 @@ class TouchpadView(
     }
 
     private fun handleTwoFingerTap() {
+        if (!tapToClickEnabled) return
         // FIX: Ensure clean right-click by clearing left button first
         if (xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) {
             if (xServer.isRelativeMouseMovement) {
@@ -484,26 +488,28 @@ class TouchpadView(
     }
 
     private fun handleFingerUp(finger1: Finger) {
-        when (numFingers.toInt()) {
-            1 -> {
-                if (simTouchScreen) {
-                    postDelayed(
-                        { if (continueClick) xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT) },
-                        CLICK_DELAYED_TIME.toLong(),
-                    )
-                } else if (finger1.isTap()) {
-                    pressPointerButtonLeft(finger1)
+        if (tapToClickEnabled) {
+            when (numFingers.toInt()) {
+                1 -> {
+                    if (simTouchScreen) {
+                        postDelayed(
+                            { if (continueClick) xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT) },
+                            CLICK_DELAYED_TIME.toLong(),
+                        )
+                    } else if (finger1.isTap()) {
+                        pressPointerButtonLeft(finger1)
+                    }
                 }
-            }
 
-            2 -> {
-                val finger2 = findSecondFinger(finger1)
-                if (finger2 != null && finger1.isTap()) pressPointerButtonRight(finger1)
-            }
+                2 -> {
+                    val finger2 = findSecondFinger(finger1)
+                    if (finger2 != null && finger1.isTap()) pressPointerButtonRight(finger1)
+                }
 
-            4 -> {
-                fourFingersTapCallback?.let {
-                    if (fingers.filterNotNull().all { it.isTap() }) it.run()
+                4 -> {
+                    fourFingersTapCallback?.let {
+                        if (fingers.filterNotNull().all { it.isTap() }) it.run()
+                    }
                 }
             }
         }

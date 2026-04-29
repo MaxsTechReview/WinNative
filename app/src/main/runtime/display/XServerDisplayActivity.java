@@ -247,6 +247,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private ImageFs imageFs;
     private FrameRating frameRating = null;
     private boolean effectiveShowFPS = false;
+    private boolean isTapToClickEnabled = true;
     private int runtimeFpsLimit = 0;
     private String lastRendererName = "OpenGL";
     private String lastGpuName = null;
@@ -550,7 +551,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         // Check for Dark Mode
         isDarkMode = preferences.getBoolean("dark_mode", false);
-
+        isTapToClickEnabled = true;
         boolean isOpenWithAndroidBrowser = preferences.getBoolean("open_with_android_browser", false);
         boolean isShareAndroidClipboard = preferences.getBoolean("share_android_clipboard", false);
 
@@ -3942,6 +3943,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         globalCursorSpeed = preferences.getFloat("cursor_speed", 1.0f);
         touchpadView = new TouchpadView(this, xServer, timeoutHandler, hideControlsRunnable);
+        touchpadView.setTapToClickEnabled(isTapToClickEnabled);
         touchpadView.setSensitivity(globalCursorSpeed);
         touchpadView.setMouseEnabled(!isMouseDisabled);
         touchpadView.setFourFingersTapCallback(() -> {
@@ -4220,6 +4222,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         // Initialize checkbox states
         dialog.getShowTouchscreenControls().setValue(preferences.getBoolean("show_touchscreen_controls_enabled", false));
+        dialog.getTapToClickEnabled().setValue(isTapToClickEnabled);
         dialog.getOverlayOpacity().setValue(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
         dialog.getTouchscreenHaptics().setValue(preferences.getBoolean("touchscreen_haptics_enabled", false));
         dialog.getGamepadVibration().setValue(preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true));
@@ -4250,6 +4253,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         // Confirm callback
         dialog.setOnConfirmCallback(() -> {
             inputControlsView.setShowTouchscreenControls(dialog.getShowTouchscreenControls().getValue());
+            isTapToClickEnabled = dialog.getTapToClickEnabled().getValue();
+            if (touchpadView != null) touchpadView.setTapToClickEnabled(isTapToClickEnabled);
+
             float overlayOpacity = dialog.getOverlayOpacity().getValue();
             inputControlsView.setOverlayOpacity(overlayOpacity);
             boolean isHapticsEnabled = dialog.getTouchscreenHaptics().getValue();
