@@ -2,6 +2,7 @@ package com.winlator.cmod.feature.settings
 import android.app.Activity
 import android.app.Dialog
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import android.view.ViewGroup
 import android.view.Window
@@ -10,7 +11,10 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
@@ -158,7 +162,12 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             setViewTreeSavedStateRegistryOwner(activity as SavedStateRegistryOwner)
             setContent {
                 WinNativeTheme {
-                    GameSettingsContent(state = state, callbacks = createCallbacks())
+                    val defaultDensity = LocalDensity.current
+                    CompositionLocalProvider(
+                        LocalDensity provides Density(defaultDensity.density, fontScale = 1f)
+                    ) {
+                        GameSettingsContent(state = state, callbacks = createCallbacks())
+                    }
                 }
             }
         }
@@ -1413,27 +1422,49 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     fun show() {
         dialog.show()
         dialog.window?.apply {
-            val dm = activity.resources.displayMetrics
-            val screenWidthDp = dm.widthPixels / dm.density
-            val dialogWidthDp = screenWidthDp * 0.88f
-            val isCompactLayout = dialogWidthDp < 720f
-            if (screenWidthDp < 600f) {
-                val dialogWidth = (dm.widthPixels * 0.96f).toInt()
-                val dialogHeight = (dm.heightPixels * 0.90f).toInt()
-                setLayout(dialogWidth, dialogHeight)
-            } else {
-                val dialogWidth = (dm.widthPixels * 0.88f).toInt()
-                val heightFactor = if (isCompactLayout) 0.90f else 0.88f
-                val dialogHeight = (dm.heightPixels * heightFactor).toInt()
-                setLayout(dialogWidth, dialogHeight)
-            }
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            applyDialogLayout()
+            decorView.post { applyDialogLayout() }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val params = attributes
                 params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
                 params.blurBehindRadius = 10
                 attributes = params
             }
         }
+    }
+
+    private fun Window.applyDialogLayout() {
+        val dm = activity.resources.displayMetrics
+        val hostView = activity.window?.decorView
+        val hostWidth = hostView?.width?.takeIf { it > 0 }
+        val hostHeight = hostView?.height?.takeIf { it > 0 }
+        val bounds =
+            if (hostWidth != null && hostHeight != null) {
+                hostWidth to hostHeight
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val windowBounds = activity.windowManager.currentWindowMetrics.bounds
+                windowBounds.width() to windowBounds.height()
+            } else {
+                dm.widthPixels to dm.heightPixels
+            }
+
+        val screenWidthDp = bounds.first / dm.density
+        val dialogWidthDp = screenWidthDp * 0.88f
+        val isCompactLayout = dialogWidthDp < 720f
+        val widthFactor: Float
+        val heightFactor: Float
+        if (screenWidthDp < 600f) {
+            widthFactor = 0.96f
+            heightFactor = 0.90f
+        } else {
+            widthFactor = 0.88f
+            heightFactor = if (isCompactLayout) 0.90f else 0.88f
+        }
+
+        setLayout(
+            (bounds.first * widthFactor).toInt(),
+            (bounds.second * heightFactor).toInt(),
+        )
     }
 
     fun dismiss() {
