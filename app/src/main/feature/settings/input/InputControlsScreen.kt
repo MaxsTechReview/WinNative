@@ -48,10 +48,13 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FileUpload
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.ScreenRotationAlt
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -1331,48 +1334,90 @@ private fun ProfileActionRow(
     actions: InputControlsScreenActions,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    var menuOpen by remember { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
         IconActionButton(
-            image = Icons.Outlined.SportsEsports,
-            contentDescription = stringResource(R.string.input_controls_editor_title),
-            onClick = actions.onOpenEditor,
+            image = Icons.Outlined.MoreVert,
+            contentDescription = stringResource(R.string.common_ui_options),
+            onClick = { menuOpen = true },
             size = InputProfileActionSize,
             iconSize = InputProfileActionIconSize,
         )
-        IconActionButton(
-            image = Icons.Outlined.Add,
-            contentDescription = stringResource(R.string.common_ui_add),
-            onClick = actions.onAddProfile,
-            size = InputProfileActionSize,
-            iconSize = InputProfileActionIconSize,
-        )
-        IconActionButton(
-            image = Icons.Outlined.Edit,
-            contentDescription = stringResource(R.string.common_ui_edit),
-            onClick = actions.onEditProfile,
-            size = InputProfileActionSize,
-            iconSize = InputProfileActionIconSize,
-        )
-        IconActionButton(
-            image = Icons.Outlined.ContentCopy,
-            contentDescription = stringResource(R.string.common_ui_duplicate),
-            onClick = actions.onDuplicateProfile,
-            size = InputProfileActionSize,
-            iconSize = InputProfileActionIconSize,
-        )
-        IconActionButton(
-            image = Icons.Outlined.Delete,
-            contentDescription = stringResource(R.string.common_ui_remove),
-            tint = InputDanger,
-            onClick = actions.onRemoveProfile,
-            size = InputProfileActionSize,
-            iconSize = InputProfileActionIconSize,
-        )
+        DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+            containerColor = InputCard,
+        ) {
+            ProfileActionMenuItem(
+                icon = Icons.Outlined.SportsEsports,
+                label = stringResource(R.string.input_controls_editor_title),
+                onClick = {
+                    menuOpen = false
+                    actions.onOpenEditor()
+                },
+            )
+            ProfileActionMenuItem(
+                icon = Icons.Outlined.Add,
+                label = stringResource(R.string.common_ui_add),
+                onClick = {
+                    menuOpen = false
+                    actions.onAddProfile()
+                },
+            )
+            ProfileActionMenuItem(
+                icon = Icons.Outlined.Edit,
+                label = stringResource(R.string.common_ui_edit),
+                onClick = {
+                    menuOpen = false
+                    actions.onEditProfile()
+                },
+            )
+            ProfileActionMenuItem(
+                icon = Icons.Outlined.ContentCopy,
+                label = stringResource(R.string.common_ui_duplicate),
+                onClick = {
+                    menuOpen = false
+                    actions.onDuplicateProfile()
+                },
+            )
+            ProfileActionMenuItem(
+                icon = Icons.Outlined.Delete,
+                label = stringResource(R.string.common_ui_remove),
+                iconTint = InputDanger,
+                textColor = InputDanger,
+                onClick = {
+                    menuOpen = false
+                    actions.onRemoveProfile()
+                },
+            )
+        }
     }
+}
+
+@Composable
+private fun ProfileActionMenuItem(
+    icon: ImageVector,
+    label: String,
+    iconTint: Color = InputAccent,
+    textColor: Color = InputTextPrimary,
+    onClick: () -> Unit,
+) {
+    DropdownMenuItem(
+        text = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(15.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(label, color = textColor, fontSize = InputPrimaryTextSize)
+            }
+        },
+        onClick = onClick,
+    )
 }
 
 @Composable
