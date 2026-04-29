@@ -3658,8 +3658,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         else
             startupSelection = String.valueOf(container.getStartupSelection());
 
+        WineUtils.changeServicesStatus(container, startupSelection);
         if (!startupSelection.equals(container.getExtra("startupSelection"))) {
-            WineUtils.changeServicesStatus(container, startupSelection);
             container.putExtra("startupSelection", startupSelection);
             containerDataChanged = true;
         }
@@ -3703,9 +3703,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         // Additional container checks and environment configuration
         if (container != null) {
-                if (Byte.parseByte(startupSelection) == Container.STARTUP_SELECTION_AGGRESSIVE) {
-                    winHandler.killProcess("services.exe");
-                }
                 guestProgramLauncherComponent.setContainer(this.container);
                 guestProgramLauncherComponent.setWineInfo(this.wineInfo);
 
