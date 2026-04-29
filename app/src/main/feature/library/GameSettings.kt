@@ -2511,32 +2511,34 @@ private fun EnvVarRow(
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = EnvVarControlHeight)
+                        .height(EnvVarControlHeight)
                         .clip(RoundedCornerShape(8.dp))
                         .background(InputSurface)
                         .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding),
+                        .padding(horizontal = SettingFieldHorizontalPadding),
                     decorationBox = { innerTextField ->
-                        if (customText.isEmpty()) {
-                            Text(
-                                stringResource(R.string.container_config_new_env_var),
-                                color = TextDim,
-                                fontSize = SettingValueSize
-                            )
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                            if (customText.isEmpty()) {
+                                Text(
+                                    stringResource(R.string.container_config_new_env_var),
+                                    color = TextDim,
+                                    fontSize = SettingValueSize
+                                )
+                            }
+                            innerTextField()
                         }
-                        innerTextField()
                     }
                 )
             } else {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = EnvVarControlHeight)
+                        .height(EnvVarControlHeight)
                         .clip(RoundedCornerShape(8.dp))
                         .background(InputSurface)
                         .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                         .clickable { nameMenuExpanded = true }
-                        .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding),
+                        .padding(horizontal = SettingFieldHorizontalPadding),
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2698,12 +2700,12 @@ private fun EnvValueDropdown(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = EnvVarControlHeight)
+                .height(EnvVarControlHeight)
                 .clip(RoundedCornerShape(8.dp))
                 .background(InputSurface)
                 .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                 .clickable { expanded = true }
-                .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding),
+                .padding(horizontal = SettingFieldHorizontalPadding),
             contentAlignment = Alignment.CenterStart
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2759,12 +2761,12 @@ private fun EnvValueMultiDropdown(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = EnvVarControlHeight)
+                .height(EnvVarControlHeight)
                 .clip(RoundedCornerShape(8.dp))
                 .background(InputSurface)
                 .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                 .clickable { expanded = true }
-                .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding),
+                .padding(horizontal = SettingFieldHorizontalPadding),
             contentAlignment = Alignment.CenterStart
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2836,16 +2838,18 @@ private fun EnvValueTextField(
         keyboardOptions = if (numeric)
             KeyboardOptions(keyboardType = KeyboardType.Number)
         else KeyboardOptions.Default,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(EnvVarControlHeight),
         decorationBox = { innerTextField ->
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = EnvVarControlHeight)
+                    .fillMaxSize()
                     .clip(RoundedCornerShape(8.dp))
                     .background(InputSurface)
                     .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                    .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding)
+                    .padding(horizontal = SettingFieldHorizontalPadding),
+                contentAlignment = Alignment.CenterStart
             ) {
                 if (value.isEmpty()) {
                     Text(stringResource(R.string.common_ui_value), color = TextDim, fontSize = SettingValueSize)
