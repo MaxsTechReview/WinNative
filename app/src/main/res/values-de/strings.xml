@@ -500,9 +500,8 @@
     <string name="container_presets_rename">Voreinstellung umbenennen</string>
     <string name="container_presets_import">Voreinstellung importieren</string>
     <string name="container_presets_custom">Benutzerdefiniert</string>
-    <string name="container_presets_built_in">Integriert</string>
+    <string name="container_presets_built_in">Standard</string>
     <string name="container_presets_changes_auto_saved">Änderungen werden beim Bearbeiten dieser benutzerdefinierten Voreinstellung automatisch gespeichert.</string>
-    <string name="container_presets_builtin_readonly_hint">Integrierte Voreinstellungen sind schreibgeschützt. Erstelle oder dupliziere eine Voreinstellung, um diese Variablen anzupassen.</string>
     <string name="container_presets_cannot_rename">Integrierte Voreinstellungen können nicht umbenannt werden</string>
     <string name="container_presets_unable_to_import">Voreinstellung kann nicht importiert werden</string>
     <string name="container_presets_no_description">Keine Beschreibung verfügbar</string>

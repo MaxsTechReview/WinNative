@@ -53,7 +53,6 @@ import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.DeveloperBoard
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Hub
@@ -266,7 +265,6 @@ fun DriversScreen(
             HeroHeader(
                 installedCount = state.installedDrivers.size,
                 repoCount = state.sources.size,
-                isBusy = state.loadingSourceApiUrl != null,
                 onInstall = onInstallFromFile,
                 onAddRepo = { showAddRepoDialog = true },
             )
@@ -302,7 +300,7 @@ fun DriversScreen(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp),
+                        .padding(top = 6.dp),
                 verticalAlignment = Alignment.Bottom,
             ) {
                 SectionLabel(
@@ -363,88 +361,54 @@ fun DriversScreen(
 private fun HeroHeader(
     installedCount: Int,
     repoCount: Int,
-    isBusy: Boolean,
     onInstall: () -> Unit,
     onAddRepo: () -> Unit,
 ) {
-    Box(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .background(CardDark)
-                .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+    Column(modifier = Modifier.fillMaxWidth()) {
+        SectionLabel(text = stringResource(R.string.settings_drivers_manager_header))
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(CardDark)
+                    .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
         ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(34.dp)
-                            .clip(RoundedCornerShape(9.dp))
-                            .background(IconBoxBg),
-                    contentAlignment = Alignment.Center,
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.DeveloperBoard,
-                        contentDescription = null,
-                        tint = Accent,
-                        modifier = Modifier.size(17.dp),
-                    )
-                }
-
-                Spacer(Modifier.width(12.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.settings_drivers_manager_header),
-                        color = TextPrimary,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         CountPill(label = "Installed", count = installedCount)
                         Spacer(Modifier.width(6.dp))
                         CountPill(label = "Repos", count = repoCount)
                     }
-                    if (isBusy) {
-                        Spacer(Modifier.height(3.dp))
-                        Text(
-                            text = stringResource(R.string.settings_drivers_repo_loading_releases),
-                            color = Accent,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium,
+
+                    Spacer(Modifier.width(12.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        HeroButton(
+                            label = "Add Repo",
+                            icon = Icons.Outlined.Add,
+                            onClick = onAddRepo,
+                            modifier = Modifier.widthIn(min = 112.dp, max = 132.dp),
+                        )
+                        HeroButton(
+                            label = stringResource(R.string.settings_drivers_install),
+                            icon = Icons.Outlined.Upload,
+                            onClick = onInstall,
+                            modifier = Modifier.widthIn(min = 112.dp, max = 132.dp),
                         )
                     }
                 }
-            }
-
-            Spacer(Modifier.width(12.dp))
-
-            Column(
-                modifier = Modifier.widthIn(min = 112.dp, max = 132.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                HeroButton(
-                    label = "Add Repo",
-                    icon = Icons.Outlined.Add,
-                    onClick = onAddRepo,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                HeroButton(
-                    label = stringResource(R.string.settings_drivers_install),
-                    icon = Icons.Outlined.Upload,
-                    onClick = onInstall,
-                    modifier = Modifier.fillMaxWidth(),
-                )
             }
         }
     }

@@ -500,9 +500,8 @@
     <string name="container_presets_rename">Renomear Predefinicao</string>
     <string name="container_presets_import">Importar Predefinicao</string>
     <string name="container_presets_custom">Personalizado</string>
-    <string name="container_presets_built_in">Integrado</string>
+    <string name="container_presets_built_in">Padrão</string>
     <string name="container_presets_changes_auto_saved">As alteracoes sao salvas automaticamente ao editar esta predefinicao personalizada.</string>
-    <string name="container_presets_builtin_readonly_hint">Predefinicoes integradas sao somente leitura. Crie ou duplique uma predefinicao para personalizar estas variaveis.</string>
     <string name="container_presets_cannot_rename">Predefinicoes integradas nao podem ser renomeadas</string>
     <string name="container_presets_unable_to_import">Nao foi possivel importar a predefinicao</string>
     <string name="container_presets_no_description">Nenhuma descricao disponivel</string>

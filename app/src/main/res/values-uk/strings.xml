@@ -504,9 +504,8 @@
     <string name="container_presets_rename">Перейменувати пресет</string>
     <string name="container_presets_import">Імпортувати пресет</string>
     <string name="container_presets_custom">Користувацький</string>
-    <string name="container_presets_built_in">Вбудований</string>
+    <string name="container_presets_built_in">За замовчуванням</string>
     <string name="container_presets_changes_auto_saved">Зміни зберігаються автоматично під час редагування цього користувацького пресету.</string>
-    <string name="container_presets_builtin_readonly_hint">Вбудовані пресети доступні лише для читання. Створіть або дублюйте пресет для налаштування цих змінних.</string>
     <string name="container_presets_cannot_rename">Вбудовані пресети неможливо перейменувати</string>
     <string name="container_presets_unable_to_import">Неможливо імпортувати пресет</string>
     <string name="container_presets_no_description">Опис недоступний</string>

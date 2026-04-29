@@ -500,9 +500,8 @@
     <string name="container_presets_rename">重新命名預設</string>
     <string name="container_presets_import">匯入預設</string>
     <string name="container_presets_custom">自訂</string>
-    <string name="container_presets_built_in">內建</string>
+    <string name="container_presets_built_in">預設</string>
     <string name="container_presets_changes_auto_saved">編輯此自訂預設時，變更會自動儲存。</string>
-    <string name="container_presets_builtin_readonly_hint">內建預設為唯讀。建立或複製預設以自訂這些變數。</string>
     <string name="container_presets_cannot_rename">無法重新命名內建預設</string>
     <string name="container_presets_unable_to_import">無法匯入預設</string>
     <string name="container_presets_no_description">沒有可用的說明</string>
