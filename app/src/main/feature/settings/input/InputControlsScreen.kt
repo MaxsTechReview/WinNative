@@ -116,9 +116,9 @@ private val InputIconBoxSize = 38.dp
 private val InputActionSize = 30.dp
 private val InputSliderHeight = 24.dp
 private val InputProfileIconBoxSize = 42.dp
-private val InputProfileActionSize = 36.dp
-private val InputProfileActionIconSize = 20.dp
-private val InputProfileActionStartGap = 8.dp
+private val InputProfileActionSize = 38.dp
+private val InputProfileActionIconSize = 25.dp
+private val InputProfileActionStartGap = 6.dp
 private val InputProfileSelectorMaxWidth = 420.dp
 private val InputPrimaryTextSize = 13.sp
 private val InputSecondaryTextSize = 11.sp
@@ -375,6 +375,8 @@ private fun SectionLabel(text: String) {
 @Composable
 private fun CardShell(
     onClick: (() -> Unit)? = null,
+    horizontalPadding: Dp = InputCardHorizontalPadding,
+    verticalPadding: Dp = InputCardVerticalPadding,
     content: @Composable () -> Unit,
 ) {
     val clickableModifier =
@@ -396,7 +398,7 @@ private fun CardShell(
                 .background(InputCard)
                 .border(1.dp, InputOutline, RoundedCornerShape(InputCardCorner))
                 .then(clickableModifier)
-                .padding(horizontal = InputCardHorizontalPadding, vertical = InputCardVerticalPadding),
+                .padding(horizontal = horizontalPadding, vertical = verticalPadding),
     ) {
         content()
     }
@@ -1224,7 +1226,10 @@ private fun ProfileCard(
         label = "profileSelectorPressed",
     )
 
-    CardShell {
+    CardShell(
+        horizontalPadding = 10.dp,
+        verticalPadding = 8.dp,
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -1337,12 +1342,8 @@ private fun ProfileActionRow(
     var menuOpen by remember { mutableStateOf(false) }
 
     Box(modifier = modifier) {
-        IconActionButton(
-            image = Icons.Outlined.MoreVert,
-            contentDescription = stringResource(R.string.common_ui_options),
+        ProfileOverflowButton(
             onClick = { menuOpen = true },
-            size = InputProfileActionSize,
-            iconSize = InputProfileActionIconSize,
         )
         DropdownMenu(
             expanded = menuOpen,
@@ -1392,6 +1393,29 @@ private fun ProfileActionRow(
                 },
             )
         }
+    }
+}
+
+@Composable
+private fun ProfileOverflowButton(onClick: () -> Unit) {
+    Box(
+        modifier =
+            Modifier
+                .size(InputProfileActionSize)
+                .clip(RoundedCornerShape(InputFieldCorner))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.MoreVert,
+            contentDescription = stringResource(R.string.common_ui_options),
+            tint = Color.White,
+            modifier = Modifier.size(InputProfileActionIconSize),
+        )
     }
 }
 
