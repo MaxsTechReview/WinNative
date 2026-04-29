@@ -112,6 +112,9 @@ private val InputItemGap = 8.dp
 private val InputIconBoxSize = 38.dp
 private val InputActionSize = 30.dp
 private val InputSliderHeight = 24.dp
+private val InputProfileIconBoxSize = 42.dp
+private val InputProfileActionSize = 34.dp
+private val InputProfileSelectorMaxWidth = 420.dp
 private val InputPrimaryTextSize = 13.sp
 private val InputSecondaryTextSize = 11.sp
 private val InputSectionTextSize = 10.sp
@@ -442,7 +445,7 @@ private fun IconActionButton(
             imageVector = image,
             contentDescription = contentDescription,
             tint = tint,
-            modifier = Modifier.size(if (size <= 28.dp) 14.dp else 16.dp),
+            modifier = Modifier.size(if (size <= 28.dp) 14.dp else if (size >= InputProfileActionSize) 18.dp else 16.dp),
         )
     }
 }
@@ -641,13 +644,13 @@ private fun ProfileSelectorIconBox(tint: Color) {
     Box(
         modifier =
             Modifier
-                .size(InputIconBoxSize)
+                .size(InputProfileIconBoxSize)
                 .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputIconBox),
         contentAlignment = Alignment.Center,
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(5.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             repeat(2) {
                 Row(
@@ -656,15 +659,15 @@ private fun ProfileSelectorIconBox(tint: Color) {
                     Box(
                         modifier =
                             Modifier
-                                .size(6.dp)
-                                .clip(RoundedCornerShape(3.dp))
+                                .size(7.dp)
+                                .clip(RoundedCornerShape(4.dp))
                                 .background(tint),
                     )
-                    Spacer(Modifier.width(5.dp))
+                    Spacer(Modifier.width(6.dp))
                     Box(
                         modifier =
                             Modifier
-                                .width(15.dp)
+                                .width(18.dp)
                                 .height(3.dp)
                                 .clip(RoundedCornerShape(2.dp))
                                 .background(tint.copy(alpha = 0.95f)),
@@ -1219,6 +1222,7 @@ private fun ProfileCard(
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             ProfileSelectorRow(
                 state = state,
@@ -1226,9 +1230,11 @@ private fun ProfileCard(
                 selectorTint = selectorTint,
                 selectorPressed = selectorPressed,
                 onClick = actions.onSelectProfile,
-                modifier = Modifier.weight(1f),
+                modifier =
+                    Modifier
+                        .weight(1f, fill = false)
+                        .widthIn(max = InputProfileSelectorMaxWidth),
             )
-            Spacer(Modifier.width(InputItemGap))
             ProfileActionRow(actions = actions)
         }
     }
@@ -1309,7 +1315,7 @@ private fun ProfileSelectorRow(
                 } else {
                     InputAccent.copy(alpha = 0.9f)
                 },
-            modifier = Modifier.size(16.dp),
+            modifier = Modifier.size(18.dp),
         )
     }
 }
@@ -1324,27 +1330,32 @@ private fun ProfileActionRow(actions: InputControlsScreenActions) {
             image = Icons.Outlined.SportsEsports,
             contentDescription = stringResource(R.string.input_controls_editor_title),
             onClick = actions.onOpenEditor,
+            size = InputProfileActionSize,
         )
         IconActionButton(
             image = Icons.Outlined.Add,
             contentDescription = stringResource(R.string.common_ui_add),
             onClick = actions.onAddProfile,
+            size = InputProfileActionSize,
         )
         IconActionButton(
             image = Icons.Outlined.Edit,
             contentDescription = stringResource(R.string.common_ui_edit),
             onClick = actions.onEditProfile,
+            size = InputProfileActionSize,
         )
         IconActionButton(
             image = Icons.Outlined.ContentCopy,
             contentDescription = stringResource(R.string.common_ui_duplicate),
             onClick = actions.onDuplicateProfile,
+            size = InputProfileActionSize,
         )
         IconActionButton(
             image = Icons.Outlined.Delete,
             contentDescription = stringResource(R.string.common_ui_remove),
             tint = InputDanger,
             onClick = actions.onRemoveProfile,
+            size = InputProfileActionSize,
         )
     }
 }
