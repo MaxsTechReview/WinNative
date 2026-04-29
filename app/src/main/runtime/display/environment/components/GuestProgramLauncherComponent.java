@@ -237,6 +237,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     }
     envVars.put("WINEESYNC_WINLATOR", "1");
     mergeExternalEnvVars(envVars, envVars.get("LD_PRELOAD"), envVars.get("FAKE_EVDEV_DIR"));
+    FEXCorePresetManager.normalizeSmcChecksEnvVars(envVars, this.envVars);
 
     // For arm64ec Wine builds the wine binary is native ARM64 — call it directly
     // with a fully-qualified path. Wrapping with box64 causes it to fail ELF
@@ -822,6 +823,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     // Preserve the launcher-owned preload/input paths while restoring the
     // full env built upstream in XServerDisplayActivity (driver, DXVK, Vulkan, etc).
     mergeExternalEnvVars(envVars, envVars.get("LD_PRELOAD"), envVars.get("FAKE_EVDEV_DIR"));
+    FEXCorePresetManager.normalizeSmcChecksEnvVars(envVars, this.envVars);
 
     String emulator = container.getEmulator();
     String emulator64 = container.getEmulator64();
