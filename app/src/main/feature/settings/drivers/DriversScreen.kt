@@ -376,9 +376,12 @@ private fun HeroHeader(
                 .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
                 .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
@@ -424,23 +427,23 @@ private fun HeroHeader(
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.width(12.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            Column(
+                modifier = Modifier.widthIn(min = 112.dp, max = 132.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                HeroButton(
-                    label = stringResource(R.string.settings_drivers_install),
-                    icon = Icons.Outlined.Upload,
-                    onClick = onInstall,
-                    modifier = Modifier.weight(1f),
-                )
                 HeroButton(
                     label = "Add Repo",
                     icon = Icons.Outlined.Add,
                     onClick = onAddRepo,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                HeroButton(
+                    label = stringResource(R.string.settings_drivers_install),
+                    icon = Icons.Outlined.Upload,
+                    onClick = onInstall,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }
@@ -491,7 +494,8 @@ private fun HeroButton(
                 .background(Accent.copy(alpha = 0.12f))
                 .border(1.dp, Accent.copy(alpha = 0.32f), RoundedCornerShape(9.dp))
                 .noRippleClickable(onClick = onClick)
-                .padding(vertical = 7.dp),
+                .height(30.dp)
+                .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -499,14 +503,16 @@ private fun HeroButton(
                 imageVector = icon,
                 contentDescription = null,
                 tint = Accent,
-                modifier = Modifier.size(13.dp),
+                modifier = Modifier.size(12.dp),
             )
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(5.dp))
             Text(
                 text = label,
                 color = Accent,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }

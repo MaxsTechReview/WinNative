@@ -1100,6 +1100,8 @@ class UnifiedActivity :
     // Main scaffold
     @Composable
     fun UnifiedHub() {
+        val horizontalNavigationInsets =
+            WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
         val initialLibraryLayoutMode = startupLibraryLayoutMode
         val initialStoreVisible = startupStoreVisible ?: mapOf("steam" to true, "epic" to true, "gog" to true)
         val initialContentFilters = startupContentFilters ?: mapOf("games" to true, "dlc" to false, "applications" to false, "tools" to false)
@@ -1108,7 +1110,8 @@ class UnifiedActivity :
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .background(BgDark),
+                        .background(BgDark)
+                        .windowInsetsPadding(horizontalNavigationInsets),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(
@@ -1444,7 +1447,12 @@ class UnifiedActivity :
             scrimColor = Color.Black.copy(alpha = 0.5f),
             gesturesEnabled = true,
         ) {
-            Box(Modifier.fillMaxSize().background(BgDark)) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(BgDark)
+                    .windowInsetsPadding(horizontalNavigationInsets),
+            ) {
                 Scaffold(
                     containerColor = BgDark,
                     contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -1573,9 +1581,7 @@ class UnifiedActivity :
                                     Modifier
                                         .align(Alignment.BottomEnd)
                                         .windowInsetsPadding(
-                                            WindowInsets.navigationBars.only(
-                                                WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom,
-                                            ),
+                                            WindowInsets.navigationBars.only(WindowInsetsSides.Bottom),
                                         )
                                         .padding(end = addGameFabMargin, bottom = addGameFabMargin)
                                         .size(addGameFabSize)
@@ -1735,7 +1741,6 @@ class UnifiedActivity :
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))
                         .padding(
                             start = UnifiedTopBarHorizontalPadding,
                             end = UnifiedTopBarHorizontalPadding,
@@ -1757,6 +1762,8 @@ class UnifiedActivity :
                         androidx.compose.material3.LocalRippleConfiguration provides null,
                     ) {
                         val tabWidth = 100.dp
+                        val tabSideGutter = 12.dp
+                        val tabBarShape = RoundedCornerShape(18.dp)
                         val visibleCount = minOf(3, tabs.size)
                         val tabListState = rememberLazyListState()
                         val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState = tabListState)
@@ -1769,19 +1776,21 @@ class UnifiedActivity :
                         Box(
                             modifier =
                                 Modifier
-                                    .width(tabWidth * visibleCount)
+                                    .width(tabWidth * visibleCount + tabSideGutter * 2)
                                     .height(44.dp)
-                                    .shadow(8.dp, RoundedCornerShape(24.dp), spotColor = Color.Black.copy(alpha = 0.5f))
-                                    .clip(RoundedCornerShape(24.dp))
+                                    .shadow(8.dp, tabBarShape, spotColor = Color.Black.copy(alpha = 0.5f))
+                                    .clip(tabBarShape)
                                     .background(CardDark)
-                                    .border(1.dp, CardBorder, RoundedCornerShape(24.dp)),
+                                    .border(1.dp, CardBorder, tabBarShape),
                         ) {
                             LazyRow(
                                 state = tabListState,
                                 flingBehavior = snapFlingBehavior,
                                 modifier =
                                     Modifier
-                                        .fillMaxSize()
+                                        .align(Alignment.Center)
+                                        .width(tabWidth * visibleCount)
+                                        .fillMaxHeight()
                                         .focusProperties { canFocus = !isLibraryTab },
                                 userScrollEnabled = tabs.size > visibleCount,
                             ) {

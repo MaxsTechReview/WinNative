@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -52,6 +53,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -121,12 +123,16 @@ fun SettingsNavSidebar(
     onBackPressed: () -> Unit,
     bordersPaused: Boolean = false,
 ) {
-    val navBottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val layoutDirection = LocalLayoutDirection.current
+    val navBarPadding = WindowInsets.navigationBars.asPaddingValues()
+    val navStartInset = navBarPadding.calculateStartPadding(layoutDirection)
+    val navBottomInset = navBarPadding.calculateBottomPadding()
 
     Row(
         modifier =
             Modifier
-                .fillMaxHeight(),
+                .fillMaxHeight()
+                .padding(start = navStartInset),
     ) {
         Column(
             modifier =
