@@ -117,12 +117,4 @@ class InputControlsDialog(
             .hideKeyboard(activity)
         dialog.dismiss()
     }
-
-    fun getProfileNames() = profileNames
-    fun getSelectedProfileIndex() = selectedProfileIndex
-    fun getShowTouchscreenControls() = showTouchscreenControls
-    fun getTapToClickEnabled() = tapToClickEnabled
-    fun getOverlayOpacity() = overlayOpacity
-    fun getTouchscreenHaptics() = touchscreenHaptics
-    fun getGamepadVibration() = gamepadVibration
 }
