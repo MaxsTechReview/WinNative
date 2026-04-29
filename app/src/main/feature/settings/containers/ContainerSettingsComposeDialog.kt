@@ -1449,17 +1449,9 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             }
 
         val screenWidthDp = bounds.first / dm.density
-        val dialogWidthDp = screenWidthDp * 0.88f
-        val isCompactLayout = dialogWidthDp < 720f
-        val widthFactor: Float
-        val heightFactor: Float
-        if (screenWidthDp < 600f) {
-            widthFactor = 0.96f
-            heightFactor = 0.90f
-        } else {
-            widthFactor = 0.88f
-            heightFactor = if (isCompactLayout) 0.90f else 0.88f
-        }
+        val needsNearFullWidth = screenWidthDp < 820f
+        val widthFactor = if (needsNearFullWidth) 0.96f else 0.88f
+        val heightFactor = if (needsNearFullWidth) 0.90f else 0.88f
 
         setLayout(
             (bounds.first * widthFactor).toInt(),

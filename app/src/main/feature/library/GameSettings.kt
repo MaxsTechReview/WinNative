@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -447,81 +446,40 @@ fun GameSettingsContent(
     val currentSectionId = sections.getOrNull(selectedIdx)?.first ?: SEC_GENERAL
     val saveEnabled by state.isLoaded
 
-    BoxWithConstraints(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(16.dp))
             .background(BgDeep)
     ) {
-        val isCompact = maxWidth < 720.dp
+        Row(modifier = Modifier.fillMaxSize()) {
+            Sidebar(
+                title = state.name.value,
+                sections = sections.map { it.second },
+                currentIndex = selectedIdx,
+                onSectionSelected = { state.currentSection.intValue = it },
+                saveEnabled = saveEnabled,
+                onSave = { callbacks.onConfirm() },
+                onCancel = { callbacks.onDismiss() },
+                modifier = Modifier
+                    .width(220.dp)
+                    .fillMaxHeight()
+            )
 
-        if (isCompact) {
-            // Compact layout: top title+action bar + content + bottom section picker
-            Column(modifier = Modifier.fillMaxSize()) {
-                // Top action bar: title on left, Cancel/Save on right
-                CompactBottomBar(
-                    title = state.name.value,
-                    saveEnabled = saveEnabled,
-                    onSave = { callbacks.onConfirm() },
-                    onCancel = { callbacks.onDismiss() }
-                )
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .fillMaxHeight()
+                    .background(DividerColor)
+            )
 
-                Box(
-                    Modifier.fillMaxWidth().height(1.dp).background(DividerColor)
-                )
-
-                // Content area
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .background(ContentBg)
-                ) {
-                    SectionContent(currentSectionId, state, callbacks, isCompact)
-                }
-
-                Box(
-                    Modifier.fillMaxWidth().height(1.dp).background(DividerColor)
-                )
-
-                // Bottom section picker - scrollable row of chips
-                CompactTopBar(
-                    sections = sections,
-                    currentIndex = selectedIdx,
-                    onSectionSelected = { state.currentSection.intValue = it }
-                )
-            }
-        } else {
-            // Wide layout: sidebar + content
-            Row(modifier = Modifier.fillMaxSize()) {
-                Sidebar(
-                    title = state.name.value,
-                    sections = sections.map { it.second },
-                    currentIndex = selectedIdx,
-                    onSectionSelected = { state.currentSection.intValue = it },
-                    saveEnabled = saveEnabled,
-                    onSave = { callbacks.onConfirm() },
-                    onCancel = { callbacks.onDismiss() },
-                    modifier = Modifier
-                        .width(200.dp)
-                        .fillMaxHeight()
-                )
-
-                Box(
-                    modifier = Modifier
-                        .width(1.dp)
-                        .fillMaxHeight()
-                        .background(DividerColor)
-                )
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .background(ContentBg)
-                ) {
-                    SectionContent(currentSectionId, state, callbacks, false)
-                }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .background(ContentBg)
+            ) {
+                SectionContent(currentSectionId, state, callbacks)
             }
         }
     }
@@ -531,8 +489,7 @@ fun GameSettingsContent(
 private fun SectionContent(
     sectionId: Int,
     state: GameSettingsStateHolder,
-    callbacks: GameSettingsCallbacks,
-    isCompact: Boolean
+    callbacks: GameSettingsCallbacks
 ) {
     AnimatedContent(
         targetState = sectionId,
@@ -550,12 +507,11 @@ private fun SectionContent(
         label = "SectionTransition"
     ) { id ->
         val scrollState = rememberScrollState()
-        val hPad = if (isCompact) 12.dp else 20.dp
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(horizontal = hPad, vertical = 14.dp)
+                .padding(horizontal = 20.dp, vertical = 14.dp)
         ) {
             when (id) {
                 SEC_GENERAL -> GeneralSection(state, callbacks)
@@ -569,108 +525,6 @@ private fun SectionContent(
             }
             Spacer(Modifier.height(SettingSectionGap))
         }
-    }
-}
-
-// ===================================================================
-// Compact layout components (small screens)
-// ===================================================================
-@Composable
-private fun CompactTopBar(
-    sections: List<Pair<Int, SidebarSection>>,
-    currentIndex: Int,
-    onSectionSelected: (Int) -> Unit
-) {
-    val scrollState = rememberScrollState()
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(SidebarBg)
-            .horizontalScroll(scrollState)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        sections.forEachIndexed { index, (_, section) ->
-            val isSelected = currentIndex == index
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .chasingBorder(isFocused = isSelected, cornerRadius = 8.dp, borderWidth = 2.dp)
-                    .background(if (isSelected) AccentBlue.copy(alpha = 0.08f) else Color.Transparent)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { onSectionSelected(index) }
-                    )
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        section.icon,
-                        contentDescription = null,
-                        tint = if (isSelected) AccentBlue else TextDim,
-                        modifier = Modifier.size(SettingControlIconSize)
-                    )
-                    Spacer(Modifier.width(5.dp))
-                    Text(
-                        stringResource(section.labelResId),
-                        color = if (isSelected) TextPrimary else TextSecondary,
-                        fontSize = SettingLabelSize,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                        maxLines = 1
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CompactBottomBar(
-    title: String,
-    saveEnabled: Boolean,
-    onSave: () -> Unit,
-    onCancel: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(SidebarBg)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // Game title on the left — matches the Sidebar header text format
-        if (title.isNotBlank()) {
-            Text(
-                text = title,
-                color = TextPrimary,
-                fontSize = SettingLabelSize,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.2.sp,
-                lineHeight = 15.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-        } else {
-            Spacer(Modifier.weight(1f))
-        }
-
-        // Smaller right-aligned Cancel / Save buttons
-        Box(
-            modifier = Modifier
-                .height(26.dp)
-                .clip(RoundedCornerShape(7.dp))
-                .border(1.dp, CardBorder, RoundedCornerShape(7.dp))
-                .background(CardSurface)
-                .clickable { onCancel() }
-                .padding(horizontal = 12.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(stringResource(R.string.common_ui_cancel), color = TextSecondary, fontSize = SettingLabelSize, fontWeight = FontWeight.Medium)
-        }
-        SaveButton(enabled = saveEnabled, onClick = onSave, height = 26.dp, corner = 7.dp, fontSize = SettingLabelSize)
     }
 }
 
