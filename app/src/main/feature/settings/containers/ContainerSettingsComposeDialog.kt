@@ -1453,17 +1453,30 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val needsNearFullWidth = screenWidthDp < 820f
         val widthFactor = if (needsNearFullWidth) 0.96f else 0.88f
         val heightFactor = if (needsNearFullWidth) 0.90f else 0.88f
-        val systemInsets =
+        val navInsets =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 activity.windowManager.currentWindowMetrics.windowInsets.getInsetsIgnoringVisibility(
-                    WindowInsets.Type.navigationBars() or WindowInsets.Type.displayCutout()
+                    WindowInsets.Type.navigationBars()
+                )
+            } else {
+                null
+            }
+        val cutoutInsets =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                activity.windowManager.currentWindowMetrics.windowInsets.getInsetsIgnoringVisibility(
+                    WindowInsets.Type.displayCutout()
                 )
             } else {
                 null
             }
         val edgePaddingPx = (12f * dm.density).toInt().coerceAtLeast(1)
-        val horizontalInsetPx = maxOf(systemInsets?.left ?: 0, systemInsets?.right ?: 0)
-        val verticalInsetPx = maxOf(systemInsets?.top ?: 0, systemInsets?.bottom ?: 0)
+        val cutoutPaddingCapPx = (8f * dm.density).toInt()
+        val leftInsetPx = maxOf(navInsets?.left ?: 0, (cutoutInsets?.left ?: 0).coerceAtMost(cutoutPaddingCapPx))
+        val rightInsetPx = maxOf(navInsets?.right ?: 0, (cutoutInsets?.right ?: 0).coerceAtMost(cutoutPaddingCapPx))
+        val topInsetPx = maxOf(navInsets?.top ?: 0, (cutoutInsets?.top ?: 0).coerceAtMost(cutoutPaddingCapPx))
+        val bottomInsetPx = maxOf(navInsets?.bottom ?: 0, (cutoutInsets?.bottom ?: 0).coerceAtMost(cutoutPaddingCapPx))
+        val horizontalInsetPx = maxOf(leftInsetPx, rightInsetPx)
+        val verticalInsetPx = maxOf(topInsetPx, bottomInsetPx)
         val maxDialogWidth = (bounds.first - ((horizontalInsetPx + edgePaddingPx) * 2)).coerceAtLeast(1)
         val maxDialogHeight = (bounds.second - ((verticalInsetPx + edgePaddingPx) * 2)).coerceAtLeast(1)
 
