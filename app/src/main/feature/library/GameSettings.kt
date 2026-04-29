@@ -122,6 +122,7 @@ private val SettingGroupPadding = 12.dp
 private val SettingFieldCorner = 8.dp
 private val SettingFieldHorizontalPadding = 12.dp
 private val SettingFieldVerticalPadding = 8.dp
+private val EnvVarControlHeight = 36.dp
 private val SettingItemGap = 10.dp
 private val SettingSectionGap = 12.dp
 private val SettingTightGap = 4.dp
@@ -2510,6 +2511,7 @@ private fun EnvVarRow(
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = EnvVarControlHeight)
                         .clip(RoundedCornerShape(8.dp))
                         .background(InputSurface)
                         .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
@@ -2529,6 +2531,7 @@ private fun EnvVarRow(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = EnvVarControlHeight)
                         .clip(RoundedCornerShape(8.dp))
                         .background(InputSurface)
                         .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
@@ -2695,6 +2698,7 @@ private fun EnvValueDropdown(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(min = EnvVarControlHeight)
                 .clip(RoundedCornerShape(8.dp))
                 .background(InputSurface)
                 .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
@@ -2755,6 +2759,7 @@ private fun EnvValueMultiDropdown(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(min = EnvVarControlHeight)
                 .clip(RoundedCornerShape(8.dp))
                 .background(InputSurface)
                 .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
@@ -2836,6 +2841,7 @@ private fun EnvValueTextField(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(min = EnvVarControlHeight)
                     .clip(RoundedCornerShape(8.dp))
                     .background(InputSurface)
                     .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
