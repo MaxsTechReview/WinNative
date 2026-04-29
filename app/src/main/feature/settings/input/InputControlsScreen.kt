@@ -113,7 +113,9 @@ private val InputIconBoxSize = 38.dp
 private val InputActionSize = 30.dp
 private val InputSliderHeight = 24.dp
 private val InputProfileIconBoxSize = 42.dp
-private val InputProfileActionSize = 34.dp
+private val InputProfileActionSize = 36.dp
+private val InputProfileActionIconSize = 20.dp
+private val InputProfileActionStartGap = 8.dp
 private val InputProfileSelectorMaxWidth = 420.dp
 private val InputPrimaryTextSize = 13.sp
 private val InputSecondaryTextSize = 11.sp
@@ -426,6 +428,7 @@ private fun IconActionButton(
     tint: Color = InputTextSecondary,
     onClick: () -> Unit,
     size: Dp = InputActionSize,
+    iconSize: Dp = if (size <= 28.dp) 14.dp else if (size >= InputProfileActionSize) 18.dp else 16.dp,
 ) {
     Box(
         modifier =
@@ -445,7 +448,7 @@ private fun IconActionButton(
             imageVector = image,
             contentDescription = contentDescription,
             tint = tint,
-            modifier = Modifier.size(if (size <= 28.dp) 14.dp else if (size >= InputProfileActionSize) 18.dp else 16.dp),
+            modifier = Modifier.size(iconSize),
         )
     }
 }
@@ -1235,7 +1238,10 @@ private fun ProfileCard(
                         .weight(1f, fill = false)
                         .widthIn(max = InputProfileSelectorMaxWidth),
             )
-            ProfileActionRow(actions = actions)
+            ProfileActionRow(
+                actions = actions,
+                modifier = Modifier.padding(start = InputProfileActionStartGap),
+            )
         }
     }
 }
@@ -1321,8 +1327,12 @@ private fun ProfileSelectorRow(
 }
 
 @Composable
-private fun ProfileActionRow(actions: InputControlsScreenActions) {
+private fun ProfileActionRow(
+    actions: InputControlsScreenActions,
+    modifier: Modifier = Modifier,
+) {
     Row(
+        modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1331,24 +1341,28 @@ private fun ProfileActionRow(actions: InputControlsScreenActions) {
             contentDescription = stringResource(R.string.input_controls_editor_title),
             onClick = actions.onOpenEditor,
             size = InputProfileActionSize,
+            iconSize = InputProfileActionIconSize,
         )
         IconActionButton(
             image = Icons.Outlined.Add,
             contentDescription = stringResource(R.string.common_ui_add),
             onClick = actions.onAddProfile,
             size = InputProfileActionSize,
+            iconSize = InputProfileActionIconSize,
         )
         IconActionButton(
             image = Icons.Outlined.Edit,
             contentDescription = stringResource(R.string.common_ui_edit),
             onClick = actions.onEditProfile,
             size = InputProfileActionSize,
+            iconSize = InputProfileActionIconSize,
         )
         IconActionButton(
             image = Icons.Outlined.ContentCopy,
             contentDescription = stringResource(R.string.common_ui_duplicate),
             onClick = actions.onDuplicateProfile,
             size = InputProfileActionSize,
+            iconSize = InputProfileActionIconSize,
         )
         IconActionButton(
             image = Icons.Outlined.Delete,
@@ -1356,6 +1370,7 @@ private fun ProfileActionRow(actions: InputControlsScreenActions) {
             tint = InputDanger,
             onClick = actions.onRemoveProfile,
             size = InputProfileActionSize,
+            iconSize = InputProfileActionIconSize,
         )
     }
 }
