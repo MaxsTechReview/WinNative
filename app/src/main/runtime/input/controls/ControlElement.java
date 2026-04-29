@@ -89,6 +89,7 @@ public class ControlElement {
   private boolean selected = false;
   private boolean toggleSwitch = false;
   private boolean radialMenuExpanded = false;
+  private int activeRadialBindingIndex = -1;
   private boolean wasExpandedOnDown = false;
   private int currentPointerId = -1;
   private final Rect boundingBox = new Rect();
@@ -581,7 +582,7 @@ return boundingBox;
             if (paths != null && paths.length == bindings.length) {
               for (int i = 0; i < bindings.length; i++) {
                 paint.setStyle(Paint.Style.FILL);
-                paint.setColor(fillColor);
+                paint.setColor(i == activeRadialBindingIndex ? secondaryColor : fillColor);
                 canvas.drawPath(paths[i], paint);
 
                 paint.setStyle(Paint.Style.STROKE);
@@ -937,9 +938,14 @@ return boundingBox;
         if (!radialMenuExpanded) {
           radialMenuExpanded = true;
           paths = null;
-        } else if (Mathf.distance((float) boundingBox.centerX(), (float) boundingBox.centerY(), x, y) < boundingBox.width() * 0.5f) {
-          radialMenuExpanded = false;
-          paths = null;
+        } else {
+          activeRadialBindingIndex = getRadialBindingIndexAt(x, y);
+          if (activeRadialBindingIndex != -1) {
+            inputControlsView.handleInputEvent(getBindingAt(activeRadialBindingIndex), true);
+          } else if (Mathf.distance((float) boundingBox.centerX(), (float) boundingBox.centerY(), x, y) < boundingBox.width() * 0.5f) {
+            radialMenuExpanded = false;
+            paths = null;
+          }
         }
         inputControlsView.invalidate();
         return true;
@@ -964,6 +970,22 @@ return boundingBox;
       }
       return true;
     }
+
+    if (pointerId == currentPointerId && type == Type.RADIAL_MENU && radialMenuExpanded) {
+      int index = getRadialBindingIndexAt(x, y);
+      if (index != activeRadialBindingIndex) {
+        if (activeRadialBindingIndex != -1) {
+          inputControlsView.handleInputEvent(getBindingAt(activeRadialBindingIndex), false);
+        }
+        activeRadialBindingIndex = index;
+        if (activeRadialBindingIndex != -1) {
+          inputControlsView.handleInputEvent(getBindingAt(activeRadialBindingIndex), true);
+        }
+        inputControlsView.invalidate();
+      }
+      return true;
+    }
+
     if (pointerId == currentPointerId
         && (type == Type.D_PAD || type == Type.STICK || type == Type.TRACKPAD)) {
       float deltaX, deltaY;
@@ -1135,7 +1157,12 @@ return boundingBox;
       }
       inputControlsView.invalidate();
     } else if (type == Type.RADIAL_MENU) {
-      if (wasExpandedOnDown && radialMenuExpanded) handleRadialMenuClick(x, y);
+      if (activeRadialBindingIndex != -1) {
+        inputControlsView.handleInputEvent(getBindingAt(activeRadialBindingIndex), false);
+        activeRadialBindingIndex = -1;
+        radialMenuExpanded = false;
+        paths = null;
+      } else if (wasExpandedOnDown && radialMenuExpanded) handleRadialMenuClick(x, y);
       inputControlsView.invalidate();
     } else if (type == Type.RANGE_BUTTON
         || type == Type.D_PAD
@@ -1171,8 +1198,8 @@ return boundingBox;
     return true;
   }
 
-  private void handleRadialMenuClick(float x, float y) {
-    if (bindings.length == 0) return;
+  private int getRadialBindingIndexAt(float x, float y) {
+    if (bindings.length == 0) return -1;
     int snappingSize = inputControlsView.getSnappingSize();
     float cx = boundingBox.centerX();
     float cy = boundingBox.centerY();
@@ -1187,14 +1214,20 @@ return boundingBox;
       angle = (angle + 90) % 360;
 
       int index = (int) (angle / (360.0f / bindings.length));
-      if (index >= 0 && index < bindings.length) {
-        Binding binding = getBindingAt(index);
-        if (binding != Binding.NONE) {
-          radialMenuExpanded = false;
-          paths = null;
-          inputControlsView.handleInputEvent(binding, true);
-          inputControlsView.postDelayed(() -> inputControlsView.handleInputEvent(binding, false), 30);
-        }
+      return (index >= 0 && index < bindings.length) ? index : -1;
+    }
+    return -1;
+  }
+
+  private void handleRadialMenuClick(float x, float y) {
+    int index = getRadialBindingIndexAt(x, y);
+    if (index != -1) {
+      Binding binding = getBindingAt(index);
+      if (binding != Binding.NONE) {
+        radialMenuExpanded = false;
+        paths = null;
+        inputControlsView.handleInputEvent(binding, true);
+        inputControlsView.postDelayed(() -> inputControlsView.handleInputEvent(binding, false), 30);
       }
     }
   }
