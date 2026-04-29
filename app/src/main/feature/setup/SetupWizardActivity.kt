@@ -156,6 +156,14 @@ private val SetupDownloadChaseGradientStops =
         1.00f to Color(0xFF2196F3),
     )
 
+private const val SetupGlassSurfaceAlpha = 0.03f
+private const val SetupGlassActiveSurfaceAlpha = 0.075f
+private const val SetupGlassCompletedSurfaceAlpha = 0.065f
+private const val SetupGlassBorderAlpha = 0.24f
+private const val SetupGlassCompletedBorderAlpha = 0.82f
+private const val SetupGlassCompletedSoftBorderAlpha = 0.62f
+private const val SetupGlassTransferAlpha = 0.78f
+
 private data class TabInfo(
     val key: String,
     val label: String,
@@ -1901,7 +1909,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFF111822).copy(alpha = 0.92f), glassShape)
+                    .background(Color(0xFF111822).copy(alpha = SetupGlassTransferAlpha), glassShape)
                     .border(1.dp, turquoise.copy(alpha = 0.55f), glassShape)
                     .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -2234,9 +2242,9 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         val turquoise = Color(0xFF57CBDE)
         val completedTurquoise = Color(0xFF3FAFBE)
         val glassShape = RoundedCornerShape(12.dp)
-        val glassSurface = Color.White.copy(alpha = 0.045f)
-        val glassSurfaceActive = turquoise.copy(alpha = 0.10f)
-        val glassBorder = Color.White.copy(alpha = 0.18f)
+        val glassSurface = Color.White.copy(alpha = SetupGlassSurfaceAlpha)
+        val glassSurfaceActive = turquoise.copy(alpha = SetupGlassActiveSurfaceAlpha)
+        val glassBorder = Color.White.copy(alpha = SetupGlassBorderAlpha)
         val mutedDot = Color(0xFF4A5568)
 
         // Build tab keys/labels
@@ -2578,8 +2586,18 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         val turquoise = Color(0xFF57CBDE)
         val completedTurquoise = Color(0xFF3FAFBE)
         val cardShape = RoundedCornerShape(12.dp)
-        val bgColor = if (installed) completedTurquoise.copy(alpha = 0.085f) else Color.White.copy(alpha = 0.045f)
-        val outlineColor = if (installed) completedTurquoise.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.18f)
+        val bgColor =
+            if (installed) {
+                completedTurquoise.copy(alpha = SetupGlassCompletedSurfaceAlpha)
+            } else {
+                Color.White.copy(alpha = SetupGlassSurfaceAlpha)
+            }
+        val outlineColor =
+            if (installed) {
+                completedTurquoise.copy(alpha = SetupGlassCompletedBorderAlpha)
+            } else {
+                Color.White.copy(alpha = SetupGlassBorderAlpha)
+            }
         Row(
             modifier =
                 Modifier
@@ -2672,8 +2690,8 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 modifier =
                     Modifier
                         .widthIn(max = 420.dp)
-                        .background(Color.White.copy(alpha = 0.045f), RoundedCornerShape(12.dp))
-                        .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(12.dp))
+                        .background(Color.White.copy(alpha = SetupGlassSurfaceAlpha), RoundedCornerShape(12.dp))
+                        .border(1.dp, Color.White.copy(alpha = SetupGlassBorderAlpha), RoundedCornerShape(12.dp))
                         .padding(horizontal = 18.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -2735,10 +2753,14 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         val turquoise = Color(0xFF57CBDE)
         val completedTurquoise = Color(0xFF3FAFBE)
         val cardShape = RoundedCornerShape(12.dp)
-        val bgColor = Color.White.copy(alpha = 0.045f)
+        val bgColor = Color.White.copy(alpha = SetupGlassSurfaceAlpha)
         val activeColor = if (hasContainer) completedTurquoise else Color(0xFF4A5260)
         val outlineColor =
-            if (hasContainer) completedTurquoise.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.18f)
+            if (hasContainer) {
+                completedTurquoise.copy(alpha = SetupGlassCompletedSoftBorderAlpha)
+            } else {
+                Color.White.copy(alpha = SetupGlassBorderAlpha)
+            }
 
         Row(
             modifier =
@@ -2882,12 +2904,17 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         val turquoise = Color(0xFF57CBDE)
         val completedTurquoise = Color(0xFF3FAFBE)
         val glassShape = RoundedCornerShape(12.dp)
-        val glassSurface = if (completed) completedTurquoise.copy(alpha = 0.085f) else Color.White.copy(alpha = 0.045f)
+        val glassSurface =
+            if (completed) {
+                completedTurquoise.copy(alpha = SetupGlassCompletedSurfaceAlpha)
+            } else {
+                Color.White.copy(alpha = SetupGlassSurfaceAlpha)
+            }
         val borderColor =
             when {
-                completed -> completedTurquoise.copy(alpha = 0.85f)
+                completed -> completedTurquoise.copy(alpha = SetupGlassCompletedBorderAlpha)
                 progress != null -> turquoise
-                else -> Color.White.copy(alpha = 0.18f)
+                else -> Color.White.copy(alpha = SetupGlassBorderAlpha)
             }
         Column(
             modifier =
