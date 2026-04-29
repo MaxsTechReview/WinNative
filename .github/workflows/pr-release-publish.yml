@@ -107,6 +107,7 @@ jobs:
           PR_NUMBER: ${{ steps.scope.outputs.pr_number }}
         run: |
           pr_title=$(jq -r '.title' pr.json)
+          pr_author=$(jq -r '.user.login // "unknown"' pr.json)
           pr_url=$(jq -r '.html_url' pr.json)
           pr_body=$(jq -r '.body // ""' pr.json)
           head_ref=$(jq -r '.head.ref' pr.json)
@@ -117,6 +118,7 @@ jobs:
 
           {
             echo "title=$safe_title"
+            echo "author=$pr_author"
             echo "url=$pr_url"
             echo "tag=pr-$PR_NUMBER"
             echo "thread_name=$thread_name"
@@ -242,14 +244,19 @@ jobs:
         env:
           DISCORD_FORUM_WEBHOOK: ${{ secrets.DISCORD_FORUM_WEBHOOK }}
           PR_TITLE: ${{ steps.pr.outputs.title }}
-          PR_URL: ${{ steps.pr.outputs.url }}
+          PR_AUTHOR: ${{ steps.pr.outputs.author }}
           RELEASE_URL: ${{ steps.release.outputs.url }}
           THREAD_NAME: ${{ steps.pr.outputs.thread_name }}
         run: |
           payload=$(jq -nc \
             --arg thread_name "$THREAD_NAME" \
-            --arg content "**$PR_TITLE**\nPR: $PR_URL\nRelease: $RELEASE_URL" \
-            '{thread_name: $thread_name, content: $content}')
+            --arg title "$PR_TITLE" \
+            --arg author "$PR_AUTHOR" \
+            --arg release_url "$RELEASE_URL" \
+            '{
+              thread_name: $thread_name,
+              content: (["**\($title)**", "", "**Author:** \($author)", "", $release_url] | join("\n"))
+            }')
 
           curl --fail --silent --show-error \
             -H "Content-Type: application/json" \
