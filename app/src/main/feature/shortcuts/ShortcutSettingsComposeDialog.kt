@@ -1734,7 +1734,9 @@ class ShortcutSettingsComposeDialog private constructor(
     private fun buildEnvVarsString(): String {
         // Keep the SDL2 keys in sync with the toggle.
         val sdl2Keys = sdl2EnvVars.map { it.first }.toSet()
-        val filtered = state.envVars.value.filterNot { it.key in sdl2Keys }
+        val filtered = state.envVars.value
+            .filter { it.key.isNotBlank() }
+            .filterNot { it.key in sdl2Keys }
         val merged = if (state.sdl2Compatibility.value) {
             filtered + sdl2EnvVars.map { EnvVarItem(it.first, it.second) }
         } else {

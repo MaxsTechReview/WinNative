@@ -66,6 +66,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
@@ -83,6 +84,7 @@ private val TextSecondary = Color(0xFF7A8FA8)
 private val StatusGreen = Color(0xFF3FB950)
 private val WarningAmber = Color(0xFFFFC857)
 private val DangerRed = Color(0xFFFF6B6B)
+private val StoreLoginActionButtonWidth = 112.dp
 
 @Composable
 fun GoogleScreen() {
@@ -571,12 +573,26 @@ private fun StoreLoginCard(
                 StatusIconBox(statusColor = statusColor)
                 Spacer(Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.google_cloud_store_logins),
-                        color = TextPrimary,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.google_cloud_store_logins),
+                            color = TextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (stores.isNotEmpty()) {
+                            Spacer(Modifier.width(10.dp))
+                            StoreBadgeRow(
+                                stores = stores,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = if (busy) stringResource(R.string.google_cloud_store_login_sync_busy) else state.detail,
@@ -584,10 +600,6 @@ private fun StoreLoginCard(
                         fontSize = 12.sp,
                     )
                 }
-            }
-
-            if (stores.isNotEmpty()) {
-                StoreBadgeRow(stores = stores)
             }
 
             if (compact) {
@@ -639,6 +651,7 @@ private fun StoreLoginCard(
                             textColor = WarningAmber,
                             icon = Icons.Outlined.Upload,
                             enabled = !busy && state.googleSignedIn && state.localStores.isNotEmpty(),
+                            modifier = Modifier.width(StoreLoginActionButtonWidth),
                             onClick = onBackup,
                         )
                         Spacer(Modifier.width(8.dp))
@@ -647,6 +660,7 @@ private fun StoreLoginCard(
                             textColor = Accent,
                             icon = Icons.Outlined.Restore,
                             enabled = !busy && state.googleSignedIn && state.cloudStores.isNotEmpty(),
+                            modifier = Modifier.width(StoreLoginActionButtonWidth),
                             onClick = onRestore,
                         )
                     }
@@ -697,6 +711,7 @@ private fun StoreLoginCard(
                             textColor = WarningAmber,
                             icon = Icons.Outlined.Upload,
                             enabled = !busy && state.googleSignedIn && state.localStores.isNotEmpty(),
+                            modifier = Modifier.width(StoreLoginActionButtonWidth),
                             onClick = onBackup,
                         )
                         ActionButton(
@@ -704,6 +719,7 @@ private fun StoreLoginCard(
                             textColor = Accent,
                             icon = Icons.Outlined.Restore,
                             enabled = !busy && state.googleSignedIn && state.cloudStores.isNotEmpty(),
+                            modifier = Modifier.width(StoreLoginActionButtonWidth),
                             onClick = onRestore,
                         )
                     }
@@ -714,9 +730,12 @@ private fun StoreLoginCard(
 }
 
 @Composable
-private fun StoreBadgeRow(stores: List<String>) {
+private fun StoreBadgeRow(
+    stores: List<String>,
+    modifier: Modifier = Modifier,
+) {
     Row(
-        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        modifier = modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         stores.forEach { store ->
@@ -807,6 +826,7 @@ private fun ActionButton(
     label: String,
     textColor: Color,
     enabled: Boolean,
+    modifier: Modifier = Modifier,
     icon: ImageVector? = null,
     onClick: () -> Unit,
 ) {
@@ -819,7 +839,7 @@ private fun ActionButton(
 
     Box(
         modifier =
-            Modifier
+            modifier
                 .scale(scale)
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))

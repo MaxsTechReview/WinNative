@@ -7651,18 +7651,38 @@ class UnifiedActivity :
                                 stringResource(R.string.downloads_queue_phase_unknown)
                             }
                         }
+                    val statusColor =
+                        when (status) {
+                            DownloadPhase.COMPLETE -> StatusOnline
+                            DownloadPhase.FAILED,
+                            DownloadPhase.CANCELLED,
+                            -> DangerRed
+                            DownloadPhase.PAUSED,
+                            DownloadPhase.QUEUED,
+                            -> StatusAway
+                            DownloadPhase.DOWNLOADING,
+                            DownloadPhase.PREPARING,
+                            DownloadPhase.VERIFYING,
+                            DownloadPhase.PATCHING,
+                            DownloadPhase.APPLYING_DATA,
+                            DownloadPhase.FINALIZING,
+                            DownloadPhase.UNPACKING,
+                            -> Accent
+                            else -> TextSecondary
+                        }
 
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                         Text(
                             stringResource(R.string.downloads_queue_status_label),
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextPrimary,
+                            color = TextSecondary,
                             maxLines = 1,
                         )
+                        Spacer(Modifier.width(4.dp))
                         Text(
                             statusText,
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (status == DownloadPhase.COMPLETE) StatusOnline else TextPrimary,
+                            color = statusColor,
                             modifier = Modifier.weight(1f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,

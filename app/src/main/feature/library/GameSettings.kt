@@ -136,6 +136,7 @@ private val SettingControlIconSize = 16.dp
 private val SettingLabelSize = 11.sp
 private val SettingValueSize = 13.sp
 private val SettingSectionLabelSize = 12.sp
+private val SmartDropdownPressStartInset = 28.dp
 
 @Composable
 private fun rememberSmartDropdownOffset(): MutableState<DpOffset> =
@@ -151,7 +152,14 @@ private fun Modifier.smartDropdownAnchor(
     val density = LocalDensity.current
     return pointerInput(enabled, density, onOpen) {
         detectTapGestures { tapOffset ->
-            offset.value = with(density) { DpOffset(tapOffset.x.toDp(), 0.dp) }
+            offset.value =
+                with(density) {
+                    val tapX = tapOffset.x.toDp()
+                    DpOffset(
+                        if (tapX > SmartDropdownPressStartInset) tapX - SmartDropdownPressStartInset else 0.dp,
+                        0.dp,
+                    )
+                }
             onOpen()
         }
     }
@@ -2159,9 +2167,7 @@ private fun VariablesSection(
     callbacks: GameSettingsCallbacks
 ) {
     val isContainer = state.isContainerEditMode.value
-    var isAdding by remember { mutableStateOf(false) }
-    var newName by remember { mutableStateOf("") }
-    var newValue by remember { mutableStateOf("") }
+    val hasDraftEnvVar = state.envVars.value.any { it.key.isBlank() }
 
     if (isContainer) {
         SubsectionLabel(stringResource(R.string.container_config_variables))
@@ -2169,7 +2175,7 @@ private fun VariablesSection(
     }
 
     SettingGroup {
-        if (state.envVars.value.isEmpty() && !isAdding) {
+        if (state.envVars.value.isEmpty()) {
             Text(
                 stringResource(R.string.common_ui_none),
                 color = TextDim,
@@ -2196,10 +2202,12 @@ private fun VariablesSection(
                         .map { it.key }
                         .toSet(),
                     onNameChange = { newKey ->
-                        if (newKey.isNotEmpty() &&
-                            state.envVars.value.none { it.key == newKey }) {
-                            val list = state.envVars.value.toMutableList()
-                            list[index] = EnvVarItem(newKey, "")
+                        val normalizedKey = newKey.trim()
+                        val list = state.envVars.value.toMutableList()
+                        val isUnique = normalizedKey.isEmpty() ||
+                            state.envVars.value.none { it.key == normalizedKey }
+                        if (index in list.indices && isUnique) {
+                            list[index] = EnvVarItem(normalizedKey, envVar.value)
                             state.envVars.value = list
                         }
                     },
@@ -2213,75 +2221,17 @@ private fun VariablesSection(
             }
         }
 
-        // Inline add row
-        if (isAdding) {
-            if (state.envVars.value.isNotEmpty()) {
-                Spacer(Modifier.height(1.dp))
-                Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
-                Spacer(Modifier.height(6.dp))
-            }
-            EnvVarRow(
-                name = newName,
-                value = newValue,
-                excludeOtherNames = state.envVars.value.map { it.key }.toSet(),
-                onNameChange = { newName = it; newValue = "" },
-                onValueChange = { newValue = it },
-                onRemove = null,
-                trailing = {
-                    Spacer(Modifier.width(3.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(26.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(AccentBlue.copy(alpha = 0.15f))
-                            .clickable {
-                                val key = newName.trim()
-                                if (key.isNotEmpty() &&
-                                    state.envVars.value.none { it.key == key }) {
-                                    val list = state.envVars.value.toMutableList()
-                                    list.add(EnvVarItem(key, newValue.trim()))
-                                    state.envVars.value = list
-                                }
-                                newName = ""
-                                newValue = ""
-                                isAdding = false
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Outlined.Check, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(SettingControlIconSize))
-                    }
-                    Spacer(Modifier.width(3.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(26.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(DangerRed.copy(alpha = 0.1f))
-                            .clickable {
-                                newName = ""
-                                newValue = ""
-                                isAdding = false
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Outlined.Close, contentDescription = null, tint = DangerRed, modifier = Modifier.size(SettingControlIconSize))
-                    }
-                }
-            )
-        }
-
         Spacer(Modifier.height(SettingItemGap))
 
         // Add button
-        if (!isAdding) {
+        if (!hasDraftEnvVar) {
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .background(AccentBlue.copy(alpha = 0.08f))
                     .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
                     .clickable {
-                        newName = ""
-                        newValue = ""
-                        isAdding = true
+                        state.envVars.value = state.envVars.value + EnvVarItem("", "")
                     }
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {

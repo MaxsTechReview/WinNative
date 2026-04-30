@@ -1327,7 +1327,9 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     }
 
     private fun buildEnvVarsString(): String {
-        val filtered = state.envVars.value.filterNot { it.key in SDL2_KEYS }
+        val filtered = state.envVars.value
+            .filter { it.key.isNotBlank() }
+            .filterNot { it.key in SDL2_KEYS }
         val merged = if (state.sdl2Compatibility.value) {
             filtered + SDL2_ENV_VARS.map { EnvVarItem(it.first, it.second) }
         } else filtered

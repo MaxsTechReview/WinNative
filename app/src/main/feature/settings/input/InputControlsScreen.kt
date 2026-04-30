@@ -1,7 +1,14 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.winlator.cmod.feature.settings
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -46,6 +53,7 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.MoreVert
@@ -55,9 +63,11 @@ import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -70,10 +80,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalFocusManager
@@ -115,6 +125,7 @@ private val InputItemGap = 8.dp
 private val InputIconBoxSize = 38.dp
 private val InputActionSize = 30.dp
 private val InputSliderHeight = 24.dp
+private const val InputSliderTrackScaleY = 0.72f
 private val InputProfileIconBoxSize = 42.dp
 private val InputProfileActionSize = 38.dp
 private val InputProfileActionIconSize = 25.dp
@@ -1203,6 +1214,15 @@ private fun sliderColors() =
         inactiveTickColor = InputTickHidden,
     )
 
+@Composable
+private fun InputSliderTrack(sliderState: SliderState) {
+    SliderDefaults.Track(
+        sliderState = sliderState,
+        colors = sliderColors(),
+        modifier = Modifier.scale(scaleX = 1f, scaleY = InputSliderTrackScaleY),
+    )
+}
+
 private fun snapToStep(
     value: Float,
     step: Int,
@@ -1482,6 +1502,7 @@ private fun OverlayOpacityCard(
                 steps = 17,
                 modifier = Modifier.height(InputSliderHeight),
                 colors = sliderColors(),
+                track = { InputSliderTrack(it) },
             )
         }
     }
@@ -1538,10 +1559,11 @@ private fun Subcard(
     content: @Composable () -> Unit,
 ) {
     val chevronRotation by animateFloatAsState(
-        targetValue = if (expanded) 90f else 0f,
-        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
         label = "subcardChevronRotation",
     )
+    val borderColor = if (expanded) InputAccent.copy(alpha = 0.45f) else InputOutline
 
     Column(
         modifier =
@@ -1549,8 +1571,7 @@ private fun Subcard(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(InputCardCorner))
                 .background(InputSubcard)
-                .border(1.dp, InputOutline, RoundedCornerShape(InputCardCorner))
-                .padding(horizontal = 8.dp, vertical = 5.dp),
+                .border(1.dp, borderColor, RoundedCornerShape(InputCardCorner)),
     ) {
         Row(
             modifier =
@@ -1560,28 +1581,20 @@ private fun Subcard(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = onToggleExpanded,
-                    ),
+                    )
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
+            Icon(
+                imageVector = Icons.Outlined.ExpandMore,
+                contentDescription = null,
+                tint = if (expanded) InputAccent else InputTextSecondary,
                 modifier =
                     Modifier
-                        .size(28.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(InputIconBox),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = InputTextSecondary,
-                    modifier =
-                        Modifier
-                            .size(13.dp)
-                            .graphicsLayer { rotationZ = chevronRotation },
-                )
-            }
-            Spacer(Modifier.width(InputItemGap))
+                        .size(18.dp)
+                        .rotate(chevronRotation),
+            )
+            Spacer(Modifier.width(8.dp))
             Text(
                 text = title,
                 color = InputTextSecondary,
@@ -1589,8 +1602,29 @@ private fun Subcard(
                 modifier = Modifier.weight(1f),
             )
         }
-        if (expanded) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+
+        AnimatedVisibility(
+            visible = expanded,
+            enter =
+                fadeIn(tween(110)) +
+                    expandVertically(
+                        animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
+                        expandFrom = Alignment.Top,
+                    ),
+            exit =
+                fadeOut(tween(90)) +
+                    shrinkVertically(
+                        animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
+                        shrinkTowards = Alignment.Top,
+                    ),
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .background(InputSubcard)
+                        .padding(start = 12.dp, end = 12.dp, bottom = 6.dp),
+            ) {
                 content()
             }
         }
@@ -1618,6 +1652,7 @@ private fun SliderField(
             steps = steps,
             modifier = Modifier.height(InputSliderHeight),
             colors = sliderColors(),
+            track = { InputSliderTrack(it) },
         )
     }
 }
