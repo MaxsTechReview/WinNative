@@ -25,6 +25,7 @@ class InputControlsDialog(
     val profileNames = mutableStateOf<List<String>>(emptyList())
     val selectedProfileIndex = mutableIntStateOf(0)
     val showTouchscreenControls = mutableStateOf(false)
+    val tapToClickEnabled = mutableStateOf(true)
     val overlayOpacity = mutableStateOf(0.4f)
     val touchscreenHaptics = mutableStateOf(false)
     val gamepadVibration = mutableStateOf(true)
@@ -65,6 +66,7 @@ class InputControlsDialog(
                                     profileNames = profileNames.value,
                                     selectedProfileIndex = selectedProfileIndex.intValue,
                                     showTouchscreenControls = showTouchscreenControls.value,
+                                    tapToClickEnabled = tapToClickEnabled.value,
                                     overlayOpacity = overlayOpacity.value,
                                     touchscreenHaptics = touchscreenHaptics.value,
                                     gamepadVibration = gamepadVibration.value,
@@ -74,6 +76,7 @@ class InputControlsDialog(
                             },
                             onSettingsClick = { onSettingsClickCallback?.run() },
                             onShowTouchscreenControlsChange = { showTouchscreenControls.value = it },
+                            onTapToClickChange = { tapToClickEnabled.value = it },
                             onOverlayOpacityChange = { overlayOpacity.value = it },
                             onTouchscreenHapticsChange = { touchscreenHaptics.value = it },
                             onGamepadVibrationChange = { gamepadVibration.value = it },

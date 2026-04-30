@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 /* Settings > Other screen — Jetpack Compose / Material3.
  * Uses a LazyColumn for the main content so the screen scrolls natively in Compose. */
 package com.winlator.cmod.feature.settings
@@ -50,11 +52,13 @@ import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -90,6 +94,8 @@ private val SurfaceDark = Color(0xFF21212A)
 private val Accent = Color(0xFF1A9FFF)
 private val TextPrimary = Color(0xFFF0F4FF)
 private val TextSecondary = Color(0xFF7A8FA8)
+private val SettingsSliderHeight = 24.dp
+private const val SettingsSliderTrackScaleY = 0.72f
 
 // State
 data class OtherSettingsState(
@@ -109,6 +115,25 @@ data class OtherSettingsState(
     val shareClipboard: Boolean = false,
     val imagefsInstallProgress: Int? = null,
 )
+
+@Composable
+private fun settingsSliderColors() =
+    SliderDefaults.colors(
+        thumbColor = Accent,
+        activeTrackColor = Accent,
+        inactiveTrackColor = SurfaceDark,
+        activeTickColor = Color.Transparent,
+        inactiveTickColor = Color.Transparent,
+    )
+
+@Composable
+private fun SettingsSliderTrack(sliderState: SliderState) {
+    SliderDefaults.Track(
+        sliderState = sliderState,
+        colors = settingsSliderColors(),
+        modifier = Modifier.scale(scaleX = 1f, scaleY = SettingsSliderTrackScaleY),
+    )
+}
 
 // Root
 @Composable
@@ -872,15 +897,12 @@ private fun CursorSpeedCard(
                 onValueChange = { onPercentChanged(it.toInt()) },
                 valueRange = 10f..200f,
                 steps = 0,
-                colors =
-                    SliderDefaults.colors(
-                        thumbColor = Accent,
-                        activeTrackColor = Accent,
-                        inactiveTrackColor = SurfaceDark,
-                        activeTickColor = Color.Transparent,
-                        inactiveTickColor = Color.Transparent,
-                    ),
-                modifier = Modifier.fillMaxWidth(),
+                colors = settingsSliderColors(),
+                track = { SettingsSliderTrack(it) },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(SettingsSliderHeight),
             )
         }
     }

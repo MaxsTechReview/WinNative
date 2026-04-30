@@ -877,7 +877,7 @@ private fun EnvVarCard(
                     Modifier
                         .fillMaxWidth()
                         .noRippleClickable { expanded = !expanded }
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
@@ -934,7 +934,7 @@ private fun EnvVarCard(
                         Modifier
                             .fillMaxWidth()
                             .background(CardDarker)
-                            .padding(horizontal = 38.dp, vertical = 10.dp),
+                            .padding(horizontal = 38.dp, vertical = 8.dp),
                 )
             }
         }
@@ -1055,7 +1055,7 @@ private fun EnvVarDropdownControl(
                 .background(CardDarker)
                 .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
                 .noRippleClickable(enabled = editable && values.isNotEmpty()) { open = true }
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+                .padding(horizontal = 10.dp, vertical = 7.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -1117,7 +1117,7 @@ private fun EnvVarTextControl(
                 .clip(RoundedCornerShape(8.dp))
                 .background(CardDarker)
                 .border(borderWidth, borderColor, RoundedCornerShape(8.dp))
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+                .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
         BasicTextField(

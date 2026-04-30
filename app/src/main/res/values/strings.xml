@@ -528,7 +528,7 @@
     <string name="fexcore_env_var_help__hostfeatures">Controls CPU feature forcing.</string>
     <string name="fexcore_env_var_help__smalltscscale">Scales TSC on low-frequency systems.</string>
     <string name="fexcore_env_var_help__hidehybrid">Hides hybrid CPU core layout from the guest.</string>
-    <string name="fexcore_env_var_help__smcchecks">Checks code for modification before execution.</string>
+    <string name="fexcore_env_var_help__smc_checks">Checks code for modification before execution.</string>
     <string name="fexcore_env_var_help__volatilemetadata">Uses volatile metadata from PE files for TSO when available.</string>
     <string name="fexcore_env_var_help__monohacks">Special SMC + JIT block hacks for Mono detection.</string>
     <string name="fexcore_env_var_help__hidehypervisorbit">Hides CPUID hypervisor bit (useful for apps that crash with it).</string>
@@ -983,6 +983,7 @@ Installed path:
     <string name="setup_wizard_create_container">Create Container</string>
     <string name="setup_wizard_creating_container">Creating\u2026</string>
 
+    <string name="input_controls_tap_to_click">Tap to Click</string>
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Authorization</string>
     <string name="steam_login_sign_in_to_your_account">Sign in to your account</string>

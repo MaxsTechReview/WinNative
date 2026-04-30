@@ -71,6 +71,7 @@ data class InputControlsState(
     val profileNames: List<String> = emptyList(),
     val selectedProfileIndex: Int = 0,
     val showTouchscreenControls: Boolean = false,
+    val tapToClickEnabled: Boolean = true,
     val overlayOpacity: Float = 0.4f,
     val touchscreenHaptics: Boolean = false,
     val gamepadVibration: Boolean = true,
@@ -82,6 +83,7 @@ fun InputControlsDialogContent(
     onProfileSelected: (Int) -> Unit,
     onSettingsClick: () -> Unit,
     onShowTouchscreenControlsChange: (Boolean) -> Unit,
+    onTapToClickChange: (Boolean) -> Unit,
     onOverlayOpacityChange: (Float) -> Unit,
     onTouchscreenHapticsChange: (Boolean) -> Unit,
     onGamepadVibrationChange: (Boolean) -> Unit,
@@ -163,6 +165,12 @@ fun InputControlsDialogContent(
                             OverlayOpacitySlider(
                                 value = state.overlayOpacity,
                                 onValueChange = onOverlayOpacityChange
+                            )
+
+                            OptionCheckbox(
+                                label = stringResource(R.string.input_controls_tap_to_click),
+                                checked = state.tapToClickEnabled,
+                                onCheckedChange = onTapToClickChange,
                             )
                         }
 

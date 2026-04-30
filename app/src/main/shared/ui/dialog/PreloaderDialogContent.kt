@@ -115,6 +115,7 @@ private val TrackColor = Color(0xFF21293D)
 private val IndicatorColor = Color(0xFF57CBDE)
 private val CardBg = Color(0xFF1A2028)
 private val CardBorder = Color(0xFF253443)
+private val SteamPlatformBlue = Color(0xFF66C0F4)
 
 private val InterFont = FontFamily(Font(R.font.inter_medium))
 
@@ -129,10 +130,10 @@ private fun platformStringRes(source: String): Int? =
 
 private fun platformColor(source: String): Color =
     when (source.uppercase()) {
-        "STEAM" -> Color(0xFF66C0F4)
+        "STEAM" -> SteamPlatformBlue
         "EPIC" -> Color(0xFF8A8A8A)
         "GOG" -> Color(0xFFAB47BC)
-        "CUSTOM" -> Color(0xFF4CAF50)
+        "CUSTOM" -> SteamPlatformBlue
         else -> Color(0xFF57CBDE)
     }
 

@@ -55,6 +55,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -2713,21 +2716,25 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 )
             }
         } else {
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.TopCenter,
             ) {
-                LazyColumn(
+                val gridColumns = 3
+                val compactGrid = maxWidth < 720.dp || maxHeight < 280.dp
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(gridColumns),
                     modifier =
                         Modifier
-                            .widthIn(max = 420.dp)
+                            .widthIn(max = 960.dp)
                             .fillMaxWidth()
                             .fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(if (compactGrid) 8.dp else 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (compactGrid) 6.dp else 10.dp),
+                    contentPadding = PaddingValues(bottom = if (compactGrid) 4.dp else 12.dp),
                 ) {
-                    items(installedRuntimes) { profile ->
-                        RuntimeContainerCard(profile)
+                    gridItems(installedRuntimes) { profile ->
+                        RuntimeContainerCard(profile, compact = compactGrid)
                     }
                 }
             }
@@ -2735,7 +2742,10 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     }
 
     @Composable
-    private fun RuntimeContainerCard(profile: ContentProfile) {
+    private fun RuntimeContainerCard(
+        profile: ContentProfile,
+        compact: Boolean = false,
+    ) {
         val entryName = ContentsManager.getEntryName(profile)
         val displayName = runtimeDisplayLabel(profile)
         val isArm64 = profile.verName.contains("arm64ec", ignoreCase = true)
@@ -2768,7 +2778,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     .fillMaxWidth()
                     .background(bgColor, cardShape)
                     .border(1.dp, outlineColor, cardShape)
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                    .padding(horizontal = if (compact) 10.dp else 12.dp, vertical = if (compact) 6.dp else 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -2787,23 +2797,23 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         text = archLabel,
                         color = if (hasContainer) activeColor else Color(0xFF8B949E),
                         fontFamily = InterFont,
-                        fontSize = 9.sp,
+                        fontSize = if (compact) 8.sp else 9.sp,
                         letterSpacing = 1.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
-                Spacer(Modifier.height(3.dp))
+                Spacer(Modifier.height(if (compact) 1.dp else 3.dp))
                 Text(
                     text = displayName,
                     color = Color(0xFFE6EDF3),
                     fontFamily = InterFont,
                     fontWeight = FontWeight.Medium,
-                    fontSize = 12.sp,
+                    fontSize = if (compact) 11.sp else 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
             if (existingContainer == null) {
                 Button(
                     onClick = {
@@ -2834,8 +2844,8 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     },
                     enabled = !creating && transferState.value == null,
                     shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.height(28.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    modifier = Modifier.height(if (compact) 24.dp else 28.dp),
+                    contentPadding = PaddingValues(horizontal = if (compact) 9.dp else 12.dp, vertical = 0.dp),
                     colors =
                         ButtonDefaults.buttonColors(
                             containerColor = turquoise.copy(alpha = 0.14f),
@@ -2847,20 +2857,20 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 ) {
                     if (creating) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(if (compact) 12.dp else 14.dp),
                             color = turquoise,
                             strokeWidth = 2.dp,
                         )
-                        Spacer(Modifier.width(6.dp))
+                        Spacer(Modifier.width(if (compact) 4.dp else 6.dp))
                     }
                     Text(
                         text =
                             stringResource(
                                 if (creating) R.string.setup_wizard_creating_container else R.string.setup_wizard_create_container,
-                            ),
+                        ),
                         fontFamily = InterFont,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp,
+                        fontSize = if (compact) 9.sp else 10.sp,
                     )
                 }
             } else {
@@ -2871,8 +2881,8 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         openContainerDefaultSettings(id, type)
                     },
                     shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.height(28.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    modifier = Modifier.height(if (compact) 24.dp else 28.dp),
+                    contentPadding = PaddingValues(horizontal = if (compact) 9.dp else 12.dp, vertical = 0.dp),
                     colors =
                         ButtonDefaults.buttonColors(
                             containerColor = completedTurquoise.copy(alpha = 0.14f),
@@ -2883,7 +2893,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         text = stringResource(R.string.setup_wizard_default_settings),
                         fontFamily = InterFont,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp,
+                        fontSize = if (compact) 9.sp else 10.sp,
                     )
                 }
             }

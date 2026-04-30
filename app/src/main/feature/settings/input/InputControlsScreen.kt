@@ -1,7 +1,14 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.winlator.cmod.feature.settings
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -46,15 +53,21 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FileUpload
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.ScreenRotationAlt
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -67,10 +80,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalFocusManager
@@ -102,6 +115,25 @@ private val InputTextPrimary = Color(0xFFF0F4FF)
 private val InputTextSecondary = Color(0xFF7A8FA8)
 private val InputDanger = Color(0xFFFF7A88)
 private val InputTickHidden = Color.Transparent
+
+private val InputCardCorner = 10.dp
+private val InputCardHorizontalPadding = 12.dp
+private val InputCardVerticalPadding = 10.dp
+private val InputFieldCorner = 8.dp
+private val InputCompactGap = 6.dp
+private val InputItemGap = 8.dp
+private val InputIconBoxSize = 38.dp
+private val InputActionSize = 30.dp
+private val InputSliderHeight = 24.dp
+private const val InputSliderTrackScaleY = 0.72f
+private val InputProfileIconBoxSize = 42.dp
+private val InputProfileActionSize = 38.dp
+private val InputProfileActionIconSize = 25.dp
+private val InputProfileActionStartGap = 6.dp
+private val InputProfileSelectorMaxWidth = 420.dp
+private val InputPrimaryTextSize = 13.sp
+private val InputSecondaryTextSize = 11.sp
+private val InputSectionTextSize = 10.sp
 
 data class InputControlsScreenState(
     val selectedProfileName: String? = null,
@@ -241,12 +273,12 @@ fun InputControlsScreen(
             modifier = Modifier.fillMaxSize(),
             contentPadding =
                 PaddingValues(
-                    start = 16.dp + navBarStartPadding,
-                    top = 16.dp,
-                    end = 16.dp + navBarEndPadding,
-                    bottom = 20.dp + navBarBottomPadding,
+                    start = 12.dp + navBarStartPadding,
+                    top = 12.dp,
+                    end = 12.dp + navBarEndPadding,
+                    bottom = 16.dp + navBarBottomPadding,
                 ),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(InputCompactGap),
         ) {
             item("profile-card") { ProfileCard(state, actions) }
             item("overlay-label") { SectionLabel(stringResource(R.string.input_controls_editor_overlay_opacity)) }
@@ -344,9 +376,9 @@ private fun SectionLabel(text: String) {
     Text(
         text = text.uppercase(),
         color = InputTextSecondary,
-        fontSize = 11.sp,
+        fontSize = InputSectionTextSize,
         fontWeight = FontWeight.Bold,
-        letterSpacing = 1.2.sp,
+        letterSpacing = 1.sp,
         modifier = Modifier.padding(start = 4.dp),
     )
 }
@@ -354,6 +386,8 @@ private fun SectionLabel(text: String) {
 @Composable
 private fun CardShell(
     onClick: (() -> Unit)? = null,
+    horizontalPadding: Dp = InputCardHorizontalPadding,
+    verticalPadding: Dp = InputCardVerticalPadding,
     content: @Composable () -> Unit,
 ) {
     val clickableModifier =
@@ -371,11 +405,11 @@ private fun CardShell(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(InputCardCorner))
                 .background(InputCard)
-                .border(1.dp, InputOutline, RoundedCornerShape(12.dp))
+                .border(1.dp, InputOutline, RoundedCornerShape(InputCardCorner))
                 .then(clickableModifier)
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = horizontalPadding, vertical = verticalPadding),
     ) {
         content()
     }
@@ -389,8 +423,8 @@ private fun IconBox(
     Box(
         modifier =
             Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .size(InputIconBoxSize)
+                .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputIconBox),
         contentAlignment = Alignment.Center,
     ) {
@@ -398,7 +432,7 @@ private fun IconBox(
             imageVector = image,
             contentDescription = null,
             tint = tint,
-            modifier = Modifier.size(22.dp),
+            modifier = Modifier.size(18.dp),
         )
     }
 }
@@ -409,15 +443,16 @@ private fun IconActionButton(
     contentDescription: String,
     tint: Color = InputTextSecondary,
     onClick: () -> Unit,
-    size: Dp = 34.dp,
+    size: Dp = InputActionSize,
+    iconSize: Dp = if (size <= 28.dp) 14.dp else if (size >= InputProfileActionSize) 18.dp else 16.dp,
 ) {
     Box(
         modifier =
             Modifier
                 .size(size)
-                .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputSubcard)
-                .border(1.dp, InputOutline, RoundedCornerShape(8.dp))
+                .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -429,7 +464,7 @@ private fun IconActionButton(
             imageVector = image,
             contentDescription = contentDescription,
             tint = tint,
-            modifier = Modifier.size(if (size <= 28.dp) 14.dp else 18.dp),
+            modifier = Modifier.size(iconSize),
         )
     }
 }
@@ -457,7 +492,7 @@ private fun ChipRow(
     selectedIndex: Int,
     onSelected: (Int) -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(InputCompactGap)) {
         options.forEachIndexed { index, label ->
             Chip(
                 text = label,
@@ -477,24 +512,24 @@ private fun Chip(
     Box(
         modifier =
             Modifier
-                .height(34.dp)
-                .clip(RoundedCornerShape(9.dp))
+                .height(30.dp)
+                .clip(RoundedCornerShape(InputFieldCorner))
                 .background(if (selected) InputAccent.copy(alpha = 0.18f) else InputSubcard)
                 .border(
                     1.dp,
                     if (selected) InputAccent.copy(alpha = 0.35f) else InputOutline,
-                    RoundedCornerShape(9.dp),
+                    RoundedCornerShape(InputFieldCorner),
                 ).clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onClick,
-                ).padding(horizontal = 14.dp),
+                ).padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = text,
             color = if (selected) InputAccent else InputTextSecondary,
-            fontSize = 13.sp,
+            fontSize = InputSecondaryTextSize,
             fontWeight = FontWeight.Bold,
         )
     }
@@ -508,21 +543,21 @@ private fun SelectionPill(
     Row(
         modifier =
             Modifier
-                .heightIn(min = 34.dp)
-                .clip(RoundedCornerShape(9.dp))
+                .heightIn(min = 30.dp)
+                .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputField)
-                .border(1.dp, InputOutline, RoundedCornerShape(9.dp))
+                .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onClick,
-                ).padding(start = 14.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
+                ).padding(start = 12.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = text,
             color = InputTextPrimary,
-            fontSize = 13.sp,
+            fontSize = InputPrimaryTextSize,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -543,16 +578,16 @@ private fun EmptyStateCard(text: String) {
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(InputCardCorner))
                 .background(InputCard)
-                .border(1.dp, InputOutline, RoundedCornerShape(12.dp))
-                .padding(horizontal = 18.dp, vertical = 24.dp),
+                .border(1.dp, InputOutline, RoundedCornerShape(InputCardCorner))
+                .padding(horizontal = 14.dp, vertical = 16.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = text,
             color = InputTextSecondary,
-            fontSize = 13.sp,
+            fontSize = InputPrimaryTextSize,
             textAlign = TextAlign.Center,
         )
     }
@@ -628,13 +663,13 @@ private fun ProfileSelectorIconBox(tint: Color) {
     Box(
         modifier =
             Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .size(InputProfileIconBoxSize)
+                .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputIconBox),
         contentAlignment = Alignment.Center,
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(5.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             repeat(2) {
                 Row(
@@ -643,15 +678,15 @@ private fun ProfileSelectorIconBox(tint: Color) {
                     Box(
                         modifier =
                             Modifier
-                                .size(6.dp)
-                                .clip(RoundedCornerShape(3.dp))
+                                .size(7.dp)
+                                .clip(RoundedCornerShape(4.dp))
                                 .background(tint),
                     )
-                    Spacer(Modifier.width(5.dp))
+                    Spacer(Modifier.width(6.dp))
                     Box(
                         modifier =
                             Modifier
-                                .width(15.dp)
+                                .width(18.dp)
                                 .height(3.dp)
                                 .clip(RoundedCornerShape(2.dp))
                                 .background(tint.copy(alpha = 0.95f)),
@@ -1179,6 +1214,15 @@ private fun sliderColors() =
         inactiveTickColor = InputTickHidden,
     )
 
+@Composable
+private fun InputSliderTrack(sliderState: SliderState) {
+    SliderDefaults.Track(
+        sliderState = sliderState,
+        colors = sliderColors(),
+        modifier = Modifier.scale(scaleX = 1f, scaleY = InputSliderTrackScaleY),
+    )
+}
+
 private fun snapToStep(
     value: Float,
     step: Int,
@@ -1202,10 +1246,14 @@ private fun ProfileCard(
         label = "profileSelectorPressed",
     )
 
-    CardShell {
+    CardShell(
+        horizontalPadding = 10.dp,
+        verticalPadding = 8.dp,
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             ProfileSelectorRow(
                 state = state,
@@ -1213,10 +1261,15 @@ private fun ProfileCard(
                 selectorTint = selectorTint,
                 selectorPressed = selectorPressed,
                 onClick = actions.onSelectProfile,
-                modifier = Modifier.weight(1f),
+                modifier =
+                    Modifier
+                        .weight(1f, fill = false)
+                        .widthIn(max = InputProfileSelectorMaxWidth),
             )
-            Spacer(Modifier.width(10.dp))
-            ProfileActionRow(actions = actions)
+            ProfileActionRow(
+                actions = actions,
+                modifier = Modifier.padding(start = InputProfileActionStartGap),
+            )
         }
     }
 }
@@ -1233,7 +1286,7 @@ private fun ProfileSelectorRow(
     Row(
         modifier =
             modifier
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(InputCardCorner))
                 .background(
                     Color(
                         red = InputField.red,
@@ -1249,30 +1302,30 @@ private fun ProfileSelectorRow(
                         blue = InputOutline.blue + ((InputAccent.blue - InputOutline.blue) * selectorTint * 0.45f),
                         alpha = 0.8f + (0.15f * selectorTint),
                     ),
-                    RoundedCornerShape(12.dp),
+                    RoundedCornerShape(InputCardCorner),
                 )
                 .clickable(
                     interactionSource = selectionInteraction,
                     indication = null,
                     onClick = onClick,
                 )
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ProfileSelectorIconBox(if (selectorPressed) InputTextPrimary else InputAccent)
-        Spacer(Modifier.width(14.dp))
+        Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text =
                     state.selectedProfileName
                         ?: stringResource(R.string.input_controls_editor_select_profile),
                 color = InputTextPrimary,
-                fontSize = 15.sp,
+                fontSize = InputPrimaryTextSize,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(1.dp))
             Text(
                 text =
                     if (state.selectedProfileName != null) {
@@ -1281,12 +1334,12 @@ private fun ProfileSelectorRow(
                         stringResource(R.string.input_controls_editor_no_profile_selected)
                     },
                 color = InputTextSecondary,
-                fontSize = 12.sp,
+                fontSize = InputSecondaryTextSize,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(InputItemGap))
         Icon(
             imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
             contentDescription = null,
@@ -1302,38 +1355,113 @@ private fun ProfileSelectorRow(
 }
 
 @Composable
-private fun ProfileActionRow(actions: InputControlsScreenActions) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
-        verticalAlignment = Alignment.CenterVertically,
+private fun ProfileActionRow(
+    actions: InputControlsScreenActions,
+    modifier: Modifier = Modifier,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
+        ProfileOverflowButton(
+            onClick = { menuOpen = true },
+        )
+        DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+            containerColor = InputCard,
+        ) {
+            ProfileActionMenuItem(
+                icon = Icons.Outlined.SportsEsports,
+                label = stringResource(R.string.input_controls_editor_title),
+                onClick = {
+                    menuOpen = false
+                    actions.onOpenEditor()
+                },
+            )
+            ProfileActionMenuItem(
+                icon = Icons.Outlined.Add,
+                label = stringResource(R.string.common_ui_add),
+                onClick = {
+                    menuOpen = false
+                    actions.onAddProfile()
+                },
+            )
+            ProfileActionMenuItem(
+                icon = Icons.Outlined.Edit,
+                label = stringResource(R.string.common_ui_edit),
+                onClick = {
+                    menuOpen = false
+                    actions.onEditProfile()
+                },
+            )
+            ProfileActionMenuItem(
+                icon = Icons.Outlined.ContentCopy,
+                label = stringResource(R.string.common_ui_duplicate),
+                onClick = {
+                    menuOpen = false
+                    actions.onDuplicateProfile()
+                },
+            )
+            ProfileActionMenuItem(
+                icon = Icons.Outlined.Delete,
+                label = stringResource(R.string.common_ui_remove),
+                iconTint = InputDanger,
+                textColor = InputDanger,
+                onClick = {
+                    menuOpen = false
+                    actions.onRemoveProfile()
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileOverflowButton(onClick: () -> Unit) {
+    Box(
+        modifier =
+            Modifier
+                .size(InputProfileActionSize)
+                .clip(RoundedCornerShape(InputFieldCorner))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                ),
+        contentAlignment = Alignment.Center,
     ) {
-        IconActionButton(
-            image = Icons.Outlined.SportsEsports,
-            contentDescription = stringResource(R.string.input_controls_editor_title),
-            onClick = actions.onOpenEditor,
-        )
-        IconActionButton(
-            image = Icons.Outlined.Add,
-            contentDescription = stringResource(R.string.common_ui_add),
-            onClick = actions.onAddProfile,
-        )
-        IconActionButton(
-            image = Icons.Outlined.Edit,
-            contentDescription = stringResource(R.string.common_ui_edit),
-            onClick = actions.onEditProfile,
-        )
-        IconActionButton(
-            image = Icons.Outlined.ContentCopy,
-            contentDescription = stringResource(R.string.common_ui_duplicate),
-            onClick = actions.onDuplicateProfile,
-        )
-        IconActionButton(
-            image = Icons.Outlined.Delete,
-            contentDescription = stringResource(R.string.common_ui_remove),
-            tint = InputDanger,
-            onClick = actions.onRemoveProfile,
+        Icon(
+            imageVector = Icons.Outlined.MoreVert,
+            contentDescription = stringResource(R.string.common_ui_options),
+            tint = Color.White,
+            modifier = Modifier.size(InputProfileActionIconSize),
         )
     }
+}
+
+@Composable
+private fun ProfileActionMenuItem(
+    icon: ImageVector,
+    label: String,
+    iconTint: Color = InputAccent,
+    textColor: Color = InputTextPrimary,
+    onClick: () -> Unit,
+) {
+    DropdownMenuItem(
+        text = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(15.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(label, color = textColor, fontSize = InputPrimaryTextSize)
+            }
+        },
+        onClick = onClick,
+    )
 }
 
 @Composable
@@ -1348,23 +1476,23 @@ private fun OverlayOpacityCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconBox(Icons.Outlined.Visibility, InputTextSecondary)
-                Spacer(Modifier.width(14.dp))
+                Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.input_controls_editor_overlay_opacity),
                         color = InputTextPrimary,
-                        fontSize = 15.sp,
+                        fontSize = InputPrimaryTextSize,
                         fontWeight = FontWeight.Bold,
                     )
-                    Spacer(Modifier.height(2.dp))
+                    Spacer(Modifier.height(1.dp))
                     Text(
                         text = "${state.overlayOpacity}%",
                         color = InputTextSecondary,
-                        fontSize = 12.sp,
+                        fontSize = InputSecondaryTextSize,
                     )
                 }
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(InputCompactGap))
             Slider(
                 value = state.overlayOpacity.toFloat(),
                 onValueChange = {
@@ -1372,7 +1500,9 @@ private fun OverlayOpacityCard(
                 },
                 valueRange = 10f..100f,
                 steps = 17,
+                modifier = Modifier.height(InputSliderHeight),
                 colors = sliderColors(),
+                track = { InputSliderTrack(it) },
             )
         }
     }
@@ -1392,8 +1522,8 @@ private fun ActionCard(
             Box(
                 modifier =
                     Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(9.dp))
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(InputFieldCorner))
                         .background(InputIconBox),
                 contentAlignment = Alignment.Center,
             ) {
@@ -1401,14 +1531,14 @@ private fun ActionCard(
                     imageVector = icon,
                     contentDescription = null,
                     tint = InputTextSecondary,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(16.dp),
                 )
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(10.dp))
             Text(
                 text = title,
                 color = InputTextPrimary,
-                fontSize = 14.sp,
+                fontSize = InputPrimaryTextSize,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f),
             )
@@ -1429,19 +1559,19 @@ private fun Subcard(
     content: @Composable () -> Unit,
 ) {
     val chevronRotation by animateFloatAsState(
-        targetValue = if (expanded) 90f else 0f,
-        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
         label = "subcardChevronRotation",
     )
+    val borderColor = if (expanded) InputAccent.copy(alpha = 0.45f) else InputOutline
 
     Column(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
+                .clip(RoundedCornerShape(InputCardCorner))
                 .background(InputSubcard)
-                .border(1.dp, InputOutline, RoundedCornerShape(10.dp))
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .border(1.dp, borderColor, RoundedCornerShape(InputCardCorner)),
     ) {
         Row(
             modifier =
@@ -1451,37 +1581,50 @@ private fun Subcard(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = onToggleExpanded,
-                    ),
+                    )
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
+            Icon(
+                imageVector = Icons.Outlined.ExpandMore,
+                contentDescription = null,
+                tint = if (expanded) InputAccent else InputTextSecondary,
                 modifier =
                     Modifier
-                        .size(30.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(InputIconBox),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = InputTextSecondary,
-                    modifier =
-                        Modifier
-                            .size(14.dp)
-                            .graphicsLayer { rotationZ = chevronRotation },
-                )
-            }
-            Spacer(Modifier.width(10.dp))
+                        .size(18.dp)
+                        .rotate(chevronRotation),
+            )
+            Spacer(Modifier.width(8.dp))
             Text(
                 text = title,
                 color = InputTextSecondary,
-                fontSize = 13.sp,
+                fontSize = InputPrimaryTextSize,
                 modifier = Modifier.weight(1f),
             )
         }
-        if (expanded) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+
+        AnimatedVisibility(
+            visible = expanded,
+            enter =
+                fadeIn(tween(110)) +
+                    expandVertically(
+                        animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
+                        expandFrom = Alignment.Top,
+                    ),
+            exit =
+                fadeOut(tween(90)) +
+                    shrinkVertically(
+                        animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
+                        shrinkTowards = Alignment.Top,
+                    ),
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .background(InputSubcard)
+                        .padding(start = 12.dp, end = 12.dp, bottom = 6.dp),
+            ) {
                 content()
             }
         }
@@ -1500,14 +1643,16 @@ private fun SliderField(
         Text(
             text = label,
             color = InputTextSecondary,
-            fontSize = 13.sp,
+            fontSize = InputPrimaryTextSize,
         )
         Slider(
             value = value,
             onValueChange = onValueChange,
             valueRange = valueRange,
             steps = steps,
+            modifier = Modifier.height(InputSliderHeight),
             colors = sliderColors(),
+            track = { InputSliderTrack(it) },
         )
     }
 }
@@ -1525,7 +1670,7 @@ private fun SwitchRow(
         Text(
             text = title,
             color = InputTextSecondary,
-            fontSize = 13.sp,
+            fontSize = InputPrimaryTextSize,
             modifier = Modifier.weight(1f),
         )
         AppSwitch(checked = checked, onCheckedChange = onCheckedChange)
@@ -1540,22 +1685,22 @@ private fun CenteredPillButton(
     Box(
         modifier =
             Modifier
-                .height(34.dp)
+                .height(30.dp)
                 .widthIn(min = 96.dp)
-                .clip(RoundedCornerShape(9.dp))
+                .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputSubcard)
-                .border(1.dp, InputOutline, RoundedCornerShape(9.dp))
+                .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onClick,
-                ).padding(horizontal = 14.dp),
+                ).padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = text,
             color = InputTextPrimary,
-            fontSize = 13.sp,
+            fontSize = InputPrimaryTextSize,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
         )
@@ -1574,11 +1719,11 @@ private fun GyroscopeCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconBox(Icons.Outlined.ScreenRotationAlt, InputTextSecondary)
-                Spacer(Modifier.width(14.dp))
+                Spacer(Modifier.width(10.dp))
                 Text(
                     text = stringResource(R.string.session_gyroscope_title),
                     color = InputTextPrimary,
-                    fontSize = 15.sp,
+                    fontSize = InputPrimaryTextSize,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
                 )
@@ -1588,7 +1733,7 @@ private fun GyroscopeCard(
                 )
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(InputItemGap))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1596,9 +1741,9 @@ private fun GyroscopeCard(
                 Text(
                     text = stringResource(R.string.common_ui_mode),
                     color = InputTextSecondary,
-                    fontSize = 13.sp,
+                    fontSize = InputPrimaryTextSize,
                 )
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(InputItemGap))
                 ChipRow(
                     options =
                         listOf(
@@ -1610,7 +1755,7 @@ private fun GyroscopeCard(
                 )
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(InputItemGap))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1618,7 +1763,7 @@ private fun GyroscopeCard(
                 Text(
                     text = stringResource(R.string.session_gyroscope_activator_button),
                     color = InputTextSecondary,
-                    fontSize = 13.sp,
+                    fontSize = InputPrimaryTextSize,
                     modifier = Modifier.weight(1f),
                 )
                 SelectionPill(
@@ -1627,7 +1772,7 @@ private fun GyroscopeCard(
                 )
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(InputItemGap))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1635,13 +1780,13 @@ private fun GyroscopeCard(
                 Text(
                     text = stringResource(R.string.session_gyroscope_enable_right_stick),
                     color = InputTextSecondary,
-                    fontSize = 13.sp,
+                    fontSize = InputPrimaryTextSize,
                     modifier = Modifier.weight(1f),
                 )
                 Text(
                     text = stringResource(R.string.common_ui_experimental),
                     color = InputAccent,
-                    fontSize = 11.sp,
+                    fontSize = InputSecondaryTextSize,
                     fontWeight = FontWeight.Medium,
                 )
                 Spacer(Modifier.width(8.dp))
@@ -1651,7 +1796,7 @@ private fun GyroscopeCard(
                 )
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(InputItemGap))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1659,13 +1804,13 @@ private fun GyroscopeCard(
                 Text(
                     text = stringResource(R.string.session_gyroscope_experimental_mouse_movement),
                     color = InputTextSecondary,
-                    fontSize = 13.sp,
+                    fontSize = InputPrimaryTextSize,
                     modifier = Modifier.weight(1f),
                 )
                 Text(
                     text = stringResource(R.string.common_ui_experimental),
                     color = InputAccent,
-                    fontSize = 11.sp,
+                    fontSize = InputSecondaryTextSize,
                     fontWeight = FontWeight.Medium,
                 )
                 Spacer(Modifier.width(8.dp))
@@ -1676,7 +1821,7 @@ private fun GyroscopeCard(
             }
 
             if (state.gyroMouseEnabled) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(InputCompactGap))
                 SliderField(
                     label = stringResource(R.string.session_gyroscope_mouse_sensitivity_format, state.gyroMouseScale),
                     value = state.gyroMouseScale.toFloat(),
@@ -1686,7 +1831,7 @@ private fun GyroscopeCard(
                 )
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(InputCompactGap))
             Subcard(
                 title = stringResource(R.string.session_gyroscope_calibrate),
                 expanded = state.gyroscopeExpanded,
@@ -1694,7 +1839,7 @@ private fun GyroscopeCard(
                     actions.onGyroscopeExpandedChanged(!state.gyroscopeExpanded)
                 },
             ) {
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(InputItemGap))
                 SliderField(
                     label = stringResource(R.string.session_gyroscope_x_sensitivity_format, state.gyroXSensitivity),
                     value = state.gyroXSensitivity.toFloat(),
@@ -1702,7 +1847,7 @@ private fun GyroscopeCard(
                     steps = 199,
                     onValueChange = { actions.onGyroXSensitivityChanged(it.roundToInt().coerceIn(0, 200)) },
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(InputCompactGap))
                 SliderField(
                     label = stringResource(R.string.session_gyroscope_y_sensitivity_format, state.gyroYSensitivity),
                     value = state.gyroYSensitivity.toFloat(),
@@ -1710,7 +1855,7 @@ private fun GyroscopeCard(
                     steps = 199,
                     onValueChange = { actions.onGyroYSensitivityChanged(it.roundToInt().coerceIn(0, 200)) },
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(InputCompactGap))
                 SliderField(
                     label = stringResource(R.string.session_gyroscope_smoothing_format, state.gyroSmoothing),
                     value = state.gyroSmoothing.toFloat(),
@@ -1718,7 +1863,7 @@ private fun GyroscopeCard(
                     steps = 99,
                     onValueChange = { actions.onGyroSmoothingChanged(it.roundToInt().coerceIn(0, 100)) },
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(InputCompactGap))
                 SliderField(
                     label = stringResource(R.string.session_gyroscope_deadzone_format, state.gyroDeadzone),
                     value = state.gyroDeadzone.toFloat(),
@@ -1726,7 +1871,7 @@ private fun GyroscopeCard(
                     steps = 99,
                     onValueChange = { actions.onGyroDeadzoneChanged(it.roundToInt().coerceIn(0, 100)) },
                 )
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(InputItemGap))
                 SwitchRow(
                     title = stringResource(R.string.session_gamepad_invert_x),
                     checked = state.invertGyroX,
@@ -1738,12 +1883,12 @@ private fun GyroscopeCard(
                     checked = state.invertGyroY,
                     onCheckedChange = actions.onInvertGyroYChanged,
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(InputItemGap))
                 Box(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(160.dp)
+                            .height(136.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(Color.Black),
                 ) {
@@ -1762,7 +1907,7 @@ private fun GyroscopeCard(
                         onDispose { actions.onDetachGyroPreview() }
                     }
                 }
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(InputItemGap))
                 CenteredPillButton(
                     text = stringResource(R.string.session_gyroscope_reset_stick),
                     onClick = actions.onResetGyroPreview,
@@ -1784,15 +1929,15 @@ private fun TriggerTypeCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconBox(Icons.Outlined.Tune, InputTextSecondary)
-                Spacer(Modifier.width(14.dp))
+                Spacer(Modifier.width(10.dp))
                 Text(
                     text = stringResource(R.string.session_gamepad_trigger_type),
                     color = InputTextPrimary,
-                    fontSize = 15.sp,
+                    fontSize = InputPrimaryTextSize,
                     fontWeight = FontWeight.Bold,
                 )
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(InputItemGap))
             ChipRow(
                 options =
                     listOf(
@@ -1802,7 +1947,7 @@ private fun TriggerTypeCard(
                 selectedIndex = state.triggerTypeIndex,
                 onSelected = actions.onTriggerTypeSelected,
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(InputCompactGap))
             Subcard(
                 title = stringResource(R.string.session_gamepad_trigger_type),
                 expanded = state.triggerCardExpanded,
@@ -1810,12 +1955,12 @@ private fun TriggerTypeCard(
                     actions.onTriggerCardExpandedChanged(!state.triggerCardExpanded)
                 },
             ) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(InputCompactGap))
                 Text(
                     text = state.triggerDescription,
                     color = InputTextSecondary,
-                    fontSize = 12.sp,
-                    lineHeight = 18.sp,
+                    fontSize = InputSecondaryTextSize,
+                    lineHeight = 16.sp,
                 )
             }
         }
@@ -1837,21 +1982,21 @@ private fun ControllerCard(
                     image = Icons.Outlined.SportsEsports,
                     tint = if (state.connected) InputAccent else InputDanger,
                 )
-                Spacer(Modifier.width(14.dp))
+                Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = state.name,
                         color = InputTextPrimary,
-                        fontSize = 15.sp,
+                        fontSize = InputPrimaryTextSize,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Spacer(Modifier.height(2.dp))
+                    Spacer(Modifier.height(1.dp))
                     Text(
                         text = "${state.bindingCount} ${stringResource(R.string.session_gamepad_bindings)}",
                         color = InputTextSecondary,
-                        fontSize = 12.sp,
+                        fontSize = InputSecondaryTextSize,
                     )
                 }
                 if (state.showBindings && state.bindingCount > 0) {
@@ -1865,7 +2010,7 @@ private fun ControllerCard(
             }
 
             if (state.showBindings) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(InputCompactGap))
                 Subcard(
                     title = stringResource(R.string.session_gamepad_control_bindings),
                     expanded = state.expanded,
@@ -1873,22 +2018,22 @@ private fun ControllerCard(
                         actions.onControllerExpandedToggle(state.controllerId)
                     },
                 ) {
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(InputCompactGap))
                     if (state.bindings.isEmpty()) {
                         Text(
                             text = stringResource(R.string.session_gamepad_press_any_button),
                             color = InputTextSecondary,
-                            fontSize = 13.sp,
+                            fontSize = InputPrimaryTextSize,
                             textAlign = TextAlign.Center,
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
+                                    .padding(vertical = 6.dp),
                         )
                     } else {
                         Column(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(3.dp),
                         ) {
                             state.bindings.forEach { binding ->
                                 BindingRow(
@@ -1915,21 +2060,21 @@ private fun BindingRow(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
+                .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputSubcard)
-                .border(1.dp, InputOutline, RoundedCornerShape(10.dp))
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner))
+                .padding(horizontal = 8.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = state.label,
             color = InputTextPrimary,
-            fontSize = 13.sp,
+            fontSize = InputPrimaryTextSize,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(InputCompactGap))
         BindingSelectionButton(
             text = state.typeLabel,
             modifier = Modifier.weight(0.8f),
@@ -1941,7 +2086,7 @@ private fun BindingRow(
             modifier = Modifier.weight(1f),
             onClick = { actions.onBindingValueClick(controllerId, state.keyCode) },
         )
-        Spacer(Modifier.width(6.dp))
+        Spacer(Modifier.width(InputCompactGap))
         IconActionButton(
             image = Icons.Outlined.Delete,
             contentDescription = stringResource(R.string.common_ui_remove),
@@ -1961,21 +2106,21 @@ private fun BindingSelectionButton(
     Row(
         modifier =
             modifier
-                .heightIn(min = 32.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .heightIn(min = 28.dp)
+                .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputField)
-                .border(1.dp, InputOutline, RoundedCornerShape(8.dp))
+                .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onClick,
-                ).padding(horizontal = 8.dp, vertical = 7.dp),
+                ).padding(horizontal = 7.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = text,
             color = InputTextPrimary,
-            fontSize = 12.sp,
+            fontSize = InputSecondaryTextSize,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),

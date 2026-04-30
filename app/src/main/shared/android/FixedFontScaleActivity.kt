@@ -8,6 +8,11 @@ import androidx.fragment.app.FragmentActivity
 
 private const val LOCKED_APP_FONT_SCALE = 1f
 
+private fun fontScaleOnlyConfiguration(): Configuration =
+    Configuration().apply {
+        fontScale = LOCKED_APP_FONT_SCALE
+    }
+
 private fun lockFontScale(configuration: Configuration?): Configuration? =
     configuration?.let {
         Configuration(it).apply {
@@ -17,8 +22,7 @@ private fun lockFontScale(configuration: Configuration?): Configuration? =
 
 private fun lockFontScale(base: Context?): Context? {
     if (base == null) return null
-    val configuration = lockFontScale(base.resources.configuration) ?: return base
-    return base.createConfigurationContext(configuration)
+    return base.createConfigurationContext(fontScaleOnlyConfiguration())
 }
 
 open class FixedFontScaleAppCompatActivity : AppCompatActivity() {
