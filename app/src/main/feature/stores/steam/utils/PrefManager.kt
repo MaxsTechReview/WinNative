@@ -268,31 +268,47 @@ object PrefManager {
         get() = getBoolean("use_single_download_folder", true)
         set(value) {
             setBoolean("use_single_download_folder", value)
+            scheduleDownloadFolderBackup()
         }
 
     var defaultDownloadFolder: String
         get() = getString("default_download_folder", "")
         set(value) {
             setString("default_download_folder", value)
+            scheduleDownloadFolderBackup()
         }
 
     var steamDownloadFolder: String
         get() = getString("steam_download_folder", "")
         set(value) {
             setString("steam_download_folder", value)
+            scheduleDownloadFolderBackup()
         }
 
     var epicDownloadFolder: String
         get() = getString("epic_download_folder", "")
         set(value) {
             setString("epic_download_folder", value)
+            scheduleDownloadFolderBackup()
         }
 
     var gogDownloadFolder: String
         get() = getString("gog_download_folder", "")
         set(value) {
             setString("gog_download_folder", value)
+            scheduleDownloadFolderBackup()
         }
+
+    /**
+     * Trigger a debounced auto-backup of the per-device download-folder snapshot
+     * to Google Game Services. Best-effort; never throws to the caller.
+     */
+    private fun scheduleDownloadFolderBackup() {
+        val ctx = appContext ?: return
+        runCatching {
+            com.winlator.cmod.feature.sync.google.DownloadFolderSyncManager.scheduleAutoBackup(ctx)
+        }.onFailure { Timber.tag("PrefManager").w(it, "scheduleDownloadFolderBackup failed") }
+    }
 
     fun clearAuthTokens() {
         requirePrefs().edit().apply {

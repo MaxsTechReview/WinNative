@@ -368,6 +368,8 @@ object CloudSyncHelper {
                         forceEpicDownloadById(context, appId)
                     }
                     GameSaveBackupManager.GameSource.GOG -> forceGogDownloadById(context, gameId)
+                    // Custom games have no storefront to pull from.
+                    GameSaveBackupManager.GameSource.CUSTOM -> false
                 }
             }
         if (result) {

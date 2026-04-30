@@ -4790,13 +4790,8 @@ class UnifiedActivity :
                                     when {
                                         isGog -> GameSaveBackupManager.GameSource.GOG
                                         isEpic -> GameSaveBackupManager.GameSource.EPIC
+                                        isCustom -> GameSaveBackupManager.GameSource.CUSTOM
                                         else -> GameSaveBackupManager.GameSource.STEAM
-                                    }
-                                val detailGameId =
-                                    when {
-                                        isGog -> gogGame!!.id
-                                        isEpic -> epicId.toString()
-                                        else -> app.id.toString()
                                     }
                                 val detailShortcut =
                                     remember(app.id, gogGame?.id, epicId, isGog, isEpic, isCustom) {
@@ -4813,6 +4808,24 @@ class UnifiedActivity :
                                             }
                                         }
                                     }
+                                // For custom games, ensure the shortcut has a stable uuid before
+                                // we use it as the PGS snapshot key. Lazy-generates and persists
+                                // on first read so legacy custom shortcuts work too.
+                                val detailGameId =
+                                    remember(detailShortcut?.file?.absolutePath, isGog, isEpic, isCustom) {
+                                        when {
+                                            isGog -> gogGame!!.id
+                                            isEpic -> epicId.toString()
+                                            isCustom -> ensureCustomShortcutUuid(detailShortcut)
+                                            else -> app.id.toString()
+                                        }
+                                    }
+                                var customSavePath by remember(detailShortcut?.file?.absolutePath) {
+                                    mutableStateOf(
+                                        detailShortcut?.getExtra("custom_save_path")
+                                            ?.takeIf { it.isNotEmpty() },
+                                    )
+                                }
                                 var cloudSyncEnabled by remember(detailShortcut?.file?.absolutePath) {
                                     mutableStateOf(isShortcutCloudSyncEnabled(detailShortcut))
                                 }
@@ -4828,6 +4841,7 @@ class UnifiedActivity :
                                             stringResource(R.string.preloader_platform_epic)
                                         GameSaveBackupManager.GameSource.STEAM ->
                                             stringResource(R.string.preloader_platform_steam)
+                                        GameSaveBackupManager.GameSource.CUSTOM -> ""
                                     }
 
                                 CloudSavesContent(
@@ -4857,21 +4871,45 @@ class UnifiedActivity :
                                     },
                                     onBackup = {
                                         if (!isWorking) {
-                                            isWorking = true
-                                            scope.launch {
-                                                val result =
-                                                    GameSaveBackupManager.backupToGoogle(
+                                            // For custom games with no save folder configured, prompt
+                                            // the picker first. The Backup runs only after a valid pick.
+                                            if (detailGameSource == GameSaveBackupManager.GameSource.CUSTOM
+                                                && customSavePath.isNullOrEmpty()
+                                            ) {
+                                                launchCustomSaveFolderPicker(detailShortcut) { rel ->
+                                                    customSavePath = rel
+                                                    isWorking = true
+                                                    scope.launch {
+                                                        val result = GameSaveBackupManager.backupToGoogle(
+                                                            this@UnifiedActivity,
+                                                            detailGameSource,
+                                                            detailGameId,
+                                                            app.name,
+                                                        )
+                                                        isWorking = false
+                                                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                            context,
+                                                            result.message,
+                                                            android.widget.Toast.LENGTH_SHORT,
+                                                        )
+                                                    }
+                                                }
+                                            } else {
+                                                isWorking = true
+                                                scope.launch {
+                                                    val result = GameSaveBackupManager.backupToGoogle(
                                                         this@UnifiedActivity,
                                                         detailGameSource,
                                                         detailGameId,
                                                         app.name,
                                                     )
-                                                isWorking = false
-                                                com.winlator.cmod.shared.android.AppUtils.showToast(
-                                                    context,
-                                                    result.message,
-                                                    android.widget.Toast.LENGTH_SHORT,
-                                                )
+                                                    isWorking = false
+                                                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                        context,
+                                                        result.message,
+                                                        android.widget.Toast.LENGTH_SHORT,
+                                                    )
+                                                }
                                             }
                                         }
                                     },
@@ -4924,6 +4962,12 @@ class UnifiedActivity :
                                                     )
                                                 }
                                             }
+                                        }
+                                    },
+                                    customSavePath = customSavePath,
+                                    onChooseSaveFolder = {
+                                        launchCustomSaveFolderPicker(detailShortcut) { rel ->
+                                            customSavePath = rel
                                         }
                                     },
                                     onBack = { currentScreen = LibraryDetailScreen.Main },
@@ -8048,6 +8092,67 @@ class UnifiedActivity :
         shortcut.saveData()
     }
 
+    /**
+     * Ensure a custom shortcut has a stable uuid extra. Generates and persists one
+     * on first read so legacy custom shortcuts (created before uuid was a field)
+     * also work as PGS snapshot keys. Returns the (possibly new) uuid, or empty
+     * string if the shortcut is null.
+     */
+    private fun ensureCustomShortcutUuid(shortcut: Shortcut?): String {
+        if (shortcut == null) return ""
+        val existing = shortcut.getExtra("uuid")
+        if (existing.isNotEmpty()) return existing
+        val fresh = java.util.UUID.randomUUID().toString()
+        shortcut.putExtra("uuid", fresh)
+        runCatching { shortcut.saveData() }
+            .onFailure { android.util.Log.w("UnifiedActivity", "Failed to persist generated uuid", it) }
+        return fresh
+    }
+
+    /**
+     * Launch the in-app DirectoryPickerDialog rooted at the shortcut's container
+     * `drive_c/`. On a valid pick, validate via [com.winlator.cmod.feature.sync.google.CustomSavePath],
+     * persist to `shortcut.extraData["custom_save_path"]`, and invoke [onPicked]
+     * with the validated drive_c-relative path. On invalid pick, toast an error.
+     * Cancelled picks are silent.
+     */
+    private fun launchCustomSaveFolderPicker(
+        shortcut: Shortcut?,
+        onPicked: (relPath: String) -> Unit,
+    ) {
+        if (shortcut == null) return
+        val container = shortcut.container ?: return
+        val driveCAbs = java.io.File(container.rootDir, ".wine/drive_c").absolutePath
+        // Make sure the shortcut has a uuid before any backup that may follow this pick.
+        ensureCustomShortcutUuid(shortcut)
+        com.winlator.cmod.shared.android.DirectoryPickerDialog.show(
+            activity = this,
+            initialPath = driveCAbs,
+            title = getString(R.string.cloud_saves_choose_save_folder),
+        ) { picked ->
+            val rel = com.winlator.cmod.feature.sync.google.CustomSavePath
+                .normalizeAndValidate(picked, container)
+            if (rel.isNullOrEmpty()) {
+                com.winlator.cmod.shared.android.AppUtils.showToast(
+                    this,
+                    getString(R.string.cloud_saves_save_folder_invalid),
+                    android.widget.Toast.LENGTH_SHORT,
+                )
+                return@show
+            }
+            shortcut.putExtra("custom_save_path", rel)
+            runCatching { shortcut.saveData() }
+                .onFailure {
+                    android.util.Log.w(
+                        "UnifiedActivity",
+                        "Failed to persist custom_save_path",
+                        it,
+                    )
+                }
+            onPicked(rel)
+        }
+    }
+
     @Composable
     private fun CloudSavesContent(
         isWorking: Boolean,
@@ -8063,6 +8168,10 @@ class UnifiedActivity :
         onRestore: () -> Unit,
         onSyncFromCloud: () -> Unit,
         onBack: () -> Unit,
+        // CUSTOM-only — for store games these are unused. Defaults keep store-game
+        // call sites at GameSettingsScreen.CloudSaves source-compatible.
+        customSavePath: String? = null,
+        onChooseSaveFolder: () -> Unit = {},
     ) {
         val scope = rememberCoroutineScope()
         val context = LocalContext.current
@@ -8133,14 +8242,34 @@ class UnifiedActivity :
                     GameSaveBackupManager.GameSource.STEAM -> stringResource(R.string.preloader_platform_steam)
                     GameSaveBackupManager.GameSource.EPIC -> stringResource(R.string.preloader_platform_epic)
                     GameSaveBackupManager.GameSource.GOG -> stringResource(R.string.preloader_platform_gog)
+                    // CUSTOM has no storefront — providerLabel is unused below.
+                    GameSaveBackupManager.GameSource.CUSTOM -> ""
                 }
 
-            ActionWithHelper(
-                icon = Icons.Outlined.CloudSync,
-                label = stringResource(R.string.cloud_saves_sync_from_provider, providerLabel),
-                helper = stringResource(R.string.cloud_saves_sync_summary, providerLabel),
-                onClick = { if (!isWorking) onSyncFromCloud() },
-            )
+            if (gameSource == GameSaveBackupManager.GameSource.CUSTOM) {
+                val helperText =
+                    if (!customSavePath.isNullOrEmpty()) {
+                        stringResource(
+                            R.string.cloud_saves_choose_save_folder_summary_set,
+                            customSavePath,
+                        )
+                    } else {
+                        stringResource(R.string.cloud_saves_choose_save_folder_summary)
+                    }
+                ActionWithHelper(
+                    icon = Icons.Outlined.Folder,
+                    label = stringResource(R.string.cloud_saves_choose_save_folder),
+                    helper = helperText,
+                    onClick = { if (!isWorking) onChooseSaveFolder() },
+                )
+            } else {
+                ActionWithHelper(
+                    icon = Icons.Outlined.CloudSync,
+                    label = stringResource(R.string.cloud_saves_sync_from_provider, providerLabel),
+                    helper = stringResource(R.string.cloud_saves_sync_summary, providerLabel),
+                    onClick = { if (!isWorking) onSyncFromCloud() },
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),

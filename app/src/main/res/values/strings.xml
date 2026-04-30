@@ -390,6 +390,10 @@
     <string name="container_config_restart_required">Restart container for changes to take effect</string>
     <string name="container_config_renderer">Renderer</string>
     <string name="container_config_variables">Variables</string>
+    <string name="cloud_saves_choose_save_folder">Choose Save Folder</string>
+    <string name="cloud_saves_choose_save_folder_summary">Pick the folder inside this game\'s C: drive that holds save files.</string>
+    <string name="cloud_saves_choose_save_folder_summary_set">Currently: %1$s. Tap to change.</string>
+    <string name="cloud_saves_save_folder_invalid">Save folder must be inside the game\'s C: drive.</string>
     <string name="container_config_windows">Windows</string>
     <string name="container_config_inputs">Inputs</string>
     <string name="container_config_tab">Config</string>
@@ -1055,7 +1059,7 @@ Installed path:
     <string name="google_cloud_error_generic">Google cloud sync failed: %1$s</string>
     <string name="google_cloud_error_before_open">Google cloud sync failed before Google Saved Games could open.</string>
     <string name="google_cloud_auto_backup">Cloud Sync Auto Backup</string>
-    <string name="google_cloud_auto_backup_summary">Automatically back up game saves to Google Drive each time you exit a game.</string>
+    <string name="google_cloud_auto_backup_summary">Automatically back up game saves to Google Game Services each time you exit a game.</string>
     <string name="cloud_saves_title">Cloud Saves</string>
     <string name="cloud_saves_backup">Back up save</string>
     <string name="cloud_saves_restore">Restore cloud save</string>
@@ -1103,7 +1107,7 @@ Installed path:
     <string name="cloud_saves_history_rename_failed">Could not rename backup.</string>
     <string name="cloud_saves_history_delete">Delete</string>
     <string name="cloud_saves_history_delete_confirm_title">Delete this backup?</string>
-    <string name="cloud_saves_history_delete_confirm_body">Permanently remove this backup from Google Drive. This can\'t be undone.</string>
+    <string name="cloud_saves_history_delete_confirm_body">Permanently remove this backup from Google Game Services. This can\'t be undone.</string>
     <string name="cloud_saves_history_delete_success">Backup deleted.</string>
     <string name="cloud_saves_history_delete_failed">Could not delete backup.</string>
 
@@ -1130,9 +1134,9 @@ Installed path:
     <string name="preloader_downloading_cloud">Downloading cloud saves…</string>
     <string name="preloader_syncing_cloud">Syncing cloud saves…</string>
     <string name="preloader_cloud_downloading">Cloud Sync Downloading…</string>
-    <string name="preloader_cloud_backup">Backing up save to Google Drive…</string>
+    <string name="preloader_cloud_backup">Backing up save to Google Game Services…</string>
     <string name="cloud_sync_failed_provider">%1$s cloud save sync failed.</string>
-    <string name="google_cloud_backup_failed">Google Drive backup failed.</string>
+    <string name="google_cloud_backup_failed">Google Game Services backup failed.</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
     <string name="preloader_platform_gog">GOG</string>

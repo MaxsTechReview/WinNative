@@ -233,7 +233,7 @@ fun GoogleScreen() {
                                     autoBackupPrefs.edit().putBoolean("cloud_sync_auto_backup", false).apply()
                                 }
                             } catch (e: Exception) {
-                                AppUtils.showToast(context, "Drive authorization failed: ${e.message}")
+                                AppUtils.showToast(context, "Google Game Services sign-in required: ${e.message}")
                             } finally {
                                 busy = false
                             }

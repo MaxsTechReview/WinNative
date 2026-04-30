@@ -2476,8 +2476,25 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             gameId = shortcut.getExtra("gog_id");
             source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.GOG;
         } else {
-            onComplete.run();
-            return;
+            // Custom-game branch: covers explicit CUSTOM/CUSTOM_GAME and shortcuts with
+            // blank game_source. Only triggers when the user has set a save folder AND
+            // the shortcut has a stable uuid we can key the PGS snapshots by.
+            String savePath = shortcut.getExtra("custom_save_path");
+            String uuid = shortcut.getExtra("uuid");
+            boolean isCustomCandidate =
+                gameSource == null
+                || gameSource.isEmpty()
+                || "CUSTOM".equals(gameSource)
+                || "CUSTOM_GAME".equals(gameSource);
+            if (isCustomCandidate
+                && savePath != null && !savePath.isEmpty()
+                && uuid != null && !uuid.isEmpty()) {
+                gameId = uuid;
+                source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.CUSTOM;
+            } else {
+                onComplete.run();
+                return;
+            }
         }
 
         if (gameId == null || gameId.isEmpty()) {
@@ -2543,7 +2560,22 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             gameId = shortcut.getExtra("gog_id");
             source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.GOG;
         } else {
-            return;
+            // Custom-game branch (mirrors triggerExitAutoBackup logic).
+            String savePath = shortcut.getExtra("custom_save_path");
+            String uuid = shortcut.getExtra("uuid");
+            boolean isCustomCandidate =
+                gameSource == null
+                || gameSource.isEmpty()
+                || "CUSTOM".equals(gameSource)
+                || "CUSTOM_GAME".equals(gameSource);
+            if (isCustomCandidate
+                && savePath != null && !savePath.isEmpty()
+                && uuid != null && !uuid.isEmpty()) {
+                gameId = uuid;
+                source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.CUSTOM;
+            } else {
+                return;
+            }
         }
         if (gameId == null || gameId.isEmpty()) return;
 

@@ -55,7 +55,12 @@ object CloudSyncManager {
     private const val KEY_AUTO_BACKUP_PENDING = "auto_backup_pending"
     private const val AUTO_BACKUP_MIN_INTERVAL_MS = 60_000L // debounce: at most one auto-upload per minute
     @Volatile private var lastAutoBackupAttemptMs: Long = 0L
-    private const val SNAPSHOT_NAME = "store_logins_v1"
+    /** Legacy snapshot name (pre-device-scoping). Read-only fallback for one-shot migration. */
+    private const val LEGACY_SNAPSHOT_NAME = "store_logins_v1"
+
+    /** Per-device snapshot name: `sl_<deviceId>_v1`. Computed lazily from [DeviceIdentity]. */
+    private fun currentSnapshotName(context: Context): String =
+        "sl_${DeviceIdentity.deviceId(context)}_v1"
     private const val AUTH_SESSION_RETRY_COUNT = 5
     private const val AUTH_SESSION_RETRY_DELAY_MS = 750L
     private const val ZIP_MANIFEST = "manifest.json"
@@ -598,9 +603,10 @@ object CloudSyncManager {
         payload: StorePayload,
     ): Set<String> {
         val client = freshSnapshotsClient(activity) ?: return emptySet()
-        Log.i(TAG, "Opening snapshot for backup: $SNAPSHOT_NAME")
-        Timber.tag(TAG).i("Opening snapshot for backup: %s", SNAPSHOT_NAME)
-        val snapshot = openSnapshot(activity, client, createIfMissing = true) ?: return emptySet()
+        val snapshotName = currentSnapshotName(activity)
+        Log.i(TAG, "Opening snapshot for backup: $snapshotName")
+        Timber.tag(TAG).i("Opening snapshot for backup: %s", snapshotName)
+        val snapshot = openSnapshot(activity, client, snapshotName, createIfMissing = true) ?: return emptySet()
         val snapshotFileDescriptor = snapshotParcelFileDescriptor(snapshot.snapshotContents)
         try {
             val bytes = payloadToZip(payload)
@@ -612,7 +618,7 @@ object CloudSyncManager {
             val metadata =
                 SnapshotMetadataChange
                     .Builder()
-                    .setDescription("Store logins: ${payload.stores.keys.joinToString()}")
+                    .setDescription("Store logins (${DeviceIdentity.deviceLabel(activity)}): ${payload.stores.keys.joinToString()}")
                     .setPlayedTimeMillis(0L)
                     .setProgressValue(payload.stores.size.toLong())
                     .build()
@@ -620,6 +626,23 @@ object CloudSyncManager {
             Tasks.await(client.commitAndClose(snapshot, metadata))
             clearSyncError(activity)
             Timber.tag(TAG).i("Snapshot commitAndClose succeeded for stores=%s", payload.stores.keys)
+
+            // Update the cross-device index so other devices see this device's last-modified.
+            // Best-effort; never fail the backup if this fails.
+            runCatching {
+                val indexClient = freshSnapshotsClient(activity)
+                if (indexClient != null) {
+                    DeviceIndexSnapshot.upsert(
+                        client = indexClient,
+                        entry = DeviceIndexSnapshot.Entry(
+                            deviceId = DeviceIdentity.deviceId(activity),
+                            label = DeviceIdentity.deviceLabel(activity),
+                            lastModifiedMs = System.currentTimeMillis(),
+                            updateNonce = DeviceIndexSnapshot.newNonce(),
+                        ),
+                    )
+                }
+            }.onFailure { Timber.tag(TAG).w(it, "Failed to update device index") }
 
             prefs(activity)
                 .edit()
@@ -638,14 +661,58 @@ object CloudSyncManager {
 
     private suspend fun readRemotePayload(activity: Activity): SnapshotReadResult {
         val client = freshSnapshotsClient(activity) ?: return SnapshotReadResult(null, null)
-        Timber.tag(TAG).d("Opening snapshot for read: %s", SNAPSHOT_NAME)
-        val snapshot = openSnapshot(activity, client, createIfMissing = false) ?: return SnapshotReadResult(null, null)
-        val snapshotFileDescriptor = snapshotParcelFileDescriptor(snapshot.snapshotContents)
+        val perDeviceName = currentSnapshotName(activity)
+        Timber.tag(TAG).d("Opening snapshot for read: %s", perDeviceName)
+
+        // Try this-device snapshot first (auto-restore-safe by definition).
+        val deviceSnap = openSnapshot(activity, client, perDeviceName, createIfMissing = false)
+        if (deviceSnap != null) return readSnapshotPayload(client, deviceSnap)
+
+        // No per-device snapshot. Decide whether to one-shot migrate from legacy `store_logins_v1`.
+        // Legacy fallback is allowed ONLY if no other device has a per-device snapshot — otherwise
+        // we'd silently import another device's tokens (the exact bug we're trying to prevent).
+        val legacyAllowed = isLegacyFallbackSafe(activity, client)
+        if (!legacyAllowed) {
+            Timber.tag(TAG).i(
+                "Skipping legacy fallback: per-device snapshots already exist for other devices on this account",
+            )
+            return SnapshotReadResult(null, null)
+        }
+
+        val client2 = freshSnapshotsClient(activity) ?: return SnapshotReadResult(null, null)
+        val legacySnap = openSnapshot(activity, client2, LEGACY_SNAPSHOT_NAME, createIfMissing = false)
+            ?: return SnapshotReadResult(null, null)
+        Timber.tag(TAG).i("One-shot legacy fallback: reading %s", LEGACY_SNAPSHOT_NAME)
+        return readSnapshotPayload(client2, legacySnap)
+    }
+
+    /**
+     * True when the only snapshots on the account belong to legacy or to this device, i.e.
+     * no per-device snapshot for any *other* device exists. We use [SnapshotsClient.load]
+     * to enumerate all snapshots and look for `sl_<id>_v1` names whose `<id>` is not ours.
+     */
+    private suspend fun isLegacyFallbackSafe(
+        activity: Activity,
+        client: SnapshotsClient,
+    ): Boolean {
+        val mine = currentSnapshotName(activity)
+        val all = PgsSnapshotIO.loadAllSnapshotMetadata(client, forceReload = true) ?: return true
+        val foreignDeviceSnap = all.firstOrNull { info ->
+            val n = info.uniqueName
+            n != mine && n.startsWith("sl_") && n.endsWith("_v1") && n != "sl_index_v1"
+        }
+        return foreignDeviceSnap == null
+    }
+
+    private suspend fun readSnapshotPayload(
+        client: SnapshotsClient,
+        snapshot: Snapshot,
+    ): SnapshotReadResult {
+        val pfd = snapshotParcelFileDescriptor(snapshot.snapshotContents)
         return try {
             val bytes = snapshot.snapshotContents.readFully()
             val payload = if (bytes.isNotEmpty()) zipToPayload(bytes) else null
             val modifiedTime = snapshot.metadata.lastModifiedTimestamp
-            clearSyncError(activity)
             Timber.tag(TAG).i(
                 "Read snapshot bytes=%d remoteStores=%s lastModified=%d",
                 bytes.size,
@@ -659,28 +726,29 @@ object CloudSyncManager {
             runCatching { Tasks.await(client.discardAndClose(snapshot)) }
             throw error
         } finally {
-            closeQuietly(snapshotFileDescriptor)
+            closeQuietly(pfd)
         }
     }
 
     private suspend fun openSnapshot(
         context: Context,
         client: SnapshotsClient,
+        name: String,
         createIfMissing: Boolean,
     ): Snapshot? {
         repeat(AUTH_SESSION_RETRY_COUNT) { attempt ->
             try {
-                Log.i(TAG, "SnapshotsClient.open(name=$SNAPSHOT_NAME, createIfMissing=$createIfMissing)")
+                Log.i(TAG, "SnapshotsClient.open(name=$name, createIfMissing=$createIfMissing)")
                 Timber.tag(TAG).d(
                     "SnapshotsClient.open(name=%s, createIfMissing=%s, attempt=%d)",
-                    SNAPSHOT_NAME,
+                    name,
                     createIfMissing,
                     attempt + 1,
                 )
                 val result =
                     Tasks.await(
                         client.open(
-                            SNAPSHOT_NAME,
+                            name,
                             createIfMissing,
                             SnapshotsClient.RESOLUTION_POLICY_MOST_RECENTLY_MODIFIED,
                         ),
@@ -689,7 +757,7 @@ object CloudSyncManager {
                     Timber.tag(TAG).d("Snapshot open returned without conflict")
                     return result.data
                 }
-                val snapshot = resolveSnapshotConflict(client, result.conflict) ?: return null
+                val snapshot = resolveSnapshotConflict(client, name, result.conflict) ?: return null
                 return snapshot
             } catch (error: Exception) {
                 if (!createIfMissing && isMissingSnapshotError(error)) {
@@ -715,6 +783,7 @@ object CloudSyncManager {
 
     private suspend fun resolveSnapshotConflict(
         client: SnapshotsClient,
+        name: String,
         conflict: SnapshotsClient.SnapshotConflict?,
     ): Snapshot? {
         if (conflict == null) return null
@@ -735,10 +804,10 @@ object CloudSyncManager {
                     snapshot.metadata.lastModifiedTimestamp
                 } ?: return null
 
-            Log.w(TAG, "Snapshot conflict detected for $SNAPSHOT_NAME; resolving with most recent snapshot")
+            Log.w(TAG, "Snapshot conflict detected for $name; resolving with most recent snapshot")
             Timber.tag(TAG).w(
                 "Snapshot conflict detected for %s; resolving with lastModified=%d",
-                SNAPSHOT_NAME,
+                name,
                 chosen.metadata.lastModifiedTimestamp,
             )
 
@@ -753,7 +822,7 @@ object CloudSyncManager {
             if (!resolved.isConflict) {
                 Timber.tag(TAG).i(
                     "Resolved snapshot conflict for %s with lastModified=%d",
-                    SNAPSHOT_NAME,
+                    name,
                     chosen.metadata.lastModifiedTimestamp,
                 )
                 return resolved.data
@@ -1179,6 +1248,17 @@ object CloudSyncManager {
                 summary.restoredStores,
             )
         }
+
+        // On the same Google sign-in, also auto-restore this device's download-folder
+        // preferences. Only this-device snapshot is consulted — paths/URIs are local
+        // and cross-device restore is intentionally not attempted here.
+        runCatching {
+            val n = DownloadFolderSyncManager.autoRestoreFromCloud(activity)
+            if (n > 0) {
+                Timber.tag(TAG).i("Auto-restored %d download-folder pref(s) (%s)", n, reason)
+            }
+        }.onFailure { Timber.tag(TAG).w(it, "Download-folder auto-restore failed (%s)", reason) }
+
         return summary
     }
 
