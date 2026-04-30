@@ -90,6 +90,7 @@ private val SurfaceDark = Color(0xFF21212A)
 private val Accent = Color(0xFF1A9FFF)
 private val TextPrimary = Color(0xFFF0F4FF)
 private val TextSecondary = Color(0xFF7A8FA8)
+private val SettingsSliderHeight = 24.dp
 
 // State
 data class OtherSettingsState(
@@ -880,7 +881,10 @@ private fun CursorSpeedCard(
                         activeTickColor = Color.Transparent,
                         inactiveTickColor = Color.Transparent,
                     ),
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(SettingsSliderHeight),
             )
         }
     }
