@@ -741,16 +741,22 @@ public abstract class WineUtils {
     copyWineDllsToContainer(rootDir, wineInfo);
   }
 
-  /**
-   * Copies critical DLLs from the wine installation to the container's system32/syswow64. This
-   * ensures games can find user32.dll, shell32.dll, etc. Note: dinput/dinput8 are NOT copied here —
-   * they use Wine builtins via builtin,native override.
-   */
+  // Skipped on ARM64EC. The proton arm64ec wcp's container_pattern.tzst already seeded
+  // a consistent system32 plus matching winsxs/arm64_microsoft.windows.common-controls
+  // SXS assembly; overwriting user32/shell32 from wineInfo.path/lib/wine pairs them with
+  // a possibly-different proton's comctl32 inside winsxs, and Burn-based installers
+  // (vc_redist) then hit ERROR_CLASS_DOES_NOT_EXIST (0x583) at InitCommonControlsEx
+  // because the class atom tables disagree across builds — flash-and-exit "Failed to
+  // initialize theme manager". Winlator-Ludashi never copies these post-seed and vc_redist
+  // works there on the same proton wcp. wineboot's fakedll mechanism resolves missing
+  // system32 entries to wine builtins at load time, so a no-op is safe.
   private static void copyWineDllsToContainer(File rootDir, WineInfo wineInfo) {
     if (wineInfo == null || wineInfo.path == null || wineInfo.path.isEmpty()) return;
-    boolean isArm64EC = wineInfo.isArm64EC();
-    File wineSystem32Dir =
-        new File(wineInfo.path + "/lib/wine/" + (isArm64EC ? "aarch64-windows" : "x86_64-windows"));
+    if (wineInfo.isArm64EC()) {
+      Log.d("WineUtils", "copyWineDllsToContainer: skipping on arm64ec — proton wcp already seeded a consistent system32, do not mix versions");
+      return;
+    }
+    File wineSystem32Dir = new File(wineInfo.path + "/lib/wine/x86_64-windows");
     File wineSysWoW64Dir = new File(wineInfo.path + "/lib/wine/i386-windows");
     File containerSystem32Dir = new File(rootDir, ImageFs.WINEPREFIX + "/drive_c/windows/system32");
     File containerSysWoW64Dir = new File(rootDir, ImageFs.WINEPREFIX + "/drive_c/windows/syswow64");
@@ -760,7 +766,7 @@ public abstract class WineUtils {
       "winemenubuilder.exe", "explorer.exe"
     };
 
-    boolean win64 = wineInfo != null && wineInfo.isWin64();
+    boolean win64 = wineInfo.isWin64();
     for (String dlname : dlnames) {
       File src32 = new File(wineSysWoW64Dir, dlname);
       File dst32 = new File(win64 ? containerSysWoW64Dir : containerSystem32Dir, dlname);
@@ -805,6 +811,71 @@ public abstract class WineUtils {
         }
       }
     }
+  }
+
+  // Pre-seed the VC++ 2015-2022 redistributable registry markers when the proton
+  // wcp has already laid down the runtime DLLs (msvcp140, vcruntime140, etc.) in
+  // system32. Without these registry keys vc_redist's Burn bootstrapper sees
+  // "not installed" and tries to run its installer UI; on Wine ARM64EC its theme
+  // manager init fails (ERROR_CLASS_DOES_NOT_EXIST 0x583) and the installer
+  // exits without doing anything. Game prerequisite checkers read the same keys,
+  // so seeding them is also what unblocks games that gate on "VC++ redist
+  // installed" before launching.
+  // The DLLs are genuinely present, so we are recording fact, not faking state.
+  public static void seedVcRedistRegistryIfDllsPresent(File containerRootDir, boolean isArm64EC) {
+    File system32 = new File(containerRootDir, ".wine/drive_c/windows/system32");
+    if (!new File(system32, "msvcp140.dll").isFile()
+        || !new File(system32, "vcruntime140.dll").isFile()) {
+      Log.d("WineUtils", "seedVcRedistRegistryIfDllsPresent: skipping, runtime DLLs not seeded");
+      return;
+    }
+
+    File systemRegFile = new File(containerRootDir, ".wine/system.reg");
+    if (!systemRegFile.isFile()) {
+      Log.w("WineUtils", "seedVcRedistRegistryIfDllsPresent: system.reg missing at " + systemRegFile);
+      return;
+    }
+
+    // Microsoft's published current VC++ 2015-2022 14.50 redist build (matches
+    // what vc_redist 14.50.35719 self-identifies as).
+    final String version = "14.50.35719.0";
+    final int major = 14, minor = 50, build = 35719, rebuild = 0;
+
+    String[] runtimeArches = isArm64EC ? new String[] {"X64", "ARM64"} : new String[] {"X64", "X86"};
+
+    try (WineRegistryEditor reg = new WineRegistryEditor(systemRegFile)) {
+      for (String arch : runtimeArches) {
+        String k = "Software\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\" + arch;
+        reg.setDwordValue(k, "Installed", 1);
+        reg.setStringValue(k, "Version", "v" + version);
+        reg.setDwordValue(k, "Major", major);
+        reg.setDwordValue(k, "Minor", minor);
+        reg.setDwordValue(k, "Bld", build);
+        reg.setDwordValue(k, "Rbld", rebuild);
+
+        // Same under Wow6432Node so 32-bit consumers see it too.
+        String k32 = "Software\\Wow6432Node\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\" + arch;
+        reg.setDwordValue(k32, "Installed", 1);
+        reg.setStringValue(k32, "Version", "v" + version);
+        reg.setDwordValue(k32, "Major", major);
+        reg.setDwordValue(k32, "Minor", minor);
+        reg.setDwordValue(k32, "Bld", build);
+        reg.setDwordValue(k32, "Rbld", rebuild);
+      }
+
+      // Burn bundle dependency providers: vc_redist consults these to decide
+      // "already installed" and exits cleanly if present.
+      String[] bundleKeys = isArm64EC
+          ? new String[] {"VC,redist.x64,amd64,14.50,bundle", "VC,redist.arm64,arm64,14.50,bundle"}
+          : new String[] {"VC,redist.x64,amd64,14.50,bundle", "VC,redist.x86,x86,14.50,bundle"};
+      for (String bundle : bundleKeys) {
+        String k = "Software\\Classes\\Installer\\Dependencies\\" + bundle;
+        reg.setStringValue(k, "Version", version);
+        reg.setStringValue(k, "DisplayName", "Microsoft Visual C++ 2015-2022 Redistributable");
+      }
+    }
+    Log.i("WineUtils", "seedVcRedistRegistryIfDllsPresent: wrote VC++ 14.50 markers (arches="
+        + java.util.Arrays.toString(runtimeArches) + ")");
   }
 
   /** Registers core Windows fonts and Wine fonts in the registry. */
