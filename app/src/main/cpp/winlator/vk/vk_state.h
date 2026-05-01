@@ -20,6 +20,11 @@
 #define VK_MAX_SWAPCHAIN_IMAGES 8
 #define VK_MAX_EFFECTS 8
 #define VK_MAX_RENDERABLE_WINDOWS 64
+// Number of in-flight upload slots. Each slot owns a persistently-mapped staging buffer,
+// fence, and command pool. An upload only blocks when this many uploads are still pending
+// on the GPU — with 8 slots and ~100µs GPU upload time, we can sustain ~80k uploads/sec
+// without ever waiting.
+#define VK_STAGING_POOL_SIZE 8
 
 #define VK_CHECK(expr) do { \
     VkResult _r = (expr); \
@@ -159,6 +164,30 @@ typedef struct VkOffscreen {
 } VkOffscreen;
 
 // ============================================================
+// Staging pool for async texture uploads
+// ============================================================
+
+typedef struct VkStagingSlot {
+    pthread_mutex_t mutex;        // held by current owner from acquire to release
+    VkCommandPool   cmd_pool;     // exclusive to this slot, no global cmd pool sync needed
+    VkCommandBuffer cmd;
+    VkBuffer        buffer;
+    VkDeviceMemory  memory;
+    void*           mapped;       // persistently mapped HOST_VISIBLE memory
+    VkDeviceSize    size;         // current allocation; grows on demand
+    VkFence         fence;        // signaled when this slot's last submission completes
+} VkStagingSlot;
+
+typedef struct VkStagingPool {
+    VkStagingSlot   slots[VK_STAGING_POOL_SIZE];
+    uint32_t        valid_slots;  // count of slots whose per-slot mutex is initialized
+    uint64_t        next;         // round-robin counter
+    pthread_mutex_t mutex;        // protects `next` only
+    bool            mutex_init;   // pool-mutex initialization flag (for safe destroy)
+    bool            initialized;
+} VkStagingPool;
+
+// ============================================================
 // Deferred destruction graveyard
 // ============================================================
 
@@ -274,6 +303,9 @@ typedef struct VkRenderer {
     PFN_vkCreateSamplerYcbcrConversion              fnCreateYcbcr;
     PFN_vkDestroySamplerYcbcrConversion             fnDestroyYcbcr;
 
+    // Async upload pool (created in nativeCreate after device).
+    VkStagingPool staging_pool;
+
     // Scene state
     VkScene scene;
 
@@ -301,3 +333,9 @@ void       vkr_run_one_shot_cmd(VkRenderer* r, void (*fn)(VkCommandBuffer, void*
 void       vkr_image_barrier(VkCommandBuffer cmd, VkImage image, VkImageLayout from, VkImageLayout to,
                              VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage,
                              VkAccessFlags src_access, VkAccessFlags dst_access);
+
+// Staging pool — created in nativeCreate, drained + destroyed in nativeDestroy.
+bool            vkr_staging_pool_init(VkRenderer* r);
+void            vkr_staging_pool_destroy(VkRenderer* r);
+VkStagingSlot*  vkr_staging_pool_acquire(VkRenderer* r, VkDeviceSize needed);
+void            vkr_staging_pool_release(VkStagingSlot* slot);

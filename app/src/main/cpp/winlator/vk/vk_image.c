@@ -48,6 +48,165 @@ void vkr_image_barrier(VkCommandBuffer cmd, VkImage image, VkImageLayout from, V
     vkCmdPipelineBarrier(cmd, src_stage, dst_stage, 0, 0, NULL, 0, NULL, 1, &b);
 }
 
+// ============================================================
+// Staging pool — async upload infrastructure
+// ============================================================
+//
+// Each slot owns a VkBuffer, persistently-mapped HOST_VISIBLE memory, a VkCommandPool with
+// one VkCommandBuffer, and a VkFence. Round-robin acquisition under a tiny mutex; per-slot
+// mutex provides exclusive ownership for the lifetime of an upload (acquire→submit→release).
+//
+// On a single graphics queue, the upload's terminal pipeline barrier (TRANSFER_WRITE →
+// SHADER_READ, dstStage=FRAGMENT_SHADER) extends into all subsequent submits per Vulkan
+// spec — so the renderer needs no extra synchronization to safely sample a freshly-updated
+// texture as long as the upload was submitted before the render.
+
+bool vkr_staging_pool_init(VkRenderer* r) {
+    if (r->staging_pool.initialized) return true;
+    pthread_mutex_init(&r->staging_pool.mutex, NULL);
+    r->staging_pool.mutex_init = true;
+    r->staging_pool.next = 0;
+    r->staging_pool.valid_slots = 0;
+
+    VkFenceCreateInfo fi = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+    fi.flags = VK_FENCE_CREATE_SIGNALED_BIT;  // first acquire of each slot finds the fence ready
+
+    for (uint32_t i = 0; i < VK_STAGING_POOL_SIZE; i++) {
+        VkStagingSlot* s = &r->staging_pool.slots[i];
+        pthread_mutex_init(&s->mutex, NULL);
+        r->staging_pool.valid_slots = i + 1;  // mutex is now valid; destroy must clean it up
+
+        VkCommandPoolCreateInfo cpci = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+        cpci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+        cpci.queueFamilyIndex = r->graphics_queue_family;
+        if (vkCreateCommandPool(r->device, &cpci, NULL, &s->cmd_pool) != VK_SUCCESS) {
+            VK_LOGE("staging pool: vkCreateCommandPool slot %u failed", i);
+            return false;
+        }
+
+        VkCommandBufferAllocateInfo cbai = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+        cbai.commandPool = s->cmd_pool;
+        cbai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        cbai.commandBufferCount = 1;
+        if (vkAllocateCommandBuffers(r->device, &cbai, &s->cmd) != VK_SUCCESS) {
+            VK_LOGE("staging pool: vkAllocateCommandBuffers slot %u failed", i);
+            return false;
+        }
+
+        if (vkCreateFence(r->device, &fi, NULL, &s->fence) != VK_SUCCESS) {
+            VK_LOGE("staging pool: vkCreateFence slot %u failed", i);
+            return false;
+        }
+        // buffer/memory allocated lazily on first use, sized to the actual upload.
+    }
+    r->staging_pool.initialized = true;
+    return true;
+}
+
+void vkr_staging_pool_destroy(VkRenderer* r) {
+    // Tolerates partially-initialized pools — only iterate the slots whose mutexes were
+    // successfully initialized.
+    for (uint32_t i = 0; i < r->staging_pool.valid_slots; i++) {
+        VkStagingSlot* s = &r->staging_pool.slots[i];
+        if (s->fence) {
+            // Drain any pending submission so the buffer/memory are safe to free.
+            vkWaitForFences(r->device, 1, &s->fence, VK_TRUE, UINT64_MAX);
+            vkDestroyFence(r->device, s->fence, NULL);
+        }
+        if (s->mapped && s->memory) vkUnmapMemory(r->device, s->memory);
+        if (s->buffer)   vkDestroyBuffer(r->device, s->buffer, NULL);
+        if (s->memory)   vkFreeMemory(r->device, s->memory, NULL);
+        if (s->cmd_pool) vkDestroyCommandPool(r->device, s->cmd_pool, NULL);
+        pthread_mutex_destroy(&s->mutex);
+        memset(s, 0, sizeof(*s));
+    }
+    if (r->staging_pool.mutex_init) {
+        pthread_mutex_destroy(&r->staging_pool.mutex);
+    }
+    memset(&r->staging_pool, 0, sizeof(r->staging_pool));
+}
+
+// Re-allocate a slot's staging buffer to at least `needed` bytes. Caller must own the slot.
+static bool grow_staging_slot(VkRenderer* r, VkStagingSlot* s, VkDeviceSize needed) {
+    // Round up to 64 KiB so consecutive size bumps don't trigger reallocs.
+    VkDeviceSize new_size = (needed + 65535ull) & ~(VkDeviceSize)65535ull;
+
+    if (s->mapped && s->memory) { vkUnmapMemory(r->device, s->memory); s->mapped = NULL; }
+    if (s->buffer) { vkDestroyBuffer(r->device, s->buffer, NULL); s->buffer = VK_NULL_HANDLE; }
+    if (s->memory) { vkFreeMemory(r->device, s->memory, NULL); s->memory = VK_NULL_HANDLE; }
+    // Reset size now so a later allocation failure leaves the slot in a state where the next
+    // acquire will retry grow_staging_slot rather than skip it and hand back a NULL buffer.
+    s->size = 0;
+
+    VkBufferCreateInfo bi = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    bi.size = new_size;
+    bi.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    bi.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    if (vkCreateBuffer(r->device, &bi, NULL, &s->buffer) != VK_SUCCESS) return false;
+
+    VkMemoryRequirements mr;
+    vkGetBufferMemoryRequirements(r->device, s->buffer, &mr);
+
+    VkMemoryAllocateInfo ai = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    ai.allocationSize = mr.size;
+    ai.memoryTypeIndex = vkr_find_memory_type(r, mr.memoryTypeBits,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+    if (ai.memoryTypeIndex == UINT32_MAX) {
+        ai.memoryTypeIndex = vkr_find_memory_type(r, mr.memoryTypeBits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    }
+    if (ai.memoryTypeIndex == UINT32_MAX) {
+        vkDestroyBuffer(r->device, s->buffer, NULL); s->buffer = VK_NULL_HANDLE;
+        return false;
+    }
+    if (vkAllocateMemory(r->device, &ai, NULL, &s->memory) != VK_SUCCESS) {
+        vkDestroyBuffer(r->device, s->buffer, NULL); s->buffer = VK_NULL_HANDLE;
+        return false;
+    }
+    vkBindBufferMemory(r->device, s->buffer, s->memory, 0);
+    if (vkMapMemory(r->device, s->memory, 0, VK_WHOLE_SIZE, 0, &s->mapped) != VK_SUCCESS) {
+        vkFreeMemory(r->device, s->memory, NULL); s->memory = VK_NULL_HANDLE;
+        vkDestroyBuffer(r->device, s->buffer, NULL); s->buffer = VK_NULL_HANDLE;
+        return false;
+    }
+    s->size = new_size;
+    return true;
+}
+
+VkStagingSlot* vkr_staging_pool_acquire(VkRenderer* r, VkDeviceSize needed) {
+    if (!r->staging_pool.initialized) return NULL;
+
+    pthread_mutex_lock(&r->staging_pool.mutex);
+    uint32_t idx = (uint32_t)(r->staging_pool.next++ % VK_STAGING_POOL_SIZE);
+    pthread_mutex_unlock(&r->staging_pool.mutex);
+
+    VkStagingSlot* s = &r->staging_pool.slots[idx];
+
+    // Per-slot lock guards the slot's resources (buffer/cmd/fence) until release. Round-robin
+    // means contention only happens once VK_STAGING_POOL_SIZE acquires have wrapped — i.e.
+    // when the producer is consistently faster than the GPU can drain uploads.
+    pthread_mutex_lock(&s->mutex);
+
+    // Wait for the slot's previous submission to retire. With pool_size=8 this almost never
+    // blocks because the fence signaled long ago. The fence is left signaled here on purpose
+    // — it gets reset right before vkQueueSubmit, so any no-submit failure path between here
+    // and submit leaves the fence safely signaled and the slot reusable.
+    vkWaitForFences(r->device, 1, &s->fence, VK_TRUE, UINT64_MAX);
+    vkResetCommandPool(r->device, s->cmd_pool, 0);
+
+    if (s->size < needed && !grow_staging_slot(r, s, needed)) {
+        pthread_mutex_unlock(&s->mutex);
+        return NULL;
+    }
+    return s;
+}
+
+void vkr_staging_pool_release(VkStagingSlot* slot) {
+    if (!slot) return;
+    pthread_mutex_unlock(&slot->mutex);
+}
+
 void vkr_run_one_shot_cmd(VkRenderer* r, void (*fn)(VkCommandBuffer, void*), void* user) {
     VkCommandBufferAllocateInfo ai = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
     ai.commandPool = r->cmd_pool;
@@ -357,64 +516,71 @@ bool vkr_texture_update(VkRenderer* r, VkTexture* tex, uint32_t width, uint32_t 
     }
 
     // BGRA8 = 4 bytes per pixel. Caller provides stride_pixels (per-row pixel count).
-    // If stride matches width, copy is contiguous; otherwise we copy row-by-row into staging.
     size_t needed = (size_t)width * height * 4;
     if (stride_pixels == 0) stride_pixels = width;
 
-    VkBufferCreateInfo bi = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-    bi.size = needed;
-    bi.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    bi.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    VkBuffer staging;
-    if (vkCreateBuffer(r->device, &bi, NULL, &staging) != VK_SUCCESS) return false;
-
-    VkMemoryRequirements mr;
-    vkGetBufferMemoryRequirements(r->device, staging, &mr);
-
-    VkMemoryAllocateInfo ai = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-    ai.allocationSize = mr.size;
-    // Prefer HOST_CACHED for memcpy throughput on UMA mobile GPUs (uncached coherent
-    // memory has poor CPU write bandwidth on Adreno). Fall back to plain coherent if
-    // the device doesn't expose a cached+coherent type.
-    ai.memoryTypeIndex = vkr_find_memory_type(r, mr.memoryTypeBits,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
-    if (ai.memoryTypeIndex == UINT32_MAX) {
-        ai.memoryTypeIndex = vkr_find_memory_type(r, mr.memoryTypeBits,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    }
-    if (ai.memoryTypeIndex == UINT32_MAX) {
-        vkDestroyBuffer(r->device, staging, NULL);
+    VkStagingSlot* slot = vkr_staging_pool_acquire(r, needed);
+    if (!slot) {
+        VK_LOGE("vkr_texture_update: staging pool acquire failed");
         return false;
     }
-    VkDeviceMemory staging_mem;
-    if (vkAllocateMemory(r->device, &ai, NULL, &staging_mem) != VK_SUCCESS) {
-        vkDestroyBuffer(r->device, staging, NULL);
-        return false;
-    }
-    vkBindBufferMemory(r->device, staging, staging_mem, 0);
 
-    void* mapped = NULL;
-    vkMapMemory(r->device, staging_mem, 0, needed, 0, &mapped);
     if (stride_pixels == width) {
-        memcpy(mapped, data, needed);
+        memcpy(slot->mapped, data, needed);
     } else {
         const uint8_t* src = (const uint8_t*)data;
-        uint8_t* dst = (uint8_t*)mapped;
+        uint8_t* dst = (uint8_t*)slot->mapped;
         size_t row = (size_t)width * 4;
         size_t src_pitch = (size_t)stride_pixels * 4;
         for (uint32_t y = 0; y < height; y++) {
             memcpy(dst + y * row, src + y * src_pitch, row);
         }
     }
-    vkUnmapMemory(r->device, staging_mem);
 
-    UploadCtx ctx = { staging, tex->image, width, height, true };
-    vkr_run_one_shot_cmd(r, upload_cmds, &ctx);
+    VkCommandBufferBeginInfo cbi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    cbi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    if (vkBeginCommandBuffer(slot->cmd, &cbi) != VK_SUCCESS) {
+        vkr_staging_pool_release(slot);
+        return false;
+    }
 
-    vkDestroyBuffer(r->device, staging, NULL);
-    vkFreeMemory(r->device, staging_mem, NULL);
+    UploadCtx ctx = { slot->buffer, tex->image, width, height, true };
+    upload_cmds(slot->cmd, &ctx);
+
+    if (vkEndCommandBuffer(slot->cmd) != VK_SUCCESS) {
+        vkr_staging_pool_release(slot);
+        return false;
+    }
+
+    VkSubmitInfo si = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    si.commandBufferCount = 1;
+    si.pCommandBuffers = &slot->cmd;
+
+    // Reset fence here, not in acquire — guarantees that the only path that leaves a fence
+    // unsignaled is one where vkQueueSubmit also runs to take ownership of it.
+    vkResetFences(r->device, 1, &slot->fence);
+
+    pthread_mutex_lock(&r->queue_mutex);
+    VkResult sr = vkQueueSubmit(r->graphics_queue, 1, &si, slot->fence);
+    pthread_mutex_unlock(&r->queue_mutex);
+    if (sr != VK_SUCCESS) {
+        VK_LOGE("vkr_texture_update: vkQueueSubmit -> %d", sr);
+        // Submit failed but we already reset the fence, so it's unsignaled and would deadlock
+        // the next acquire. Replace with a signaled fence. (Submit failures usually mean
+        // device-lost; the renderer is going to need a restart anyway.)
+        vkDestroyFence(r->device, slot->fence, NULL);
+        VkFenceCreateInfo rfi = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+        rfi.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        vkCreateFence(r->device, &rfi, NULL, &slot->fence);
+        vkr_staging_pool_release(slot);
+        return false;
+    }
+
+    // The barrier emitted by upload_cmds (TRANSFER_WRITE → SHADER_READ, dstStage=
+    // FRAGMENT_SHADER) extends into all subsequent submits on the same queue, so the next
+    // render submit will observe the writes without any additional renderer-side barrier.
     tex->layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    vkr_staging_pool_release(slot);
     return true;
 }
 

@@ -59,7 +59,9 @@ static bool create_offscreen(VkRenderer* r, uint32_t w, uint32_t h);
 static void destroy_offscreen(VkRenderer* r);
 static bool create_quad_vbo(VkRenderer* r);
 static void destroy_quad_vbo(VkRenderer* r);
-static void process_graveyard(VkRenderer* r, uint32_t slot_idx);
+static void detach_graveyard_slot(VkRenderer* r, uint32_t slot_idx,
+                                  VkTexture*** out_textures, uint32_t* out_count);
+static void destroy_graveyard_textures(VkRenderer* r, VkTexture** textures, uint32_t count);
 static bool record_and_submit_frame(VkRenderer* r);
 
 // ============================================================
@@ -1074,12 +1076,27 @@ static void destroy_offscreen(VkRenderer* r) {
 // Graveyard processing
 // ============================================================
 
-static void process_graveyard(VkRenderer* r, uint32_t slot_idx) {
+// Detach the slot's pending-destroy list under scene_mutex. The Vulkan destroy calls
+// (vkFreeDescriptorSets, vkDestroyImage, vkFreeMemory, AHardwareBuffer_release) can each
+// take tens to hundreds of microseconds on Adreno, so doing them under scene_mutex stalls
+// every scene producer (X server, input thread) for the full duration. Caller passes the
+// detached array to destroy_graveyard_textures() after releasing the lock.
+static void detach_graveyard_slot(VkRenderer* r, uint32_t slot_idx,
+                                  VkTexture*** out_textures, uint32_t* out_count) {
     VkGraveSlot* slot = &r->graveyard[slot_idx];
-    for (uint32_t i = 0; i < slot->count; i++) {
-        vkr_texture_destroy(r, slot->textures[i]);
-    }
+    *out_textures = slot->textures;
+    *out_count = slot->count;
+    slot->textures = NULL;
     slot->count = 0;
+    slot->capacity = 0;
+}
+
+static void destroy_graveyard_textures(VkRenderer* r, VkTexture** textures, uint32_t count) {
+    if (!textures) return;
+    for (uint32_t i = 0; i < count; i++) {
+        vkr_texture_destroy(r, textures[i]);
+    }
+    free(textures);
 }
 
 // ============================================================
@@ -1221,6 +1238,8 @@ static bool record_and_submit_frame(VkRenderer* r) {
     // long acquire/record/submit/present below. render_mutex still serializes us against
     // surface lifecycle changes, which keeps the swapchain handles stable for our use.
     VkScene snap;
+    VkTexture** dead = NULL;
+    uint32_t dead_count = 0;
     pthread_mutex_lock(&r->scene_mutex);
     if (!r->surface_ready || !r->swapchain || r->swapchain_image_count == 0
         || r->swapchain_extent.width == 0 || r->swapchain_extent.height == 0) {
@@ -1229,8 +1248,9 @@ static bool record_and_submit_frame(VkRenderer* r) {
         return false;
     }
     snap = r->scene;
-    process_graveyard(r, grave_slot);
+    detach_graveyard_slot(r, grave_slot, &dead, &dead_count);
     pthread_mutex_unlock(&r->scene_mutex);
+    destroy_graveyard_textures(r, dead, dead_count);
 
     // Rebuild offscreen targets if effects are active and dims changed (or first use).
     // Safe under render_mutex: lifecycle can't be tearing down the swapchain right now.
@@ -1415,12 +1435,14 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz) {
     if (!create_command_pool(r)) goto fail;
     if (!create_descriptor_pool(r, r->caps.descriptor_pool_capacity)) goto fail;
     if (!create_quad_vbo(r)) goto fail;
+    if (!vkr_staging_pool_init(r)) goto fail;
 
     r->initialized = true;
     return (jlong)(intptr_t)r;
 
 fail:
     VK_LOGE("VulkanRenderer init failed");
+    vkr_staging_pool_destroy(r);
     if (r->cmd_pool) vkDestroyCommandPool(r->device, r->cmd_pool, NULL);
     if (r->descriptor_pool) vkDestroyDescriptorPool(r->device, r->descriptor_pool, NULL);
     if (r->device) vkDestroyDevice(r->device, NULL);
@@ -1440,9 +1462,16 @@ JNIEXPORT void JNICALL JNI_FN(nativeDestroy)(JNIEnv* env, jclass clazz, jlong ha
 
     if (r->device) vkDeviceWaitIdle(r->device);
 
-    for (uint32_t i = 0; i < VK_FRAMES_IN_FLIGHT + 1; i++) process_graveyard(r, i);
+    // Drain any in-flight uploads and tear down the staging pool before destroying images.
+    vkr_staging_pool_destroy(r);
+
+    for (uint32_t i = 0; i < VK_FRAMES_IN_FLIGHT + 1; i++) {
+        VkTexture** dead = NULL;
+        uint32_t dead_count = 0;
+        detach_graveyard_slot(r, i, &dead, &dead_count);
+        destroy_graveyard_textures(r, dead, dead_count);
+    }
     vkr_texture_destroy_all_live(r);
-    for (uint32_t i = 0; i < VK_FRAMES_IN_FLIGHT + 1; i++) free(r->graveyard[i].textures);
     free(r->live_textures);
 
     destroy_offscreen(r);
