@@ -3969,6 +3969,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         final VulkanRenderer renderer = xServerView.getRenderer();
         renderer.setCursorVisible(false);
         renderer.setNativeMode(isNativeRenderingEnabled);
+        renderer.setPresentMode(VulkanRenderer.parsePresentMode(
+                graphicsDriverConfig != null ? graphicsDriverConfig.get("compositorPresentMode") : null));
 
         if (shortcut != null) {
             renderer.setUnviewableWMClasses("explorer.exe");

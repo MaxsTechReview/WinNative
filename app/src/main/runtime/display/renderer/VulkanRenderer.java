@@ -105,6 +105,11 @@ public class VulkanRenderer
                 return;
             }
             Texture.setRendererHandle(nativeHandle);
+            // Apply the cached present-mode request now that the native renderer exists.
+            // No-op if the requested mode equals the native default (FIFO).
+            if (requestedPresentMode != PRESENT_MODE_FIFO) {
+                nativeSetPresentMode(nativeHandle, requestedPresentMode);
+            }
         }
         nativeSurfaceCreated(nativeHandle, surface);
     }
@@ -461,6 +466,30 @@ public class VulkanRenderer
 
     public int getFpsLimit() { return currentFpsLimit; }
 
+    // Compositor present-mode constants must mirror the switch in nativeSetPresentMode.
+    public static final int PRESENT_MODE_FIFO      = 0;
+    public static final int PRESENT_MODE_MAILBOX   = 1;
+    public static final int PRESENT_MODE_IMMEDIATE = 2;
+
+    // Cached so callers can set a mode before the native renderer exists. Applied during
+    // attachSurface() right after nativeCreate. Updates after init forward straight to the
+    // native side and trigger a swapchain rebuild.
+    private int requestedPresentMode = PRESENT_MODE_FIFO;
+
+    public void setPresentMode(int mode) {
+        requestedPresentMode = mode;
+        if (nativeHandle != 0) nativeSetPresentMode(nativeHandle, mode);
+    }
+
+    public static int parsePresentMode(String name) {
+        if (name == null) return PRESENT_MODE_FIFO;
+        switch (name.trim().toLowerCase()) {
+            case "mailbox":   return PRESENT_MODE_MAILBOX;
+            case "immediate": return PRESENT_MODE_IMMEDIATE;
+            default:          return PRESENT_MODE_FIFO;
+        }
+    }
+
     public void setUnviewableWMClasses(String... names) {
         this.unviewableWMClasses = names;
     }
@@ -485,4 +514,5 @@ public class VulkanRenderer
                                               int screenW, int screenH,
                                               int[] effectTypes, float[] effectParams, int effectCount);
     private static native void nativeSetFpsLimit(long handle, int fps);
+    private static native void nativeSetPresentMode(long handle, int mode);
 }

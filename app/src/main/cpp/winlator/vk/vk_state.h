@@ -312,6 +312,10 @@ typedef struct VkRenderer {
     // FPS limit (nanoseconds per frame; 0 = unlimited)
     int64_t target_frame_time_ns;
     int64_t next_frame_time_ns;
+
+    // Compositor present mode requested by Java (default FIFO). Validated against
+    // device-supported modes in create_swapchain; falls back to FIFO if unavailable.
+    VkPresentModeKHR target_present_mode;
 } VkRenderer;
 
 // ============================================================

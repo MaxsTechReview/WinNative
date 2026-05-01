@@ -826,7 +826,29 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
     free(fmts);
     r->swapchain_format = chosen.format;
 
+    // Honor the Java-requested present mode if the device supports it; otherwise fall back
+    // to FIFO (always supported per spec). target_present_mode is initialized to FIFO in
+    // nativeCreate, so a value-equality check is safe (no zero-sentinel ambiguity with
+    // VK_PRESENT_MODE_IMMEDIATE_KHR which is enum value 0).
     VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
+    VkPresentModeKHR want = r->target_present_mode;
+    if (want != VK_PRESENT_MODE_FIFO_KHR) {
+        uint32_t pm_count = 0;
+        vkGetPhysicalDeviceSurfacePresentModesKHR(r->physical_device, r->surface, &pm_count, NULL);
+        if (pm_count > 0) {
+            VkPresentModeKHR* pms = calloc(pm_count, sizeof(VkPresentModeKHR));
+            if (pms) {
+                vkGetPhysicalDeviceSurfacePresentModesKHR(r->physical_device, r->surface, &pm_count, pms);
+                for (uint32_t i = 0; i < pm_count; i++) {
+                    if (pms[i] == want) { present_mode = want; break; }
+                }
+                free(pms);
+            }
+        }
+        if (present_mode != want) {
+            VK_LOGW("Requested present mode %d unavailable; using FIFO", want);
+        }
+    }
 
     // Prefer IDENTITY preTransform: lets the compositor handle device rotation, so the
     // swapchain extent and our rendering coordinates always match the display orientation.
@@ -1410,6 +1432,7 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz) {
     (void)env; (void)clazz;
     VkRenderer* r = calloc(1, sizeof(VkRenderer));
     if (!r) return 0;
+    r->target_present_mode = VK_PRESENT_MODE_FIFO_KHR;
     pthread_mutex_init(&r->scene_mutex, NULL);
     pthread_mutex_init(&r->queue_mutex, NULL);
     pthread_mutex_init(&r->texture_mutex, NULL);
@@ -1714,6 +1737,42 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFpsLimit)(JNIEnv* env, jclass clazz, jlon
     } else {
         r->target_frame_time_ns = 1000000000LL / fps;
     }
+}
+
+// Set the compositor present mode. Java passes 0=FIFO, 1=MAILBOX, 2=IMMEDIATE; anything else
+// is treated as FIFO. Triggers a swapchain rebuild if a surface is currently active so the
+// change takes effect on the next frame.
+JNIEXPORT void JNICALL JNI_FN(nativeSetPresentMode)(JNIEnv* env, jclass clazz, jlong handle, jint mode) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r) return;
+
+    VkPresentModeKHR vk_mode;
+    switch (mode) {
+        case 1:  vk_mode = VK_PRESENT_MODE_MAILBOX_KHR; break;
+        case 2:  vk_mode = VK_PRESENT_MODE_IMMEDIATE_KHR; break;
+        default: vk_mode = VK_PRESENT_MODE_FIFO_KHR; break;
+    }
+    if (r->target_present_mode == vk_mode) return;
+    r->target_present_mode = vk_mode;
+
+    // Rebuild swapchain only if one currently exists; otherwise the next create_swapchain
+    // (e.g. on first surface attach) will pick up the new mode automatically.
+    if (!r->surface) return;
+    lifecycle_begin(r);
+    if (r->device) vkDeviceWaitIdle(r->device);
+    uint32_t fw = r->swapchain_extent.width;
+    uint32_t fh = r->swapchain_extent.height;
+    destroy_offscreen(r);
+    destroy_swapchain(r);
+    if (!create_swapchain(r, fw, fh)) {
+        VK_LOGE("Swapchain re-create failed in nativeSetPresentMode");
+    } else {
+        pthread_mutex_lock(&r->scene_mutex);
+        r->surface_ready = true;
+        pthread_mutex_unlock(&r->scene_mutex);
+    }
+    pthread_mutex_unlock(&r->render_mutex);
 }
 
 // ============================================================

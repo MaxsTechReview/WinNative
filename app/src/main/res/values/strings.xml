@@ -551,6 +551,7 @@
     <string name="container_graphics_sync_frame">Sync Every Frame</string>
     <string name="container_graphics_disable_present_wait">Disable KHR_present_wait</string>
     <string name="container_graphics_present_modes">Present Modes</string>
+    <string name="container_graphics_compositor_present_mode">Vulkan Display Sync</string>
     <string name="container_graphics_resource_type">Memory Resource Type</string>
     <string name="container_graphics_vulkan_version">Vulkan Version</string>
     <string name="container_graphics_bcn_emulation">BCn Emulation</string>
