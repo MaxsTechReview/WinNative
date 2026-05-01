@@ -846,9 +846,19 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     if (overriddenCommand.isEmpty()) {
       if (wineInfo.isArm64EC()) {
         command = winePath + "/" + guestExecutable;
-        if (emulator.equalsIgnoreCase("wowbox64")) {
+        // Normalize defensively in case a stale/legacy emulator value slipped past
+        // Container.normalizeEmulatorFieldsForArch (e.g. external write to
+        // .container JSON). Treat anything that isn't literally "wowbox64" — case
+        // and whitespace insensitive — as fexcore.
+        String emu32 = (emulator == null) ? "" : emulator.trim().toLowerCase(java.util.Locale.ROOT);
+        if ("wowbox64".equals(emu32)) {
           envVars.put("HODLL", "wowbox64.dll");
         } else {
+          if (!"fexcore".equals(emu32)) {
+            Log.w("GuestProgramLauncherComponent",
+                    "Unrecognized arm64ec 32-bit emulator='" + emulator
+                            + "', defaulting HODLL=libwow64fex.dll");
+          }
           envVars.put("HODLL", "libwow64fex.dll");
         }
       } else {
