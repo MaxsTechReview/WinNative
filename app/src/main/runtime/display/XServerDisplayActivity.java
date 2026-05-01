@@ -59,6 +59,7 @@ import com.winlator.cmod.feature.stores.steam.utils.MarkerUtils;
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager;
 import com.winlator.cmod.feature.stores.steam.utils.SteamUtils;
 
+import androidx.customview.widget.ViewDragHelper;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.preference.PreferenceManager;
 import com.winlator.cmod.R;
@@ -630,7 +631,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             android.view.WindowInsets platformInsets = clearedInsets.toWindowInsets();
             return platformInsets != null ? platformInsets : windowInsets;
         });
-        drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
+        drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED);
+        drawerLayout.setScrimColor(android.graphics.Color.TRANSPARENT);
+        widenDrawerEdgeSwipe(drawerLayout);
 
         ComposeView navigationComposeView = findViewById(R.id.NavigationComposeView);
         enableLogsMenu = preferences.getBoolean("enable_wine_debug", false) || preferences.getBoolean("enable_box64_logs", false);
@@ -646,10 +649,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         });
         drawerLayout.addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
             @Override
+            public void onDrawerSlide(View drawerView, float slideOffset) {
+                super.onDrawerSlide(drawerView, slideOffset);
+                AppUtils.hideSystemUI(XServerDisplayActivity.this);
+            }
+
+            @Override
             public void onDrawerOpened(View drawerView) {
                 super.onDrawerOpened(drawerView);
                 renderDrawerMenu();
                 navigationComposeView.requestFocus();
+                // Lock open while the drawer is shown so pane-internal swipes can't
+                // bleed through into closing the whole drawer.
+                drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_OPEN);
+                AppUtils.hideSystemUI(XServerDisplayActivity.this);
             }
 
             @Override
@@ -659,8 +672,26 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     hudCardExpanded = false;
                     renderDrawerMenu();
                 }
+                // Re-enable the edge-swipe so the drawer can be opened again next time.
+                drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED);
+                AppUtils.hideSystemUI(XServerDisplayActivity.this);
             }
         });
+
+        // Carve a tall strip on the left edge out of the system back-gesture region so
+        // swiping from the edge opens our drawer instead of triggering the system nav.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            final android.view.View decor = getWindow().getDecorView();
+            final int edgePx = (int) (140f * getResources().getDisplayMetrics().density);
+            final Runnable applyExclusion = () -> {
+                if (decor.getHeight() <= 0) return;
+                decor.setSystemGestureExclusionRects(
+                        java.util.Collections.singletonList(
+                                new android.graphics.Rect(0, 0, edgePx, decor.getHeight())));
+            };
+            decor.post(applyExclusion);
+            decor.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or_, ob) -> applyExclusion.run());
+        }
 
         imageFs = ImageFs.find(this);
         GuestProgramLauncherComponent.ensureImageFsNativeLibrary(this, imageFs, "libfakeinput.so");
@@ -2788,8 +2819,26 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
+    private void widenDrawerEdgeSwipe(DrawerLayout layout) {
+        try {
+            java.lang.reflect.Field draggerField = DrawerLayout.class.getDeclaredField("mLeftDragger");
+            draggerField.setAccessible(true);
+            ViewDragHelper dragger = (ViewDragHelper) draggerField.get(layout);
+            if (dragger == null) return;
+            java.lang.reflect.Field edgeSizeField = ViewDragHelper.class.getDeclaredField("mEdgeSize");
+            edgeSizeField.setAccessible(true);
+            int targetPx = (int) (140f * getResources().getDisplayMetrics().density);
+            edgeSizeField.setInt(dragger, Math.max(edgeSizeField.getInt(dragger), targetPx));
+        } catch (Exception ignored) {
+        }
+    }
+
     private void handleNavigationBackPressed() {
         if (environment != null) {
+            if (drawerStateHolder != null && drawerStateHolder.isPaneOpen()) {
+                drawerStateHolder.closeOpenPane();
+                return;
+            }
             if (!drawerLayout.isDrawerOpen(GravityCompat.START)) {
                 renderDrawerMenu();
                 drawerLayout.openDrawer(GravityCompat.START);
@@ -3078,7 +3127,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     navigationComposeView,
                     drawerStateHolder,
                     this,
-                    drawerActionListener
+                    drawerActionListener,
+                    () -> drawerLayout.closeDrawers(),
+                    paneOpen -> kotlin.Unit.INSTANCE
             );
             return;
         }

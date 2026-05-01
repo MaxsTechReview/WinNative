@@ -654,6 +654,25 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_hud_alpha_input_title">Set Alpha</string>
     <string name="session_drawer_hud_scale_input_title">Set Scale</string>
     <string name="session_drawer_hud_input_hint">Enter a value from %1$d to %2$d. Values above the limit are clamped.</string>
+    <string name="session_drawer_command_center">Command Center</string>
+    <string name="session_drawer_command_center_subtitle">Tools, overlays, and shortcuts</string>
+    <string name="session_drawer_command_center_input">Input</string>
+    <string name="session_drawer_command_center_display">Display</string>
+    <string name="session_drawer_command_center_system">System</string>
+    <string name="session_drawer_fps_limiter">FPS Limiter</string>
+    <string name="session_drawer_fps_limiter_off">Off</string>
+    <string name="session_drawer_color_profile_disabled">Disabled</string>
+    <string name="session_drawer_color_profile_hdr">HDR</string>
+    <string name="session_drawer_color_profile_natural">Natural</string>
+    <string name="session_drawer_color_profile_crt">CRT Effect</string>
+    <string name="session_drawer_upscaler_dls">DLS</string>
+    <string name="session_drawer_calibrate_advanced">Advanced calibration</string>
+    <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_gyro">Gyro</string>
+    <string name="session_drawer_rail_label_effects">FX</string>
+    <string name="session_drawer_rail_label_apps">More</string>
+    <string name="session_gyroscope_activator">Activator</string>
+    <string name="session_gyroscope_subtitle">Configure gyroscope controls</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Do you want to end this process?</string>

@@ -5,22 +5,31 @@ import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -39,16 +48,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.automirrored.outlined.ViewList
+import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.Keyboard
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Monitor
 import androidx.compose.material.icons.outlined.Mouse
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
 import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.ScreenRotation
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Tune
@@ -69,30 +80,37 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.theme.WinNativeAccent
 import com.winlator.cmod.shared.theme.WinNativeBackground
 import com.winlator.cmod.shared.theme.WinNativeOutline
-import com.winlator.cmod.shared.theme.WinNativePanel
-import com.winlator.cmod.shared.theme.WinNativeSurface
 import com.winlator.cmod.shared.theme.WinNativeSurfaceAlt
 import com.winlator.cmod.shared.theme.WinNativeTextPrimary
 import com.winlator.cmod.shared.theme.WinNativeTextSecondary
@@ -102,23 +120,41 @@ import com.winlator.cmod.shared.ui.dialog.WinNativeDialogShell
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import kotlin.math.roundToInt
 
-private val DrawerHeroTop = Color(0xFF171E2E)
-private val DrawerHeroBottom = Color(0xFF11161F)
-private val DrawerIconBox = Color(0xFF242434)
-private val DrawerActiveSurface = Color(0xFF1E2A3D)
-private val DrawerExitSurface = Color(0xFF1F1A21)
-private val DrawerExitSurfacePressed = Color(0xFF251D25)
-private val DrawerExitOutline = Color(0xFF4B3038)
-private val DrawerExitIconBox = Color(0xFF2B2026)
-private val DrawerExitTint = Color(0xFFE07A84)
+// Container surfaces (M3 dark glass) — rail is transparent so tiles float over the game.
+// Pane uses a neutral dark glass (no blue tint) so blue is reserved for on/true accents.
+// Rail tiles share this fill so the rail and pane read as one continuous surface.
+private val PaneSurfaceColor = Color(0xE6141416)
+private val PaneSurfacePressed = Color(0xE61F1F22)
 
-private val DrawerPrimaryItemIds =
-    setOf(
-        R.id.main_menu_gyroscope,
-        R.id.main_menu_keyboard,
-        R.id.main_menu_input_controls,
-        R.id.main_menu_fps_monitor,
-    )
+// Edge-glow palette mirrors the chasingBorder modifier (blue → sky → electric cyan).
+private val EdgeGlowBlue = Color(0xFF2196F3)
+private val EdgeGlowSky = Color(0xFF29B6F6)
+private val EdgeGlowCyan = Color(0xFF00E5FF)
+
+// Tile / inner-row fills (flat translucent M3 surface tints)
+private val TileResting = Color(0x24FFFFFF)
+// Exit tile: dark red glass at the same opacity/brightness as PaneSurfaceColor,
+// just shifted into the red channel so it reads as a danger affordance.
+private val TileExitResting = Color(0xE6401418)
+private val TileExitPressed = Color(0xE6541A20)
+// Subtle cool blue-gray glass — complements WinNativeAccent without competing with
+// the on/true outlines, and reads as a layered surface over PaneSurfaceColor.
+private val PaneInnerResting = Color(0x331E2530)
+private val PaneInnerPressed = Color(0x40293142)
+
+// Tint for exit-tile/icons in the rail and the activator dialog's outline.
+private val GlassExitTint = Color(0xFFE07A84)
+
+// Pane content scales down on short displays (e.g. 5.5" landscape) so text and
+// controls keep usable proportions instead of overflowing or wasting space.
+// Reference height (520.dp) maps to scale 1.0; smaller heights compress linearly
+// down to 0.78. Wider tablets always render at full scale.
+private val LocalPaneScale = staticCompositionLocalOf { 1f }
+private const val PaneScaleMin = 0.78f
+private const val PaneScaleReferenceHeightDp = 520f
+
+private fun computePaneScale(availableHeight: Dp): Float =
+    (availableHeight.value / PaneScaleReferenceHeightDp).coerceIn(PaneScaleMin, 1f)
 
 private enum class HUDMetricEditor(
     val minPercent: Int,
@@ -127,6 +163,52 @@ private enum class HUDMetricEditor(
     ALPHA(minPercent = 10, maxPercent = 100),
     SCALE(minPercent = 50, maxPercent = 200),
 }
+
+internal enum class DrawerPane { HUD, GYROSCOPE, SCREEN_EFFECTS, MORE }
+
+private const val MORE_TILE_ID = -1
+
+// Declarative spec for a rail tile that opens a side pane. To add a new pane:
+//   1. Add a value to DrawerPane.
+//   2. Append a RailPaneSpec entry below.
+//   3. Add a `when (openPane)` branch rendering its pane content.
+// `paneItemIds` and the More-pane filter both derive from this list.
+private data class RailPaneSpec(
+    val pane: DrawerPane,
+    val itemId: Int,
+    val labelRes: Int,
+    val iconOverride: ImageVector? = null,
+)
+
+private val RAIL_PANES =
+    listOf(
+        RailPaneSpec(
+            pane = DrawerPane.HUD,
+            itemId = R.id.main_menu_fps_monitor,
+            labelRes = R.string.session_drawer_rail_label_hud,
+        ),
+        RailPaneSpec(
+            pane = DrawerPane.GYROSCOPE,
+            itemId = R.id.main_menu_gyroscope,
+            labelRes = R.string.session_drawer_rail_label_gyro,
+            iconOverride = Icons.Outlined.ScreenRotation,
+        ),
+        RailPaneSpec(
+            pane = DrawerPane.SCREEN_EFFECTS,
+            itemId = R.id.main_menu_screen_effects,
+            labelRes = R.string.session_drawer_rail_label_effects,
+        ),
+    )
+
+private val RAIL_PANE_ITEM_IDS = RAIL_PANES.map { it.itemId }.toSet()
+private val RAIL_PINNED_ITEM_IDS = setOf(R.id.main_menu_pause, R.id.main_menu_exit)
+
+// Bounds for responsive tile sizing. Icons/labels scale proportionally between these.
+private val RailTileMinSize = 44.dp
+private val RailTileMaxSize = 64.dp
+private val RailTileSpacing = 6.dp
+private val RailPinnedSpacingTop = 12.dp
+private val RailPinnedSpacingBetween = 6.dp
 
 data class XServerDrawerItem(
     val itemId: Int,
@@ -169,6 +251,28 @@ class XServerDrawerStateHolder(
     initialState: XServerDrawerState,
 ) {
     var state by mutableStateOf(initialState, neverEqualPolicy())
+    internal var openPane by mutableStateOf<DrawerPane?>(null)
+    private var paneVisibilityListener: ((Boolean) -> Unit)? = null
+
+    fun isPaneOpen(): Boolean = openPane != null
+
+    fun closeOpenPane() {
+        if (openPane != null) {
+            openPane = null
+            paneVisibilityListener?.invoke(false)
+        }
+    }
+
+    internal fun setPaneVisibilityListener(listener: (Boolean) -> Unit) {
+        paneVisibilityListener = listener
+    }
+
+    internal fun setOpenPaneAndNotify(newPane: DrawerPane?) {
+        val wasVisible = openPane != null
+        val nowVisible = newPane != null
+        openPane = newPane
+        if (wasVisible != nowVisible) paneVisibilityListener?.invoke(nowVisible)
+    }
 }
 
 interface XServerDrawerActionListener {
@@ -349,16 +453,6 @@ fun buildXServerDrawerState(
             ),
         )
 
-    // items.add(
-    //     3,
-    //     XServerDrawerItem(
-    //         itemId = R.id.main_menu_controller_manager,
-    //         title = context.getString(R.string.session_gamepad_controller_manager),
-    //         subtitle = context.getString(R.string.session_gamepad_external_controllers),
-    //         icon = Icons.Outlined.SportsEsports,
-    //     ),
-    // )
-
     if (showMagnifier) {
         items +=
             XServerDrawerItem(
@@ -427,97 +521,1303 @@ fun setupXServerDrawerComposeView(
     stateHolder: XServerDrawerStateHolder,
     _activity: Activity,
     listener: XServerDrawerActionListener,
+    onDismiss: Runnable,
+    onPaneVisibilityChanged: (Boolean) -> Unit = {},
 ) {
+    stateHolder.setPaneVisibilityListener(onPaneVisibilityChanged)
     composeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
     composeView.setContent {
         WinNativeTheme {
-            XServerDrawerContent(state = stateHolder.state, listener = listener)
+            XServerDrawerContent(
+                state = stateHolder.state,
+                openPane = stateHolder.openPane,
+                onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
+                listener = listener,
+                onDismiss = { onDismiss.run() },
+            )
         }
     }
+}
+
+// Swipe-left-to-dismiss gesture shared by the rail and the empty area beside it,
+// so the entire closed-drawer width drives `dragOffset` (which the rail translates by
+// for visual feedback) and triggers `onDismiss` past the threshold.
+private fun Modifier.drawerDismissDrag(
+    enabled: Boolean,
+    onDismiss: () -> Unit,
+    onDragOffsetChange: (Float) -> Unit,
+): Modifier = pointerInput(enabled) {
+    if (!enabled) return@pointerInput
+    val velocityTracker = VelocityTracker()
+    var totalDx = 0f
+    detectHorizontalDragGestures(
+        onDragStart = {
+            totalDx = 0f
+            velocityTracker.resetTracking()
+        },
+        onDragEnd = {
+            val vx = velocityTracker.calculateVelocity().x
+            if (totalDx < -40f || vx < -500f) onDismiss()
+            onDragOffsetChange(0f)
+            totalDx = 0f
+        },
+        onDragCancel = {
+            onDragOffsetChange(0f)
+            totalDx = 0f
+        },
+        onHorizontalDrag = { change, dragAmount ->
+            velocityTracker.addPosition(change.uptimeMillis, change.position)
+            totalDx += dragAmount
+            if (totalDx < 0f) {
+                // Track the finger 1:1 — gentle taper only past the rail width
+                // so the gesture never feels stuck against rubber.
+                val absRaw = -totalDx
+                val tracked =
+                    if (absRaw < 180f) absRaw else 180f + (absRaw - 180f) * 0.6f
+                onDragOffsetChange((-tracked).coerceAtLeast(-320f))
+                change.consume()
+            }
+        },
+    )
 }
 
 @Composable
 private fun XServerDrawerContent(
     state: XServerDrawerState,
+    openPane: DrawerPane?,
+    onOpenPaneChange: (DrawerPane?) -> Unit,
     listener: XServerDrawerActionListener,
+    onDismiss: () -> Unit,
 ) {
-    val primaryItems = remember(state.items) { state.items.filter { it.itemId in DrawerPrimaryItemIds } }
-    val secondaryItems = remember(state.items) { state.items.filterNot { it.itemId in DrawerPrimaryItemIds } }
+    val dismissInteractionSource = remember { MutableInteractionSource() }
+
+    // Rail-only drag (closes the whole drawer). Active only while no pane is open.
+    var railDragPx by remember { mutableStateOf(0f) }
+    val animatedRailDrag by animateFloatAsState(
+        targetValue = railDragPx,
+        animationSpec =
+            if (railDragPx == 0f) {
+                spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)
+            } else {
+                tween(0)
+            },
+        label = "railDragOffset",
+    )
+
+    // Pane-only drag (closes the open pane, leaves the rail alone). Resets per pane.
+    var paneDragPx by remember(openPane) { mutableStateOf(0f) }
+    val animatedPaneDrag by animateFloatAsState(
+        targetValue = paneDragPx,
+        animationSpec =
+            if (paneDragPx == 0f) {
+                spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)
+            } else {
+                tween(0)
+            },
+        label = "paneDragOffset",
+    )
 
     Surface(
         modifier =
             Modifier
                 .fillMaxHeight()
-                .width(336.dp),
-        color = WinNativeBackground,
+                .width(340.dp),
+        color = Color.Transparent,
         tonalElevation = 0.dp,
     ) {
-        Column(
+      Box(modifier = Modifier.fillMaxSize()) {
+        // Subtle cyan/blue edge glow — fades in with the rail and gently pulses.
+        DrawerEdgeGlow(
             modifier =
                 Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colorStops =
-                                arrayOf(
-                                    0.0f to DrawerHeroTop,
-                                    0.42f to DrawerHeroBottom,
-                                    1.0f to WinNativeBackground,
-                                ),
+                    .align(Alignment.CenterStart)
+                    .fillMaxHeight()
+                    .graphicsLayer { translationX = animatedRailDrag },
+        )
+
+        Row(modifier = Modifier.fillMaxSize()) {
+            // Side rail — transparent so tiles float directly over the game canvas.
+            Surface(
+                modifier =
+                    Modifier
+                        .padding(start = 6.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
+                        .width(68.dp)
+                        .fillMaxHeight()
+                        .graphicsLayer { translationX = animatedRailDrag }
+                        .drawerDismissDrag(
+                            enabled = openPane == null,
+                            onDismiss = onDismiss,
+                            onDragOffsetChange = { railDragPx = it },
                         ),
+                shape = RoundedCornerShape(22.dp),
+                color = Color.Transparent,
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
+            ) {
+                BoxWithConstraints(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(vertical = 4.dp, horizontal = 2.dp),
+                ) {
+                    val exitItem = state.items.firstOrNull { it.itemId == R.id.main_menu_exit }
+                    val pauseItem = state.items.firstOrNull { it.itemId == R.id.main_menu_pause }
+                    val moreItems =
+                        state.items.filter { it.itemId !in RAIL_PANE_ITEM_IDS && it.itemId !in RAIL_PINNED_ITEM_IDS }
+
+                    val activePaneSpecs = RAIL_PANES.filter { spec -> state.items.any { it.itemId == spec.itemId } }
+                    val showMore = moreItems.isNotEmpty()
+                    val scrollableTileCount = activePaneSpecs.size + (if (showMore) 1 else 0)
+                    val pinnedTileCount = (if (pauseItem != null) 1 else 0) + (if (exitItem != null) 1 else 0)
+
+                    val tileSize = computeRailTileSize(
+                        availableHeight = maxHeight,
+                        scrollableTileCount = scrollableTileCount,
+                        pinnedTileCount = pinnedTileCount,
                     )
-                    .padding(horizontal = 14.dp, vertical = 14.dp)
-                    .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            DrawerHeroCard()
-            primaryItems.forEach { item ->
-                when (item.itemId) {
-                    R.id.main_menu_fps_monitor -> {
-                        XServerHUDCard(
-                            item = item,
-                            state = state,
-                            listener = listener,
-                            onToggleMonitor = { listener.onActionSelected(item.itemId) },
-                        )
-                    }
-                    R.id.main_menu_gyroscope -> {
-                        XServerGyroscopeCard(
-                            item = item,
-                            state = state,
-                            listener = listener,
-                            onToggleGyro = { listener.onGyroscopeEnabledChanged(!state.gyroscopeEnabled) },
-                        )
-                    }
-                    else -> {
-                        XServerDrawerActionCard(
-                            item = item,
-                            onClick = { listener.onActionSelected(item.itemId) },
-                        )
+
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Column(
+                            modifier =
+                                Modifier
+                                    .weight(1f, fill = true)
+                                    .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(RailTileSpacing),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            activePaneSpecs.forEach { spec ->
+                                val item = state.items.first { it.itemId == spec.itemId }
+                                val displayItem = if (spec.iconOverride != null) item.copy(icon = spec.iconOverride) else item
+                                RailTile(
+                                    item = displayItem,
+                                    label = stringResource(spec.labelRes),
+                                    selected = openPane == spec.pane,
+                                    tileSize = tileSize,
+                                    onClick = {
+                                        onOpenPaneChange(if (openPane == spec.pane) null else spec.pane)
+                                    },
+                                )
+                            }
+
+                            if (showMore) {
+                                val moreLabel = stringResource(R.string.session_drawer_rail_label_apps)
+                                val moreTile =
+                                    XServerDrawerItem(
+                                        itemId = MORE_TILE_ID,
+                                        title = moreLabel,
+                                        subtitle = "",
+                                        icon = Icons.Outlined.Apps,
+                                    )
+                                RailTile(
+                                    item = moreTile,
+                                    label = moreLabel,
+                                    selected = openPane == DrawerPane.MORE,
+                                    tileSize = tileSize,
+                                    onClick = {
+                                        onOpenPaneChange(
+                                            if (openPane == DrawerPane.MORE) null else DrawerPane.MORE,
+                                        )
+                                    },
+                                )
+                            }
+                        }
+
+                        if (pinnedTileCount > 0) {
+                            Spacer(Modifier.height(RailPinnedSpacingTop))
+                        }
+
+                        if (pauseItem != null) {
+                            RailTile(
+                                item = pauseItem,
+                                label = stringResource(if (pauseItem.active) R.string.session_drawer_resume else R.string.session_drawer_pause),
+                                selected = false,
+                                tileSize = tileSize,
+                                onClick = {
+                                    onOpenPaneChange(null)
+                                    listener.onActionSelected(pauseItem.itemId)
+                                },
+                            )
+                        }
+
+                        if (exitItem != null) {
+                            if (pauseItem != null) Spacer(Modifier.height(RailPinnedSpacingBetween))
+                            RailTile(
+                                item = exitItem,
+                                label = stringResource(R.string.common_ui_exit),
+                                selected = false,
+                                tileSize = tileSize,
+                                onClick = {
+                                    onOpenPaneChange(null)
+                                    listener.onActionSelected(exitItem.itemId)
+                                },
+                            )
+                        }
+
                     }
                 }
             }
 
-            secondaryItems.forEach { item ->
-                when (item.itemId) {
-                    R.id.main_menu_screen_effects -> {
-                        XServerScreenEffectsCard(
-                            item = item,
-                            state = state,
-                            listener = listener
+            // Empty area: tap- and swipe-to-dismiss when no pane is open. The swipe
+            // shares railDragPx with the rail itself so the rail tracks the finger
+            // regardless of where in the closed-drawer width the gesture starts.
+            if (openPane == null) {
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .drawerDismissDrag(
+                                enabled = true,
+                                onDismiss = onDismiss,
+                                onDragOffsetChange = { railDragPx = it },
+                            )
+                            .clickable(
+                                interactionSource = dismissInteractionSource,
+                                indication = null,
+                                onClick = onDismiss,
+                            ),
+                )
+            }
+
+            // Pane — unfolds outward from the rail's right edge (expandHorizontally with
+            // Alignment.Start clips to the growing bounds, so it can never overlap the rail).
+            // Swipe-to-close mirrors that: the pane's reported width shrinks toward the rail
+            // via a layout modifier rather than translating, so the left edge stays pinned.
+            AnimatedVisibility(
+                visible = openPane != null,
+                enter =
+                    fadeIn(tween(180)) +
+                        expandHorizontally(
+                            animationSpec =
+                                spring(
+                                    dampingRatio = 0.85f,
+                                    stiffness = Spring.StiffnessMediumLow,
+                                ),
+                            expandFrom = Alignment.Start,
+                            clip = true,
+                        ),
+                exit =
+                    fadeOut(tween(180)) +
+                        shrinkHorizontally(
+                            animationSpec =
+                                spring(
+                                    dampingRatio = 0.85f,
+                                    stiffness = Spring.StiffnessMediumLow,
+                                ),
+                            shrinkTowards = Alignment.Start,
+                            clip = true,
+                        ),
+            ) {
+                Surface(
+                    modifier =
+                        Modifier
+                            .fillMaxHeight()
+                            .padding(start = 2.dp, end = 8.dp, top = 4.dp, bottom = 4.dp)
+                            .clipToBounds()
+                            .layout { measurable, constraints ->
+                                val placeable = measurable.measure(constraints)
+                                val widthReduction = (-animatedPaneDrag).toInt().coerceAtLeast(0)
+                                val visibleWidth = (placeable.width - widthReduction).coerceAtLeast(0)
+                                layout(visibleWidth, placeable.height) {
+                                    placeable.place(0, 0)
+                                }
+                            }
+                            .pointerInput(openPane) {
+                                // Pane-only swipe-to-close: closes the pane, not the drawer.
+                                val velocityTracker = VelocityTracker()
+                                var totalDx = 0f
+                                detectHorizontalDragGestures(
+                                    onDragStart = {
+                                        totalDx = 0f
+                                        velocityTracker.resetTracking()
+                                    },
+                                    onDragEnd = {
+                                        val vx = velocityTracker.calculateVelocity().x
+                                        if (totalDx < -40f || vx < -500f) onOpenPaneChange(null)
+                                        paneDragPx = 0f
+                                        totalDx = 0f
+                                    },
+                                    onDragCancel = {
+                                        paneDragPx = 0f
+                                        totalDx = 0f
+                                    },
+                                    onHorizontalDrag = { change, dragAmount ->
+                                        velocityTracker.addPosition(change.uptimeMillis, change.position)
+                                        totalDx += dragAmount
+                                        if (totalDx < 0f) {
+                                            // 1:1 finger tracking — soft taper only after the pane
+                                            // has been pulled most of the way off-screen.
+                                            val absRaw = -totalDx
+                                            val tracked =
+                                                if (absRaw < 240f) absRaw else 240f + (absRaw - 240f) * 0.6f
+                                            paneDragPx = (-tracked).coerceAtLeast(-420f)
+                                            change.consume()
+                                        }
+                                    },
+                                )
+                            },
+                    shape = RoundedCornerShape(22.dp),
+                    color = PaneSurfaceColor,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 0.dp,
+                ) {
+                    Column(modifier = Modifier.fillMaxHeight()) {
+                        when (openPane) {
+                            DrawerPane.HUD ->
+                                HUDPaneContent(
+                                    state = state,
+                                    listener = listener,
+                                )
+                            DrawerPane.GYROSCOPE ->
+                                GyroscopePaneContent(
+                                    state = state,
+                                    listener = listener,
+                                )
+                            DrawerPane.SCREEN_EFFECTS ->
+                                ScreenEffectsPaneContent(
+                                    state = state,
+                                    listener = listener,
+                                )
+                            DrawerPane.MORE ->
+                                MorePaneContent(
+                                    items =
+                                        state.items.filter {
+                                            it.itemId != R.id.main_menu_fps_monitor &&
+                                                it.itemId != R.id.main_menu_gyroscope &&
+                                                it.itemId != R.id.main_menu_screen_effects &&
+                                                it.itemId != R.id.main_menu_pause &&
+                                                it.itemId != R.id.main_menu_exit
+                                        },
+                                    listener = listener,
+                                    onClose = { onOpenPaneChange(null) },
+                                )
+                            null -> {}
+                        }
+                    }
+                }
+            }
+        }
+      }
+    }
+}
+
+// Same palette as the chasing-border sweep gradient, mirrored so it loops seamlessly
+// when tiled vertically. Drawn as a slow vertical scroll so the edge feels alive.
+private val EdgeGlowFlowColors =
+    listOf(
+        EdgeGlowBlue,
+        EdgeGlowSky,
+        EdgeGlowCyan,
+        EdgeGlowSky,
+        EdgeGlowBlue,
+        EdgeGlowSky,
+        EdgeGlowCyan,
+        EdgeGlowSky,
+        EdgeGlowBlue,
+    )
+
+@Composable
+private fun DrawerEdgeGlow(modifier: Modifier = Modifier) {
+    // One infinite transition drives both the breathing alpha and a slow vertical color
+    // flow. rememberInfiniteTransition is cancelled when the composable leaves composition,
+    // so closing the drawer/menu fully tears the animation down.
+    val transition = rememberInfiniteTransition(label = "drawerEdgeGlow")
+    val pulse by transition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 1.0f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(durationMillis = 1600, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+        label = "drawerEdgeGlowPulse",
+    )
+    val flow by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(durationMillis = 6000, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
+        label = "drawerEdgeGlowFlow",
+    )
+
+    Box(
+        modifier =
+            modifier
+                .width(22.dp)
+                .graphicsLayer { alpha = pulse },
+    ) {
+        // Soft horizontal bleed inward from the left screen edge — uses the same palette
+        // as the line so the colours read as one unit.
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            0f to EdgeGlowCyan.copy(alpha = 0.30f),
+                            0.4f to EdgeGlowSky.copy(alpha = 0.12f),
+                            1f to Color.Transparent,
+                        ),
+                    ),
+        )
+        // Edge line — full chasing-border palette tiled vertically and slowly scrolled.
+        // drawBehind reads `flow` during the draw phase, so we redraw without recomposing.
+        Box(
+            modifier =
+                Modifier
+                    .align(Alignment.CenterStart)
+                    .width(2.dp)
+                    .fillMaxHeight()
+                    .drawBehind {
+                        val tile = size.height
+                        if (tile <= 0f) return@drawBehind
+                        val offset = -tile + (flow * tile)
+                        val brush =
+                            Brush.linearGradient(
+                                colors = EdgeGlowFlowColors,
+                                start = Offset(0f, offset),
+                                end = Offset(0f, offset + tile * 2f),
+                                tileMode = TileMode.Repeated,
+                            )
+                        drawRect(brush = brush, alpha = 0.85f)
+                    },
+        )
+    }
+}
+
+// Returns the largest square tile size that lets every rail tile (scrollable + pinned) fit
+// without scrolling, clamped to RailTileMin/MaxSize. Falls back to the max size when there
+// are no tiles.
+private fun computeRailTileSize(
+    availableHeight: Dp,
+    scrollableTileCount: Int,
+    pinnedTileCount: Int,
+): Dp {
+    val totalTiles = scrollableTileCount + pinnedTileCount
+    if (totalTiles <= 0) return RailTileMaxSize
+
+    val scrollableSpacing =
+        if (scrollableTileCount > 1) RailTileSpacing * (scrollableTileCount - 1) else 0.dp
+    val pinnedTopGap = if (pinnedTileCount > 0) RailPinnedSpacingTop else 0.dp
+    val pinnedBetween = if (pinnedTileCount > 1) RailPinnedSpacingBetween else 0.dp
+    val totalGaps = scrollableSpacing + pinnedTopGap + pinnedBetween
+
+    val perTile = (availableHeight - totalGaps) / totalTiles
+    return perTile.coerceIn(RailTileMinSize, RailTileMaxSize)
+}
+
+@Composable
+private fun RailTile(
+    item: XServerDrawerItem,
+    label: String,
+    selected: Boolean,
+    tileSize: Dp = RailTileMaxSize,
+    onClick: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed = interactionSource.collectIsPressedAsState().value
+    val enabled = item.enabled
+    val isExit = item.itemId == R.id.main_menu_exit
+    val showLabel = item.itemId != R.id.main_menu_exit && item.itemId != R.id.main_menu_pause
+
+    val sizeRatio = (tileSize / RailTileMaxSize).coerceIn(0.6f, 1f)
+    val iconSize = (if (showLabel) 22.dp else 26.dp) * sizeRatio
+    val labelFontSize = (10f * sizeRatio).sp
+    val cornerRadius = 16.dp * sizeRatio
+    val activeBadgeSize = 6.dp * sizeRatio
+    val selectionMarkerHeight = 24.dp * sizeRatio
+
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && enabled) 0.93f else 1f,
+        animationSpec =
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMedium,
+            ),
+        label = "railTileScale_${item.itemId}",
+    )
+    val bgColor by animateColorAsState(
+        targetValue =
+            when {
+                !enabled -> Color(0x05FFFFFF)
+                isExit && pressed -> TileExitPressed
+                isExit -> TileExitResting
+                pressed -> PaneSurfacePressed
+                else -> PaneSurfaceColor
+            },
+        animationSpec = tween(80),
+        label = "railTileBg_${item.itemId}",
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (selected && !isExit) WinNativeAccent else Color.Transparent,
+        animationSpec = tween(80),
+        label = "railTileBorder_${item.itemId}",
+    )
+    val iconTint by animateColorAsState(
+        targetValue =
+            when {
+                !enabled -> WinNativeTextSecondary.copy(alpha = 0.45f)
+                isExit -> GlassExitTint
+                selected || item.active -> WinNativeAccent
+                else -> WinNativeTextPrimary
+            },
+        animationSpec = tween(90),
+        label = "railTileIcon_${item.itemId}",
+    )
+    val labelColor by animateColorAsState(
+        targetValue =
+            when {
+                !enabled -> WinNativeTextSecondary.copy(alpha = 0.5f)
+                isExit -> GlassExitTint
+                selected || item.active -> WinNativeAccent
+                else -> WinNativeTextPrimary.copy(alpha = 0.9f)
+            },
+        animationSpec = tween(90),
+        label = "railTileLabel_${item.itemId}",
+    )
+
+    val tileShape = RoundedCornerShape(cornerRadius)
+    Box(
+        modifier =
+            Modifier
+                .size(tileSize)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }
+                .clip(tileShape)
+                .background(bgColor)
+                .border(1.dp, borderColor, tileShape)
+                .clickable(
+                    enabled = enabled,
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Icon(
+                imageVector = item.icon,
+                contentDescription = item.title,
+                tint = iconTint,
+                modifier = Modifier.size(iconSize),
+            )
+            if (showLabel) {
+                Spacer(Modifier.height(4.dp * sizeRatio))
+                Text(
+                    text = label,
+                    color = labelColor,
+                    fontSize = labelFontSize,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                    letterSpacing = 0.2.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+
+        if (selected) {
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterStart)
+                        .padding(start = 4.dp * sizeRatio)
+                        .width(3.dp)
+                        .height(selectionMarkerHeight)
+                        .clip(CircleShape)
+                        .background(WinNativeAccent),
+            )
+        } else if (item.active && enabled && !isExit) {
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp * sizeRatio)
+                        .size(activeBadgeSize)
+                        .clip(CircleShape)
+                        .background(WinNativeAccent),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PaneEnableRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    val paneScale = LocalPaneScale.current
+    val rowInteractionSource = remember { MutableInteractionSource() }
+    val pressed = rowInteractionSource.collectIsPressedAsState().value
+    val switchInteractionSource = remember { MutableInteractionSource() }
+    val bgColor by animateColorAsState(
+        targetValue =
+            when {
+                pressed -> PaneInnerPressed
+                else -> PaneInnerResting
+            },
+        animationSpec = tween(140),
+        label = "paneEnableRowBg",
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (checked) WinNativeAccent else Color.Transparent,
+        animationSpec = tween(140),
+        label = "paneEnableRowBorder",
+    )
+    val cornerRadius = (14f * paneScale).dp
+    val shape = RoundedCornerShape(cornerRadius)
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(bgColor)
+                .border(1.dp, borderColor, shape)
+                .clickable(
+                    interactionSource = rowInteractionSource,
+                    indication = null,
+                ) { onCheckedChange(!checked) }
+                .padding(horizontal = (12f * paneScale).dp, vertical = (6f * paneScale).dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            color = if (checked) WinNativeAccent else WinNativeTextPrimary,
+            fontSize = (13f * paneScale).sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f),
+        )
+        CompositionLocalProvider(LocalRippleConfiguration provides null) {
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                interactionSource = switchInteractionSource,
+                colors = outlinedSwitchColors(WinNativeAccent, WinNativeTextSecondary),
+            )
+        }
+    }
+}
+
+@Composable
+private fun HUDPaneContent(
+    state: XServerDrawerState,
+    listener: XServerDrawerActionListener,
+) {
+    var activeEditor by remember { mutableStateOf<HUDMetricEditor?>(null) }
+    val elementNames =
+        listOf(
+            stringResource(R.string.session_drawer_hud_element_fps),
+            stringResource(R.string.session_drawer_hud_element_api),
+            stringResource(R.string.session_drawer_hud_element_gpu),
+            stringResource(R.string.session_drawer_hud_element_cpu),
+            stringResource(R.string.session_drawer_hud_element_battery),
+            stringResource(R.string.session_drawer_hud_element_graph),
+        )
+    val active =
+        state.items.firstOrNull { it.itemId == R.id.main_menu_fps_monitor }?.active ?: false
+
+    activeEditor?.let { editor ->
+        HUDMetricInputDialog(
+            editor = editor,
+            initialPercent =
+                when (editor) {
+                    HUDMetricEditor.ALPHA -> (state.hudTransparency * 100).roundToInt()
+                    HUDMetricEditor.SCALE -> (state.hudScale * 100).roundToInt()
+                },
+            onDismiss = { activeEditor = null },
+            onConfirm = { enteredPercent ->
+                activeEditor = null
+                when (editor) {
+                    HUDMetricEditor.ALPHA -> {
+                        listener.onHUDTransparencyChanged(enteredPercent.coerceIn(editor.minPercent, editor.maxPercent) / 100f)
+                    }
+                    HUDMetricEditor.SCALE -> {
+                        listener.onHUDScaleChanged(enteredPercent.coerceIn(editor.minPercent, editor.maxPercent) / 100f)
+                    }
+                }
+            },
+        )
+    }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val paneScale = computePaneScale(maxHeight)
+        CompositionLocalProvider(LocalPaneScale provides paneScale) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = (12f * paneScale).dp, vertical = (12f * paneScale).dp),
+                verticalArrangement = Arrangement.spacedBy((10f * paneScale).dp),
+            ) {
+            PaneEnableRow(
+                title = stringResource(R.string.session_drawer_fps_monitor),
+                checked = active,
+                onCheckedChange = { listener.onActionSelected(R.id.main_menu_fps_monitor) },
+            )
+
+            if (active) {
+                DrawerSliderRow(
+                    label = stringResource(R.string.session_drawer_hud_alpha),
+                    valueText = "${(state.hudTransparency * 100).toInt()}%",
+                    value = state.hudTransparency,
+                    valueRange = 0.1f..1f,
+                    steps = 8,
+                    onValueClick = { activeEditor = HUDMetricEditor.ALPHA },
+                    onValueChange = { listener.onHUDTransparencyChanged(it.snapToStep(0.1f, 0.1f, 1f)) },
+                )
+
+                DrawerSliderRow(
+                    label = stringResource(R.string.session_drawer_hud_scale),
+                    valueText = "${(state.hudScale * 100).toInt()}%",
+                    value = state.hudScale,
+                    valueRange = 0.5f..2.0f,
+                    steps = 14,
+                    onValueClick = { activeEditor = HUDMetricEditor.SCALE },
+                    onValueChange = { listener.onHUDScaleChanged(it.snapToStep(0.1f, 0.5f, 2.0f)) },
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+                    PaneSectionLabel(stringResource(R.string.session_drawer_hud_elements))
+                    ChipFlow {
+                        elementNames.forEachIndexed { index, name ->
+                            HUDToggleChip(
+                                label = name,
+                                checked = state.hudElements[index],
+                                onClick = { listener.onHUDElementToggled(index, !state.hudElements[index]) },
+                            )
+                        }
+                    }
+                }
+
+                DrawerBooleanRow(
+                    title = stringResource(R.string.session_drawer_dual_series_battery),
+                    checked = state.dualSeriesBatteryEnabled,
+                    onCheckedChange = listener::onDualSeriesBatteryChanged,
+                )
+
+                FPSLimiterSelection(
+                    currentLimit = state.fpsLimit,
+                    onLimitSelected = listener::onFPSLimitChanged,
+                )
+            }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GyroscopePaneContent(
+    state: XServerDrawerState,
+    listener: XServerDrawerActionListener,
+) {
+    var calibrateExpanded by remember { mutableStateOf(false) }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val paneScale = computePaneScale(maxHeight)
+        CompositionLocalProvider(LocalPaneScale provides paneScale) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = (12f * paneScale).dp, vertical = (12f * paneScale).dp),
+                verticalArrangement = Arrangement.spacedBy((10f * paneScale).dp),
+            ) {
+            PaneEnableRow(
+                title = stringResource(R.string.session_gyroscope_title),
+                checked = state.gyroscopeEnabled,
+                onCheckedChange = listener::onGyroscopeEnabledChanged,
+            )
+
+            if (state.gyroscopeEnabled) {
+                Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+                    PaneSectionLabel(stringResource(R.string.session_gyroscope_mode))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+                    ) {
+                        listOf(
+                            stringResource(R.string.session_gyroscope_hold),
+                            stringResource(R.string.session_gyroscope_toggle),
+                        ).forEachIndexed { index, label ->
+                            HUDToggleChip(
+                                label = label,
+                                checked = state.gyroscopeModeIndex == index,
+                                onClick = { listener.onGyroscopeModeSelected(index) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+                    PaneSectionLabel(stringResource(R.string.session_gyroscope_activator_button))
+                    DrawerMetricChip(
+                        label = stringResource(R.string.session_gyroscope_activator),
+                        value = state.gyroscopeActivatorLabel,
+                        onClick = { listener.onGyroscopeActivatorClick() },
+                    )
+                }
+
+                DrawerBooleanRow(
+                    title = stringResource(R.string.session_gyroscope_enable_right_stick),
+                    checked = state.rightStickGyroEnabled,
+                    onCheckedChange = listener::onRightStickGyroChanged,
+                )
+
+                DrawerBooleanRow(
+                    title = stringResource(R.string.session_gyroscope_experimental_mouse_movement),
+                    checked = state.gyroMouseEnabled,
+                    onCheckedChange = listener::onGyroMouseEnabledChanged,
+                )
+
+                if (state.gyroMouseEnabled) {
+                    DrawerSliderRow(
+                        label = stringResource(R.string.session_gyroscope_mouse_scale),
+                        valueText = "${state.gyroMouseScale.toInt()}%",
+                        value = state.gyroMouseScale,
+                        valueRange = 0f..200f,
+                        steps = 199,
+                        onValueChange = { listener.onGyroMouseScaleChanged(it.roundToInt().toFloat()) },
+                    )
+                }
+
+                ExpandableSection(
+                    title = stringResource(R.string.session_drawer_calibrate_advanced),
+                    expanded = calibrateExpanded,
+                    onToggle = { calibrateExpanded = !calibrateExpanded },
+                ) {
+                    DrawerSliderRow(
+                        label = stringResource(R.string.session_gyroscope_x_sensitivity),
+                        valueText = "${(state.gyroXSensitivity * 100).toInt()}%",
+                        value = state.gyroXSensitivity,
+                        valueRange = 0f..2f,
+                        steps = 199,
+                        onValueChange = { listener.onGyroXSensitivityChanged(it) },
+                    )
+
+                    DrawerSliderRow(
+                        label = stringResource(R.string.session_gyroscope_y_sensitivity),
+                        valueText = "${(state.gyroYSensitivity * 100).toInt()}%",
+                        value = state.gyroYSensitivity,
+                        valueRange = 0f..2f,
+                        steps = 199,
+                        onValueChange = { listener.onGyroYSensitivityChanged(it) },
+                    )
+
+                    DrawerSliderRow(
+                        label = stringResource(R.string.session_gyroscope_smoothing),
+                        valueText = "${(state.gyroSmoothing * 100).toInt()}%",
+                        value = state.gyroSmoothing,
+                        valueRange = 0f..1f,
+                        steps = 99,
+                        onValueChange = { listener.onGyroSmoothingChanged(it) },
+                    )
+
+                    DrawerSliderRow(
+                        label = stringResource(R.string.session_gyroscope_deadzone),
+                        valueText = "${(state.gyroDeadzone * 100).toInt()}%",
+                        value = state.gyroDeadzone,
+                        valueRange = 0f..1f,
+                        steps = 99,
+                        onValueChange = { listener.onGyroDeadzoneChanged(it) },
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+                    ) {
+                        HUDToggleChip(
+                            label = stringResource(R.string.session_gyroscope_invert_x),
+                            checked = state.invertGyroX,
+                            onClick = { listener.onInvertGyroXChanged(!state.invertGyroX) },
+                            modifier = Modifier.weight(1f),
+                        )
+                        HUDToggleChip(
+                            label = stringResource(R.string.session_gyroscope_invert_y),
+                            checked = state.invertGyroY,
+                            onClick = { listener.onInvertGyroYChanged(!state.invertGyroY) },
+                            modifier = Modifier.weight(1f),
                         )
                     }
-                    else -> {
-                        XServerDrawerActionCard(
-                            item = item,
-                            onClick = { listener.onActionSelected(item.itemId) },
+
+                    WinNativeDialogButton(
+                        label = stringResource(R.string.session_gyroscope_reset_stick),
+                        textColor = WinNativeAccent,
+                        backgroundColor = WinNativeAccent.copy(alpha = 0.12f),
+                        borderColor = WinNativeAccent.copy(alpha = 0.3f),
+                        onClick = { listener.onActionSelected(R.id.main_menu_gyroscope_reset) },
+                    )
+                }
+            }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExpandableSection(
+    title: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val paneScale = LocalPaneScale.current
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(180, easing = FastOutSlowInEasing),
+        label = "expandableRotation",
+    )
+    val headerInteractionSource = remember { MutableInteractionSource() }
+    val headerPressed = headerInteractionSource.collectIsPressedAsState().value
+    val headerBg by animateColorAsState(
+        targetValue =
+            when {
+                headerPressed -> PaneInnerPressed
+                else -> PaneInnerResting
+            },
+        animationSpec = tween(140),
+        label = "expandableHeaderBg",
+    )
+    val headerBorder by animateColorAsState(
+        targetValue = if (expanded) WinNativeAccent else Color.Transparent,
+        animationSpec = tween(140),
+        label = "expandableHeaderBorder",
+    )
+    val headerShape = RoundedCornerShape((12f * paneScale).dp)
+    Column(verticalArrangement = Arrangement.spacedBy((10f * paneScale).dp)) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(headerShape)
+                    .background(headerBg)
+                    .border(1.dp, headerBorder, headerShape)
+                    .clickable(
+                        interactionSource = headerInteractionSource,
+                        indication = null,
+                        onClick = onToggle,
+                    )
+                    .padding(horizontal = (12f * paneScale).dp, vertical = (10f * paneScale).dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = title,
+                color = if (expanded) WinNativeAccent else WinNativeTextPrimary,
+                fontSize = (12f * paneScale).sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.3.sp,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                imageVector = Icons.Outlined.ExpandMore,
+                contentDescription = null,
+                tint = if (expanded) WinNativeAccent else WinNativeTextSecondary,
+                modifier =
+                    Modifier
+                        .size((18f * paneScale).dp)
+                        .graphicsLayer { rotationZ = rotation },
+            )
+        }
+        AnimatedVisibility(visible = expanded) {
+            Column(verticalArrangement = Arrangement.spacedBy((12f * paneScale).dp)) {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScreenEffectsPaneContent(
+    state: XServerDrawerState,
+    listener: XServerDrawerActionListener,
+) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val paneScale = computePaneScale(maxHeight)
+        CompositionLocalProvider(LocalPaneScale provides paneScale) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = (12f * paneScale).dp, vertical = (12f * paneScale).dp),
+                verticalArrangement = Arrangement.spacedBy((10f * paneScale).dp),
+            ) {
+            DrawerBooleanRow(
+                title = stringResource(R.string.session_drawer_super_resolution),
+                checked = state.fsrEnabled,
+                onCheckedChange = listener::onFSREnabledChanged,
+            )
+
+            if (state.fsrEnabled) {
+                Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+                    PaneSectionLabel(stringResource(R.string.session_drawer_upscaler_mode))
+                    val upscaleLabels =
+                        listOf(
+                            stringResource(R.string.session_drawer_super_resolution),
+                            stringResource(R.string.session_drawer_upscaler_dls),
+                        )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+                    ) {
+                        upscaleLabels.forEachIndexed { index, label ->
+                            HUDToggleChip(
+                                label = label,
+                                checked = state.fsrMode == index,
+                                onClick = { listener.onFSRModeSelected(index) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+
+                    DrawerSliderRow(
+                        label = stringResource(R.string.session_drawer_sharpness),
+                        valueText = "${state.fsrSharpness}%",
+                        value = state.fsrSharpness.toFloat(),
+                        valueRange = 0f..100f,
+                        steps = 99,
+                        onValueChange = { listener.onFSRSharpnessChanged(it.roundToInt()) },
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+                PaneSectionLabel(stringResource(R.string.session_drawer_color_profile))
+
+                val profiles =
+                    listOf(
+                        stringResource(R.string.session_drawer_color_profile_disabled),
+                        stringResource(R.string.session_drawer_color_profile_hdr),
+                        stringResource(R.string.session_drawer_color_profile_natural),
+                        stringResource(R.string.session_drawer_color_profile_crt),
+                    )
+
+                ChipFlow {
+                    profiles.forEachIndexed { index, label ->
+                        HUDToggleChip(
+                            label = label,
+                            checked = state.colorProfile == index,
+                            onClick = { listener.onColorProfileSelected(index) },
                         )
                     }
                 }
             }
-            Spacer(Modifier.height(6.dp))
+            }
         }
     }
+}
+
+@Composable
+private fun MorePaneContent(
+    items: List<XServerDrawerItem>,
+    listener: XServerDrawerActionListener,
+    onClose: () -> Unit,
+) {
+    val inputIds = setOf(R.id.main_menu_keyboard, R.id.main_menu_input_controls, R.id.main_menu_relative_mouse_movement, R.id.main_menu_disable_mouse)
+    val displayIds = setOf(R.id.main_menu_toggle_fullscreen, R.id.main_menu_pip_mode, R.id.main_menu_native_rendering, R.id.main_menu_magnifier)
+    val systemIds = setOf(R.id.main_menu_task_manager, R.id.main_menu_logs)
+
+    val inputItems = items.filter { it.itemId in inputIds }
+    val displayItems = items.filter { it.itemId in displayIds }
+    val systemItems = items.filter { it.itemId in systemIds }
+    val otherItems = items.filter { it.itemId !in inputIds && it.itemId !in displayIds && it.itemId !in systemIds }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val paneScale = computePaneScale(maxHeight)
+        CompositionLocalProvider(LocalPaneScale provides paneScale) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = (12f * paneScale).dp, vertical = (12f * paneScale).dp),
+                verticalArrangement = Arrangement.spacedBy((12f * paneScale).dp),
+            ) {
+            MoreGroup(
+                title = stringResource(R.string.session_drawer_command_center_input),
+                items = inputItems,
+                listener = listener,
+                onClose = onClose,
+            )
+            MoreGroup(
+                title = stringResource(R.string.session_drawer_command_center_display),
+                items = displayItems,
+                listener = listener,
+                onClose = onClose,
+            )
+            MoreGroup(
+                title = stringResource(R.string.session_drawer_command_center_system),
+                items = systemItems,
+                listener = listener,
+                onClose = onClose,
+            )
+            if (otherItems.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+                    otherItems.forEach { item ->
+                        MoreRow(
+                            item = item,
+                            onClick = {
+                                onClose()
+                                listener.onActionSelected(item.itemId)
+                            },
+                        )
+                    }
+                }
+            }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MoreGroup(
+    title: String,
+    items: List<XServerDrawerItem>,
+    listener: XServerDrawerActionListener,
+    onClose: () -> Unit,
+) {
+    if (items.isEmpty()) return
+    val paneScale = LocalPaneScale.current
+    Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+        PaneSectionLabel(title)
+        items.forEach { item ->
+            MoreRow(
+                item = item,
+                onClick = {
+                    onClose()
+                    listener.onActionSelected(item.itemId)
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun MoreRow(
+    item: XServerDrawerItem,
+    onClick: () -> Unit,
+) {
+    val paneScale = LocalPaneScale.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed = interactionSource.collectIsPressedAsState().value
+    val bgColor by animateColorAsState(
+        targetValue =
+            when {
+                !item.enabled -> Color(0x05FFFFFF)
+                pressed -> PaneInnerPressed
+                else -> PaneInnerResting
+            },
+        animationSpec = tween(140),
+        label = "moreRowBg_${item.itemId}",
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (item.active && item.enabled) WinNativeAccent else Color.Transparent,
+        animationSpec = tween(140),
+        label = "moreRowBorder_${item.itemId}",
+    )
+    val iconTint =
+        when {
+            !item.enabled -> WinNativeTextSecondary.copy(alpha = 0.45f)
+            item.active -> WinNativeAccent
+            else -> WinNativeTextPrimary
+        }
+    val iconBgColor =
+        if (item.active) {
+            WinNativeAccent.copy(alpha = 0.18f)
+        } else {
+            Color(0x14FFFFFF)
+        }
+    val rowShape = RoundedCornerShape((16f * paneScale).dp)
+
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(rowShape)
+                .background(bgColor)
+                .border(1.dp, borderColor, rowShape)
+                .clickable(
+                    enabled = item.enabled,
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                )
+                .padding(horizontal = (12f * paneScale).dp, vertical = (10f * paneScale).dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size((34f * paneScale).dp)
+                    .clip(RoundedCornerShape((12f * paneScale).dp))
+                    .background(iconBgColor),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = item.icon,
+                contentDescription = item.title,
+                tint = iconTint,
+                modifier = Modifier.size((18f * paneScale).dp),
+            )
+        }
+        Spacer(Modifier.width((12f * paneScale).dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = item.title,
+                color = if (item.enabled) WinNativeTextPrimary else WinNativeTextSecondary.copy(alpha = 0.6f),
+                fontSize = (13f * paneScale).sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (item.subtitle.isNotEmpty()) {
+                Spacer(Modifier.height(1.dp))
+                Text(
+                    text = item.subtitle,
+                    color = WinNativeTextSecondary,
+                    fontSize = (11f * paneScale).sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        if (item.active) {
+            Spacer(Modifier.width((8f * paneScale).dp))
+            Box(
+                modifier =
+                    Modifier
+                        .size((8f * paneScale).dp)
+                        .clip(CircleShape)
+                        .background(WinNativeAccent),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PaneSectionLabel(text: String) {
+    val paneScale = LocalPaneScale.current
+    Text(
+        text = text,
+        color = WinNativeTextSecondary,
+        fontSize = (11f * paneScale).sp,
+        fontWeight = FontWeight.Medium,
+        letterSpacing = 0.3.sp,
+    )
 }
 
 fun setupGyroActivatorDialog(
@@ -558,7 +1858,7 @@ fun XServerGyroscopeActivatorDialog(
         Box(modifier = Modifier.fillMaxWidth().clickable(
             interactionSource = remember { MutableInteractionSource() },
             indication = null,
-            onClick = {} // Intercept clicks so they don't hit the background
+            onClick = {}
         )) {
             Column(
                 modifier =
@@ -576,7 +1876,7 @@ fun XServerGyroscopeActivatorDialog(
                         targetValue = if (isSelected) WinNativeAccent.copy(alpha = 0.16f) else if (pressed) WinNativeSurfaceAlt else Color.Transparent,
                         label = "activatorBg",
                     )
-                    
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -618,329 +1918,24 @@ fun XServerGyroscopeActivatorDialog(
 }
 
 @Composable
-private fun DrawerHeroCard() {
-    Text(
-        text = "WinNative",
-        color = WinNativeAccent,
-        fontSize = 21.sp,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 0.65.sp,
-        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-    )
-}
-
-@Composable
-private fun XServerHUDCard(
-    item: XServerDrawerItem,
-    state: XServerDrawerState,
-    listener: XServerDrawerActionListener,
-    onToggleMonitor: () -> Unit,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed = interactionSource.collectIsPressedAsState().value
-    val statusInteractionSource = remember { MutableInteractionSource() }
-    val active = item.active
-    val expanded = active && state.hudCardExpanded
-    val cardClick =
-        if (active) {
-            { listener.onHUDCardExpandedChanged(!state.hudCardExpanded) }
-        } else {
-            onToggleMonitor
-        }
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.985f else 1f,
-        animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
-        label = "hudCardScale",
-    )
-    val cardColor by animateColorAsState(
-        targetValue =
-            when {
-                active -> DrawerActiveSurface
-                pressed -> WinNativeSurfaceAlt
-                else -> WinNativeSurface
-            },
-        animationSpec = tween(180),
-        label = "hudCardColor",
-    )
-    val borderColor by animateColorAsState(
-        targetValue = if (active) WinNativeAccent.copy(alpha = 0.34f) else WinNativeOutline,
-        animationSpec = tween(180),
-        label = "hudCardBorder",
-    )
-    val iconBoxColor by animateColorAsState(
-        targetValue = if (active) WinNativeAccent.copy(alpha = 0.16f) else DrawerIconBox,
-        animationSpec = tween(180),
-        label = "hudIconBoxColor",
-    )
-    val chevronRotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-        label = "hudChevronRotation",
-    )
-    val subtitle =
-        when {
-            !active -> stringResource(R.string.session_drawer_hud_disabled_hint)
-            expanded -> stringResource(R.string.session_drawer_hud_summary)
-            else -> item.subtitle
-        }
-    val shape = RoundedCornerShape(20.dp)
-
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                }.clip(shape)
-                .background(cardColor)
-                .border(BorderStroke(1.dp, borderColor), shape),
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = cardClick,
-                    ).padding(horizontal = 14.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .width(4.dp)
-                        .height(42.dp)
-                        .clip(CircleShape)
-                        .background(if (active) WinNativeAccent else Color.Transparent),
-            )
-            Spacer(Modifier.width(10.dp))
-            Box(
-                modifier =
-                    Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(iconBoxColor),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = item.icon,
-                    contentDescription = null,
-                    tint = if (active) WinNativeAccent else WinNativeTextPrimary,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = item.title,
-                    color = WinNativeTextPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(3.dp))
-                Text(
-                    text = subtitle,
-                    color = WinNativeTextSecondary,
-                    fontSize = 11.sp,
-                    lineHeight = 14.sp,
-                )
-            }
-            Spacer(Modifier.width(10.dp))
-            DrawerStatusPill(
-                text = if (active) stringResource(R.string.common_ui_on) else stringResource(R.string.common_ui_off),
-                active = active,
-                interactionSource = statusInteractionSource,
-                onClick = onToggleMonitor,
-            )
-            if (active) {
-                Spacer(Modifier.width(6.dp))
-                val chevronSource = remember { MutableInteractionSource() }
-                Box(
-                    modifier =
-                        Modifier
-                            .size(34.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(WinNativePanel)
-                            .border(1.dp, WinNativeOutline, RoundedCornerShape(12.dp))
-                            .clickable(
-                                interactionSource = chevronSource,
-                                indication = null,
-                                onClick = { listener.onHUDCardExpandedChanged(!state.hudCardExpanded) },
-                            ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = WinNativeAccent,
-                        modifier =
-                            Modifier
-                                .size(18.dp)
-                                .rotate(chevronRotation),
-                    )
-                }
-            }
-        }
-
-        AnimatedVisibility(
-            visible = expanded,
-            enter = fadeIn(tween(180)) + expandVertically(tween(220, easing = FastOutSlowInEasing)),
-            exit = fadeOut(tween(140)) + shrinkVertically(tween(180, easing = FastOutSlowInEasing)),
-        ) {
-            XServerHUDSettingsExpanded(state = state, listener = listener)
-        }
-    }
-}
-
-@Composable
-private fun XServerHUDSettingsExpanded(
-    state: XServerDrawerState,
-    listener: XServerDrawerActionListener,
-) {
-    var activeEditor by remember { mutableStateOf<HUDMetricEditor?>(null) }
-    val elementNames =
-        listOf(
-            stringResource(R.string.session_drawer_hud_element_fps),
-            stringResource(R.string.session_drawer_hud_element_api),
-            stringResource(R.string.session_drawer_hud_element_gpu),
-            stringResource(R.string.session_drawer_hud_element_cpu),
-            stringResource(R.string.session_drawer_hud_element_battery),
-            stringResource(R.string.session_drawer_hud_element_graph),
-        )
-
-    activeEditor?.let { editor ->
-        HUDMetricInputDialog(
-            editor = editor,
-            initialPercent =
-                when (editor) {
-                    HUDMetricEditor.ALPHA -> (state.hudTransparency * 100).roundToInt()
-                    HUDMetricEditor.SCALE -> (state.hudScale * 100).roundToInt()
-                },
-            onDismiss = { activeEditor = null },
-            onConfirm = { enteredPercent ->
-                activeEditor = null
-                when (editor) {
-                    HUDMetricEditor.ALPHA -> {
-                        listener.onHUDTransparencyChanged(enteredPercent.coerceIn(editor.minPercent, editor.maxPercent) / 100f)
-                    }
-                    HUDMetricEditor.SCALE -> {
-                        listener.onHUDScaleChanged(enteredPercent.coerceIn(editor.minPercent, editor.maxPercent) / 100f)
-                    }
-                }
-            },
-        )
-    }
-
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(start = 14.dp, end = 14.dp, bottom = 14.dp),
-    ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(WinNativePanel)
-                    .border(1.dp, WinNativeOutline, RoundedCornerShape(18.dp))
-                    .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-            ) {
-                DrawerMetricChip(
-                    label = stringResource(R.string.session_drawer_hud_alpha),
-                    value = "${(state.hudTransparency * 100).toInt()}%",
-                    modifier = Modifier.weight(1f),
-                    onClick = { activeEditor = HUDMetricEditor.ALPHA },
-                )
-                DrawerMetricChip(
-                    label = stringResource(R.string.session_drawer_hud_scale),
-                    value = "${(state.hudScale * 100).toInt()}%",
-                    modifier = Modifier.weight(1f),
-                    onClick = { activeEditor = HUDMetricEditor.SCALE },
-                )
-            }
-
-            DrawerSliderRow(
-                label = stringResource(R.string.session_drawer_hud_alpha),
-                valueText = "${(state.hudTransparency * 100).toInt()}%",
-                value = state.hudTransparency,
-                valueRange = 0.1f..1f,
-                steps = 8,
-                onValueChange = { listener.onHUDTransparencyChanged(it.snapToStep(0.1f, 0.1f, 1f)) },
-            )
-
-            DrawerSliderRow(
-                label = stringResource(R.string.session_drawer_hud_scale),
-                valueText = "${(state.hudScale * 100).toInt()}%",
-                value = state.hudScale,
-                valueRange = 0.5f..2.0f,
-                steps = 14,
-                onValueChange = { listener.onHUDScaleChanged(it.snapToStep(0.1f, 0.5f, 2.0f)) },
-            )
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = stringResource(R.string.session_drawer_hud_elements),
-                    color = WinNativeTextSecondary,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = 0.3.sp,
-                )
-
-                for (row in 0..1) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        for (col in 0..2) {
-                            val index = row * 3 + col
-                            HUDToggleChip(
-                                label = elementNames[index],
-                                checked = state.hudElements[index],
-                                onClick = { listener.onHUDElementToggled(index, !state.hudElements[index]) },
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                    }
-                }
-            }
-
-            DrawerBooleanRow(
-                title = stringResource(R.string.session_drawer_dual_series_battery),
-                checked = state.dualSeriesBatteryEnabled,
-                onCheckedChange = listener::onDualSeriesBatteryChanged,
-            )
-
-            FPSLimiterSelection(
-                currentLimit = state.fpsLimit,
-                onLimitSelected = listener::onFPSLimitChanged
-            )
-        }
-    }
-}
-
-@Composable
 private fun DrawerMetricChip(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val paneScale = LocalPaneScale.current
     val interactionSource = remember { MutableInteractionSource() }
     val pressed = interactionSource.collectIsPressedAsState().value
     val scale by animateFloatAsState(
         targetValue = if (pressed) 0.985f else 1f,
         animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
         label = "drawerMetricScale_$label",
+    )
+    val bgColor by animateColorAsState(
+        targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
+        animationSpec = tween(140),
+        label = "drawerMetricBg",
     )
 
     Column(
@@ -951,21 +1946,20 @@ private fun DrawerMetricChip(
                     scaleY = scale
                 }
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(WinNativeSurfaceAlt)
-                .border(1.dp, WinNativeOutline, RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape((12f * paneScale).dp))
+                .background(bgColor)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = onClick,
                 )
-                .padding(horizontal = 10.dp, vertical = 7.dp),
+                .padding(horizontal = (10f * paneScale).dp, vertical = (7f * paneScale).dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = label.uppercase(),
             color = WinNativeTextSecondary,
-            fontSize = 9.sp,
+            fontSize = (9f * paneScale).sp,
             fontWeight = FontWeight.Medium,
             letterSpacing = 0.6.sp,
         )
@@ -973,7 +1967,7 @@ private fun DrawerMetricChip(
         Text(
             text = value,
             color = WinNativeTextPrimary,
-            fontSize = 12.sp,
+            fontSize = (12f * paneScale).sp,
             fontWeight = FontWeight.SemiBold,
         )
     }
@@ -987,8 +1981,10 @@ private fun DrawerSliderRow(
     valueRange: ClosedFloatingPointRange<Float>,
     steps: Int,
     onValueChange: (Float) -> Unit,
+    onValueClick: (() -> Unit)? = null,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    val paneScale = LocalPaneScale.current
+    Column(verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -996,15 +1992,30 @@ private fun DrawerSliderRow(
             Text(
                 text = label,
                 color = WinNativeTextPrimary,
-                fontSize = 13.sp,
+                fontSize = (13f * paneScale).sp,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.weight(1f),
             )
+            val valueModifier =
+                if (onValueClick != null) {
+                    Modifier
+                        .clip(RoundedCornerShape((8f * paneScale).dp))
+                        .background(PaneInnerResting)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onValueClick,
+                        )
+                        .padding(horizontal = (8f * paneScale).dp, vertical = (2f * paneScale).dp)
+                } else {
+                    Modifier
+                }
             Text(
                 text = valueText,
                 color = WinNativeAccent,
-                fontSize = 12.sp,
+                fontSize = (12f * paneScale).sp,
                 fontWeight = FontWeight.SemiBold,
+                modifier = valueModifier,
             )
         }
         Slider(
@@ -1017,7 +2028,7 @@ private fun DrawerSliderRow(
                 SliderDefaults.colors(
                     thumbColor = WinNativeAccent,
                     activeTrackColor = WinNativeAccent,
-                    inactiveTrackColor = WinNativeSurfaceAlt,
+                    inactiveTrackColor = TileResting,
                     activeTickColor = Color.Transparent,
                     inactiveTickColor = Color.Transparent,
                 ),
@@ -1139,60 +2150,53 @@ private fun HUDToggleChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val paneScale = LocalPaneScale.current
     val interactionSource = remember { MutableInteractionSource() }
     val pressed = interactionSource.collectIsPressedAsState().value
     val bgColor by animateColorAsState(
         targetValue =
             when {
-                checked -> WinNativeAccent.copy(alpha = 0.16f)
-                pressed -> WinNativeSurface
-                else -> WinNativeSurfaceAlt
+                pressed -> PaneInnerPressed
+                else -> PaneInnerResting
             },
-        animationSpec = tween(160),
+        animationSpec = tween(140),
         label = "hudChipBg",
     )
     val borderColor by animateColorAsState(
-        targetValue = if (checked) WinNativeAccent.copy(alpha = 0.34f) else WinNativeOutline,
-        animationSpec = tween(160),
+        targetValue = if (checked) WinNativeAccent else Color.Transparent,
+        animationSpec = tween(140),
         label = "hudChipBorder",
     )
+    val cornerRadius = (12f * paneScale).dp
+    val shape = RoundedCornerShape(cornerRadius)
+    val indicatorSize = (10f * paneScale).dp
 
     Row(
         modifier =
             modifier
-                .clip(RoundedCornerShape(14.dp))
+                .clip(shape)
                 .background(bgColor)
-                .border(1.dp, borderColor, RoundedCornerShape(14.dp))
+                .border(1.dp, borderColor, shape)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = onClick,
-                ).padding(horizontal = 10.dp, vertical = 10.dp),
+                ).padding(horizontal = (10f * paneScale).dp, vertical = (9f * paneScale).dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier =
                 Modifier
-                    .size(18.dp)
+                    .size(indicatorSize)
                     .clip(CircleShape)
-                    .background(if (checked) WinNativeAccent else DrawerIconBox),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (checked) {
-                Icon(
-                    imageVector = Icons.Outlined.Check,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(12.dp),
-                )
-            }
-        }
-        Spacer(Modifier.width(7.dp))
+                    .background(if (checked) WinNativeAccent else Color(0x14FFFFFF)),
+        )
+        Spacer(Modifier.width((8f * paneScale).dp))
         Text(
             text = label,
-            color = WinNativeTextPrimary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
+            color = if (checked) WinNativeAccent else WinNativeTextPrimary,
+            fontSize = (11f * paneScale).sp,
+            fontWeight = if (checked) FontWeight.SemiBold else FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -1205,28 +2209,46 @@ private fun DrawerBooleanRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
+    val paneScale = LocalPaneScale.current
     val rowInteractionSource = remember { MutableInteractionSource() }
+    val pressed = rowInteractionSource.collectIsPressedAsState().value
     val switchInteractionSource = remember { MutableInteractionSource() }
 
+    val bgColor by animateColorAsState(
+        targetValue =
+            when {
+                pressed -> PaneInnerPressed
+                else -> PaneInnerResting
+            },
+        animationSpec = tween(140),
+        label = "drawerBooleanRowBg",
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (checked) WinNativeAccent else Color.Transparent,
+        animationSpec = tween(140),
+        label = "drawerBooleanRowBorder",
+    )
+    val cornerRadius = (14f * paneScale).dp
+    val shape = RoundedCornerShape(cornerRadius)
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(WinNativeSurfaceAlt)
-                .border(1.dp, WinNativeOutline, RoundedCornerShape(16.dp))
+                .clip(shape)
+                .background(bgColor)
+                .border(1.dp, borderColor, shape)
                 .clickable(
                     interactionSource = rowInteractionSource,
                     indication = null,
                 ) { onCheckedChange(!checked) }
-                .padding(horizontal = 11.dp, vertical = 8.dp),
+                .padding(horizontal = (11f * paneScale).dp, vertical = (6f * paneScale).dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                color = WinNativeTextPrimary,
-                fontSize = 12.sp,
+                color = if (checked) WinNativeAccent else WinNativeTextPrimary,
+                fontSize = (12f * paneScale).sp,
                 fontWeight = FontWeight.Medium,
             )
             Spacer(Modifier.height(1.dp))
@@ -1238,7 +2260,7 @@ private fun DrawerBooleanRow(
                         stringResource(R.string.common_ui_disabled)
                     },
                 color = WinNativeTextSecondary,
-                fontSize = 10.sp,
+                fontSize = (10f * paneScale).sp,
             )
         }
         CompositionLocalProvider(LocalRippleConfiguration provides null) {
@@ -1253,812 +2275,40 @@ private fun DrawerBooleanRow(
 }
 
 @Composable
-private fun XServerGyroscopeCard(
-    item: XServerDrawerItem,
-    state: XServerDrawerState,
-    listener: XServerDrawerActionListener,
-    onToggleGyro: () -> Unit,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed = interactionSource.collectIsPressedAsState().value
-    val statusInteractionSource = remember { MutableInteractionSource() }
-    val active = item.active
-    val expanded = active && state.gyroscopeCardExpanded
-    val cardClick =
-        if (active) {
-            { listener.onGyroscopeCardExpandedChanged(!state.gyroscopeCardExpanded) }
-        } else {
-            onToggleGyro
-        }
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.985f else 1f,
-        animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
-        label = "gyroCardScale",
-    )
-    val cardColor by animateColorAsState(
-        targetValue =
-            when {
-                active -> DrawerActiveSurface
-                pressed -> WinNativeSurfaceAlt
-                else -> WinNativeSurface
-            },
-        animationSpec = tween(180),
-        label = "gyroCardColor",
-    )
-    val borderColor by animateColorAsState(
-        targetValue = if (active) WinNativeAccent.copy(alpha = 0.34f) else WinNativeOutline,
-        animationSpec = tween(180),
-        label = "gyroCardBorder",
-    )
-    val iconBoxColor by animateColorAsState(
-        targetValue = if (active) WinNativeAccent.copy(alpha = 0.16f) else DrawerIconBox,
-        animationSpec = tween(180),
-        label = "gyroIconBoxColor",
-    )
-    val chevronRotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-        label = "gyroChevronRotation",
-    )
-    val subtitle =
-        when {
-            !active -> stringResource(R.string.session_drawer_hud_disabled_hint)
-            expanded -> "Configure all gyroscope settings"
-            else -> item.subtitle
-        }
-    val shape = RoundedCornerShape(20.dp)
-
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                }.clip(shape)
-                .background(cardColor)
-                .border(BorderStroke(1.dp, borderColor), shape),
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = cardClick,
-                    ).padding(horizontal = 14.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .width(4.dp)
-                        .height(42.dp)
-                        .clip(CircleShape)
-                        .background(if (active) WinNativeAccent else Color.Transparent),
-            )
-            Spacer(Modifier.width(10.dp))
-            Box(
-                modifier =
-                    Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(iconBoxColor),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = item.icon,
-                    contentDescription = null,
-                    tint = if (active) WinNativeAccent else WinNativeTextPrimary,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = item.title,
-                    color = WinNativeTextPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(3.dp))
-                Text(
-                    text = subtitle,
-                    color = WinNativeTextSecondary,
-                    fontSize = 11.sp,
-                    lineHeight = 14.sp,
-                )
-            }
-            Spacer(Modifier.width(10.dp))
-            DrawerStatusPill(
-                text = if (active) stringResource(R.string.common_ui_on) else stringResource(R.string.common_ui_off),
-                active = active,
-                interactionSource = statusInteractionSource,
-                onClick = onToggleGyro,
-            )
-            if (active) {
-                Spacer(Modifier.width(6.dp))
-                val chevronSource = remember { MutableInteractionSource() }
-                Box(
-                    modifier =
-                        Modifier
-                            .size(34.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(WinNativePanel)
-                            .border(1.dp, WinNativeOutline, RoundedCornerShape(12.dp))
-                            .clickable(
-                                interactionSource = chevronSource,
-                                indication = null,
-                                onClick = { listener.onGyroscopeCardExpandedChanged(!state.gyroscopeCardExpanded) },
-                            ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = WinNativeAccent,
-                        modifier =
-                            Modifier
-                                .size(18.dp)
-                                .rotate(chevronRotation),
-                    )
-                }
-            }
-        }
-
-        AnimatedVisibility(
-            visible = expanded,
-            enter = fadeIn(tween(180)) + expandVertically(tween(220, easing = FastOutSlowInEasing)),
-            exit = fadeOut(tween(140)) + shrinkVertically(tween(180, easing = FastOutSlowInEasing)),
-        ) {
-            XServerGyroscopeSettingsExpanded(state = state, listener = listener)
-        }
-    }
-}
-
-@Composable
-private fun XServerGyroscopeSettingsExpanded(
-    state: XServerDrawerState,
-    listener: XServerDrawerActionListener,
-) {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(start = 14.dp, end = 14.dp, bottom = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(WinNativePanel)
-                    .border(1.dp, WinNativeOutline, RoundedCornerShape(18.dp))
-                    .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = stringResource(R.string.session_gyroscope_mode),
-                    color = WinNativeTextSecondary,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = 0.3.sp,
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    listOf(
-                        stringResource(R.string.session_gyroscope_hold),
-                        stringResource(R.string.session_gyroscope_toggle),
-                    ).forEachIndexed { index, label ->
-                        HUDToggleChip(
-                            label = label,
-                            checked = state.gyroscopeModeIndex == index,
-                            onClick = { listener.onGyroscopeModeSelected(index) },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = stringResource(R.string.session_gyroscope_activator_button),
-                    color = WinNativeTextSecondary,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = 0.3.sp,
-                )
-                DrawerMetricChip(
-                    label = "Activator",
-                    value = state.gyroscopeActivatorLabel,
-                    onClick = { listener.onGyroscopeActivatorClick() }
-                )
-            }
-
-            DrawerBooleanRow(
-                title = stringResource(R.string.session_gyroscope_enable_right_stick),
-                checked = state.rightStickGyroEnabled,
-                onCheckedChange = listener::onRightStickGyroChanged
-            )
-
-            DrawerBooleanRow(
-                title = stringResource(R.string.session_gyroscope_experimental_mouse_movement),
-                checked = state.gyroMouseEnabled,
-                onCheckedChange = listener::onGyroMouseEnabledChanged
-            )
-
-            if (state.gyroMouseEnabled) {
-                DrawerSliderRow(
-                    label = stringResource(R.string.session_gyroscope_mouse_scale),
-                    valueText = "${state.gyroMouseScale.toInt()}%",
-                    value = state.gyroMouseScale,
-                    valueRange = 0f..200f,
-                    steps = 199,
-                    onValueChange = { listener.onGyroMouseScaleChanged(it.roundToInt().toFloat()) }
-                )
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = stringResource(R.string.session_gyroscope_calibrate),
-                    color = WinNativeTextSecondary,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = 0.3.sp,
-                )
-                
-                DrawerSliderRow(
-                    label = stringResource(R.string.session_gyroscope_x_sensitivity),
-                    valueText = "${(state.gyroXSensitivity * 100).toInt()}%",
-                    value = state.gyroXSensitivity,
-                    valueRange = 0f..2f,
-                    steps = 199,
-                    onValueChange = { listener.onGyroXSensitivityChanged(it) }
-                )
-
-                DrawerSliderRow(
-                    label = stringResource(R.string.session_gyroscope_y_sensitivity),
-                    valueText = "${(state.gyroYSensitivity * 100).toInt()}%",
-                    value = state.gyroYSensitivity,
-                    valueRange = 0f..2f,
-                    steps = 199,
-                    onValueChange = { listener.onGyroYSensitivityChanged(it) }
-                )
-
-                DrawerSliderRow(
-                    label = stringResource(R.string.session_gyroscope_smoothing),
-                    valueText = "${(state.gyroSmoothing * 100).toInt()}%",
-                    value = state.gyroSmoothing,
-                    valueRange = 0f..1f,
-                    steps = 99,
-                    onValueChange = { listener.onGyroSmoothingChanged(it) }
-                )
-
-                DrawerSliderRow(
-                    label = stringResource(R.string.session_gyroscope_deadzone),
-                    valueText = "${(state.gyroDeadzone * 100).toInt()}%",
-                    value = state.gyroDeadzone,
-                    valueRange = 0f..1f,
-                    steps = 99,
-                    onValueChange = { listener.onGyroDeadzoneChanged(it) }
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    HUDToggleChip(
-                        label = stringResource(R.string.session_gyroscope_invert_x),
-                        checked = state.invertGyroX,
-                        onClick = { listener.onInvertGyroXChanged(!state.invertGyroX) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    HUDToggleChip(
-                        label = stringResource(R.string.session_gyroscope_invert_y),
-                        checked = state.invertGyroY,
-                        onClick = { listener.onInvertGyroYChanged(!state.invertGyroY) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Spacer(Modifier.height(4.dp))
-                
-                WinNativeDialogButton(
-                    label = stringResource(R.string.session_gyroscope_reset_stick),
-                    textColor = WinNativeAccent,
-                    backgroundColor = WinNativeAccent.copy(alpha = 0.12f),
-                    borderColor = WinNativeAccent.copy(alpha = 0.3f),
-                    onClick = { listener.onActionSelected(R.id.main_menu_gyroscope_reset) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun XServerScreenEffectsCard(
-    item: XServerDrawerItem,
-    state: XServerDrawerState,
-    listener: XServerDrawerActionListener,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed = interactionSource.collectIsPressedAsState().value
-    val statusInteractionSource = remember { MutableInteractionSource() }
-    val active = item.active
-    val expanded = state.screenEffectsCardExpanded
-    val cardClick = { listener.onScreenEffectsCardExpandedChanged(!state.screenEffectsCardExpanded) }
-
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.985f else 1f,
-        animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
-        label = "effectsCardScale",
-    )
-    val cardColor by animateColorAsState(
-        targetValue =
-            when {
-                active -> DrawerActiveSurface
-                pressed -> WinNativeSurfaceAlt
-                else -> WinNativeSurface
-            },
-        animationSpec = tween(180),
-        label = "effectsCardColor",
-    )
-    val borderColor by animateColorAsState(
-        targetValue = if (active) WinNativeAccent.copy(alpha = 0.34f) else WinNativeOutline,
-        animationSpec = tween(180),
-        label = "effectsCardBorder",
-    )
-    val iconBoxColor by animateColorAsState(
-        targetValue = if (active) WinNativeAccent.copy(alpha = 0.16f) else DrawerIconBox,
-        animationSpec = tween(180),
-        label = "effectsIconBoxColor",
-    )
-    val chevronRotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-        label = "effectsChevronRotation",
-    )
-    val shape = RoundedCornerShape(20.dp)
-
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                }.clip(shape)
-                .background(cardColor)
-                .border(BorderStroke(1.dp, borderColor), shape),
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = cardClick,
-                    ).padding(horizontal = 14.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .width(4.dp)
-                        .height(42.dp)
-                        .clip(CircleShape)
-                        .background(if (active) WinNativeAccent else Color.Transparent),
-            )
-            Spacer(Modifier.width(10.dp))
-            Box(
-                modifier =
-                    Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(iconBoxColor),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = item.icon,
-                    contentDescription = null,
-                    tint = if (active) WinNativeAccent else WinNativeTextPrimary,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = item.title,
-                    color = WinNativeTextPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(3.dp))
-                Text(
-                    text = item.subtitle,
-                    color = WinNativeTextSecondary,
-                    fontSize = 11.sp,
-                    lineHeight = 14.sp,
-                )
-            }
-            Spacer(Modifier.width(10.dp))
-            val chevronSource = remember { MutableInteractionSource() }
-            Box(
-                modifier =
-                    Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(WinNativePanel)
-                        .border(1.dp, WinNativeOutline, RoundedCornerShape(12.dp))
-                        .clickable(
-                            interactionSource = chevronSource,
-                            indication = null,
-                            onClick = cardClick,
-                        ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = WinNativeAccent,
-                    modifier =
-                        Modifier
-                            .size(18.dp)
-                            .rotate(chevronRotation),
-                )
-            }
-        }
-
-        AnimatedVisibility(
-            visible = expanded,
-            enter = fadeIn(tween(180)) + expandVertically(tween(220, easing = FastOutSlowInEasing)),
-            exit = fadeOut(tween(140)) + shrinkVertically(tween(180, easing = FastOutSlowInEasing)),
-        ) {
-            XServerScreenEffectsSettingsExpanded(state = state, listener = listener)
-        }
-    }
-}
-
-@Composable
-private fun XServerScreenEffectsSettingsExpanded(
-    state: XServerDrawerState,
-    listener: XServerDrawerActionListener,
-) {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(start = 14.dp, end = 14.dp, bottom = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(WinNativePanel)
-                    .border(1.dp, WinNativeOutline, RoundedCornerShape(18.dp))
-                    .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            DrawerBooleanRow(
-                title = stringResource(R.string.session_drawer_super_resolution),
-                checked = state.fsrEnabled,
-                onCheckedChange = listener::onFSREnabledChanged
-            )
-
-            if (state.fsrEnabled) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = stringResource(R.string.session_drawer_upscaler_mode),
-                        color = WinNativeTextSecondary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        letterSpacing = 0.3.sp,
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf(
-                            "Super Resolution",
-                            "DLS",
-                        ).forEachIndexed { index, label ->
-                            HUDToggleChip(
-                                label = label,
-                                checked = state.fsrMode == index,
-                                onClick = { listener.onFSRModeSelected(index) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-
-                    DrawerSliderRow(
-                        label = stringResource(R.string.session_drawer_sharpness),
-                        valueText = "${state.fsrSharpness}%",
-                        value = state.fsrSharpness.toFloat(),
-                        valueRange = 0f..100f,
-                        steps = 99,
-                        onValueChange = { listener.onFSRSharpnessChanged(it.roundToInt()) }
-                    )
-                }
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = stringResource(R.string.session_drawer_color_profile),
-                    color = WinNativeTextSecondary,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = 0.3.sp,
-                )
-                
-                val profiles = listOf("Disabled", "HDR", "Natural", "CRT Effect")
-                
-                // Show profiles in 2 rows of 2
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        profiles.take(2).forEachIndexed { index, label ->
-                            HUDToggleChip(
-                                label = label,
-                                checked = state.colorProfile == index,
-                                onClick = { listener.onColorProfileSelected(index) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        profiles.drop(2).forEachIndexed { index, label ->
-                            HUDToggleChip(
-                                label = label,
-                                checked = state.colorProfile == (index + 2),
-                                onClick = { listener.onColorProfileSelected(index + 2) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun XServerDrawerActionCard(
-    item: XServerDrawerItem,
-    onClick: () -> Unit,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed = interactionSource.collectIsPressedAsState().value
-    val enabled = item.enabled
-    val isExitAction = item.itemId == R.id.main_menu_exit
-    val scale by animateFloatAsState(
-        targetValue = if (pressed && enabled) 0.985f else 1f,
-        animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
-        label = "drawerActionScale_${item.itemId}",
-    )
-    val cardColor by animateColorAsState(
-        targetValue =
-            when {
-                !enabled -> WinNativePanel
-                item.active -> DrawerActiveSurface
-                isExitAction && pressed -> DrawerExitSurfacePressed
-                isExitAction -> DrawerExitSurface
-                pressed -> WinNativeSurfaceAlt
-                else -> WinNativeSurface
-            },
-        animationSpec = tween(180),
-        label = "drawerActionCardColor_${item.itemId}",
-    )
-    val borderColor by animateColorAsState(
-        targetValue =
-            when {
-                !enabled -> WinNativeOutline.copy(alpha = 0.72f)
-                item.active -> WinNativeAccent.copy(alpha = 0.28f)
-                isExitAction -> DrawerExitOutline
-                else -> WinNativeOutline
-            },
-        animationSpec = tween(180),
-        label = "drawerActionBorderColor_${item.itemId}",
-    )
-    val iconBoxColor by animateColorAsState(
-        targetValue =
-            when {
-                !enabled -> DrawerIconBox.copy(alpha = 0.72f)
-                item.active -> WinNativeAccent.copy(alpha = 0.16f)
-                isExitAction -> DrawerExitIconBox
-                else -> DrawerIconBox
-            },
-        animationSpec = tween(180),
-        label = "drawerActionIconColor_${item.itemId}",
-    )
-    val contentAlpha by animateFloatAsState(
-        targetValue = if (enabled) 1f else 0.56f,
-        animationSpec = tween(180),
-        label = "drawerActionAlpha_${item.itemId}",
-    )
-    val shape = RoundedCornerShape(20.dp)
-
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                }.clip(shape)
-                .background(cardColor)
-                .border(BorderStroke(1.dp, borderColor), shape)
-                .clickable(
-                    enabled = enabled,
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = onClick,
-                ).padding(horizontal = 14.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .width(4.dp)
-                    .height(40.dp)
-                    .clip(CircleShape)
-                    .background(if (item.active && enabled) WinNativeAccent else Color.Transparent),
-        )
-        Spacer(Modifier.width(10.dp))
-        Box(
-            modifier =
-                Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(iconBoxColor)
-                    .graphicsLayer {
-                        alpha = contentAlpha
-                    },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = item.icon,
-                contentDescription = null,
-                tint =
-                    when {
-                        !enabled -> WinNativeTextSecondary
-                        item.active -> WinNativeAccent
-                        isExitAction -> DrawerExitTint
-                        else -> WinNativeTextPrimary
-                    },
-                modifier = Modifier.size(22.dp),
-            )
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .graphicsLayer {
-                        alpha = contentAlpha
-                    },
-        ) {
-            Text(
-                text = item.title,
-                color = WinNativeTextPrimary,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(3.dp))
-            Text(
-                text = item.subtitle,
-                color = WinNativeTextSecondary,
-                fontSize = 11.sp,
-                lineHeight = 14.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        if (!enabled) {
-            Spacer(Modifier.width(10.dp))
-            DrawerStatusPill(
-                text = stringResource(R.string.common_ui_disabled),
-                active = false,
-            )
-        } else if (item.active) {
-            Spacer(Modifier.width(10.dp))
-            DrawerStatusPill(
-                text = stringResource(R.string.common_ui_on),
-                active = true,
-            )
-        }
-    }
-}
-
-@Composable
-private fun DrawerStatusPill(
-    text: String,
-    active: Boolean,
-    interactionSource: MutableInteractionSource? = null,
-    onClick: (() -> Unit)? = null,
-) {
-    val background = if (active) WinNativeAccent.copy(alpha = 0.16f) else WinNativePanel
-    val border = if (active) WinNativeAccent.copy(alpha = 0.26f) else WinNativeOutline
-    val textColor = if (active) WinNativeAccent else WinNativeTextSecondary
-    val baseModifier =
-        Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(background)
-            .border(1.dp, border, RoundedCornerShape(999.dp))
-            .padding(horizontal = 10.dp, vertical = 5.dp)
-
-    Box(
-        modifier =
-            if (onClick != null && interactionSource != null) {
-                baseModifier.clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = onClick,
-                )
-            } else {
-                baseModifier
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text.uppercase(),
-            color = textColor,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.6.sp,
-        )
-    }
-}
-
-@Composable
 private fun FPSLimiterSelection(
     currentLimit: Int,
     onLimitSelected: (Int) -> Unit,
 ) {
+    val paneScale = LocalPaneScale.current
     val limits = listOf(0, 30, 45, 60, 90, 120)
+    val offLabel = stringResource(R.string.session_drawer_fps_limiter_off)
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = "FPS Limiter",
-            color = WinNativeTextSecondary,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
-            letterSpacing = 0.3.sp,
-        )
+    Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+        PaneSectionLabel(stringResource(R.string.session_drawer_fps_limiter))
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        ChipFlow {
             limits.forEach { limit ->
-                val label = if (limit == 0) "None" else "$limit"
+                val label = if (limit == 0) offLabel else "$limit"
                 HUDToggleChip(
                     label = label,
                     checked = currentLimit == limit,
-                    onClick = { onLimitSelected(limit) }
+                    onClick = { onLimitSelected(limit) },
                 )
             }
         }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ChipFlow(content: @Composable () -> Unit) {
+    val paneScale = LocalPaneScale.current
+    val gap = (8f * paneScale).dp
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(gap),
+        verticalArrangement = Arrangement.spacedBy(gap),
+    ) {
+        content()
     }
 }
