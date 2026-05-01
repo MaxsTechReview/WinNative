@@ -483,8 +483,6 @@ public class FrameRating extends LinearLayout implements Runnable {
       this.rendererName = "DXVK";
     } else if (r.contains("turnip")) {
       this.rendererName = "Turnip";
-    } else if (r.contains("virgl")) {
-      this.rendererName = "VirGL";
     } else if (r.contains("zink")) {
       this.rendererName = "Zink";
     } else if (r.contains("llvmpipe") || r.contains("software")) {

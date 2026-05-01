@@ -2,8 +2,8 @@ package com.winlator.cmod.runtime.display.xserver;
 
 import android.util.SparseArray;
 import android.util.Log;
-import com.winlator.cmod.runtime.display.renderer.GLRenderer;
 import com.winlator.cmod.runtime.display.renderer.Texture;
+import com.winlator.cmod.runtime.display.renderer.VulkanRenderer;
 import com.winlator.cmod.shared.util.Callback;
 
 public class DrawableManager extends XResourceManager
@@ -61,7 +61,7 @@ public class DrawableManager extends XResourceManager
     detachScanoutUsers(drawable);
 
     final Texture texture = drawable.getTexture();
-    GLRenderer renderer = xServer.getRenderer();
+    VulkanRenderer renderer = xServer.getRenderer();
     if (texture != null && renderer != null) renderer.xServerView.queueEvent(texture::destroy);
 
     Callback<Drawable> onDestroyListener = drawable.getOnDestroyListener();

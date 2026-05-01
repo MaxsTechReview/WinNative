@@ -1,0 +1,303 @@
+// Master state header for the Vulkan compositor.
+// Internal use only — JNI entry points expose a long handle that wraps VkRenderer*.
+
+#pragma once
+
+#include <android/hardware_buffer.h>
+#include <android/log.h>
+#include <android/native_window.h>
+#include <pthread.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <vulkan/vulkan.h>
+
+#define VK_LOG_TAG "VkRenderer"
+#define VK_LOGI(...) __android_log_print(ANDROID_LOG_INFO,  VK_LOG_TAG, __VA_ARGS__)
+#define VK_LOGW(...) __android_log_print(ANDROID_LOG_WARN,  VK_LOG_TAG, __VA_ARGS__)
+#define VK_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, VK_LOG_TAG, __VA_ARGS__)
+
+#define VK_FRAMES_IN_FLIGHT 2
+#define VK_MAX_SWAPCHAIN_IMAGES 8
+#define VK_MAX_EFFECTS 8
+#define VK_MAX_RENDERABLE_WINDOWS 64
+
+#define VK_CHECK(expr) do { \
+    VkResult _r = (expr); \
+    if (_r != VK_SUCCESS) { \
+        VK_LOGE("%s:%d: %s -> %d", __FILE__, __LINE__, #expr, _r); \
+    } \
+} while (0)
+
+// ============================================================
+// Texture (drives both regular CPU-uploaded images and AHB imports)
+// ============================================================
+
+typedef struct VkTexture {
+    VkImage image;
+    VkImageView view;
+    VkDeviceMemory memory;
+    VkSampler sampler;                  // owned per-texture (simple); could be cached
+    VkSamplerYcbcrConversion ycbcr;     // VK_NULL_HANDLE if unused
+    VkDescriptorSet descriptor_set;     // one per texture, lives until destruction
+
+    uint32_t width;
+    uint32_t height;
+    VkFormat format;
+    VkImageLayout layout;
+
+    // Lifetime: when set, owned by texture and freed on destroy.
+    AHardwareBuffer* ahb;
+
+    // Track readiness: true once image+view+sampler are valid.
+    bool ready;
+    // True if this texture should never be uploaded to (e.g. AHB scanout).
+    bool external;
+    // Prevent duplicate deferred frees if Java schedules destruction more than once.
+    bool destroy_scheduled;
+} VkTexture;
+
+// ============================================================
+// Effects
+// ============================================================
+
+typedef enum VkEffectType {
+    VK_EFFECT_CRT = 0,
+    VK_EFFECT_FSR = 1,
+    VK_EFFECT_HDR = 2,
+    VK_EFFECT_NATURAL = 3,
+    VK_EFFECT_COUNT
+} VkEffectType;
+
+typedef struct VkEffectSlot {
+    VkEffectType type;
+    int          mode;     // FSR only
+    float        param0;   // generic
+    float        param1;
+    float        param2;   // FSR sharpness; ignored by other effects
+} VkEffectSlot;
+
+// ============================================================
+// Scene snapshot (mutex-protected, written from Java threads, read on render thread)
+// ============================================================
+
+typedef struct VkRenderableWindow {
+    VkTexture* texture;        // borrowed; not owned
+    int        x, y;
+    uint32_t   width, height;
+    bool       direct_scanout; // hint, currently unused
+} VkRenderableWindow;
+
+typedef struct VkScene {
+    VkRenderableWindow windows[VK_MAX_RENDERABLE_WINDOWS];
+    uint32_t           window_count;
+
+    VkTexture* cursor_texture;
+    int        cursor_x;
+    int        cursor_y;
+    uint32_t   cursor_width;
+    uint32_t   cursor_height;
+    bool       cursor_visible;
+
+    // Transform parameters - tmpXForm2 of GLRenderer applied to all windows.
+    float xform[6];
+    bool  scissor_enabled;
+    int   scissor_x, scissor_y, scissor_w, scissor_h;
+    int   viewport_x, viewport_y, viewport_w, viewport_h;
+    bool  viewport_set;
+
+    // Render dims (logical screen size).
+    uint32_t screen_width;
+    uint32_t screen_height;
+
+    VkEffectSlot effects[VK_MAX_EFFECTS];
+    uint32_t     effect_count;
+
+    bool dirty;
+} VkScene;
+
+// ============================================================
+// Pipelines - one per shader pass type
+// ============================================================
+
+typedef struct VkPipelineSet {
+    VkDescriptorSetLayout sampler_set_layout;
+    VkPipelineLayout      window_layout;     // push constants: xform[6] + viewSize
+    VkPipelineLayout      effect_layout;     // push constants: resolution + 2 floats
+    VkPipeline            window_pipeline;
+    VkPipeline            cursor_pipeline;
+    VkPipeline            blit_pipeline;
+    VkPipeline            effect_pipelines[VK_EFFECT_COUNT];
+
+    // Render passes
+    VkRenderPass swapchain_pass;             // load=clear, store=store, final=present
+    VkRenderPass offscreen_pass;             // load=clear, store=store, final=shader-read
+} VkPipelineSet;
+
+// ============================================================
+// Per-frame resources
+// ============================================================
+
+typedef struct VkFrame {
+    VkSemaphore image_available;
+    VkSemaphore render_finished;
+    VkFence     in_flight;
+    VkCommandBuffer cmd;
+} VkFrame;
+
+// ============================================================
+// Offscreen targets (for effect ping-pong)
+// ============================================================
+
+typedef struct VkOffscreen {
+    VkImage         image;
+    VkImageView     view;
+    VkDeviceMemory  memory;
+    VkSampler       sampler;
+    VkDescriptorSet descriptor_set;
+    VkFramebuffer   framebuffer;
+    uint32_t        width, height;
+} VkOffscreen;
+
+// ============================================================
+// Deferred destruction graveyard
+// ============================================================
+
+typedef struct VkGraveSlot {
+    VkTexture** textures;
+    uint32_t    count;
+    uint32_t    capacity;
+} VkGraveSlot;
+
+// ============================================================
+// Device caps (queried once after create_device)
+// ============================================================
+
+typedef struct VkDeviceCaps {
+    // Identity
+    uint32_t vendor_id;
+    uint32_t device_id;
+    uint32_t driver_version;
+    bool     is_adreno;             // vendor_id == 0x5143 (Qualcomm)
+
+    // Limits / sizing
+    VkPhysicalDeviceLimits limits;
+    uint32_t descriptor_pool_capacity;
+
+    // Format choices resolved against driver feature support
+    VkFormat offscreen_format;      // BGRA preferred, RGBA fallback
+
+    // Diagnostic
+    bool ahb_bgra_supported;        // VK_FORMAT_B8G8R8A8_UNORM importable from AHB
+} VkDeviceCaps;
+
+// ============================================================
+// Master state
+// ============================================================
+
+typedef struct VkRenderer {
+    // Lifecycle
+    bool initialized;
+    bool surface_ready;
+    // True when we deliberately created the swapchain with a preTransform that differs
+    // from caps.currentTransform (Adreno reports SUBOPTIMAL on every present in that case).
+    bool ignore_suboptimal;
+    pthread_mutex_t scene_mutex;     // guards r->scene + graveyard slots; held briefly by all
+    pthread_mutex_t queue_mutex;     // serializes vkQueueSubmit across threads
+    pthread_mutex_t texture_mutex;   // guards live_textures
+    pthread_mutex_t render_mutex;    // serializes lifecycle vs render; held by render thread for
+                                     // the full acquire+record+submit+present, and by lifecycle
+                                     // ops (surface create/change/destroy) before they touch the
+                                     // swapchain. Scene producers do NOT take this — they only
+                                     // touch scene_mutex, so they never stall behind a frame.
+
+    // Instance + physical/logical device
+    VkInstance       instance;
+    VkPhysicalDevice physical_device;
+    VkPhysicalDeviceMemoryProperties mem_props;
+    uint32_t         graphics_queue_family;
+    VkDevice         device;
+    VkQueue          graphics_queue;
+
+    // Surface + swapchain
+    ANativeWindow*   anw;
+    VkSurfaceKHR     surface;
+    VkSwapchainKHR   swapchain;
+    VkFormat         swapchain_format;
+    VkExtent2D       swapchain_extent;
+    uint32_t         swapchain_image_count;
+    VkImage          swapchain_images[VK_MAX_SWAPCHAIN_IMAGES];
+    VkImageView      swapchain_views[VK_MAX_SWAPCHAIN_IMAGES];
+    VkFramebuffer    swapchain_framebuffers[VK_MAX_SWAPCHAIN_IMAGES];
+
+    // Pipelines / passes
+    VkPipelineSet    pipelines;
+    bool             pipelines_built;
+
+    // Offscreen ping-pong (created lazily when effects are present)
+    VkOffscreen      offscreen[2];
+    bool             offscreen_built;
+
+    // Quad vertex buffer (window/cursor)
+    VkBuffer         quad_vbo;
+    VkDeviceMemory   quad_vbo_memory;
+
+    // Per-frame
+    VkCommandPool    cmd_pool;
+    VkFrame          frames[VK_FRAMES_IN_FLIGHT];
+    uint32_t         frame_index;
+
+    // Descriptor pool (for texture sampler descriptors)
+    VkDescriptorPool descriptor_pool;
+    uint32_t         descriptor_pool_capacity;
+    uint32_t         descriptor_pool_used;
+
+    // Graveyard
+    VkGraveSlot      graveyard[VK_FRAMES_IN_FLIGHT + 1];
+    uint32_t         graveyard_index;
+
+    // Live native textures owned by this renderer/device. Java Texture objects can outlive a
+    // renderer teardown, so nativeDestroy drains this list before the device is destroyed.
+    VkTexture**      live_textures;
+    uint32_t         live_texture_count;
+    uint32_t         live_texture_capacity;
+
+    // Extensions present
+    bool ext_ahb;
+    bool ext_ycbcr;
+
+    // Cached device capabilities populated by query_device_caps().
+    VkDeviceCaps caps;
+
+    // Function pointers loaded via vkGetDeviceProcAddr (not all are statically exported by
+    // the Android Vulkan loader, even in Vulkan 1.1).
+    PFN_vkGetAndroidHardwareBufferPropertiesANDROID fnGetAhbProps;
+    PFN_vkCreateSamplerYcbcrConversion              fnCreateYcbcr;
+    PFN_vkDestroySamplerYcbcrConversion             fnDestroyYcbcr;
+
+    // Scene state
+    VkScene scene;
+
+    // FPS limit (nanoseconds per frame; 0 = unlimited)
+    int64_t target_frame_time_ns;
+    int64_t next_frame_time_ns;
+} VkRenderer;
+
+// ============================================================
+// Public functions implemented in vk_image.c
+// ============================================================
+
+VkTexture* vkr_texture_create_uploaded(VkRenderer* r, uint32_t width, uint32_t height,
+                                       const void* data, size_t data_size, uint32_t stride_pixels);
+bool       vkr_texture_update(VkRenderer* r, VkTexture* tex, uint32_t width, uint32_t height,
+                               const void* data, size_t data_size, uint32_t stride_pixels);
+VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool transfer_ownership);
+void       vkr_texture_destroy(VkRenderer* r, VkTexture* tex);
+void       vkr_texture_destroy_all_live(VkRenderer* r);
+void       vkr_texture_schedule_destroy(VkRenderer* r, VkTexture* tex);
+
+// Helpers
+uint32_t   vkr_find_memory_type(VkRenderer* r, uint32_t type_bits, VkMemoryPropertyFlags props);
+void       vkr_run_one_shot_cmd(VkRenderer* r, void (*fn)(VkCommandBuffer, void*), void* user);
+void       vkr_image_barrier(VkCommandBuffer cmd, VkImage image, VkImageLayout from, VkImageLayout to,
+                             VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage,
+                             VkAccessFlags src_access, VkAccessFlags dst_access);

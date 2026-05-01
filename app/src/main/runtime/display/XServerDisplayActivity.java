@@ -121,10 +121,10 @@ import com.winlator.cmod.shared.math.Mathf;
 import com.winlator.cmod.shared.math.XForm;
 import com.winlator.cmod.runtime.audio.midi.MidiHandler;
 import com.winlator.cmod.runtime.audio.midi.MidiManager;
-import com.winlator.cmod.runtime.display.renderer.GLRenderer;
+import com.winlator.cmod.runtime.display.renderer.VulkanRenderer;
 import com.winlator.cmod.runtime.display.ui.FrameRating;
 import com.winlator.cmod.runtime.display.ui.MagnifierView;
-import com.winlator.cmod.runtime.display.ui.XServerView;
+import com.winlator.cmod.runtime.display.ui.XServerSurfaceView;
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity;
 import com.winlator.cmod.runtime.input.ui.InputControlsView;
 import com.winlator.cmod.runtime.input.ui.TouchpadView;
@@ -235,7 +235,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             "rundll32",
             "cmd"
     ));
-    private XServerView xServerView;
+    private XServerSurfaceView xServerView;
     private InputControlsView inputControlsView;
     private TouchpadView touchpadView;
     private XEnvironment environment;
@@ -1279,11 +1279,27 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             });
         };
 
-        if (xServer.screenInfo.height > xServer.screenInfo.width) {
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        boolean targetPortrait = xServer.screenInfo.height > xServer.screenInfo.width;
+        int targetOrientation = targetPortrait
+                ? ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                : ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
+        int currentOrientation = getResources().getConfiguration().orientation;
+        boolean alreadyTargetOrientation = targetPortrait
+                ? currentOrientation == Configuration.ORIENTATION_PORTRAIT
+                : currentOrientation == Configuration.ORIENTATION_LANDSCAPE;
+
+        setRequestedOrientation(targetOrientation);
+        if (alreadyTargetOrientation) {
+            runnable.run();
+        } else {
             configChangedCallback = runnable;
-        } else
-              runnable.run();
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                if (configChangedCallback == runnable) {
+                    configChangedCallback.run();
+                    configChangedCallback = null;
+                }
+            }, 1000);
+        }
     }
 
     // Method to parse container_id from .desktop file
@@ -3087,7 +3103,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void applyScreenEffects() {
-        GLRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
+        VulkanRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
         if (renderer == null) return;
         EffectComposer composer = renderer.getEffectComposer();
         if (composer == null) return;
@@ -3184,7 +3200,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @SuppressLint("SourceLockedOrientationActivity")
     private boolean handleDrawerAction(int itemId) {
-        final GLRenderer renderer = xServerView.getRenderer();
+        final VulkanRenderer renderer = xServerView.getRenderer();
         switch (itemId) {
             case R.id.main_menu_gyroscope_reset:
                 if (winHandler != null) {
@@ -3949,8 +3965,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private void setupUI() {
         FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
-        xServerView = new XServerView(this, xServer);
-        final GLRenderer renderer = xServerView.getRenderer();
+        xServerView = new XServerSurfaceView(this, xServer);
+        final VulkanRenderer renderer = xServerView.getRenderer();
         renderer.setCursorVisible(false);
         renderer.setNativeMode(isNativeRenderingEnabled);
 
@@ -7600,7 +7616,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return winHandler;
     }
 
-    public XServerView getXServerView() {
+    public XServerSurfaceView getXServerView() {
         return xServerView;
     }
 
