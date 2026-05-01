@@ -826,20 +826,7 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
     free(fmts);
     r->swapchain_format = chosen.format;
 
-    uint32_t pm_count = 0;
-    if (vkGetPhysicalDeviceSurfacePresentModesKHR(r->physical_device, r->surface, &pm_count, NULL) != VK_SUCCESS
-        || pm_count == 0) {
-        VK_LOGE("No present modes available");
-        return false;
-    }
-    VkPresentModeKHR* pms = calloc(pm_count, sizeof(VkPresentModeKHR));
-    if (!pms) return false;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(r->physical_device, r->surface, &pm_count, pms);
     VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
-    for (uint32_t i = 0; i < pm_count; i++) {
-        if (pms[i] == VK_PRESENT_MODE_MAILBOX_KHR) { present_mode = VK_PRESENT_MODE_MAILBOX_KHR; break; }
-    }
-    free(pms);
 
     // Prefer IDENTITY preTransform: lets the compositor handle device rotation, so the
     // swapchain extent and our rendering coordinates always match the display orientation.
