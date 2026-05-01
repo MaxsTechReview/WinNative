@@ -1739,9 +1739,9 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFpsLimit)(JNIEnv* env, jclass clazz, jlon
     }
 }
 
-// Set the compositor present mode. Java passes 0=FIFO, 1=MAILBOX, 2=IMMEDIATE; anything else
-// is treated as FIFO. Triggers a swapchain rebuild if a surface is currently active so the
-// change takes effect on the next frame.
+// Set the compositor present mode. Java passes 0=FIFO, 1=MAILBOX, 2=IMMEDIATE,
+// 3=FIFO_RELAXED; anything else is treated as FIFO. Triggers a swapchain rebuild if a
+// surface is currently active so the change takes effect on the next frame.
 JNIEXPORT void JNICALL JNI_FN(nativeSetPresentMode)(JNIEnv* env, jclass clazz, jlong handle, jint mode) {
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
@@ -1751,6 +1751,7 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetPresentMode)(JNIEnv* env, jclass clazz, j
     switch (mode) {
         case 1:  vk_mode = VK_PRESENT_MODE_MAILBOX_KHR; break;
         case 2:  vk_mode = VK_PRESENT_MODE_IMMEDIATE_KHR; break;
+        case 3:  vk_mode = VK_PRESENT_MODE_FIFO_RELAXED_KHR; break;
         default: vk_mode = VK_PRESENT_MODE_FIFO_KHR; break;
     }
     if (r->target_present_mode == vk_mode) return;

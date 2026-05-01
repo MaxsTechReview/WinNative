@@ -62,6 +62,7 @@
     </string-array>
     <string-array name="compositor_present_mode_entries">
         <item>fifo</item>
+        <item>fifo_relaxed</item>
         <item>mailbox</item>
         <item>immediate</item>
     </string-array>
