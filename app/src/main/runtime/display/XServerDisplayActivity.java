@@ -51,7 +51,6 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.compose.ui.platform.ComposeView;
-import androidx.core.view.GravityCompat;
 import androidx.core.view.WindowInsetsCompat;
 import com.winlator.cmod.BuildConfig;
 import com.winlator.cmod.feature.stores.steam.enums.Marker;
@@ -59,8 +58,6 @@ import com.winlator.cmod.feature.stores.steam.utils.MarkerUtils;
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager;
 import com.winlator.cmod.feature.stores.steam.utils.SteamUtils;
 
-import androidx.customview.widget.ViewDragHelper;
-import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.preference.PreferenceManager;
 import com.winlator.cmod.R;
 import com.winlator.cmod.app.config.SettingsConfig;
@@ -240,7 +237,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private InputControlsView inputControlsView;
     private TouchpadView touchpadView;
     private XEnvironment environment;
-    private DrawerLayout drawerLayout;
+    private ComposeView displayHostComposeView;
+    private FrameLayout xServerDisplayFrame;
     private ContainerManager containerManager;
     protected Container container;
     private XServer xServer;
@@ -542,6 +540,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         launchedFromPinnedShortcut = isPinnedShortcutLaunchIntent(getIntent());
         
         setContentView(R.layout.xserver_display_activity);
+        xServerDisplayFrame = new FrameLayout(this);
+        xServerDisplayFrame.setId(R.id.FLXServerDisplay);
+        xServerDisplayFrame.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
 
         // Initialize ControllerManager for multi-controller support
         ControllerManager.getInstance().init(this);
@@ -622,8 +625,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         contentsManager = new ContentsManager(this);
         contentsManager.syncContents();
 
-        drawerLayout = findViewById(R.id.DrawerLayout);
-        drawerLayout.setOnApplyWindowInsetsListener((view, windowInsets) -> {
+        displayHostComposeView = findViewById(R.id.XServerDisplayHost);
+        displayHostComposeView.setOnApplyWindowInsetsListener((view, windowInsets) -> {
             WindowInsetsCompat compatInsets = WindowInsetsCompat.toWindowInsetsCompat(windowInsets, view);
             WindowInsetsCompat clearedInsets = new WindowInsetsCompat.Builder(compatInsets)
                     .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.NONE)
@@ -631,15 +634,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             android.view.WindowInsets platformInsets = clearedInsets.toWindowInsets();
             return platformInsets != null ? platformInsets : windowInsets;
         });
-        drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED);
-        drawerLayout.setScrimColor(android.graphics.Color.TRANSPARENT);
-        widenDrawerEdgeSwipe(drawerLayout);
 
-        ComposeView navigationComposeView = findViewById(R.id.NavigationComposeView);
         enableLogsMenu = preferences.getBoolean("enable_wine_debug", false) || preferences.getBoolean("enable_box64_logs", false);
         isNativeRenderingEnabled = preferences.getBoolean("use_dri3", true);
-        navigationComposeView.setPointerIcon(PointerIcon.getSystemIcon(this, PointerIcon.TYPE_ARROW));
-        navigationComposeView.setOnFocusChangeListener((v, hasFocus) -> navigationFocused = hasFocus);
+        displayHostComposeView.setPointerIcon(PointerIcon.getSystemIcon(this, PointerIcon.TYPE_ARROW));
+        displayHostComposeView.setFocusable(true);
+        displayHostComposeView.setFocusableInTouchMode(true);
+        displayHostComposeView.setOnFocusChangeListener((v, hasFocus) -> navigationFocused = hasFocus);
         renderDrawerMenu();
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -647,50 +648,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 handleNavigationBackPressed();
             }
         });
-        drawerLayout.addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
-            @Override
-            public void onDrawerSlide(View drawerView, float slideOffset) {
-                super.onDrawerSlide(drawerView, slideOffset);
-                AppUtils.hideSystemUI(XServerDisplayActivity.this);
-            }
-
-            @Override
-            public void onDrawerOpened(View drawerView) {
-                super.onDrawerOpened(drawerView);
-                renderDrawerMenu();
-                navigationComposeView.requestFocus();
-                // Lock open while the drawer is shown so pane-internal swipes can't
-                // bleed through into closing the whole drawer.
-                drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_OPEN);
-                AppUtils.hideSystemUI(XServerDisplayActivity.this);
-            }
-
-            @Override
-            public void onDrawerClosed(View drawerView) {
-                super.onDrawerClosed(drawerView);
-                if (hudCardExpanded) {
-                    hudCardExpanded = false;
-                    renderDrawerMenu();
-                }
-                // Re-enable the edge-swipe so the drawer can be opened again next time.
-                drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED);
-                AppUtils.hideSystemUI(XServerDisplayActivity.this);
-            }
-        });
 
         // Carve a tall strip on the left edge out of the system back-gesture region so
         // swiping from the edge opens our drawer instead of triggering the system nav.
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            final android.view.View decor = getWindow().getDecorView();
-            final int edgePx = (int) (140f * getResources().getDisplayMetrics().density);
+            final android.view.View gestureExclusionView = displayHostComposeView;
+            final int edgePx = (int) (XServerDisplayHostKt.XSERVER_DRAWER_EDGE_SWIPE_DP * getResources().getDisplayMetrics().density);
             final Runnable applyExclusion = () -> {
-                if (decor.getHeight() <= 0) return;
-                decor.setSystemGestureExclusionRects(
+                if (gestureExclusionView.getHeight() <= 0) return;
+                gestureExclusionView.setSystemGestureExclusionRects(
                         java.util.Collections.singletonList(
-                                new android.graphics.Rect(0, 0, edgePx, decor.getHeight())));
+                                new android.graphics.Rect(0, 0, edgePx, gestureExclusionView.getHeight())));
             };
-            decor.post(applyExclusion);
-            decor.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or_, ob) -> applyExclusion.run());
+            gestureExclusionView.post(applyExclusion);
+            gestureExclusionView.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or_, ob) -> applyExclusion.run());
         }
 
         imageFs = ImageFs.find(this);
@@ -2819,31 +2790,29 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    private void widenDrawerEdgeSwipe(DrawerLayout layout) {
-        try {
-            java.lang.reflect.Field draggerField = DrawerLayout.class.getDeclaredField("mLeftDragger");
-            draggerField.setAccessible(true);
-            ViewDragHelper dragger = (ViewDragHelper) draggerField.get(layout);
-            if (dragger == null) return;
-            java.lang.reflect.Field edgeSizeField = ViewDragHelper.class.getDeclaredField("mEdgeSize");
-            edgeSizeField.setAccessible(true);
-            int targetPx = (int) (140f * getResources().getDisplayMetrics().density);
-            edgeSizeField.setInt(dragger, Math.max(edgeSizeField.getInt(dragger), targetPx));
-        } catch (Exception ignored) {
-        }
-    }
-
     private void handleNavigationBackPressed() {
         if (environment != null) {
             if (drawerStateHolder != null && drawerStateHolder.isPaneOpen()) {
                 drawerStateHolder.closeOpenPane();
                 return;
             }
-            if (!drawerLayout.isDrawerOpen(GravityCompat.START)) {
-                renderDrawerMenu();
-                drawerLayout.openDrawer(GravityCompat.START);
+            if (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen()) {
+                openDrawerMenu();
             }
-            else drawerLayout.closeDrawers();
+            else closeDrawerMenu();
+        }
+    }
+
+    private void openDrawerMenu() {
+        renderDrawerMenu();
+        if (drawerStateHolder != null) {
+            drawerStateHolder.openDrawer();
+        }
+    }
+
+    private void closeDrawerMenu() {
+        if (drawerStateHolder != null) {
+            drawerStateHolder.closeDrawer();
         }
     }
 
@@ -2863,48 +2832,40 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void showGyroActivatorPicker() {
-        final ComposeView dialogComposeView = findViewById(R.id.DialogComposeView);
-        final ComposeView navigationComposeView = findViewById(R.id.NavigationComposeView);
-        if (dialogComposeView == null) return;
+        if (drawerStateHolder == null) return;
 
         String[] names = getResources().getStringArray(R.array.button_options);
         int[] keycodes = getResources().getIntArray(R.array.button_keycodes);
 
-        dialogComposeView.setVisibility(View.VISIBLE);
-        dialogComposeView.setFocusable(true);
-        dialogComposeView.setClickable(true);
-        
-        XServerDrawerMenuKt.setupGyroActivatorDialog(
-            dialogComposeView,
+        drawerStateHolder.showGyroActivatorDialog(
             currentGyroActivatorLabel(),
             names,
             keycodes,
             () -> {
-                dialogComposeView.setVisibility(View.GONE);
-                dialogComposeView.setContent(null);
-                dialogComposeView.setFocusable(false);
-                dialogComposeView.setClickable(false);
-                dialogComposeView.clearFocus();
-                if (navigationComposeView != null) navigationComposeView.requestFocus();
+                clearGyroActivatorDialog();
                 return kotlin.Unit.INSTANCE;
             },
             (keycode) -> {
                 preferences.edit().putInt("gyro_trigger_button", keycode).apply();
-                dialogComposeView.setVisibility(View.GONE);
-                dialogComposeView.setContent(null);
-                dialogComposeView.setFocusable(false);
-                dialogComposeView.setClickable(false);
-                dialogComposeView.clearFocus();
-                if (navigationComposeView != null) navigationComposeView.requestFocus();
+                clearGyroActivatorDialog();
                 renderDrawerMenu();
                 return kotlin.Unit.INSTANCE;
             }
         );
     }
 
+    private void clearGyroActivatorDialog() {
+        if (drawerStateHolder != null) {
+            drawerStateHolder.hideGyroActivatorDialog();
+        }
+        if (displayHostComposeView != null) {
+            displayHostComposeView.clearFocus();
+            displayHostComposeView.requestFocus();
+        }
+    }
+
     private void renderDrawerMenu() {
-        ComposeView navigationComposeView = findViewById(R.id.NavigationComposeView);
-        if (navigationComposeView == null) return;
+        if (displayHostComposeView == null || xServerDisplayFrame == null) return;
 
         XServerDrawerState state = XServerDrawerMenuKt.buildXServerDrawerState(
                 this,
@@ -3123,13 +3084,50 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         if (drawerStateHolder == null) {
             drawerStateHolder = new XServerDrawerStateHolder(state);
-            XServerDrawerMenuKt.setupXServerDrawerComposeView(
-                    navigationComposeView,
+            XServerDisplayHostKt.setupXServerDisplayHost(
+                    displayHostComposeView,
+                    xServerDisplayFrame,
                     drawerStateHolder,
-                    this,
                     drawerActionListener,
-                    () -> drawerLayout.closeDrawers(),
-                    paneOpen -> kotlin.Unit.INSTANCE
+                    new XServerDisplayHostCallbacks() {
+                        @Override
+                        public void onDrawerSlide() {
+                            AppUtils.hideSystemUI(XServerDisplayActivity.this);
+                        }
+
+                        @Override
+                        public void onDrawerOpened() {
+                            renderDrawerMenu();
+                            if (displayHostComposeView != null) displayHostComposeView.requestFocus();
+                            AppUtils.hideSystemUI(XServerDisplayActivity.this);
+                        }
+
+                        @Override
+                        public void onDrawerClosed() {
+                            if (hudCardExpanded) {
+                                hudCardExpanded = false;
+                                renderDrawerMenu();
+                            }
+                            AppUtils.hideSystemUI(XServerDisplayActivity.this);
+                        }
+
+                        @Override
+                        public void onDrawerGestureClaimed() {
+                            if (touchpadView != null) {
+                                touchpadView.resetInputState();
+                            }
+                            if (inputControlsView != null) {
+                                inputControlsView.cancelActiveTouches();
+                            }
+                        }
+
+                        @Override
+                        public void onDialogVisibilityChanged(boolean visible) {
+                            if (visible && displayHostComposeView != null) {
+                                displayHostComposeView.requestFocus();
+                            }
+                        }
+                    }
             );
             return;
         }
@@ -3235,7 +3233,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @SuppressLint("SourceLockedOrientationActivity")
     private boolean handleDrawerAction(int itemId) {
-        final GLRenderer renderer = xServerView.getRenderer();
+        // The drawer can be opened during startup before setupUI() attaches the display
+        // and input views. Ignore display-dependent actions until those views exist.
+        if (requiresDisplayReady(itemId) && !isDisplayReady()) {
+            renderDrawerMenu();
+            return false;
+        }
+
+        final GLRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
         switch (itemId) {
             case R.id.main_menu_gyroscope_reset:
                 if (winHandler != null) {
@@ -3244,19 +3249,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 break;
             case R.id.main_menu_keyboard:
                 AppUtils.showKeyboard(this);
-                drawerLayout.closeDrawers();
+                closeDrawerMenu();
                 break;
             case R.id.main_menu_input_controls:
                 showInputControlsDialog();
-                drawerLayout.closeDrawers();
+                closeDrawerMenu();
                 break;
             case R.id.main_menu_controller_manager:
                 ControllerAssignmentDialog.show(this, winHandler);
-                drawerLayout.closeDrawers();
+                closeDrawerMenu();
                 break;
             case R.id.main_menu_fps_monitor:
                 if (frameRating == null) {
-                    FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
+                    FrameLayout rootView = xServerDisplayFrame;
                     frameRating = new FrameRating(this, graphicsDriverConfig);
                     frameRating.setRenderer(lastRendererName);
                     if (lastGpuName != null) frameRating.setGpuName(lastGpuName);
@@ -3305,7 +3310,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 break;
             case R.id.main_menu_pip_mode:
                 enterPictureInPictureMode(new android.app.PictureInPictureParams.Builder().build());
-                drawerLayout.closeDrawers();
+                closeDrawerMenu();
                 break;
             case R.id.main_menu_task_manager:
                 new TaskManagerDialog(this).show();
@@ -3317,7 +3322,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     break;
                 }
                 if (magnifierView == null) {
-                    FrameLayout container = findViewById(R.id.FLXServerDisplay);
+                    FrameLayout container = xServerDisplayFrame;
                     magnifierView = new MagnifierView(this);
                     magnifierView.setZoomButtonCallback(value -> {
                         renderer.setMagnifierZoom(Mathf.clamp(renderer.getMagnifierZoom() + value, 1.0f, 3.0f));
@@ -3345,11 +3350,33 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     : R.string.session_xserver_native_rendering_disabled_toast));
                 break;
             case R.id.main_menu_exit:
-                drawerLayout.closeDrawers();
+                closeDrawerMenu();
                 exit();
                 break;
         }
         return true;
+    }
+
+    private boolean isDisplayReady() {
+        return xServer != null
+                && xServerView != null
+                && xServerView.getRenderer() != null
+                && touchpadView != null
+                && inputControlsView != null;
+    }
+
+    private boolean requiresDisplayReady(int itemId) {
+        switch (itemId) {
+            case R.id.main_menu_input_controls:
+            case R.id.main_menu_fps_monitor:
+            case R.id.main_menu_relative_mouse_movement:
+            case R.id.main_menu_disable_mouse:
+            case R.id.main_menu_toggle_fullscreen:
+            case R.id.main_menu_magnifier:
+                return true;
+            default:
+                return false;
+        }
     }
 
     @Override
@@ -3999,7 +4026,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void setupUI() {
-        FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
+        FrameLayout rootView = xServerDisplayFrame;
         xServerView = new XServerView(this, xServer);
         final GLRenderer renderer = xServerView.getRenderer();
         renderer.setCursorVisible(false);
@@ -4026,9 +4053,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         touchpadView.setSensitivity(globalCursorSpeed);
         touchpadView.setMouseEnabled(!isMouseDisabled);
         touchpadView.setFourFingersTapCallback(() -> {
-            if (!drawerLayout.isDrawerOpen(GravityCompat.START)) {
-                renderDrawerMenu();
-                drawerLayout.openDrawer(GravityCompat.START);
+            if (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen()) {
+                openDrawerMenu();
             }
         });
         rootView.addView(touchpadView);
@@ -4077,7 +4103,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         startTouchscreenTimeout();
 
-        AppUtils.observeSoftKeyboardVisibility(drawerLayout, renderer::setScreenOffsetYRelativeToCursor);
+        AppUtils.observeSoftKeyboardVisibility(displayHostComposeView, renderer::setScreenOffsetYRelativeToCursor);
     }
 
 

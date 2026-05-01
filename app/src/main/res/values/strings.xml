@@ -613,8 +613,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_toggle_relative_mouse">Toggle Relative Mouse Movement</string>
     <string name="session_drawer_toggle_mouse">Toggle Mouse</string>
     <string name="session_drawer_pause_resume">Pause/Resume</string>
-    <string name="session_drawer_keyboard_subtitle">Open the software keyboard</string>
-    <string name="session_drawer_input_controls_subtitle">Configure or toggle on-screen controls</string>
     <string name="session_drawer_relative_mouse_movement">Relative Mouse Movement</string>
     <string name="session_drawer_mouse_input">Mouse Input</string>
     <string name="session_drawer_screen_effects">Screen Effects</string>
@@ -623,13 +621,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_upscaler_mode">Upscaler Mode</string>
     <string name="session_drawer_sharpness">Sharpness</string>
     <string name="session_drawer_color_profile">Color Profile</string>
-    <string name="session_drawer_fullscreen_subtitle">Switch fullscreen rendering</string>
     <string name="session_drawer_picture_in_picture">Picture in Picture</string>
-    <string name="session_drawer_pip_subtitle">Shrink the game into a floating window</string>
-    <string name="session_drawer_task_manager_subtitle">Inspect and manage running processes</string>
-    <string name="session_drawer_magnifier_subtitle">Zoom into the display</string>
     <string name="session_drawer_magnifier_disabled_native_subtitle">Disabled while Native Rendering is enabled</string>
-    <string name="session_drawer_logs_subtitle">Open Wine and Box64 logs</string>
     <string name="session_drawer_exit_subtitle">Close the running session</string>
     <string name="session_drawer_touchscreen_overlay">Touchscreen Overlay</string>
     <string name="session_drawer_resume">Resume</string>
@@ -655,7 +648,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_hud_scale_input_title">Set Scale</string>
     <string name="session_drawer_hud_input_hint">Enter a value from %1$d to %2$d. Values above the limit are clamped.</string>
     <string name="session_drawer_command_center">Command Center</string>
-    <string name="session_drawer_command_center_subtitle">Tools, overlays, and shortcuts</string>
     <string name="session_drawer_command_center_input">Input</string>
     <string name="session_drawer_command_center_display">Display</string>
     <string name="session_drawer_command_center_system">System</string>
@@ -672,7 +664,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">More</string>
     <string name="session_gyroscope_activator">Activator</string>
-    <string name="session_gyroscope_subtitle">Configure gyroscope controls</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Do you want to end this process?</string>

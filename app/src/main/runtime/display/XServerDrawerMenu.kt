@@ -3,6 +3,7 @@ package com.winlator.cmod.runtime.display
 import android.app.Activity
 import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -14,10 +15,8 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -87,14 +86,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -126,10 +126,12 @@ import kotlin.math.roundToInt
 private val PaneSurfaceColor = Color(0xE6141416)
 private val PaneSurfacePressed = Color(0xE61F1F22)
 
-// Edge-glow palette mirrors the chasingBorder modifier (blue → sky → electric cyan).
+// Aurora palette for the drawer's edge bleed (deep blue → blue → electric cyan → mint,
+// seamless). Scoped to this drawer; the rest of the app uses the chasingBorder palette.
+private val EdgeGlowDeepBlue = Color(0xFF1565C0)
 private val EdgeGlowBlue = Color(0xFF2196F3)
-private val EdgeGlowSky = Color(0xFF29B6F6)
 private val EdgeGlowCyan = Color(0xFF00E5FF)
+private val EdgeGlowMint = Color(0xFF1DE9B6)
 
 // Tile / inner-row fills (flat translucent M3 surface tints)
 private val TileResting = Color(0x24FFFFFF)
@@ -141,6 +143,8 @@ private val TileExitPressed = Color(0xE6541A20)
 // the on/true outlines, and reads as a layered surface over PaneSurfaceColor.
 private val PaneInnerResting = Color(0x331E2530)
 private val PaneInnerPressed = Color(0x40293142)
+private val RestingCardBorder = Color(0x1FFFFFFF)
+private val DisabledCardBorder = Color(0x0FFFFFFF)
 
 // Tint for exit-tile/icons in the rail and the activator dialog's outline.
 private val GlassExitTint = Color(0xFFE07A84)
@@ -209,6 +213,7 @@ private val RailTileMaxSize = 64.dp
 private val RailTileSpacing = 6.dp
 private val RailPinnedSpacingTop = 12.dp
 private val RailPinnedSpacingBetween = 6.dp
+private val PaneWidth = 262.dp
 
 data class XServerDrawerItem(
     val itemId: Int,
@@ -251,8 +256,21 @@ class XServerDrawerStateHolder(
     initialState: XServerDrawerState,
 ) {
     var state by mutableStateOf(initialState, neverEqualPolicy())
+    private var drawerOpen by mutableStateOf(false)
     internal var openPane by mutableStateOf<DrawerPane?>(null)
+    internal var gyroActivatorDialogState by mutableStateOf<GyroActivatorDialogState?>(null)
     private var paneVisibilityListener: ((Boolean) -> Unit)? = null
+
+    val isDrawerOpen: Boolean
+        get() = drawerOpen
+
+    fun openDrawer() {
+        drawerOpen = true
+    }
+
+    fun closeDrawer() {
+        drawerOpen = false
+    }
 
     fun isPaneOpen(): Boolean = openPane != null
 
@@ -267,13 +285,46 @@ class XServerDrawerStateHolder(
         paneVisibilityListener = listener
     }
 
+    internal fun clearPaneVisibilityListener() {
+        paneVisibilityListener = null
+    }
+
     internal fun setOpenPaneAndNotify(newPane: DrawerPane?) {
         val wasVisible = openPane != null
         val nowVisible = newPane != null
         openPane = newPane
         if (wasVisible != nowVisible) paneVisibilityListener?.invoke(nowVisible)
     }
+
+    fun showGyroActivatorDialog(
+        currentLabel: String,
+        names: Array<String>,
+        keycodes: IntArray,
+        onDismiss: () -> Unit,
+        onSelected: (Int) -> Unit,
+    ) {
+        gyroActivatorDialogState =
+            GyroActivatorDialogState(
+                currentLabel = currentLabel,
+                names = names,
+                keycodes = keycodes,
+                onDismiss = onDismiss,
+                onSelected = onSelected,
+            )
+    }
+
+    fun hideGyroActivatorDialog() {
+        gyroActivatorDialogState = null
+    }
 }
+
+internal data class GyroActivatorDialogState(
+    val currentLabel: String,
+    val names: Array<String>,
+    val keycodes: IntArray,
+    val onDismiss: () -> Unit,
+    val onSelected: (Int) -> Unit,
+)
 
 interface XServerDrawerActionListener {
     fun onActionSelected(itemId: Int)
@@ -379,19 +430,19 @@ fun buildXServerDrawerState(
             XServerDrawerItem(
                 itemId = R.id.main_menu_keyboard,
                 title = context.getString(R.string.session_drawer_keyboard),
-                subtitle = context.getString(R.string.session_drawer_keyboard_subtitle),
+                subtitle = "",
                 icon = Icons.Outlined.Keyboard,
             ),
             XServerDrawerItem(
                 itemId = R.id.main_menu_input_controls,
                 title = context.getString(R.string.common_ui_input_controls),
-                subtitle = context.getString(R.string.session_drawer_input_controls_subtitle),
+                subtitle = "",
                 icon = Icons.Outlined.SportsEsports,
             ),
             XServerDrawerItem(
                 itemId = R.id.main_menu_gyroscope,
                 title = "Gyroscope",
-                subtitle = "Configure Gyroscope Controls",
+                subtitle = "",
                 icon = Icons.Outlined.SportsEsports,
                 active = gyroscopeEnabled,
             ),
@@ -414,7 +465,7 @@ fun buildXServerDrawerState(
             XServerDrawerItem(
                 itemId = R.id.main_menu_toggle_fullscreen,
                 title = context.getString(R.string.session_drawer_toggle_fullscreen),
-                subtitle = context.getString(R.string.session_drawer_fullscreen_subtitle),
+                subtitle = "",
                 icon = Icons.Outlined.Fullscreen,
             ),
             XServerDrawerItem(
@@ -442,13 +493,13 @@ fun buildXServerDrawerState(
             XServerDrawerItem(
                 itemId = R.id.main_menu_pip_mode,
                 title = context.getString(R.string.session_drawer_picture_in_picture),
-                subtitle = context.getString(R.string.session_drawer_pip_subtitle),
+                subtitle = "",
                 icon = Icons.Outlined.PictureInPictureAlt,
             ),
             XServerDrawerItem(
                 itemId = R.id.main_menu_task_manager,
                 title = context.getString(R.string.session_task_title),
-                subtitle = context.getString(R.string.session_drawer_task_manager_subtitle),
+                subtitle = "",
                 icon = Icons.AutoMirrored.Outlined.ViewList,
             ),
         )
@@ -462,7 +513,7 @@ fun buildXServerDrawerState(
                     if (nativeRenderingEnabled) {
                         context.getString(R.string.session_drawer_magnifier_disabled_native_subtitle)
                     } else {
-                        context.getString(R.string.session_drawer_magnifier_subtitle)
+                        ""
                     },
                 icon = Icons.Outlined.ZoomIn,
                 enabled = !nativeRenderingEnabled,
@@ -474,7 +525,7 @@ fun buildXServerDrawerState(
             XServerDrawerItem(
                 itemId = R.id.main_menu_logs,
                 title = context.getString(R.string.session_drawer_logs),
-                subtitle = context.getString(R.string.session_drawer_logs_subtitle),
+                subtitle = "",
                 icon = Icons.Outlined.Terminal,
             )
     }
@@ -539,50 +590,8 @@ fun setupXServerDrawerComposeView(
     }
 }
 
-// Swipe-left-to-dismiss gesture shared by the rail and the empty area beside it,
-// so the entire closed-drawer width drives `dragOffset` (which the rail translates by
-// for visual feedback) and triggers `onDismiss` past the threshold.
-private fun Modifier.drawerDismissDrag(
-    enabled: Boolean,
-    onDismiss: () -> Unit,
-    onDragOffsetChange: (Float) -> Unit,
-): Modifier = pointerInput(enabled) {
-    if (!enabled) return@pointerInput
-    val velocityTracker = VelocityTracker()
-    var totalDx = 0f
-    detectHorizontalDragGestures(
-        onDragStart = {
-            totalDx = 0f
-            velocityTracker.resetTracking()
-        },
-        onDragEnd = {
-            val vx = velocityTracker.calculateVelocity().x
-            if (totalDx < -40f || vx < -500f) onDismiss()
-            onDragOffsetChange(0f)
-            totalDx = 0f
-        },
-        onDragCancel = {
-            onDragOffsetChange(0f)
-            totalDx = 0f
-        },
-        onHorizontalDrag = { change, dragAmount ->
-            velocityTracker.addPosition(change.uptimeMillis, change.position)
-            totalDx += dragAmount
-            if (totalDx < 0f) {
-                // Track the finger 1:1 — gentle taper only past the rail width
-                // so the gesture never feels stuck against rubber.
-                val absRaw = -totalDx
-                val tracked =
-                    if (absRaw < 180f) absRaw else 180f + (absRaw - 180f) * 0.6f
-                onDragOffsetChange((-tracked).coerceAtLeast(-320f))
-                change.consume()
-            }
-        },
-    )
-}
-
 @Composable
-private fun XServerDrawerContent(
+internal fun XServerDrawerContent(
     state: XServerDrawerState,
     openPane: DrawerPane?,
     onOpenPaneChange: (DrawerPane?) -> Unit,
@@ -591,26 +600,15 @@ private fun XServerDrawerContent(
 ) {
     val dismissInteractionSource = remember { MutableInteractionSource() }
 
-    // Rail-only drag (closes the whole drawer). Active only while no pane is open.
-    var railDragPx by remember { mutableStateOf(0f) }
-    val animatedRailDrag by animateFloatAsState(
-        targetValue = railDragPx,
-        animationSpec =
-            if (railDragPx == 0f) {
-                spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)
-            } else {
-                tween(0)
-            },
-        label = "railDragOffset",
-    )
-
     // Pane-only drag (closes the open pane, leaves the rail alone). Resets per pane.
+    // Same spring as the AnimatedVisibility exit so the snap-back and the close slide
+    // share physics — no perceptible mismatch on partial-drag release.
     var paneDragPx by remember(openPane) { mutableStateOf(0f) }
     val animatedPaneDrag by animateFloatAsState(
         targetValue = paneDragPx,
         animationSpec =
             if (paneDragPx == 0f) {
-                spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)
+                spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
             } else {
                 tween(0)
             },
@@ -631,24 +629,18 @@ private fun XServerDrawerContent(
             modifier =
                 Modifier
                     .align(Alignment.CenterStart)
-                    .fillMaxHeight()
-                    .graphicsLayer { translationX = animatedRailDrag },
+                    .fillMaxHeight(),
         )
 
         Row(modifier = Modifier.fillMaxSize()) {
             // Side rail — transparent so tiles float directly over the game canvas.
+            // Swipe-to-dismiss is handled by the parent ModalNavigationDrawer.
             Surface(
                 modifier =
                     Modifier
                         .padding(start = 6.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
                         .width(68.dp)
-                        .fillMaxHeight()
-                        .graphicsLayer { translationX = animatedRailDrag }
-                        .drawerDismissDrag(
-                            enabled = openPane == null,
-                            onDismiss = onDismiss,
-                            onDragOffsetChange = { railDragPx = it },
-                        ),
+                        .fillMaxHeight(),
                 shape = RoundedCornerShape(22.dp),
                 color = Color.Transparent,
                 tonalElevation = 0.dp,
@@ -760,20 +752,14 @@ private fun XServerDrawerContent(
                 }
             }
 
-            // Empty area: tap- and swipe-to-dismiss when no pane is open. The swipe
-            // shares railDragPx with the rail itself so the rail tracks the finger
-            // regardless of where in the closed-drawer width the gesture starts.
+            // Empty area: tap-to-dismiss when no pane is open. Swipe-to-dismiss is
+            // handled by the parent ModalNavigationDrawer.
             if (openPane == null) {
                 Box(
                     modifier =
                         Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .drawerDismissDrag(
-                                enabled = true,
-                                onDismiss = onDismiss,
-                                onDragOffsetChange = { railDragPx = it },
-                            )
                             .clickable(
                                 interactionSource = dismissInteractionSource,
                                 indication = null,
@@ -782,49 +768,40 @@ private fun XServerDrawerContent(
                 )
             }
 
-            // Pane — unfolds outward from the rail's right edge (expandHorizontally with
-            // Alignment.Start clips to the growing bounds, so it can never overlap the rail).
-            // Swipe-to-close mirrors that: the pane's reported width shrinks toward the rail
-            // via a layout modifier rather than translating, so the left edge stays pinned.
+            // Pane — sits to the rail's right and slides in/out as a rigid sheet, like the
+            // parent ModalNavigationDrawer's own slide. clipToBounds on the AnimatedVisibility
+            // keeps the slide from painting over the rail when it translates leftward past
+            // its slot's left edge. Same spring on enter/exit so close is a true mirror.
             AnimatedVisibility(
+                modifier = Modifier.clipToBounds(),
                 visible = openPane != null,
                 enter =
-                    fadeIn(tween(180)) +
-                        expandHorizontally(
-                            animationSpec =
-                                spring(
-                                    dampingRatio = 0.85f,
-                                    stiffness = Spring.StiffnessMediumLow,
-                                ),
-                            expandFrom = Alignment.Start,
-                            clip = true,
-                        ),
+                    slideInHorizontally(
+                        animationSpec =
+                            spring(
+                                dampingRatio = 0.85f,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                        initialOffsetX = { -it },
+                    ),
                 exit =
-                    fadeOut(tween(180)) +
-                        shrinkHorizontally(
-                            animationSpec =
-                                spring(
-                                    dampingRatio = 0.85f,
-                                    stiffness = Spring.StiffnessMediumLow,
-                                ),
-                            shrinkTowards = Alignment.Start,
-                            clip = true,
-                        ),
+                    slideOutHorizontally(
+                        animationSpec =
+                            spring(
+                                dampingRatio = 0.85f,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                        targetOffsetX = { -it },
+                    ),
             ) {
                 Surface(
                     modifier =
                         Modifier
                             .fillMaxHeight()
+                            .width(PaneWidth)
                             .padding(start = 2.dp, end = 8.dp, top = 4.dp, bottom = 4.dp)
+                            .graphicsLayer { translationX = animatedPaneDrag }
                             .clipToBounds()
-                            .layout { measurable, constraints ->
-                                val placeable = measurable.measure(constraints)
-                                val widthReduction = (-animatedPaneDrag).toInt().coerceAtLeast(0)
-                                val visibleWidth = (placeable.width - widthReduction).coerceAtLeast(0)
-                                layout(visibleWidth, placeable.height) {
-                                    placeable.place(0, 0)
-                                }
-                            }
                             .pointerInput(openPane) {
                                 // Pane-only swipe-to-close: closes the pane, not the drawer.
                                 val velocityTracker = VelocityTracker()
@@ -864,37 +841,43 @@ private fun XServerDrawerContent(
                     tonalElevation = 0.dp,
                     shadowElevation = 0.dp,
                 ) {
-                    Column(modifier = Modifier.fillMaxHeight()) {
-                        when (openPane) {
-                            DrawerPane.HUD ->
-                                HUDPaneContent(
-                                    state = state,
-                                    listener = listener,
-                                )
-                            DrawerPane.GYROSCOPE ->
-                                GyroscopePaneContent(
-                                    state = state,
-                                    listener = listener,
-                                )
-                            DrawerPane.SCREEN_EFFECTS ->
-                                ScreenEffectsPaneContent(
-                                    state = state,
-                                    listener = listener,
-                                )
-                            DrawerPane.MORE ->
-                                MorePaneContent(
-                                    items =
-                                        state.items.filter {
-                                            it.itemId != R.id.main_menu_fps_monitor &&
-                                                it.itemId != R.id.main_menu_gyroscope &&
-                                                it.itemId != R.id.main_menu_screen_effects &&
-                                                it.itemId != R.id.main_menu_pause &&
-                                                it.itemId != R.id.main_menu_exit
-                                        },
-                                    listener = listener,
-                                    onClose = { onOpenPaneChange(null) },
-                                )
-                            null -> {}
+                    Crossfade(
+                        targetState = openPane,
+                        animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
+                        label = "drawerPaneContent",
+                    ) { pane ->
+                        Column(modifier = Modifier.fillMaxHeight()) {
+                            when (pane) {
+                                DrawerPane.HUD ->
+                                    HUDPaneContent(
+                                        state = state,
+                                        listener = listener,
+                                    )
+                                DrawerPane.GYROSCOPE ->
+                                    GyroscopePaneContent(
+                                        state = state,
+                                        listener = listener,
+                                    )
+                                DrawerPane.SCREEN_EFFECTS ->
+                                    ScreenEffectsPaneContent(
+                                        state = state,
+                                        listener = listener,
+                                    )
+                                DrawerPane.MORE ->
+                                    MorePaneContent(
+                                        items =
+                                            state.items.filter {
+                                                it.itemId != R.id.main_menu_fps_monitor &&
+                                                    it.itemId != R.id.main_menu_gyroscope &&
+                                                    it.itemId != R.id.main_menu_screen_effects &&
+                                                    it.itemId != R.id.main_menu_pause &&
+                                                    it.itemId != R.id.main_menu_exit
+                                            },
+                                        listener = listener,
+                                        onClose = { onOpenPaneChange(null) },
+                                    )
+                                null -> {}
+                            }
                         }
                     }
                 }
@@ -904,91 +887,89 @@ private fun XServerDrawerContent(
     }
 }
 
-// Same palette as the chasing-border sweep gradient, mirrored so it loops seamlessly
-// when tiled vertically. Drawn as a slow vertical scroll so the edge feels alive.
-private val EdgeGlowFlowColors =
-    listOf(
-        EdgeGlowBlue,
-        EdgeGlowSky,
-        EdgeGlowCyan,
-        EdgeGlowSky,
-        EdgeGlowBlue,
-        EdgeGlowSky,
-        EdgeGlowCyan,
-        EdgeGlowSky,
-        EdgeGlowBlue,
-    )
-
 @Composable
 private fun DrawerEdgeGlow(modifier: Modifier = Modifier) {
-    // One infinite transition drives both the breathing alpha and a slow vertical color
-    // flow. rememberInfiniteTransition is cancelled when the composable leaves composition,
-    // so closing the drawer/menu fully tears the animation down.
+    val edgeGlowFlowColors =
+        listOf(
+            EdgeGlowDeepBlue,
+            EdgeGlowBlue,
+            EdgeGlowCyan,
+            EdgeGlowMint,
+            EdgeGlowDeepBlue,
+        )
     val transition = rememberInfiniteTransition(label = "drawerEdgeGlow")
-    val pulse by transition.animateFloat(
-        initialValue = 0.85f,
-        targetValue = 1.0f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(durationMillis = 1600, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-        label = "drawerEdgeGlowPulse",
-    )
+    // Matches the chasingBorder modifier's 5000ms rotation so the glow reads as the
+    // rail's animated border bleeding outward, not a separate effect.
     val flow by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec =
             infiniteRepeatable(
-                animation = tween(durationMillis = 6000, easing = LinearEasing),
+                animation = tween(durationMillis = 5000, easing = LinearEasing),
                 repeatMode = RepeatMode.Restart,
             ),
         label = "drawerEdgeGlowFlow",
+    )
+    val pulse by transition.animateFloat(
+        initialValue = 0.78f,
+        targetValue = 1f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(durationMillis = 2200, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+        label = "drawerEdgeGlowPulse",
     )
 
     Box(
         modifier =
             modifier
-                .width(22.dp)
-                .graphicsLayer { alpha = pulse },
-    ) {
-        // Soft horizontal bleed inward from the left screen edge — uses the same palette
-        // as the line so the colours read as one unit.
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.horizontalGradient(
-                            0f to EdgeGlowCyan.copy(alpha = 0.30f),
-                            0.4f to EdgeGlowSky.copy(alpha = 0.12f),
-                            1f to Color.Transparent,
-                        ),
-                    ),
-        )
-        // Edge line — full chasing-border palette tiled vertically and slowly scrolled.
-        // drawBehind reads `flow` during the draw phase, so we redraw without recomposing.
-        Box(
-            modifier =
-                Modifier
-                    .align(Alignment.CenterStart)
-                    .width(2.dp)
-                    .fillMaxHeight()
-                    .drawBehind {
-                        val tile = size.height
-                        if (tile <= 0f) return@drawBehind
-                        val offset = -tile + (flow * tile)
-                        val brush =
+                .width(52.dp)
+                .graphicsLayer {
+                    alpha = pulse
+                    // Offscreen layer so the DstIn feather masks the gradient instead of
+                    // the underlying scene.
+                    compositingStrategy = CompositingStrategy.Offscreen
+                }
+                .drawBehind {
+                    val w = size.width
+                    val h = size.height
+                    if (w <= 0f || h <= 0f) return@drawBehind
+
+                    // Gradient period equals the shift per cycle so TileMode.Repeated
+                    // wraps seamlessly — otherwise the top of the strip snaps a half-period
+                    // when `flow` resets to 0.
+                    val offset = flow * h
+                    drawRect(
+                        brush =
                             Brush.linearGradient(
-                                colors = EdgeGlowFlowColors,
+                                colors = edgeGlowFlowColors,
                                 start = Offset(0f, offset),
-                                end = Offset(0f, offset + tile * 2f),
+                                end = Offset(0f, offset + h),
                                 tileMode = TileMode.Repeated,
-                            )
-                        drawRect(brush = brush, alpha = 0.85f)
-                    },
-        )
-    }
+                            ),
+                        alpha = 0.22f,
+                    )
+
+                    // Smooth horizontal feather: never fully opaque, with a gentle long
+                    // tail so the bleed extends further before easing to transparent.
+                    drawRect(
+                        brush =
+                            Brush.horizontalGradient(
+                                colorStops =
+                                    arrayOf(
+                                        0f to Color.Black.copy(alpha = 0.55f),
+                                        0.4f to Color.Black.copy(alpha = 0.22f),
+                                        0.75f to Color.Black.copy(alpha = 0.08f),
+                                        1f to Color.Transparent,
+                                    ),
+                                startX = 0f,
+                                endX = w,
+                            ),
+                        blendMode = BlendMode.DstIn,
+                    )
+                },
+    )
 }
 
 // Returns the largest square tile size that lets every rail tile (scrollable + pinned) fit
@@ -1055,7 +1036,13 @@ private fun RailTile(
         label = "railTileBg_${item.itemId}",
     )
     val borderColor by animateColorAsState(
-        targetValue = if (selected && !isExit) WinNativeAccent else Color.Transparent,
+        targetValue =
+            when {
+                selected && !isExit -> WinNativeAccent
+                !enabled -> DisabledCardBorder
+                isExit -> GlassExitTint.copy(alpha = 0.28f)
+                else -> RestingCardBorder
+            },
         animationSpec = tween(80),
         label = "railTileBorder_${item.itemId}",
     )
@@ -1172,7 +1159,7 @@ private fun PaneEnableRow(
         label = "paneEnableRowBg",
     )
     val borderColor by animateColorAsState(
-        targetValue = if (checked) WinNativeAccent else Color.Transparent,
+        targetValue = if (checked) WinNativeAccent else RestingCardBorder,
         animationSpec = tween(140),
         label = "paneEnableRowBorder",
     )
@@ -1493,7 +1480,7 @@ private fun ExpandableSection(
         label = "expandableHeaderBg",
     )
     val headerBorder by animateColorAsState(
-        targetValue = if (expanded) WinNativeAccent else Color.Transparent,
+        targetValue = if (expanded) WinNativeAccent else RestingCardBorder,
         animationSpec = tween(140),
         label = "expandableHeaderBorder",
     )
@@ -1635,6 +1622,13 @@ private fun MorePaneContent(
     val displayItems = items.filter { it.itemId in displayIds }
     val systemItems = items.filter { it.itemId in systemIds }
     val otherItems = items.filter { it.itemId !in inputIds && it.itemId !in displayIds && it.itemId !in systemIds }
+    val enabledSubtitle = stringResource(R.string.common_ui_enabled)
+    val disabledSubtitle = stringResource(R.string.common_ui_disabled)
+
+    fun XServerDrawerItem.forMoreMenu(): XServerDrawerItem {
+        val keepSubtitle = subtitle == enabledSubtitle || subtitle == disabledSubtitle || !enabled
+        return if (keepSubtitle) this else copy(subtitle = "")
+    }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val paneScale = computePaneScale(maxHeight)
@@ -1649,25 +1643,25 @@ private fun MorePaneContent(
             ) {
             MoreGroup(
                 title = stringResource(R.string.session_drawer_command_center_input),
-                items = inputItems,
+                items = inputItems.map { it.forMoreMenu() },
                 listener = listener,
                 onClose = onClose,
             )
             MoreGroup(
                 title = stringResource(R.string.session_drawer_command_center_display),
-                items = displayItems,
+                items = displayItems.map { it.forMoreMenu() },
                 listener = listener,
                 onClose = onClose,
             )
             MoreGroup(
                 title = stringResource(R.string.session_drawer_command_center_system),
-                items = systemItems,
+                items = systemItems.map { it.forMoreMenu() },
                 listener = listener,
                 onClose = onClose,
             )
             if (otherItems.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
-                    otherItems.forEach { item ->
+                    otherItems.map { it.forMoreMenu() }.forEach { item ->
                         MoreRow(
                             item = item,
                             onClick = {
@@ -1725,7 +1719,12 @@ private fun MoreRow(
         label = "moreRowBg_${item.itemId}",
     )
     val borderColor by animateColorAsState(
-        targetValue = if (item.active && item.enabled) WinNativeAccent else Color.Transparent,
+        targetValue =
+            when {
+                item.active && item.enabled -> WinNativeAccent
+                !item.enabled -> DisabledCardBorder
+                else -> RestingCardBorder
+            },
         animationSpec = tween(140),
         label = "moreRowBorder_${item.itemId}",
     )
@@ -1781,7 +1780,7 @@ private fun MoreRow(
                 color = if (item.enabled) WinNativeTextPrimary else WinNativeTextSecondary.copy(alpha = 0.6f),
                 fontSize = (13f * paneScale).sp,
                 fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             if (item.subtitle.isNotEmpty()) {
@@ -1790,7 +1789,7 @@ private fun MoreRow(
                     text = item.subtitle,
                     color = WinNativeTextSecondary,
                     fontSize = (11f * paneScale).sp,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -2163,7 +2162,7 @@ private fun HUDToggleChip(
         label = "hudChipBg",
     )
     val borderColor by animateColorAsState(
-        targetValue = if (checked) WinNativeAccent else Color.Transparent,
+        targetValue = if (checked) WinNativeAccent else RestingCardBorder,
         animationSpec = tween(140),
         label = "hudChipBorder",
     )
@@ -2224,7 +2223,7 @@ private fun DrawerBooleanRow(
         label = "drawerBooleanRowBg",
     )
     val borderColor by animateColorAsState(
-        targetValue = if (checked) WinNativeAccent else Color.Transparent,
+        targetValue = if (checked) WinNativeAccent else RestingCardBorder,
         animationSpec = tween(140),
         label = "drawerBooleanRowBorder",
     )
