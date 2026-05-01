@@ -467,10 +467,9 @@ public class VulkanRenderer
     public int getFpsLimit() { return currentFpsLimit; }
 
     // Compositor present-mode constants must mirror the switch in nativeSetPresentMode.
-    public static final int PRESENT_MODE_FIFO         = 0;
-    public static final int PRESENT_MODE_MAILBOX      = 1;
-    public static final int PRESENT_MODE_IMMEDIATE    = 2;
-    public static final int PRESENT_MODE_FIFO_RELAXED = 3;
+    public static final int PRESENT_MODE_FIFO      = 0;
+    public static final int PRESENT_MODE_MAILBOX   = 1;
+    public static final int PRESENT_MODE_IMMEDIATE = 2;
 
     // Cached so callers can set a mode before the native renderer exists. Applied during
     // attachSurface() right after nativeCreate. Updates after init forward straight to the
@@ -485,10 +484,9 @@ public class VulkanRenderer
     public static int parsePresentMode(String name) {
         if (name == null) return PRESENT_MODE_FIFO;
         switch (name.trim().toLowerCase()) {
-            case "mailbox":      return PRESENT_MODE_MAILBOX;
-            case "immediate":    return PRESENT_MODE_IMMEDIATE;
-            case "fifo_relaxed": return PRESENT_MODE_FIFO_RELAXED;
-            default:             return PRESENT_MODE_FIFO;
+            case "mailbox":   return PRESENT_MODE_MAILBOX;
+            case "immediate": return PRESENT_MODE_IMMEDIATE;
+            default:          return PRESENT_MODE_FIFO;
         }
     }
 
