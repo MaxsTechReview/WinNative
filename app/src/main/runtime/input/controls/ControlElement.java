@@ -113,7 +113,6 @@ public class ControlElement {
   }
 
   private void reset() {
-    setBinding(Binding.NONE);
     scroller = null;
 
     if (type == Type.STICK) {
@@ -134,7 +133,7 @@ public class ControlElement {
     } else if (type == Type.RANGE_BUTTON) {
       scroller = new RangeScroller(inputControlsView, this);
     } else if (type == Type.RADIAL_MENU) {
-      setBindingCount(3);
+      if (bindings.length < 3) setBindingCount(3);
     }
 
     text = "";
