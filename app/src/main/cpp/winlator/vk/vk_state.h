@@ -231,7 +231,7 @@ typedef struct VkRenderer {
     // Lifecycle
     bool initialized;
     bool surface_ready;
-    // True when we deliberately created the swapchain with a preTransform that differs
+    // True when we deliberately create a fallback swapchain with a preTransform that differs
     // from caps.currentTransform (Adreno reports SUBOPTIMAL on every present in that case).
     bool ignore_suboptimal;
     pthread_mutex_t scene_mutex;     // guards r->scene + graveyard slots; held briefly by all
@@ -256,6 +256,8 @@ typedef struct VkRenderer {
     VkSurfaceKHR     surface;
     VkSwapchainKHR   swapchain;
     VkFormat         swapchain_format;
+    VkSurfaceTransformFlagBitsKHR swapchain_transform;
+    VkExtent2D       surface_extent;
     VkExtent2D       swapchain_extent;
     uint32_t         swapchain_image_count;
     VkImage          swapchain_images[VK_MAX_SWAPCHAIN_IMAGES];

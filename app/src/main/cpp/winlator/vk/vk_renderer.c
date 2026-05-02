@@ -59,6 +59,8 @@ static bool create_offscreen(VkRenderer* r, uint32_t w, uint32_t h);
 static void destroy_offscreen(VkRenderer* r);
 static bool create_quad_vbo(VkRenderer* r);
 static void destroy_quad_vbo(VkRenderer* r);
+static bool is_plain_rotation_transform(VkSurfaceTransformFlagBitsKHR transform);
+static bool is_quarter_turn_transform(VkSurfaceTransformFlagBitsKHR transform);
 static void detach_graveyard_slot(VkRenderer* r, uint32_t slot_idx,
                                   VkTexture*** out_textures, uint32_t* out_count);
 static void destroy_graveyard_textures(VkRenderer* r, VkTexture** textures, uint32_t count);
@@ -881,38 +883,48 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
         }
     }
 
-    // Prefer IDENTITY preTransform: lets the compositor handle device rotation, so the
-    // swapchain extent and our rendering coordinates always match the display orientation.
-    // Using caps.currentTransform would require the renderer to apply the inverse transform
-    // itself, which this codebase does not do, and produces portrait-on-landscape on Adreno.
-    VkSurfaceTransformFlagBitsKHR pre_transform =
-        (caps.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
+    VkSurfaceTransformFlagBitsKHR pre_transform = caps.currentTransform;
+    if (!is_plain_rotation_transform(pre_transform)
+        || !(caps.supportedTransforms & pre_transform)) {
+        pre_transform = (caps.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
             ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
             : caps.currentTransform;
-
-    VkExtent2D extent = caps.currentExtent;
-    if (extent.width == 0xFFFFFFFFu) {
-        extent.width = fallback_width;
-        extent.height = fallback_height;
     }
-    if ((extent.width == 0 || extent.height == 0) && r->anw) {
+
+    VkExtent2D surface_extent = caps.currentExtent;
+    if (surface_extent.width == 0xFFFFFFFFu) {
+        surface_extent.width = fallback_width;
+        surface_extent.height = fallback_height;
+    }
+    if ((surface_extent.width == 0 || surface_extent.height == 0) && r->anw) {
         int anw_w = ANativeWindow_getWidth(r->anw);
         int anw_h = ANativeWindow_getHeight(r->anw);
         if (anw_w > 0 && anw_h > 0) {
-            extent.width = (uint32_t)anw_w;
-            extent.height = (uint32_t)anw_h;
+            surface_extent.width = (uint32_t)anw_w;
+            surface_extent.height = (uint32_t)anw_h;
         }
     }
-    if (extent.width == 0 || extent.height == 0) {
-        VK_LOGW("Skipping swapchain creation for empty surface (%ux%u)", extent.width, extent.height);
+    if (surface_extent.width == 0 || surface_extent.height == 0) {
+        VK_LOGW("Skipping swapchain creation for empty surface (%ux%u)",
+                surface_extent.width, surface_extent.height);
         return false;
     }
+
+    VkExtent2D extent = surface_extent;
+    if (is_quarter_turn_transform(pre_transform)) {
+        uint32_t tmp = extent.width;
+        extent.width = extent.height;
+        extent.height = tmp;
+    }
+    r->surface_extent = surface_extent;
     r->swapchain_extent = extent;
-    // Adreno reports SUBOPTIMAL on every present when preTransform != currentTransform;
-    // other vendors don't spuriously report it, so don't blanket-suppress elsewhere.
+    r->swapchain_transform = pre_transform;
+    // Only possible for unsupported mirrored transforms; avoid an Adreno present loop
+    // while still letting normal rotation changes recreate the swapchain.
     r->ignore_suboptimal = r->caps.is_adreno && (pre_transform != caps.currentTransform);
-    VK_LOGI("Swapchain extent=%ux%u currentTransform=0x%x preTransform=0x%x",
-            extent.width, extent.height, caps.currentTransform, pre_transform);
+    VK_LOGI("Swapchain surface=%ux%u extent=%ux%u currentTransform=0x%x preTransform=0x%x",
+            surface_extent.width, surface_extent.height, extent.width, extent.height,
+            caps.currentTransform, pre_transform);
 
     uint32_t image_count = caps.minImageCount + 1;
     if (caps.maxImageCount > 0 && image_count > caps.maxImageCount) image_count = caps.maxImageCount;
@@ -1143,6 +1155,115 @@ static void destroy_graveyard_textures(VkRenderer* r, VkTexture** textures, uint
 // Frame recording + submission
 // ============================================================
 
+static bool is_plain_rotation_transform(VkSurfaceTransformFlagBitsKHR transform) {
+    return transform == VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
+        || transform == VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR
+        || transform == VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR
+        || transform == VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR;
+}
+
+static bool is_quarter_turn_transform(VkSurfaceTransformFlagBitsKHR transform) {
+    return transform == VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR
+        || transform == VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR;
+}
+
+static void transform_xform_for_pretransform(float out[6], const float in[6],
+                                             uint32_t view_w, uint32_t view_h,
+                                             VkSurfaceTransformFlagBitsKHR transform) {
+    switch (transform) {
+        case VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR:
+            out[0] = -in[1];
+            out[1] =  in[0];
+            out[2] = -in[3];
+            out[3] =  in[2];
+            out[4] = (float)view_h - in[5];
+            out[5] =  in[4];
+            break;
+        case VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR:
+            out[0] = -in[0];
+            out[1] = -in[1];
+            out[2] = -in[2];
+            out[3] = -in[3];
+            out[4] = (float)view_w - in[4];
+            out[5] = (float)view_h - in[5];
+            break;
+        case VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR:
+            out[0] =  in[1];
+            out[1] = -in[0];
+            out[2] =  in[3];
+            out[3] = -in[2];
+            out[4] =  in[5];
+            out[5] = (float)view_w - in[4];
+            break;
+        default:
+            memcpy(out, in, sizeof(float) * 6);
+            break;
+    }
+}
+
+static void transformed_view_size(uint32_t* w, uint32_t* h,
+                                  VkSurfaceTransformFlagBitsKHR transform) {
+    if (is_quarter_turn_transform(transform)) {
+        uint32_t tmp = *w;
+        *w = *h;
+        *h = tmp;
+    }
+}
+
+typedef struct VkPreRotatedRect {
+    int x;
+    int y;
+    int w;
+    int h;
+} VkPreRotatedRect;
+
+static VkPreRotatedRect transform_rect_for_pretransform(int x, int y, int w, int h,
+                                                        uint32_t buffer_w,
+                                                        uint32_t buffer_h,
+                                                        VkSurfaceTransformFlagBitsKHR transform) {
+    VkPreRotatedRect r = {x, y, w, h};
+    switch (transform) {
+        case VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR:
+            r.x = (int)buffer_w - h - y;
+            r.y = x;
+            r.w = h;
+            r.h = w;
+            break;
+        case VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR:
+            r.x = (int)buffer_w - w - x;
+            r.y = (int)buffer_h - h - y;
+            break;
+        case VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR:
+            r.x = y;
+            r.y = (int)buffer_h - w - x;
+            r.w = h;
+            r.h = w;
+            break;
+        default:
+            break;
+    }
+    return r;
+}
+
+static VkPreRotatedRect clamp_rect_to_extent(VkPreRotatedRect r, uint32_t extent_w,
+                                             uint32_t extent_h) {
+    int max_w = (int)extent_w;
+    int max_h = (int)extent_h;
+    if (r.x < 0) {
+        r.w += r.x;
+        r.x = 0;
+    }
+    if (r.y < 0) {
+        r.h += r.y;
+        r.y = 0;
+    }
+    if (r.x + r.w > max_w) r.w = max_w - r.x;
+    if (r.y + r.h > max_h) r.h = max_h - r.y;
+    if (r.w < 0) r.w = 0;
+    if (r.h < 0) r.h = 0;
+    return r;
+}
+
 static void push_window_constants(VkCommandBuffer cmd, VkPipelineLayout layout,
                                   const float xform[6], float view_w, float view_h) {
     float pc[8];
@@ -1166,33 +1287,54 @@ static void compose_xform_for_window(float out[6], const float scene_xform[6],
 }
 
 static void set_viewport_scissor(VkCommandBuffer cmd, VkRenderer* r, const VkScene* s) {
-    VkViewport vp = {0};
+    int vx, vy, vw, vh;
     if (s->viewport_set) {
-        vp.x = (float)s->viewport_x;
-        vp.y = (float)s->viewport_y;
-        vp.width = (float)s->viewport_w;
-        vp.height = (float)s->viewport_h;
+        vx = s->viewport_x;
+        vy = s->viewport_y;
+        vw = s->viewport_w;
+        vh = s->viewport_h;
     } else {
-        vp.x = 0;
-        vp.y = 0;
-        vp.width = (float)r->swapchain_extent.width;
-        vp.height = (float)r->swapchain_extent.height;
+        vx = 0;
+        vy = 0;
+        vw = (int)r->surface_extent.width;
+        vh = (int)r->surface_extent.height;
     }
+
+    VkPreRotatedRect vr = transform_rect_for_pretransform(
+        vx, vy, vw, vh, r->swapchain_extent.width, r->swapchain_extent.height,
+        r->swapchain_transform);
+
+    VkViewport vp = {0};
+    vp.x = (float)vr.x;
+    vp.y = (float)vr.y;
+    vp.width = (float)vr.w;
+    vp.height = (float)vr.h;
     vp.minDepth = 0.0f;
     vp.maxDepth = 1.0f;
     vkCmdSetViewport(cmd, 0, 1, &vp);
 
-    VkRect2D sc = {0};
+    int sx, sy, sw, sh;
     if (s->scissor_enabled) {
-        sc.offset.x = s->scissor_x;
-        sc.offset.y = s->scissor_y;
-        sc.extent.width = s->scissor_w;
-        sc.extent.height = s->scissor_h;
+        sx = s->scissor_x;
+        sy = s->scissor_y;
+        sw = s->scissor_w;
+        sh = s->scissor_h;
     } else {
-        sc.offset.x = 0;
-        sc.offset.y = 0;
-        sc.extent = r->swapchain_extent;
+        sx = 0;
+        sy = 0;
+        sw = (int)r->surface_extent.width;
+        sh = (int)r->surface_extent.height;
     }
+    VkPreRotatedRect sr = transform_rect_for_pretransform(
+        sx, sy, sw, sh, r->swapchain_extent.width, r->swapchain_extent.height,
+        r->swapchain_transform);
+    sr = clamp_rect_to_extent(sr, r->swapchain_extent.width, r->swapchain_extent.height);
+
+    VkRect2D sc = {0};
+    sc.offset.x = sr.x;
+    sc.offset.y = sr.y;
+    sc.extent.width = (uint32_t)sr.w;
+    sc.extent.height = (uint32_t)sr.h;
     vkCmdSetScissor(cmd, 0, 1, &sc);
 }
 
@@ -1214,8 +1356,13 @@ static void draw_scene_pass(VkRenderer* r, VkCommandBuffer cmd, const VkScene* s
 
         float xf[6];
         compose_xform_for_window(xf, s->xform, w->x, w->y, w->width, w->height);
-        push_window_constants(cmd, r->pipelines.window_layout, xf,
-                              (float)s->screen_width, (float)s->screen_height);
+        float pre_xf[6];
+        uint32_t view_w = s->screen_width;
+        uint32_t view_h = s->screen_height;
+        transform_xform_for_pretransform(pre_xf, xf, view_w, view_h, r->swapchain_transform);
+        transformed_view_size(&view_w, &view_h, r->swapchain_transform);
+        push_window_constants(cmd, r->pipelines.window_layout, pre_xf,
+                              (float)view_w, (float)view_h);
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 r->pipelines.window_layout, 0, 1, &w->texture->descriptor_set,
                                 0, NULL);
@@ -1231,8 +1378,13 @@ static void draw_scene_pass(VkRenderer* r, VkCommandBuffer cmd, const VkScene* s
         float xf[6];
         compose_xform_for_window(xf, s->xform, s->cursor_x, s->cursor_y,
                                  s->cursor_width, s->cursor_height);
-        push_window_constants(cmd, r->pipelines.window_layout, xf,
-                              (float)s->screen_width, (float)s->screen_height);
+        float pre_xf[6];
+        uint32_t view_w = s->screen_width;
+        uint32_t view_h = s->screen_height;
+        transform_xform_for_pretransform(pre_xf, xf, view_w, view_h, r->swapchain_transform);
+        transformed_view_size(&view_w, &view_h, r->swapchain_transform);
+        push_window_constants(cmd, r->pipelines.window_layout, pre_xf,
+                              (float)view_w, (float)view_h);
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 r->pipelines.window_layout, 0, 1,
                                 &s->cursor_texture->descriptor_set, 0, NULL);
@@ -1321,7 +1473,7 @@ static bool record_and_submit_frame(VkRenderer* r) {
         r->surface_ready = false;
         vkDeviceWaitIdle(r->device);
         destroy_swapchain(r);
-        r->surface_ready = create_swapchain(r, r->swapchain_extent.width, r->swapchain_extent.height);
+        r->surface_ready = create_swapchain(r, r->surface_extent.width, r->surface_extent.height);
         pthread_mutex_unlock(&r->render_mutex);
         return false;
     } else if (acq == VK_SUBOPTIMAL_KHR) {
@@ -1431,7 +1583,7 @@ static bool record_and_submit_frame(VkRenderer* r) {
         r->surface_ready = false;
         vkDeviceWaitIdle(r->device);
         destroy_swapchain(r);
-        r->surface_ready = create_swapchain(r, r->swapchain_extent.width, r->swapchain_extent.height);
+        r->surface_ready = create_swapchain(r, r->surface_extent.width, r->surface_extent.height);
     }
 
     pthread_mutex_unlock(&r->render_mutex);
@@ -1801,8 +1953,8 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetPresentMode)(JNIEnv* env, jclass clazz, j
     if (!r->surface) return;
     lifecycle_begin(r);
     if (r->device) vkDeviceWaitIdle(r->device);
-    uint32_t fw = r->swapchain_extent.width;
-    uint32_t fh = r->swapchain_extent.height;
+    uint32_t fw = r->surface_extent.width;
+    uint32_t fh = r->surface_extent.height;
     destroy_offscreen(r);
     destroy_swapchain(r);
     if (!create_swapchain(r, fw, fh)) {
