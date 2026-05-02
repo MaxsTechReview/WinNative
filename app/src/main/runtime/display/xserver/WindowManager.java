@@ -24,6 +24,14 @@ public class WindowManager extends XResourceManager {
     PARENT
   }
 
+  public enum FrameSource {
+    UNKNOWN,
+    PRESENT,
+    PUT_IMAGE,
+    MIT_SHM,
+    DRI3_BUFFER
+  }
+
   public final Window rootWindow;
   private final SparseArray<Window> windows = new SparseArray<>();
   public final DrawableManager drawableManager;
@@ -50,6 +58,10 @@ public class WindowManager extends XResourceManager {
     default void onModifyWindowProperty(Window window, Property property) {}
 
     default void onFramePresented(Window window) {}
+
+    default void onFramePresented(Window window, FrameSource source, int serial) {
+      onFramePresented(window);
+    }
   }
 
   public WindowManager(ScreenInfo screenInfo, DrawableManager drawableManager) {
@@ -394,8 +406,12 @@ public class WindowManager extends XResourceManager {
   }
 
   public void triggerOnFramePresented(Window window) {
+    triggerOnFramePresented(window, FrameSource.UNKNOWN, 0);
+  }
+
+  public void triggerOnFramePresented(Window window, FrameSource source, int serial) {
     for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
-      onWindowModificationListeners.get(i).onFramePresented(window);
+      onWindowModificationListeners.get(i).onFramePresented(window, source, serial);
     }
   }
 }

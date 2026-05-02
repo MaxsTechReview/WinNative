@@ -183,7 +183,8 @@ public class PresentExtension
         mode = Mode.COPY;
       }
       sendCompleteNotify(window, serial, Kind.PIXMAP, mode, ust, msc);
-      client.xServer.windowManager.triggerOnFramePresented(window);
+      client.xServer.windowManager.triggerOnFramePresented(
+          window, com.winlator.cmod.runtime.display.xserver.WindowManager.FrameSource.PRESENT, serial);
     }
   }
 

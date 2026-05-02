@@ -69,6 +69,23 @@ public class Keyboard {
     }
   }
 
+  /**
+   * Drop every currently-pressed key, emitting release events to listeners. Used when the
+   * activity loses focus so Wine doesn't see a key as still held down when no further KeyEvents
+   * will arrive for it.
+   */
+  public void releaseAllPressedKeys() {
+    if (pressedKeys.isEmpty()) return;
+    Byte[] snapshot = pressedKeys.toArray(new Byte[0]);
+    for (Byte keycode : snapshot) {
+      if (keycode == null) continue;
+      if (isModifierSticky(keycode)) continue;
+      pressedKeys.remove(keycode);
+      if (isModifier(keycode)) modifiersMask.unset(getModifierFlag(keycode));
+      triggerOnKeyRelease(keycode);
+    }
+  }
+
   public void addOnKeyboardListener(OnKeyboardListener onKeyboardListener) {
     onKeyboardListeners.add(onKeyboardListener);
   }

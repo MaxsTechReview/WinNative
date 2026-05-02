@@ -1390,8 +1390,6 @@ static bool record_and_submit_frame(VkRenderer* r) {
         vkDeviceWaitIdle(r->device);
         destroy_swapchain(r);
         r->surface_ready = create_swapchain(r, r->swapchain_extent.width, r->swapchain_extent.height);
-    } else if (pr != VK_SUCCESS) {
-        VK_LOGE("vkQueuePresentKHR -> %d", pr);
     }
 
     pthread_mutex_unlock(&r->render_mutex);

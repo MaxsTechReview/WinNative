@@ -249,7 +249,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean effectiveShowFPS = false;
     private boolean isTapToClickEnabled = true;
     private int runtimeFpsLimit = 0;
-    private String lastRendererName = "OpenGL";
+    private String lastRendererName = "Vulkan";
     private String lastGpuName = null;
     private Runnable editInputControlsCallback;
     private Shortcut shortcut;
@@ -1136,20 +1136,27 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     firstAppWindowAppeared.set(true);
                     cancelRealSteamWatchdog();
                 }
-                if (frameRating != null && frameRatingWindowId == window.id) {
-                    frameRating.update();
-                }
             }
            
             @Override
             public void onMapWindow(Window window) {
                 assignTaskAffinity(window);
+                if (effectiveShowFPS && frameRating != null) {
+                    syncFrameRatingWithExistingWindows();
+                }
             }
 
             @Override
             public void onModifyWindowProperty(Window window, Property property) {
                 changeFrameRatingVisibility(window, property);
             }    
+
+            @Override
+            public void onFramePresented(Window window, WindowManager.FrameSource source, int serial) {
+                if (shouldRecordFpsFrame(window, source)) {
+                    frameRating.recordGameFrame(source == WindowManager.FrameSource.PRESENT, serial);
+                }
+            }
 
             @Override
             public void onDestroyWindow(Window window) {
@@ -1769,12 +1776,23 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (inputControlsView != null) {
             inputControlsView.cancelActiveTouches();
         }
+        releaseHeldGuestInputs();
 
         savePlaytimeData();
         handler.removeCallbacks(savePlaytimeRunnable);
         if (!cleaningUp) {
             ProcessHelper.pauseAllWineProcesses();
         }
+    }
+
+    /**
+     * Forget any axis/key that was held when Android stopped delivering input events to us.
+     * Without this, focus-loss while a stick or key is held leaves Wine seeing the input as
+     * still active — character walks forward forever, etc.
+     */
+    private void releaseHeldGuestInputs() {
+        if (winHandler != null) winHandler.releaseAllInputs();
+        if (xServer != null && xServer.keyboard != null) xServer.keyboard.releaseAllPressedKeys();
     }
 
 
@@ -3233,6 +3251,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 boolean becomingVisible = !isFpsVisible;
                 frameRating.setVisibility(becomingVisible ? View.VISIBLE : View.GONE);
                 if (becomingVisible) {
+                    frameRating.reset();
                     syncFrameRatingWithExistingWindows();
                     applyHUDSettings();
                 }
@@ -3338,6 +3357,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (inputControlsView != null) {
                 inputControlsView.cancelActiveTouches();
             }
+            releaseHeldGuestInputs();
             touchpadView.releasePointerCapture();
             touchpadView.setOnCapturedPointerListener(null);
         }
@@ -7689,13 +7709,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 return;
             }
 
-            if (frameRating != null && frameRatingWindowId == window.id) {
-                if (effectiveShowFPS) {
-                    if (propName.contains("_MESA_DRV") || propName.contains("_UTIL_LAYER")) {
-                        frameRating.update();
-                    }
-                }
-            }
         } else {
             // If window is being destroyed, sync/reset regardless of which window it was
             syncFrameRatingWithExistingWindows();
@@ -7760,7 +7773,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             lastGpuName = bestGpu;
             frameRatingWindowId = bestWindow.id;
         } else {
-            lastRendererName = "OpenGL";
+            lastRendererName = "Vulkan";
             lastGpuName = null;
             frameRatingWindowId = -1;
         }
@@ -7770,6 +7783,42 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             frameRating.setGpuName(lastGpuName);
             updateHUDRenderMode();
         });
+    }
+
+    private boolean shouldRecordFpsFrame(Window window, WindowManager.FrameSource source) {
+        if (!effectiveShowFPS || frameRating == null || window == null) return false;
+        if (source == WindowManager.FrameSource.UNKNOWN) return false;
+        if (frameRatingWindowId == window.id) return true;
+        if (isRelatedToFrameRatingWindow(window)) return true;
+        return frameRatingWindowId == -1 || isLikelyGameFrameWindow(window);
+    }
+
+    private boolean isRelatedToFrameRatingWindow(Window window) {
+        if (xServer == null || frameRatingWindowId == -1 || window == null) return false;
+        Window target = xServer.windowManager.getWindow(frameRatingWindowId);
+        if (target == null) return false;
+
+        Window cursor = window;
+        while (cursor != null) {
+            if (cursor == target) return true;
+            cursor = cursor.getParent();
+        }
+
+        cursor = target;
+        while (cursor != null) {
+            if (cursor == window) return true;
+            cursor = cursor.getParent();
+        }
+
+        return false;
+    }
+
+    private boolean isLikelyGameFrameWindow(Window window) {
+        if (xServer == null || window == null || window == xServer.windowManager.rootWindow) return false;
+        if (!window.isInputOutput() || !window.attributes.isMapped()) return false;
+        int area = window.getWidth() * window.getHeight();
+        int screenArea = xServer.screenInfo.width * xServer.screenInfo.height;
+        return window.isApplicationWindow() || area >= Math.max(1, screenArea / 4);
     }
 
     private void updateHUDRenderMode() {
