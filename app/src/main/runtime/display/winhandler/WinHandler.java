@@ -828,8 +828,8 @@ public class WinHandler {
           this.fallbackSlot = -1;
         }
         if (this.writers[slot] != null) {
-          // Fake evdev nodes are regular files; preserving them across release keeps old events
-          // readable on the next open and can replay stale input.
+          // Remove the discovery node so winebus sees a disconnect; event bytes live in
+          // the slot memfd ring and are not replayed by reopening this path.
           this.writers[slot].destroy();
           this.writers[slot] = null;
         }
@@ -1011,6 +1011,7 @@ public class WinHandler {
         this.writers[i] = null;
       }
     }
+    FakeInputWriter.releaseAllMemfdSlots();
     this.deviceToSlot.clear();
     this.descriptorToSlot.clear();
     this.deviceToDescriptor.clear();
