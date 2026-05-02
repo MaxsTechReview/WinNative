@@ -1185,8 +1185,10 @@ return boundingBox;
         radialMenuExpanded = false;
         paths = null;
       } else {
-        radialMenuExpanded = false;
-        paths = null;
+        if (wasExpandedOnDown) {
+          radialMenuExpanded = false;
+          paths = null;
+        }
       }
       inputControlsView.invalidate();
     } else if (type == Type.RANGE_BUTTON
