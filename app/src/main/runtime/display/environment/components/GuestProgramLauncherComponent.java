@@ -37,8 +37,8 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
   private String[] bindingPaths;
   private EnvVars envVars;
   private WineInfo wineInfo;
-  private String box64Preset = Box64Preset.COMPATIBILITY;
-  private String fexcorePreset = FEXCorePreset.INTERMEDIATE;
+  private String box64Preset = Box64Preset.PERFORMANCE;
+  private String fexcorePreset = FEXCorePreset.PERFORMANCE;
   private Callback<Integer> terminationCallback;
   private static final Object lock = new Object();
   private final ContentsManager contentsManager;

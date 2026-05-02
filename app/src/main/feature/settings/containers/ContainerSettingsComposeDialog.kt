@@ -884,7 +884,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         box64PresetIds = ids
         val saved = container?.getBox64Preset()
             ?: PreferenceManager.getDefaultSharedPreferences(context)
-                .getString("box64_preset", Box64Preset.COMPATIBILITY)
+                .getString("box64_preset", Box64Preset.PERFORMANCE)
         val idx = ids.indexOfFirst { it == saved }
         state.selectedBox64Preset.intValue = if (idx >= 0) idx else 0
     }
@@ -900,7 +900,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         fexcorePresetIds = ids
         val saved = container?.getFEXCorePreset()
             ?: PreferenceManager.getDefaultSharedPreferences(context)
-                .getString("fexcore_preset", FEXCorePreset.INTERMEDIATE)
+                .getString("fexcore_preset", FEXCorePreset.PERFORMANCE)
         val idx = ids.indexOfFirst { it == saved }
         state.selectedFexcorePreset.intValue = if (idx >= 0) idx else 0
     }
