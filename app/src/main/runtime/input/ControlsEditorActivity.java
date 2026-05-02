@@ -192,6 +192,7 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
             });
   }
 private void showControlElementSettings(View anchorView) {
+  blockingUpdate = true;
   final ControlElement element = inputControlsView.getSelectedElement();
   View view = LayoutInflater.from(this).inflate(R.layout.control_element_settings, null);
 

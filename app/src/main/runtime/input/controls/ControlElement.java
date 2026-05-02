@@ -944,9 +944,15 @@ return boundingBox;
           activeRadialBindingIndex = getRadialBindingIndexAt(x, y);
           boolean isInsideRadius = isPointerInsideRadialMenuRadius(x, y);
           
-          if (activeRadialBindingIndex != -1 && isInsideRadius) {
-            inputControlsView.handleInputEvent(getBindingAt(activeRadialBindingIndex), true);
-            isRadialBindingCurrentlyHeld = true;
+          if (activeRadialBindingIndex != -1) {
+            Binding binding = getBindingAt(activeRadialBindingIndex);
+            if (isInsideRadius) {
+              inputControlsView.handleInputEvent(binding, true);
+              isRadialBindingCurrentlyHeld = true;
+            } else if (binding != Binding.NONE) {
+              inputControlsView.handleInputEvent(binding, true);
+              inputControlsView.postDelayed(() -> inputControlsView.handleInputEvent(binding, false), 30);
+            }
           } else if (Mathf.distance((float) boundingBox.centerX(), (float) boundingBox.centerY(), x, y) < boundingBox.width() * 0.5f) {
             radialMenuExpanded = false;
             paths = null;
@@ -981,20 +987,37 @@ return boundingBox;
       int index = getRadialBindingIndexAt(x, y);
       boolean isInsideRadius = isPointerInsideRadialMenuRadius(x, y);
 
-      if (index != activeRadialBindingIndex || !isInsideRadius) {
+      if (index != activeRadialBindingIndex) {
         if (activeRadialBindingIndex != -1 && isRadialBindingCurrentlyHeld) {
           inputControlsView.handleInputEvent(getBindingAt(activeRadialBindingIndex), false);
           isRadialBindingCurrentlyHeld = false;
         }
+
+        activeRadialBindingIndex = index;
+
+        if (activeRadialBindingIndex != -1) {
+          Binding binding = getBindingAt(activeRadialBindingIndex);
+          if (isInsideRadius) {
+            inputControlsView.handleInputEvent(binding, true);
+            isRadialBindingCurrentlyHeld = true;
+          } else if (binding != Binding.NONE) {
+            inputControlsView.handleInputEvent(binding, true);
+            inputControlsView.postDelayed(() -> inputControlsView.handleInputEvent(binding, false), 30);
+          }
+        }
+      } else if (isInsideRadius != isRadialBindingCurrentlyHeld) {
+        if (activeRadialBindingIndex != -1) {
+          Binding binding = getBindingAt(activeRadialBindingIndex);
+          if (isInsideRadius) {
+            inputControlsView.handleInputEvent(binding, true);
+            isRadialBindingCurrentlyHeld = true;
+          } else {
+            inputControlsView.handleInputEvent(binding, false);
+            isRadialBindingCurrentlyHeld = false;
+          }
+        }
       }
 
-      activeRadialBindingIndex = index;
-
-      if (activeRadialBindingIndex != -1 && isInsideRadius && !isRadialBindingCurrentlyHeld) {
-         inputControlsView.handleInputEvent(getBindingAt(activeRadialBindingIndex), true);
-         isRadialBindingCurrentlyHeld = true;
-      }
-      
       inputControlsView.invalidate();
       return true;
     }
@@ -1171,13 +1194,8 @@ return boundingBox;
       inputControlsView.invalidate();
     } else if (type == Type.RADIAL_MENU) {
       if (activeRadialBindingIndex != -1) {
-        Binding binding = getBindingAt(activeRadialBindingIndex);
-        
         if (isRadialBindingCurrentlyHeld) {
-           inputControlsView.handleInputEvent(binding, false);
-        } else if (binding != Binding.NONE) {
-           inputControlsView.handleInputEvent(binding, true);
-           inputControlsView.postDelayed(() -> inputControlsView.handleInputEvent(binding, false), 30);
+           inputControlsView.handleInputEvent(getBindingAt(activeRadialBindingIndex), false);
         }
         
         activeRadialBindingIndex = -1;
