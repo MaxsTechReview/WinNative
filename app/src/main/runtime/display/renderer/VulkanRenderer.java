@@ -301,11 +301,7 @@ public class VulkanRenderer
         int effectCount = Math.min(active.length, MAX_EFFECTS);
         for (int i = 0; i < effectCount; i++) {
             effectTypesScratch[i] = active[i].getNativeType();
-            float[] p = active[i].getParams();
-            effectParamsScratch[i * 4 + 0] = p.length > 0 ? p[0] : 0f;
-            effectParamsScratch[i * 4 + 1] = p.length > 1 ? p[1] : 0f;
-            effectParamsScratch[i * 4 + 2] = p.length > 2 ? p[2] : 0f;
-            effectParamsScratch[i * 4 + 3] = p.length > 3 ? p[3] : 0f;
+            active[i].writeParams(effectParamsScratch, i * 4);
         }
 
         nativeSetScene(nativeHandle,

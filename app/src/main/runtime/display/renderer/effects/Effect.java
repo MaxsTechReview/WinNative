@@ -18,4 +18,11 @@ public abstract class Effect {
     public float[] getParams() {
         return new float[]{0f, 0f, 0f, 0f};
     }
+
+    public void writeParams(float[] out, int offset) {
+        out[offset] = 0f;
+        out[offset + 1] = 0f;
+        out[offset + 2] = 0f;
+        out[offset + 3] = 0f;
+    }
 }

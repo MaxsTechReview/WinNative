@@ -132,6 +132,10 @@ typedef struct VkPipelineSet {
     VkPipeline            cursor_pipeline;
     VkPipeline            blit_pipeline;
     VkPipeline            effect_pipelines[VK_EFFECT_COUNT];
+    VkPipeline            offscreen_window_pipeline;
+    VkPipeline            offscreen_cursor_pipeline;
+    VkPipeline            offscreen_blit_pipeline;
+    VkPipeline            offscreen_effect_pipelines[VK_EFFECT_COUNT];
 
     // Render passes
     VkRenderPass swapchain_pass;             // load=clear, store=store, final=present

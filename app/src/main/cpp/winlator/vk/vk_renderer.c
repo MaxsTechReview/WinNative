@@ -708,6 +708,27 @@ static bool create_pipelines(VkRenderer* r) {
     r->pipelines.effect_pipelines[VK_EFFECT_NATURAL] = create_graphics_pipeline(
         r, vs_quad, fs_natural, r->pipelines.effect_layout, r->pipelines.swapchain_pass,
         false, false, NULL);
+    r->pipelines.offscreen_window_pipeline = create_graphics_pipeline(
+        r, vs_window, fs_window, r->pipelines.window_layout, r->pipelines.offscreen_pass,
+        true, false, NULL);
+    r->pipelines.offscreen_cursor_pipeline = create_graphics_pipeline(
+        r, vs_window, fs_cursor, r->pipelines.window_layout, r->pipelines.offscreen_pass,
+        true, true, NULL);
+    r->pipelines.offscreen_blit_pipeline = create_graphics_pipeline(
+        r, vs_quad, fs_blit, r->pipelines.effect_layout, r->pipelines.offscreen_pass,
+        false, false, NULL);
+    r->pipelines.offscreen_effect_pipelines[VK_EFFECT_CRT] = create_graphics_pipeline(
+        r, vs_quad, fs_crt, r->pipelines.effect_layout, r->pipelines.offscreen_pass,
+        false, false, NULL);
+    r->pipelines.offscreen_effect_pipelines[VK_EFFECT_FSR] = create_graphics_pipeline(
+        r, vs_quad, fs_fsr, r->pipelines.effect_layout, r->pipelines.offscreen_pass,
+        false, false, NULL);
+    r->pipelines.offscreen_effect_pipelines[VK_EFFECT_HDR] = create_graphics_pipeline(
+        r, vs_quad, fs_hdr, r->pipelines.effect_layout, r->pipelines.offscreen_pass,
+        false, false, NULL);
+    r->pipelines.offscreen_effect_pipelines[VK_EFFECT_NATURAL] = create_graphics_pipeline(
+        r, vs_quad, fs_natural, r->pipelines.effect_layout, r->pipelines.offscreen_pass,
+        false, false, NULL);
 
     vkDestroyShaderModule(r->device, vs_window, NULL);
     vkDestroyShaderModule(r->device, fs_window, NULL);
@@ -720,7 +741,10 @@ static bool create_pipelines(VkRenderer* r) {
     vkDestroyShaderModule(r->device, fs_natural, NULL);
 
     if (!r->pipelines.window_pipeline || !r->pipelines.cursor_pipeline
-        || !r->pipelines.blit_pipeline) {
+        || !r->pipelines.blit_pipeline
+        || !r->pipelines.offscreen_window_pipeline
+        || !r->pipelines.offscreen_cursor_pipeline
+        || !r->pipelines.offscreen_blit_pipeline) {
         return false;
     }
     r->pipelines_built = true;
@@ -734,10 +758,17 @@ static void destroy_pipelines(VkRenderer* r) {
             vkDestroyPipeline(r->device, r->pipelines.effect_pipelines[i], NULL);
             r->pipelines.effect_pipelines[i] = VK_NULL_HANDLE;
         }
+        if (r->pipelines.offscreen_effect_pipelines[i] != VK_NULL_HANDLE) {
+            vkDestroyPipeline(r->device, r->pipelines.offscreen_effect_pipelines[i], NULL);
+            r->pipelines.offscreen_effect_pipelines[i] = VK_NULL_HANDLE;
+        }
     }
     if (r->pipelines.window_pipeline) vkDestroyPipeline(r->device, r->pipelines.window_pipeline, NULL);
     if (r->pipelines.cursor_pipeline) vkDestroyPipeline(r->device, r->pipelines.cursor_pipeline, NULL);
     if (r->pipelines.blit_pipeline)   vkDestroyPipeline(r->device, r->pipelines.blit_pipeline, NULL);
+    if (r->pipelines.offscreen_window_pipeline) vkDestroyPipeline(r->device, r->pipelines.offscreen_window_pipeline, NULL);
+    if (r->pipelines.offscreen_cursor_pipeline) vkDestroyPipeline(r->device, r->pipelines.offscreen_cursor_pipeline, NULL);
+    if (r->pipelines.offscreen_blit_pipeline)   vkDestroyPipeline(r->device, r->pipelines.offscreen_blit_pipeline, NULL);
     if (r->pipelines.window_layout)   vkDestroyPipelineLayout(r->device, r->pipelines.window_layout, NULL);
     if (r->pipelines.effect_layout)   vkDestroyPipelineLayout(r->device, r->pipelines.effect_layout, NULL);
     if (r->pipelines.sampler_set_layout) vkDestroyDescriptorSetLayout(r->device, r->pipelines.sampler_set_layout, NULL);
@@ -1165,18 +1196,20 @@ static void set_viewport_scissor(VkCommandBuffer cmd, VkRenderer* r, const VkSce
     vkCmdSetScissor(cmd, 0, 1, &sc);
 }
 
-static void draw_scene_pass(VkRenderer* r, VkCommandBuffer cmd, const VkScene* s) {
+static void draw_scene_pass(VkRenderer* r, VkCommandBuffer cmd, const VkScene* s, bool offscreen) {
     if (s->screen_width == 0 || s->screen_height == 0) return;
 
     set_viewport_scissor(cmd, r, s);
 
     // Windows
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r->pipelines.window_pipeline);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                      offscreen ? r->pipelines.offscreen_window_pipeline
+                                : r->pipelines.window_pipeline);
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(cmd, 0, 1, &r->quad_vbo, &offset);
 
     for (uint32_t i = 0; i < s->window_count; i++) {
-        VkRenderableWindow* w = &s->windows[i];
+        const VkRenderableWindow* w = &s->windows[i];
         if (!w->texture || !w->texture->ready) continue;
 
         float xf[6];
@@ -1192,7 +1225,9 @@ static void draw_scene_pass(VkRenderer* r, VkCommandBuffer cmd, const VkScene* s
     // Cursor
     if (s->cursor_visible && s->cursor_texture && s->cursor_texture->ready
         && s->cursor_width > 0 && s->cursor_height > 0) {
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r->pipelines.cursor_pipeline);
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          offscreen ? r->pipelines.offscreen_cursor_pipeline
+                                    : r->pipelines.cursor_pipeline);
         float xf[6];
         compose_xform_for_window(xf, s->xform, s->cursor_x, s->cursor_y,
                                  s->cursor_width, s->cursor_height);
@@ -1206,9 +1241,16 @@ static void draw_scene_pass(VkRenderer* r, VkCommandBuffer cmd, const VkScene* s
 }
 
 static void run_effect(VkRenderer* r, VkCommandBuffer cmd, VkEffectSlot* eff,
-                       VkDescriptorSet src_set, uint32_t target_w, uint32_t target_h) {
-    VkPipeline pipe = r->pipelines.effect_pipelines[eff->type];
-    if (!pipe) pipe = r->pipelines.blit_pipeline;
+                       VkDescriptorSet src_set, uint32_t target_w, uint32_t target_h,
+                       bool offscreen) {
+    VkPipeline pipe = VK_NULL_HANDLE;
+    if ((uint32_t)eff->type < VK_EFFECT_COUNT) {
+        pipe = offscreen ? r->pipelines.offscreen_effect_pipelines[eff->type]
+                         : r->pipelines.effect_pipelines[eff->type];
+    }
+    if (!pipe) {
+        pipe = offscreen ? r->pipelines.offscreen_blit_pipeline : r->pipelines.blit_pipeline;
+    }
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe);
 
@@ -1314,7 +1356,7 @@ static bool record_and_submit_frame(VkRenderer* r) {
         rpbi.clearValueCount = 1;
         rpbi.pClearValues = &clear;
         vkCmdBeginRenderPass(f->cmd, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
-        draw_scene_pass(r, f->cmd, &snap);
+        draw_scene_pass(r, f->cmd, &snap, true);
         vkCmdEndRenderPass(f->cmd);
 
         // Effect chain: ping-pong [0] -> [1] -> [0] -> ... -> swapchain
@@ -1336,7 +1378,7 @@ static bool record_and_submit_frame(VkRenderer* r) {
             uint32_t target_w = last ? r->swapchain_extent.width : rpbi.renderArea.extent.width;
             uint32_t target_h = last ? r->swapchain_extent.height : rpbi.renderArea.extent.height;
             run_effect(r, f->cmd, &snap.effects[i],
-                       r->offscreen[src_idx].descriptor_set, target_w, target_h);
+                       r->offscreen[src_idx].descriptor_set, target_w, target_h, !last);
             vkCmdEndRenderPass(f->cmd);
             src_idx ^= 1;
         }
@@ -1348,7 +1390,7 @@ static bool record_and_submit_frame(VkRenderer* r) {
         rpbi.clearValueCount = 1;
         rpbi.pClearValues = &clear;
         vkCmdBeginRenderPass(f->cmd, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
-        draw_scene_pass(r, f->cmd, &snap);
+        draw_scene_pass(r, f->cmd, &snap, false);
         vkCmdEndRenderPass(f->cmd);
     }
 

@@ -14,6 +14,7 @@ import java.util.List;
 public class EffectComposer {
     private final List<Effect> effects = new ArrayList<>();
     private final VulkanRenderer renderer;
+    private Effect[] cachedSnapshot = new Effect[0];
 
     public EffectComposer(VulkanRenderer renderer) {
         this.renderer = renderer;
@@ -23,6 +24,7 @@ public class EffectComposer {
         if (effect == null) return;
         if (!effects.contains(effect)) {
             effects.add(effect);
+            cachedSnapshot = effects.toArray(new Effect[0]);
         }
         if (renderer != null && renderer.xServerView != null) {
             renderer.xServerView.requestRender();
@@ -30,7 +32,9 @@ public class EffectComposer {
     }
 
     public synchronized void removeEffect(Effect effect) {
-        effects.remove(effect);
+        if (effects.remove(effect)) {
+            cachedSnapshot = effects.toArray(new Effect[0]);
+        }
         if (renderer != null && renderer.xServerView != null) {
             renderer.xServerView.requestRender();
         }
@@ -50,6 +54,6 @@ public class EffectComposer {
 
     /** Snapshot the active effects for the renderer's per-frame consumption. */
     public synchronized Effect[] snapshot() {
-        return effects.toArray(new Effect[0]);
+        return cachedSnapshot;
     }
 }
