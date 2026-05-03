@@ -285,23 +285,6 @@ public class PresentExtension
     Window window = client.xServer.windowManager.getWindow(windowId);
     if (window == null) throw new BadWindow(windowId);
 
-    if (client.xServer.isDri3Enabled() && GPUImage.isSupported() && !mask.isEmpty()) {
-      Drawable content = window.getContent();
-      if (content != null) {
-        GPUImage gpuImage = new GPUImage(content.width, content.height);
-        synchronized (content.renderLock) {
-          if (gpuImage.isValid()) {
-            final Texture oldTexture = content.getTexture();
-            if (oldTexture != null && client.xServer.getRenderer() != null)
-              client.xServer.getRenderer().xServerView.queueEvent(oldTexture::destroy);
-            content.setTexture(gpuImage);
-          } else {
-            gpuImage.destroy();
-          }
-        }
-      }
-    }
-
     synchronized (events) {
       Event event = events.get(eventId);
       if (event != null) {

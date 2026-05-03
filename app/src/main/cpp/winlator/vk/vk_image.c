@@ -243,8 +243,29 @@ void vkr_run_one_shot_cmd(VkRenderer* r, void (*fn)(VkCommandBuffer, void*), voi
     vkFreeCommandBuffers(r->device, r->cmd_pool, 1, &cmd);
 }
 
-// Forward declaration — defined in vk_renderer.c.
+// Forward declarations — defined in vk_renderer.c.
 VkDescriptorSet vkr_alloc_descriptor_set(VkRenderer* r);
+void            vkr_free_descriptor_set(VkRenderer* r, VkDescriptorSet set);
+
+// Copy `bytes` (multiple of 4) from src to dst, optionally swapping B and R per pixel.
+static void copy_pixels_maybe_swizzle(uint8_t* dst, const uint8_t* src, size_t bytes,
+                                      bool swizzle_bgra_rgba) {
+    if (!swizzle_bgra_rgba) {
+        memcpy(dst, src, bytes);
+        return;
+    }
+    size_t pixels = bytes >> 2;
+    for (size_t i = 0; i < pixels; i++) {
+        uint8_t b = src[i*4 + 0];
+        uint8_t g = src[i*4 + 1];
+        uint8_t rr = src[i*4 + 2];
+        uint8_t a = src[i*4 + 3];
+        dst[i*4 + 0] = rr;
+        dst[i*4 + 1] = g;
+        dst[i*4 + 2] = b;
+        dst[i*4 + 3] = a;
+    }
+}
 
 bool vkr_create_sampler(VkRenderer* r, VkSamplerYcbcrConversion ycbcr, VkSampler* out) {
     VkSamplerYcbcrConversionInfo yi = {VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO};
@@ -330,7 +351,8 @@ static void write_descriptor_set(VkRenderer* r, VkDescriptorSet set, VkImageView
 static void destroy_texture_resources(VkRenderer* r, VkTexture* tex) {
     if (!tex) return;
     if (tex->descriptor_set != VK_NULL_HANDLE) {
-        vkFreeDescriptorSets(r->device, r->descriptor_pool, 1, &tex->descriptor_set);
+        vkr_free_descriptor_set(r, tex->descriptor_set);
+        tex->descriptor_set = VK_NULL_HANDLE;
     }
     if (tex->sampler != VK_NULL_HANDLE) vkDestroySampler(r->device, tex->sampler, NULL);
     if (tex->view != VK_NULL_HANDLE)    vkDestroyImageView(r->device, tex->view, NULL);
@@ -483,7 +505,7 @@ VkTexture* vkr_texture_create_uploaded(VkRenderer* r, uint32_t width, uint32_t h
     if (!t) return NULL;
     t->width = width;
     t->height = height;
-    t->format = VK_FORMAT_B8G8R8A8_UNORM;
+    t->format = r->caps.upload_format;
 
     VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     if (!create_image_basic(r, width, height, t->format, usage, &t->image, &t->memory)) {
@@ -594,14 +616,16 @@ bool vkr_texture_update(VkRenderer* r, VkTexture* tex, uint32_t width, uint32_t 
         return false;
     }
 
+    bool swizzle = r->caps.upload_needs_bgra_swizzle;
     if (dirty_x == 0 && dirty_y == 0 && dirty_w == width && dirty_h == height
         && stride_pixels == width) {
-        memcpy(slot->mapped, data, needed);
+        copy_pixels_maybe_swizzle(slot->mapped, data, needed, swizzle);
     } else {
         const uint8_t* src = (const uint8_t*)data + src_offset;
         uint8_t* dst = (uint8_t*)slot->mapped;
         for (uint32_t y = 0; y < dirty_h; y++) {
-            memcpy(dst + (size_t)y * row, src + (size_t)y * src_pitch, row);
+            copy_pixels_maybe_swizzle(dst + (size_t)y * row,
+                                      src + (size_t)y * src_pitch, row, swizzle);
         }
     }
 
@@ -767,17 +791,18 @@ bool vkr_texture_batch_update(VkRenderer* r, const VkTextureBatchUpload* uploads
         return false;
     }
 
+    bool swizzle = r->caps.upload_needs_bgra_swizzle;
     for (uint32_t i = 0; i < upload_count; i++) {
         const PreparedBatchUpload* u = &prepared[i];
         const uint8_t* src = u->data + u->src_offset;
         uint8_t* dst = (uint8_t*)slot->mapped + u->staging_offset;
         if (u->row_bytes == u->src_pitch) {
-            memcpy(dst, src, (size_t)u->byte_count);
+            copy_pixels_maybe_swizzle(dst, src, (size_t)u->byte_count, swizzle);
         } else {
             for (uint32_t y = 0; y < u->h; y++) {
-                memcpy(dst + (size_t)y * u->row_bytes,
-                       src + (size_t)y * u->src_pitch,
-                       u->row_bytes);
+                copy_pixels_maybe_swizzle(dst + (size_t)y * u->row_bytes,
+                                          src + (size_t)y * u->src_pitch,
+                                          u->row_bytes, swizzle);
             }
         }
     }
@@ -876,12 +901,20 @@ VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool tran
     t->ahb = transfer_ownership ? ahb : NULL;
     if (transfer_ownership) AHardwareBuffer_acquire(ahb);
 
-    VkExternalFormatANDROID extfmt = {VK_STRUCTURE_TYPE_EXTERNAL_FORMAT_ANDROID};
-    extfmt.externalFormat = format_props.externalFormat;
+    // External-format AHB sampling requires a YCbCr conversion bound through an immutable
+    // sampler in the descriptor-set layout. This renderer uses one mutable combined
+    // image/sampler layout for all regular textures, so accepting external-format AHBs here
+    // would be Vulkan-invalid on strict drivers. Keep the import path to RGB formats until a
+    // separate immutable-sampler pipeline/layout path exists.
+    if (format_props.format == VK_FORMAT_UNDEFINED) {
+        VK_LOGW("AHB external-format import unsupported by current descriptor layout");
+        if (t->ahb) AHardwareBuffer_release(t->ahb);
+        free(t);
+        return NULL;
+    }
 
     VkExternalMemoryImageCreateInfo emi = {VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO};
     emi.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID;
-    if (format_props.format == VK_FORMAT_UNDEFINED) emi.pNext = &extfmt;
 
     VkImageCreateInfo ic = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     ic.pNext = &emi;
@@ -937,30 +970,6 @@ VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool tran
     }
     vkBindImageMemory(r->device, t->image, t->memory, 0);
 
-    // Ycbcr conversion is required when format is UNDEFINED and we use externalFormat.
-    if (format_props.format == VK_FORMAT_UNDEFINED && r->ext_ycbcr) {
-        VkSamplerYcbcrConversionCreateInfo yi = {
-            VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO
-        };
-        yi.pNext = &extfmt;
-        yi.format = VK_FORMAT_UNDEFINED;
-        yi.ycbcrModel = format_props.suggestedYcbcrModel;
-        yi.ycbcrRange = format_props.suggestedYcbcrRange;
-        yi.components = format_props.samplerYcbcrConversionComponents;
-        yi.xChromaOffset = format_props.suggestedXChromaOffset;
-        yi.yChromaOffset = format_props.suggestedYChromaOffset;
-        yi.chromaFilter = VK_FILTER_LINEAR;
-        yi.forceExplicitReconstruction = VK_FALSE;
-        if (!r->fnCreateYcbcr || r->fnCreateYcbcr(r->device, &yi, NULL, &t->ycbcr) != VK_SUCCESS) {
-            VK_LOGW("vkCreateSamplerYcbcrConversion failed");
-            vkDestroyImage(r->device, t->image, NULL);
-            vkFreeMemory(r->device, t->memory, NULL);
-            if (t->ahb) AHardwareBuffer_release(t->ahb);
-            free(t);
-            return NULL;
-        }
-    }
-
     VkSamplerYcbcrConversionInfo yview = {VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO};
     yview.conversion = t->ycbcr;
 
@@ -968,9 +977,17 @@ VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool tran
     if (t->ycbcr != VK_NULL_HANDLE) vi.pNext = &yview;
     vi.image = t->image;
     vi.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    vi.format = format_props.format != VK_FORMAT_UNDEFINED
-                ? format_props.format : VK_FORMAT_UNDEFINED;
-    vi.components = format_props.samplerYcbcrConversionComponents;
+    vi.format = format_props.format;
+    // samplerYcbcrConversionComponents is only defined when a Ycbcr conversion is in use;
+    // some non-Adreno drivers populate non-identity swizzles for RGB AHBs.
+    if (t->ycbcr != VK_NULL_HANDLE) {
+        vi.components = format_props.samplerYcbcrConversionComponents;
+    } else {
+        vi.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        vi.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        vi.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        vi.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    }
     vi.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     vi.subresourceRange.levelCount = 1;
     vi.subresourceRange.layerCount = 1;

@@ -5,6 +5,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.Log;
 import android.view.Surface;
+import androidx.preference.PreferenceManager;
+import com.winlator.cmod.BuildConfig;
 import com.winlator.cmod.R;
 import com.winlator.cmod.runtime.display.renderer.effects.Effect;
 import com.winlator.cmod.runtime.display.ui.XServerSurfaceView;
@@ -35,6 +37,8 @@ public class VulkanRenderer
                    Pointer.OnPointerMotionListener {
 
     private static final String TAG = "VulkanRenderer";
+    private static final String PREF_VULKAN_VALIDATION_LAYERS =
+            "enable_vulkan_validation_layers";
 
     static {
         System.loadLibrary("winlator");
@@ -121,7 +125,7 @@ public class VulkanRenderer
 
     public void attachSurface(Surface surface) {
         if (nativeHandle == 0) {
-            nativeHandle = nativeCreate();
+            nativeHandle = nativeCreate(shouldEnableValidationLayers());
             if (nativeHandle == 0) {
                 Log.e(TAG, "nativeCreate failed");
                 return;
@@ -134,6 +138,13 @@ public class VulkanRenderer
             }
         }
         nativeSurfaceCreated(nativeHandle, surface);
+    }
+
+    private boolean shouldEnableValidationLayers() {
+        Context context = xServerView.getContext();
+        return BuildConfig.DEBUG
+                && PreferenceManager.getDefaultSharedPreferences(context)
+                        .getBoolean(PREF_VULKAN_VALIDATION_LAYERS, false);
     }
 
     public void notifySurfaceChanged(int w, int h) {
@@ -587,7 +598,7 @@ public class VulkanRenderer
 
     // ---- JNI ---------------------------------------------------------------
 
-    private static native long nativeCreate();
+    private static native long nativeCreate(boolean enableValidationLayers);
     private static native void nativeDestroy(long handle);
     private static native void nativeSurfaceCreated(long handle, Surface surface);
     private static native void nativeSurfaceChanged(long handle, int w, int h);

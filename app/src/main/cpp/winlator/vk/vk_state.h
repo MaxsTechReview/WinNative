@@ -163,7 +163,6 @@ typedef struct VkPipelineSet {
 
 typedef struct VkFrame {
     VkSemaphore image_available;
-    VkSemaphore render_finished;
     VkFence     in_flight;
     VkCommandBuffer cmd;
 } VkFrame;
@@ -233,6 +232,8 @@ typedef struct VkDeviceCaps {
 
     // Format choices resolved against driver feature support
     VkFormat offscreen_format;      // BGRA preferred, RGBA fallback
+    VkFormat upload_format;         // BGRA preferred; RGBA fallback uses CPU-side swizzle
+    bool     upload_needs_bgra_swizzle;
 
     // Diagnostic
     bool ahb_bgra_supported;        // VK_FORMAT_B8G8R8A8_UNORM importable from AHB
@@ -252,6 +253,7 @@ typedef struct VkRenderer {
     pthread_mutex_t scene_mutex;     // guards r->scene + graveyard slots; held briefly by all
     pthread_mutex_t queue_mutex;     // serializes vkQueueSubmit across threads
     pthread_mutex_t texture_mutex;   // guards live_textures
+    pthread_mutex_t descriptor_mutex;// external sync for descriptor_pool alloc/free
     pthread_mutex_t render_mutex;    // serializes lifecycle vs render; held by render thread for
                                      // the full acquire+record+submit+present, and by lifecycle
                                      // ops (surface create/change/destroy) before they touch the
@@ -260,6 +262,9 @@ typedef struct VkRenderer {
 
     // Instance + physical/logical device
     VkInstance       instance;
+    bool             validation_enabled;
+    bool             debug_utils_enabled;
+    VkDebugUtilsMessengerEXT debug_messenger;
     VkPhysicalDevice physical_device;
     VkPhysicalDeviceMemoryProperties mem_props;
     uint32_t         graphics_queue_family;
@@ -278,6 +283,7 @@ typedef struct VkRenderer {
     VkImage          swapchain_images[VK_MAX_SWAPCHAIN_IMAGES];
     VkImageView      swapchain_views[VK_MAX_SWAPCHAIN_IMAGES];
     VkFramebuffer    swapchain_framebuffers[VK_MAX_SWAPCHAIN_IMAGES];
+    VkSemaphore      swapchain_render_finished[VK_MAX_SWAPCHAIN_IMAGES];
 
     // Pipelines / passes
     VkPipelineSet    pipelines;
@@ -328,6 +334,8 @@ typedef struct VkRenderer {
     PFN_vkGetAndroidHardwareBufferPropertiesANDROID fnGetAhbProps;
     PFN_vkCreateSamplerYcbcrConversion              fnCreateYcbcr;
     PFN_vkDestroySamplerYcbcrConversion             fnDestroyYcbcr;
+    PFN_vkCreateDebugUtilsMessengerEXT              fnCreateDebugUtilsMessenger;
+    PFN_vkDestroyDebugUtilsMessengerEXT             fnDestroyDebugUtilsMessenger;
 
     // Async upload pool (created in nativeCreate after device).
     VkStagingPool staging_pool;

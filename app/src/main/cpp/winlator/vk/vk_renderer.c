@@ -46,6 +46,7 @@ static int64_t now_ns(void) {
 // ============================================================
 
 static bool create_instance(VkRenderer* r);
+static void destroy_debug_messenger(VkRenderer* r);
 static bool pick_physical_device(VkRenderer* r);
 static bool create_device(VkRenderer* r);
 static void query_device_caps(VkRenderer* r);
@@ -81,15 +82,25 @@ VkDescriptorSet vkr_alloc_descriptor_set(VkRenderer* r) {
     ai.pSetLayouts = &r->pipelines.sampler_set_layout;
 
     VkDescriptorSet set = VK_NULL_HANDLE;
+    pthread_mutex_lock(&r->descriptor_mutex);
     VkResult res = vkAllocateDescriptorSets(r->device, &ai, &set);
     if (res != VK_SUCCESS) {
-        // Pool exhausted; reallocate larger pool. (Not implemented in this first cut — log & fail.)
         VK_LOGE("vkAllocateDescriptorSets failed: %d (pool used %u/%u)",
                 res, r->descriptor_pool_used, r->descriptor_pool_capacity);
+        pthread_mutex_unlock(&r->descriptor_mutex);
         return VK_NULL_HANDLE;
     }
     r->descriptor_pool_used++;
+    pthread_mutex_unlock(&r->descriptor_mutex);
     return set;
+}
+
+void vkr_free_descriptor_set(VkRenderer* r, VkDescriptorSet set) {
+    if (set == VK_NULL_HANDLE) return;
+    pthread_mutex_lock(&r->descriptor_mutex);
+    vkFreeDescriptorSets(r->device, r->descriptor_pool, 1, &set);
+    if (r->descriptor_pool_used > 0) r->descriptor_pool_used--;
+    pthread_mutex_unlock(&r->descriptor_mutex);
 }
 
 // ============================================================
@@ -103,21 +114,85 @@ static bool has_extension(const VkExtensionProperties* exts, uint32_t count, con
     return false;
 }
 
+static bool has_layer(const VkLayerProperties* layers, uint32_t count, const char* name) {
+    for (uint32_t i = 0; i < count; i++) {
+        if (strcmp(layers[i].layerName, name) == 0) return true;
+    }
+    return false;
+}
+
+static const char* debug_severity_name(VkDebugUtilsMessageSeverityFlagBitsEXT severity) {
+    if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) return "error";
+    if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) return "warning";
+    if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) return "info";
+    return "verbose";
+}
+
+static VKAPI_ATTR VkBool32 VKAPI_CALL vvl_debug_callback(
+        VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+        VkDebugUtilsMessageTypeFlagsEXT type,
+        const VkDebugUtilsMessengerCallbackDataEXT* data,
+        void* user) {
+    (void)type;
+    (void)user;
+    const char* message = (data && data->pMessage) ? data->pMessage : "(no message)";
+    const char* severity_name = debug_severity_name(severity);
+    if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+        VK_LOGE("VVL %s: %s", severity_name, message);
+    } else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+        VK_LOGW("VVL %s: %s", severity_name, message);
+    } else {
+        VK_LOGI("VVL %s: %s", severity_name, message);
+    }
+    return VK_FALSE;
+}
+
 static bool create_instance(VkRenderer* r) {
     uint32_t ext_count = 0;
     vkEnumerateInstanceExtensionProperties(NULL, &ext_count, NULL);
     VkExtensionProperties* exts = calloc(ext_count, sizeof(VkExtensionProperties));
     vkEnumerateInstanceExtensionProperties(NULL, &ext_count, exts);
 
-    const char* required[] = {
+    const char* required_exts[] = {
         VK_KHR_SURFACE_EXTENSION_NAME,
         VK_KHR_ANDROID_SURFACE_EXTENSION_NAME,
     };
-    for (uint32_t i = 0; i < sizeof(required) / sizeof(required[0]); i++) {
-        if (!has_extension(exts, ext_count, required[i])) {
-            VK_LOGE("Missing required instance extension: %s", required[i]);
+    for (uint32_t i = 0; i < sizeof(required_exts) / sizeof(required_exts[0]); i++) {
+        if (!has_extension(exts, ext_count, required_exts[i])) {
+            VK_LOGE("Missing required instance extension: %s", required_exts[i]);
             free(exts);
             return false;
+        }
+    }
+
+    const char* enabled_layers[1] = {0};
+    uint32_t enabled_layer_count = 0;
+    if (r->validation_enabled) {
+        uint32_t layer_count = 0;
+        vkEnumerateInstanceLayerProperties(&layer_count, NULL);
+        VkLayerProperties* layers = calloc(layer_count, sizeof(VkLayerProperties));
+        vkEnumerateInstanceLayerProperties(&layer_count, layers);
+        if (has_layer(layers, layer_count, "VK_LAYER_KHRONOS_validation")) {
+            enabled_layers[enabled_layer_count++] = "VK_LAYER_KHRONOS_validation";
+            VK_LOGI("Vulkan validation layer enabled");
+        } else {
+            VK_LOGW("Vulkan validation layer requested but VK_LAYER_KHRONOS_validation is unavailable");
+            r->validation_enabled = false;
+        }
+        free(layers);
+    }
+
+    const char* enabled_exts[4] = {0};
+    uint32_t enabled_ext_count = 0;
+    for (uint32_t i = 0; i < sizeof(required_exts) / sizeof(required_exts[0]); i++) {
+        enabled_exts[enabled_ext_count++] = required_exts[i];
+    }
+    if (r->validation_enabled) {
+        if (has_extension(exts, ext_count, VK_EXT_DEBUG_UTILS_EXTENSION_NAME)) {
+            enabled_exts[enabled_ext_count++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+            r->debug_utils_enabled = true;
+        } else {
+            VK_LOGW("VK_EXT_debug_utils unavailable; validation remains enabled without callback logging");
         }
     }
     free(exts);
@@ -131,14 +206,54 @@ static bool create_instance(VkRenderer* r) {
 
     VkInstanceCreateInfo ic = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
     ic.pApplicationInfo = &app;
-    ic.enabledExtensionCount = sizeof(required) / sizeof(required[0]);
-    ic.ppEnabledExtensionNames = required;
+    ic.enabledExtensionCount = enabled_ext_count;
+    ic.ppEnabledExtensionNames = enabled_exts;
+    ic.enabledLayerCount = enabled_layer_count;
+    ic.ppEnabledLayerNames = enabled_layers;
 
-    if (vkCreateInstance(&ic, NULL, &r->instance) != VK_SUCCESS) {
-        VK_LOGE("vkCreateInstance failed");
+    VkResult res = vkCreateInstance(&ic, NULL, &r->instance);
+    if (res != VK_SUCCESS) {
+        VK_LOGE("vkCreateInstance failed: %d", res);
         return false;
     }
+
+    if (r->debug_utils_enabled) {
+        r->fnCreateDebugUtilsMessenger =
+                (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
+                        r->instance, "vkCreateDebugUtilsMessengerEXT");
+        r->fnDestroyDebugUtilsMessenger =
+                (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
+                        r->instance, "vkDestroyDebugUtilsMessengerEXT");
+        if (r->fnCreateDebugUtilsMessenger && r->fnDestroyDebugUtilsMessenger) {
+            VkDebugUtilsMessengerCreateInfoEXT dc = {
+                VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
+            };
+            dc.messageSeverity =
+                    VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                    VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+            dc.messageType =
+                    VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                    VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                    VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+            dc.pfnUserCallback = vvl_debug_callback;
+            res = r->fnCreateDebugUtilsMessenger(r->instance, &dc, NULL, &r->debug_messenger);
+            if (res != VK_SUCCESS) {
+                VK_LOGW("vkCreateDebugUtilsMessengerEXT failed: %d", res);
+                r->debug_utils_enabled = false;
+            }
+        } else {
+            VK_LOGW("VK_EXT_debug_utils entry points unavailable");
+            r->debug_utils_enabled = false;
+        }
+    }
     return true;
+}
+
+static void destroy_debug_messenger(VkRenderer* r) {
+    if (r->debug_messenger != VK_NULL_HANDLE && r->fnDestroyDebugUtilsMessenger) {
+        r->fnDestroyDebugUtilsMessenger(r->instance, r->debug_messenger, NULL);
+        r->debug_messenger = VK_NULL_HANDLE;
+    }
 }
 
 // ============================================================
@@ -322,6 +437,20 @@ static void query_device_caps(VkRenderer* r) {
         }
     }
 
+    // CPU-uploaded texture format. RGBA8 is spec-guaranteed; BGRA8 is optional.
+    const VkFormatFeatureFlags upload_need = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
+                                           | VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
+    r->caps.upload_format = VK_FORMAT_R8G8B8A8_UNORM;
+    r->caps.upload_needs_bgra_swizzle = true;
+    {
+        VkFormatProperties fp;
+        vkGetPhysicalDeviceFormatProperties(r->physical_device, VK_FORMAT_B8G8R8A8_UNORM, &fp);
+        if ((fp.optimalTilingFeatures & upload_need) == upload_need) {
+            r->caps.upload_format = VK_FORMAT_B8G8R8A8_UNORM;
+            r->caps.upload_needs_bgra_swizzle = false;
+        }
+    }
+
     // AHB BGRA8 importability — diagnostic only; per-import paths still probe themselves.
     r->caps.ahb_bgra_supported = false;
     if (r->ext_ahb) {
@@ -361,10 +490,11 @@ static void query_device_caps(VkRenderer* r) {
         }
     }
 
-    VK_LOGI("Device caps: vendor=0x%x device=0x%x driver=0x%x adreno=%d offscreen=%s ahb_bgra=%d desc_pool=%u",
+    VK_LOGI("Device caps: vendor=0x%x device=0x%x driver=0x%x adreno=%d offscreen=%s upload=%s ahb_bgra=%d desc_pool=%u",
             r->caps.vendor_id, r->caps.device_id, r->caps.driver_version,
             r->caps.is_adreno,
             r->caps.offscreen_format == VK_FORMAT_B8G8R8A8_UNORM ? "BGRA8" : "RGBA8",
+            r->caps.upload_format == VK_FORMAT_B8G8R8A8_UNORM ? "BGRA8" : "RGBA8(swizzle)",
             r->caps.ahb_bgra_supported,
             r->caps.descriptor_pool_capacity);
 }
@@ -392,7 +522,6 @@ static bool create_command_pool(VkRenderer* r) {
         VkFrame* f = &r->frames[i];
         if (vkAllocateCommandBuffers(r->device, &ai, &f->cmd) != VK_SUCCESS) return false;
         if (vkCreateSemaphore(r->device, &si, NULL, &f->image_available) != VK_SUCCESS) return false;
-        if (vkCreateSemaphore(r->device, &si, NULL, &f->render_finished) != VK_SUCCESS) return false;
         if (vkCreateFence(r->device, &fi, NULL, &f->in_flight) != VK_SUCCESS) return false;
     }
     return true;
@@ -977,7 +1106,13 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
         if (!create_pipelines(r)) goto fail;
     }
 
+    VkSemaphoreCreateInfo sem_ci = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
     for (uint32_t i = 0; i < got; i++) {
+        if (vkCreateSemaphore(r->device, &sem_ci, NULL,
+                              &r->swapchain_render_finished[i]) != VK_SUCCESS) {
+            goto fail;
+        }
+
         VkImageViewCreateInfo ivci = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
         ivci.image = r->swapchain_images[i];
         ivci.viewType = VK_IMAGE_VIEW_TYPE_2D;
@@ -1009,6 +1144,10 @@ fail:
 
 static void destroy_swapchain(VkRenderer* r) {
     for (uint32_t i = 0; i < r->swapchain_image_count; i++) {
+        if (r->swapchain_render_finished[i]) {
+            vkDestroySemaphore(r->device, r->swapchain_render_finished[i], NULL);
+            r->swapchain_render_finished[i] = VK_NULL_HANDLE;
+        }
         if (r->swapchain_framebuffers[i]) {
             vkDestroyFramebuffer(r->device, r->swapchain_framebuffers[i], NULL);
             r->swapchain_framebuffers[i] = VK_NULL_HANDLE;
@@ -1100,7 +1239,7 @@ static bool create_one_offscreen(VkRenderer* r, VkOffscreen* o, uint32_t w, uint
 
 static void destroy_one_offscreen(VkRenderer* r, VkOffscreen* o) {
     if (o->framebuffer)    vkDestroyFramebuffer(r->device, o->framebuffer, NULL);
-    if (o->descriptor_set) vkFreeDescriptorSets(r->device, r->descriptor_pool, 1, &o->descriptor_set);
+    if (o->descriptor_set) vkr_free_descriptor_set(r, o->descriptor_set);
     if (o->sampler)        vkDestroySampler(r->device, o->sampler, NULL);
     if (o->view)           vkDestroyImageView(r->device, o->view, NULL);
     if (o->image)          vkDestroyImage(r->device, o->image, NULL);
@@ -1487,6 +1626,7 @@ static bool record_and_submit_frame(VkRenderer* r) {
         pthread_mutex_unlock(&r->render_mutex);
         return false;
     }
+    VkSemaphore render_finished = r->swapchain_render_finished[image_index];
 
     vkResetFences(r->device, 1, &f->in_flight);
     vkResetCommandBuffer(f->cmd, 0);
@@ -1560,20 +1700,29 @@ static bool record_and_submit_frame(VkRenderer* r) {
     si.commandBufferCount = 1;
     si.pCommandBuffers = &f->cmd;
     si.signalSemaphoreCount = 1;
-    si.pSignalSemaphores = &f->render_finished;
+    si.pSignalSemaphores = &render_finished;
 
     pthread_mutex_lock(&r->queue_mutex);
     VkResult sr = vkQueueSubmit(r->graphics_queue, 1, &si, f->in_flight);
     pthread_mutex_unlock(&r->queue_mutex);
     if (sr != VK_SUCCESS) {
         VK_LOGE("vkQueueSubmit -> %d", sr);
+        // The frame fence was reset before submit. If submit fails, nothing will ever signal
+        // it, so restore a signaled fence before returning or the next frame can block forever.
+        vkDestroyFence(r->device, f->in_flight, NULL);
+        VkFenceCreateInfo rfi = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+        rfi.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        if (vkCreateFence(r->device, &rfi, NULL, &f->in_flight) != VK_SUCCESS) {
+            f->in_flight = VK_NULL_HANDLE;
+            VK_LOGE("Failed to recreate frame fence after submit failure");
+        }
         pthread_mutex_unlock(&r->render_mutex);
         return false;
     }
 
     VkPresentInfoKHR pi = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
     pi.waitSemaphoreCount = 1;
-    pi.pWaitSemaphores = &f->render_finished;
+    pi.pWaitSemaphores = &render_finished;
     pi.swapchainCount = 1;
     pi.pSwapchains = &r->swapchain;
     pi.pImageIndices = &image_index;
@@ -1624,15 +1773,17 @@ static bool record_and_submit_frame(VkRenderer* r) {
 
 #define JNI_FN(name) Java_com_winlator_cmod_runtime_display_renderer_VulkanRenderer_##name
 
-JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz) {
+JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz, jboolean enableValidationLayers) {
     (void)env; (void)clazz;
     VkRenderer* r = calloc(1, sizeof(VkRenderer));
     if (!r) return 0;
     r->target_present_mode = VK_PRESENT_MODE_FIFO_KHR;
+    r->validation_enabled = (enableValidationLayers == JNI_TRUE);
     pthread_mutex_init(&r->scene_mutex, NULL);
     pthread_mutex_init(&r->queue_mutex, NULL);
     pthread_mutex_init(&r->texture_mutex, NULL);
     pthread_mutex_init(&r->render_mutex, NULL);
+    pthread_mutex_init(&r->descriptor_mutex, NULL);
 
     if (!create_instance(r)) goto fail;
     if (!pick_physical_device(r)) goto fail;
@@ -1654,11 +1805,13 @@ fail:
     if (r->cmd_pool) vkDestroyCommandPool(r->device, r->cmd_pool, NULL);
     if (r->descriptor_pool) vkDestroyDescriptorPool(r->device, r->descriptor_pool, NULL);
     if (r->device) vkDestroyDevice(r->device, NULL);
+    destroy_debug_messenger(r);
     if (r->instance) vkDestroyInstance(r->instance, NULL);
     pthread_mutex_destroy(&r->scene_mutex);
     pthread_mutex_destroy(&r->queue_mutex);
     pthread_mutex_destroy(&r->texture_mutex);
     pthread_mutex_destroy(&r->render_mutex);
+    pthread_mutex_destroy(&r->descriptor_mutex);
     free(r);
     return 0;
 }
@@ -1690,7 +1843,6 @@ JNIEXPORT void JNICALL JNI_FN(nativeDestroy)(JNIEnv* env, jclass clazz, jlong ha
     for (uint32_t i = 0; i < VK_FRAMES_IN_FLIGHT; i++) {
         VkFrame* f = &r->frames[i];
         if (f->image_available) vkDestroySemaphore(r->device, f->image_available, NULL);
-        if (f->render_finished) vkDestroySemaphore(r->device, f->render_finished, NULL);
         if (f->in_flight)       vkDestroyFence(r->device, f->in_flight, NULL);
     }
 
@@ -1700,12 +1852,14 @@ JNIEXPORT void JNICALL JNI_FN(nativeDestroy)(JNIEnv* env, jclass clazz, jlong ha
     if (r->surface) vkDestroySurfaceKHR(r->instance, r->surface, NULL);
     if (r->anw)     ANativeWindow_release(r->anw);
     if (r->device)  vkDestroyDevice(r->device, NULL);
+    destroy_debug_messenger(r);
     if (r->instance)vkDestroyInstance(r->instance, NULL);
 
     pthread_mutex_destroy(&r->scene_mutex);
     pthread_mutex_destroy(&r->queue_mutex);
     pthread_mutex_destroy(&r->texture_mutex);
     pthread_mutex_destroy(&r->render_mutex);
+    pthread_mutex_destroy(&r->descriptor_mutex);
     free(r);
 }
 
