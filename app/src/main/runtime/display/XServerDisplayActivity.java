@@ -4269,6 +4269,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             Intent intent = new Intent(this, UnifiedActivity.class);
             intent.putExtra("edit_input_controls", true);
             intent.putExtra("selected_profile_id", position > 0 ? inputControlsManager.getProfiles(true).get(position - 1).id : 0);
+            intent.putExtra("return_to_game_on_back", true);
             editInputControlsCallback = () -> {
                 hideInputControls();
                 inputControlsManager.loadProfiles(true);
