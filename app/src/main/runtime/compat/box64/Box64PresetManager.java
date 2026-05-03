@@ -342,6 +342,6 @@ public abstract class Box64PresetManager {
     int selectedPosition = spinner.getSelectedItemPosition();
     if (adapter != null && adapter.getCount() > 0 && selectedPosition >= 0) {
       return ((Box64Preset) adapter.getItem(selectedPosition)).id;
-    } else return Box64Preset.COMPATIBILITY;
+    } else return Box64Preset.PERFORMANCE;
   }
 }

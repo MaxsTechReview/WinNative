@@ -18,6 +18,7 @@ import com.winlator.cmod.runtime.content.ContentsManager;
 import com.winlator.cmod.runtime.display.connector.UnixSocketConfig;
 import com.winlator.cmod.runtime.display.environment.EnvironmentComponent;
 import com.winlator.cmod.runtime.display.environment.ImageFs;
+import com.winlator.cmod.runtime.input.controls.FakeInputWriter;
 import com.winlator.cmod.runtime.system.GPUInformation;
 import com.winlator.cmod.runtime.system.ProcessHelper;
 import com.winlator.cmod.runtime.wine.EnvVars;
@@ -37,8 +38,8 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
   private String[] bindingPaths;
   private EnvVars envVars;
   private WineInfo wineInfo;
-  private String box64Preset = Box64Preset.COMPATIBILITY;
-  private String fexcorePreset = FEXCorePreset.INTERMEDIATE;
+  private String box64Preset = Box64Preset.PERFORMANCE;
+  private String fexcorePreset = FEXCorePreset.PERFORMANCE;
   private Callback<Integer> terminationCallback;
   private static final Object lock = new Object();
   private final ContentsManager contentsManager;
@@ -236,7 +237,11 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
       Log.d("GuestLauncher", "execShellCommand LD_PRELOAD=" + ldPreload.toString());
     }
     envVars.put("WINEESYNC_WINLATOR", "1");
-    mergeExternalEnvVars(envVars, envVars.get("LD_PRELOAD"), envVars.get("FAKE_EVDEV_DIR"));
+    mergeExternalEnvVars(
+        envVars,
+        envVars.get("LD_PRELOAD"),
+        envVars.get("FAKE_EVDEV_DIR"),
+        envVars.get("FAKE_EVDEV_MEMFD_PATHS"));
     FEXCorePresetManager.normalizeSmcChecksEnvVars(envVars, this.envVars);
 
     // For arm64ec Wine builds the wine binary is native ARM64 — call it directly
@@ -607,7 +612,10 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
   }
 
   private void mergeExternalEnvVars(
-      EnvVars envVars, String protectedLdPreload, String protectedFakeEvdevDir) {
+      EnvVars envVars,
+      String protectedLdPreload,
+      String protectedFakeEvdevDir,
+      String protectedFakeEvdevMemfdPaths) {
     if (this.envVars == null) {
       return;
     }
@@ -622,6 +630,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
     String overrideLdPreload = this.envVars.get("LD_PRELOAD");
     String overrideFakeEvdevDir = this.envVars.get("FAKE_EVDEV_DIR");
+    String overrideFakeEvdevMemfdPaths = this.envVars.get("FAKE_EVDEV_MEMFD_PATHS");
 
     envVars.putAll(this.envVars);
 
@@ -633,6 +642,12 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
       envVars.put("FAKE_EVDEV_DIR", protectedFakeEvdevDir);
     } else if (overrideFakeEvdevDir != null && !overrideFakeEvdevDir.isEmpty()) {
       envVars.put("FAKE_EVDEV_DIR", overrideFakeEvdevDir);
+    }
+
+    if (protectedFakeEvdevMemfdPaths != null && !protectedFakeEvdevMemfdPaths.isEmpty()) {
+      envVars.put("FAKE_EVDEV_MEMFD_PATHS", protectedFakeEvdevMemfdPaths);
+    } else if (overrideFakeEvdevMemfdPaths != null && !overrideFakeEvdevMemfdPaths.isEmpty()) {
+      envVars.put("FAKE_EVDEV_MEMFD_PATHS", overrideFakeEvdevMemfdPaths);
     }
   }
 
@@ -799,13 +814,18 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
     File devInputDir = new File(imageFs.getRootDir(), "dev/input");
     devInputDir.mkdirs();
-    // XServerDisplayActivity pre-creates the configured controller count after the
-    // shortcut is loaded. Keep event0 available here as a minimum fallback.
-    File event0 = new File(devInputDir, "event0");
-    if (!event0.exists()) {
-      try {
-        event0.createNewFile();
-      } catch (Exception e) {
+    FakeInputWriter.prepareRingSlots(devInputDir, 4);
+    String fakeEvdevRingPaths = FakeInputWriter.getRingEnv(devInputDir);
+    if (!fakeEvdevRingPaths.isEmpty()) {
+      envVars.put("FAKE_EVDEV_MEMFD_PATHS", fakeEvdevRingPaths);
+      // XServerDisplayActivity pre-creates the configured controller count after the
+      // shortcut is loaded. Keep event0 discoverable once the ring transport exists.
+      File event0 = new File(devInputDir, "event0");
+      if (!event0.exists()) {
+        try {
+          event0.createNewFile();
+        } catch (Exception e) {
+        }
       }
     }
     envVars.put("FAKE_EVDEV_DIR", devInputDir.getAbsolutePath());
@@ -822,7 +842,11 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
     // Preserve the launcher-owned preload/input paths while restoring the
     // full env built upstream in XServerDisplayActivity (driver, DXVK, Vulkan, etc).
-    mergeExternalEnvVars(envVars, envVars.get("LD_PRELOAD"), envVars.get("FAKE_EVDEV_DIR"));
+    mergeExternalEnvVars(
+        envVars,
+        envVars.get("LD_PRELOAD"),
+        envVars.get("FAKE_EVDEV_DIR"),
+        envVars.get("FAKE_EVDEV_MEMFD_PATHS"));
     FEXCorePresetManager.normalizeSmcChecksEnvVars(envVars, this.envVars);
 
     String emulator = container.getEmulator();

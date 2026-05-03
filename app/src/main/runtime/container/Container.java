@@ -27,7 +27,7 @@ public class Container {
     public static final String DEFAULT_EMULATOR = "Box64";
     public static final String DEFAULT_EMULATOR64 = "Box64";
     public static final String DEFAULT_DXWRAPPER = "dxvk+vkd3d";
-    public static final String DEFAULT_DXWRAPPERCONFIG = "version=,async=0,asyncCache=0" + ",vkd3dVersion=None,vkd3dLevel=12_1" + ",ddrawrapper=" + Container.DEFAULT_DDRAWRAPPER + ",csmt=3" + ",gpuName=NVIDIA GeForce GTX 480" + ",videoMemorySize=2048" + ",strict_shader_math=1" + ",OffscreenRenderingMode=fbo" + ",renderer=gl";
+    public static final String DEFAULT_DXWRAPPERCONFIG = "version=,async=1,asyncCache=1" + ",vkd3dVersion=None,vkd3dLevel=12_1" + ",ddrawrapper=" + Container.DEFAULT_DDRAWRAPPER + ",csmt=3" + ",gpuName=NVIDIA GeForce GTX 480" + ",videoMemorySize=4096" + ",strict_shader_math=1" + ",OffscreenRenderingMode=fbo" + ",renderer=gl";
     public static final String DEFAULT_GRAPHICSDRIVERCONFIG =
             "vulkanVersion=1.3" + ";version=" + ";blacklistedExtensions=" + ";maxDeviceMemory=0" + ";presentMode=mailbox" + ";syncFrame=0" + ";disablePresentWait=1" + ";resourceType=auto" + ";bcnEmulation=none" + ";bcnEmulationType=compute" + ";bcnEmulationCache=0" + ";gpuName=Device";
     public static final String DEFAULT_DDRAWRAPPER = "none";
@@ -56,8 +56,8 @@ public class Container {
     private String cpuListWoW64;
     private String desktopTheme = WineThemeManager.DEFAULT_DESKTOP_THEME;
     private String fexcoreVersion = "";
-    private String fexcorePreset = FEXCorePreset.INTERMEDIATE;
-    private String box64Preset = Box64Preset.COMPATIBILITY;
+    private String fexcorePreset = FEXCorePreset.PERFORMANCE;
+    private String box64Preset = Box64Preset.PERFORMANCE;
     private File rootDir;
     private JSONObject extraData;
     private String midiSoundFont = "";
