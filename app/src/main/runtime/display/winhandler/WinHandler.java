@@ -759,6 +759,13 @@ public class WinHandler {
   private int assignSlot(int deviceId) {
     if (deviceId != OSC_DEVICE_ID) {
       cancelPendingVirtualGamepadRebalance();
+      android.view.InputDevice physicalDevice = android.view.InputDevice.getDevice(deviceId);
+      if (!ExternalController.isGameController(physicalDevice)) {
+        Log.d(
+            "WinHandler",
+            "Ignoring stale controller device " + deviceId + ": device is no longer connected.");
+        return -1;
+      }
     }
 
     // Fast path: already assigned
