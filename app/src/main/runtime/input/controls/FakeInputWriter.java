@@ -6,8 +6,10 @@ import com.winlator.cmod.runtime.display.connector.XConnectorEpoll;
 import com.winlator.cmod.sharedmemory.SysVSharedMemory;
 import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
 
 public class FakeInputWriter {
   public static final short ABS_BRAKE = 10;
@@ -32,6 +34,7 @@ public class FakeInputWriter {
   private static final int RING_CAPACITY_OFFSET = 12;
   private static final int RING_WRITE_SEQ_OFFSET = 16;
   private static final int RING_GENERATION_OFFSET = 24;
+  private static final String RING_DIR_NAME = "fakeinput-rings";
   public static final short EV_ABS = 3;
   public static final short EV_KEY = 1;
   public static final short EV_MSC = 4;
@@ -44,6 +47,7 @@ public class FakeInputWriter {
   private static final RingSlot[] RING_SLOTS = new RingSlot[MAX_FAKE_INPUT_SLOTS];
   private final File eventFile;
   private final int slot;
+  private FileChannel queueChannel;
   private int prevHatX;
   private int prevHatY;
   private int prevThumbLX;
@@ -52,6 +56,7 @@ public class FakeInputWriter {
   private int prevThumbRY;
   private int prevTriggerL;
   private int prevTriggerR;
+  private RandomAccessFile queueRaf;
   public static final short BTN_A = 304;
   public static final short BTN_B = 305;
   public static final short BTN_X = 307;
@@ -67,6 +72,7 @@ public class FakeInputWriter {
   };
   private boolean isOpen = false;
   private volatile boolean destroyed = false;
+  private boolean fileQueueFallback = false;
   private final boolean[] prevButtonStates = new boolean[12];
   private boolean hasChanges = false;
   private final ByteBuffer buffer = ByteBuffer.allocateDirect(BUFFER_SIZE);
@@ -80,72 +86,227 @@ public class FakeInputWriter {
   private static final class RingSlot {
     int fd = -1;
     ByteBuffer data;
+    File ringFile;
+    FileChannel ringChannel;
+    RandomAccessFile ringRaf;
+    String exportPath;
     long generation;
     boolean active;
     boolean everActivated;
+    boolean nativeMapped;
   }
 
   public static void prepareMemfdSlots(int slotCount) {
     int boundedSlotCount = Math.max(0, Math.min(slotCount, MAX_FAKE_INPUT_SLOTS));
     synchronized (RING_LOCK) {
       for (int slot = 0; slot < boundedSlotCount; slot++) {
-        ensureRingSlotLocked(slot);
+        ensureRingSlotLocked(slot, null);
       }
     }
   }
 
   public static String getMemfdEnv() {
     synchronized (RING_LOCK) {
-      prepareMemfdSlotsLocked(MAX_FAKE_INPUT_SLOTS);
-      StringBuilder builder = new StringBuilder();
-      int pid = android.os.Process.myPid();
-      for (int slot = 0; slot < RING_SLOTS.length; slot++) {
-        RingSlot ringSlot = RING_SLOTS[slot];
-        if (ringSlot == null || ringSlot.fd < 0) {
-          continue;
-        }
-        if (builder.length() > 0) {
-          builder.append(';');
-        }
-        builder.append(slot).append("=/proc/").append(pid).append("/fd/").append(ringSlot.fd);
+      prepareRingSlotsLocked(null, MAX_FAKE_INPUT_SLOTS);
+      return buildRingEnvLocked();
+    }
+  }
+
+  public static void prepareRingSlots(File fakeInputDir, int slotCount) {
+    int boundedSlotCount = Math.max(0, Math.min(slotCount, MAX_FAKE_INPUT_SLOTS));
+    synchronized (RING_LOCK) {
+      for (int slot = 0; slot < boundedSlotCount; slot++) {
+        ensureRingSlotLocked(slot, fakeInputDir);
       }
-      return builder.toString();
+    }
+  }
+
+  public static String getRingEnv(File fakeInputDir) {
+    synchronized (RING_LOCK) {
+      prepareRingSlotsLocked(fakeInputDir, MAX_FAKE_INPUT_SLOTS);
+      return buildRingEnvLocked();
     }
   }
 
   public static void releaseAllMemfdSlots() {
     synchronized (RING_LOCK) {
       for (int slot = 0; slot < RING_SLOTS.length; slot++) {
-        RingSlot ringSlot = RING_SLOTS[slot];
-        if (ringSlot == null) {
-          continue;
-        }
-        if (ringSlot.data != null) {
-          SysVSharedMemory.unmapSHMSegment(ringSlot.data, RING_SIZE);
-          ringSlot.data = null;
-        }
-        if (ringSlot.fd >= 0) {
-          XConnectorEpoll.closeFd(ringSlot.fd);
-          ringSlot.fd = -1;
-        }
-        RING_SLOTS[slot] = null;
+        releaseRingSlotLocked(slot);
       }
     }
   }
 
-  private static void prepareMemfdSlotsLocked(int slotCount) {
-    int boundedSlotCount = Math.max(0, Math.min(slotCount, MAX_FAKE_INPUT_SLOTS));
-    for (int slot = 0; slot < boundedSlotCount; slot++) {
-      ensureRingSlotLocked(slot);
+  private static String buildRingEnvLocked() {
+    StringBuilder builder = new StringBuilder();
+    for (int slot = 0; slot < RING_SLOTS.length; slot++) {
+      RingSlot ringSlot = RING_SLOTS[slot];
+      if (ringSlot == null || ringSlot.data == null || ringSlot.exportPath == null) {
+        continue;
+      }
+      if (builder.length() > 0) {
+        builder.append(';');
+      }
+      builder.append(slot).append('=').append(ringSlot.exportPath);
+    }
+    return builder.toString();
+  }
+
+  private static File getRingDir(File fakeInputDir) {
+    if (fakeInputDir == null) {
+      return null;
+    }
+    File inputDir = fakeInputDir.getAbsoluteFile();
+    File parent = inputDir.getParentFile();
+    return new File(parent != null ? parent : inputDir, RING_DIR_NAME);
+  }
+
+  private static File getRingFile(File fakeInputDir, int slot) {
+    File ringDir = getRingDir(fakeInputDir);
+    return ringDir != null ? new File(ringDir, "ring" + slot) : null;
+  }
+
+  private static String getCanonicalOrAbsolutePath(File file) {
+    try {
+      return file.getCanonicalPath();
+    } catch (IOException e) {
+      return file.getAbsolutePath();
     }
   }
 
-  private static RingSlot ensureRingSlotLocked(int slot) {
+  private static void initializeRingHeader(ByteBuffer data) {
+    data.order(ByteOrder.LITTLE_ENDIAN);
+    data.putInt(RING_MAGIC_OFFSET, RING_MAGIC);
+    data.putInt(RING_VERSION_OFFSET, RING_VERSION);
+    data.putInt(RING_EVENT_SIZE_OFFSET, EVENT_SIZE);
+    data.putInt(RING_CAPACITY_OFFSET, RING_CAPACITY_EVENTS);
+    data.putLong(RING_WRITE_SEQ_OFFSET, 0L);
+    data.putLong(RING_GENERATION_OFFSET, 0L);
+  }
+
+  private static void releaseRingSlotLocked(int slot) {
+    RingSlot ringSlot = RING_SLOTS[slot];
+    if (ringSlot == null) {
+      return;
+    }
+    if (ringSlot.data != null && ringSlot.nativeMapped) {
+      SysVSharedMemory.unmapSHMSegment(ringSlot.data, RING_SIZE);
+    }
+    ringSlot.data = null;
+    if (ringSlot.fd >= 0) {
+      XConnectorEpoll.closeFd(ringSlot.fd);
+      ringSlot.fd = -1;
+    }
+    if (ringSlot.ringChannel != null) {
+      try {
+        ringSlot.ringChannel.close();
+      } catch (IOException ignored) {
+      }
+      ringSlot.ringChannel = null;
+    }
+    if (ringSlot.ringRaf != null) {
+      try {
+        ringSlot.ringRaf.close();
+      } catch (IOException ignored) {
+      }
+      ringSlot.ringRaf = null;
+    }
+    if (ringSlot.ringFile != null && ringSlot.ringFile.exists()) {
+      ringSlot.ringFile.delete();
+    }
+    RING_SLOTS[slot] = null;
+  }
+
+  private static void prepareRingSlotsLocked(File fakeInputDir, int slotCount) {
+    int boundedSlotCount = Math.max(0, Math.min(slotCount, MAX_FAKE_INPUT_SLOTS));
+    for (int slot = 0; slot < boundedSlotCount; slot++) {
+      ensureRingSlotLocked(slot, fakeInputDir);
+    }
+  }
+
+  private static RingSlot ensureRingSlotLocked(int slot, File fakeInputDir) {
     if (slot < 0 || slot >= MAX_FAKE_INPUT_SLOTS) {
       return null;
     }
+
+    File desiredRingFile = getRingFile(fakeInputDir, slot);
+    if (desiredRingFile != null) {
+      desiredRingFile = desiredRingFile.getAbsoluteFile();
+    }
     RingSlot existing = RING_SLOTS[slot];
-    if (existing != null && existing.fd >= 0 && existing.data != null) {
+    if (existing != null && existing.data != null) {
+      if (desiredRingFile == null
+          || (existing.ringFile != null && existing.ringFile.equals(desiredRingFile))) {
+        return existing;
+      }
+      releaseRingSlotLocked(slot);
+    }
+
+    if (desiredRingFile != null) {
+      RingSlot fileRingSlot = createFileRingSlotLocked(slot, desiredRingFile);
+      if (fileRingSlot != null) {
+        RING_SLOTS[slot] = fileRingSlot;
+        return fileRingSlot;
+      }
+    }
+
+    RingSlot existingAfterFileAttempt = RING_SLOTS[slot];
+    if (existingAfterFileAttempt != null && existingAfterFileAttempt.data != null) {
+      return existingAfterFileAttempt;
+    }
+
+    RingSlot memfdRingSlot = createMemfdRingSlotLocked(slot);
+    if (memfdRingSlot != null) {
+      RING_SLOTS[slot] = memfdRingSlot;
+      return memfdRingSlot;
+    }
+    return null;
+  }
+
+  private static RingSlot createFileRingSlotLocked(int slot, File ringFile) {
+    File ringDir = ringFile.getParentFile();
+    if (ringDir == null || (!ringDir.exists() && !ringDir.mkdirs())) {
+      Log.e(TAG, "Failed to create fake input ring directory for slot " + slot);
+      return null;
+    }
+
+    RandomAccessFile raf = null;
+    FileChannel channel = null;
+    try {
+      raf = new RandomAccessFile(ringFile, "rw");
+      raf.setLength(RING_SIZE);
+      channel = raf.getChannel();
+      ByteBuffer data = channel.map(FileChannel.MapMode.READ_WRITE, 0, RING_SIZE);
+      initializeRingHeader(data);
+
+      RingSlot ringSlot = new RingSlot();
+      ringSlot.data = data;
+      ringSlot.ringFile = ringFile.getAbsoluteFile();
+      ringSlot.ringRaf = raf;
+      ringSlot.ringChannel = channel;
+      ringSlot.exportPath = getCanonicalOrAbsolutePath(ringFile);
+      Log.i(TAG, "Created fake input file ring for slot " + slot + ": " + ringSlot.exportPath);
+      return ringSlot;
+    } catch (IOException e) {
+      Log.e(TAG, "Failed to create fake input file ring for slot " + slot + ": " + e.getMessage());
+      if (channel != null) {
+        try {
+          channel.close();
+        } catch (IOException ignored) {
+        }
+      }
+      if (raf != null) {
+        try {
+          raf.close();
+        } catch (IOException ignored) {
+        }
+      }
+      return null;
+    }
+  }
+
+  private static RingSlot createMemfdRingSlotLocked(int slot) {
+    RingSlot existing = RING_SLOTS[slot];
+    if (existing != null && existing.data != null) {
       return existing;
     }
 
@@ -162,25 +323,20 @@ public class FakeInputWriter {
       return null;
     }
 
-    data.order(ByteOrder.LITTLE_ENDIAN);
-    data.putInt(RING_MAGIC_OFFSET, RING_MAGIC);
-    data.putInt(RING_VERSION_OFFSET, RING_VERSION);
-    data.putInt(RING_EVENT_SIZE_OFFSET, EVENT_SIZE);
-    data.putInt(RING_CAPACITY_OFFSET, RING_CAPACITY_EVENTS);
-    data.putLong(RING_WRITE_SEQ_OFFSET, 0L);
-    data.putLong(RING_GENERATION_OFFSET, 0L);
+    initializeRingHeader(data);
 
     RingSlot ringSlot = new RingSlot();
     ringSlot.fd = fd;
     ringSlot.data = data;
-    RING_SLOTS[slot] = ringSlot;
+    ringSlot.nativeMapped = true;
+    ringSlot.exportPath = "/proc/" + android.os.Process.myPid() + "/fd/" + fd;
     Log.i(TAG, "Created fake input memfd ring for slot " + slot + ": fd=" + fd);
     return ringSlot;
   }
 
   private RingSlot ensureRingSlot() {
     synchronized (RING_LOCK) {
-      return ensureRingSlotLocked(this.slot);
+      return ensureRingSlotLocked(this.slot, this.eventFile.getParentFile());
     }
   }
 
@@ -204,6 +360,15 @@ public class FakeInputWriter {
     return true;
   }
 
+  private boolean openFileQueueFallback() throws IOException {
+    this.queueRaf = new RandomAccessFile(this.eventFile, "rw");
+    this.queueRaf.seek(this.queueRaf.length());
+    this.queueChannel = this.queueRaf.getChannel();
+    this.fileQueueFallback = true;
+    Log.w(TAG, "Falling back to fake input file queue: " + this.eventFile.getAbsolutePath());
+    return true;
+  }
+
   private void deactivateRingSlot() {
     RingSlot ringSlot;
     synchronized (RING_LOCK) {
@@ -214,6 +379,17 @@ public class FakeInputWriter {
       return;
     }
     synchronized (ringSlot) {
+      if (ringSlot.active && ringSlot.data != null) {
+        ringSlot.generation++;
+        ringSlot.data.putLong(RING_WRITE_SEQ_OFFSET, 0L);
+        ringSlot.data.putLong(RING_GENERATION_OFFSET, ringSlot.generation);
+        Log.i(
+            TAG,
+            "Deactivated fake input ring for slot "
+                + this.slot
+                + " generation="
+                + ringSlot.generation);
+      }
       ringSlot.active = false;
     }
   }
@@ -242,6 +418,19 @@ public class FakeInputWriter {
     return true;
   }
 
+  private boolean flushBuffer() throws IOException {
+    if (!this.fileQueueFallback && flushBufferToRing()) {
+      return true;
+    }
+    if (this.queueChannel == null) {
+      return false;
+    }
+    while (this.buffer.hasRemaining()) {
+      this.queueChannel.write(this.buffer);
+    }
+    return true;
+  }
+
   public synchronized boolean open() {
     if (this.destroyed) {
       return false;
@@ -255,10 +444,12 @@ public class FakeInputWriter {
         this.eventFile.createNewFile();
       }
       if (!activateRingSlot()) {
-        return false;
+        openFileQueueFallback();
+      } else {
+        this.fileQueueFallback = false;
       }
       this.isOpen = true;
-      Log.i(TAG, "Opened fake input ring: " + this.eventFile.getAbsolutePath());
+      Log.i(TAG, "Opened fake input: " + this.eventFile.getAbsolutePath());
       return true;
     } catch (IOException e) {
       Log.e(TAG, "Failed to open: " + e.getMessage());
@@ -267,6 +458,21 @@ public class FakeInputWriter {
   }
 
   public synchronized void close() {
+    if (this.queueChannel != null) {
+      try {
+        this.queueChannel.close();
+      } catch (IOException ignored) {
+      }
+      this.queueChannel = null;
+    }
+    if (this.queueRaf != null) {
+      try {
+        this.queueRaf.close();
+      } catch (IOException ignored) {
+      }
+      this.queueRaf = null;
+    }
+    this.fileQueueFallback = false;
     this.isOpen = false;
   }
 
@@ -316,7 +522,11 @@ public class FakeInputWriter {
       if (this.hasChanges) {
         writeEvent((short) 0, (short) 0, 0);
         this.buffer.flip();
-        if (!flushBufferToRing()) Log.e(TAG, "Reset write error: memfd ring unavailable");
+        try {
+          if (!flushBuffer()) Log.e(TAG, "Reset write error: fake input queue unavailable");
+        } catch (IOException e) {
+          Log.e(TAG, "Reset write error: " + e.getMessage());
+        }
         Log.i(TAG, "Reset fake input to neutral state: " + this.eventFile.getAbsolutePath());
         return;
       }
@@ -439,7 +649,7 @@ public class FakeInputWriter {
     if (this.hasChanges) {
       writeEvent((short) 0, (short) 0, 0);
       this.buffer.flip();
-      if (!flushBufferToRing()) Log.e(TAG, "Gamepad write error: memfd ring unavailable");
+      if (!flushBuffer()) Log.e(TAG, "Gamepad write error: fake input queue unavailable");
     }
   }
 }

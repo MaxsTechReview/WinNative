@@ -5,6 +5,8 @@ import android.content.SharedPreferences;
 import android.hardware.input.InputManager;
 import android.net.LocalServerSocket;
 import android.net.LocalSocket;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.util.Log;
@@ -57,6 +59,7 @@ public class WinHandler {
   private static final int MAX_CONTROLLERS = 4;
   private static final int OSC_DEVICE_ID = -1;
   private static final short SERVER_PORT = 7947;
+  private static final long VIRTUAL_REBALANCE_AFTER_PHYSICAL_DISCONNECT_MS = 200;
   private static final float GYRO_AXIS_EPSILON = 0.001f;
   private static final float GYRO_TRIGGER_PRESS_THRESHOLD = 0.15f;
   private final XServerDisplayActivity activity;
@@ -71,6 +74,7 @@ public class WinHandler {
   private final ByteBuffer receiveData = ByteBuffer.allocate(64).order(ByteOrder.LITTLE_ENDIAN);
   private final DatagramPacket sendPacket = new DatagramPacket(this.sendData.array(), 64);
   private final DatagramPacket receivePacket = new DatagramPacket(this.receiveData.array(), 64);
+  private final Handler inputHandler = new Handler(Looper.getMainLooper());
   private final ArrayDeque<Runnable> actions = new ArrayDeque<>();
   private boolean initReceived = false;
   private volatile boolean running = false;
@@ -104,6 +108,7 @@ public class WinHandler {
   private boolean gyroActivatorPressed = false;
   private int lastGyroTargetSource = 0;
   private ExternalController lastGyroTargetController;
+  private Runnable pendingVirtualGamepadRebalance;
   private final InputManager.InputDeviceListener inputDeviceListener =
       new InputManager.InputDeviceListener() {
         @Override
@@ -726,13 +731,45 @@ public class WinHandler {
     }
   }
 
+  private void cancelPendingVirtualGamepadRebalance() {
+    if (this.pendingVirtualGamepadRebalance == null) {
+      return;
+    }
+    this.inputHandler.removeCallbacks(this.pendingVirtualGamepadRebalance);
+    this.pendingVirtualGamepadRebalance = null;
+  }
+
+  private void scheduleVirtualGamepadRebalance() {
+    if (!this.deviceToSlot.containsKey(OSC_DEVICE_ID)) {
+      return;
+    }
+    cancelPendingVirtualGamepadRebalance();
+    this.pendingVirtualGamepadRebalance =
+        () -> {
+          this.pendingVirtualGamepadRebalance = null;
+          rebalanceVirtualGamepadSlot();
+        };
+    this.inputHandler.postDelayed(
+        this.pendingVirtualGamepadRebalance, VIRTUAL_REBALANCE_AFTER_PHYSICAL_DISCONNECT_MS);
+    Log.d(
+        "WinHandler",
+        "Scheduled virtual gamepad slot rebalance after physical disconnect.");
+  }
+
   private int assignSlot(int deviceId) {
+    if (deviceId != OSC_DEVICE_ID) {
+      cancelPendingVirtualGamepadRebalance();
+    }
+
     // Fast path: already assigned
     Integer existing = this.deviceToSlot.get(deviceId);
     if (existing != null) {
       if (deviceId == OSC_DEVICE_ID) {
         int preferredVirtualSlot = findPreferredVirtualSlot(existing);
         if (preferredVirtualSlot != -1 && preferredVirtualSlot != existing) {
+          if (this.pendingVirtualGamepadRebalance != null) {
+            return existing;
+          }
           moveVirtualGamepadToSlot(preferredVirtualSlot);
           Integer updatedSlot = this.deviceToSlot.get(deviceId);
           return updatedSlot != null ? updatedSlot : -1;
@@ -805,6 +842,9 @@ public class WinHandler {
   }
 
   private void releaseSlot(int deviceId) {
+    if (deviceId == OSC_DEVICE_ID) {
+      cancelPendingVirtualGamepadRebalance();
+    }
     Integer slot = this.deviceToSlot.remove(deviceId);
     if (slot != null) {
       // Check if any other deviceId still maps to this slot (same physical controller)
@@ -829,7 +869,7 @@ public class WinHandler {
         }
         if (this.writers[slot] != null) {
           // Remove the discovery node so winebus sees a disconnect; event bytes live in
-          // the slot memfd ring and are not replayed by reopening this path.
+          // the slot ring and are not replayed by reopening this path.
           this.writers[slot].destroy();
           this.writers[slot] = null;
         }
@@ -846,7 +886,9 @@ public class WinHandler {
       }
       this.controllers.remove(deviceId);
       if (deviceId != OSC_DEVICE_ID) {
-        rebalanceVirtualGamepadSlot();
+        if (!slotStillInUse) {
+          scheduleVirtualGamepadRebalance();
+        }
       }
     }
   }
@@ -1002,6 +1044,7 @@ public class WinHandler {
   }
 
   public void closeFakeInputWriter() {
+    cancelPendingVirtualGamepadRebalance();
     if (this.inputManager != null && this.inputDeviceListener != null) {
       this.inputManager.unregisterInputDeviceListener(this.inputDeviceListener);
     }

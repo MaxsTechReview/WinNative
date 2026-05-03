@@ -211,6 +211,10 @@ from_real_to_fake_path(const char *pathname) {
   return fake_path;
 }
 
+__attribute__((visibility("hidden"))) static bool path_exists(const char *path) {
+  return path && faccessat(AT_FDCWD, path, F_OK, 0) == 0;
+}
+
 __attribute__((visibility("hidden"))) static bool
 is_fake_input_node_path(const char *pathname) {
   return pathname && (!strncmp(pathname, "/dev/input/event", 16) ||
@@ -421,11 +425,14 @@ EXPORT int open(const char *pathname, int flags, ...) {
   if (pathname) {
     if (is_fake_input_node_path(pathname)) {
       event = get_event(pathname);
-      fd = open_fake_input_ring(event, flags);
-      if (fd >= 0)
-        return fd;
-
       fake_path = from_real_to_fake_path(pathname);
+      if (path_exists(fake_path)) {
+        fd = open_fake_input_ring(event, flags);
+        if (fd >= 0) {
+          free(fake_path);
+          return fd;
+        }
+      }
       pathname = fake_path;
       isFromInput = true;
     } else if (!strcmp(pathname, "/dev/input")) {
@@ -480,11 +487,14 @@ EXPORT int openat(int dirfd, const char *pathname, int flags, ...) {
   if (pathname) {
     if (is_fake_input_node_path(pathname)) {
       event = get_event(pathname);
-      fd = open_fake_input_ring(event, flags);
-      if (fd >= 0)
-        return fd;
-
       fake_path = from_real_to_fake_path(pathname);
+      if (path_exists(fake_path)) {
+        fd = open_fake_input_ring(event, flags);
+        if (fd >= 0) {
+          free(fake_path);
+          return fd;
+        }
+      }
       pathname = fake_path;
       isFromInput = true;
     } else if (!strcmp(pathname, "/dev/input")) {
@@ -519,14 +529,12 @@ EXPORT int stat(const char *pathname, struct stat *statbuf) {
 
   const char *event = nullptr;
   int event_number = -1;
-  bool has_ring_path = false;
   char *fake_path = nullptr;
 
   if (pathname) {
     if (is_fake_input_node_path(pathname)) {
       event = get_event(pathname);
       event_number = get_event_number(event);
-      has_ring_path = get_ring_path_for_slot(event_number) != nullptr;
       fake_path = from_real_to_fake_path(pathname);
       pathname = fake_path;
     } else if (!strcmp(pathname, "/dev/input")) {
@@ -535,12 +543,6 @@ EXPORT int stat(const char *pathname, struct stat *statbuf) {
   }
 
   int ret = my_stat(pathname, statbuf);
-  if (ret != 0 && has_ring_path && statbuf) {
-    memset(statbuf, 0, sizeof(*statbuf));
-    statbuf->st_mode = S_IFCHR | 0660;
-    statbuf->st_nlink = 1;
-    ret = 0;
-  }
 
   if (ret == 0 && event && event_number >= 0) {
     statbuf->st_mode = (statbuf->st_mode & ~S_IFMT) | S_IFCHR;

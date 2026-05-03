@@ -814,8 +814,8 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
     File devInputDir = new File(imageFs.getRootDir(), "dev/input");
     devInputDir.mkdirs();
-    FakeInputWriter.prepareMemfdSlots(4);
-    String fakeEvdevMemfdPaths = FakeInputWriter.getMemfdEnv();
+    FakeInputWriter.prepareRingSlots(devInputDir, 4);
+    String fakeEvdevMemfdPaths = FakeInputWriter.getRingEnv(devInputDir);
     if (!fakeEvdevMemfdPaths.isEmpty()) {
       envVars.put("FAKE_EVDEV_MEMFD_PATHS", fakeEvdevMemfdPaths);
     }
