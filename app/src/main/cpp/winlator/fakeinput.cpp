@@ -290,8 +290,10 @@ __attribute__((visibility("hidden"))) static int
 open_fake_input_ring(const char *event, int flags) {
   int slot = get_event_number(event);
   const char *ring_path = get_ring_path_for_slot(slot);
-  if (!ring_path)
+  if (!ring_path) {
+    errno = ENODEV;
     return -1;
+  }
 
   if (!my_open)
     *(void **)&my_open = dlsym(RTLD_NEXT, "open");
@@ -347,34 +349,25 @@ __attribute__((visibility("hidden"))) static bool is_fake_input_fd(int fd) {
 
 __attribute__((visibility("hidden"))) static bool fake_fd_is_stale(int fd) {
   auto controller = controller_map.find(fd);
-  return controller != controller_map.end() && controller->second.ring &&
+  return controller != controller_map.end() &&
          ring_generation(controller->second.ring) != controller->second.generation;
 }
 
 __attribute__((visibility("hidden"))) static bool
 fake_fd_has_unread_data(int fd) {
   auto controller = controller_map.find(fd);
-  if (controller != controller_map.end() && controller->second.ring) {
-    FakeController &fake = controller->second;
-    if (ring_generation(fake.ring) != fake.generation)
-      return false;
-    uint64_t write_seq = ring_write_seq(fake.ring);
-    if (write_seq < fake.read_seq)
-      fake.read_seq = write_seq;
-    if (write_seq - fake.read_seq > FAKE_INPUT_RING_CAPACITY)
-      fake.read_seq = write_seq - FAKE_INPUT_RING_CAPACITY;
-    return write_seq > fake.read_seq;
-  }
-
-  off_t current = lseek(fd, 0, SEEK_CUR);
-  if (current == (off_t)-1)
+  if (controller == controller_map.end())
     return false;
 
-  struct stat st = {};
-  if (fstat(fd, &st) != 0)
+  FakeController &fake = controller->second;
+  if (ring_generation(fake.ring) != fake.generation)
     return false;
-
-  return current < st.st_size;
+  uint64_t write_seq = ring_write_seq(fake.ring);
+  if (write_seq < fake.read_seq)
+    fake.read_seq = write_seq;
+  if (write_seq - fake.read_seq > FAKE_INPUT_RING_CAPACITY)
+    fake.read_seq = write_seq - FAKE_INPUT_RING_CAPACITY;
+  return write_seq > fake.read_seq;
 }
 
 __attribute__((visibility("hidden"))) static long long
@@ -404,12 +397,10 @@ EXPORT int open(const char *pathname, int flags, ...) {
   mode_t mode;
   int fd;
   bool hasMode;
-  bool isFromInput;
 
   va_start(va, flags);
 
   hasMode = flags & O_CREAT;
-  isFromInput = false;
 
   if (hasMode) {
     mode = va_arg(va, mode_t);
@@ -432,9 +423,12 @@ EXPORT int open(const char *pathname, int flags, ...) {
           free(fake_path);
           return fd;
         }
+        int saved_errno = errno;
+        free(fake_path);
+        errno = saved_errno;
+        return -1;
       }
       pathname = fake_path;
-      isFromInput = true;
     } else if (!strcmp(pathname, "/dev/input")) {
       pathname = hook_dir;
     }
@@ -444,16 +438,6 @@ EXPORT int open(const char *pathname, int flags, ...) {
     fd = my_open(pathname, flags, mode);
   else
     fd = my_open(pathname, flags);
-
-  if (isFromInput && fd >= 0) {
-    const char *controller_event = event ? event : get_event(pathname);
-    Logger::log("Adding file-backed controller fallback, fd %d event %s\n", fd,
-                controller_event);
-    FakeController controller = {};
-    controller.event = strdup(controller_event);
-    controller.slot = get_event_number(controller_event);
-    controller_map[fd] = controller;
-  }
 
   if (fake_path)
     free(fake_path);
@@ -466,11 +450,9 @@ EXPORT int openat(int dirfd, const char *pathname, int flags, ...) {
   mode_t mode;
   int fd;
   bool hasMode;
-  bool isFromInput;
 
   va_start(va, flags);
 
-  isFromInput = false;
   hasMode = flags & O_CREAT;
 
   if (hasMode) {
@@ -494,9 +476,12 @@ EXPORT int openat(int dirfd, const char *pathname, int flags, ...) {
           free(fake_path);
           return fd;
         }
+        int saved_errno = errno;
+        free(fake_path);
+        errno = saved_errno;
+        return -1;
       }
       pathname = fake_path;
-      isFromInput = true;
     } else if (!strcmp(pathname, "/dev/input")) {
       pathname = hook_dir;
     }
@@ -506,16 +491,6 @@ EXPORT int openat(int dirfd, const char *pathname, int flags, ...) {
     fd = my_openat(dirfd, pathname, flags, mode);
   else
     fd = my_openat(dirfd, pathname, flags);
-
-  if (isFromInput && fd >= 0) {
-    const char *controller_event = event ? event : get_event(pathname);
-    Logger::log("Adding file-backed controller fallback, fd %d event %s\n", fd,
-                controller_event);
-    FakeController controller = {};
-    controller.event = strdup(controller_event);
-    controller.slot = get_event_number(controller_event);
-    controller_map[fd] = controller;
-  }
 
   if (fake_path)
     free(fake_path);
@@ -795,84 +770,61 @@ EXPORT ssize_t read(int fd, void *buf, size_t count) {
 
   if (controller != controller_map.end()) {
     FakeController &fake = controller->second;
-    if (fake.ring) {
-      if (count < FAKE_INPUT_EVENT_SIZE) {
-        errno = EINVAL;
-        return -1;
-      }
+    if (count < FAKE_INPUT_EVENT_SIZE) {
+      errno = EINVAL;
+      return -1;
+    }
 
-      int flags = fcntl(fd, F_GETFL);
-      bool isNonBlock = flags >= 0 && (flags & O_NONBLOCK);
+    int flags = fcntl(fd, F_GETFL);
+    bool isNonBlock = flags >= 0 && (flags & O_NONBLOCK);
 
+    if (fake_fd_is_stale(fd)) {
+      errno = ENODEV;
+      return -1;
+    }
+
+    while (!fake_fd_has_unread_data(fd)) {
       if (fake_fd_is_stale(fd)) {
         errno = ENODEV;
         return -1;
       }
-
-      while (!fake_fd_has_unread_data(fd)) {
-        if (fake_fd_is_stale(fd)) {
-          errno = ENODEV;
-          return -1;
-        }
-        if (isNonBlock) {
-          errno = EAGAIN;
-          return -1;
-        }
-        setup_signal_handler();
-        if (stop_flag) {
-          errno = EINTR;
-          return -1;
-        }
-        struct timespec sleep_time = {0, 5 * 1000 * 1000};
-        nanosleep(&sleep_time, nullptr);
+      if (isNonBlock) {
+        errno = EAGAIN;
+        return -1;
       }
-
-      uint64_t write_seq = ring_write_seq(fake.ring);
-      if (write_seq - fake.read_seq > FAKE_INPUT_RING_CAPACITY)
-        fake.read_seq = write_seq - FAKE_INPUT_RING_CAPACITY;
-
-      size_t available_events =
-          static_cast<size_t>(std::min<uint64_t>(write_seq - fake.read_seq,
-                                                FAKE_INPUT_RING_CAPACITY));
-      size_t requested_events = count / FAKE_INPUT_EVENT_SIZE;
-      size_t events_to_read = std::min(requested_events, available_events);
-      uint8_t *out = static_cast<uint8_t *>(buf);
-      const uint8_t *ring_events =
-          reinterpret_cast<const uint8_t *>(fake.ring) +
-          FAKE_INPUT_RING_HEADER_SIZE;
-
-      for (size_t i = 0; i < events_to_read; i++) {
-        size_t event_index =
-            static_cast<size_t>((fake.read_seq + i) % FAKE_INPUT_RING_CAPACITY);
-        memcpy(out + (i * FAKE_INPUT_EVENT_SIZE),
-               ring_events + (event_index * FAKE_INPUT_EVENT_SIZE),
-               FAKE_INPUT_EVENT_SIZE);
-      }
-
-      fake.read_seq += events_to_read;
-      return static_cast<ssize_t>(events_to_read * FAKE_INPUT_EVENT_SIZE);
-    }
-
-    ssize_t bytes_read = 0;
-    int flags = fcntl(fd, F_GETFL);
-    bool isNonBlock = flags & O_NONBLOCK;
-    bytes_read = syscall(SYS_read, fd, buf, count);
-    if (bytes_read == 0 && isNonBlock) {
-      errno = EAGAIN;
-      return -1;
-    }
-    while (bytes_read == 0 && !isNonBlock) {
       setup_signal_handler();
       if (stop_flag) {
-        bytes_read = -1;
         errno = EINTR;
-        return bytes_read;
+        return -1;
       }
-      bytes_read = syscall(SYS_read, fd, buf, count);
-      continue;
+      struct timespec sleep_time = {0, 5 * 1000 * 1000};
+      nanosleep(&sleep_time, nullptr);
     }
 
-    return bytes_read;
+    uint64_t write_seq = ring_write_seq(fake.ring);
+    if (write_seq - fake.read_seq > FAKE_INPUT_RING_CAPACITY)
+      fake.read_seq = write_seq - FAKE_INPUT_RING_CAPACITY;
+
+    size_t available_events =
+        static_cast<size_t>(std::min<uint64_t>(write_seq - fake.read_seq,
+                                              FAKE_INPUT_RING_CAPACITY));
+    size_t requested_events = count / FAKE_INPUT_EVENT_SIZE;
+    size_t events_to_read = std::min(requested_events, available_events);
+    uint8_t *out = static_cast<uint8_t *>(buf);
+    const uint8_t *ring_events =
+        reinterpret_cast<const uint8_t *>(fake.ring) +
+        FAKE_INPUT_RING_HEADER_SIZE;
+
+    for (size_t i = 0; i < events_to_read; i++) {
+      size_t event_index =
+          static_cast<size_t>((fake.read_seq + i) % FAKE_INPUT_RING_CAPACITY);
+      memcpy(out + (i * FAKE_INPUT_EVENT_SIZE),
+             ring_events + (event_index * FAKE_INPUT_EVENT_SIZE),
+             FAKE_INPUT_EVENT_SIZE);
+    }
+
+    fake.read_seq += events_to_read;
+    return static_cast<ssize_t>(events_to_read * FAKE_INPUT_EVENT_SIZE);
   }
   return syscall(SYS_read, fd, buf, count);
 }
@@ -895,14 +847,7 @@ EXPORT ssize_t write(int fd, const void *buf, size_t count) {
       check_ff_event(ev, slot);
     }
 
-    if (controller->second.ring)
-      return static_cast<ssize_t>(count);
-
-    // FF control events are commands sent to the fake device, not controller input.
-    // Writing them back into the fake evdev file lets Wine read them as input and can
-    // stall or corrupt controller state, so consume them here.
-    if (ev && ev->type == EV_FF)
-      return static_cast<ssize_t>(count);
+    return static_cast<ssize_t>(count);
   }
   return my_write(fd, buf, count);
 }
@@ -916,44 +861,16 @@ EXPORT ssize_t writev(int fd, const struct iovec *iov, int iovcnt) {
     }
 
     uint16_t slot = static_cast<uint16_t>(controller->second.slot);
-    if (controller->second.ring) {
-      ssize_t total = 0;
-      for (int i = 0; i < iovcnt; i++) {
-        if (iov[i].iov_len == sizeof(struct input_event)) {
-          const struct input_event *ev =
-              static_cast<const struct input_event *>(iov[i].iov_base);
-          check_ff_event(ev, slot);
-        }
-        total += static_cast<ssize_t>(iov[i].iov_len);
-      }
-      return total;
-    }
-
-    std::vector<struct iovec> filtered;
-    filtered.reserve(iovcnt);
-    ssize_t filtered_out_bytes = 0;
-
+    ssize_t total = 0;
     for (int i = 0; i < iovcnt; i++) {
       if (iov[i].iov_len == sizeof(struct input_event)) {
         const struct input_event *ev =
             static_cast<const struct input_event *>(iov[i].iov_base);
         check_ff_event(ev, slot);
-        if (ev->type == EV_FF) {
-          filtered_out_bytes += static_cast<ssize_t>(iov[i].iov_len);
-          continue;
-        }
       }
-      filtered.push_back(iov[i]);
+      total += static_cast<ssize_t>(iov[i].iov_len);
     }
-
-    if (filtered.empty())
-      return filtered_out_bytes;
-
-    ssize_t written =
-        syscall(SYS_writev, fd, filtered.data(), static_cast<int>(filtered.size()));
-    if (written < 0)
-      return written;
-    return written + filtered_out_bytes;
+    return total;
   }
   return syscall(SYS_writev, fd, iov, iovcnt);
 }

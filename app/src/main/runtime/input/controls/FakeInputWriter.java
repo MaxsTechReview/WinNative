@@ -2,8 +2,6 @@ package com.winlator.cmod.runtime.input.controls;
 
 import android.util.Log;
 import androidx.core.app.NotificationCompat;
-import com.winlator.cmod.runtime.display.connector.XConnectorEpoll;
-import com.winlator.cmod.sharedmemory.SysVSharedMemory;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -47,7 +45,6 @@ public class FakeInputWriter {
   private static final RingSlot[] RING_SLOTS = new RingSlot[MAX_FAKE_INPUT_SLOTS];
   private final File eventFile;
   private final int slot;
-  private FileChannel queueChannel;
   private int prevHatX;
   private int prevHatY;
   private int prevThumbLX;
@@ -56,7 +53,6 @@ public class FakeInputWriter {
   private int prevThumbRY;
   private int prevTriggerL;
   private int prevTriggerR;
-  private RandomAccessFile queueRaf;
   public static final short BTN_A = 304;
   public static final short BTN_B = 305;
   public static final short BTN_X = 307;
@@ -72,7 +68,6 @@ public class FakeInputWriter {
   };
   private boolean isOpen = false;
   private volatile boolean destroyed = false;
-  private boolean fileQueueFallback = false;
   private final boolean[] prevButtonStates = new boolean[12];
   private boolean hasChanges = false;
   private final ByteBuffer buffer = ByteBuffer.allocateDirect(BUFFER_SIZE);
@@ -84,7 +79,6 @@ public class FakeInputWriter {
   }
 
   private static final class RingSlot {
-    int fd = -1;
     ByteBuffer data;
     File ringFile;
     FileChannel ringChannel;
@@ -93,23 +87,6 @@ public class FakeInputWriter {
     long generation;
     boolean active;
     boolean everActivated;
-    boolean nativeMapped;
-  }
-
-  public static void prepareMemfdSlots(int slotCount) {
-    int boundedSlotCount = Math.max(0, Math.min(slotCount, MAX_FAKE_INPUT_SLOTS));
-    synchronized (RING_LOCK) {
-      for (int slot = 0; slot < boundedSlotCount; slot++) {
-        ensureRingSlotLocked(slot, null);
-      }
-    }
-  }
-
-  public static String getMemfdEnv() {
-    synchronized (RING_LOCK) {
-      prepareRingSlotsLocked(null, MAX_FAKE_INPUT_SLOTS);
-      return buildRingEnvLocked();
-    }
   }
 
   public static void prepareRingSlots(File fakeInputDir, int slotCount) {
@@ -128,7 +105,7 @@ public class FakeInputWriter {
     }
   }
 
-  public static void releaseAllMemfdSlots() {
+  public static void releaseAllRingSlots() {
     synchronized (RING_LOCK) {
       for (int slot = 0; slot < RING_SLOTS.length; slot++) {
         releaseRingSlotLocked(slot);
@@ -188,14 +165,7 @@ public class FakeInputWriter {
     if (ringSlot == null) {
       return;
     }
-    if (ringSlot.data != null && ringSlot.nativeMapped) {
-      SysVSharedMemory.unmapSHMSegment(ringSlot.data, RING_SIZE);
-    }
     ringSlot.data = null;
-    if (ringSlot.fd >= 0) {
-      XConnectorEpoll.closeFd(ringSlot.fd);
-      ringSlot.fd = -1;
-    }
     if (ringSlot.ringChannel != null) {
       try {
         ringSlot.ringChannel.close();
@@ -224,40 +194,27 @@ public class FakeInputWriter {
   }
 
   private static RingSlot ensureRingSlotLocked(int slot, File fakeInputDir) {
-    if (slot < 0 || slot >= MAX_FAKE_INPUT_SLOTS) {
+    if (slot < 0 || slot >= MAX_FAKE_INPUT_SLOTS || fakeInputDir == null) {
       return null;
     }
 
     File desiredRingFile = getRingFile(fakeInputDir, slot);
-    if (desiredRingFile != null) {
-      desiredRingFile = desiredRingFile.getAbsoluteFile();
+    if (desiredRingFile == null) {
+      return null;
     }
+    desiredRingFile = desiredRingFile.getAbsoluteFile();
     RingSlot existing = RING_SLOTS[slot];
     if (existing != null && existing.data != null) {
-      if (desiredRingFile == null
-          || (existing.ringFile != null && existing.ringFile.equals(desiredRingFile))) {
+      if (existing.ringFile != null && existing.ringFile.equals(desiredRingFile)) {
         return existing;
       }
       releaseRingSlotLocked(slot);
     }
 
-    if (desiredRingFile != null) {
-      RingSlot fileRingSlot = createFileRingSlotLocked(slot, desiredRingFile);
-      if (fileRingSlot != null) {
-        RING_SLOTS[slot] = fileRingSlot;
-        return fileRingSlot;
-      }
-    }
-
-    RingSlot existingAfterFileAttempt = RING_SLOTS[slot];
-    if (existingAfterFileAttempt != null && existingAfterFileAttempt.data != null) {
-      return existingAfterFileAttempt;
-    }
-
-    RingSlot memfdRingSlot = createMemfdRingSlotLocked(slot);
-    if (memfdRingSlot != null) {
-      RING_SLOTS[slot] = memfdRingSlot;
-      return memfdRingSlot;
+    RingSlot fileRingSlot = createFileRingSlotLocked(slot, desiredRingFile);
+    if (fileRingSlot != null) {
+      RING_SLOTS[slot] = fileRingSlot;
+      return fileRingSlot;
     }
     return null;
   }
@@ -304,36 +261,6 @@ public class FakeInputWriter {
     }
   }
 
-  private static RingSlot createMemfdRingSlotLocked(int slot) {
-    RingSlot existing = RING_SLOTS[slot];
-    if (existing != null && existing.data != null) {
-      return existing;
-    }
-
-    int fd = SysVSharedMemory.createMemoryFd("fakeinput-" + slot, RING_SIZE);
-    if (fd < 0) {
-      Log.e(TAG, "Failed to create fake input memfd for slot " + slot);
-      return null;
-    }
-
-    ByteBuffer data = SysVSharedMemory.mapSHMSegment(fd, RING_SIZE, 0, false);
-    if (data == null) {
-      XConnectorEpoll.closeFd(fd);
-      Log.e(TAG, "Failed to map fake input memfd for slot " + slot);
-      return null;
-    }
-
-    initializeRingHeader(data);
-
-    RingSlot ringSlot = new RingSlot();
-    ringSlot.fd = fd;
-    ringSlot.data = data;
-    ringSlot.nativeMapped = true;
-    ringSlot.exportPath = "/proc/" + android.os.Process.myPid() + "/fd/" + fd;
-    Log.i(TAG, "Created fake input memfd ring for slot " + slot + ": fd=" + fd);
-    return ringSlot;
-  }
-
   private RingSlot ensureRingSlot() {
     synchronized (RING_LOCK) {
       return ensureRingSlotLocked(this.slot, this.eventFile.getParentFile());
@@ -357,15 +284,6 @@ public class FakeInputWriter {
         ringSlot.active = true;
       }
     }
-    return true;
-  }
-
-  private boolean openFileQueueFallback() throws IOException {
-    this.queueRaf = new RandomAccessFile(this.eventFile, "rw");
-    this.queueRaf.seek(this.queueRaf.length());
-    this.queueChannel = this.queueRaf.getChannel();
-    this.fileQueueFallback = true;
-    Log.w(TAG, "Falling back to fake input file queue: " + this.eventFile.getAbsolutePath());
     return true;
   }
 
@@ -418,17 +336,8 @@ public class FakeInputWriter {
     return true;
   }
 
-  private boolean flushBuffer() throws IOException {
-    if (!this.fileQueueFallback && flushBufferToRing()) {
-      return true;
-    }
-    if (this.queueChannel == null) {
-      return false;
-    }
-    while (this.buffer.hasRemaining()) {
-      this.queueChannel.write(this.buffer);
-    }
-    return true;
+  private boolean flushBuffer() {
+    return flushBufferToRing();
   }
 
   public synchronized boolean open() {
@@ -444,9 +353,11 @@ public class FakeInputWriter {
         this.eventFile.createNewFile();
       }
       if (!activateRingSlot()) {
-        openFileQueueFallback();
-      } else {
-        this.fileQueueFallback = false;
+        if (this.eventFile.exists()) {
+          this.eventFile.delete();
+        }
+        Log.e(TAG, "Failed to open fake input mmap ring: " + this.eventFile.getAbsolutePath());
+        return false;
       }
       this.isOpen = true;
       Log.i(TAG, "Opened fake input: " + this.eventFile.getAbsolutePath());
@@ -458,21 +369,6 @@ public class FakeInputWriter {
   }
 
   public synchronized void close() {
-    if (this.queueChannel != null) {
-      try {
-        this.queueChannel.close();
-      } catch (IOException ignored) {
-      }
-      this.queueChannel = null;
-    }
-    if (this.queueRaf != null) {
-      try {
-        this.queueRaf.close();
-      } catch (IOException ignored) {
-      }
-      this.queueRaf = null;
-    }
-    this.fileQueueFallback = false;
     this.isOpen = false;
   }
 
@@ -522,11 +418,7 @@ public class FakeInputWriter {
       if (this.hasChanges) {
         writeEvent((short) 0, (short) 0, 0);
         this.buffer.flip();
-        try {
-          if (!flushBuffer()) Log.e(TAG, "Reset write error: fake input queue unavailable");
-        } catch (IOException e) {
-          Log.e(TAG, "Reset write error: " + e.getMessage());
-        }
+        if (!flushBuffer()) Log.e(TAG, "Reset write error: fake input mmap ring unavailable");
         Log.i(TAG, "Reset fake input to neutral state: " + this.eventFile.getAbsolutePath());
         return;
       }
@@ -601,7 +493,7 @@ public class FakeInputWriter {
     int tl = (int) (state.triggerL * 255.0f);
     int tr = (int) (state.triggerR * 255.0f);
 
-    // The fake evdev file is effectively a queue, so unchanged axes must stay silent.
+    // The fake evdev ring is event-queue semantics, so unchanged axes must stay silent.
     if (lx != this.prevThumbLX) {
       this.prevThumbLX = lx;
       writeEvent((short) 3, (short) 0, lx);
@@ -649,7 +541,7 @@ public class FakeInputWriter {
     if (this.hasChanges) {
       writeEvent((short) 0, (short) 0, 0);
       this.buffer.flip();
-      if (!flushBuffer()) Log.e(TAG, "Gamepad write error: fake input queue unavailable");
+      if (!flushBuffer()) Log.e(TAG, "Gamepad write error: fake input mmap ring unavailable");
     }
   }
 }

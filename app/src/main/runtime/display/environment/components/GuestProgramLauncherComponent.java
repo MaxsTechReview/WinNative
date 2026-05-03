@@ -815,17 +815,17 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     File devInputDir = new File(imageFs.getRootDir(), "dev/input");
     devInputDir.mkdirs();
     FakeInputWriter.prepareRingSlots(devInputDir, 4);
-    String fakeEvdevMemfdPaths = FakeInputWriter.getRingEnv(devInputDir);
-    if (!fakeEvdevMemfdPaths.isEmpty()) {
-      envVars.put("FAKE_EVDEV_MEMFD_PATHS", fakeEvdevMemfdPaths);
-    }
-    // XServerDisplayActivity pre-creates the configured controller count after the
-    // shortcut is loaded. Keep event0 available here as a minimum fallback.
-    File event0 = new File(devInputDir, "event0");
-    if (!event0.exists()) {
-      try {
-        event0.createNewFile();
-      } catch (Exception e) {
+    String fakeEvdevRingPaths = FakeInputWriter.getRingEnv(devInputDir);
+    if (!fakeEvdevRingPaths.isEmpty()) {
+      envVars.put("FAKE_EVDEV_MEMFD_PATHS", fakeEvdevRingPaths);
+      // XServerDisplayActivity pre-creates the configured controller count after the
+      // shortcut is loaded. Keep event0 discoverable once the ring transport exists.
+      File event0 = new File(devInputDir, "event0");
+      if (!event0.exists()) {
+        try {
+          event0.createNewFile();
+        } catch (Exception e) {
+        }
       }
     }
     envVars.put("FAKE_EVDEV_DIR", devInputDir.getAbsolutePath());

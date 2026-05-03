@@ -1054,7 +1054,7 @@ public class WinHandler {
         this.writers[i] = null;
       }
     }
-    FakeInputWriter.releaseAllMemfdSlots();
+    FakeInputWriter.releaseAllRingSlots();
     this.deviceToSlot.clear();
     this.descriptorToSlot.clear();
     this.deviceToDescriptor.clear();
