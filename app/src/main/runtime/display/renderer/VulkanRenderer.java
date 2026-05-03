@@ -90,7 +90,8 @@ public class VulkanRenderer
     private static final int OFF_EFFECT_TYPES    = 616;
     private static final int OFF_EFFECT_PARAMS   = 648;
     private static final int OFF_WINDOW_GEOM     = 776;
-    private static final int SCENE_BUF_SIZE      = 1800;
+    private static final int OFF_WINDOW_UV       = 1800;
+    private static final int SCENE_BUF_SIZE      = 2824;
 
     private final ByteBuffer sceneBuf =
             ByteBuffer.allocateDirect(SCENE_BUF_SIZE).order(ByteOrder.nativeOrder());
@@ -289,9 +290,20 @@ public class VulkanRenderer
                 RenderableWindow rw = renderableWindows.get(i);
                 if (rw.content == null) continue;
                 Drawable drawable = rw.content;
-                Drawable textureSrc = drawable.getScanoutSource() != null ? drawable.getScanoutSource() : drawable;
+                Drawable textureSrc;
+                int scanoutX;
+                int scanoutY;
                 Texture tex;
                 synchronized (drawable.renderLock) {
+                    textureSrc = drawable.getScanoutSource();
+                    if (textureSrc != null) {
+                        scanoutX = drawable.getScanoutX();
+                        scanoutY = drawable.getScanoutY();
+                    } else {
+                        textureSrc = drawable;
+                        scanoutX = 0;
+                        scanoutY = 0;
+                    }
                     tex = textureSrc.getTexture();
                     if (tex != null) {
                         tex.updateFromDrawable(textureSrc);
@@ -304,6 +316,20 @@ public class VulkanRenderer
                 buf.putInt(gOff + 4,  rw.rootY);
                 buf.putInt(gOff + 8,  drawable.width);
                 buf.putInt(gOff + 12, drawable.height);
+                int uvOff = OFF_WINDOW_UV + winCount * 16;
+                if (textureSrc != drawable) {
+                    float invW = 1.0f / Math.max(1, textureSrc.width);
+                    float invH = 1.0f / Math.max(1, textureSrc.height);
+                    buf.putFloat(uvOff,      -scanoutX * invW);
+                    buf.putFloat(uvOff + 4,  -scanoutY * invH);
+                    buf.putFloat(uvOff + 8,  (drawable.width - scanoutX) * invW);
+                    buf.putFloat(uvOff + 12, (drawable.height - scanoutY) * invH);
+                } else {
+                    buf.putFloat(uvOff,      0.0f);
+                    buf.putFloat(uvOff + 4,  0.0f);
+                    buf.putFloat(uvOff + 8,  1.0f);
+                    buf.putFloat(uvOff + 12, 1.0f);
+                }
                 winCount++;
             }
 

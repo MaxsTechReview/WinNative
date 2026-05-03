@@ -6,10 +6,11 @@ layout(location = 0) out vec2 vUV;
 layout(push_constant) uniform PC {
     float xform[6];
     vec2 viewSize;
+    vec4 uvRect;
 } pc;
 
 void main() {
-    vUV = position;
+    vUV = mix(pc.uvRect.xy, pc.uvRect.zw, position);
     vec2 t = vec2(
         pc.xform[0] * position.x + pc.xform[2] * position.y + pc.xform[4],
         pc.xform[1] * position.x + pc.xform[3] * position.y + pc.xform[5]

@@ -390,21 +390,35 @@ static VkTexture* pop_live_texture(VkRenderer* r) {
 typedef struct UploadCtx {
     VkBuffer staging;
     VkImage  dst;
-    uint32_t w, h;
+    uint32_t x, y, w, h;
+    VkImageLayout old_layout;
     bool     to_shader_read;
 } UploadCtx;
 
 static void upload_cmds(VkCommandBuffer cmd, void* user) {
     UploadCtx* u = (UploadCtx*)user;
 
+    VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    VkAccessFlags src_access = 0;
+    if (u->old_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+        src_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        src_access = VK_ACCESS_SHADER_READ_BIT;
+    } else if (u->old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+        src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        src_access = VK_ACCESS_TRANSFER_WRITE_BIT;
+    }
+
     vkr_image_barrier(cmd, u->dst,
-        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-        0, VK_ACCESS_TRANSFER_WRITE_BIT);
+        u->old_layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        src_stage, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        src_access, VK_ACCESS_TRANSFER_WRITE_BIT);
 
     VkBufferImageCopy bic = {0};
     bic.bufferRowLength = 0;
     bic.bufferImageHeight = 0;
+    bic.imageOffset.x = (int32_t)u->x;
+    bic.imageOffset.y = (int32_t)u->y;
+    bic.imageOffset.z = 0;
     bic.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     bic.imageSubresource.layerCount = 1;
     bic.imageExtent.width = u->w;
@@ -515,7 +529,8 @@ VkTexture* vkr_texture_create_uploaded(VkRenderer* r, uint32_t width, uint32_t h
     write_descriptor_set(r, t->descriptor_set, t->view, r->shared_sampler);
 
     if (data && data_size > 0) {
-        vkr_texture_update(r, t, width, height, data, data_size, stride_pixels);
+        vkr_texture_update(r, t, width, height, data, data_size, stride_pixels,
+                           0, 0, width, height);
     } else {
         // No initial data — async transition to SHADER_READ so the texture is safe to sample
         // as black. Doesn't block the caller; the barrier orders before the next render submit
@@ -537,7 +552,9 @@ VkTexture* vkr_texture_create_uploaded(VkRenderer* r, uint32_t width, uint32_t h
 }
 
 bool vkr_texture_update(VkRenderer* r, VkTexture* tex, uint32_t width, uint32_t height,
-                        const void* data, size_t data_size, uint32_t stride_pixels) {
+                        const void* data, size_t data_size, uint32_t stride_pixels,
+                        uint32_t dirty_x, uint32_t dirty_y,
+                        uint32_t dirty_w, uint32_t dirty_h) {
     if (!tex || tex->external || !data || data_size == 0) return false;
     if (width != tex->width || height != tex->height) {
         // Caller is expected to size-match. Reject mismatches to avoid silent corruption.
@@ -547,8 +564,27 @@ bool vkr_texture_update(VkRenderer* r, VkTexture* tex, uint32_t width, uint32_t 
     }
 
     // BGRA8 = 4 bytes per pixel. Caller provides stride_pixels (per-row pixel count).
-    size_t needed = (size_t)width * height * 4;
     if (stride_pixels == 0) stride_pixels = width;
+    if (dirty_w == 0 || dirty_h == 0) {
+        dirty_x = 0;
+        dirty_y = 0;
+        dirty_w = width;
+        dirty_h = height;
+    }
+    if (dirty_x >= width || dirty_y >= height) return false;
+    if (dirty_x + dirty_w > width) dirty_w = width - dirty_x;
+    if (dirty_y + dirty_h > height) dirty_h = height - dirty_y;
+    if (dirty_w == 0 || dirty_h == 0) return false;
+
+    size_t needed = (size_t)dirty_w * dirty_h * 4;
+    size_t src_pitch = (size_t)stride_pixels * 4;
+    size_t row = (size_t)dirty_w * 4;
+    size_t src_offset = ((size_t)dirty_y * stride_pixels + dirty_x) * 4;
+    size_t last_row = src_offset + (size_t)(dirty_h - 1) * src_pitch + row;
+    if (last_row > data_size) {
+        VK_LOGW("vkr_texture_update dirty rect exceeds source buffer");
+        return false;
+    }
 
     VkStagingSlot* slot = vkr_staging_pool_acquire(r, needed);
     if (!slot) {
@@ -556,15 +592,14 @@ bool vkr_texture_update(VkRenderer* r, VkTexture* tex, uint32_t width, uint32_t 
         return false;
     }
 
-    if (stride_pixels == width) {
+    if (dirty_x == 0 && dirty_y == 0 && dirty_w == width && dirty_h == height
+        && stride_pixels == width) {
         memcpy(slot->mapped, data, needed);
     } else {
-        const uint8_t* src = (const uint8_t*)data;
+        const uint8_t* src = (const uint8_t*)data + src_offset;
         uint8_t* dst = (uint8_t*)slot->mapped;
-        size_t row = (size_t)width * 4;
-        size_t src_pitch = (size_t)stride_pixels * 4;
-        for (uint32_t y = 0; y < height; y++) {
-            memcpy(dst + y * row, src + y * src_pitch, row);
+        for (uint32_t y = 0; y < dirty_h; y++) {
+            memcpy(dst + (size_t)y * row, src + (size_t)y * src_pitch, row);
         }
     }
 
@@ -575,7 +610,11 @@ bool vkr_texture_update(VkRenderer* r, VkTexture* tex, uint32_t width, uint32_t 
         return false;
     }
 
-    UploadCtx ctx = { slot->buffer, tex->image, width, height, true };
+    UploadCtx ctx = {
+        slot->buffer, tex->image,
+        dirty_x, dirty_y, dirty_w, dirty_h,
+        tex->layout, true
+    };
     upload_cmds(slot->cmd, &ctx);
 
     if (vkEndCommandBuffer(slot->cmd) != VK_SUCCESS) {

@@ -89,6 +89,7 @@ typedef struct VkRenderableWindow {
     VkTexture* texture;        // borrowed; not owned
     int        x, y;
     uint32_t   width, height;
+    float      u0, v0, u1, v1;
     bool       direct_scanout; // hint, currently unused
 } VkRenderableWindow;
 
@@ -336,7 +337,9 @@ typedef struct VkRenderer {
 VkTexture* vkr_texture_create_uploaded(VkRenderer* r, uint32_t width, uint32_t height,
                                        const void* data, size_t data_size, uint32_t stride_pixels);
 bool       vkr_texture_update(VkRenderer* r, VkTexture* tex, uint32_t width, uint32_t height,
-                               const void* data, size_t data_size, uint32_t stride_pixels);
+                               const void* data, size_t data_size, uint32_t stride_pixels,
+                               uint32_t dirty_x, uint32_t dirty_y,
+                               uint32_t dirty_w, uint32_t dirty_h);
 VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool transfer_ownership);
 void       vkr_texture_destroy(VkRenderer* r, VkTexture* tex);
 void       vkr_texture_destroy_all_live(VkRenderer* r);

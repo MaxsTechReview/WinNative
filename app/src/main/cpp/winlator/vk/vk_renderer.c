@@ -539,11 +539,11 @@ static bool create_pipeline_layouts(VkRenderer* r) {
         return false;
     }
 
-    // Window/cursor: push constants = float xform[6] + vec2 viewSize = 32 bytes
+    // Window/cursor: push constants = float xform[6] + vec2 viewSize + vec4 uvRect = 48 bytes
     VkPushConstantRange pcr_window = {0};
     pcr_window.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     pcr_window.offset = 0;
-    pcr_window.size = 32;
+    pcr_window.size = 48;
 
     VkPipelineLayoutCreateInfo plci = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     plci.setLayoutCount = 1;
@@ -1265,10 +1265,12 @@ static VkPreRotatedRect clamp_rect_to_extent(VkPreRotatedRect r, uint32_t extent
 }
 
 static void push_window_constants(VkCommandBuffer cmd, VkPipelineLayout layout,
-                                  const float xform[6], float view_w, float view_h) {
-    float pc[8];
+                                  const float xform[6], float view_w, float view_h,
+                                  float u0, float v0, float u1, float v1) {
+    float pc[12];
     pc[0] = xform[0]; pc[1] = xform[1]; pc[2] = xform[2]; pc[3] = xform[3];
     pc[4] = xform[4]; pc[5] = xform[5]; pc[6] = view_w;  pc[7] = view_h;
+    pc[8] = u0; pc[9] = v0; pc[10] = u1; pc[11] = v1;
     vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), pc);
 }
 
@@ -1362,7 +1364,8 @@ static void draw_scene_pass(VkRenderer* r, VkCommandBuffer cmd, const VkScene* s
         transform_xform_for_pretransform(pre_xf, xf, view_w, view_h, r->swapchain_transform);
         transformed_view_size(&view_w, &view_h, r->swapchain_transform);
         push_window_constants(cmd, r->pipelines.window_layout, pre_xf,
-                              (float)view_w, (float)view_h);
+                              (float)view_w, (float)view_h,
+                              w->u0, w->v0, w->u1, w->v1);
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 r->pipelines.window_layout, 0, 1, &w->texture->descriptor_set,
                                 0, NULL);
@@ -1384,7 +1387,8 @@ static void draw_scene_pass(VkRenderer* r, VkCommandBuffer cmd, const VkScene* s
         transform_xform_for_pretransform(pre_xf, xf, view_w, view_h, r->swapchain_transform);
         transformed_view_size(&view_w, &view_h, r->swapchain_transform);
         push_window_constants(cmd, r->pipelines.window_layout, pre_xf,
-                              (float)view_w, (float)view_h);
+                              (float)view_w, (float)view_h,
+                              0.0f, 0.0f, 1.0f, 1.0f);
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 r->pipelines.window_layout, 0, 1,
                                 &s->cursor_texture->descriptor_set, 0, NULL);
@@ -1830,7 +1834,8 @@ JNIEXPORT jboolean JNICALL JNI_FN(nativeRenderFrame)(JNIEnv* env, jclass clazz, 
 #define SCENE_OFF_EFFECT_TYPES       616      /* int32 × VK_MAX_EFFECTS */
 #define SCENE_OFF_EFFECT_PARAMS      648      /* float32 × VK_MAX_EFFECTS × 4 */
 #define SCENE_OFF_WINDOW_GEOM        776      /* int32 × VK_MAX_RENDERABLE_WINDOWS × 4 */
-#define SCENE_BUF_SIZE               1800
+#define SCENE_OFF_WINDOW_UV          1800     /* float32 × VK_MAX_RENDERABLE_WINDOWS × 4 */
+#define SCENE_BUF_SIZE               2824
 
 JNIEXPORT void JNICALL JNI_FN(nativeSetScene)(JNIEnv* env, jclass clazz, jlong handle,
                                               jobject sceneBuf)
@@ -1870,6 +1875,12 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetScene)(JNIEnv* env, jclass clazz, jlong h
         w->y = g[1];
         w->width  = (uint32_t)g[2];
         w->height = (uint32_t)g[3];
+        float uv[4];
+        memcpy(uv, base + SCENE_OFF_WINDOW_UV + (size_t)i * 16, sizeof(uv));
+        w->u0 = uv[0];
+        w->v0 = uv[1];
+        w->u1 = uv[2];
+        w->v1 = uv[3];
         w->direct_scanout = false;
     }
 
@@ -2013,17 +2024,25 @@ JNIEXPORT jlong JNICALL TEX_FN(nativeAllocate)(JNIEnv* env, jclass clazz, jlong 
     return (jlong)(intptr_t)t;
 }
 
-JNIEXPORT void JNICALL TEX_FN(nativeUpdate)(JNIEnv* env, jclass clazz, jlong rendererHandle,
-                                            jlong texHandle, jint width, jint height,
-                                            jobject dataBuffer, jint stridePixels)
+JNIEXPORT jboolean JNICALL TEX_FN(nativeUpdate)(JNIEnv* env, jclass clazz, jlong rendererHandle,
+                                                jlong texHandle, jint width, jint height,
+                                                jobject dataBuffer, jint stridePixels,
+                                                jint dirtyX, jint dirtyY,
+                                                jint dirtyWidth, jint dirtyHeight)
 {
     (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)rendererHandle;
     VkTexture* t = (VkTexture*)(intptr_t)texHandle;
-    if (!r || !t || !dataBuffer) return;
+    if (!r || !t || !dataBuffer) return JNI_FALSE;
     void* data = (*env)->GetDirectBufferAddress(env, dataBuffer);
     size_t size = (size_t)(*env)->GetDirectBufferCapacity(env, dataBuffer);
-    vkr_texture_update(r, t, (uint32_t)width, (uint32_t)height, data, size, (uint32_t)stridePixels);
+    return vkr_texture_update(r, t, (uint32_t)width, (uint32_t)height, data, size,
+                              (uint32_t)stridePixels,
+                              dirtyX < 0 ? 0 : (uint32_t)dirtyX,
+                              dirtyY < 0 ? 0 : (uint32_t)dirtyY,
+                              dirtyWidth < 0 ? 0 : (uint32_t)dirtyWidth,
+                              dirtyHeight < 0 ? 0 : (uint32_t)dirtyHeight)
+        ? JNI_TRUE : JNI_FALSE;
 }
 
 JNIEXPORT void JNICALL TEX_FN(nativeDestroy)(JNIEnv* env, jclass clazz, jlong rendererHandle, jlong texHandle) {

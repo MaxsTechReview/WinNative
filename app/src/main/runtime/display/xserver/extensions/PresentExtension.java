@@ -161,7 +161,7 @@ public class PresentExtension
       Mode mode;
       if (canDirectScanout(content, pixmap.drawable, xOff, yOff)) {
         releasePendingScanout(window);
-        content.setScanoutSource(pixmap.drawable);
+        content.setScanoutSource(pixmap.drawable, xOff, yOff);
         PendingScanout pendingScanout = new PendingScanout();
         pendingScanout.window = window;
         pendingScanout.pixmap = pixmap;
@@ -171,14 +171,7 @@ public class PresentExtension
         mode = Mode.FLIP;
       } else {
         releasePendingScanout(window);
-        content.copyArea(
-            (short) 0,
-            (short) 0,
-            xOff,
-            yOff,
-            pixmap.drawable.width,
-            pixmap.drawable.height,
-            pixmap.drawable);
+        copyPresentedRegion(content, pixmap.drawable, xOff, yOff);
         sendIdleNotify(window, pixmap, serial, idleFence);
         mode = Mode.COPY;
       }
@@ -255,12 +248,32 @@ public class PresentExtension
       if (!gpuImage.isValid() || gpuImage.hasSamplingFailed()) return false;
     }
 
-    return xOff == 0
-        && yOff == 0
-        && pixmap.isDirectScanout()
+    return pixmap.isDirectScanout()
         && texture != null
-        && pixmap.width >= content.width
-        && pixmap.height >= content.height;
+        && xOff <= 0
+        && yOff <= 0
+        && pixmap.width + xOff >= content.width
+        && pixmap.height + yOff >= content.height;
+  }
+
+  private static void copyPresentedRegion(
+      Drawable content, Drawable pixmap, short xOff, short yOff) {
+    int srcX = Math.max(0, -xOff);
+    int srcY = Math.max(0, -yOff);
+    int dstX = Math.max(0, xOff);
+    int dstY = Math.max(0, yOff);
+    int width = Math.min(pixmap.width - srcX, content.width - dstX);
+    int height = Math.min(pixmap.height - srcY, content.height - dstY);
+    if (width <= 0 || height <= 0) return;
+
+    content.copyArea(
+        (short) srcX,
+        (short) srcY,
+        (short) dstX,
+        (short) dstY,
+        (short) width,
+        (short) height,
+        pixmap);
   }
 
   private void selectInput(XClient client, XInputStream inputStream, XOutputStream outputStream)
