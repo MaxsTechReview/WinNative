@@ -358,7 +358,9 @@ private void showControlElementSettings(View anchorView) {
           @Override
           public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
             if (!blockingUpdate) {
-              element.setType(ControlElement.Type.values()[position]);
+              ControlElement.Type newType = ControlElement.Type.values()[position];
+              if (newType == element.getType()) return;
+              element.setType(newType);
               profile.save();
               callback.run();
               inputControlsView.invalidate();
