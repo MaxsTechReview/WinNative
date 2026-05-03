@@ -121,10 +121,10 @@ public class ControlElement {
       bindings[2] = Binding.KEY_S;
       bindings[3] = Binding.KEY_A;
     } else if (type == Type.D_PAD) {
-      bindings[0] = Binding.GAMEPAD_DPAD_UP;
-      bindings[1] = Binding.GAMEPAD_DPAD_RIGHT;
-      bindings[2] = Binding.GAMEPAD_DPAD_DOWN;
-      bindings[3] = Binding.GAMEPAD_DPAD_LEFT;
+      bindings[0] = Binding.NONE;
+      bindings[1] = Binding.NONE;
+      bindings[2] = Binding.NONE;
+      bindings[3] = Binding.NONE;
     } else if (type == Type.TRACKPAD) {
       bindings[0] = Binding.GAMEPAD_RIGHT_THUMB_UP;
       bindings[1] = Binding.GAMEPAD_RIGHT_THUMB_RIGHT;
