@@ -325,6 +325,8 @@ public class PresentExtension
           presentPixmap(client, inputStream, outputStream);
         }
         client.enforceAbsoluteFramerate();
+        if (client.xServer.getRenderer() != null)
+          client.xServer.getRenderer().requestRenderCoalesced();
         break;
       case ClientOpcodes.SELECT_INPUT:
         try (XLock lock = client.xServer.lock(XServer.Lockable.WINDOW_MANAGER)) {

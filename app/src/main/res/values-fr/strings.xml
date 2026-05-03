@@ -500,9 +500,8 @@
     <string name="container_presets_rename">Renommer le préréglage</string>
     <string name="container_presets_import">Importer un préréglage</string>
     <string name="container_presets_custom">Personnalisé</string>
-    <string name="container_presets_built_in">Intégré</string>
+    <string name="container_presets_built_in">Par défaut</string>
     <string name="container_presets_changes_auto_saved">Les modifications sont enregistrées automatiquement lors de l\'édition de ce préréglage personnalisé.</string>
-    <string name="container_presets_builtin_readonly_hint">Les préréglages intégrés sont en lecture seule. Créez ou dupliquez un préréglage pour personnaliser ces variables.</string>
     <string name="container_presets_cannot_rename">Les préréglages intégrés ne peuvent pas être renommés</string>
     <string name="container_presets_unable_to_import">Impossible d\'importer le préréglage</string>
     <string name="container_presets_no_description">Aucune description disponible</string>

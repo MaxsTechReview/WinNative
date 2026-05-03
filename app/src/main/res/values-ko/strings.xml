@@ -500,9 +500,8 @@
     <string name="container_presets_rename">프리셋 이름 변경</string>
     <string name="container_presets_import">프리셋 가져오기</string>
     <string name="container_presets_custom">사용자 지정</string>
-    <string name="container_presets_built_in">기본 제공</string>
+    <string name="container_presets_built_in">기본값</string>
     <string name="container_presets_changes_auto_saved">이 사용자 지정 프리셋을 편집하는 동안 변경 사항이 자동으로 저장됩니다.</string>
-    <string name="container_presets_builtin_readonly_hint">기본 제공 프리셋은 읽기 전용입니다. 이 변수를 사용자 지정하려면 프리셋을 만들거나 복제하세요.</string>
     <string name="container_presets_cannot_rename">기본 제공 프리셋은 이름을 변경할 수 없습니다</string>
     <string name="container_presets_unable_to_import">프리셋을 가져올 수 없습니다</string>
     <string name="container_presets_no_description">사용 가능한 설명이 없습니다</string>

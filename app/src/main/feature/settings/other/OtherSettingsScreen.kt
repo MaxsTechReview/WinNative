@@ -41,10 +41,8 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.LibraryMusic
-import androidx.compose.material.icons.outlined.Monitor
 import androidx.compose.material.icons.outlined.Mouse
 import androidx.compose.material.icons.outlined.OpenInBrowser
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.SportsEsports
@@ -98,8 +96,6 @@ data class OtherSettingsState(
     val checkForUpdates: Boolean = true,
     val languageLabels: List<String> = emptyList(),
     val languageIndex: Int = 0,
-    val refreshRateLabels: List<String> = emptyList(),
-    val refreshRateIndex: Int = 0,
     val soundFontFiles: List<String> = emptyList(),
     val soundFontIndex: Int = 0,
     val winlatorPath: String = "",
@@ -121,7 +117,6 @@ fun OtherSettingsScreen(
     onCheckForUpdatesChanged: (Boolean) -> Unit,
     onCheckForUpdatesNow: () -> Unit,
     onLanguageSelected: (Int) -> Unit,
-    onRefreshRateSelected: (Int) -> Unit,
     onSoundFontSelected: (Int) -> Unit,
     onInstallSoundFont: () -> Unit,
     onRemoveSoundFont: () -> Unit,
@@ -192,21 +187,6 @@ fun OtherSettingsScreen(
                 options = state.languageLabels,
                 selectedIndex = state.languageIndex,
                 onOptionSelected = onLanguageSelected,
-            )
-        }
-
-        item(key = "display_section") {
-            SectionLabel(stringResource(R.string.session_display_title), modifier = Modifier.padding(top = 8.dp))
-        }
-
-        item(key = "refresh_rate_card") {
-            SettingsDropdownCard(
-                title = stringResource(R.string.settings_general_refresh_rate),
-                subtitle = stringResource(R.string.settings_general_refresh_rate_summary),
-                icon = Icons.Outlined.Monitor,
-                options = state.refreshRateLabels,
-                selectedIndex = state.refreshRateIndex,
-                onOptionSelected = onRefreshRateSelected,
             )
         }
 

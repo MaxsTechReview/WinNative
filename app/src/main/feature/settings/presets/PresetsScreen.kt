@@ -584,7 +584,6 @@ private fun PresetSelectorCard(
                     onRename = onRename,
                     onDuplicate = onDuplicate,
                     onExport = onExport,
-                    onImport = onImport,
                     onRemove = onRemove,
                 )
             }
@@ -607,20 +606,11 @@ private fun PresetSelectorRowContent(
     onRename: () -> Unit,
     onDuplicate: () -> Unit,
     onExport: () -> Unit,
-    onImport: () -> Unit,
     onRemove: () -> Unit,
 ) {
     var dropdownOpen by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     val selected = data.presets.firstOrNull { it.id == data.selectedPresetId }
-    val hintText =
-        stringResource(
-            if (data.editable) {
-                R.string.container_presets_changes_auto_saved
-            } else {
-                R.string.container_presets_builtin_readonly_hint
-            },
-        )
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -745,17 +735,6 @@ private fun PresetSelectorRowContent(
                         },
                     )
                     MenuRow(
-                        icon = Icons.Outlined.FileDownload,
-                        iconTint = Accent,
-                        label = stringResource(R.string.common_ui_import),
-                        textColor = TextPrimary,
-                        enabled = true,
-                        onClick = {
-                            menuOpen = false
-                            onImport()
-                        },
-                    )
-                    MenuRow(
                         icon = Icons.Outlined.Delete,
                         iconTint = DangerRed,
                         label = stringResource(R.string.common_ui_remove),
@@ -770,16 +749,18 @@ private fun PresetSelectorRowContent(
             }
         }
 
-        Spacer(Modifier.height(6.dp))
-        Text(
-            text = hintText,
-            color = TextSecondary,
-            fontSize = 11.sp,
-            lineHeight = 14.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 11.dp),
-        )
+        if (data.editable) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = stringResource(R.string.container_presets_changes_auto_saved),
+                color = TextSecondary,
+                fontSize = 11.sp,
+                lineHeight = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 11.dp),
+            )
+        }
     }
 }
 

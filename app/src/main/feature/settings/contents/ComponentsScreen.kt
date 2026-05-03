@@ -222,7 +222,7 @@ fun ComponentsScreen(
             item(key = "available_section_${state.currentType.name}") {
                 SectionLabel(
                     text = stringResource(R.string.common_ui_available),
-                    modifier = Modifier.padding(top = 8.dp),
+                    modifier = Modifier.padding(top = 6.dp),
                 )
             }
             items(
@@ -389,14 +389,6 @@ private fun TypeTabsContent(
     onTypeSelected: (ContentProfile.ContentType) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = stringResource(R.string.settings_content_type).uppercase(),
-            color = TextSecondary,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.4.sp,
-            modifier = Modifier.padding(start = 2.dp, bottom = 8.dp),
-        )
         Row(
             modifier =
                 Modifier
