@@ -1139,9 +1139,10 @@ return boundingBox;
 
           if (cursorDx != 0 || cursorDy != 0) {
             XServer xServer = inputControlsView.getXServer();
-            if (xServer.isRelativeMouseMovement())
-              xServer.getWinHandler().mouseEvent(MouseEventFlags.MOVE, cursorDx, cursorDy, 0);
-            else inputControlsView.getXServer().injectPointerMoveDelta(cursorDx, cursorDy);
+            if (xServer.isRelativeMouseMovement()) {
+              xServer.updatePointerForDisplayDelta(cursorDx, cursorDy);
+              xServer.getWinHandler().mouseMoveDelta(cursorDx, cursorDy);
+            } else inputControlsView.getXServer().injectPointerMoveDelta(cursorDx, cursorDy);
           }
         }
       } else {

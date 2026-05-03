@@ -276,6 +276,11 @@ typedef struct VkRenderer {
     VkBuffer         quad_vbo;
     VkDeviceMemory   quad_vbo_memory;
 
+    // Shared sampler for all CPU-uploaded textures and AHB textures that don't need a Ycbcr
+    // conversion. Created once at init; vkCreateSampler costs ~50-200µs on Adreno, so giving
+    // every texture its own sampler is a non-trivial CPU+GPU tax during pixmap churn.
+    VkSampler        shared_sampler;
+
     // Per-frame
     VkCommandPool    cmd_pool;
     VkFrame          frames[VK_FRAMES_IN_FLIGHT];
@@ -343,6 +348,15 @@ void       vkr_run_one_shot_cmd(VkRenderer* r, void (*fn)(VkCommandBuffer, void*
 void       vkr_image_barrier(VkCommandBuffer cmd, VkImage image, VkImageLayout from, VkImageLayout to,
                              VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage,
                              VkAccessFlags src_access, VkAccessFlags dst_access);
+bool       vkr_create_sampler(VkRenderer* r, VkSamplerYcbcrConversion ycbcr, VkSampler* out);
+// Async layout transition through the staging pool. Submits a tiny command buffer that runs
+// the requested barrier, but does NOT wait for the GPU. The barrier is ordered before all
+// subsequent submits on the same queue per Vulkan spec, so callers can sample the image as
+// soon as the next render submit happens. Returns false on submit failure.
+bool       vkr_submit_async_transition(VkRenderer* r, VkImage image,
+                                       VkImageLayout from, VkImageLayout to,
+                                       VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage,
+                                       VkAccessFlags src_access, VkAccessFlags dst_access);
 
 // Staging pool — created in nativeCreate, drained + destroyed in nativeDestroy.
 bool            vkr_staging_pool_init(VkRenderer* r);

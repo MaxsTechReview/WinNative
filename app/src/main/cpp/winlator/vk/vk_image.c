@@ -149,13 +149,14 @@ static bool grow_staging_slot(VkRenderer* r, VkStagingSlot* s, VkDeviceSize need
 
     VkMemoryAllocateInfo ai = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     ai.allocationSize = mr.size;
+    // Require HOST_VISIBLE | HOST_COHERENT (typically write-combined on Adreno). Skipping
+    // HOST_CACHED avoids polluting CPU caches with write-once-then-GPU-read staging, which
+    // hurts throughput by 5-20% on Adreno. We do not fall back to non-coherent memory:
+    // vkr_texture_update submits without vkFlushMappedMemoryRanges, so non-coherent staging
+    // would render undefined data. Vulkan spec §11.6 mandates that every device expose at
+    // least one HOST_VISIBLE | HOST_COHERENT memory type, so this lookup cannot legally fail.
     ai.memoryTypeIndex = vkr_find_memory_type(r, mr.memoryTypeBits,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
-    if (ai.memoryTypeIndex == UINT32_MAX) {
-        ai.memoryTypeIndex = vkr_find_memory_type(r, mr.memoryTypeBits,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    }
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     if (ai.memoryTypeIndex == UINT32_MAX) {
         vkDestroyBuffer(r->device, s->buffer, NULL); s->buffer = VK_NULL_HANDLE;
         return false;
@@ -245,7 +246,7 @@ void vkr_run_one_shot_cmd(VkRenderer* r, void (*fn)(VkCommandBuffer, void*), voi
 // Forward declaration — defined in vk_renderer.c.
 VkDescriptorSet vkr_alloc_descriptor_set(VkRenderer* r);
 
-static bool create_sampler(VkRenderer* r, VkSamplerYcbcrConversion ycbcr, VkSampler* out) {
+bool vkr_create_sampler(VkRenderer* r, VkSamplerYcbcrConversion ycbcr, VkSampler* out) {
     VkSamplerYcbcrConversionInfo yi = {VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO};
     yi.conversion = ycbcr;
 
@@ -261,6 +262,54 @@ static bool create_sampler(VkRenderer* r, VkSamplerYcbcrConversion ycbcr, VkSamp
     si.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 
     return vkCreateSampler(r->device, &si, NULL, out) == VK_SUCCESS;
+}
+
+bool vkr_submit_async_transition(VkRenderer* r, VkImage image,
+                                 VkImageLayout from, VkImageLayout to,
+                                 VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage,
+                                 VkAccessFlags src_access, VkAccessFlags dst_access) {
+    // Reuse the staging pool's per-slot command pool/buffer/fence for this transition. We
+    // pass needed=0 so the slot's staging buffer isn't grown (we only use the cmd buffer).
+    VkStagingSlot* slot = vkr_staging_pool_acquire(r, 0);
+    if (!slot) {
+        VK_LOGE("vkr_submit_async_transition: staging slot acquire failed");
+        return false;
+    }
+
+    VkCommandBufferBeginInfo cbi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    cbi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    if (vkBeginCommandBuffer(slot->cmd, &cbi) != VK_SUCCESS) {
+        vkr_staging_pool_release(slot);
+        return false;
+    }
+    vkr_image_barrier(slot->cmd, image, from, to, src_stage, dst_stage, src_access, dst_access);
+    if (vkEndCommandBuffer(slot->cmd) != VK_SUCCESS) {
+        vkr_staging_pool_release(slot);
+        return false;
+    }
+
+    VkSubmitInfo si = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    si.commandBufferCount = 1;
+    si.pCommandBuffers = &slot->cmd;
+
+    vkResetFences(r->device, 1, &slot->fence);
+
+    pthread_mutex_lock(&r->queue_mutex);
+    VkResult sr = vkQueueSubmit(r->graphics_queue, 1, &si, slot->fence);
+    pthread_mutex_unlock(&r->queue_mutex);
+    if (sr != VK_SUCCESS) {
+        VK_LOGE("vkr_submit_async_transition: vkQueueSubmit -> %d", sr);
+        // Restore a signaled fence so the slot is reusable. (Same recovery path as
+        // vkr_texture_update.)
+        vkDestroyFence(r->device, slot->fence, NULL);
+        VkFenceCreateInfo rfi = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+        rfi.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        vkCreateFence(r->device, &rfi, NULL, &slot->fence);
+        vkr_staging_pool_release(slot);
+        return false;
+    }
+    vkr_staging_pool_release(slot);
+    return true;
 }
 
 static void write_descriptor_set(VkRenderer* r, VkDescriptorSet set, VkImageView view, VkSampler sampler) {
@@ -444,7 +493,10 @@ VkTexture* vkr_texture_create_uploaded(VkRenderer* r, uint32_t width, uint32_t h
         return NULL;
     }
 
-    if (!create_sampler(r, VK_NULL_HANDLE, &t->sampler)) {
+    // CPU-uploaded textures all want the same sampler config, so use the renderer's shared
+    // sampler. tex->sampler stays VK_NULL_HANDLE; destroy_texture_resources skips it.
+    if (r->shared_sampler == VK_NULL_HANDLE) {
+        VK_LOGE("vkr_texture_create_uploaded: shared_sampler not initialized");
         vkDestroyImageView(r->device, t->view, NULL);
         vkDestroyImage(r->device, t->image, NULL);
         vkFreeMemory(r->device, t->memory, NULL);
@@ -454,47 +506,26 @@ VkTexture* vkr_texture_create_uploaded(VkRenderer* r, uint32_t width, uint32_t h
 
     t->descriptor_set = vkr_alloc_descriptor_set(r);
     if (t->descriptor_set == VK_NULL_HANDLE) {
-        vkDestroySampler(r->device, t->sampler, NULL);
         vkDestroyImageView(r->device, t->view, NULL);
         vkDestroyImage(r->device, t->image, NULL);
         vkFreeMemory(r->device, t->memory, NULL);
         free(t);
         return NULL;
     }
-    write_descriptor_set(r, t->descriptor_set, t->view, t->sampler);
+    write_descriptor_set(r, t->descriptor_set, t->view, r->shared_sampler);
 
     if (data && data_size > 0) {
         vkr_texture_update(r, t, width, height, data, data_size, stride_pixels);
     } else {
-        // No initial data — transition the image to SHADER_READ so it's safe to sample as black.
-        VkCommandBufferAllocateInfo ai = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-        ai.commandPool = r->cmd_pool;
-        ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        ai.commandBufferCount = 1;
-        VkCommandBuffer cmd;
-        VK_CHECK(vkAllocateCommandBuffers(r->device, &ai, &cmd));
-
-        VkCommandBufferBeginInfo bi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-        bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        VK_CHECK(vkBeginCommandBuffer(cmd, &bi));
-        vkr_image_barrier(cmd, t->image,
-            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-            0, VK_ACCESS_SHADER_READ_BIT);
-        VK_CHECK(vkEndCommandBuffer(cmd));
-
-        VkSubmitInfo si = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
-        si.commandBufferCount = 1;
-        si.pCommandBuffers = &cmd;
-        VkFenceCreateInfo fi = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-        VkFence fence;
-        VK_CHECK(vkCreateFence(r->device, &fi, NULL, &fence));
-        pthread_mutex_lock(&r->queue_mutex);
-        VK_CHECK(vkQueueSubmit(r->graphics_queue, 1, &si, fence));
-        pthread_mutex_unlock(&r->queue_mutex);
-        vkWaitForFences(r->device, 1, &fence, VK_TRUE, UINT64_MAX);
-        vkDestroyFence(r->device, fence, NULL);
-        vkFreeCommandBuffers(r->device, r->cmd_pool, 1, &cmd);
+        // No initial data — async transition to SHADER_READ so the texture is safe to sample
+        // as black. Doesn't block the caller; the barrier orders before the next render submit
+        // on the same queue per Vulkan spec.
+        if (!vkr_submit_async_transition(r, t->image,
+                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                0, VK_ACCESS_SHADER_READ_BIT)) {
+            VK_LOGW("vkr_texture_create_uploaded: async transition failed; texture may render undefined contents");
+        }
     }
     t->layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     t->ready = true;
@@ -722,10 +753,26 @@ VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool tran
         return NULL;
     }
 
-    if (!create_sampler(r, t->ycbcr, &t->sampler)) {
-        VK_LOGW("AHB create_sampler failed");
+    // Ycbcr-bound samplers must be created per-texture (driver pairs them with the conversion).
+    // For plain RGB AHB imports we can reuse the renderer's shared sampler.
+    VkSampler sampler_for_descriptor;
+    if (t->ycbcr != VK_NULL_HANDLE) {
+        if (!vkr_create_sampler(r, t->ycbcr, &t->sampler)) {
+            VK_LOGW("AHB vkr_create_sampler failed");
+            vkDestroyImageView(r->device, t->view, NULL);
+            if (r->fnDestroyYcbcr) r->fnDestroyYcbcr(r->device, t->ycbcr, NULL);
+            vkDestroyImage(r->device, t->image, NULL);
+            vkFreeMemory(r->device, t->memory, NULL);
+            if (t->ahb) AHardwareBuffer_release(t->ahb);
+            free(t);
+            return NULL;
+        }
+        sampler_for_descriptor = t->sampler;
+    } else if (r->shared_sampler != VK_NULL_HANDLE) {
+        sampler_for_descriptor = r->shared_sampler;
+    } else {
+        VK_LOGE("AHB import: shared_sampler not initialized");
         vkDestroyImageView(r->device, t->view, NULL);
-        if (t->ycbcr && r->fnDestroyYcbcr) r->fnDestroyYcbcr(r->device, t->ycbcr, NULL);
         vkDestroyImage(r->device, t->image, NULL);
         vkFreeMemory(r->device, t->memory, NULL);
         if (t->ahb) AHardwareBuffer_release(t->ahb);
@@ -735,7 +782,7 @@ VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool tran
 
     t->descriptor_set = vkr_alloc_descriptor_set(r);
     if (t->descriptor_set == VK_NULL_HANDLE) {
-        vkDestroySampler(r->device, t->sampler, NULL);
+        if (t->sampler) vkDestroySampler(r->device, t->sampler, NULL);
         vkDestroyImageView(r->device, t->view, NULL);
         if (t->ycbcr && r->fnDestroyYcbcr) r->fnDestroyYcbcr(r->device, t->ycbcr, NULL);
         vkDestroyImage(r->device, t->image, NULL);
@@ -744,35 +791,17 @@ VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool tran
         free(t);
         return NULL;
     }
-    write_descriptor_set(r, t->descriptor_set, t->view, t->sampler);
+    write_descriptor_set(r, t->descriptor_set, t->view, sampler_for_descriptor);
 
-    // Transition to SHADER_READ layout once.
-    VkCommandBufferAllocateInfo cai = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-    cai.commandPool = r->cmd_pool;
-    cai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    cai.commandBufferCount = 1;
-    VkCommandBuffer cmd;
-    VK_CHECK(vkAllocateCommandBuffers(r->device, &cai, &cmd));
-    VkCommandBufferBeginInfo cbi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-    cbi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    VK_CHECK(vkBeginCommandBuffer(cmd, &cbi));
-    vkr_image_barrier(cmd, t->image,
-        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-        0, VK_ACCESS_SHADER_READ_BIT);
-    VK_CHECK(vkEndCommandBuffer(cmd));
-    VkSubmitInfo si = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    si.commandBufferCount = 1;
-    si.pCommandBuffers = &cmd;
-    VkFenceCreateInfo fi = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-    VkFence fence;
-    VK_CHECK(vkCreateFence(r->device, &fi, NULL, &fence));
-    pthread_mutex_lock(&r->queue_mutex);
-    VK_CHECK(vkQueueSubmit(r->graphics_queue, 1, &si, fence));
-    pthread_mutex_unlock(&r->queue_mutex);
-    vkWaitForFences(r->device, 1, &fence, VK_TRUE, UINT64_MAX);
-    vkDestroyFence(r->device, fence, NULL);
-    vkFreeCommandBuffers(r->device, r->cmd_pool, 1, &cmd);
+    // Async transition to SHADER_READ. The barrier orders before all subsequent submits on
+    // the same queue per Vulkan spec, so the next render submit safely samples this image
+    // without an additional renderer-side wait.
+    if (!vkr_submit_async_transition(r, t->image,
+            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            0, VK_ACCESS_SHADER_READ_BIT)) {
+        VK_LOGW("AHB import: async transition failed; sampling may yield undefined contents");
+    }
 
     t->layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     t->ready = true;

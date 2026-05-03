@@ -187,6 +187,22 @@ public class XServer {
     }
   }
 
+  public void updatePointerForDisplay(int x, int y) {
+    try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
+      pointer.setX(x);
+      pointer.setY(y);
+    }
+    if (renderer != null) renderer.requestCursorRender();
+  }
+
+  public void updatePointerForDisplayDelta(int dx, int dy) {
+    try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
+      pointer.setX(pointer.getX() + dx);
+      pointer.setY(pointer.getY() + dy);
+    }
+    if (renderer != null) renderer.requestCursorRender();
+  }
+
   public void injectPointerButtonPress(Pointer.Button buttonCode) {
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
       pointer.setButton(buttonCode, true);

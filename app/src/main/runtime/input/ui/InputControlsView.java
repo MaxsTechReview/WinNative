@@ -452,16 +452,14 @@ public class InputControlsView extends View {
             @Override
             public void run() {
               if (mouseMoveOffsetX != 0 || mouseMoveOffsetY != 0) {
-                if (xServer.isRelativeMouseMovement())
-                  winHandler.mouseEvent(
-                      MouseEventFlags.MOVE,
-                      (int) (mouseMoveOffsetX * cursorSpeed * 20),
-                      (int) (mouseMoveOffsetY * cursorSpeed * 20),
-                      0);
-                else
-                  xServer.injectPointerMoveDelta(
-                      (int) (mouseMoveOffsetX * cursorSpeed * 20),
-                      (int) (mouseMoveOffsetY * cursorSpeed * 20));
+                int dx = (int) (mouseMoveOffsetX * cursorSpeed * 20);
+                int dy = (int) (mouseMoveOffsetY * cursorSpeed * 20);
+                if (xServer.isRelativeMouseMovement()) {
+                  xServer.updatePointerForDisplayDelta(dx, dy);
+                  winHandler.mouseMoveDelta(dx, dy);
+                } else {
+                  xServer.injectPointerMoveDelta(dx, dy);
+                }
               }
             }
           },

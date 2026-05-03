@@ -1691,10 +1691,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             case MotionEvent.ACTION_MOVE:
             case MotionEvent.ACTION_HOVER_MOVE:
                 float[] transformedPoint = XForm.transformPoint(xform, event.getX(), event.getY());
-                if (xServer.isRelativeMouseMovement())
-                    xServer.getWinHandler().mouseEvent(MouseEventFlags.MOVE, (int)transformedPoint[0], (int)transformedPoint[1], 0);
-                else
+                if (xServer.isRelativeMouseMovement()) {
+                    xServer.updatePointerForDisplayDelta((int)transformedPoint[0], (int)transformedPoint[1]);
+                    xServer.getWinHandler().mouseMoveDelta((int)transformedPoint[0], (int)transformedPoint[1]);
+                } else {
                     xServer.injectPointerMoveDelta((int)transformedPoint[0], (int)transformedPoint[1]);
+                }
                 handled = true;
                 break;
             case MotionEvent.ACTION_SCROLL:

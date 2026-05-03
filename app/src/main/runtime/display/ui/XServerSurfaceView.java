@@ -24,6 +24,7 @@ import java.util.Deque;
 public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Callback {
     public static final int RENDERMODE_WHEN_DIRTY  = 0;
     public static final int RENDERMODE_CONTINUOUSLY = 1;
+    private static final long TRANSIENT_FRAME_INTERVAL_NS = 1_000_000_000L / 120L;
 
     private final VulkanRenderer renderer;
 
@@ -32,8 +33,11 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     private Thread renderThread;
     private volatile boolean running;
     private volatile boolean renderRequested;
+    private volatile boolean transientRenderRequested;
     private volatile boolean paused;
     private volatile boolean surfaceReady;
+    private volatile long transientRenderUntilNs;
+    private long nextContinuousFrameNs;
     private int renderMode = RENDERMODE_WHEN_DIRTY;
 
     private volatile int width;
@@ -63,6 +67,15 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     public void requestRender() {
         synchronized (renderLock) {
             renderRequested = true;
+            renderLock.notifyAll();
+        }
+    }
+
+    public void requestTransientRender(long durationMs) {
+        long untilNs = System.nanoTime() + Math.max(1L, durationMs) * 1_000_000L;
+        synchronized (renderLock) {
+            if (untilNs > transientRenderUntilNs) transientRenderUntilNs = untilNs;
+            transientRenderRequested = true;
             renderLock.notifyAll();
         }
     }
@@ -177,21 +190,59 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
             Runnable event = null;
             boolean draw = false;
             synchronized (renderLock) {
-                while (running && !paused && surfaceReady && eventQueue.isEmpty()
-                       && renderMode == RENDERMODE_WHEN_DIRTY && !renderRequested) {
+                while (true) {
+                    if (!running) break;
+                    if (paused || !surfaceReady) {
+                        nextContinuousFrameNs = 0;
+                        try { renderLock.wait(50); } catch (InterruptedException ignore) {}
+                        continue;
+                    }
+
+                    long now = System.nanoTime();
+                    boolean transientActive = transientRenderUntilNs > now;
+
+                    if (!eventQueue.isEmpty()) {
+                        event = eventQueue.poll();
+                        break;
+                    }
+
+                    if (renderRequested) {
+                        draw = true;
+                        renderRequested = false;
+                        transientRenderRequested = false;
+                        if (!transientActive) nextContinuousFrameNs = 0;
+                        break;
+                    }
+
+                    if (renderMode == RENDERMODE_CONTINUOUSLY) {
+                        draw = true;
+                        transientRenderRequested = false;
+                        nextContinuousFrameNs = 0;
+                        break;
+                    }
+
+                    if (transientRenderRequested) {
+                        draw = true;
+                        transientRenderRequested = false;
+                        nextContinuousFrameNs = now + TRANSIENT_FRAME_INTERVAL_NS;
+                        break;
+                    }
+
+                    if (transientActive) {
+                        if (nextContinuousFrameNs == 0 || now >= nextContinuousFrameNs) {
+                            draw = true;
+                            nextContinuousFrameNs = now + TRANSIENT_FRAME_INTERVAL_NS;
+                            break;
+                        }
+                        waitNanosLocked(nextContinuousFrameNs - now);
+                        continue;
+                    }
+
+                    nextContinuousFrameNs = 0;
                     try { renderLock.wait(); } catch (InterruptedException ignore) {}
                 }
-                if (!running) break;
-                if (paused || !surfaceReady) {
-                    try { renderLock.wait(50); } catch (InterruptedException ignore) {}
-                    continue;
-                }
-                if (!eventQueue.isEmpty()) event = eventQueue.poll();
-                if (event == null) {
-                    draw = true;
-                    if (renderMode == RENDERMODE_WHEN_DIRTY) renderRequested = false;
-                }
             }
+            if (!running) break;
             if (event != null) {
                 try { event.run(); } catch (Throwable ignore) {}
             } else if (draw) {
@@ -199,6 +250,13 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
             }
         }
         renderer.onSurfaceDestroyed();
+    }
+
+    private void waitNanosLocked(long nanos) {
+        if (nanos <= 0) return;
+        long millis = nanos / 1_000_000L;
+        int extraNanos = (int) (nanos % 1_000_000L);
+        try { renderLock.wait(millis, extraNanos); } catch (InterruptedException ignore) {}
     }
 
     // ---- Convenience accessors used by VulkanRenderer ----------------------

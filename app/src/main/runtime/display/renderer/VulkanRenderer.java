@@ -19,6 +19,8 @@ import com.winlator.cmod.runtime.display.xserver.XLock;
 import com.winlator.cmod.runtime.display.xserver.XServer;
 import com.winlator.cmod.shared.math.Mathf;
 import com.winlator.cmod.shared.math.XForm;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 
 /**
@@ -59,6 +61,8 @@ public class VulkanRenderer
     public int surfaceWidth;
     public int surfaceHeight;
     private boolean cpuSaverMode = false;
+    private static final long CURSOR_ACTIVE_NS = 100_000_000L;
+    private volatile long cursorActiveUntilNs = 0L;
 
     private static final int MAX_FPS_LIMIT = 1000;
     private volatile int currentFpsLimit = 0;
@@ -67,14 +71,33 @@ public class VulkanRenderer
     private static final int MAX_WINDOWS = 64;
     private static final int MAX_EFFECTS = 8;
 
-    // Reusable scratch — sized once, refilled per frame, passed across JNI to avoid GC churn.
+    // Scene buffer layout — must mirror SCENE_OFF_* constants in vk_renderer.c.
+    // One direct ByteBuffer is passed per frame instead of six separate primitive arrays. Each
+    // GetIntArrayElements/GetLongArrayElements pair would cost ~3-8µs on ART (and copy or pin);
+    // GetDirectBufferAddress is a single pointer fetch with no critical region.
+    private static final int OFF_CURSOR_HANDLE   = 0;
+    private static final int OFF_WINDOW_HANDLES  = 8;
+    private static final int OFF_WINDOW_COUNT    = 520;
+    private static final int OFF_CURSOR_VISIBLE  = 524;
+    private static final int OFF_CURSOR_GEOM     = 528;
+    private static final int OFF_XFORM           = 544;
+    private static final int OFF_VIEWPORT        = 568;
+    private static final int OFF_SCISSOR_ENABLED = 584;
+    private static final int OFF_SCISSOR         = 588;
+    private static final int OFF_SCREEN_W        = 604;
+    private static final int OFF_SCREEN_H        = 608;
+    private static final int OFF_EFFECT_COUNT    = 612;
+    private static final int OFF_EFFECT_TYPES    = 616;
+    private static final int OFF_EFFECT_PARAMS   = 648;
+    private static final int OFF_WINDOW_GEOM     = 776;
+    private static final int SCENE_BUF_SIZE      = 1800;
+
+    private final ByteBuffer sceneBuf =
+            ByteBuffer.allocateDirect(SCENE_BUF_SIZE).order(ByteOrder.nativeOrder());
+
+    // Reusable scratch — sized once, refilled per frame.
     private final float[] sceneXform = XForm.getInstance();
-    private final int[] viewportArr = new int[4];
-    private final int[] scissorArr = new int[4];
-    private final long[] winHandlesScratch = new long[MAX_WINDOWS];
-    private final int[] winGeomScratch = new int[MAX_WINDOWS * 4];
-    private final int[] cursorGeomScratch = new int[4];
-    private final int[] effectTypesScratch = new int[MAX_EFFECTS];
+    // Effect.writeParams writes into a float[]; we copy into the ByteBuffer afterwards.
     private final float[] effectParamsScratch = new float[MAX_EFFECTS * 4];
 
     public VulkanRenderer(XServerSurfaceView view, XServer xServer) {
@@ -196,28 +219,49 @@ public class VulkanRenderer
             XForm.identity(sceneXform);
         }
 
+        final ByteBuffer buf = sceneBuf;
+
         // Viewport
+        int viewX, viewY, viewW, viewH;
         if (fullscreen) {
-            viewportArr[0] = 0;
-            viewportArr[1] = 0;
-            viewportArr[2] = surfaceWidth;
-            viewportArr[3] = surfaceHeight;
+            viewX = 0;
+            viewY = 0;
+            viewW = surfaceWidth;
+            viewH = surfaceHeight;
         } else {
-            viewportArr[0] = viewTransformation.viewOffsetX;
-            viewportArr[1] = viewTransformation.viewOffsetY;
-            viewportArr[2] = viewTransformation.viewWidth;
-            viewportArr[3] = viewTransformation.viewHeight;
+            viewX = viewTransformation.viewOffsetX;
+            viewY = viewTransformation.viewOffsetY;
+            viewW = viewTransformation.viewWidth;
+            viewH = viewTransformation.viewHeight;
         }
+        buf.putInt(OFF_VIEWPORT,      viewX);
+        buf.putInt(OFF_VIEWPORT + 4,  viewY);
+        buf.putInt(OFF_VIEWPORT + 8,  viewW);
+        buf.putInt(OFF_VIEWPORT + 12, viewH);
 
         // Scissor (only in non-magnifier non-fullscreen mode)
-        int[] scissor = null;
         if (useScissor) {
-            scissorArr[0] = viewTransformation.viewOffsetX;
-            scissorArr[1] = viewTransformation.viewOffsetY;
-            scissorArr[2] = viewTransformation.viewWidth;
-            scissorArr[3] = viewTransformation.viewHeight;
-            scissor = scissorArr;
+            buf.putInt(OFF_SCISSOR_ENABLED, 1);
+            buf.putInt(OFF_SCISSOR,      viewTransformation.viewOffsetX);
+            buf.putInt(OFF_SCISSOR + 4,  viewTransformation.viewOffsetY);
+            buf.putInt(OFF_SCISSOR + 8,  viewTransformation.viewWidth);
+            buf.putInt(OFF_SCISSOR + 12, viewTransformation.viewHeight);
+        } else {
+            buf.putInt(OFF_SCISSOR_ENABLED, 0);
+            // Native side gates on scissor_enabled regardless, but zero the rect for cleanliness.
+            buf.putInt(OFF_SCISSOR,      0);
+            buf.putInt(OFF_SCISSOR + 4,  0);
+            buf.putInt(OFF_SCISSOR + 8,  0);
+            buf.putInt(OFF_SCISSOR + 12, 0);
         }
+
+        // XForm
+        buf.putFloat(OFF_XFORM,      sceneXform[0]);
+        buf.putFloat(OFF_XFORM + 4,  sceneXform[1]);
+        buf.putFloat(OFF_XFORM + 8,  sceneXform[2]);
+        buf.putFloat(OFF_XFORM + 12, sceneXform[3]);
+        buf.putFloat(OFF_XFORM + 16, sceneXform[4]);
+        buf.putFloat(OFF_XFORM + 20, sceneXform[5]);
 
         viewportNeedsUpdate = false;
 
@@ -225,6 +269,7 @@ public class VulkanRenderer
         int winCount = 0;
         long cursorHandle = 0;
         boolean cursorOnscreen = false;
+        int cursorPosX = 0, cursorPosY = 0, cursorW = 0, cursorH = 0;
 
         try (XLock lock = xServer.lock(XServer.Lockable.WINDOW_MANAGER, XServer.Lockable.DRAWABLE_MANAGER)) {
             int screenW = xServer.screenInfo.width;
@@ -253,11 +298,12 @@ public class VulkanRenderer
                     }
                 }
                 if (tex == null || !tex.isAllocated()) continue;
-                winHandlesScratch[winCount] = tex.getNativeHandle();
-                winGeomScratch[winCount * 4 + 0] = rw.rootX;
-                winGeomScratch[winCount * 4 + 1] = rw.rootY;
-                winGeomScratch[winCount * 4 + 2] = drawable.width;
-                winGeomScratch[winCount * 4 + 3] = drawable.height;
+                buf.putLong(OFF_WINDOW_HANDLES + winCount * 8, tex.getNativeHandle());
+                int gOff = OFF_WINDOW_GEOM + winCount * 16;
+                buf.putInt(gOff,      rw.rootX);
+                buf.putInt(gOff + 4,  rw.rootY);
+                buf.putInt(gOff + 8,  drawable.width);
+                buf.putInt(gOff + 12, drawable.height);
                 winCount++;
             }
 
@@ -286,30 +332,42 @@ public class VulkanRenderer
                     }
                     if (tex != null && tex.isAllocated()) {
                         cursorHandle = tex.getNativeHandle();
-                        cursorGeomScratch[0] = x - hotX;
-                        cursorGeomScratch[1] = y - hotY;
-                        cursorGeomScratch[2] = cursorDrawable.width;
-                        cursorGeomScratch[3] = cursorDrawable.height;
+                        cursorPosX = x - hotX;
+                        cursorPosY = y - hotY;
+                        cursorW = cursorDrawable.width;
+                        cursorH = cursorDrawable.height;
                         cursorOnscreen = true;
                     }
                 }
             }
         }
 
+        buf.putInt(OFF_WINDOW_COUNT, winCount);
+        buf.putLong(OFF_CURSOR_HANDLE, cursorHandle);
+        buf.putInt(OFF_CURSOR_VISIBLE, cursorOnscreen ? 1 : 0);
+        buf.putInt(OFF_CURSOR_GEOM,      cursorPosX);
+        buf.putInt(OFF_CURSOR_GEOM + 4,  cursorPosY);
+        buf.putInt(OFF_CURSOR_GEOM + 8,  cursorW);
+        buf.putInt(OFF_CURSOR_GEOM + 12, cursorH);
+
+        buf.putInt(OFF_SCREEN_W, xServer.screenInfo.width);
+        buf.putInt(OFF_SCREEN_H, xServer.screenInfo.height);
+
         // Effects snapshot
         Effect[] active = effectComposer.snapshot();
         int effectCount = Math.min(active.length, MAX_EFFECTS);
+        buf.putInt(OFF_EFFECT_COUNT, effectCount);
         for (int i = 0; i < effectCount; i++) {
-            effectTypesScratch[i] = active[i].getNativeType();
+            buf.putInt(OFF_EFFECT_TYPES + i * 4, active[i].getNativeType());
             active[i].writeParams(effectParamsScratch, i * 4);
+            int pOff = OFF_EFFECT_PARAMS + i * 16;
+            buf.putFloat(pOff,      effectParamsScratch[i * 4]);
+            buf.putFloat(pOff + 4,  effectParamsScratch[i * 4 + 1]);
+            buf.putFloat(pOff + 8,  effectParamsScratch[i * 4 + 2]);
+            buf.putFloat(pOff + 12, effectParamsScratch[i * 4 + 3]);
         }
 
-        nativeSetScene(nativeHandle,
-                winHandlesScratch, winGeomScratch, winCount,
-                cursorHandle, cursorGeomScratch, cursorOnscreen,
-                sceneXform, viewportArr, scissor,
-                xServer.screenInfo.width, xServer.screenInfo.height,
-                effectTypesScratch, effectParamsScratch, effectCount);
+        nativeSetScene(nativeHandle, buf);
         nativeSetFpsLimit(nativeHandle, currentFpsLimit);
         nativeRenderFrame(nativeHandle);
     }
@@ -354,9 +412,14 @@ public class VulkanRenderer
         if (mask.isSet(WindowAttributes.FLAG_CURSOR)) xServerView.requestRender();
     }
 
+    public void requestCursorRender() {
+        cursorActiveUntilNs = System.nanoTime() + CURSOR_ACTIVE_NS;
+        xServerView.requestTransientRender(100);
+    }
+
     @Override
     public void onPointerMove(short x, short y) {
-        xServerView.requestRender();
+        requestCursorRender();
     }
 
     @Override
@@ -503,12 +566,7 @@ public class VulkanRenderer
     private static native void nativeSurfaceChanged(long handle, int w, int h);
     private static native void nativeSurfaceDestroyed(long handle);
     private static native boolean nativeRenderFrame(long handle);
-    private static native void nativeSetScene(long handle,
-                                              long[] windowTexHandles, int[] windowGeom, int windowCount,
-                                              long cursorTexHandle, int[] cursorGeom, boolean cursorVisible,
-                                              float[] xform, int[] viewport, int[] scissor,
-                                              int screenW, int screenH,
-                                              int[] effectTypes, float[] effectParams, int effectCount);
+    private static native void nativeSetScene(long handle, ByteBuffer sceneBuf);
     private static native void nativeSetFpsLimit(long handle, int fps);
     private static native void nativeSetPresentMode(long handle, int mode);
 }

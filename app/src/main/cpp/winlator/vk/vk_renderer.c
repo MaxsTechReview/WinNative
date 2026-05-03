@@ -1637,6 +1637,7 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz) {
     if (!create_command_pool(r)) goto fail;
     if (!create_descriptor_pool(r, r->caps.descriptor_pool_capacity)) goto fail;
     if (!create_quad_vbo(r)) goto fail;
+    if (!vkr_create_sampler(r, VK_NULL_HANDLE, &r->shared_sampler)) goto fail;
     if (!vkr_staging_pool_init(r)) goto fail;
 
     r->initialized = true;
@@ -1645,6 +1646,7 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz) {
 fail:
     VK_LOGE("VulkanRenderer init failed");
     vkr_staging_pool_destroy(r);
+    if (r->shared_sampler) vkDestroySampler(r->device, r->shared_sampler, NULL);
     if (r->cmd_pool) vkDestroyCommandPool(r->device, r->cmd_pool, NULL);
     if (r->descriptor_pool) vkDestroyDescriptorPool(r->device, r->descriptor_pool, NULL);
     if (r->device) vkDestroyDevice(r->device, NULL);
@@ -1688,6 +1690,7 @@ JNIEXPORT void JNICALL JNI_FN(nativeDestroy)(JNIEnv* env, jclass clazz, jlong ha
         if (f->in_flight)       vkDestroyFence(r->device, f->in_flight, NULL);
     }
 
+    if (r->shared_sampler) vkDestroySampler(r->device, r->shared_sampler, NULL);
     if (r->cmd_pool) vkDestroyCommandPool(r->device, r->cmd_pool, NULL);
     if (r->descriptor_pool) vkDestroyDescriptorPool(r->device, r->descriptor_pool, NULL);
     if (r->surface) vkDestroySurfaceKHR(r->instance, r->surface, NULL);
@@ -1808,110 +1811,127 @@ JNIEXPORT jboolean JNICALL JNI_FN(nativeRenderFrame)(JNIEnv* env, jclass clazz, 
     return record_and_submit_frame(r) ? JNI_TRUE : JNI_FALSE;
 }
 
+// Scene byte buffer layout (must mirror VulkanRenderer.java offsets). Native-endian, packed.
+// Using a single direct ByteBuffer instead of 6 separate jarray params avoids per-frame JNI
+// critical regions (each ~3-8µs on ART) and the temporary array shadow allocations they
+// trigger.
+#define SCENE_OFF_CURSOR_HANDLE      0
+#define SCENE_OFF_WINDOW_HANDLES     8        /* int64 × VK_MAX_RENDERABLE_WINDOWS */
+#define SCENE_OFF_WINDOW_COUNT       520
+#define SCENE_OFF_CURSOR_VISIBLE     524
+#define SCENE_OFF_CURSOR_GEOM        528      /* int32 × 4 */
+#define SCENE_OFF_XFORM              544      /* float32 × 6 */
+#define SCENE_OFF_VIEWPORT           568      /* int32 × 4 */
+#define SCENE_OFF_SCISSOR_ENABLED    584
+#define SCENE_OFF_SCISSOR            588      /* int32 × 4 */
+#define SCENE_OFF_SCREEN_W           604
+#define SCENE_OFF_SCREEN_H           608
+#define SCENE_OFF_EFFECT_COUNT       612
+#define SCENE_OFF_EFFECT_TYPES       616      /* int32 × VK_MAX_EFFECTS */
+#define SCENE_OFF_EFFECT_PARAMS      648      /* float32 × VK_MAX_EFFECTS × 4 */
+#define SCENE_OFF_WINDOW_GEOM        776      /* int32 × VK_MAX_RENDERABLE_WINDOWS × 4 */
+#define SCENE_BUF_SIZE               1800
+
 JNIEXPORT void JNICALL JNI_FN(nativeSetScene)(JNIEnv* env, jclass clazz, jlong handle,
-                                              jlongArray windowTexHandles,
-                                              jintArray  windowGeom,
-                                              jint       windowCount,
-                                              jlong      cursorTexHandle,
-                                              jintArray  cursorGeom,
-                                              jboolean   cursorVisible,
-                                              jfloatArray xform,
-                                              jintArray  viewport,
-                                              jintArray  scissor,
-                                              jint screenW, jint screenH,
-                                              jintArray  effectTypes,
-                                              jfloatArray effectParams,
-                                              jint       effectCount)
+                                              jobject sceneBuf)
 {
     (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
-    if (!r) return;
+    if (!r || !sceneBuf) return;
+
+    const uint8_t* base = (const uint8_t*)(*env)->GetDirectBufferAddress(env, sceneBuf);
+    if (!base) return;
+    // Defensive: a future Java-side layout change with a stale SCENE_BUF_SIZE would silently
+    // read past the buffer here. GetDirectBufferCapacity is one JNI call; cheap insurance.
+    jlong cap = (*env)->GetDirectBufferCapacity(env, sceneBuf);
+    if (cap < SCENE_BUF_SIZE) {
+        VK_LOGE("nativeSetScene: scene buffer too small (%lld < %d)",
+                (long long)cap, SCENE_BUF_SIZE);
+        return;
+    }
 
     pthread_mutex_lock(&r->scene_mutex);
     VkScene* s = &r->scene;
 
     // Windows
-    s->window_count = 0;
-    if (windowTexHandles && windowGeom && windowCount > 0) {
-        jsize n = windowCount;
-        if (n > VK_MAX_RENDERABLE_WINDOWS) n = VK_MAX_RENDERABLE_WINDOWS;
-        jlong* htx = (*env)->GetLongArrayElements(env, windowTexHandles, NULL);
-        jint*  geom = (*env)->GetIntArrayElements(env, windowGeom, NULL);
-        for (jsize i = 0; i < n; i++) {
-            VkRenderableWindow* w = &s->windows[i];
-            w->texture = (VkTexture*)(intptr_t)htx[i];
-            w->x = geom[i * 4 + 0];
-            w->y = geom[i * 4 + 1];
-            w->width  = (uint32_t)geom[i * 4 + 2];
-            w->height = (uint32_t)geom[i * 4 + 3];
-            w->direct_scanout = false;
-        }
-        s->window_count = n;
-        (*env)->ReleaseLongArrayElements(env, windowTexHandles, htx, JNI_ABORT);
-        (*env)->ReleaseIntArrayElements(env, windowGeom, geom, JNI_ABORT);
+    int32_t window_count;
+    memcpy(&window_count, base + SCENE_OFF_WINDOW_COUNT, sizeof(int32_t));
+    if (window_count < 0) window_count = 0;
+    if (window_count > VK_MAX_RENDERABLE_WINDOWS) window_count = VK_MAX_RENDERABLE_WINDOWS;
+    s->window_count = (uint32_t)window_count;
+    for (int32_t i = 0; i < window_count; i++) {
+        VkRenderableWindow* w = &s->windows[i];
+        int64_t h64;
+        memcpy(&h64, base + SCENE_OFF_WINDOW_HANDLES + (size_t)i * 8, sizeof(int64_t));
+        w->texture = (VkTexture*)(intptr_t)h64;
+        int32_t g[4];
+        memcpy(g, base + SCENE_OFF_WINDOW_GEOM + (size_t)i * 16, sizeof(g));
+        w->x = g[0];
+        w->y = g[1];
+        w->width  = (uint32_t)g[2];
+        w->height = (uint32_t)g[3];
+        w->direct_scanout = false;
     }
 
     // Cursor
-    s->cursor_visible = cursorVisible;
-    s->cursor_texture = (VkTexture*)(intptr_t)cursorTexHandle;
-    if (cursorGeom) {
-        jint* g = (*env)->GetIntArrayElements(env, cursorGeom, NULL);
-        s->cursor_x = g[0];
-        s->cursor_y = g[1];
-        s->cursor_width  = (uint32_t)g[2];
-        s->cursor_height = (uint32_t)g[3];
-        (*env)->ReleaseIntArrayElements(env, cursorGeom, g, JNI_ABORT);
-    } else {
-        s->cursor_visible = false;
-    }
+    int32_t cursor_visible;
+    memcpy(&cursor_visible, base + SCENE_OFF_CURSOR_VISIBLE, sizeof(int32_t));
+    s->cursor_visible = cursor_visible != 0;
+    int64_t cursor_h64;
+    memcpy(&cursor_h64, base + SCENE_OFF_CURSOR_HANDLE, sizeof(int64_t));
+    s->cursor_texture = (VkTexture*)(intptr_t)cursor_h64;
+    int32_t cg[4];
+    memcpy(cg, base + SCENE_OFF_CURSOR_GEOM, sizeof(cg));
+    s->cursor_x = cg[0];
+    s->cursor_y = cg[1];
+    s->cursor_width  = (uint32_t)cg[2];
+    s->cursor_height = (uint32_t)cg[3];
 
     // XForm
-    if (xform) {
-        jfloat* x = (*env)->GetFloatArrayElements(env, xform, NULL);
-        for (int i = 0; i < 6; i++) s->xform[i] = x[i];
-        (*env)->ReleaseFloatArrayElements(env, xform, x, JNI_ABORT);
-    }
+    memcpy(s->xform, base + SCENE_OFF_XFORM, sizeof(float) * 6);
 
-    // Viewport
-    s->viewport_set = false;
-    if (viewport) {
-        jint* v = (*env)->GetIntArrayElements(env, viewport, NULL);
-        s->viewport_x = v[0]; s->viewport_y = v[1];
-        s->viewport_w = v[2]; s->viewport_h = v[3];
-        s->viewport_set = (s->viewport_w > 0 && s->viewport_h > 0);
-        (*env)->ReleaseIntArrayElements(env, viewport, v, JNI_ABORT);
-    }
+    // Viewport (set bit derived from positive dims, matching the previous semantics)
+    int32_t vp[4];
+    memcpy(vp, base + SCENE_OFF_VIEWPORT, sizeof(vp));
+    s->viewport_x = vp[0];
+    s->viewport_y = vp[1];
+    s->viewport_w = vp[2];
+    s->viewport_h = vp[3];
+    s->viewport_set = (vp[2] > 0 && vp[3] > 0);
 
-    // Scissor
-    s->scissor_enabled = false;
-    if (scissor) {
-        jint* sc = (*env)->GetIntArrayElements(env, scissor, NULL);
-        s->scissor_x = sc[0]; s->scissor_y = sc[1];
-        s->scissor_w = sc[2]; s->scissor_h = sc[3];
-        s->scissor_enabled = (s->scissor_w > 0 && s->scissor_h > 0);
-        (*env)->ReleaseIntArrayElements(env, scissor, sc, JNI_ABORT);
-    }
+    // Scissor — Java sends an explicit enabled flag (replaces the old "scissor==null" check)
+    int32_t scissor_enabled;
+    memcpy(&scissor_enabled, base + SCENE_OFF_SCISSOR_ENABLED, sizeof(int32_t));
+    int32_t sc[4];
+    memcpy(sc, base + SCENE_OFF_SCISSOR, sizeof(sc));
+    s->scissor_x = sc[0];
+    s->scissor_y = sc[1];
+    s->scissor_w = sc[2];
+    s->scissor_h = sc[3];
+    s->scissor_enabled = (scissor_enabled != 0) && (sc[2] > 0) && (sc[3] > 0);
 
-    s->screen_width = (uint32_t)screenW;
-    s->screen_height = (uint32_t)screenH;
+    int32_t screen_w, screen_h;
+    memcpy(&screen_w, base + SCENE_OFF_SCREEN_W, sizeof(int32_t));
+    memcpy(&screen_h, base + SCENE_OFF_SCREEN_H, sizeof(int32_t));
+    s->screen_width  = (uint32_t)screen_w;
+    s->screen_height = (uint32_t)screen_h;
 
     // Effects
-    s->effect_count = 0;
-    if (effectTypes && effectParams && effectCount > 0) {
-        jsize n = effectCount;
-        if (n > VK_MAX_EFFECTS) n = VK_MAX_EFFECTS;
-        jint* et = (*env)->GetIntArrayElements(env, effectTypes, NULL);
-        jfloat* ep = (*env)->GetFloatArrayElements(env, effectParams, NULL);
-        for (jsize i = 0; i < n; i++) {
-            s->effects[i].type   = (VkEffectType)et[i];
-            s->effects[i].mode   = (int)ep[i * 4 + 0];
-            s->effects[i].param0 = ep[i * 4 + 1];
-            s->effects[i].param1 = ep[i * 4 + 2];
-            s->effects[i].param2 = ep[i * 4 + 3];
-        }
-        s->effect_count = n;
-        (*env)->ReleaseIntArrayElements(env, effectTypes, et, JNI_ABORT);
-        (*env)->ReleaseFloatArrayElements(env, effectParams, ep, JNI_ABORT);
+    int32_t effect_count;
+    memcpy(&effect_count, base + SCENE_OFF_EFFECT_COUNT, sizeof(int32_t));
+    if (effect_count < 0) effect_count = 0;
+    if (effect_count > VK_MAX_EFFECTS) effect_count = VK_MAX_EFFECTS;
+    s->effect_count = (uint32_t)effect_count;
+    for (int32_t i = 0; i < effect_count; i++) {
+        int32_t etype;
+        memcpy(&etype, base + SCENE_OFF_EFFECT_TYPES + (size_t)i * 4, sizeof(int32_t));
+        s->effects[i].type = (VkEffectType)etype;
+        float ep[4];
+        memcpy(ep, base + SCENE_OFF_EFFECT_PARAMS + (size_t)i * 16, sizeof(ep));
+        s->effects[i].mode   = (int)ep[0];
+        s->effects[i].param0 = ep[1];
+        s->effects[i].param1 = ep[2];
+        s->effects[i].param2 = ep[3];
     }
 
     pthread_mutex_unlock(&r->scene_mutex);
