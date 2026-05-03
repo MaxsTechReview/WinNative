@@ -73,6 +73,12 @@ public class GPUImage extends Texture {
         needsUpdate = false;
     }
 
+    @Override
+    boolean appendUploadFromDrawable(Drawable drawable, UploadBatch batch) {
+        updateFromDrawable(drawable);
+        return false;
+    }
+
     public short getStride() {
         return stride;
     }

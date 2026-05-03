@@ -2041,8 +2041,74 @@ JNIEXPORT jboolean JNICALL TEX_FN(nativeUpdate)(JNIEnv* env, jclass clazz, jlong
                               dirtyX < 0 ? 0 : (uint32_t)dirtyX,
                               dirtyY < 0 ? 0 : (uint32_t)dirtyY,
                               dirtyWidth < 0 ? 0 : (uint32_t)dirtyWidth,
-                              dirtyHeight < 0 ? 0 : (uint32_t)dirtyHeight)
+                               dirtyHeight < 0 ? 0 : (uint32_t)dirtyHeight)
         ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT jboolean JNICALL TEX_FN(nativeBatchUpdate)(JNIEnv* env, jclass clazz, jlong rendererHandle,
+                                                     jobject entriesBuffer,
+                                                     jobjectArray dataBuffers,
+                                                     jint count)
+{
+    (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)rendererHandle;
+    if (!r || !entriesBuffer || !dataBuffers || count <= 0) return JNI_FALSE;
+
+    const uint8_t* base = (const uint8_t*)(*env)->GetDirectBufferAddress(env, entriesBuffer);
+    jlong cap = (*env)->GetDirectBufferCapacity(env, entriesBuffer);
+    if (!base || cap < (jlong)count * 48) return JNI_FALSE;
+    jsize buffer_count = (*env)->GetArrayLength(env, dataBuffers);
+    if (buffer_count < count) return JNI_FALSE;
+
+    VkTextureBatchUpload* uploads = calloc((size_t)count, sizeof(VkTextureBatchUpload));
+    if (!uploads) return JNI_FALSE;
+
+    for (jint i = 0; i < count; i++) {
+        const uint8_t* e = base + (size_t)i * 48;
+        int64_t tex_h;
+        int32_t width, height, stride, dirty_x, dirty_y, dirty_w, dirty_h, data_index;
+        memcpy(&tex_h, e, sizeof(tex_h));
+        memcpy(&width, e + 8, sizeof(width));
+        memcpy(&height, e + 12, sizeof(height));
+        memcpy(&stride, e + 16, sizeof(stride));
+        memcpy(&dirty_x, e + 20, sizeof(dirty_x));
+        memcpy(&dirty_y, e + 24, sizeof(dirty_y));
+        memcpy(&dirty_w, e + 28, sizeof(dirty_w));
+        memcpy(&dirty_h, e + 32, sizeof(dirty_h));
+        memcpy(&data_index, e + 36, sizeof(data_index));
+        if (data_index < 0 || data_index >= buffer_count) {
+            free(uploads);
+            return JNI_FALSE;
+        }
+
+        jobject data_buffer = (*env)->GetObjectArrayElement(env, dataBuffers, data_index);
+        if (!data_buffer) {
+            free(uploads);
+            return JNI_FALSE;
+        }
+        void* data = (*env)->GetDirectBufferAddress(env, data_buffer);
+        jlong data_size = (*env)->GetDirectBufferCapacity(env, data_buffer);
+        (*env)->DeleteLocalRef(env, data_buffer);
+        if (!data || data_size <= 0) {
+            free(uploads);
+            return JNI_FALSE;
+        }
+
+        uploads[i].texture = (VkTexture*)(intptr_t)tex_h;
+        uploads[i].data = data;
+        uploads[i].data_size = (size_t)data_size;
+        uploads[i].width = width < 0 ? 0u : (uint32_t)width;
+        uploads[i].height = height < 0 ? 0u : (uint32_t)height;
+        uploads[i].stride_pixels = stride < 0 ? 0u : (uint32_t)stride;
+        uploads[i].dirty_x = dirty_x < 0 ? 0u : (uint32_t)dirty_x;
+        uploads[i].dirty_y = dirty_y < 0 ? 0u : (uint32_t)dirty_y;
+        uploads[i].dirty_w = dirty_w < 0 ? 0u : (uint32_t)dirty_w;
+        uploads[i].dirty_h = dirty_h < 0 ? 0u : (uint32_t)dirty_h;
+    }
+
+    bool ok = vkr_texture_batch_update(r, uploads, (uint32_t)count);
+    free(uploads);
+    return ok ? JNI_TRUE : JNI_FALSE;
 }
 
 JNIEXPORT void JNICALL TEX_FN(nativeDestroy)(JNIEnv* env, jclass clazz, jlong rendererHandle, jlong texHandle) {

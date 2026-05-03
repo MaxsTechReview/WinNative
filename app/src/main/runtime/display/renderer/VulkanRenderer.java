@@ -51,6 +51,8 @@ public class VulkanRenderer
 
     private final Drawable rootCursorDrawable;
     private final ArrayList<RenderableWindow> renderableWindows = new ArrayList<>();
+    private final Texture.UploadBatch textureUploadBatch =
+            new Texture.UploadBatch((64 + 1) * Texture.MAX_UPLOAD_RECTS);
     private boolean fullscreen = false;
     public boolean viewportNeedsUpdate = true;
     private boolean cursorVisible = true;
@@ -71,10 +73,6 @@ public class VulkanRenderer
     private static final int MAX_WINDOWS = 64;
     private static final int MAX_EFFECTS = 8;
 
-    // Scene buffer layout — must mirror SCENE_OFF_* constants in vk_renderer.c.
-    // One direct ByteBuffer is passed per frame instead of six separate primitive arrays. Each
-    // GetIntArrayElements/GetLongArrayElements pair would cost ~3-8µs on ART (and copy or pin);
-    // GetDirectBufferAddress is a single pointer fetch with no critical region.
     private static final int OFF_CURSOR_HANDLE   = 0;
     private static final int OFF_WINDOW_HANDLES  = 8;
     private static final int OFF_WINDOW_COUNT    = 520;
@@ -184,6 +182,7 @@ public class VulkanRenderer
 
     private void buildAndSubmitFrame() {
         // Compute scene transform / viewport / scissor (mirrors GLRenderer.drawFrame logic).
+        textureUploadBatch.reset();
         boolean useScissor = false;
 
         if (magnifierEnabled) {
@@ -306,7 +305,7 @@ public class VulkanRenderer
                     }
                     tex = textureSrc.getTexture();
                     if (tex != null) {
-                        tex.updateFromDrawable(textureSrc);
+                        tex.appendUploadFromDrawable(textureSrc, textureUploadBatch);
                     }
                 }
                 if (tex == null || !tex.isAllocated()) continue;
@@ -354,7 +353,7 @@ public class VulkanRenderer
                 if (cursorDrawable != null) {
                     Texture tex = cursorDrawable.getTexture();
                     synchronized (cursorDrawable.renderLock) {
-                        if (tex != null) tex.updateFromDrawable(cursorDrawable);
+                        if (tex != null) tex.appendUploadFromDrawable(cursorDrawable, textureUploadBatch);
                     }
                     if (tex != null && tex.isAllocated()) {
                         cursorHandle = tex.getNativeHandle();
@@ -366,6 +365,8 @@ public class VulkanRenderer
                     }
                 }
             }
+
+            textureUploadBatch.flush(nativeHandle);
         }
 
         buf.putInt(OFF_WINDOW_COUNT, winCount);

@@ -2,6 +2,7 @@ package com.winlator.cmod.runtime.display.renderer;
 
 import com.winlator.cmod.runtime.display.xserver.Drawable;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
  * Vulkan-backed texture. The underlying VkImage / VkImageView / VkSampler / descriptor set
@@ -16,6 +17,10 @@ import java.nio.ByteBuffer;
  * </ul>
  */
 public class Texture {
+    public static final int MAX_UPLOAD_RECTS = 8;
+    private static final int BATCH_ENTRY_SIZE = 48;
+    private static final long MAX_BATCH_BYTES = 16L * 1024L * 1024L;
+
     static {
         System.loadLibrary("winlator");
     }
@@ -23,10 +28,10 @@ public class Texture {
     protected long nativeHandle = 0;
     protected boolean needsUpdate = true;
     protected long handleGeneration = 0;
-    private int dirtyX = 0;
-    private int dirtyY = 0;
-    private int dirtyWidth = -1;
-    private int dirtyHeight = -1;
+    private final int[] dirtyRects = new int[MAX_UPLOAD_RECTS * 4];
+    private int dirtyRectCount = 0;
+    private boolean dirtyFull = true;
+    private long dirtySerial = 1;
 
     private static long sRendererHandle = 0;
     private static long sRendererGeneration = 0;
@@ -55,6 +60,9 @@ public class Texture {
         if (nativeHandle != 0 && handleGeneration != sRendererGeneration) {
             nativeHandle = 0;
             needsUpdate = true;
+            dirtyFull = true;
+            dirtyRectCount = 0;
+            dirtySerial++;
         }
     }
 
@@ -82,12 +90,12 @@ public class Texture {
             return;
         }
         if (needsUpdate) {
-            int strideBytes = data.capacity() / Math.max(1, drawable.height);
-            int stridePixels = Math.max(1, strideBytes / 4);
-            int x = dirtyWidth > 0 ? dirtyX : 0;
-            int y = dirtyHeight > 0 ? dirtyY : 0;
-            int w = dirtyWidth > 0 ? dirtyWidth : drawable.width;
-            int h = dirtyHeight > 0 ? dirtyHeight : drawable.height;
+            int stridePixels = stridePixels(data, drawable.height);
+            int[] bounds = dirtyBounds(drawable.width, drawable.height);
+            int x = bounds[0];
+            int y = bounds[1];
+            int w = bounds[2];
+            int h = bounds[3];
             if (nativeUpdate(sRendererHandle, nativeHandle, drawable.width, drawable.height,
                              data, stridePixels, x, y, w, h)) {
                 needsUpdate = false;
@@ -107,11 +115,10 @@ public class Texture {
 
     public void setNeedsUpdate(boolean needsUpdate) {
         this.needsUpdate = needsUpdate;
+        dirtySerial++;
         if (needsUpdate) {
-            dirtyX = 0;
-            dirtyY = 0;
-            dirtyWidth = -1;
-            dirtyHeight = -1;
+            dirtyFull = true;
+            dirtyRectCount = 0;
         } else {
             clearDirtyRect();
         }
@@ -126,27 +133,105 @@ public class Texture {
         if (x1 <= x0 || y1 <= y0) return;
 
         needsUpdate = true;
-        if (dirtyWidth <= 0 || dirtyHeight <= 0) {
-            dirtyX = x0;
-            dirtyY = y0;
-            dirtyWidth = x1 - x0;
-            dirtyHeight = y1 - y0;
+        dirtySerial++;
+        if (dirtyFull) return;
+
+        if (dirtyRectCount < MAX_UPLOAD_RECTS) {
+            int off = dirtyRectCount * 4;
+            dirtyRects[off] = x0;
+            dirtyRects[off + 1] = y0;
+            dirtyRects[off + 2] = x1 - x0;
+            dirtyRects[off + 3] = y1 - y0;
+            dirtyRectCount++;
             return;
         }
 
-        int oldX1 = dirtyX + dirtyWidth;
-        int oldY1 = dirtyY + dirtyHeight;
-        dirtyX = Math.min(dirtyX, x0);
-        dirtyY = Math.min(dirtyY, y0);
-        dirtyWidth = Math.max(oldX1, x1) - dirtyX;
-        dirtyHeight = Math.max(oldY1, y1) - dirtyY;
+        int minX = x0;
+        int minY = y0;
+        int maxX = x1;
+        int maxY = y1;
+        for (int i = 0; i < dirtyRectCount; i++) {
+            int off = i * 4;
+            minX = Math.min(minX, dirtyRects[off]);
+            minY = Math.min(minY, dirtyRects[off + 1]);
+            maxX = Math.max(maxX, dirtyRects[off] + dirtyRects[off + 2]);
+            maxY = Math.max(maxY, dirtyRects[off + 1] + dirtyRects[off + 3]);
+        }
+        dirtyRects[0] = minX;
+        dirtyRects[1] = minY;
+        dirtyRects[2] = maxX - minX;
+        dirtyRects[3] = maxY - minY;
+        dirtyRectCount = 1;
+    }
+
+    boolean appendUploadFromDrawable(Drawable drawable, UploadBatch batch) {
+        if (sRendererHandle == 0) return false;
+        invalidateIfStale();
+        ByteBuffer data = drawable.getData();
+        if (data == null) return false;
+
+        if (nativeHandle == 0) {
+            allocateTexture(drawable.width, drawable.height, data);
+            return false;
+        }
+        if (!needsUpdate) return false;
+
+        int stridePixels = stridePixels(data, drawable.height);
+        long serial = dirtySerial;
+        if (dirtyFull || dirtyRectCount == 0) {
+            if (!batch.add(this, drawable, serial, data, drawable.width, drawable.height,
+                    stridePixels, 0, 0, drawable.width, drawable.height)) {
+                updateFromDrawable(drawable);
+                return false;
+            }
+            return true;
+        }
+
+        for (int i = 0; i < dirtyRectCount; i++) {
+            int off = i * 4;
+            if (!batch.add(this, drawable, serial, data, drawable.width, drawable.height,
+                    stridePixels, dirtyRects[off], dirtyRects[off + 1],
+                    dirtyRects[off + 2], dirtyRects[off + 3])) {
+                updateFromDrawable(drawable);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void markUploaded(long serial) {
+        if (dirtySerial != serial) return;
+        needsUpdate = false;
+        clearDirtyRect();
+    }
+
+    private int[] dirtyBounds(int textureWidth, int textureHeight) {
+        if (dirtyFull || dirtyRectCount == 0) {
+            return new int[]{0, 0, textureWidth, textureHeight};
+        }
+
+        int minX = textureWidth;
+        int minY = textureHeight;
+        int maxX = 0;
+        int maxY = 0;
+        for (int i = 0; i < dirtyRectCount; i++) {
+            int off = i * 4;
+            minX = Math.min(minX, dirtyRects[off]);
+            minY = Math.min(minY, dirtyRects[off + 1]);
+            maxX = Math.max(maxX, dirtyRects[off] + dirtyRects[off + 2]);
+            maxY = Math.max(maxY, dirtyRects[off + 1] + dirtyRects[off + 3]);
+        }
+        return new int[]{minX, minY, Math.max(0, maxX - minX), Math.max(0, maxY - minY)};
+    }
+
+    private static int stridePixels(ByteBuffer data, int height) {
+        int strideBytes = data.capacity() / Math.max(1, height);
+        return Math.max(1, strideBytes / 4);
     }
 
     private void clearDirtyRect() {
-        dirtyX = 0;
-        dirtyY = 0;
-        dirtyWidth = 0;
-        dirtyHeight = 0;
+        dirtyFull = false;
+        dirtyRectCount = 0;
     }
 
     public void destroy() {
@@ -168,5 +253,85 @@ public class Texture {
                                                int height, ByteBuffer data, int stridePixels,
                                                int dirtyX, int dirtyY, int dirtyWidth,
                                                int dirtyHeight);
+    private static native boolean nativeBatchUpdate(long rendererHandle, ByteBuffer entries,
+                                                    Object[] buffers, int count);
     private static native void nativeDestroy(long rendererHandle, long texHandle);
+
+    public static final class UploadBatch {
+        private final ByteBuffer entries;
+        private final Object[] buffers;
+        private final Texture[] textures;
+        private final Drawable[] drawables;
+        private final long[] serials;
+        private int count;
+        private long totalBytes;
+
+        public UploadBatch(int capacity) {
+            entries = ByteBuffer.allocateDirect(capacity * BATCH_ENTRY_SIZE)
+                    .order(ByteOrder.nativeOrder());
+            buffers = new Object[capacity];
+            textures = new Texture[capacity];
+            drawables = new Drawable[capacity];
+            serials = new long[capacity];
+        }
+
+        public void reset() {
+            for (int i = 0; i < count; i++) {
+                buffers[i] = null;
+                textures[i] = null;
+                drawables[i] = null;
+            }
+            count = 0;
+            totalBytes = 0;
+        }
+
+        private boolean add(Texture texture, Drawable drawable, long serial, ByteBuffer data,
+                            int width, int height, int stridePixels,
+                            int dirtyX, int dirtyY, int dirtyWidth, int dirtyHeight) {
+            if (count >= buffers.length) return false;
+            int off = count * BATCH_ENTRY_SIZE;
+            entries.putLong(off, texture.nativeHandle);
+            entries.putInt(off + 8, width);
+            entries.putInt(off + 12, height);
+            entries.putInt(off + 16, stridePixels);
+            entries.putInt(off + 20, dirtyX);
+            entries.putInt(off + 24, dirtyY);
+            entries.putInt(off + 28, dirtyWidth);
+            entries.putInt(off + 32, dirtyHeight);
+            entries.putInt(off + 36, count);
+            buffers[count] = data;
+            textures[count] = texture;
+            drawables[count] = drawable;
+            serials[count] = serial;
+            count++;
+            totalBytes += (long) dirtyWidth * Math.max(0, dirtyHeight) * 4L;
+            return true;
+        }
+
+        public void flush(long rendererHandle) {
+            if (count == 0 || rendererHandle == 0) return;
+            if (count == 1 || totalBytes > MAX_BATCH_BYTES) {
+                for (int i = 0; i < count; i++) {
+                    synchronized (drawables[i].renderLock) {
+                        textures[i].updateFromDrawable(drawables[i]);
+                    }
+                }
+                return;
+            }
+            boolean ok = nativeBatchUpdate(rendererHandle, entries, buffers, count);
+            if (ok) {
+                for (int i = 0; i < count; i++) {
+                    synchronized (drawables[i].renderLock) {
+                        textures[i].markUploaded(serials[i]);
+                    }
+                }
+            } else {
+                for (int i = 0; i < count; i++) {
+                    synchronized (drawables[i].renderLock) {
+                        textures[i].updateFromDrawable(drawables[i]);
+                    }
+                }
+            }
+        }
+    }
 }

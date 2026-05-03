@@ -7,6 +7,7 @@
 #include <android/log.h>
 #include <android/native_window.h>
 #include <pthread.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <vulkan/vulkan.h>
@@ -60,6 +61,19 @@ typedef struct VkTexture {
     // Prevent duplicate deferred frees if Java schedules destruction more than once.
     bool destroy_scheduled;
 } VkTexture;
+
+typedef struct VkTextureBatchUpload {
+    VkTexture* texture;
+    const void* data;
+    size_t data_size;
+    uint32_t width;
+    uint32_t height;
+    uint32_t stride_pixels;
+    uint32_t dirty_x;
+    uint32_t dirty_y;
+    uint32_t dirty_w;
+    uint32_t dirty_h;
+} VkTextureBatchUpload;
 
 // ============================================================
 // Effects
@@ -337,9 +351,11 @@ typedef struct VkRenderer {
 VkTexture* vkr_texture_create_uploaded(VkRenderer* r, uint32_t width, uint32_t height,
                                        const void* data, size_t data_size, uint32_t stride_pixels);
 bool       vkr_texture_update(VkRenderer* r, VkTexture* tex, uint32_t width, uint32_t height,
-                               const void* data, size_t data_size, uint32_t stride_pixels,
-                               uint32_t dirty_x, uint32_t dirty_y,
-                               uint32_t dirty_w, uint32_t dirty_h);
+                              const void* data, size_t data_size, uint32_t stride_pixels,
+                              uint32_t dirty_x, uint32_t dirty_y,
+                              uint32_t dirty_w, uint32_t dirty_h);
+bool       vkr_texture_batch_update(VkRenderer* r, const VkTextureBatchUpload* uploads,
+                                    uint32_t upload_count);
 VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool transfer_ownership);
 void       vkr_texture_destroy(VkRenderer* r, VkTexture* tex);
 void       vkr_texture_destroy_all_live(VkRenderer* r);
