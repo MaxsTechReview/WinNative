@@ -1266,10 +1266,16 @@ private fun ProfileCard(
                         .weight(1f, fill = false)
                         .widthIn(max = InputProfileSelectorMaxWidth),
             )
-            ProfileActionRow(
-                actions = actions,
-                modifier = Modifier.padding(start = InputProfileActionStartGap),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ProfileEditButton(
+                    onClick = actions.onOpenEditor,
+                    modifier = Modifier.padding(start = InputProfileActionStartGap),
+                )
+                ProfileActionRow(
+                    actions = actions,
+                    modifier = Modifier.padding(start = InputProfileActionStartGap),
+                )
+            }
         }
     }
 }
@@ -1371,14 +1377,6 @@ private fun ProfileActionRow(
             containerColor = InputCard,
         ) {
             ProfileActionMenuItem(
-                icon = Icons.Outlined.SportsEsports,
-                label = stringResource(R.string.input_controls_editor_title),
-                onClick = {
-                    menuOpen = false
-                    actions.onOpenEditor()
-                },
-            )
-            ProfileActionMenuItem(
                 icon = Icons.Outlined.Add,
                 label = stringResource(R.string.common_ui_add),
                 onClick = {
@@ -1413,6 +1411,32 @@ private fun ProfileActionRow(
                 },
             )
         }
+    }
+}
+
+@Composable
+private fun ProfileEditButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier =
+            modifier
+                .size(InputProfileActionSize)
+                .clip(RoundedCornerShape(InputFieldCorner))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.SportsEsports,
+            contentDescription = stringResource(R.string.input_controls_editor_title),
+            tint = InputAccent,
+            modifier = Modifier.size(InputProfileActionIconSize),
+        )
     }
 }
 

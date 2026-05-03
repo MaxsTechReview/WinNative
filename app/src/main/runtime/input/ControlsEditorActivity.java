@@ -456,7 +456,7 @@ private void showControlElementSettings(View anchorView) {
     int typeIndex = 0;
     if (selectedBinding.isMouse()) {
       typeIndex = 1;
-    } else if (selectedBinding.isGamepad()) {
+    } else if (selectedBinding.isGamepad() || (selectedBinding == Binding.NONE && (element.getType() == ControlElement.Type.STICK || element.getType() == ControlElement.Type.D_PAD))) {
       typeIndex = 2;
     }
     sBindingType.setSelection(typeIndex);
