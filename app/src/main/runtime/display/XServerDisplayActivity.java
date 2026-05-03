@@ -1776,7 +1776,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (inputControlsView != null) {
             inputControlsView.cancelActiveTouches();
         }
-        releaseHeldGuestInputs();
 
         savePlaytimeData();
         handler.removeCallbacks(savePlaytimeRunnable);
@@ -1784,17 +1783,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             ProcessHelper.pauseAllWineProcesses();
         }
     }
-
-    /**
-     * Forget any axis/key that was held when Android stopped delivering input events to us.
-     * Without this, focus-loss while a stick or key is held leaves Wine seeing the input as
-     * still active — character walks forward forever, etc.
-     */
-    private void releaseHeldGuestInputs() {
-        if (winHandler != null) winHandler.releaseAllInputs();
-        if (xServer != null && xServer.keyboard != null) xServer.keyboard.releaseAllPressedKeys();
-    }
-
 
     private void savePlaytimeData() {
         savePlaytimeData(false);
@@ -3357,7 +3345,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (inputControlsView != null) {
                 inputControlsView.cancelActiveTouches();
             }
-            releaseHeldGuestInputs();
             touchpadView.releasePointerCapture();
             touchpadView.setOnCapturedPointerListener(null);
         }

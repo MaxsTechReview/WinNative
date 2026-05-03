@@ -1145,24 +1145,6 @@ public class WinHandler {
     return handled;
   }
 
-  /**
-   * Zero all currently-tracked controller state and push neutral packets to Wine. Use when the
-   * activity loses focus or pauses — without this, any axis/button that was held when Android
-   * stopped delivering events
-   */
-  public void releaseAllInputs() {
-    if (!this.running) return;
-    for (ExternalController controller : this.controllers.values()) {
-      if (controller == null) continue;
-      controller.state.reset();
-      controller.remappedState.reset();
-      try {
-        sendGamepadState(controller);
-      } catch (Exception ignored) {
-      }
-    }
-  }
-
   public byte getInputType() {
     return this.inputType;
   }

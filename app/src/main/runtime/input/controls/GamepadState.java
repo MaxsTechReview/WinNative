@@ -94,15 +94,4 @@ public class GamepadState {
     this.buttons = other.buttons;
     System.arraycopy(other.dpad, 0, this.dpad, 0, 4);
   }
-
-  public void reset() {
-    this.thumbLX = 0f;
-    this.thumbLY = 0f;
-    this.thumbRX = 0f;
-    this.thumbRY = 0f;
-    this.triggerL = 0f;
-    this.triggerR = 0f;
-    this.buttons = 0;
-    java.util.Arrays.fill(this.dpad, false);
-  }
 }
