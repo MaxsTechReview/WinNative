@@ -500,9 +500,8 @@
     <string name="container_presets_rename">Voreinstellung umbenennen</string>
     <string name="container_presets_import">Voreinstellung importieren</string>
     <string name="container_presets_custom">Benutzerdefiniert</string>
-    <string name="container_presets_built_in">Integriert</string>
+    <string name="container_presets_built_in">Standard</string>
     <string name="container_presets_changes_auto_saved">Änderungen werden beim Bearbeiten dieser benutzerdefinierten Voreinstellung automatisch gespeichert.</string>
-    <string name="container_presets_builtin_readonly_hint">Integrierte Voreinstellungen sind schreibgeschützt. Erstelle oder dupliziere eine Voreinstellung, um diese Variablen anzupassen.</string>
     <string name="container_presets_cannot_rename">Integrierte Voreinstellungen können nicht umbenannt werden</string>
     <string name="container_presets_unable_to_import">Voreinstellung kann nicht importiert werden</string>
     <string name="container_presets_no_description">Keine Beschreibung verfügbar</string>
@@ -1041,6 +1040,5 @@ Installierter Pfad:
     <string name="fexcore_env_var_help__hidehybrid">Hides hybrid CPU core layout from the guest.</string>
     <string name="fexcore_env_var_help__kernelunalignedatomicbackpatching">Backpatches kernel-handled unaligned atomics to reduce kernel context switches.</string>
     <string name="fexcore_env_var_help__maxinst">Maximum number of instructions stored in a compiled block.</string>
-    <string name="fexcore_env_var_help__smcchecks">Prüfungen für selbstmodifizierenden Code.</string>
     <string name="fexcore_env_var_help__strictinprocesssplitlocks">Uses a strict process-wide lock for split unaligned atomic accesses.</string>
 </resources>

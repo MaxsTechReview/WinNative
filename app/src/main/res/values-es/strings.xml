@@ -500,9 +500,8 @@
     <string name="container_presets_rename">Renombrar preset</string>
     <string name="container_presets_import">Importar preset</string>
     <string name="container_presets_custom">Personalizado</string>
-    <string name="container_presets_built_in">Integrado</string>
+    <string name="container_presets_built_in">Predeterminado</string>
     <string name="container_presets_changes_auto_saved">Los cambios se guardan automáticamente al editar este preset personalizado.</string>
-    <string name="container_presets_builtin_readonly_hint">Los presets integrados son de solo lectura. Crea o duplica un preset para personalizar estas variables.</string>
     <string name="container_presets_cannot_rename">Los presets integrados no se pueden renombrar</string>
     <string name="container_presets_unable_to_import">No se pudo importar el preset</string>
     <string name="container_presets_no_description">No hay descripción disponible</string>
@@ -1041,6 +1040,5 @@ Ruta instalada:
     <string name="fexcore_env_var_help__hidehybrid">Hides hybrid CPU core layout from the guest.</string>
     <string name="fexcore_env_var_help__kernelunalignedatomicbackpatching">Backpatches kernel-handled unaligned atomics to reduce kernel context switches.</string>
     <string name="fexcore_env_var_help__maxinst">Maximum number of instructions stored in a compiled block.</string>
-    <string name="fexcore_env_var_help__smcchecks">Verificaciones de código automodificable.</string>
     <string name="fexcore_env_var_help__strictinprocesssplitlocks">Uses a strict process-wide lock for split unaligned atomic accesses.</string>
 </resources>

@@ -74,7 +74,15 @@ fun <T> FourByTwoGridView(
                 val verticalInset =
                     effectiveContentPadding.calculateTopPadding() +
                         effectiveContentPadding.calculateBottomPadding()
-                val targetRowHeight = (maxHeight - spacing - verticalInset) / 2
+                val horizontalInset =
+                    effectiveContentPadding.calculateStartPadding(layoutDirection) +
+                        effectiveContentPadding.calculateEndPadding(layoutDirection)
+                val effectiveColumns = columns.coerceAtLeast(1)
+                val availableRowHeight = ((maxHeight - spacing - verticalInset) / 2).coerceAtLeast(1.dp)
+                val availableColumnWidth =
+                    ((maxWidth - horizontalInset - spacing * (effectiveColumns - 1).toFloat()) / effectiveColumns.toFloat())
+                        .coerceAtLeast(1.dp)
+                val targetRowHeight = minOf(availableRowHeight, availableColumnWidth * 1.25f)
                 val rowHeight by animateDpAsState(
                     targetValue = targetRowHeight,
                     animationSpec =

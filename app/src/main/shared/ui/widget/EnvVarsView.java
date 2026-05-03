@@ -101,6 +101,10 @@ public class EnvVarsView extends FrameLayout {
     {"WRAPPER_MAX_IMAGE_COUNT", "TEXT"},
     {"MESA_GL_VERSION_OVERRIDE", "TEXT"},
     {"PULSE_LATENCY_MSEC", "NUMBER"},
+    {"WINNATIVE_ALSA_LATENCY_MS", "NUMBER"},
+    {"WINNATIVE_ALSA_VOLUME", "DECIMAL"},
+    {"WINNATIVE_ALSA_BASS_BOOST", "DECIMAL"},
+    {"WINNATIVE_ALSA_PERFORMANCE_MODE", "SELECT", "low_latency", "none", "power_saving"},
     {"WINE_DO_NOT_CREATE_DXGI_DEVICE_MANAGER", "CHECKBOX", "0", "1"},
     {"WINE_NEW_MEDIASOURCE", "CHECKBOX", "0", "1"},
     {"WINE_LARGE_ADDRESS_AWARE", "CHECKBOX", "0", "1"},
@@ -213,6 +217,13 @@ public class EnvVarsView extends FrameLayout {
         editTextNumber.setText(value);
         editTextNumber.setInputType(InputType.TYPE_CLASS_NUMBER);
         getValueCallback = () -> editTextNumber.getText().toString();
+        break;
+      case "DECIMAL":
+        EditText editTextDecimal = itemView.findViewById(R.id.EditText);
+        editTextDecimal.setVisibility(VISIBLE);
+        editTextDecimal.setText(value);
+        editTextDecimal.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        getValueCallback = () -> editTextDecimal.getText().toString();
         break;
       case "TEXT":
       default:

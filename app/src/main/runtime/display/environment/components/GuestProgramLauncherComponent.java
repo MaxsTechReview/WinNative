@@ -237,6 +237,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     }
     envVars.put("WINEESYNC_WINLATOR", "1");
     mergeExternalEnvVars(envVars, envVars.get("LD_PRELOAD"), envVars.get("FAKE_EVDEV_DIR"));
+    FEXCorePresetManager.normalizeSmcChecksEnvVars(envVars, this.envVars);
 
     // For arm64ec Wine builds the wine binary is native ARM64 — call it directly
     // with a fully-qualified path. Wrapping with box64 causes it to fail ELF
@@ -822,6 +823,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     // Preserve the launcher-owned preload/input paths while restoring the
     // full env built upstream in XServerDisplayActivity (driver, DXVK, Vulkan, etc).
     mergeExternalEnvVars(envVars, envVars.get("LD_PRELOAD"), envVars.get("FAKE_EVDEV_DIR"));
+    FEXCorePresetManager.normalizeSmcChecksEnvVars(envVars, this.envVars);
 
     String emulator = container.getEmulator();
     String emulator64 = container.getEmulator64();
@@ -844,9 +846,19 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     if (overriddenCommand.isEmpty()) {
       if (wineInfo.isArm64EC()) {
         command = winePath + "/" + guestExecutable;
-        if (emulator.equalsIgnoreCase("wowbox64")) {
+        // Normalize defensively in case a stale/legacy emulator value slipped past
+        // Container.normalizeEmulatorFieldsForArch (e.g. external write to
+        // .container JSON). Treat anything that isn't literally "wowbox64" — case
+        // and whitespace insensitive — as fexcore.
+        String emu32 = (emulator == null) ? "" : emulator.trim().toLowerCase(java.util.Locale.ROOT);
+        if ("wowbox64".equals(emu32)) {
           envVars.put("HODLL", "wowbox64.dll");
         } else {
+          if (!"fexcore".equals(emu32)) {
+            Log.w("GuestProgramLauncherComponent",
+                    "Unrecognized arm64ec 32-bit emulator='" + emulator
+                            + "', defaulting HODLL=libwow64fex.dll");
+          }
           envVars.put("HODLL", "libwow64fex.dll");
         }
       } else {

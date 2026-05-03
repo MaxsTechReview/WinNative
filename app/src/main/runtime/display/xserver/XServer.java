@@ -122,7 +122,6 @@ public class XServer {
   public void stop() {
     cursorLocker.stop();
     renderer = null;
-    winHandler = null;
     shmSegmentManager = null;
   }
 

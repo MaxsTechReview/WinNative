@@ -34,16 +34,22 @@ public class ALSAClient {
   private AudioTrack audioTrack;
   private int bufferCapacityFrames;
   private int previousUnderrunCount = 0;
+  private float[] bassLowpassState = new float[2];
+  private float bassLowpassAlpha = 0.0f;
   private static short framesPerBuffer = 256;
   private final Options options;
 
   public static class Options {
     public static final int DEFAULT_LATENCY_MILLIS = 16;
     public static final float DEFAULT_VOLUME = 1.0f;
+    public static final float MAX_VOLUME = 16.0f;
+    public static final float DEFAULT_BASS_BOOST = 0.0f;
+    public static final float MAX_BASS_BOOST = 2.0f;
 
     public int latencyMillis = DEFAULT_LATENCY_MILLIS;
     public int performanceMode = AudioTrack.PERFORMANCE_MODE_LOW_LATENCY;
     public float volume = DEFAULT_VOLUME;
+    public float bassBoost = DEFAULT_BASS_BOOST;
 
     public static Options fromEnvVars(EnvVars envVars) {
       Options options = new Options();
@@ -59,7 +65,13 @@ public class ALSAClient {
           parseFloat(
               firstNonEmpty(envVars.get("ANDROID_ALSA_VOLUME"), envVars.get("WINNATIVE_ALSA_VOLUME")),
               DEFAULT_VOLUME);
-      options.volume = Math.max(0.0f, Math.min(options.volume, 1.0f));
+      options.volume = Math.max(0.0f, Math.min(options.volume, MAX_VOLUME));
+
+      options.bassBoost =
+          parseFloat(
+              firstNonEmpty(envVars.get("ANDROID_ALSA_BASS_BOOST"), envVars.get("WINNATIVE_ALSA_BASS_BOOST")),
+              DEFAULT_BASS_BOOST);
+      options.bassBoost = Math.max(0.0f, Math.min(options.bassBoost, MAX_BASS_BOOST));
 
       String performanceMode =
           firstNonEmpty(
@@ -133,6 +145,8 @@ public class ALSAClient {
     positionFrames = 0;
     previousUnderrunCount = 0;
     frameBytes = channelCount * dataType.byteCount;
+    bassLowpassState = new float[Math.max(1, channelCount)];
+    bassLowpassAlpha = computeBassLowpassAlpha(sampleRate);
     release();
 
     if (!isValidBufferSize()) return;
@@ -153,7 +167,7 @@ public class ALSAClient {
               .setBufferSizeInBytes(audioTrackBufferSize)
               .build();
       bufferCapacityFrames = audioTrack.getBufferCapacityInFrames();
-      if (options.volume != Options.DEFAULT_VOLUME) audioTrack.setVolume(options.volume);
+      if (options.volume < Options.DEFAULT_VOLUME) audioTrack.setVolume(options.volume);
       audioTrack.play();
     } catch (Exception e) {
       release();
@@ -209,6 +223,7 @@ public class ALSAClient {
 
     if (audioTrack != null) {
       data.position(0);
+      applyAudioProcessing(data);
 
       while (data.position() != data.limit()) {
         int bytesWritten;
@@ -224,6 +239,66 @@ public class ALSAClient {
       }
       data.rewind();
     }
+  }
+
+  private void applyAudioProcessing(ByteBuffer data) {
+    if (options.volume == Options.DEFAULT_VOLUME && options.bassBoost == Options.DEFAULT_BASS_BOOST) {
+      return;
+    }
+
+    ByteBuffer buffer = data.duplicate();
+    buffer.order(data.order());
+    int start = data.position();
+    int end = data.limit();
+
+    switch (dataType) {
+      case U8:
+        for (int i = start, sampleIndex = 0; i < end; i++, sampleIndex++) {
+          float sample = ((buffer.get(i) & 0xFF) - 128) / 128.0f;
+          int scaledSample = Math.round(processSample(sample, sampleIndex) * 128.0f) + 128;
+          buffer.put(i, (byte) clamp(scaledSample, 0, 255));
+        }
+        break;
+      case S16LE:
+      case S16BE:
+        for (int i = start, sampleIndex = 0; i + 1 < end; i += 2, sampleIndex++) {
+          float sample = buffer.getShort(i) / 32768.0f;
+          int scaledSample = Math.round(processSample(sample, sampleIndex) * 32768.0f);
+          buffer.putShort(i, (short) clamp(scaledSample, Short.MIN_VALUE, Short.MAX_VALUE));
+        }
+        break;
+      case FLOATLE:
+      case FLOATBE:
+        for (int i = start, sampleIndex = 0; i + 3 < end; i += 4, sampleIndex++) {
+          buffer.putFloat(i, clamp(processSample(buffer.getFloat(i), sampleIndex), -1.0f, 1.0f));
+        }
+        break;
+    }
+  }
+
+  private float processSample(float sample, int sampleIndex) {
+    int channel = sampleIndex % Math.max(1, channelCount);
+    if (options.bassBoost > Options.DEFAULT_BASS_BOOST && channel < bassLowpassState.length) {
+      bassLowpassState[channel] += bassLowpassAlpha * (sample - bassLowpassState[channel]);
+      sample += bassLowpassState[channel] * options.bassBoost;
+    }
+    return clamp(sample * options.volume, -1.0f, 1.0f);
+  }
+
+  private static float computeBassLowpassAlpha(int sampleRate) {
+    if (sampleRate <= 0) return 0.0f;
+    float cutoffHz = 180.0f;
+    float dt = 1.0f / sampleRate;
+    float rc = 1.0f / (2.0f * (float) Math.PI * cutoffHz);
+    return dt / (rc + dt);
+  }
+
+  private static int clamp(int value, int min, int max) {
+    return Math.max(min, Math.min(value, max));
+  }
+
+  private static float clamp(float value, float min, float max) {
+    return Math.max(min, Math.min(value, max));
   }
 
   public int pointer() {

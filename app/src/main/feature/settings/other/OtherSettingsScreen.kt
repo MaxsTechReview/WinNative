@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 /* Settings > Other screen — Jetpack Compose / Material3.
  * Uses a LazyColumn for the main content so the screen scrolls natively in Compose. */
 package com.winlator.cmod.feature.settings
@@ -41,10 +43,8 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.LibraryMusic
-import androidx.compose.material.icons.outlined.Monitor
 import androidx.compose.material.icons.outlined.Mouse
 import androidx.compose.material.icons.outlined.OpenInBrowser
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.SportsEsports
@@ -52,11 +52,13 @@ import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -92,14 +94,14 @@ private val SurfaceDark = Color(0xFF21212A)
 private val Accent = Color(0xFF1A9FFF)
 private val TextPrimary = Color(0xFFF0F4FF)
 private val TextSecondary = Color(0xFF7A8FA8)
+private val SettingsSliderHeight = 24.dp
+private const val SettingsSliderTrackScaleY = 0.72f
 
 // State
 data class OtherSettingsState(
     val checkForUpdates: Boolean = true,
     val languageLabels: List<String> = emptyList(),
     val languageIndex: Int = 0,
-    val refreshRateLabels: List<String> = emptyList(),
-    val refreshRateIndex: Int = 0,
     val soundFontFiles: List<String> = emptyList(),
     val soundFontIndex: Int = 0,
     val winlatorPath: String = "",
@@ -114,6 +116,25 @@ data class OtherSettingsState(
     val imagefsInstallProgress: Int? = null,
 )
 
+@Composable
+private fun settingsSliderColors() =
+    SliderDefaults.colors(
+        thumbColor = Accent,
+        activeTrackColor = Accent,
+        inactiveTrackColor = SurfaceDark,
+        activeTickColor = Color.Transparent,
+        inactiveTickColor = Color.Transparent,
+    )
+
+@Composable
+private fun SettingsSliderTrack(sliderState: SliderState) {
+    SliderDefaults.Track(
+        sliderState = sliderState,
+        colors = settingsSliderColors(),
+        modifier = Modifier.scale(scaleX = 1f, scaleY = SettingsSliderTrackScaleY),
+    )
+}
+
 // Root
 @Composable
 fun OtherSettingsScreen(
@@ -121,7 +142,6 @@ fun OtherSettingsScreen(
     onCheckForUpdatesChanged: (Boolean) -> Unit,
     onCheckForUpdatesNow: () -> Unit,
     onLanguageSelected: (Int) -> Unit,
-    onRefreshRateSelected: (Int) -> Unit,
     onSoundFontSelected: (Int) -> Unit,
     onInstallSoundFont: () -> Unit,
     onRemoveSoundFont: () -> Unit,
@@ -192,21 +212,6 @@ fun OtherSettingsScreen(
                 options = state.languageLabels,
                 selectedIndex = state.languageIndex,
                 onOptionSelected = onLanguageSelected,
-            )
-        }
-
-        item(key = "display_section") {
-            SectionLabel(stringResource(R.string.session_display_title), modifier = Modifier.padding(top = 8.dp))
-        }
-
-        item(key = "refresh_rate_card") {
-            SettingsDropdownCard(
-                title = stringResource(R.string.settings_general_refresh_rate),
-                subtitle = stringResource(R.string.settings_general_refresh_rate_summary),
-                icon = Icons.Outlined.Monitor,
-                options = state.refreshRateLabels,
-                selectedIndex = state.refreshRateIndex,
-                onOptionSelected = onRefreshRateSelected,
             )
         }
 
@@ -892,15 +897,12 @@ private fun CursorSpeedCard(
                 onValueChange = { onPercentChanged(it.toInt()) },
                 valueRange = 10f..200f,
                 steps = 0,
-                colors =
-                    SliderDefaults.colors(
-                        thumbColor = Accent,
-                        activeTrackColor = Accent,
-                        inactiveTrackColor = SurfaceDark,
-                        activeTickColor = Color.Transparent,
-                        inactiveTickColor = Color.Transparent,
-                    ),
-                modifier = Modifier.fillMaxWidth(),
+                colors = settingsSliderColors(),
+                track = { SettingsSliderTrack(it) },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(SettingsSliderHeight),
             )
         }
     }

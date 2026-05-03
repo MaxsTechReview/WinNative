@@ -504,9 +504,8 @@
     <string name="container_presets_rename">Перейменувати пресет</string>
     <string name="container_presets_import">Імпортувати пресет</string>
     <string name="container_presets_custom">Користувацький</string>
-    <string name="container_presets_built_in">Вбудований</string>
+    <string name="container_presets_built_in">За замовчуванням</string>
     <string name="container_presets_changes_auto_saved">Зміни зберігаються автоматично під час редагування цього користувацького пресету.</string>
-    <string name="container_presets_builtin_readonly_hint">Вбудовані пресети доступні лише для читання. Створіть або дублюйте пресет для налаштування цих змінних.</string>
     <string name="container_presets_cannot_rename">Вбудовані пресети неможливо перейменувати</string>
     <string name="container_presets_unable_to_import">Неможливо імпортувати пресет</string>
     <string name="container_presets_no_description">Опис недоступний</string>
@@ -1045,6 +1044,5 @@
     <string name="fexcore_env_var_help__hidehybrid">Hides hybrid CPU core layout from the guest.</string>
     <string name="fexcore_env_var_help__kernelunalignedatomicbackpatching">Backpatches kernel-handled unaligned atomics to reduce kernel context switches.</string>
     <string name="fexcore_env_var_help__maxinst">Maximum number of instructions stored in a compiled block.</string>
-    <string name="fexcore_env_var_help__smcchecks">Перевірки самомодифікуючогося коду.</string>
     <string name="fexcore_env_var_help__strictinprocesssplitlocks">Uses a strict process-wide lock for split unaligned atomic accesses.</string>
 </resources>

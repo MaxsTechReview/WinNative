@@ -158,20 +158,7 @@ fun ContainersScreen(
                 ),
     ) {
         SectionLabel(text = stringResource(R.string.common_ui_containers))
-        if (state.containers.isEmpty()) {
-            Text(
-                text = stringResource(R.string.common_ui_no_items_to_display),
-                color = ContainersTextSecondary,
-                fontSize = 14.sp,
-                textAlign = TextAlign.Center,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 6.dp, bottom = 14.dp),
-            )
-        } else {
-            Spacer(Modifier.height(6.dp))
-        }
+        Spacer(Modifier.height(6.dp))
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),

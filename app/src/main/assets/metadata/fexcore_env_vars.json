@@ -15,8 +15,8 @@
     {"name" : "FEX_VOLATILEMETADATA", "values" : ["0", "1"], "toggleSwitch" : true, "defaultValue" : "1"},
     {"name" : "FEX_MONOHACKS", "values" : ["0", "1"], "toggleSwitch" : true, "defaultValue" : "1"},
     {"name" : "FEX_HIDEHYPERVISORBIT", "values" : ["0", "1"], "toggleSwitch" : true, "defaultValue" : "0"},
-    {"name" : "FEX_DISABLEL2CACHE", "values" : ["0", "1"], "toggleSwitch" : true, "defaultValue" : "1"},
-    {"name" : "FEX_DYNAMICL1CACHE", "values" : ["0", "1"], "toggleSwitch" : true, "defaultValue" : "1"},
+    {"name" : "FEX_DISABLEL2CACHE", "values" : ["0", "1"], "toggleSwitch" : true, "defaultValue" : "0"},
+    {"name" : "FEX_DYNAMICL1CACHE", "values" : ["0", "1"], "toggleSwitch" : true, "defaultValue" : "0"},
     {"name" : "FEX_DYNAMICL1CACHEINCREASECOUNTHEURISTIC", "values" : ["250"], "editText" : true, "defaultValue" : "250"},
     {"name" : "FEX_DYNAMICL1CACHEDECREASECOUNTHEURISTIC", "values" : ["50"], "editText" : true, "defaultValue" : "50"}
 ]

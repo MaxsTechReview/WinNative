@@ -186,7 +186,16 @@ class DriversFragment : Fragment() {
 
     private fun defaultRepoList(): List<DriverRepo> =
         listOf(
-            DriverRepo(name = GITHUB_REPO_NAME, repoUrl = GITHUB_REPO_URL, apiUrl = GITHUB_API_URL),
+            DriverRepo(
+                name = WINNATIVE_DRIVERS_REPO_NAME,
+                repoUrl = WINNATIVE_DRIVERS_REPO_URL,
+                apiUrl = WINNATIVE_DRIVERS_API_URL,
+            ),
+            DriverRepo(
+                name = STEVEN_REPO_NAME,
+                repoUrl = STEVEN_REPO_URL,
+                apiUrl = STEVEN_API_URL,
+            ),
             DriverRepo(
                 name = WHITEBELYASH_REPO_NAME,
                 repoUrl = WHITEBELYASH_REPO_URL,
@@ -548,9 +557,13 @@ class DriversFragment : Fragment() {
     }
 
     companion object {
-        private const val GITHUB_REPO_NAME = "StevenMXZ/freedreno_turnip-CI"
-        private const val GITHUB_REPO_URL = "https://github.com/StevenMXZ/freedreno_turnip-CI/releases"
-        private const val GITHUB_API_URL = "https://api.github.com/repos/StevenMXZ/freedreno_turnip-CI/releases"
+        private const val WINNATIVE_DRIVERS_REPO_NAME = "WinNative Turnip Drivers"
+        private const val WINNATIVE_DRIVERS_REPO_URL = "https://github.com/WinNative-Emu/Drivers/releases"
+        private const val WINNATIVE_DRIVERS_API_URL = "https://api.github.com/repos/WinNative-Emu/Drivers/releases"
+
+        private const val STEVEN_REPO_NAME = "StevenMXZ/Adreno-Tools-Drivers"
+        private const val STEVEN_REPO_URL = "https://github.com/StevenMXZ/Adreno-Tools-Drivers/releases"
+        private const val STEVEN_API_URL = "https://api.github.com/repos/StevenMXZ/Adreno-Tools-Drivers/releases"
 
         private const val WHITEBELYASH_REPO_NAME = "whitebelyash/freedreno_turnip-CI"
         private const val WHITEBELYASH_REPO_URL = "https://github.com/whitebelyash/freedreno_turnip-CI/releases"

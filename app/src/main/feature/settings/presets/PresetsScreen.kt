@@ -584,7 +584,6 @@ private fun PresetSelectorCard(
                     onRename = onRename,
                     onDuplicate = onDuplicate,
                     onExport = onExport,
-                    onImport = onImport,
                     onRemove = onRemove,
                 )
             }
@@ -607,20 +606,11 @@ private fun PresetSelectorRowContent(
     onRename: () -> Unit,
     onDuplicate: () -> Unit,
     onExport: () -> Unit,
-    onImport: () -> Unit,
     onRemove: () -> Unit,
 ) {
     var dropdownOpen by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     val selected = data.presets.firstOrNull { it.id == data.selectedPresetId }
-    val hintText =
-        stringResource(
-            if (data.editable) {
-                R.string.container_presets_changes_auto_saved
-            } else {
-                R.string.container_presets_builtin_readonly_hint
-            },
-        )
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -745,17 +735,6 @@ private fun PresetSelectorRowContent(
                         },
                     )
                     MenuRow(
-                        icon = Icons.Outlined.FileDownload,
-                        iconTint = Accent,
-                        label = stringResource(R.string.common_ui_import),
-                        textColor = TextPrimary,
-                        enabled = true,
-                        onClick = {
-                            menuOpen = false
-                            onImport()
-                        },
-                    )
-                    MenuRow(
                         icon = Icons.Outlined.Delete,
                         iconTint = DangerRed,
                         label = stringResource(R.string.common_ui_remove),
@@ -770,16 +749,18 @@ private fun PresetSelectorRowContent(
             }
         }
 
-        Spacer(Modifier.height(6.dp))
-        Text(
-            text = hintText,
-            color = TextSecondary,
-            fontSize = 11.sp,
-            lineHeight = 14.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 11.dp),
-        )
+        if (data.editable) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = stringResource(R.string.container_presets_changes_auto_saved),
+                color = TextSecondary,
+                fontSize = 11.sp,
+                lineHeight = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 11.dp),
+            )
+        }
     }
 }
 
@@ -896,7 +877,7 @@ private fun EnvVarCard(
                     Modifier
                         .fillMaxWidth()
                         .noRippleClickable { expanded = !expanded }
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
@@ -953,7 +934,7 @@ private fun EnvVarCard(
                         Modifier
                             .fillMaxWidth()
                             .background(CardDarker)
-                            .padding(horizontal = 38.dp, vertical = 10.dp),
+                            .padding(horizontal = 38.dp, vertical = 8.dp),
                 )
             }
         }
@@ -1074,7 +1055,7 @@ private fun EnvVarDropdownControl(
                 .background(CardDarker)
                 .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
                 .noRippleClickable(enabled = editable && values.isNotEmpty()) { open = true }
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+                .padding(horizontal = 10.dp, vertical = 7.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -1136,7 +1117,7 @@ private fun EnvVarTextControl(
                 .clip(RoundedCornerShape(8.dp))
                 .background(CardDarker)
                 .border(borderWidth, borderColor, RoundedCornerShape(8.dp))
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+                .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
         BasicTextField(

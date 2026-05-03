@@ -247,6 +247,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private ImageFs imageFs;
     private FrameRating frameRating = null;
     private boolean effectiveShowFPS = false;
+    private boolean isTapToClickEnabled = true;
     private int runtimeFpsLimit = 0;
     private String lastRendererName = "OpenGL";
     private String lastGpuName = null;
@@ -333,6 +334,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private final AtomicBoolean activityDestroyed = new AtomicBoolean(false);
     private final AtomicBoolean sessionCleanupStarted = new AtomicBoolean(false);
     private final AtomicBoolean switchLaunchInProgress = new AtomicBoolean(false);
+    private final AtomicBoolean winHandlerStopped = new AtomicBoolean(false);
 
     private boolean isDarkMode;
     private boolean enableLogsMenu;
@@ -550,12 +552,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         // Check for Dark Mode
         isDarkMode = preferences.getBoolean("dark_mode", false);
-
+        isTapToClickEnabled = true;
         boolean isOpenWithAndroidBrowser = preferences.getBoolean("open_with_android_browser", false);
         boolean isShareAndroidClipboard = preferences.getBoolean("share_android_clipboard", false);
 
         // Initialize the WinHandler after context is set up
         winHandler = new WinHandler(this);
+        winHandlerStopped.set(false);
         winHandler.initializeController();
         controller = winHandler.getCurrentController();
 
@@ -1820,13 +1823,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Nullable
     private ArrayList<ProcessInfo> captureWinHandlerProcessSnapshot() {
-        if (winHandler == null) return null;
+        WinHandler snapshotWinHandler = winHandler;
+        if (snapshotWinHandler == null) return null;
 
         final CountDownLatch latch = new CountDownLatch(1);
         final Object snapshotLock = new Object();
         final ArrayList<ProcessInfo> currentList = new ArrayList<>();
         final int[] expectedCount = {0};
-        final OnGetProcessInfoListener previousListener = winHandler.getOnGetProcessInfoListener();
+        final OnGetProcessInfoListener previousListener = snapshotWinHandler.getOnGetProcessInfoListener();
 
         OnGetProcessInfoListener listener = (index, count, processInfo) -> {
             if (previousListener != null) {
@@ -1854,9 +1858,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         };
 
-        winHandler.setOnGetProcessInfoListener(listener);
+        snapshotWinHandler.setOnGetProcessInfoListener(listener);
         try {
-            winHandler.listProcesses();
+            snapshotWinHandler.listProcesses();
             if (!latch.await(STEAM_PROCESS_RESPONSE_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
                 Log.w("XServerDisplayActivity", "Timed out waiting for WinHandler process snapshot");
                 return null;
@@ -1870,7 +1874,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             Log.w("XServerDisplayActivity", "Interrupted while waiting for WinHandler process snapshot", e);
             return null;
         } finally {
-            winHandler.setOnGetProcessInfoListener(previousListener);
+            snapshotWinHandler.setOnGetProcessInfoListener(previousListener);
         }
     }
 
@@ -2047,6 +2051,34 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
+    private void stopWinHandler(String trigger) {
+        WinHandler handler = winHandler;
+        if (handler == null) return;
+        if (!winHandlerStopped.compareAndSet(false, true)) {
+            Log.d("XServerDisplayActivity", "WinHandler already stopped; ignoring duplicate request from " + trigger);
+            return;
+        }
+
+        try {
+            handler.stop();
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "Failed to stop WinHandler from " + trigger, e);
+        }
+    }
+
+    private void cleanupDebugDialog(String trigger) {
+        DebugDialog dialog = debugDialog;
+        if (dialog == null) return;
+        try {
+            ProcessHelper.removeDebugCallback(dialog);
+            dialog.dispose();
+        } catch (Exception e) {
+            Log.w("XServerLeakCheck", "Failed to release debug dialog during " + trigger, e);
+        } finally {
+            debugDialog = null;
+        }
+    }
+
     private void stopXServer(String trigger) {
         try {
             if (xServer != null) {
@@ -2097,10 +2129,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         try {
-            if (winHandler != null) {
-                winHandler.stop();
-                winHandler = null;
-            }
+            stopWinHandler("forced cleanup (" + trigger + ")");
         } catch (Exception e) {
             Log.e("XServerLeakCheck", "Failed to stop WinHandler during forced cleanup", e);
         }
@@ -2139,6 +2168,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
         Log.d("XServerLeakCheck", "Forced cleanup final process snapshot: "
                 + ProcessHelper.listRunningWineProcessDetails());
+        cleanupDebugDialog("forced cleanup (" + trigger + ")");
     }
 
     private void exit() {
@@ -2169,7 +2199,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     savePlaytimeData(true);
                     cleanupActivityCallbacks("exit");
                     if (midiHandler != null) midiHandler.stop();
-                    if (winHandler != null) winHandler.stop();
+                    stopWinHandler("exit");
                     if (wineRequestHandler != null) wineRequestHandler.stop();
                     /* Gracefully terminate all running wine processes first, so ALSA/audio
                      * threads are no longer fed data before we tear down their sockets. */
@@ -2188,12 +2218,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     Log.d("XServerDisplayActivity", "Process snapshot after environment stop: "
                             + ProcessHelper.listRunningWineProcessDetails());
                     stopXServer("exit");
-                    winHandler = null;
                     wineRequestHandler = null;
                     midiHandler = null;
                     xServer = null;
                     xServerView = null;
                     if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.closeOnUiThread();
+                    cleanupDebugDialog("exit");
                     closeAfterSessionExit();
                 }
             }, 1000);
@@ -2722,6 +2752,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (midiHandler != null && midiHandler.getSocket() != null && !midiHandler.getSocket().isClosed()) {
             Log.e(tag, "MidiHandler socket still open");
         }
+        cleanupDebugDialog("onDestroy");
     }
 
     private boolean isCustomShortcut() {
@@ -3447,6 +3478,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     }
 
                     if (gameDir.exists()) {
+                        syncContainerSteamExecutableFromShortcut(appId, gameInstallPath);
                         boolean useColdClient = shortcut != null
                                 ? parseBoolean(getShortcutSetting("useColdClient", container.isUseColdClient() ? "1" : "0"))
                                 : container.isUseColdClient();
@@ -3658,8 +3690,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         else
             startupSelection = String.valueOf(container.getStartupSelection());
 
+        WineUtils.changeServicesStatus(container, startupSelection);
         if (!startupSelection.equals(container.getExtra("startupSelection"))) {
-            WineUtils.changeServicesStatus(container, startupSelection);
             container.putExtra("startupSelection", startupSelection);
             containerDataChanged = true;
         }
@@ -3703,9 +3735,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         // Additional container checks and environment configuration
         if (container != null) {
-                if (Byte.parseByte(startupSelection) == Container.STARTUP_SELECTION_AGGRESSIVE) {
-                    winHandler.killProcess("services.exe");
-                }
                 guestProgramLauncherComponent.setContainer(this.container);
                 guestProgramLauncherComponent.setWineInfo(this.wineInfo);
 
@@ -3942,6 +3971,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         globalCursorSpeed = preferences.getFloat("cursor_speed", 1.0f);
         touchpadView = new TouchpadView(this, xServer, timeoutHandler, hideControlsRunnable);
+        touchpadView.setTapToClickEnabled(isTapToClickEnabled);
         touchpadView.setSensitivity(globalCursorSpeed);
         touchpadView.setMouseEnabled(!isMouseDisabled);
         touchpadView.setFourFingersTapCallback(() -> {
@@ -4220,6 +4250,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         // Initialize checkbox states
         dialog.getShowTouchscreenControls().setValue(preferences.getBoolean("show_touchscreen_controls_enabled", false));
+        dialog.getTapToClickEnabled().setValue(isTapToClickEnabled);
         dialog.getOverlayOpacity().setValue(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
         dialog.getTouchscreenHaptics().setValue(preferences.getBoolean("touchscreen_haptics_enabled", false));
         dialog.getGamepadVibration().setValue(preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true));
@@ -4250,6 +4281,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         // Confirm callback
         dialog.setOnConfirmCallback(() -> {
             inputControlsView.setShowTouchscreenControls(dialog.getShowTouchscreenControls().getValue());
+            isTapToClickEnabled = dialog.getTapToClickEnabled().getValue();
+            if (touchpadView != null) touchpadView.setTapToClickEnabled(isTapToClickEnabled);
+
             float overlayOpacity = dialog.getOverlayOpacity().getValue();
             inputControlsView.setOverlayOpacity(overlayOpacity);
             boolean isHapticsEnabled = dialog.getTouchscreenHaptics().getValue();
@@ -4759,12 +4793,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
             Iterator<String[]> oldWinComponentsIter = new KeyValueSet(container.getExtra("wincomponents", Container.FALLBACK_WINCOMPONENTS)).iterator();
 
+            // Bundled wincomponents/*.tzst archives only carry x86_64 PEs in system32/
+            // (and i386 in syswow64/). Extracting them into an ARM64EC prefix poisons
+            // system32 with wrong-arch DLLs, which kills the PE loader for any process
+            // that imports them — e.g. vc_redist refusing to launch.
+            boolean isArm64EC = wineInfo != null && wineInfo.isArm64EC();
+
             for (String[] wincomponent : new KeyValueSet(wincomponents)) {
                 if (wincomponent[1].equals(oldWinComponentsIter.next()[1]) && !firstTimeBoot) continue;
                 String identifier = wincomponent[0];
                 boolean useNative = wincomponent[1].equals("1");
 
-                if (useNative) {
+                if (useNative && !isArm64EC) {
                     TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "wincomponents/"+identifier+".tzst", windowsDir, onExtractFileListener);
                 }
                 else {
@@ -4774,7 +4814,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         dlls.add(!dlname.endsWith(".exe") ? dlname+".dll" : dlname);
                     }
                 }
-                Log.d("XServerDisplayActivity", "Setting wincomponent " + identifier + " to " + String.valueOf(useNative));
+                Log.d("XServerDisplayActivity", "Setting wincomponent " + identifier + " to " + useNative
+                        + (useNative && isArm64EC ? " (arm64ec: tzst skipped, restoring arch-correct DLLs)" : ""));
                 WineUtils.overrideWinComponentDlls(this, container, identifier, useNative);
                 WineUtils.setWinComponentRegistryKeys(systemRegFile, identifier, useNative, this);
             }
@@ -4787,24 +4828,33 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private void restoreOriginalDllFiles(final String... dlls) {
         File rootDir = imageFs.getRootDir();
         File windowsDir = new File(rootDir, ImageFs.WINEPREFIX+"/drive_c/windows");
-        File system32dlls = null;
-        File syswow64dlls = null;
 
-        if (wineInfo.isArm64EC())
-            system32dlls = new File(imageFs.getWinePath() + "/lib/wine/aarch64-windows");
-        else
-            system32dlls = new File(imageFs.getWinePath() + "/lib/wine/x86_64-windows");
-
-        syswow64dlls = new File(imageFs.getWinePath() + "/lib/wine/i386-windows");
-
+        File system32dlls = wineInfo.isArm64EC()
+                ? new File(imageFs.getWinePath() + "/lib/wine/aarch64-windows")
+                : new File(imageFs.getWinePath() + "/lib/wine/x86_64-windows");
+        File syswow64dlls = new File(imageFs.getWinePath() + "/lib/wine/i386-windows");
 
         for (String dll : dlls) {
-            File srcFile = new File(system32dlls, dll);
-            File dstFile = new File(windowsDir, "system32/" + dll);
-            FileUtils.copy(srcFile, dstFile);
-            srcFile = new File(syswow64dlls, dll);
-            dstFile = new File(windowsDir, "syswow64/" + dll);
-            FileUtils.copy(srcFile, dstFile);
+            restoreOneDll(new File(system32dlls, dll), new File(windowsDir, "system32/" + dll));
+            restoreOneDll(new File(syswow64dlls, dll), new File(windowsDir, "syswow64/" + dll));
+        }
+   }
+
+    // Copy src→dst. If src is missing we MUST delete dst; otherwise a stale wrong-arch
+    // PE (e.g. an x86_64 atl100.dll left over from a prior native overlay on an
+    // ARM64EC prefix) sticks around and breaks the PE loader for every process that
+    // imports it.
+    private static void restoreOneDll(File srcFile, File dstFile) {
+        if (srcFile.exists()) {
+            if (!FileUtils.copy(srcFile, dstFile))
+                Log.w("XServerDisplayActivity", "restoreOriginalDllFiles: copy failed " + srcFile + " -> " + dstFile);
+            return;
+        }
+        if (dstFile.exists()) {
+            if (dstFile.delete())
+                Log.w("XServerDisplayActivity", "restoreOriginalDllFiles: no source for " + srcFile + ", deleted stale " + dstFile);
+            else
+                Log.e("XServerDisplayActivity", "restoreOriginalDllFiles: no source for " + srcFile + " and failed to delete stale " + dstFile);
         }
    }
 
@@ -5391,46 +5441,90 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return normalizedPath;
     }
 
+    private void syncContainerSteamExecutableFromShortcut(int appId, String gameInstallPath) {
+        String shortcutExePath = resolveShortcutSteamExecutablePath(gameInstallPath);
+        if (shortcutExePath.isEmpty() || container == null) return;
+
+        String currentPath = container.getExecutablePath();
+        if (!shortcutExePath.equals(currentPath)) {
+            container.setExecutablePath(shortcutExePath);
+            container.saveData();
+            Log.d("XServerDisplayActivity", "Synced Steam executable from shortcut for appId="
+                    + appId + ": " + shortcutExePath);
+        }
+    }
+
+    private String resolveShortcutSteamExecutablePath(String gameInstallPath) {
+        if (shortcut == null || gameInstallPath == null || gameInstallPath.isEmpty()) return "";
+
+        String launchExePath = shortcut.getExtra("launch_exe_path");
+        if (launchExePath == null || launchExePath.isEmpty()) return "";
+
+        File gameDir = new File(gameInstallPath);
+        if (!gameDir.isDirectory()) return "";
+
+        File configuredFile = new File(launchExePath);
+        if (configuredFile.isAbsolute()) {
+            if (!configuredFile.isFile()) return "";
+
+            String configuredAbsolutePath = getCanonicalPathOrAbsolute(configuredFile);
+            String gameInstallCanonicalPath = getCanonicalPathOrAbsolute(gameDir);
+            String gameInstallPrefix = gameInstallCanonicalPath.endsWith(File.separator)
+                    ? gameInstallCanonicalPath
+                    : gameInstallCanonicalPath + File.separator;
+            if (!configuredAbsolutePath.startsWith(gameInstallPrefix)) return "";
+
+            return configuredAbsolutePath
+                    .substring(gameInstallPrefix.length())
+                    .replace(File.separatorChar, '/');
+        }
+
+        String relativePath = launchExePath.replace('\\', '/');
+        while (relativePath.startsWith("/")) {
+            relativePath = relativePath.substring(1);
+        }
+        if (relativePath.isEmpty() || relativePath.matches("^[A-Za-z]:/.*")) return "";
+
+        File resolvedFile = resolvePathCaseInsensitive(gameDir, relativePath);
+        if (resolvedFile == null || !resolvedFile.isFile()) return "";
+
+        String resolvedAbsolutePath = getCanonicalPathOrAbsolute(resolvedFile);
+        String gameInstallCanonicalPath = getCanonicalPathOrAbsolute(gameDir);
+        String gameInstallPrefix = gameInstallCanonicalPath.endsWith(File.separator)
+                ? gameInstallCanonicalPath
+                : gameInstallCanonicalPath + File.separator;
+        if (!resolvedAbsolutePath.startsWith(gameInstallPrefix)) return relativePath;
+
+        return resolvedAbsolutePath
+                .substring(gameInstallPrefix.length())
+                .replace(File.separatorChar, '/');
+    }
+
     /**
      * Resolves the game executable as a RELATIVE path within the game install directory.
      * Tries multiple strategies with caching so subsequent launches are fast.
      * Returns "" if no exe can be found.
      */
     private String resolveRelativeGameExe(int appId, String gameInstPath) {
-        // Strategy 1: container.executablePath (cached from previous launch or container setup)
+        // Strategy 1: shortcut launch_exe_path. This is the user's per-game selection
+        // and must win over the shared container cache.
+        String shortcutExePath = resolveShortcutSteamExecutablePath(gameInstPath);
+        if (!shortcutExePath.isEmpty()) {
+            if (container != null && !shortcutExePath.equals(container.getExecutablePath())) {
+                container.setExecutablePath(shortcutExePath);
+                container.saveData();
+            }
+            Log.d("XServerDisplayActivity", "resolveRelativeGameExe: found via shortcut.launch_exe_path: " + shortcutExePath);
+            return shortcutExePath;
+        }
+
+        // Strategy 2: container.executablePath (cached from previous launch or container setup)
         String exePath = container.getExecutablePath();
         if (exePath != null && !exePath.isEmpty() && gameInstPath != null) {
             File test = new File(gameInstPath, exePath.replace("\\", "/"));
             if (test.isFile()) {
                 Log.d("XServerDisplayActivity", "resolveRelativeGameExe: found via container.executablePath: " + exePath);
                 return exePath;
-            }
-        }
-
-        // Strategy 2: shortcut launch_exe_path
-        if (shortcut != null) {
-            String launchExe = shortcut.getExtra("launch_exe_path");
-            if (launchExe != null && !launchExe.isEmpty() && gameInstPath != null) {
-                File configuredLaunchExe = new File(launchExe);
-                if (configuredLaunchExe.isAbsolute()) {
-                    String configuredAbsolutePath = getCanonicalPathOrAbsolute(configuredLaunchExe);
-                    String gameInstallPath = getCanonicalPathOrAbsolute(new File(gameInstPath));
-                    String gameInstallPrefix = gameInstallPath.endsWith(File.separator)
-                            ? gameInstallPath
-                            : gameInstallPath + File.separator;
-                    if (configuredLaunchExe.isFile()
-                            && configuredAbsolutePath.startsWith(gameInstallPrefix)) {
-                        String relative = configuredAbsolutePath.substring(gameInstallPrefix.length());
-                        Log.d("XServerDisplayActivity", "resolveRelativeGameExe: normalized absolute shortcut.launch_exe_path: " + relative);
-                        return relative;
-                    }
-                }
-
-                File test = new File(gameInstPath, launchExe.replace("\\", "/"));
-                if (test.isFile()) {
-                    Log.d("XServerDisplayActivity", "resolveRelativeGameExe: found via shortcut.launch_exe_path: " + launchExe);
-                    return launchExe;
-                }
             }
         }
 
@@ -5489,24 +5583,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String gameInstallPath = getCanonicalPathOrAbsolute(gameDir);
 
         if (appId > 0) {
-            String launchExePath = shortcut != null ? shortcut.getExtra("launch_exe_path") : "";
-            if (launchExePath == null) launchExePath = "";
-
-            String resolvedRelativePath = launchExePath;
-            if (!resolvedRelativePath.isEmpty()) {
-                File configuredFile = new File(resolvedRelativePath);
-                if (configuredFile.isAbsolute()) {
-                    String configuredAbsolutePath = getCanonicalPathOrAbsolute(configuredFile);
-                    if (configuredAbsolutePath.equals(gameInstallPath) || configuredAbsolutePath.startsWith(gameInstallPath + File.separator)) {
-                        resolvedRelativePath = configuredAbsolutePath.substring(gameInstallPath.length());
-                        if (resolvedRelativePath.startsWith(File.separator)) {
-                            resolvedRelativePath = resolvedRelativePath.substring(1);
-                        }
-                    } else {
-                        resolvedRelativePath = "";
-                    }
-                }
-            }
+            String resolvedRelativePath = resolveShortcutSteamExecutablePath(gameInstallPath);
 
             if (resolvedRelativePath.isEmpty()) {
                 resolvedRelativePath = SteamBridge.getInstalledExe(appId);
@@ -5608,7 +5685,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         Log.w("XServerDisplayActivity", "No steam_api DLLs found in game directory — injecting Goldberg steam_api next to game exe");
         try {
             // Find the game exe to determine architecture
-            String exePath = shortcut != null ? shortcut.getExtra("launch_exe_path") : null;
+            String exePath = resolveShortcutSteamExecutablePath(getCanonicalPathOrAbsolute(gameDir));
+            if ((exePath == null || exePath.isEmpty()) && shortcut != null) {
+                exePath = shortcut.getExtra("launch_exe_path");
+            }
             File gameExe = null;
             if (exePath != null && !exePath.isEmpty()) {
                 File candidate = new File(exePath);
@@ -6181,7 +6261,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private SteamExecutableInfo resolveSteamExecutableInfo(int appId, String gameInstallPath) {
-        String executablePath = container.getExecutablePath();
+        String executablePath = resolveShortcutSteamExecutablePath(gameInstallPath);
+        if (executablePath == null || executablePath.isEmpty()) {
+            executablePath = container.getExecutablePath();
+        }
         if (executablePath == null || executablePath.isEmpty()) {
             executablePath = com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.getInstalledExe(appId);
         }
@@ -6221,7 +6304,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             String gameInstallPath = resolveSteamGameInstallPath(appId);
             if (gameInstallPath == null || gameInstallPath.isEmpty()) return;
 
-            String executablePath = container.getExecutablePath();
+            String executablePath = resolveShortcutSteamExecutablePath(gameInstallPath);
+            if (executablePath == null || executablePath.isEmpty()) {
+                executablePath = container.getExecutablePath();
+            }
             if (executablePath == null || executablePath.isEmpty()) {
                 executablePath = com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.getInstalledExe(appId);
             }
@@ -6256,7 +6342,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             String gameInstallPath = resolveSteamGameInstallPath(appId);
             if (gameInstallPath == null || gameInstallPath.isEmpty()) return false;
 
-            String executablePath = container.getExecutablePath();
+            String executablePath = resolveShortcutSteamExecutablePath(gameInstallPath);
+            if (executablePath == null || executablePath.isEmpty()) {
+                executablePath = container.getExecutablePath();
+            }
             if (executablePath == null || executablePath.isEmpty()) {
                 executablePath = com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.getInstalledExe(appId);
             }
@@ -6488,7 +6577,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         // Find the game executable and run Steamless on it
-        String executablePath = container.getExecutablePath();
+        String executablePath = resolveShortcutSteamExecutablePath(gameInstallPath);
+        if (executablePath == null || executablePath.isEmpty()) {
+            executablePath = container.getExecutablePath();
+        }
         if (executablePath == null || executablePath.isEmpty()) {
             executablePath = com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.getInstalledExe(appId);
         }

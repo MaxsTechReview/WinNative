@@ -19,6 +19,7 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
   private final XOutputStream outputStream;
   private final ArrayMap<Window, EventListener> eventListeners = new ArrayMap<>();
   private final ArrayList<XResource> resources = new ArrayList<>();
+  private long nextFrameTimeNanos = 0;
 
   public XClient(XServer xServer, XInputStream inputStream, XOutputStream outputStream) {
 
@@ -157,6 +158,43 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
   public void enforceAbsoluteFramerate() {
     com.winlator.cmod.runtime.display.renderer.GLRenderer renderer = xServer.getRenderer();
     if (renderer == null) return;
-    renderer.enforceFpsLimit();
+
+    int targetFps = renderer.getFpsLimit();
+    if (targetFps <= 0) {
+      nextFrameTimeNanos = 0;
+      return;
+    }
+
+    long targetFrameTime = 1_000_000_000L / targetFps;
+    long now = System.nanoTime();
+
+    // HARD RESYNC: If we are more than 100ms late, reset the clock heartbeat.
+    // This prevents "speed-up" stutters after loading screens.
+    if (nextFrameTimeNanos == 0 || now > nextFrameTimeNanos + 100_000_000L) {
+      nextFrameTimeNanos = now + targetFrameTime;
+    }
+
+    long sleepTime = nextFrameTimeNanos - now;
+    
+    // Only sleep if we are actually early by more than 0.5ms (VSync Bias)
+    if (sleepTime > 500_000L) {
+      // Deep sleep for the bulk of the time. 
+      // 4ms buffer provides maximum stability against Android OS jitter.
+      if (sleepTime > 4_000_000L) {
+        long sleepMs = (sleepTime - 4_000_000L) / 1_000_000L;
+        try {
+          Thread.sleep(sleepMs);
+        } catch (InterruptedException ignored) {}
+      }
+
+      // High-precision spin for the final 4ms. 
+      // This is the "Unity Style" heart-beat that guarantees VSync alignment.
+      while (System.nanoTime() < nextFrameTimeNanos) {
+        // Spin lock for exact nanosecond precision
+      }
+    }
+
+    // Advance to the next heartbeat
+    nextFrameTimeNanos += targetFrameTime;
   }
 }
