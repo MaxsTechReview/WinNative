@@ -17,6 +17,7 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.util.Iterator;
+import java.util.Locale;
 
 public class Container {
     public static final String DEFAULT_ENV_VARS = "WRAPPER_MAX_IMAGE_COUNT=0 VKD3D_SHADER_MODEL=6_6 ZINK_DESCRIPTORS=lazy ZINK_DEBUG=compact MESA_SHADER_CACHE_DISABLE=false MESA_SHADER_CACHE_MAX_SIZE=512MB mesa_glthread=true TU_DEBUG=noconform,sysmem";
@@ -26,7 +27,7 @@ public class Container {
     public static final String DEFAULT_EMULATOR = "Box64";
     public static final String DEFAULT_EMULATOR64 = "Box64";
     public static final String DEFAULT_DXWRAPPER = "dxvk+vkd3d";
-    public static final String DEFAULT_DXWRAPPERCONFIG = "version=,async=0,asyncCache=0" + ",vkd3dVersion=None,vkd3dLevel=12_1" + ",ddrawrapper=" + Container.DEFAULT_DDRAWRAPPER + ",csmt=3" + ",gpuName=NVIDIA GeForce GTX 480" + ",videoMemorySize=2048" + ",strict_shader_math=1" + ",OffscreenRenderingMode=fbo" + ",renderer=gl";
+    public static final String DEFAULT_DXWRAPPERCONFIG = "version=,async=1,asyncCache=1" + ",vkd3dVersion=None,vkd3dLevel=12_1" + ",ddrawrapper=" + Container.DEFAULT_DDRAWRAPPER + ",csmt=3" + ",gpuName=NVIDIA GeForce GTX 480" + ",videoMemorySize=4096" + ",strict_shader_math=1" + ",OffscreenRenderingMode=fbo" + ",renderer=gl";
     public static final String DEFAULT_GRAPHICSDRIVERCONFIG =
             "vulkanVersion=1.3" + ";version=" + ";blacklistedExtensions=" + ";maxDeviceMemory=0" + ";presentMode=mailbox" + ";syncFrame=0" + ";disablePresentWait=1" + ";resourceType=auto" + ";bcnEmulation=none" + ";bcnEmulationType=compute" + ";bcnEmulationCache=0" + ";gpuName=Device";
     public static final String DEFAULT_DDRAWRAPPER = "none";
@@ -55,8 +56,8 @@ public class Container {
     private String cpuListWoW64;
     private String desktopTheme = WineThemeManager.DEFAULT_DESKTOP_THEME;
     private String fexcoreVersion = "";
-    private String fexcorePreset = FEXCorePreset.INTERMEDIATE;
-    private String box64Preset = Box64Preset.COMPATIBILITY;
+    private String fexcorePreset = FEXCorePreset.PERFORMANCE;
+    private String box64Preset = Box64Preset.PERFORMANCE;
     private File rootDir;
     private JSONObject extraData;
     private String midiSoundFont = "";
@@ -582,6 +583,39 @@ public class Container {
                     break;
             }
         }
+
+        normalizeEmulatorFieldsForArch();
+    }
+
+    // Coerce emulator/emulator64 to values that are valid for the prefix's arch.
+    // ARM64EC: 64-bit JIT is always FEXCore today; 32-bit JIT is FEXCore or wowbox64.
+    // x86_64: both are box64. Anything else is legacy/invalid (e.g. literal "Box64"
+    // string from pre-split builds, "FEXCore" hand-edited into x86_64 JSON, empty,
+    // null, or mixed case). Normalizing here means every read path — launcher,
+    // settings dialogs, shortcut overrides — sees a clean value without us having
+    // to add defensive parsing scattered around the code. The next user-initiated
+    // saveData() persists the cleaned value to disk; we deliberately don't write
+    // here.
+    private void normalizeEmulatorFieldsForArch() {
+        boolean arm64ec = "arm64ec".equalsIgnoreCase(getExtra("wineprefixArch"));
+        emulator = arm64ec
+                ? sanitizeArm64ecEmulator32(emulator)
+                : sanitizeX86Emulator(emulator);
+        emulator64 = arm64ec
+                ? "fexcore"
+                : sanitizeX86Emulator(emulator64);
+    }
+
+    static String sanitizeArm64ecEmulator32(String value) {
+        if (value == null) return "fexcore";
+        String low = value.trim().toLowerCase(Locale.ROOT);
+        return (low.equals("fexcore") || low.equals("wowbox64")) ? low : "fexcore";
+    }
+
+    static String sanitizeX86Emulator(String value) {
+        // x86_64 containers always run via the box64 binary regardless of this
+        // field, so the only sane saved value is "box64" — coerce everything else.
+        return "box64";
     }
 
     public static void checkObsoleteOrMissingProperties(JSONObject data) {

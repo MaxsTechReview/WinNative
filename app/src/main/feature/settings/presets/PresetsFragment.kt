@@ -546,8 +546,8 @@ class PresetsFragment : Fragment() {
     private val PresetEngine.defaultPresetId: String
         get() =
             when (this) {
-                PresetEngine.BOX64 -> Box64Preset.COMPATIBILITY
-                PresetEngine.FEXCORE -> FEXCorePreset.INTERMEDIATE
+                PresetEngine.BOX64 -> Box64Preset.PERFORMANCE
+                PresetEngine.FEXCORE -> FEXCorePreset.PERFORMANCE
             }
 
     private val PresetEngine.assetFile: String
