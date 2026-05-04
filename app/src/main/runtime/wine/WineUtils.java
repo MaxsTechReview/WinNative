@@ -1412,16 +1412,22 @@ public abstract class WineUtils {
     String value = dinputEnabled ? "override" : "disabled";
     try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
       for (int i = 0; i < 4; i++) {
+        String[] joystickNames = {
+          "Generic HID Gamepad " + i,
+          "ric HID Gamepad " + i,
+          "Microsoft X-Box 360 pad " + i,
+          "osoft X-Box 360 pad " + i
+        };
         if (exclusiveXInput) {
-          registryEditor.setStringValue(
-              "Software\\Wine\\DirectInput\\Joysticks", "Generic HID Gamepad " + i, value);
-          registryEditor.setStringValue(
-              "Software\\Wine\\DirectInput\\Joysticks", "ric HID Gamepad " + i, value);
+          for (String joystickName : joystickNames) {
+            registryEditor.setStringValue(
+                "Software\\Wine\\DirectInput\\Joysticks", joystickName, value);
+          }
         } else {
-          registryEditor.removeValue(
-              "Software\\Wine\\DirectInput\\Joysticks", "Generic HID Gamepad " + i);
-          registryEditor.removeValue(
-              "Software\\Wine\\DirectInput\\Joysticks", "ric HID Gamepad " + i);
+          for (String joystickName : joystickNames) {
+            registryEditor.removeValue(
+                "Software\\Wine\\DirectInput\\Joysticks", joystickName);
+          }
         }
       }
     }
@@ -1438,9 +1444,17 @@ public abstract class WineUtils {
     if (!systemRegFile.exists()) return;
 
     try (WineRegistryEditor registryEditor = new WineRegistryEditor(systemRegFile)) {
-      // Remove stale WINEBUS device registrations that don't match our fake gamepad
-      registryEditor.removeKey("System\\ControlSet001\\Enum\\WINEBUS\\VID_845E&PID_0001", true);
-      registryEditor.removeKey("System\\CurrentControlSet\\Enum\\WINEBUS\\VID_845E&PID_0001", true);
+      // Remove stale WINEBUS device registrations that don't match the current fake gamepad.
+      String[] staleWinebusDevices = {
+        "VID_845E&PID_0001",
+        "VID_1234&PID_5678",
+        "VID_045E&PID_028E"
+      };
+      for (String staleWinebusDevice : staleWinebusDevices) {
+        registryEditor.removeKey("System\\ControlSet001\\Enum\\WINEBUS\\" + staleWinebusDevice, true);
+        registryEditor.removeKey(
+            "System\\CurrentControlSet\\Enum\\WINEBUS\\" + staleWinebusDevice, true);
+      }
 
       // Ensure winebus parameters disable hidraw and keep evdev enabled
       String winebusParamsKey = "System\\CurrentControlSet\\Services\\winebus\\Parameters";
@@ -1456,10 +1470,16 @@ public abstract class WineUtils {
     String value = enable ? "override" : "disabled";
     try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
       for (int i = 0; i < 4; i++) {
-        registryEditor.setStringValue(
-            "Software\\Wine\\DirectInput\\Joysticks", "Generic HID Gamepad " + i, value);
-        registryEditor.setStringValue(
-            "Software\\Wine\\DirectInput\\Joysticks", "ric HID Gamepad " + i, value);
+        String[] joystickNames = {
+          "Generic HID Gamepad " + i,
+          "ric HID Gamepad " + i,
+          "Microsoft X-Box 360 pad " + i,
+          "osoft X-Box 360 pad " + i
+        };
+        for (String joystickName : joystickNames) {
+          registryEditor.setStringValue(
+              "Software\\Wine\\DirectInput\\Joysticks", joystickName, value);
+        }
       }
     }
   }

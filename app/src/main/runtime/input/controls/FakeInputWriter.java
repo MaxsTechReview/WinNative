@@ -15,9 +15,11 @@ public class FakeInputWriter {
   public static final short ABS_HAT0X = 16;
   public static final short ABS_HAT0Y = 17;
   public static final short ABS_RX = 3;
+  public static final short ABS_RZ = 5;
   public static final short ABS_RY = 4;
   public static final short ABS_X = 0;
   public static final short ABS_Y = 1;
+  public static final short ABS_Z = 2;
   private static final int BUFFER_SIZE = 768;
   private static final int EVENT_SIZE = 24;
   private static final int MAX_FAKE_INPUT_SLOTS = 4;
@@ -403,11 +405,11 @@ public class FakeInputWriter {
       }
       if (this.prevTriggerL != 0) {
         this.prevTriggerL = 0;
-        writeEvent((short) 3, (short) 10, 0);
+        writeEvent((short) 3, ABS_Z, 0);
       }
       if (this.prevTriggerR != 0) {
         this.prevTriggerR = 0;
-        writeEvent((short) 3, (short) 9, 0);
+        writeEvent((short) 3, ABS_RZ, 0);
       }
       if (this.prevHatX != 0) {
         this.prevHatX = 0;
@@ -519,11 +521,11 @@ public class FakeInputWriter {
     }
     if (tl != this.prevTriggerL) {
       this.prevTriggerL = tl;
-      writeEvent((short) 3, (short) 10, tl);
+      writeEvent((short) 3, ABS_Z, tl);
     }
     if (tr != this.prevTriggerR) {
       this.prevTriggerR = tr;
-      writeEvent((short) 3, (short) 9, tr);
+      writeEvent((short) 3, ABS_RZ, tr);
     }
 
     int hatY = 1;

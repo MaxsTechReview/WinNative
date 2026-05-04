@@ -38,10 +38,11 @@
 
 #define EXPORT __attribute__((visibility("default"))) extern "C"
 
-static constexpr uint16_t GAMEPAD_VENDOR_ID_BASE = 0x1234;
-static constexpr uint16_t GAMEPAD_PRODUCT_ID_BASE = 0x5678;
-static constexpr uint16_t GAMEPAD_VERSION = 0x0110;
-static constexpr const char *GAMEPAD_NAME_TEMPLATE = "Generic HID Gamepad %d";
+static constexpr uint16_t GAMEPAD_VENDOR_ID = 0x045e;
+static constexpr uint16_t GAMEPAD_PRODUCT_ID = 0x028e;
+static constexpr uint16_t GAMEPAD_VERSION = 0x0114;
+static constexpr const char *GAMEPAD_NAME_TEMPLATE =
+    "Microsoft X-Box 360 pad %d";
 static constexpr const char *GAMEPAD_PHYS_TEMPLATE = "usb-fakeinput/input%d";
 static constexpr const char *GAMEPAD_UNIQ_TEMPLATE = "0000000000%02d";
 static constexpr uint8_t GAMEPAD_AXIS_COUNT = 8;
@@ -608,9 +609,9 @@ EXPORT int ioctl(int fd, int op, ...) {
     Logger::log("Hooking ioctl EVIOCGID for event %s\n", event);
     struct input_id id;
     memset(&id, 0, sizeof(id));
-    id.bustype = 0x03;
-    id.vendor = static_cast<uint16_t>(GAMEPAD_VENDOR_ID_BASE + event_number);
-    id.product = static_cast<uint16_t>(GAMEPAD_PRODUCT_ID_BASE + event_number);
+    id.bustype = BUS_USB;
+    id.vendor = GAMEPAD_VENDOR_ID;
+    id.product = GAMEPAD_PRODUCT_ID;
     id.version = GAMEPAD_VERSION;
     memcpy(argp, (void *)&id, sizeof(id));
     return 0;
@@ -662,10 +663,10 @@ EXPORT int ioctl(int fd, int op, ...) {
     char bitmask[ABS_MAX / 8] = {0};
     bitmask[ABS_X / 8] |= (1 << (ABS_X % 8));
     bitmask[ABS_Y / 8] |= (1 << (ABS_Y % 8));
+    bitmask[ABS_Z / 8] |= (1 << (ABS_Z % 8));
     bitmask[ABS_RX / 8] |= (1 << (ABS_RX % 8));
     bitmask[ABS_RY / 8] |= (1 << (ABS_RY % 8));
-    bitmask[ABS_GAS / 8] |= (1 << (ABS_GAS % 8));
-    bitmask[ABS_BRAKE / 8] |= (1 << (ABS_BRAKE % 8));
+    bitmask[ABS_RZ / 8] |= (1 << (ABS_RZ % 8));
     bitmask[ABS_HAT0X / 8] |= (1 << (ABS_HAT0X % 8));
     bitmask[ABS_HAT0Y / 8] |= (1 << (ABS_HAT0Y % 8));
     memcpy(argp, (void *)&bitmask, sizeof(bitmask));
@@ -705,15 +706,18 @@ EXPORT int ioctl(int fd, int op, ...) {
     Logger::log("Hooking ioctl EVIOCGABS(ABS) for event %s\n", event);
     struct input_absinfo abs_info;
     memset(&abs_info, 0, sizeof(abs_info));
-    if (number >= 0x40 && number <= 0x44) {
+    int abs_code = number - 0x40;
+    if (abs_code == ABS_X || abs_code == ABS_Y || abs_code == ABS_RX ||
+        abs_code == ABS_RY) {
       abs_info.value = 0;
       abs_info.minimum = -32768;
       abs_info.maximum = 32767;
-    } else if (number >= 0x49 && number <= 0x4A) {
+    } else if (abs_code == ABS_Z || abs_code == ABS_RZ ||
+               abs_code == ABS_GAS || abs_code == ABS_BRAKE) {
       abs_info.value = 0;
       abs_info.minimum = 0;
       abs_info.maximum = 255;
-    } else if (number >= 0x50 && number <= 0x51) {
+    } else if (abs_code == ABS_HAT0X || abs_code == ABS_HAT0Y) {
       abs_info.value = 0;
       abs_info.minimum = -1;
       abs_info.maximum = 1;
