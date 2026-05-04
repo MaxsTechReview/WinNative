@@ -427,6 +427,7 @@
     <string name="container_no_wine_installed">No Wine or Proton installed. Install one first.</string>
     <string name="container_wine_title">Wine</string>
     <string name="container_wine_opengl">OpenGL</string>
+    <string name="container_surface_effect">Surface Effect</string>
 
     <!-- Container > Box64 -->
     <string name="container_box64_title">Box64</string>

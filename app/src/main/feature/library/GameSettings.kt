@@ -216,6 +216,8 @@ class GameSettingsStateHolder {
     val graphicsDriverVersion = mutableStateOf("")
     val dxWrapperEntries = mutableStateOf<List<String>>(emptyList())
     val selectedDxWrapper = mutableIntStateOf(0)
+    val surfaceEffectEntries = mutableStateOf<List<String>>(emptyList())
+    val selectedSurfaceEffect = mutableIntStateOf(0)
 
     // Graphics Driver Configuration (inline card)
     val gfxConfigExpanded = mutableStateOf(false)
@@ -1156,6 +1158,15 @@ private fun DisplaySection(
             entries = state.graphicsDriverEntries.value,
             selectedIndex = state.selectedGraphicsDriver.intValue,
             onSelected = { state.selectedGraphicsDriver.intValue = it }
+        )
+
+        Spacer(Modifier.height(SettingSectionGap))
+
+        SettingDropdown(
+            label = stringResource(R.string.container_surface_effect),
+            entries = state.surfaceEffectEntries.value,
+            selectedIndex = state.selectedSurfaceEffect.intValue,
+            onSelected = { state.selectedSurfaceEffect.intValue = it }
         )
 
         Spacer(Modifier.height(SettingSectionGap))

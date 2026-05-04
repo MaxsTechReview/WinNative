@@ -592,6 +592,7 @@ public class GLRenderer
           windowMaterial.getUniformLocation("viewSize"),
           xServer.screenInfo.width,
           xServer.screenInfo.height);
+      windowMaterial.setUniformInt("swapRB", swapRB ? 1 : 0);
       quadVertices.bind(windowMaterial.programId);
       renderDrawable(
           directCandidate.content, directCandidate.rootX, directCandidate.rootY, windowMaterial);

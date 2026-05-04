@@ -3953,6 +3953,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         final GLRenderer renderer = xServerView.getRenderer();
         renderer.setCursorVisible(false);
         renderer.setNativeMode(isNativeRenderingEnabled);
+        
+        boolean swapRB = shortcut != null ? shortcut.getExtra("swapRB", "0").equals("1") 
+                         : (container != null && container.getExtra("swapRB", "0").equals("1"));
+        renderer.swapRB = swapRB;
 
         if (shortcut != null) {
             renderer.setUnviewableWMClasses("explorer.exe");

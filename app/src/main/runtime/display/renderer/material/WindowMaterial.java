@@ -2,7 +2,7 @@ package com.winlator.cmod.runtime.display.renderer.material;
 
 public class WindowMaterial extends ShaderMaterial {
   public WindowMaterial() {
-    setUniformNames("xform", "viewSize", "texture");
+    setUniformNames("xform", "viewSize", "texture", "swapRB");
   }
 
   @Override
@@ -25,6 +25,14 @@ public class WindowMaterial extends ShaderMaterial {
         + "varying vec2 vUV;\n"
         + "void main() {\n"
         + "gl_FragColor = vec4(texture2D(texture, vUV).rgb, 1.0);\n"
+        + "}";
+  }
+}
+"if (swapRB == 1) {\n"
+        + "gl_FragColor = vec4(color.b, color.g, color.r, 1.0);\n"
+        + "} else {\n"
+        + "gl_FragColor = vec4(color, 1.0);\n"
+        + "}\n"
         + "}";
   }
 }

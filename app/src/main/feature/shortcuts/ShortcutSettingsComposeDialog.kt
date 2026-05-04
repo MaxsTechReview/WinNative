@@ -481,6 +481,11 @@ class ShortcutSettingsComposeDialog private constructor(
             state.selectedDxWrapper
         )
 
+        // Surface Effect
+        val surfaceEffectArr = context.resources.getStringArray(R.array.surface_effect_entries).toList()
+        state.surfaceEffectEntries.value = surfaceEffectArr
+        state.selectedSurfaceEffect.intValue = if (shortcut.getExtra("swapRB", container.getExtra("swapRB", "0")) == "1") 1 else 0
+
         // Audio driver
         val audioDriverArr =
             context.resources.getStringArray(R.array.audio_driver_entries).toList()
