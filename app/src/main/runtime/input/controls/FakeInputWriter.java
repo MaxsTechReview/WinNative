@@ -363,6 +363,7 @@ public class FakeInputWriter {
         return false;
       }
       this.isOpen = true;
+      writeInitialNeutralState();
       SteamInputStateWriter.writeConnectedState(this.slot, null);
       Log.i(TAG, "Opened fake input: " + this.eventFile.getAbsolutePath());
       return true;
@@ -370,6 +371,25 @@ public class FakeInputWriter {
       Log.e(TAG, "Failed to open: " + e.getMessage());
       return false;
     }
+  }
+
+  private void writeInitialNeutralState() {
+    this.buffer.clear();
+    this.hasChanges = false;
+    writeEvent(EV_ABS, ABS_X, 0);
+    writeEvent(EV_ABS, ABS_Y, 0);
+    writeEvent(EV_ABS, ABS_Z, 0);
+    writeEvent(EV_ABS, ABS_RX, 0);
+    writeEvent(EV_ABS, ABS_RY, 0);
+    writeEvent(EV_ABS, ABS_RZ, 0);
+    writeEvent(EV_ABS, ABS_HAT0X, 0);
+    writeEvent(EV_ABS, ABS_HAT0Y, 0);
+    writeEvent(EV_SYN, SYN_REPORT, 0);
+    this.buffer.flip();
+    if (!flushBuffer()) {
+      Log.e(TAG, "Initial neutral write error: fake input mmap ring unavailable");
+    }
+    this.hasChanges = false;
   }
 
   public synchronized void close() {

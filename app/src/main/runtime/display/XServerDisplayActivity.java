@@ -823,6 +823,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             } catch (Exception e) {
             }
         }
+        winHandler.openConfiguredControllerSlots(numControllers);
 
         String containerCpuList = container.getCPUList(true);
         String containerCpuListWoW64 = container.getCPUListWoW64(true);

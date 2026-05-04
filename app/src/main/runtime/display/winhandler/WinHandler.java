@@ -163,6 +163,17 @@ public class WinHandler {
     return assignedCount;
   }
 
+  public void openConfiguredControllerSlots(int controllerCount) {
+    int boundedCount = Math.max(0, Math.min(controllerCount, MAX_CONTROLLERS));
+    if (boundedCount == 0 || this.fakeInputBasePath == null || this.fakeInputBasePath.isEmpty()) {
+      return;
+    }
+    for (int slot = 0; slot < boundedCount; slot++) {
+      ensureWriterForSlot(slot);
+    }
+    Log.d("WinHandler", "Opened " + boundedCount + " fake controller slot(s) before Wine startup.");
+  }
+
   private int[] getConnectedGamepadDeviceIds() {
     int[] deviceIds = android.view.InputDevice.getDeviceIds();
     Integer[] sortedIds = new Integer[deviceIds.length];
