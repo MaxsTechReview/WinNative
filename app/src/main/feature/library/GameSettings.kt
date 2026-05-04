@@ -61,6 +61,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -94,7 +95,9 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.scale
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import com.winlator.cmod.shared.ui.widget.EnvVarsView
 import com.winlator.cmod.shared.ui.widget.chasingBorder
 import kotlin.math.roundToInt
@@ -2161,6 +2164,29 @@ private fun ComponentsSection(
 private fun findKnownEnvVar(name: String): Array<String>? =
     EnvVarsView.knownEnvVars.firstOrNull { it[0] == name }
 
+// WINEESYNC and WINENTSYNC cannot both be enabled. When the user turns one on,
+// flip the other off if it is currently on. No-op when the user disables a sync.
+private fun applyExclusiveSync(
+    list: MutableList<EnvVarItem>,
+    changedKey: String,
+    newValue: String
+) {
+    val isOnNow = newValue == "1" || newValue.equals("true", ignoreCase = true)
+    if (!isOnNow) return
+    val sibling = when (changedKey) {
+        "WINEESYNC" -> "WINENTSYNC"
+        "WINENTSYNC" -> "WINEESYNC"
+        else -> return
+    }
+    val sIdx = list.indexOfFirst { it.key == sibling }
+    if (sIdx >= 0) {
+        val cur = list[sIdx].value
+        if (cur == "1" || cur.equals("true", ignoreCase = true)) {
+            list[sIdx] = EnvVarItem(sibling, "0")
+        }
+    }
+}
+
 @Composable
 private fun VariablesSection(
     state: GameSettingsStateHolder,
@@ -2214,6 +2240,7 @@ private fun VariablesSection(
                     onValueChange = { v ->
                         val list = state.envVars.value.toMutableList()
                         list[index] = EnvVarItem(envVar.key, v)
+                        applyExclusiveSync(list, envVar.key, v)
                         state.envVars.value = list
                     },
                     onRemove = { callbacks.onRemoveEnvVar(index) }
@@ -2638,12 +2665,21 @@ private fun EnvVarValueEditor(
         "CHECKBOX" -> {
             val off = known!![2]
             val on = known[3]
-            val isOn = value == on || value == "1" || value == "true"
-            EnvValueDropdown(
-                current = if (isOn) on else off,
-                options = listOf(off, on),
-                onSelected = onValueChange
-            )
+            val isOn = value == on || value == "1" || value.equals("true", ignoreCase = true)
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Switch(
+                    checked = isOn,
+                    onCheckedChange = { onValueChange(if (it) on else off) },
+                    modifier = Modifier.scale(0.78f),
+                    colors = outlinedSwitchColors(
+                        accentColor = AccentBlue,
+                        textSecondaryColor = TextSecondary
+                    )
+                )
+            }
         }
         "SELECT" -> {
             val options = known!!.drop(2)
