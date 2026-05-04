@@ -309,6 +309,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean taskManagerCpuExpanded = false;
     private boolean taskManagerPaneVisible = false;
     private short[] cachedMaxClockSpeeds;
+    private boolean drawerEdgeGesturePossible = false;
+    private float drawerEdgeGestureStartX = 0f;
+    private float drawerEdgeGestureStartY = 0f;
+    private int drawerEdgeGesturePointerId = -1;
 
     // Inside the XServerDisplayActivity class
     private SensorManager sensorManager;
@@ -657,8 +661,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         });
 
-        // Carve a tall strip on the left edge out of the system back-gesture region so
-        // swiping from the edge opens our drawer instead of triggering the system nav.
+        // Keep the drawer edge swipe available on gesture-navigation devices without
+        // letting Compose compete with normal container drags across the whole display.
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             final android.view.View gestureExclusionView = displayHostComposeView;
             final int edgePx = (int) (XServerDisplayHostKt.XSERVER_DRAWER_EDGE_SWIPE_DP * getResources().getDisplayMetrics().density);
@@ -2874,6 +2878,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 frameRating != null && frameRating.getVisibility() == View.VISIBLE,
                 isPaused,
                 true,
+                magnifierView != null,
                 enableLogsMenu,
                 isNativeRenderingEnabled,
                 getString(R.string.session_xserver_native_rendering),
@@ -3540,7 +3545,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 closeDrawerMenu();
                 break;
             case R.id.main_menu_magnifier:
-                if (magnifierView == null) {
+                if (magnifierView != null) {
+                    xServerDisplayFrame.removeView(magnifierView);
+                    magnifierView = null;
+                    renderer.setMagnifierZoom(1.0f);
+                    renderer.setMagnifierUIActive(false);
+                } else {
                     FrameLayout container = xServerDisplayFrame;
                     magnifierView = new MagnifierView(this);
                     magnifierView.setZoomButtonCallback(value -> {
@@ -3551,8 +3561,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     magnifierView.setHideButtonCallback(() -> {
                         container.removeView(magnifierView);
                         magnifierView = null;
+                        renderer.setMagnifierZoom(1.0f);
+                        renderer.setMagnifierUIActive(false);
+                        renderDrawerMenu();
                     });
                     container.addView(magnifierView);
+                    renderer.setMagnifierUIActive(true);
                 }
                 renderDrawerMenu();
                 break;
@@ -4809,6 +4823,79 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String bcnEmulationCache = graphicsDriverConfig.get("bcnEmulationCache");
         envVars.put("WRAPPER_USE_BCN_CACHE", bcnEmulationCache);
 
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        handleDrawerEdgeSwipe(event);
+        return super.dispatchTouchEvent(event);
+    }
+
+    private void handleDrawerEdgeSwipe(MotionEvent event) {
+        if (drawerStateHolder == null || drawerStateHolder.isDrawerOpen() || displayHostComposeView == null) {
+            resetDrawerEdgeGesture();
+            return;
+        }
+
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN: {
+                drawerEdgeGestureStartX = event.getX();
+                drawerEdgeGestureStartY = event.getY();
+                drawerEdgeGesturePointerId = event.getPointerId(0);
+                drawerEdgeGesturePossible =
+                        drawerEdgeGestureStartX <= getDrawerEdgeSwipePx()
+                                && !isTouchInsideMagnifier(drawerEdgeGestureStartX, drawerEdgeGestureStartY);
+                break;
+            }
+            case MotionEvent.ACTION_MOVE: {
+                if (!drawerEdgeGesturePossible) return;
+                int pointerIndex = event.findPointerIndex(drawerEdgeGesturePointerId);
+                if (pointerIndex < 0) {
+                    resetDrawerEdgeGesture();
+                    return;
+                }
+
+                float dx = event.getX(pointerIndex) - drawerEdgeGestureStartX;
+                float dy = event.getY(pointerIndex) - drawerEdgeGestureStartY;
+                int slop = android.view.ViewConfiguration.get(this).getScaledTouchSlop();
+
+                if (dx > slop && dx > Math.abs(dy)) {
+                    if (touchpadView != null) {
+                        touchpadView.resetInputState();
+                    }
+                    if (inputControlsView != null) {
+                        inputControlsView.cancelActiveTouches();
+                    }
+                    openDrawerMenu();
+                    resetDrawerEdgeGesture();
+                } else if (Math.abs(dy) > slop && Math.abs(dy) > dx) {
+                    resetDrawerEdgeGesture();
+                }
+                break;
+            }
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                resetDrawerEdgeGesture();
+                break;
+        }
+    }
+
+    private int getDrawerEdgeSwipePx() {
+        return (int) (XServerDisplayHostKt.XSERVER_DRAWER_EDGE_SWIPE_DP * getResources().getDisplayMetrics().density);
+    }
+
+    private boolean isTouchInsideMagnifier(float x, float y) {
+        return magnifierView != null
+                && magnifierView.getParent() != null
+                && x >= magnifierView.getX()
+                && x <= magnifierView.getX() + magnifierView.getWidth()
+                && y >= magnifierView.getY()
+                && y <= magnifierView.getY() + magnifierView.getHeight();
+    }
+
+    private void resetDrawerEdgeGesture() {
+        drawerEdgeGesturePossible = false;
+        drawerEdgeGesturePointerId = -1;
     }
 
     @Override

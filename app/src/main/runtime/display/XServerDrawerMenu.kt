@@ -5,7 +5,7 @@ import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.expandVertically
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
@@ -456,6 +456,7 @@ fun buildXServerDrawerState(
     fpsMonitorEnabled: Boolean,
     paused: Boolean,
     showMagnifier: Boolean,
+    magnifierActive: Boolean,
     showLogs: Boolean,
     nativeRenderingEnabled: Boolean,
     nativeRenderingTitle: String,
@@ -587,6 +588,7 @@ fun buildXServerDrawerState(
                 title = context.getString(R.string.session_drawer_magnifier),
                 subtitle = "",
                 icon = Icons.Outlined.ZoomIn,
+                active = magnifierActive,
             )
     }
 

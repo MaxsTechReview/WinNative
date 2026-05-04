@@ -594,7 +594,7 @@ class TouchpadView(
     }
 
     fun setSensitivity(sensitivity: Float) {
-        this.sensitivity = sensitivity
+        this.sensitivity = sensitivity.coerceAtLeast(1.0f)
     }
 
     fun setPointerButtonLeftEnabled(enabled: Boolean) {

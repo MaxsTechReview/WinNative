@@ -1,7 +1,6 @@
 package com.winlator.cmod.runtime.display
 
 import android.widget.FrameLayout
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,10 +18,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.unit.LayoutDirection
@@ -30,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.winlator.cmod.shared.theme.WinNativeTheme
 
-const val XSERVER_DRAWER_EDGE_SWIPE_DP = 140
+const val XSERVER_DRAWER_EDGE_SWIPE_DP = 120
 
 private val DrawerWidth = 340.dp
 
@@ -71,8 +67,6 @@ private fun XServerDisplayHost(
     listener: XServerDrawerActionListener,
     callbacks: XServerDisplayHostCallbacks,
 ) {
-    val density = LocalDensity.current
-    val edgeSwipePx = with(density) { XSERVER_DRAWER_EDGE_SWIPE_DP.dp.toPx() }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     DisposableEffect(stateHolder) {
@@ -143,7 +137,7 @@ private fun XServerDisplayHost(
         Box(modifier = Modifier.fillMaxSize()) {
             ModalNavigationDrawer(
                 drawerState = drawerState,
-                gesturesEnabled = !dialogVisible,
+                gesturesEnabled = drawerState.isOpen && !dialogVisible,
                 scrimColor = Color.Transparent,
                 drawerContent = {
                     ModalDrawerSheet(
@@ -173,43 +167,11 @@ private fun XServerDisplayHost(
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                     AndroidView(
                         factory = { displayFrame },
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .xServerDrawerEdgeGate(
-                                    enabled = drawerState.isClosed,
-                                    edgeWidthPx = edgeSwipePx,
-                                ),
+                        modifier = Modifier.fillMaxSize(),
                         update = {},
                     )
                 }
             }
-
         }
     }
 }
-
-private fun Modifier.xServerDrawerEdgeGate(
-    enabled: Boolean,
-    edgeWidthPx: Float,
-): Modifier =
-    pointerInput(enabled, edgeWidthPx) {
-        if (!enabled) return@pointerInput
-        awaitPointerEventScope {
-            while (true) {
-                val down = awaitFirstDown(requireUnconsumed = false)
-                if (down.position.x <= edgeWidthPx) continue
-
-                val pointerId = down.id
-                while (true) {
-                    val event = awaitPointerEvent()
-                    val change = event.changes.firstOrNull { it.id == pointerId } ?: break
-                    if (!change.pressed) break
-                    if (change.positionChanged()) {
-                        change.consume()
-                    }
-                }
-            }
-        }
-    }
-
