@@ -22,13 +22,11 @@ public class WindowMaterial extends ShaderMaterial {
   protected String getFragmentShader() {
     return "precision mediump float;\n"
         + "uniform sampler2D texture;\n"
+        + "uniform int swapRB;\n"
         + "varying vec2 vUV;\n"
         + "void main() {\n"
-        + "gl_FragColor = vec4(texture2D(texture, vUV).rgb, 1.0);\n"
-        + "}";
-  }
-}
-"if (swapRB == 1) {\n"
+        + "vec3 color = texture2D(texture, vUV).rgb;\n"
+        + "if (swapRB == 1) {\n"
         + "gl_FragColor = vec4(color.b, color.g, color.r, 1.0);\n"
         + "} else {\n"
         + "gl_FragColor = vec4(color, 1.0);\n"
