@@ -2328,9 +2328,41 @@ class SteamService :
                     ?.steamInputManifestPath
                     ?.trim()
                     .orEmpty()
-            if (manifestPath.isEmpty()) return null
 
-            return resolvePathCaseInsensitive(appDirPath, manifestPath)
+            if (manifestPath.isNotEmpty()) {
+                val manifestFile = resolvePathCaseInsensitive(appDirPath, manifestPath)
+                if (manifestFile != null) return manifestFile
+            }
+
+            return findSteamInputManifestFile(appDirPath)
+        }
+
+        private fun findSteamInputManifestFile(appDirPath: String): File? {
+            val appDir = File(appDirPath)
+            if (!appDir.exists() || !appDir.isDirectory) return null
+
+            return runCatching {
+                appDir
+                    .walkTopDown()
+                    .maxDepth(8)
+                    .filter { file ->
+                        file.isFile &&
+                            file.extension.equals("vdf", ignoreCase = true) &&
+                            file.length() in 1L..2_000_000L &&
+                            !file.path.contains("${File.separator}.DepotDownloader${File.separator}", ignoreCase = true) &&
+                            !file.path.contains("${File.separator}steam_settings${File.separator}", ignoreCase = true)
+                    }.toList()
+                    .sortedWith(
+                        compareBy<File> { !it.name.contains("game_actions", ignoreCase = true) }
+                            .thenBy { it.absolutePath.length },
+                    ).firstOrNull { file ->
+                        runCatching {
+                            file.readText(Charsets.UTF_8).contains("Action Manifest", ignoreCase = true)
+                        }.getOrDefault(false)
+                    }
+            }.onFailure { e ->
+                Timber.w(e, "Failed to scan Steam Input manifest for appId path $appDirPath")
+            }.getOrNull()
         }
 
         private fun loadConfigFromManifest(manifestFile: File): String? {
@@ -2364,7 +2396,7 @@ class SteamService :
 
                 val configs = actionManifest["configurations"]
                 if (configs === KeyValue.INVALID || configs.children.isEmpty()) {
-                    throw IllegalStateException("No configurations found in Action Manifest")
+                    return null
                 }
 
                 val preferredControllers =
@@ -2391,7 +2423,7 @@ class SteamService :
                     }
                 }
 
-                throw IllegalStateException("No valid controller configuration found in Action Manifest")
+                null
             } catch (e: Exception) {
                 Timber.e(e, "Failed to parse Steam Input manifest config")
                 null
@@ -2449,33 +2481,42 @@ class SteamService :
         }
 
         fun resolveSteamControllerVdfText(appId: Int): String? {
-            val config = getAppInfoOf(appId)?.config ?: return null
-            return when (config.steamControllerTemplateIndex) {
+            val config = getAppInfoOf(appId)?.config
+            val manifestText =
+                resolveSteamInputManifestFile(appId, getAppDirPath(appId))
+                    ?.let { loadConfigFromManifest(it) }
+
+            return when (config?.steamControllerTemplateIndex) {
                 1 -> {
                     readDownloadedSteamInputTemplate(appId)
+                        ?: manifestText
+                        ?: readBuiltInSteamInputTemplate("gamepad_joystick.vdf")
                 }
 
                 13 -> {
-                    val manifestFile =
-                        resolveSteamInputManifestFile(appId, getAppDirPath(appId))
-                            ?: return null
-                    loadConfigFromManifest(manifestFile)
+                    manifestText
+                        ?: readDownloadedSteamInputTemplate(appId)
+                        ?: readBuiltInSteamInputTemplate("gamepad_joystick.vdf")
                 }
 
                 2, 12 -> {
-                    readBuiltInSteamInputTemplate("controller_xboxone_gamepad_fps.vdf")
+                    manifestText
+                        ?: readBuiltInSteamInputTemplate("controller_xboxone_gamepad_fps.vdf")
                 }
 
                 6 -> {
-                    readBuiltInSteamInputTemplate("controller_xboxone_wasd.vdf")
+                    manifestText
+                        ?: readBuiltInSteamInputTemplate("controller_xboxone_wasd.vdf")
                 }
 
                 4, 5 -> {
-                    readBuiltInSteamInputTemplate("gamepad_joystick.vdf")
+                    manifestText
+                        ?: readBuiltInSteamInputTemplate("gamepad_joystick.vdf")
                 }
 
                 else -> {
-                    readBuiltInSteamInputTemplate("gamepad_joystick.vdf")
+                    manifestText
+                        ?: readBuiltInSteamInputTemplate("gamepad_joystick.vdf")
                 }
             }
         }

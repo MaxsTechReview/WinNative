@@ -6,6 +6,13 @@ import java.nio.file.Path
 object SteamControllerVdfUtils {
     const val WINNATIVE_ACTION_MAP_FILE_NAME = "winnative_steaminput_actions.txt"
 
+    private data class InferredBinding(
+        val binding: String,
+        val sourceMode: String? = null,
+        val isAnalog: Boolean = false,
+        val usedFallback: Boolean = false,
+    )
+
     private val keymapDigital =
         mapOf(
             "button_a" to "A",
@@ -26,12 +33,85 @@ object SteamControllerVdfUtils {
             "button_back_right_upper" to "Y",
         )
 
+    private val fallbackDigitalBindings =
+        listOf("A", "B", "X", "Y", "LBUMPER", "RBUMPER", "BACK", "START")
+
+    private val genericFallbackActionSets =
+        listOf("default", "InGameControls", "Gameplay", "MenuControls", "Menu")
+
     fun generateControllerConfig(
         controllerVdfText: String,
         outputDir: Path,
     ): Boolean {
         val root = VdfParser(controllerVdfText).parse()
-        val controllerMappings = root.getObject("controller_mappings") ?: return false
+        val controllerMappings = root.getObjectIgnoreCase("controller_mappings")
+        if (controllerMappings != null) {
+            return generateControllerMappingsConfig(controllerMappings, outputDir)
+        }
+
+        val actionManifest =
+            root.getObjectIgnoreCase("Action Manifest")
+                ?: root.takeIf { it.getObjectIgnoreCase("actions") != null }
+                ?: return false
+
+        return generateActionManifestConfig(actionManifest, outputDir)
+    }
+
+    fun generateFallbackControllerConfig(outputDir: Path): Boolean {
+        val bindings =
+            linkedMapOf(
+                "Move" to mutableListOf("LJOY=joystick_move"),
+                "Movement" to mutableListOf("LJOY=joystick_move"),
+                "LeftStick" to mutableListOf("LJOY=joystick_move"),
+                "JoystickMove" to mutableListOf("LJOY=joystick_move"),
+                "Camera" to mutableListOf("RJOY=joystick_camera"),
+                "Look" to mutableListOf("RJOY=joystick_camera"),
+                "RightStick" to mutableListOf("RJOY=joystick_camera"),
+                "JoystickCamera" to mutableListOf("RJOY=joystick_camera"),
+                "LeftTrigger" to mutableListOf("LTRIGGER=trigger"),
+                "RightTrigger" to mutableListOf("RTRIGGER=trigger"),
+                "Accelerate" to mutableListOf("RTRIGGER=trigger"),
+                "Brake" to mutableListOf("LTRIGGER=trigger"),
+                "Jump" to mutableListOf("A"),
+                "Confirm" to mutableListOf("A"),
+                "Accept" to mutableListOf("A"),
+                "Submit" to mutableListOf("A"),
+                "Select" to mutableListOf("A"),
+                "Cancel" to mutableListOf("B"),
+                "Back" to mutableListOf("B"),
+                "Attack" to mutableListOf("X"),
+                "Action" to mutableListOf("X"),
+                "Boost" to mutableListOf("X"),
+                "Dash" to mutableListOf("X"),
+                "Special" to mutableListOf("Y"),
+                "Item" to mutableListOf("Y"),
+                "Pause" to mutableListOf("START"),
+                "Start" to mutableListOf("START"),
+                "Menu" to mutableListOf("START"),
+                "Options" to mutableListOf("START"),
+                "View" to mutableListOf("BACK"),
+                "Map" to mutableListOf("BACK"),
+                "LeftBumper" to mutableListOf("LBUMPER"),
+                "RightBumper" to mutableListOf("RBUMPER"),
+                "DPadUp" to mutableListOf("DUP"),
+                "DPadDown" to mutableListOf("DDOWN"),
+                "DPadLeft" to mutableListOf("DLEFT"),
+                "DPadRight" to mutableListOf("DRIGHT"),
+            )
+
+        val allBindings =
+            LinkedHashMap<String, LinkedHashMap<String, MutableList<String>>>()
+        genericFallbackActionSets.forEach { actionSet ->
+            allBindings[actionSet] = cloneBindings(bindings)
+        }
+
+        return writeControllerConfigs(outputDir, allBindings)
+    }
+
+    private fun generateControllerMappingsConfig(
+        controllerMappings: VdfObject,
+        outputDir: Path,
+    ): Boolean {
 
         val groupsById = LinkedHashMap<String, VdfObject>()
         controllerMappings.getObjects("group").forEach { group ->
@@ -69,10 +149,25 @@ object SteamControllerVdfUtils {
             allBindings[layerName] = bindings
         }
 
+        if (allBindings.isEmpty()) {
+            val bindings = buildRootControllerMappingsBindings(controllerMappings, groupsById)
+            if (bindings.isNotEmpty()) {
+                allBindings["default"] = bindings
+            }
+        }
+
+        return writeControllerConfigs(outputDir, allBindings)
+    }
+
+    private fun writeControllerConfigs(
+        outputDir: Path,
+        allBindings: Map<String, LinkedHashMap<String, MutableList<String>>>,
+    ): Boolean {
         if (allBindings.isEmpty()) return false
 
         Files.createDirectories(outputDir)
         for ((presetName, bindings) in allBindings) {
+            if (bindings.isEmpty()) continue
             val outputFile = outputDir.resolve("$presetName.txt")
             val content =
                 buildString {
@@ -85,6 +180,16 @@ object SteamControllerVdfUtils {
             outputFile.toFile().writeText(content, Charsets.UTF_8)
         }
         return writeWinNativeActionMap(outputDir, allBindings)
+    }
+
+    private fun cloneBindings(
+        bindings: Map<String, MutableList<String>>,
+    ): LinkedHashMap<String, MutableList<String>> {
+        val result = LinkedHashMap<String, MutableList<String>>()
+        for ((actionName, actionBindings) in bindings) {
+            result[actionName] = actionBindings.toMutableList()
+        }
+        return result
     }
 
     private fun writeWinNativeActionMap(
@@ -128,6 +233,254 @@ object SteamControllerVdfUtils {
         actionMapFile.writeText(content, Charsets.UTF_8)
         return true
     }
+
+    private fun generateActionManifestConfig(
+        actionManifest: VdfObject,
+        outputDir: Path,
+    ): Boolean {
+        val actions = actionManifest.getObjectIgnoreCase("actions") ?: return false
+        val allBindings = LinkedHashMap<String, LinkedHashMap<String, MutableList<String>>>()
+
+        for ((actionSetName, actionSet) in actions.objectEntries()) {
+            val bindings = buildActionManifestSetBindings(actionSet)
+            if (bindings.isNotEmpty()) {
+                allBindings[actionSetName] = bindings
+            }
+        }
+
+        if (allBindings.isEmpty()) return false
+        addMergedDefaultActionSet(allBindings)
+        return writeControllerConfigs(outputDir, allBindings)
+    }
+
+    private fun addMergedDefaultActionSet(
+        allBindings: LinkedHashMap<String, LinkedHashMap<String, MutableList<String>>>,
+    ) {
+        if (allBindings.keys.any { it.equals("default", ignoreCase = true) }) return
+
+        val merged = LinkedHashMap<String, MutableList<String>>()
+        for (bindings in allBindings.values) {
+            for ((actionName, actionBindings) in bindings) {
+                val target = merged.getOrPut(actionName) { mutableListOf() }
+                for (binding in actionBindings) {
+                    if (!target.contains(binding)) {
+                        target.add(binding)
+                    }
+                }
+            }
+        }
+
+        if (merged.isNotEmpty()) {
+            allBindings["default"] = merged
+        }
+    }
+
+    private fun buildActionManifestSetBindings(
+        actionSet: VdfObject,
+    ): LinkedHashMap<String, MutableList<String>> {
+        val bindings = LinkedHashMap<String, MutableList<String>>()
+        var fallbackDigitalIndex = 0
+        var fallbackAnalogIndex = 0
+
+        for ((categoryName, category) in actionSet.objectEntries()) {
+            if (isManifestMetadataBlock(categoryName)) continue
+
+            for ((actionName, action) in category.objectEntries()) {
+                if (isManifestMetadataBlock(actionName)) continue
+
+                val inferred =
+                    inferManifestActionBinding(
+                        actionName,
+                        categoryName,
+                        action,
+                        fallbackDigitalIndex,
+                        fallbackAnalogIndex,
+                    ) ?: continue
+
+                addInferredBinding(bindings, actionName, inferred)
+                if (inferred.usedFallback) {
+                    if (inferred.isAnalog) {
+                        fallbackAnalogIndex++
+                    } else {
+                        fallbackDigitalIndex++
+                    }
+                }
+            }
+        }
+
+        return bindings
+    }
+
+    private fun isManifestMetadataBlock(name: String): Boolean {
+        val normalized = name.lowercase()
+        return normalized in
+            setOf(
+                "title",
+                "description",
+                "localization",
+                "configurations",
+                "action_layers",
+                "settings",
+            )
+    }
+
+    private fun addInferredBinding(
+        bindings: MutableMap<String, MutableList<String>>,
+        actionName: String,
+        inferred: InferredBinding,
+    ) {
+        val actionBindings = bindings.getOrPut(actionName) { mutableListOf() }
+        val value =
+            if (inferred.sourceMode.isNullOrEmpty()) {
+                inferred.binding
+            } else {
+                "${inferred.binding}=${inferred.sourceMode}"
+            }
+        if (!actionBindings.contains(value)) {
+            actionBindings.add(value)
+        }
+    }
+
+    private fun inferManifestActionBinding(
+        actionName: String,
+        categoryName: String,
+        action: VdfObject,
+        fallbackDigitalIndex: Int,
+        fallbackAnalogIndex: Int,
+    ): InferredBinding? {
+        val inputMode = action.getStringIgnoreCase("input_mode").orEmpty()
+        val title = action.getStringIgnoreCase("title").orEmpty()
+        val normalizedText = normalizeActionText(actionName, title)
+        val normalizedCategory = normalizeActionText(categoryName, inputMode)
+        val normalizedInputMode = inputMode.lowercase()
+
+        val analogMode =
+            when {
+                normalizedInputMode.contains("joystick_camera") -> "joystick_camera"
+                normalizedInputMode.contains("camera") -> "joystick_camera"
+                normalizedInputMode.contains("mouse") -> "joystick_camera"
+                normalizedInputMode.contains("joystick") -> "joystick_move"
+                normalizedInputMode.contains("trigger") -> "trigger"
+                normalizedCategory.contains("stick") -> "joystick_move"
+                normalizedCategory.contains("gyro") -> "joystick_camera"
+                normalizedCategory.contains("trigger") -> "trigger"
+                else -> null
+            }
+
+        if (analogMode != null) {
+            return inferAnalogBinding(normalizedText, analogMode, fallbackAnalogIndex)
+        }
+
+        return inferDigitalBinding(normalizedText, fallbackDigitalIndex)
+    }
+
+    private fun inferAnalogBinding(
+        normalizedText: String,
+        sourceMode: String,
+        fallbackAnalogIndex: Int,
+    ): InferredBinding {
+        val isLeftTrigger =
+            containsAny(normalizedText, "left trigger", "ltrigger", "lt", "l2", "brake", "reverse")
+        val isRightTrigger =
+            containsAny(normalizedText, "right trigger", "rtrigger", "rt", "r2", "accelerate", "accel", "gas", "throttle")
+        if (sourceMode == "trigger" || isLeftTrigger || isRightTrigger) {
+            val binding =
+                when {
+                    isLeftTrigger -> "LTRIGGER"
+                    isRightTrigger -> "RTRIGGER"
+                    fallbackAnalogIndex % 2 == 0 -> "RTRIGGER"
+                    else -> "LTRIGGER"
+                }
+            return InferredBinding(binding, "trigger", isAnalog = true, usedFallback = !isLeftTrigger && !isRightTrigger)
+        }
+
+        val isRightStick =
+            sourceMode == "joystick_camera" ||
+                containsAny(normalizedText, "camera", "look", "aim", "view", "right stick", "rightstick", "rstick", "rs")
+        val isLeftStick =
+            containsAny(normalizedText, "move", "movement", "walk", "run", "drive", "steer", "left stick", "leftstick", "lstick", "ls")
+
+        val binding =
+            when {
+                isRightStick -> "RJOY"
+                isLeftStick -> "LJOY"
+                fallbackAnalogIndex == 0 -> "LJOY"
+                else -> "RJOY"
+            }
+        val mode = if (binding == "RJOY") "joystick_camera" else "joystick_move"
+        return InferredBinding(binding, mode, isAnalog = true, usedFallback = !isRightStick && !isLeftStick)
+    }
+
+    private fun inferDigitalBinding(
+        normalizedText: String,
+        fallbackDigitalIndex: Int,
+    ): InferredBinding {
+        val isDpadUp = containsAny(normalizedText, "dpad up", "d pad up", "pad up") || normalizedText == "up"
+        val isDpadDown = containsAny(normalizedText, "dpad down", "d pad down", "pad down") || normalizedText == "down"
+        val isDpadLeft = containsAny(normalizedText, "dpad left", "d pad left", "pad left") || normalizedText == "left"
+        val isDpadRight = containsAny(normalizedText, "dpad right", "d pad right", "pad right") || normalizedText == "right"
+        val binding =
+            when {
+                containsAny(normalizedText, "left bumper", "left shoulder", "lb", "l1", "previous", "prev") -> "LBUMPER"
+                containsAny(normalizedText, "right bumper", "right shoulder", "rb", "r1", "next") -> "RBUMPER"
+                containsAny(normalizedText, "left stick", "lstick", "l3") -> "LSTICK"
+                containsAny(normalizedText, "right stick", "rstick", "r3") -> "RSTICK"
+                isDpadUp -> "DUP"
+                isDpadDown -> "DDOWN"
+                isDpadLeft -> "DLEFT"
+                isDpadRight -> "DRIGHT"
+                containsAny(normalizedText, "pause", "start", "menu", "options") -> "START"
+                containsAny(normalizedText, "view", "map", "inventory", "select button", "back button") -> "BACK"
+                containsAny(normalizedText, "cancel", "close", "decline", "back", "no") -> "B"
+                containsAny(normalizedText, "jump", "confirm", "accept", "submit", "ok", "yes", "interact", "use", "continue", "select") -> "A"
+                containsAny(normalizedText, "attack", "shoot", "fire", "boost", "dash", "sprint", "primary", "action") -> "X"
+                containsAny(normalizedText, "special", "secondary", "item", "ability", "power", "reset") -> "Y"
+                containsAny(normalizedText, "left trigger", "ltrigger", "lt", "l2") -> "DLTRIGGER"
+                containsAny(normalizedText, "right trigger", "rtrigger", "rt", "r2") -> "DRTRIGGER"
+                else -> fallbackDigitalBindings[fallbackDigitalIndex % fallbackDigitalBindings.size]
+            }
+
+        val usedFallback =
+            binding == fallbackDigitalBindings[fallbackDigitalIndex % fallbackDigitalBindings.size] &&
+                !containsAny(
+                    normalizedText,
+                    "jump",
+                    "confirm",
+                    "accept",
+                    "submit",
+                    "cancel",
+                    "attack",
+                    "shoot",
+                    "fire",
+                    "boost",
+                    "dash",
+                    "special",
+                    "pause",
+                    "start",
+                    "menu",
+                    "map",
+                    "left",
+                    "right",
+                    "up",
+                    "down",
+                )
+        return InferredBinding(binding, usedFallback = usedFallback)
+    }
+
+    private fun normalizeActionText(vararg values: String): String =
+        values
+            .filter { it.isNotEmpty() }
+            .joinToString(" ")
+            .replace('#', ' ')
+            .replace(Regex("([a-z])([A-Z])"), "$1 $2")
+            .replace(Regex("[^A-Za-z0-9]+"), " ")
+            .lowercase()
+            .trim()
+
+    private fun containsAny(
+        text: String,
+        vararg needles: String,
+    ): Boolean = needles.any { text.contains(it) }
 
     private fun addInputBindings(
         group: VdfObject,
@@ -328,6 +681,32 @@ object SteamControllerVdfUtils {
 
         return bindings
     }
+
+    private fun buildRootControllerMappingsBindings(
+        controllerMappings: VdfObject,
+        groupsById: Map<String, VdfObject>,
+    ): LinkedHashMap<String, MutableList<String>> {
+        val groupSourceBindings = controllerMappings.getObject("group_source_bindings")
+        val syntheticPreset = VdfObject()
+        if (groupSourceBindings != null) {
+            syntheticPreset.add("group_source_bindings", groupSourceBindings)
+        }
+        val bindings = buildPresetBindings("default", syntheticPreset, groupsById)
+
+        controllerMappings.getObject("switch_bindings")
+            ?.getObject("bindings")
+            ?.stringEntries()
+            ?.forEach { (inputName, bindingValue) ->
+                val actionName = parseBindingActionName(bindingValue) ?: return@forEach
+                val binding = keymapDigital[inputName.lowercase()] ?: return@forEach
+                val list = bindings.getOrPut(actionName) { mutableListOf() }
+                if (!list.contains(binding)) {
+                    list.add(binding)
+                }
+            }
+
+        return bindings
+    }
 }
 
 private sealed interface VdfValue
@@ -358,11 +737,25 @@ private class VdfObject : VdfValue {
             if (it.key == key && it.value is VdfObject) it.value else null
         }
 
+    fun getObjectIgnoreCase(key: String): VdfObject? = getObjectsIgnoreCase(key).firstOrNull()
+
+    fun getObjectsIgnoreCase(key: String): List<VdfObject> =
+        entries.mapNotNull {
+            if (it.key.equals(key, ignoreCase = true) && it.value is VdfObject) it.value else null
+        }
+
     fun getString(key: String): String? = getStrings(key).firstOrNull()
 
     fun getStrings(key: String): List<String> =
         entries.mapNotNull {
             if (it.key == key && it.value is VdfString) it.value.value else null
+        }
+
+    fun getStringIgnoreCase(key: String): String? = getStringsIgnoreCase(key).firstOrNull()
+
+    fun getStringsIgnoreCase(key: String): List<String> =
+        entries.mapNotNull {
+            if (it.key.equals(key, ignoreCase = true) && it.value is VdfString) it.value.value else null
         }
 
     fun objectEntries(): List<Pair<String, VdfObject>> =

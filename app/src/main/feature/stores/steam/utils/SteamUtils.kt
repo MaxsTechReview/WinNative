@@ -1115,6 +1115,12 @@ object SteamUtils {
             val winNativeActionMapFile =
                 File(settingsDir, SteamControllerVdfUtils.WINNATIVE_ACTION_MAP_FILE_NAME)
             if (useSteamInput) {
+                runCatching {
+                    if (controllerDir.exists()) controllerDir.deleteRecursively()
+                }.onFailure { e ->
+                    Timber.w(e, "Failed to reset controller config dir for appId=$appId")
+                }
+
                 val controllerVdfText = SteamService.resolveSteamControllerVdfText(appId)
                 var wroteWinNativeActionMap = false
                 if (!controllerVdfText.isNullOrEmpty()) {
@@ -1130,6 +1136,14 @@ object SteamUtils {
                     if (!wroteWinNativeActionMap) {
                         Timber.d("No WinNative Steam Input action map generated for appId=$appId")
                     }
+                }
+                if (!wroteWinNativeActionMap) {
+                    wroteWinNativeActionMap =
+                        runCatching {
+                            SteamControllerVdfUtils.generateFallbackControllerConfig(controllerDir.toPath())
+                        }.onFailure { e ->
+                            Timber.w(e, "Failed to generate fallback controller config for appId=$appId")
+                        }.getOrDefault(false)
                 }
                 if (!wroteWinNativeActionMap && winNativeActionMapFile.exists()) {
                     winNativeActionMapFile.delete()
