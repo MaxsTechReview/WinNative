@@ -58,7 +58,13 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     String nativeLibDir = context.getApplicationInfo().nativeLibraryDir;
     File sourceFile = new File(nativeLibDir, libraryName);
 
-    if (sourceFile.exists() && (!destFile.exists() || destFile.length() != sourceFile.length())) {
+    boolean shouldCopySource =
+        sourceFile.exists()
+            && (!destFile.exists()
+                || destFile.length() != sourceFile.length()
+                || sourceFile.lastModified() > destFile.lastModified());
+
+    if (shouldCopySource) {
       Log.d(
           "GuestLauncher",
           "Copying "
