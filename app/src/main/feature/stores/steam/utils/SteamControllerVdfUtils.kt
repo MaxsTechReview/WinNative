@@ -4,6 +4,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 object SteamControllerVdfUtils {
+    const val WINNATIVE_ACTION_MAP_FILE_NAME = "winnative_steaminput_actions.txt"
+
     private val keymapDigital =
         mapOf(
             "button_a" to "A",
@@ -27,9 +29,9 @@ object SteamControllerVdfUtils {
     fun generateControllerConfig(
         controllerVdfText: String,
         outputDir: Path,
-    ) {
+    ): Boolean {
         val root = VdfParser(controllerVdfText).parse()
-        val controllerMappings = root.getObject("controller_mappings") ?: return
+        val controllerMappings = root.getObject("controller_mappings") ?: return false
 
         val groupsById = LinkedHashMap<String, VdfObject>()
         controllerMappings.getObjects("group").forEach { group ->
@@ -67,7 +69,7 @@ object SteamControllerVdfUtils {
             allBindings[layerName] = bindings
         }
 
-        if (allBindings.isEmpty()) return
+        if (allBindings.isEmpty()) return false
 
         Files.createDirectories(outputDir)
         for ((presetName, bindings) in allBindings) {
@@ -82,6 +84,49 @@ object SteamControllerVdfUtils {
                 }
             outputFile.toFile().writeText(content, Charsets.UTF_8)
         }
+        return writeWinNativeActionMap(outputDir, allBindings)
+    }
+
+    private fun writeWinNativeActionMap(
+        outputDir: Path,
+        allBindings: Map<String, LinkedHashMap<String, MutableList<String>>>,
+    ): Boolean {
+        val settingsDir = outputDir.parent ?: return false
+        val actionMapFile = settingsDir.resolve(WINNATIVE_ACTION_MAP_FILE_NAME).toFile()
+        val bindings =
+            allBindings.entries
+                .firstOrNull { it.key.equals("default", ignoreCase = true) }
+                ?.value
+                ?.takeIf { it.isNotEmpty() }
+                ?: allBindings.values.firstOrNull { it.isNotEmpty() }
+
+        if (bindings.isNullOrEmpty()) {
+            if (actionMapFile.exists()) actionMapFile.delete()
+            return false
+        }
+
+        val content =
+            buildString {
+                for ((actionName, actionBindings) in bindings) {
+                    val normalizedBindings =
+                        actionBindings
+                            .map { it.substringBefore("=") }
+                            .filter { it.isNotEmpty() }
+                            .distinct()
+                    if (normalizedBindings.isEmpty()) continue
+                    append(actionName)
+                    append("=")
+                    appendLine(normalizedBindings.joinToString(","))
+                }
+            }
+
+        if (content.isEmpty()) {
+            if (actionMapFile.exists()) actionMapFile.delete()
+            return false
+        }
+
+        actionMapFile.writeText(content, Charsets.UTF_8)
+        return true
     }
 
     private fun addInputBindings(

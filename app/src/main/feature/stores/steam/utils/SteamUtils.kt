@@ -1106,23 +1106,36 @@ object SteamUtils {
 
             // --- controller config ---
             val controllerDir = File(settingsDir, "controller")
+            val winNativeActionMapFile =
+                File(settingsDir, SteamControllerVdfUtils.WINNATIVE_ACTION_MAP_FILE_NAME)
             if (useSteamInput) {
                 val controllerVdfText = SteamService.resolveSteamControllerVdfText(appId)
+                var wroteWinNativeActionMap = false
                 if (!controllerVdfText.isNullOrEmpty()) {
-                    runCatching {
-                        SteamControllerVdfUtils.generateControllerConfig(
-                            controllerVdfText,
-                            controllerDir.toPath(),
-                        )
-                    }.onFailure { e ->
-                        Timber.w(e, "Failed to generate controller config for appId=$appId")
+                    wroteWinNativeActionMap =
+                        runCatching {
+                            SteamControllerVdfUtils.generateControllerConfig(
+                                controllerVdfText,
+                                controllerDir.toPath(),
+                            )
+                        }.onFailure { e ->
+                            Timber.w(e, "Failed to generate controller config for appId=$appId")
+                        }.getOrDefault(false)
+                    if (!wroteWinNativeActionMap) {
+                        Timber.d("No WinNative Steam Input action map generated for appId=$appId")
                     }
+                }
+                if (!wroteWinNativeActionMap && winNativeActionMapFile.exists()) {
+                    winNativeActionMapFile.delete()
                 }
             } else {
                 runCatching {
                     if (controllerDir.exists()) controllerDir.deleteRecursively()
                 }.onFailure { e ->
                     Timber.w(e, "Failed to delete controller config dir for appId=$appId")
+                }
+                if (winNativeActionMapFile.exists()) {
+                    winNativeActionMapFile.delete()
                 }
             }
 

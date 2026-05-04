@@ -111,6 +111,7 @@ public class FakeInputWriter {
         releaseRingSlotLocked(slot);
       }
     }
+    SteamInputStateWriter.releaseAllSlots();
   }
 
   private static String buildRingEnvLocked() {
@@ -360,6 +361,7 @@ public class FakeInputWriter {
         return false;
       }
       this.isOpen = true;
+      SteamInputStateWriter.writeConnectedState(this.slot, null);
       Log.i(TAG, "Opened fake input: " + this.eventFile.getAbsolutePath());
       return true;
     } catch (IOException e) {
@@ -419,9 +421,11 @@ public class FakeInputWriter {
         writeEvent((short) 0, (short) 0, 0);
         this.buffer.flip();
         if (!flushBuffer()) Log.e(TAG, "Reset write error: fake input mmap ring unavailable");
+        SteamInputStateWriter.writeConnectedState(this.slot, null);
         Log.i(TAG, "Reset fake input to neutral state: " + this.eventFile.getAbsolutePath());
         return;
       }
+      SteamInputStateWriter.writeConnectedState(this.slot, null);
       Log.i(TAG, "Reset fake input to neutral state: " + this.eventFile.getAbsolutePath());
     }
   }
@@ -437,6 +441,7 @@ public class FakeInputWriter {
     reset();
     close();
     deactivateRingSlot();
+    SteamInputStateWriter.writeDisconnectedState(this.slot);
     if (this.eventFile != null && this.eventFile.exists()) {
       boolean deleted = this.eventFile.delete();
       Log.i(
@@ -479,8 +484,10 @@ public class FakeInputWriter {
   public void writeGamepadState(GamepadState state) throws IOException {
     int hatX;
     if (!this.isOpen && !open()) {
+      SteamInputStateWriter.writeConnectedState(this.slot, state);
       return;
     }
+    SteamInputStateWriter.writeConnectedState(this.slot, state);
     this.buffer.clear();
     this.hasChanges = false;
     for (int i = 0; i < 10; i++) {

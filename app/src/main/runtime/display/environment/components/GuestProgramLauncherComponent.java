@@ -19,10 +19,12 @@ import com.winlator.cmod.runtime.display.connector.UnixSocketConfig;
 import com.winlator.cmod.runtime.display.environment.EnvironmentComponent;
 import com.winlator.cmod.runtime.display.environment.ImageFs;
 import com.winlator.cmod.runtime.input.controls.FakeInputWriter;
+import com.winlator.cmod.runtime.input.controls.SteamInputStateWriter;
 import com.winlator.cmod.runtime.system.GPUInformation;
 import com.winlator.cmod.runtime.system.ProcessHelper;
 import com.winlator.cmod.runtime.wine.EnvVars;
 import com.winlator.cmod.runtime.wine.WineInfo;
+import com.winlator.cmod.runtime.wine.WineUtils;
 import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.shared.util.Callback;
 import java.io.BufferedReader;
@@ -242,6 +244,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         envVars.get("LD_PRELOAD"),
         envVars.get("FAKE_EVDEV_DIR"),
         envVars.get("FAKE_EVDEV_MEMFD_PATHS"));
+    configureWinNativeSteamInputEnv(envVars, imageFs);
     FEXCorePresetManager.normalizeSmcChecksEnvVars(envVars, this.envVars);
 
     // For arm64ec Wine builds the wine binary is native ARM64 — call it directly
@@ -651,6 +654,63 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     }
   }
 
+  private void configureWinNativeSteamInputEnv(EnvVars envVars, ImageFs imageFs) {
+    if (!isWinNativeSteamInputEnabledForLaunch()) {
+      envVars.put(SteamInputStateWriter.ENABLED_ENV, "0");
+      envVars.remove(SteamInputStateWriter.ACTIONS_ENV);
+      for (int slot = 0; slot < SteamInputStateWriter.MAX_STEAM_INPUT_SLOTS; slot++) {
+        envVars.remove(SteamInputStateWriter.STATE_ENV_PREFIX + slot);
+      }
+      return;
+    }
+
+    File stateDir = SteamInputStateWriter.getStateDir(imageFs.getRootDir());
+    SteamInputStateWriter.prepareStateSlots(stateDir, SteamInputStateWriter.MAX_STEAM_INPUT_SLOTS);
+    envVars.put(SteamInputStateWriter.ENABLED_ENV, "1");
+
+    for (int slot = 0; slot < SteamInputStateWriter.MAX_STEAM_INPUT_SLOTS; slot++) {
+      File stateFile = SteamInputStateWriter.getStateFile(stateDir, slot);
+      envVars.put(
+          SteamInputStateWriter.STATE_ENV_PREFIX + slot,
+          WineUtils.getWindowsPath(container, stateFile.getAbsolutePath()));
+    }
+
+    if (envVars.get(SteamInputStateWriter.ACTIONS_ENV).isEmpty()) {
+      File actionMap = resolveWinNativeSteamInputActionMap(stateDir);
+      envVars.put(
+          SteamInputStateWriter.ACTIONS_ENV,
+          WineUtils.getWindowsPath(container, actionMap.getAbsolutePath()));
+    }
+  }
+
+  private boolean isWinNativeSteamInputEnabledForLaunch() {
+    String useSteamInput = container != null ? container.getExtra("useSteamInput", "0") : "0";
+    if (shortcut != null && container != null) {
+      useSteamInput = shortcut.getSettingExtra("useSteamInput", useSteamInput);
+    } else if (shortcut != null) {
+      useSteamInput = shortcut.getExtra("useSteamInput", useSteamInput);
+    }
+    return parseBoolean(useSteamInput);
+  }
+
+  private static boolean parseBoolean(String value) {
+    return "1".equals(value) || "true".equalsIgnoreCase(value) || "yes".equalsIgnoreCase(value);
+  }
+
+  private File resolveWinNativeSteamInputActionMap(File stateDir) {
+    if (container != null) {
+      File steamActionMap =
+          new File(
+              container.getRootDir(),
+              ".wine/drive_c/Program Files (x86)/Steam/steam_settings/"
+                  + SteamInputStateWriter.WINNATIVE_ACTION_MAP_FILE_NAME);
+      if (steamActionMap.exists()) {
+        return steamActionMap;
+      }
+    }
+    return SteamInputStateWriter.getDefaultActionMapFile(stateDir);
+  }
+
   private int execGuestProgram() {
     Context context = environment.getContext();
     ImageFs imageFs = environment.getImageFs();
@@ -847,6 +907,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         envVars.get("LD_PRELOAD"),
         envVars.get("FAKE_EVDEV_DIR"),
         envVars.get("FAKE_EVDEV_MEMFD_PATHS"));
+    configureWinNativeSteamInputEnv(envVars, imageFs);
     FEXCorePresetManager.normalizeSmcChecksEnvVars(envVars, this.envVars);
 
     String emulator = container.getEmulator();

@@ -117,6 +117,7 @@ import com.winlator.cmod.runtime.input.controls.ControlsProfile;
 import com.winlator.cmod.runtime.input.controls.ControllerManager;
 import com.winlator.cmod.runtime.input.controls.ExternalController;
 import com.winlator.cmod.runtime.input.controls.InputControlsManager;
+import com.winlator.cmod.runtime.input.controls.SteamInputStateWriter;
 import com.winlator.cmod.shared.math.Mathf;
 import com.winlator.cmod.shared.math.XForm;
 import com.winlator.cmod.runtime.audio.midi.MidiHandler;
@@ -665,6 +666,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         imageFs = ImageFs.find(this);
         GuestProgramLauncherComponent.ensureImageFsNativeLibrary(this, imageFs, "libfakeinput.so");
         GuestProgramLauncherComponent.ensureImageFsNativeLibrary(this, imageFs, "libandroid-sysvshm.so");
+        SteamInputStateWriter.prepareStateSlots(
+                SteamInputStateWriter.getStateDir(imageFs.getRootDir()),
+                SteamInputStateWriter.MAX_STEAM_INPUT_SLOTS);
         File devInputDir = new File(imageFs.getRootDir(), "dev/input");
         if (devInputDir.exists() || devInputDir.mkdirs()) {
             for (int i = 0; i < 4; i++) {
@@ -7140,6 +7144,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             File winePrefix = container.getRootDir();
             File steamDir = new File(winePrefix, ".wine/drive_c/Program Files (x86)/Steam");
             steamDir.mkdirs();
+            File steamInputActionMap = new File(
+                    steamDir,
+                    "steam_settings/" + SteamInputStateWriter.WINNATIVE_ACTION_MAP_FILE_NAME);
+            if (steamInputActionMap.exists()) {
+                envVars.put(
+                        SteamInputStateWriter.ACTIONS_ENV,
+                        WineUtils.getWindowsPath(container, steamInputActionMap.getAbsolutePath()));
+            }
             boolean launchRealSteamMode = shortcut != null
                     ? parseBoolean(getShortcutSetting("launchRealSteam", container.isLaunchRealSteam() ? "1" : "0"))
                     : container.isLaunchRealSteam();
