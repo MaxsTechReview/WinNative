@@ -7,6 +7,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -32,6 +33,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -75,7 +77,9 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.remember
@@ -84,10 +88,14 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.boundsInParent
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.res.integerArrayResource
@@ -116,10 +124,20 @@ import kotlin.math.roundToInt
 // translucent surfaces (the previous design) wash out unpredictably depending
 // on what's on screen behind them.
 
-// Drawer-local replacements for the shared theme tokens.
-// DrawerAccent matches the shared WinNativeAccent so the drawer reads as part
-// of the app, while the surrounding surfaces stay on the warm-charcoal palette.
-private val DrawerAccent = Color(0xFF1A9FFF)
+// Drawer-local accent palette — monochromatic blue, three roles, distinguished by
+// hue + lightness within the blue family:
+//   DrawerAccent (blue-500)     — brand / "you are here" / interactive UI: rail
+//                                 underline, selected tab, sliders, switches,
+//                                 dropdowns, focus rings. Tailwind blue-500: true
+//                                 blue, deep saturation, classic primary.
+//   DrawerActiveAccent (sky)    — "this thing is currently running": active card
+//                                 borders, FPS-on / Pause / Native-on indicators.
+//                                 Brighter and more cyan-leaning than the primary,
+//                                 so an active card pops against a selected tile.
+//   GlassExitTint (coral)       — destructive: Exit affordance. Stays warm because
+//                                 a blue exit signal wouldn't read as "stop."
+private val DrawerAccent = Color(0xFF60A5FA)
+private val DrawerActiveAccent = Color(0xFF38BDF8)
 private val DrawerTextPrimary = Color(0xFFE8ECF1)
 private val DrawerTextSecondary = Color(0xFF8B95A6)
 private val DrawerOutline = Color(0xFF2E343F)
@@ -145,11 +163,11 @@ private val PaneInnerPressed = Color(0xFF2D323C)
 private val RestingCardBorder = Color(0xFF2E343F)
 private val DisabledCardBorder = Color(0xFF1F232B)
 
-// Selection / active treatment — colored fill so it's recognizable in
-// peripheral vision, plus a blue border. The previous "more white" approach
-// disappeared on busy backgrounds.
-private val SelectedTileFill = Color(0xFF1F2E45)
-private val ActiveCardBorder = DrawerAccent
+// Active-state treatment — coloured border, in teal, signals "this thing is
+// currently running" (FPS Monitor on, Native Rendering on, Pause active, etc.).
+// Distinct from amber DrawerAccent which signals "user-driven UI state" (selected
+// tab, focused field, expanded card, slider thumb).
+private val ActiveCardBorder = DrawerActiveAccent
 
 // Hairline that separates the bottom Pause/Exit row from the body content.
 private val BottomDividerColor = Color(0xFF2E343F)
@@ -232,6 +250,11 @@ private val TopRailTileSpacing = 6.dp
 private const val ActionCardColumns = 3
 private val ActionCardMinHeight = 72.dp
 private val ActionCardSpacing = 8.dp
+
+// Per-card reveal stagger — each card fades+slides in this many ms after the previous one.
+// Total reveal time = (cardCount - 1) * stagger + duration; tuned to feel snappy on ~9 cards.
+private const val ActionCardRevealStaggerMs = 28
+private const val ActionCardRevealDurationMs = 220
 
 data class XServerDrawerItem(
     val itemId: Int,
@@ -623,6 +646,15 @@ internal fun XServerDrawerContent(
     listener: XServerDrawerActionListener,
     onDismiss: () -> Unit,
 ) {
+    // Card stagger reveal — fires once per drawer-open session. The drawer host removes
+    // XServerDrawerContent from composition entirely when the drawer closes (see
+    // XServerDisplayHost: drawerContentVisible gate), so this LaunchedEffect runs again
+    // on the next open. Crucially it does NOT run when the user navigates from a pane
+    // back to the Menu tab — the Crossfade only re-creates ActionCardGrid, not its
+    // parent, so this state survives that transition.
+    val cardsRevealed = remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { cardsRevealed.value = true }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = Color.Transparent,
@@ -665,6 +697,7 @@ internal fun XServerDrawerContent(
                                     ActionCardGrid(
                                         state = state,
                                         listener = listener,
+                                        cardsRevealed = cardsRevealed.value,
                                         onActionInvoked = onDismiss,
                                     )
                             }
@@ -685,6 +718,9 @@ internal fun XServerDrawerContent(
     }
 }
 
+// Tracked layout bounds for one rail tile, in the rail's own coordinate space.
+private data class RailTileBounds(val offsetX: Float, val width: Float, val height: Float)
+
 @Composable
 private fun TopRail(
     state: XServerDrawerState,
@@ -693,8 +729,51 @@ private fun TopRail(
     onMenuClick: () -> Unit,
 ) {
     val paneScale = LocalPaneScale.current
+    val density = LocalDensity.current
     val activeSpecs = RAIL_PANES.filter { spec -> state.items.any { it.itemId == spec.itemId } }
-    Row(
+
+    // Rail tiles report their bounds here so the sliding indicator can size+position itself.
+    // Map keyed by tileKey so a tile's entry survives reorders/recompositions.
+    val tileBounds = remember { mutableStateMapOf<String, RailTileBounds>() }
+
+    val selectedKey =
+        when (openPane) {
+            null -> "menu"
+            else -> activeSpecs.firstOrNull { it.pane == openPane }?.itemId?.toString() ?: "menu"
+        }
+    val selectedBounds = tileBounds[selectedKey]
+
+    // Indicator slides between tiles. Initial value (0.dp / 0.dp) is hidden; once
+    // a tile reports its bounds we animate to that target on every selection change.
+    val indicatorAnimSpec = tween<Dp>(durationMillis = 240, easing = FastOutSlowInEasing)
+    val indicatorX by animateDpAsState(
+        targetValue = selectedBounds?.let { with(density) { it.offsetX.toDp() } } ?: 0.dp,
+        animationSpec = indicatorAnimSpec,
+        label = "topRailIndicatorX",
+    )
+    val indicatorWidth by animateDpAsState(
+        targetValue = selectedBounds?.let { with(density) { it.width.toDp() } } ?: 0.dp,
+        animationSpec = indicatorAnimSpec,
+        label = "topRailIndicatorW",
+    )
+    val indicatorTileHeight by animateDpAsState(
+        targetValue = selectedBounds?.let { with(density) { it.height.toDp() } } ?: 0.dp,
+        animationSpec = indicatorAnimSpec,
+        label = "topRailIndicatorTileHeight",
+    )
+    val indicatorAlpha by animateFloatAsState(
+        targetValue = if (selectedBounds != null) 1f else 0f,
+        animationSpec = tween(durationMillis = 160),
+        label = "topRailIndicatorAlpha",
+    )
+
+    // Underline geometry: thin accent bar pinned to the bottom of the selected tile,
+    // inset slightly from the tile edges so it reads as a tab indicator rather than
+    // a full-width divider.
+    val underlineThickness = (2f * paneScale).dp
+    val underlineHorizontalInset = (6f * paneScale).dp
+
+    Box(
         modifier =
             Modifier
                 .fillMaxWidth()
@@ -705,28 +784,52 @@ private fun TopRail(
                     top = (5f * paneScale).dp,
                     bottom = (2f * paneScale).dp,
                 ),
-        horizontalArrangement = Arrangement.spacedBy(TopRailTileSpacing),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Menu tile is selected whenever no pane is open — the body shows the action card grid.
-        TopRailTile(
-            icon = Icons.Outlined.Apps,
-            label = stringResource(R.string.session_drawer_main_menu_title),
-            active = false,
-            selected = openPane == null,
-            onClick = onMenuClick,
-            tileKey = "menu",
-        )
-        activeSpecs.forEach { spec ->
-            val item = state.items.first { it.itemId == spec.itemId }
-            TopRailTile(
-                icon = spec.iconOverride ?: item.icon,
-                label = stringResource(spec.labelRes),
-                active = item.active,
-                selected = openPane == spec.pane,
-                onClick = { onTabClick(spec) },
-                tileKey = item.itemId.toString(),
+        // Sliding underline indicator — sits at the bottom of the selected tile and
+        // animates x/width to slide between tiles.
+        if (selectedBounds != null) {
+            Box(
+                modifier =
+                    Modifier
+                        .offset(
+                            x = indicatorX + underlineHorizontalInset,
+                            y = indicatorTileHeight - underlineThickness,
+                        )
+                        .width((indicatorWidth - underlineHorizontalInset * 2).coerceAtLeast(0.dp))
+                        .height(underlineThickness)
+                        .graphicsLayer { alpha = indicatorAlpha }
+                        .clip(RoundedCornerShape(underlineThickness / 2))
+                        .background(DrawerAccent),
             )
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(TopRailTileSpacing),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Menu tile is selected whenever no pane is open — the body shows the action card grid.
+            TopRailTile(
+                icon = Icons.Outlined.Apps,
+                label = stringResource(R.string.session_drawer_main_menu_title),
+                active = false,
+                selected = openPane == null,
+                onClick = onMenuClick,
+                tileKey = "menu",
+                onBoundsChanged = { tileBounds["menu"] = it },
+            )
+            activeSpecs.forEach { spec ->
+                val item = state.items.first { it.itemId == spec.itemId }
+                val key = item.itemId.toString()
+                TopRailTile(
+                    icon = spec.iconOverride ?: item.icon,
+                    label = stringResource(spec.labelRes),
+                    active = item.active,
+                    selected = openPane == spec.pane,
+                    onClick = { onTabClick(spec) },
+                    tileKey = key,
+                    onBoundsChanged = { tileBounds[key] = it },
+                )
+            }
         }
     }
 }
@@ -739,6 +842,7 @@ private fun TopRailTile(
     selected: Boolean,
     onClick: () -> Unit,
     tileKey: String,
+    onBoundsChanged: (RailTileBounds) -> Unit,
 ) {
     val paneScale = LocalPaneScale.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -759,27 +863,27 @@ private fun TopRailTile(
             ),
         label = "topRailScale_$tileKey",
     )
-    // Selected tiles use a subtle neutral fill rather than an accent outline so the
-    // rail stays quiet; the active pane is signalled by fill + tint, not a blue border.
+    // Selected fill is now drawn by the sliding indicator pill in the rail's parent.
+    // Tiles only paint a press feedback fill when not selected.
     val bgColor by animateColorAsState(
         targetValue =
             when {
-                pressed -> PaneSurfacePressed
-                selected -> SelectedTileFill
+                pressed && !selected -> PaneSurfacePressed
                 else -> Color.Transparent
             },
         animationSpec = tween(120),
         label = "topRailBg_$tileKey",
     )
-    val borderColor by animateColorAsState(
-        targetValue = Color.Transparent,
-        animationSpec = tween(120),
-        label = "topRailBorder_$tileKey",
-    )
+    // Tint splits brand vs running:
+    //   selected -> amber (this is the open pane / "you are here")
+    //   active && !selected -> teal (this rail item has something turned on, but
+    //                                you aren't currently looking at it)
+    //   otherwise -> primary text colour
     val tint by animateColorAsState(
         targetValue =
             when {
-                selected || active -> DrawerAccent
+                selected -> DrawerAccent
+                active -> DrawerActiveAccent
                 else -> DrawerTextPrimary
             },
         animationSpec = tween(120),
@@ -791,13 +895,22 @@ private fun TopRailTile(
         modifier =
             Modifier
                 .defaultMinSize(minWidth = minWidth)
+                .onGloballyPositioned { coords ->
+                    val bounds = coords.boundsInParent()
+                    onBoundsChanged(
+                        RailTileBounds(
+                            offsetX = bounds.left,
+                            width = bounds.width,
+                            height = bounds.height,
+                        ),
+                    )
+                }
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
                 }
                 .clip(shape)
                 .background(bgColor)
-                .border(1.dp, borderColor, shape)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -836,6 +949,7 @@ private fun TopRailTile(
 private fun ActionCardGrid(
     state: XServerDrawerState,
     listener: XServerDrawerActionListener,
+    cardsRevealed: Boolean,
     onActionInvoked: () -> Unit,
 ) {
     val paneScale = LocalPaneScale.current
@@ -843,6 +957,7 @@ private fun ActionCardGrid(
         state.items.filter {
             it.itemId !in RAIL_PANE_ITEM_IDS && it.itemId !in PINNED_BOTTOM_ITEM_IDS
         }
+
     Column(
         modifier =
             Modifier
@@ -856,11 +971,13 @@ private fun ActionCardGrid(
             verticalArrangement = Arrangement.spacedBy(ActionCardSpacing),
             maxItemsInEachRow = ActionCardColumns,
         ) {
-            cards.forEach { item ->
+            cards.forEachIndexed { index, item ->
                 val label = railLabelResFor(item.itemId)?.let { stringResource(it) } ?: item.title
                 ActionCard(
                     item = item,
                     label = label,
+                    revealIndex = index,
+                    revealed = cardsRevealed,
                     modifier =
                         Modifier
                             .weight(1f)
@@ -886,6 +1003,8 @@ private fun ActionCardGrid(
 private fun ActionCard(
     item: XServerDrawerItem,
     label: String,
+    revealIndex: Int,
+    revealed: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -893,6 +1012,31 @@ private fun ActionCard(
     val interactionSource = remember { MutableInteractionSource() }
     val pressed = interactionSource.collectIsPressedAsState().value
     val enabled = item.enabled
+
+    // Staggered fade+slide-up entrance. Delay grows with reveal index so cards appear
+    // in reading order. Once revealed the values stay at their target — recomposes
+    // from press/state changes don't re-trigger the entrance.
+    val staggerDelay = revealIndex * ActionCardRevealStaggerMs
+    val revealAlpha by animateFloatAsState(
+        targetValue = if (revealed) 1f else 0f,
+        animationSpec =
+            tween(
+                durationMillis = ActionCardRevealDurationMs,
+                delayMillis = staggerDelay,
+                easing = FastOutSlowInEasing,
+            ),
+        label = "actionCardReveal_${item.itemId}",
+    )
+    val revealOffsetY by animateDpAsState(
+        targetValue = if (revealed) 0.dp else 8.dp,
+        animationSpec =
+            tween(
+                durationMillis = ActionCardRevealDurationMs,
+                delayMillis = staggerDelay,
+                easing = FastOutSlowInEasing,
+            ),
+        label = "actionCardRevealOffset_${item.itemId}",
+    )
 
     val scale by animateFloatAsState(
         targetValue = if (pressed && enabled) 0.96f else 1f,
@@ -927,7 +1071,7 @@ private fun ActionCard(
         targetValue =
             when {
                 !enabled -> DrawerTextSecondary.copy(alpha = 0.45f)
-                item.active -> DrawerAccent
+                item.active -> DrawerActiveAccent
                 else -> DrawerTextPrimary
             },
         animationSpec = tween(120),
@@ -936,15 +1080,25 @@ private fun ActionCard(
 
     val cornerRadius = (12f * paneScale).dp
     val shape = RoundedCornerShape(cornerRadius)
+    val topColor =
+        Color(
+            red = (bgColor.red + (1f - bgColor.red) * 0.03f).coerceIn(0f, 1f),
+            green = (bgColor.green + (1f - bgColor.green) * 0.03f).coerceIn(0f, 1f),
+            blue = (bgColor.blue + (1f - bgColor.blue) * 0.03f).coerceIn(0f, 1f),
+            alpha = bgColor.alpha,
+        )
+    val cardBrush = Brush.verticalGradient(listOf(topColor, bgColor))
     Column(
         modifier =
             modifier
+                .offset(y = revealOffsetY)
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
+                    alpha = revealAlpha
                 }
                 .clip(shape)
-                .background(bgColor)
+                .background(cardBrush)
                 .border(1.dp, borderColor, shape)
                 .clickable(
                     enabled = enabled,
@@ -1046,7 +1200,7 @@ private fun BottomActionButton(
     val tint =
         when {
             isExit -> GlassExitTint
-            item.active -> DrawerAccent
+            item.active -> DrawerActiveAccent
             else -> DrawerTextPrimary
         }
 
