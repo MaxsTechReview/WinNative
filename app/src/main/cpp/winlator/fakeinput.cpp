@@ -47,6 +47,9 @@ static constexpr const char *GAMEPAD_PHYS_TEMPLATE = "usb-fakeinput/input%d";
 static constexpr const char *GAMEPAD_UNIQ_TEMPLATE = "0000000000%02d";
 static constexpr uint8_t GAMEPAD_AXIS_COUNT = 8;
 static constexpr uint8_t GAMEPAD_BUTTON_COUNT = 11;
+static constexpr unsigned int INPUT_DEVICE_MAJOR = 13;
+static constexpr unsigned int INPUT_EVENT_MINOR_BASE = 64;
+static constexpr unsigned int INPUT_JS_MINOR_BASE = 0;
 static constexpr uint32_t FAKE_INPUT_RING_MAGIC = 0x46494252;
 static constexpr uint32_t FAKE_INPUT_RING_VERSION = 1;
 static constexpr uint32_t FAKE_INPUT_EVENT_SIZE = sizeof(struct input_event);
@@ -91,6 +94,8 @@ volatile sig_atomic_t stop_flag = 0;
 static int (*my_open)(const char *, int, ...) = nullptr;
 static int (*my_openat)(int, const char *, int, ...) = nullptr;
 static int (*my_stat)(const char *, struct stat *) = nullptr;
+static int (*my_lstat)(const char *, struct stat *) = nullptr;
+static int (*my_fstatat)(int, const char *, struct stat *, int) = nullptr;
 static int (*my_fstat)(int fd, struct stat *buf) = nullptr;
 static int (*my_scandir)(const char *, struct dirent ***,
                          int (*)(const struct dirent *),
@@ -229,8 +234,43 @@ get_event(const char *pathname) {
 }
 
 __attribute__((visibility("hidden"))) int get_event_number(const char *event) {
-  int event_number = atoi(event + strlen(event) - 1);
-  return event_number;
+  if (!event)
+    return -1;
+
+  const char *digits = event + strlen(event);
+  while (digits > event && digits[-1] >= '0' && digits[-1] <= '9')
+    --digits;
+
+  if (!*digits)
+    return -1;
+
+  return atoi(digits);
+}
+
+__attribute__((visibility("hidden"))) static dev_t
+get_fake_input_rdev(const char *event) {
+  int event_number = get_event_number(event);
+  if (event_number < 0)
+    event_number = 0;
+
+  if (event && !strncmp(event, "event", 5)) {
+    return makedev(INPUT_DEVICE_MAJOR, INPUT_EVENT_MINOR_BASE + event_number);
+  }
+
+  if (event && !strncmp(event, "js", 2)) {
+    return makedev(INPUT_DEVICE_MAJOR, INPUT_JS_MINOR_BASE + event_number);
+  }
+
+  return makedev(INPUT_DEVICE_MAJOR, INPUT_EVENT_MINOR_BASE + event_number);
+}
+
+__attribute__((visibility("hidden"))) static void
+mark_fake_input_stat(struct stat *statbuf, const char *event) {
+  if (!statbuf || !event)
+    return;
+
+  statbuf->st_mode = (statbuf->st_mode & ~S_IFMT) | S_IFCHR;
+  statbuf->st_rdev = get_fake_input_rdev(event);
 }
 
 __attribute__((visibility("hidden"))) static void load_ring_paths() {
@@ -504,13 +544,11 @@ EXPORT int stat(const char *pathname, struct stat *statbuf) {
     *(void **)&my_stat = dlsym(RTLD_NEXT, "stat");
 
   const char *event = nullptr;
-  int event_number = -1;
   char *fake_path = nullptr;
 
   if (pathname) {
     if (is_fake_input_node_path(pathname)) {
       event = get_event(pathname);
-      event_number = get_event_number(event);
       fake_path = from_real_to_fake_path(pathname);
       pathname = fake_path;
     } else if (!strcmp(pathname, "/dev/input")) {
@@ -520,9 +558,69 @@ EXPORT int stat(const char *pathname, struct stat *statbuf) {
 
   int ret = my_stat(pathname, statbuf);
 
-  if (ret == 0 && event && event_number >= 0) {
-    statbuf->st_mode = (statbuf->st_mode & ~S_IFMT) | S_IFCHR;
-    statbuf->st_rdev = makedev(1, event_number);
+  if (ret == 0 && event) {
+    mark_fake_input_stat(statbuf, event);
+  }
+
+  if (fake_path)
+    free(fake_path);
+
+  return ret;
+}
+
+EXPORT int lstat(const char *pathname, struct stat *statbuf) {
+  if (!my_lstat)
+    *(void **)&my_lstat = dlsym(RTLD_NEXT, "lstat");
+
+  const char *event = nullptr;
+  char *fake_path = nullptr;
+
+  if (pathname) {
+    if (is_fake_input_node_path(pathname)) {
+      event = get_event(pathname);
+      fake_path = from_real_to_fake_path(pathname);
+      pathname = fake_path;
+    } else if (!strcmp(pathname, "/dev/input")) {
+      pathname = hook_dir;
+    }
+  }
+
+  int ret = my_lstat(pathname, statbuf);
+
+  if (ret == 0 && event) {
+    mark_fake_input_stat(statbuf, event);
+  }
+
+  if (fake_path)
+    free(fake_path);
+
+  return ret;
+}
+
+EXPORT int fstatat(int dirfd, const char *pathname, struct stat *statbuf,
+                   int flags) {
+  if (!my_fstatat)
+    *(void **)&my_fstatat = dlsym(RTLD_NEXT, "fstatat");
+
+  const char *event = nullptr;
+  char *fake_path = nullptr;
+
+  if (pathname) {
+    if (is_fake_input_node_path(pathname)) {
+      event = get_event(pathname);
+      fake_path = from_real_to_fake_path(pathname);
+      pathname = fake_path;
+      dirfd = AT_FDCWD;
+    } else if (!strcmp(pathname, "/dev/input")) {
+      pathname = hook_dir;
+      dirfd = AT_FDCWD;
+    }
+  }
+
+  int ret = my_fstatat(dirfd, pathname, statbuf, flags);
+
+  if (ret == 0 && event) {
+    mark_fake_input_stat(statbuf, event);
   }
 
   if (fake_path)
@@ -539,8 +637,7 @@ EXPORT int fstat(int fd, struct stat *buf) {
 
   auto controller = controller_map.find(fd);
   if (ret == 0 && controller != controller_map.end()) {
-    buf->st_mode = (buf->st_mode & ~S_IFMT) | S_IFCHR;
-    buf->st_rdev = makedev(1, controller->second.slot);
+    mark_fake_input_stat(buf, controller->second.event);
   }
 
   return ret;
