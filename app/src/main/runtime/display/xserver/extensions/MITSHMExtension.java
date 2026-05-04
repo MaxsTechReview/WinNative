@@ -77,7 +77,7 @@ public class MITSHMExtension implements Extension {
     client.xServer.getSHMSegmentManager().detach(inputStream.readInt());
   }
 
-  private static void putImage(XClient client, XInputStream inputStream, XOutputStream outputStream)
+  private static boolean putImage(XClient client, XInputStream inputStream, XOutputStream outputStream)
       throws IOException, XRequestError {
     int drawableId = inputStream.readInt();
     int gcId = inputStream.readInt();
@@ -110,6 +110,8 @@ public class MITSHMExtension implements Extension {
 
     drawable.drawImage(
         srcX, srcY, dstX, dstY, srcWidth, srcHeight, depth, data, totalWidth, totalHeight);
+
+    return totalWidth > client.xServer.screenInfo.width / 2;
   }
 
   @Override
@@ -131,12 +133,16 @@ public class MITSHMExtension implements Extension {
         }
         break;
       case ClientOpcodes.PUT_IMAGE:
+        boolean isLargeImage = false;
         try (XLock lock =
             client.xServer.lock(
                 XServer.Lockable.SHMSEGMENT_MANAGER,
                 XServer.Lockable.DRAWABLE_MANAGER,
                 XServer.Lockable.GRAPHIC_CONTEXT_MANAGER)) {
-          putImage(client, inputStream, outputStream);
+          isLargeImage = putImage(client, inputStream, outputStream);
+        }
+        if (isLargeImage) {
+          client.enforceAbsoluteFramerate();
         }
         break;
       default:

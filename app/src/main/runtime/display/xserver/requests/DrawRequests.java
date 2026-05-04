@@ -27,7 +27,7 @@ public abstract class DrawRequests {
     PREVIOUS
   }
 
-  public static void putImage(XClient client, XInputStream inputStream, XOutputStream outputStream)
+  public static boolean putImage(XClient client, XInputStream inputStream, XOutputStream outputStream)
       throws XRequestError {
     Format format = Format.values()[client.getRequestData()];
     int drawableId = inputStream.readInt();
@@ -79,7 +79,8 @@ public abstract class DrawRequests {
     if (window != null) {
       client.xServer.windowManager.triggerOnFramePresented(window);
     }
-    client.enforceAbsoluteFramerate();
+
+    return width > client.xServer.screenInfo.width / 2;
   }
 
   public static void getImage(XClient client, XInputStream inputStream, XOutputStream outputStream)

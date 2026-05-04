@@ -306,7 +306,7 @@ class ContentsFragment : Fragment() {
         DirectoryPickerDialog.showFile(
             activity = activity,
             title = getString(R.string.settings_content_install),
-            allowedExtensions = setOf("wcp"),
+            allowedExtensions = setOf("wcp", "xz", "txz", "tzst"),
         ) { path ->
             updateDownloadProgress(
                 title = getString(R.string.settings_content_installing_title),

@@ -58,11 +58,11 @@ public class GLRenderer
   public int surfaceHeight;
   private boolean cpuSaverMode = false;
   private static final int MAX_FPS_LIMIT = 1000;
-  private static final long FPS_LIMIT_SPIN_THRESHOLD_NS = 500_000L;
-  private final Object fpsLimiterLock = new Object();
+  public static final long FPS_LIMIT_SPIN_THRESHOLD_NS = 2_000_000L;
   private volatile int currentFpsLimit = 0;
-  private long nextFrameTimeNanos = 0;
   private boolean wasDirectMode = false;
+  private final android.os.Handler mainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+  private final java.util.concurrent.atomic.AtomicBoolean renderRequested = new java.util.concurrent.atomic.AtomicBoolean(false);
 
   private final EffectComposer effectComposer;
 
@@ -82,6 +82,20 @@ public class GLRenderer
 
     xServer.windowManager.addOnWindowModificationListener(this);
     xServer.pointer.addOnPointerMotionListener(this);
+  }
+
+  public void requestRenderCoalesced() {
+    if (renderRequested.compareAndSet(false, true)) {
+      mainHandler.post(
+          () -> {
+            android.view.Choreographer.getInstance()
+                .postFrameCallback(
+                    frameTimeNanos -> {
+                      renderRequested.set(false);
+                      xServerView.requestRender();
+                    });
+          });
+    }
   }
 
   @Override
@@ -193,24 +207,24 @@ public class GLRenderer
   @Override
   public void onMapWindow(Window window) {
     xServerView.queueEvent(this::updateScene);
-    xServerView.requestRender();
+    requestRenderCoalesced();
   }
 
   @Override
   public void onUnmapWindow(Window window) {
     xServerView.queueEvent(this::updateScene);
-    xServerView.requestRender();
+    requestRenderCoalesced();
   }
 
   @Override
   public void onChangeWindowZOrder(Window window) {
     xServerView.queueEvent(this::updateScene);
-    xServerView.requestRender();
+    requestRenderCoalesced();
   }
 
   @Override
   public void onUpdateWindowContent(Window window) {
-    xServerView.requestRender();
+    requestRenderCoalesced();
   }
 
   @Override
@@ -220,17 +234,17 @@ public class GLRenderer
     } else {
       xServerView.queueEvent(() -> updateWindowPosition(window));
     }
-    xServerView.requestRender();
+    requestRenderCoalesced();
   }
 
   @Override
   public void onUpdateWindowAttributes(Window window, Bitmask mask) {
-    if (mask.isSet(WindowAttributes.FLAG_CURSOR)) xServerView.requestRender();
+    if (mask.isSet(WindowAttributes.FLAG_CURSOR)) requestRenderCoalesced();
   }
 
   @Override
   public void onPointerMove(short x, short y) {
-    xServerView.requestRender();
+    requestRenderCoalesced();
   }
 
   private void renderDrawable(Drawable drawable, int x, int y, ShaderMaterial material) {
@@ -319,7 +333,7 @@ public class GLRenderer
   public void toggleFullscreen() {
     fullscreen = !fullscreen;
     viewportNeedsUpdate = true;
-    xServerView.requestRender();
+    requestRenderCoalesced();
   }
 
   private Drawable createRootCursorDrawable() {
@@ -390,7 +404,7 @@ public class GLRenderer
       return;
     }
     this.cursorVisible = cursorVisible;
-    xServerView.requestRender();
+    requestRenderCoalesced();
   }
 
   public boolean isCursorVisible() {
@@ -403,7 +417,7 @@ public class GLRenderer
 
   public void setScreenOffsetYRelativeToCursor(boolean screenOffsetYRelativeToCursor) {
     this.screenOffsetYRelativeToCursor = screenOffsetYRelativeToCursor;
-    xServerView.requestRender();
+    requestRenderCoalesced();
   }
 
   public boolean isFullscreen() {
@@ -419,7 +433,7 @@ public class GLRenderer
       this.magnifierZoom = magnifierZoom;
       magnifierPanInitialized = false;
     }
-    xServerView.requestRender();
+    requestRenderCoalesced();
   }
 
   private void computeMagnifierPan(float[] outXForm) {
@@ -513,7 +527,7 @@ public class GLRenderer
       cpuSaverMode = enable;
       viewportNeedsUpdate = true;
       applyRenderMode();
-      xServerView.requestRender();
+      requestRenderCoalesced();
     }
   }
 
@@ -527,7 +541,7 @@ public class GLRenderer
     magnifierPanInitialized = false;
     viewportNeedsUpdate = true;
     applyRenderMode();
-    xServerView.requestRender();
+    requestRenderCoalesced();
   }
 
   public boolean isMagnifierUIActive() {
@@ -539,48 +553,11 @@ public class GLRenderer
   }
 
   public void setFpsLimit(int fps) {
-    int normalizedFps = Math.max(0, Math.min(fps, MAX_FPS_LIMIT));
-    synchronized (fpsLimiterLock) {
-      if (currentFpsLimit != normalizedFps) {
-        currentFpsLimit = normalizedFps;
-        nextFrameTimeNanos = 0;
-      }
-    }
+    currentFpsLimit = Math.max(0, Math.min(fps, MAX_FPS_LIMIT));
   }
 
   public int getFpsLimit() {
     return currentFpsLimit;
-  }
-
-  public void enforceFpsLimit() {
-    int targetFps = currentFpsLimit;
-    if (targetFps <= 0) {
-      synchronized (fpsLimiterLock) {
-        nextFrameTimeNanos = 0;
-      }
-      return;
-    }
-
-    long targetFrameTime = 1_000_000_000L / targetFps;
-    synchronized (fpsLimiterLock) {
-      long now = System.nanoTime();
-      if (nextFrameTimeNanos == 0 || now > nextFrameTimeNanos + targetFrameTime) {
-        nextFrameTimeNanos = now;
-      }
-
-      long sleepTime = nextFrameTimeNanos - now;
-      while (sleepTime > 0) {
-        if (sleepTime > FPS_LIMIT_SPIN_THRESHOLD_NS) {
-          LockSupport.parkNanos(sleepTime - FPS_LIMIT_SPIN_THRESHOLD_NS);
-        } else {
-          Thread.yield();
-        }
-        now = System.nanoTime();
-        sleepTime = nextFrameTimeNanos - now;
-      }
-
-      nextFrameTimeNanos += targetFrameTime;
-    }
   }
 
   private void resetFrameState() {
@@ -695,6 +672,5 @@ public class GLRenderer
 
   @Override
   public void onFramePresented(com.winlator.cmod.runtime.display.xserver.Window window) {
-    xServerView.requestRender();
   }
 }
