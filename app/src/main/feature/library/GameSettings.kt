@@ -2165,24 +2165,42 @@ private fun findKnownEnvVar(name: String): Array<String>? =
     EnvVarsView.knownEnvVars.firstOrNull { it[0] == name }
 
 // WINEESYNC and WINENTSYNC cannot both be enabled. When the user turns one on,
-// flip the other off if it is currently on. No-op when the user disables a sync.
+// flip the other off if it is currently on. If both are set to off (0),
+// default WINEESYNC to on (1) as the fallback.
 private fun applyExclusiveSync(
     list: MutableList<EnvVarItem>,
     changedKey: String,
     newValue: String
 ) {
+    if (changedKey != "WINEESYNC" && changedKey != "WINENTSYNC") return
+
     val isOnNow = newValue == "1" || newValue.equals("true", ignoreCase = true)
-    if (!isOnNow) return
-    val sibling = when (changedKey) {
-        "WINEESYNC" -> "WINENTSYNC"
-        "WINENTSYNC" -> "WINEESYNC"
-        else -> return
-    }
+    val sibling = if (changedKey == "WINEESYNC") "WINENTSYNC" else "WINEESYNC"
     val sIdx = list.indexOfFirst { it.key == sibling }
-    if (sIdx >= 0) {
-        val cur = list[sIdx].value
-        if (cur == "1" || cur.equals("true", ignoreCase = true)) {
+
+    if (isOnNow) {
+        // If turning ON, turn OFF the sibling
+        if (sIdx >= 0) {
             list[sIdx] = EnvVarItem(sibling, "0")
+        }
+    } else {
+        // If turning OFF, check if both are now OFF
+        val siblingIsOn = if (sIdx >= 0) {
+            val sValue = list[sIdx].value
+            sValue == "1" || sValue.equals("true", ignoreCase = true)
+        } else false
+
+        if (!siblingIsOn) {
+            // Both are OFF -> default ESYNC to ON
+            val eIdx = list.indexOfFirst { it.key == "WINEESYNC" }
+            if (eIdx >= 0) {
+                list[eIdx] = EnvVarItem("WINEESYNC", "1")
+            } else {
+                list.add(EnvVarItem("WINEESYNC", "1"))
+            }
+            // If the sibling was NTSYNC and we just added/updated ESYNC, ensure NTSYNC is definitely OFF
+            val nIdx = list.indexOfFirst { it.key == "WINENTSYNC" }
+            if (nIdx >= 0) list[nIdx] = EnvVarItem("WINENTSYNC", "0")
         }
     }
 }
@@ -2194,6 +2212,26 @@ private fun VariablesSection(
 ) {
     val isContainer = state.isContainerEditMode.value
     val hasDraftEnvVar = state.envVars.value.any { it.key.isBlank() }
+
+    // Ensure the required toggles exist upon entering the variables section
+    LaunchedEffect(Unit) {
+        val current = state.envVars.value.toMutableList()
+        var changed = false
+        if (current.none { it.key == "WINEESYNC" }) {
+            current.add(EnvVarItem("WINEESYNC", "1"))
+            changed = true
+        }
+        if (current.none { it.key == "WINENTSYNC" }) {
+            current.add(EnvVarItem("WINENTSYNC", "0"))
+            changed = true
+        }
+        if (changed) {
+            // Run exclusivity check to handle cases where both might have been added at once
+            val esyncValue = current.find { it.key == "WINEESYNC" }?.value ?: "1"
+            applyExclusiveSync(current, "WINEESYNC", esyncValue)
+            state.envVars.value = current
+        }
+    }
 
     if (isContainer) {
         SubsectionLabel(stringResource(R.string.container_config_variables))
@@ -2234,6 +2272,7 @@ private fun VariablesSection(
                             state.envVars.value.none { it.key == normalizedKey }
                         if (index in list.indices && isUnique) {
                             list[index] = EnvVarItem(normalizedKey, envVar.value)
+                            applyExclusiveSync(list, normalizedKey, envVar.value)
                             state.envVars.value = list
                         }
                     },

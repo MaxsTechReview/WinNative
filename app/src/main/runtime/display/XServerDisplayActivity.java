@@ -6148,26 +6148,35 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         // Either NTSync was explicitly requested, or no sync vars are set at all.
         // In both cases: try NTSync first, fall back to ESync if unavailable.
         if (canAccessNtsyncDevice()) {
-            // NTSync available — enable it, disable ESync (mutually exclusive).
-            envVars.put("WINENTSYNC", "1");
-            envVars.put("PROTON_USE_NTSYNC", "1");
-            envVars.remove("WINEESYNC");
-            envVars.put("PROTON_NO_ESYNC", "1");
-            Log.d("XServerDisplayActivity",
-                    "Sync: NTSync enabled (/dev/ntsync accessible) — disabled ESync");
-        } else {
-            // NTSync not available — fall back to ESync automatically.
-            envVars.remove("WINENTSYNC");
-            envVars.remove("PROTON_USE_NTSYNC");
-            envVars.put("WINEESYNC", "1");
-            envVars.remove("PROTON_NO_ESYNC");
-            if (ntSyncExplicit) {
-                Log.w("XServerDisplayActivity",
-                        "Sync: NTSync requested but /dev/ntsync not accessible — falling back to ESync");
-            } else {
+            // Check if user explicitly DISABLED NTSync in UI
+            String ntVal = envVars.get("WINENTSYNC");
+            boolean ntDisabled = "0".equals(ntVal) || "false".equalsIgnoreCase(ntVal);
+
+            if (!ntDisabled) {
+                // NTSync available and not disabled — enable it, disable ESync (mutually exclusive).
+                envVars.put("WINENTSYNC", "1");
+                envVars.put("PROTON_USE_NTSYNC", "1");
+                envVars.remove("WINEESYNC");
+                envVars.remove("WINEESYNC_WINLATOR");
+                envVars.remove("PROTON_USE_ESYNC");
+                envVars.put("PROTON_NO_ESYNC", "1");
                 Log.d("XServerDisplayActivity",
-                        "Sync: NTSync not available (no /dev/ntsync) — using ESync");
+                        "Sync: NTSync enabled (/dev/ntsync accessible) — disabled ESync");
+                return;
             }
+        }
+
+        // Default fallback: use ESync (either NTSync unavailable, or explicitly disabled by user)
+        envVars.remove("WINENTSYNC");
+        envVars.remove("PROTON_USE_NTSYNC");
+        envVars.put("WINEESYNC", "1");
+        envVars.remove("PROTON_NO_ESYNC");
+        if (ntSyncExplicit) {
+            Log.w("XServerDisplayActivity",
+                    "Sync: NTSync requested but /dev/ntsync not accessible or disabled — falling back to ESync");
+        } else {
+            Log.d("XServerDisplayActivity",
+                    "Sync: NTSync not available or disabled — using ESync");
         }
     }
 
