@@ -571,8 +571,13 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_task_end_process">Afslut proces</string>
     <string name="session_task_new_task">Ny opgave</string>
     <string name="session_task_processes">Processer</string>
-    <string name="session_task_bring_to_front">Bring til forgrunden</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
+    <string name="session_task_per_core_usage">Brug pr. kerne</string>
+    <string name="session_task_core_label">Kerne %1$d</string>
+    <plurals name="session_task_core_count">
+        <item quantity="one">%d kerne</item>
+        <item quantity="other">%d kerner</item>
+    </plurals>
 
 
     <!-- Session > Display -->

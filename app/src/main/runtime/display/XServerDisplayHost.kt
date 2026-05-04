@@ -160,6 +160,7 @@ private fun XServerDisplayHost(
                         if (drawerContentVisible) {
                             XServerDrawerContent(
                                 state = stateHolder.state,
+                                taskManagerState = stateHolder.taskManagerState,
                                 openPane = stateHolder.openPane,
                                 onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
                                 listener = listener,

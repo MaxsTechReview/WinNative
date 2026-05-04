@@ -5,9 +5,11 @@ import static com.winlator.cmod.shared.android.AppUtils.showToast;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ShortcutManager;
 import android.content.SharedPreferences;
@@ -86,6 +88,7 @@ import com.winlator.cmod.shared.android.AppUtils;
 import com.winlator.cmod.shared.android.AppTerminationHelper;
 import com.winlator.cmod.runtime.wine.EnvVars;
 import com.winlator.cmod.shared.io.FileUtils;
+import com.winlator.cmod.runtime.system.CPUStatus;
 import com.winlator.cmod.runtime.system.GPUInformation;
 import com.winlator.cmod.shared.util.KeyValueSet;
 import com.winlator.cmod.shared.util.Callback;
@@ -129,7 +132,6 @@ import com.winlator.cmod.runtime.system.ui.LogView;
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
 import com.winlator.cmod.runtime.display.winhandler.OnGetProcessInfoListener;
 import com.winlator.cmod.runtime.display.winhandler.ProcessInfo;
-import com.winlator.cmod.runtime.display.winhandler.TaskManagerDialog;
 import com.winlator.cmod.runtime.display.winhandler.WinHandler;
 import com.winlator.cmod.runtime.display.connector.UnixSocketConfig;
 import com.winlator.cmod.runtime.display.environment.ImageFs;
@@ -164,6 +166,8 @@ import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Locale;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.CountDownLatch;
@@ -300,6 +304,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean gyroscopeCardExpanded = false;
     private XServerDrawerStateHolder drawerStateHolder;
     private XServerDrawerActionListener drawerActionListener;
+    private Timer taskManagerTimer;
+    private final ArrayList<TaskManagerProcess> taskManagerAccum = new ArrayList<>();
+    private boolean taskManagerCpuExpanded = false;
+    private boolean taskManagerPaneVisible = false;
+    private short[] cachedMaxClockSpeeds;
 
     // Inside the XServerDisplayActivity class
     private SensorManager sensorManager;
@@ -1725,6 +1734,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (!cleaningUp) {
             ProcessHelper.resumeAllWineProcesses();
         }
+
+        // Resume task-manager polling only if the pane is still the active selection.
+        if (taskManagerPaneVisible && taskManagerTimer == null) {
+            startTaskManagerPolling();
+        }
     }
 
     @Override
@@ -1759,6 +1773,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         handler.removeCallbacks(savePlaytimeRunnable);
         if (!cleaningUp) {
             ProcessHelper.pauseAllWineProcesses();
+        }
+
+        // Suspend task-manager polling while backgrounded; onResume restarts it
+        // if the pane is still the active selection.
+        if (taskManagerTimer != null) {
+            taskManagerTimer.cancel();
+            taskManagerTimer = null;
+            if (winHandler != null) winHandler.setOnGetProcessInfoListener(null);
+            taskManagerAccum.clear();
         }
     }
 
@@ -3126,6 +3149,40 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         };
                         controlsEditorActivityResultLauncher.launch(intent);
                     }
+
+                    @Override
+                    public void onTaskManagerVisibilityChanged(boolean visible) {
+                        taskManagerPaneVisible = visible;
+                        if (visible) startTaskManagerPolling();
+                        else stopTaskManagerPolling();
+                    }
+
+                    @Override
+                    public void onTaskManagerCpuExpandedChanged(boolean expanded) {
+                        taskManagerCpuExpanded = expanded;
+                        pushTaskManagerSystemStats();
+                    }
+
+                    @Override
+                    public void onTaskManagerEndProcess(String name) {
+                        ContentDialog.confirm(
+                                XServerDisplayActivity.this,
+                                R.string.session_task_confirm_end_process,
+                                () -> {
+                                    if (winHandler != null) winHandler.killProcess(name);
+                                });
+                    }
+
+                    @Override
+                    public void onTaskManagerNewTask() {
+                        ContentDialog.prompt(
+                                XServerDisplayActivity.this,
+                                R.string.session_task_new_task,
+                                "taskmgr.exe",
+                                (command) -> {
+                                    if (winHandler != null) winHandler.exec(command);
+                                });
+                    }
                 };
         }
 
@@ -3180,6 +3237,130 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         drawerStateHolder.setState(state);
+    }
+
+    private void startTaskManagerPolling() {
+        if (winHandler == null) return;
+        stopTaskManagerPolling();
+        winHandler.setOnGetProcessInfoListener(new OnGetProcessInfoListener() {
+            @Override
+            public void onGetProcessInfo(int index, int numProcesses, ProcessInfo processInfo) {
+                runOnUiThread(() -> handleTaskManagerProcessInfo(index, numProcesses, processInfo));
+            }
+        });
+
+        Timer timer = new Timer();
+        taskManagerTimer = timer;
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                runOnUiThread(() -> {
+                    if (winHandler != null) winHandler.listProcesses();
+                    pushTaskManagerSystemStats();
+                });
+            }
+        }, 0, 1000);
+    }
+
+    private void stopTaskManagerPolling() {
+        if (taskManagerTimer != null) {
+            taskManagerTimer.cancel();
+            taskManagerTimer = null;
+        }
+        if (winHandler != null) winHandler.setOnGetProcessInfoListener(null);
+        taskManagerAccum.clear();
+        taskManagerCpuExpanded = false;
+        if (drawerStateHolder != null) {
+            drawerStateHolder.setTaskManagerState(new TaskManagerPaneState(
+                    new ArrayList<>(), 0, 0, new ArrayList<>(), 0, ""));
+        }
+    }
+
+    private void handleTaskManagerProcessInfo(int index, int numProcesses, ProcessInfo processInfo) {
+        if (drawerStateHolder == null) return;
+
+        if (index == 0) taskManagerAccum.clear();
+
+        if (numProcesses == 0) {
+            taskManagerAccum.clear();
+            TaskManagerPaneState current = drawerStateHolder.getTaskManagerState();
+            drawerStateHolder.setTaskManagerState(new TaskManagerPaneState(
+                    new ArrayList<>(),
+                    current.getCpuPercent(),
+                    current.getCpuCoreCount(),
+                    current.getCpuCorePercents(),
+                    current.getMemoryPercent(),
+                    current.getMemoryDetail()));
+            return;
+        }
+
+        taskManagerAccum.add(new TaskManagerProcess(
+                processInfo.pid,
+                processInfo.name,
+                processInfo.getFormattedMemoryUsage(),
+                processInfo.wow64Process));
+
+        if (index == numProcesses - 1) {
+            TaskManagerPaneState current = drawerStateHolder.getTaskManagerState();
+            drawerStateHolder.setTaskManagerState(new TaskManagerPaneState(
+                    new ArrayList<>(taskManagerAccum),
+                    current.getCpuPercent(),
+                    current.getCpuCoreCount(),
+                    current.getCpuCorePercents(),
+                    current.getMemoryPercent(),
+                    current.getMemoryDetail()));
+        }
+    }
+
+    private void pushTaskManagerSystemStats() {
+        if (drawerStateHolder == null) return;
+
+        short[] clockSpeeds = CPUStatus.getCurrentClockSpeeds();
+        if (cachedMaxClockSpeeds == null || cachedMaxClockSpeeds.length != clockSpeeds.length) {
+            short[] maxes = new short[clockSpeeds.length];
+            for (int i = 0; i < clockSpeeds.length; i++) maxes[i] = CPUStatus.getMaxClockSpeed(i);
+            cachedMaxClockSpeeds = maxes;
+        }
+
+        int totalClock = 0;
+        short maxClock = 0;
+        for (int i = 0; i < clockSpeeds.length; i++) {
+            totalClock += clockSpeeds[i];
+            if (cachedMaxClockSpeeds[i] > maxClock) maxClock = cachedMaxClockSpeeds[i];
+        }
+        int cpuPercent = 0;
+        if (clockSpeeds.length > 0 && maxClock > 0) {
+            int avg = totalClock / clockSpeeds.length;
+            cpuPercent = (int) (((float) avg / maxClock) * 100.0f);
+        }
+
+        ArrayList<Integer> corePercents;
+        if (taskManagerCpuExpanded) {
+            corePercents = new ArrayList<>(clockSpeeds.length);
+            for (int i = 0; i < clockSpeeds.length; i++) {
+                short maxFor = cachedMaxClockSpeeds[i];
+                int corePercent = maxFor > 0 ? (int) (((float) clockSpeeds[i] / maxFor) * 100.0f) : 0;
+                corePercents.add(corePercent);
+            }
+        } else {
+            corePercents = new ArrayList<>();
+        }
+
+        ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        ActivityManager.MemoryInfo memInfo = new ActivityManager.MemoryInfo();
+        am.getMemoryInfo(memInfo);
+        long usedMem = memInfo.totalMem - memInfo.availMem;
+        int memPercent = (int) (((double) usedMem / memInfo.totalMem) * 100.0f);
+        String memDetail = StringUtils.formatBytes(usedMem, false) + "/" + StringUtils.formatBytes(memInfo.totalMem);
+
+        TaskManagerPaneState current = drawerStateHolder.getTaskManagerState();
+        drawerStateHolder.setTaskManagerState(new TaskManagerPaneState(
+                current.getProcesses(),
+                cpuPercent,
+                clockSpeeds.length,
+                corePercents,
+                memPercent,
+                memDetail));
     }
 
     private void applyScreenEffects() {
@@ -3357,9 +3538,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             case R.id.main_menu_pip_mode:
                 enterPictureInPictureMode(new android.app.PictureInPictureParams.Builder().build());
                 closeDrawerMenu();
-                break;
-            case R.id.main_menu_task_manager:
-                new TaskManagerDialog(this).show();
                 break;
             case R.id.main_menu_magnifier:
                 if (magnifierView == null) {

@@ -5,6 +5,10 @@ import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -28,6 +32,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -47,6 +52,7 @@ import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.Keyboard
@@ -77,8 +83,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
@@ -99,6 +107,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.res.integerArrayResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -194,7 +203,23 @@ private enum class HUDMetricEditor(
     SCALE(minPercent = 50, maxPercent = 200),
 }
 
-internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS }
+internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS, TASK_MANAGER }
+
+data class TaskManagerProcess(
+    val pid: Int,
+    val name: String,
+    val memoryFormatted: String,
+    val isWow64: Boolean,
+)
+
+data class TaskManagerPaneState(
+    val processes: List<TaskManagerProcess> = emptyList(),
+    val cpuPercent: Int = 0,
+    val cpuCoreCount: Int = 0,
+    val cpuCorePercents: List<Int> = emptyList(),
+    val memoryPercent: Int = 0,
+    val memoryDetail: String = "",
+)
 
 // Declarative spec for a top-rail tab that opens a pane below. To add a new pane:
 //   1. Add a value to DrawerPane.
@@ -304,6 +329,7 @@ class XServerDrawerStateHolder(
     initialState: XServerDrawerState,
 ) {
     var state by mutableStateOf(initialState, neverEqualPolicy())
+    var taskManagerState by mutableStateOf(TaskManagerPaneState(), neverEqualPolicy())
     private var drawerOpen by mutableStateOf(false)
     internal var openPane by mutableStateOf<DrawerPane?>(null)
     private var paneVisibilityListener: ((Boolean) -> Unit)? = null
@@ -413,6 +439,14 @@ interface XServerDrawerActionListener {
     fun onInputControlsGamepadVibrationChanged(enabled: Boolean)
 
     fun onInputControlsEditClick()
+
+    fun onTaskManagerVisibilityChanged(visible: Boolean)
+
+    fun onTaskManagerCpuExpandedChanged(expanded: Boolean)
+
+    fun onTaskManagerEndProcess(name: String)
+
+    fun onTaskManagerNewTask()
 }
 
 fun buildXServerDrawerState(
@@ -629,6 +663,7 @@ fun setupXServerDrawerComposeView(
         WinNativeTheme {
             XServerDrawerContent(
                 state = stateHolder.state,
+                taskManagerState = stateHolder.taskManagerState,
                 openPane = stateHolder.openPane,
                 onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
                 listener = listener,
@@ -641,6 +676,7 @@ fun setupXServerDrawerComposeView(
 @Composable
 internal fun XServerDrawerContent(
     state: XServerDrawerState,
+    taskManagerState: TaskManagerPaneState,
     openPane: DrawerPane?,
     onOpenPaneChange: (DrawerPane?) -> Unit,
     listener: XServerDrawerActionListener,
@@ -666,16 +702,19 @@ internal fun XServerDrawerContent(
             val paneScale = computePaneScale(maxHeight)
             CompositionLocalProvider(LocalPaneScale provides paneScale) {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    TopRail(
-                        state = state,
-                        openPane = openPane,
-                        onTabClick = { spec ->
-                            onOpenPaneChange(if (openPane == spec.pane) null else spec.pane)
-                        },
-                        onMenuClick = { onOpenPaneChange(null) },
-                    )
+                    val railVisible = openPane != DrawerPane.TASK_MANAGER
+                    if (railVisible) {
+                        TopRail(
+                            state = state,
+                            openPane = openPane,
+                            onTabClick = { spec ->
+                                onOpenPaneChange(if (openPane == spec.pane) null else spec.pane)
+                            },
+                            onMenuClick = { onOpenPaneChange(null) },
+                        )
 
-                    ThinDivider()
+                        ThinDivider()
+                    }
 
                     Box(
                         modifier =
@@ -693,12 +732,19 @@ internal fun XServerDrawerContent(
                                 DrawerPane.HUD -> HUDPaneContent(state = state, listener = listener)
                                 DrawerPane.GYROSCOPE -> GyroscopePaneContent(state = state, listener = listener)
                                 DrawerPane.SCREEN_EFFECTS -> ScreenEffectsPaneContent(state = state, listener = listener)
+                                DrawerPane.TASK_MANAGER ->
+                                    TaskManagerPaneContent(
+                                        taskManagerState = taskManagerState,
+                                        listener = listener,
+                                        onClose = { onOpenPaneChange(null) },
+                                    )
                                 null ->
                                     ActionCardGrid(
                                         state = state,
                                         listener = listener,
                                         cardsRevealed = cardsRevealed.value,
                                         onActionInvoked = onDismiss,
+                                        onOpenTaskManager = { onOpenPaneChange(DrawerPane.TASK_MANAGER) },
                                     )
                             }
                         }
@@ -951,6 +997,7 @@ private fun ActionCardGrid(
     listener: XServerDrawerActionListener,
     cardsRevealed: Boolean,
     onActionInvoked: () -> Unit,
+    onOpenTaskManager: () -> Unit,
 ) {
     val paneScale = LocalPaneScale.current
     val cards =
@@ -983,8 +1030,12 @@ private fun ActionCardGrid(
                             .weight(1f)
                             .heightIn(min = ActionCardMinHeight * paneScale),
                     onClick = {
-                        onActionInvoked()
-                        listener.onActionSelected(item.itemId)
+                        if (item.itemId == R.id.main_menu_task_manager) {
+                            onOpenTaskManager()
+                        } else {
+                            onActionInvoked()
+                            listener.onActionSelected(item.itemId)
+                        }
                     },
                 )
             }
@@ -1884,6 +1935,465 @@ private fun ScreenEffectsPaneContent(
     }
 }
 
+
+@Composable
+private fun TaskManagerPaneContent(
+    taskManagerState: TaskManagerPaneState,
+    listener: XServerDrawerActionListener,
+    onClose: () -> Unit,
+) {
+    DisposableEffect(Unit) {
+        listener.onTaskManagerVisibilityChanged(true)
+        onDispose { listener.onTaskManagerVisibilityChanged(false) }
+    }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val paneScale = computePaneScale(maxHeight)
+        CompositionLocalProvider(LocalPaneScale provides paneScale) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = (12f * paneScale).dp, vertical = (10f * paneScale).dp),
+                verticalArrangement = Arrangement.spacedBy((10f * paneScale).dp),
+            ) {
+                TaskManagerHeader(
+                    cpuPercent = taskManagerState.cpuPercent,
+                    cpuCoreCount = taskManagerState.cpuCoreCount,
+                    cpuCorePercents = taskManagerState.cpuCorePercents,
+                    memoryPercent = taskManagerState.memoryPercent,
+                    memoryDetail = taskManagerState.memoryDetail,
+                    onNewTask = listener::onTaskManagerNewTask,
+                    onClose = onClose,
+                    onCpuExpandedChanged = listener::onTaskManagerCpuExpandedChanged,
+                )
+
+                TaskManagerProcessHeader()
+
+                Box(modifier = Modifier.weight(1f, fill = true).fillMaxWidth()) {
+                    if (taskManagerState.processes.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.common_ui_no_items_to_display),
+                            color = DrawerTextSecondary,
+                            fontSize = (13f * paneScale).sp,
+                            modifier = Modifier.fillMaxWidth().padding(top = (24f * paneScale).dp),
+                            textAlign = TextAlign.Center,
+                        )
+                    } else {
+                        Column(
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy((12f * paneScale).dp),
+                        ) {
+                            taskManagerState.processes.forEach { process ->
+                                key(process.pid) {
+                                    TaskManagerProcessRow(
+                                        process = process,
+                                        onEndProcess = { listener.onTaskManagerEndProcess(process.name) },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TaskManagerHeader(
+    cpuPercent: Int,
+    cpuCoreCount: Int,
+    cpuCorePercents: List<Int>,
+    memoryPercent: Int,
+    memoryDetail: String,
+    onNewTask: () -> Unit,
+    onClose: () -> Unit,
+    onCpuExpandedChanged: (Boolean) -> Unit,
+) {
+    val paneScale = LocalPaneScale.current
+    var cpuExpanded by remember { mutableStateOf(false) }
+    DisposableEffect(cpuExpanded) {
+        onCpuExpandedChanged(cpuExpanded)
+        onDispose { if (cpuExpanded) onCpuExpandedChanged(false) }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.session_task_title),
+            color = DrawerTextPrimary,
+            fontSize = (16f * paneScale).sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f),
+        )
+
+        TaskManagerCloseButton(onClick = onClose)
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
+        horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TaskManagerStatTile(
+            title = stringResource(R.string.session_task_cpu_usage_format, cpuPercent),
+            detail =
+                if (cpuCoreCount > 0) {
+                    pluralStringResource(R.plurals.session_task_core_count, cpuCoreCount, cpuCoreCount)
+                } else {
+                    ""
+                },
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+            selected = cpuExpanded,
+            onClick = { cpuExpanded = !cpuExpanded },
+        )
+        TaskManagerStatTile(
+            title = stringResource(R.string.session_task_memory) + " ($memoryPercent%)",
+            detail = memoryDetail,
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+        )
+    }
+
+    AnimatedVisibility(
+        visible = cpuExpanded && cpuCorePercents.isNotEmpty(),
+        enter =
+            fadeIn(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)) +
+                expandVertically(
+                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                    expandFrom = Alignment.Top,
+                ),
+        exit =
+            fadeOut(animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing)) +
+                shrinkVertically(
+                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                    shrinkTowards = Alignment.Top,
+                ),
+    ) {
+        TaskManagerCpuCoreGrid(cpuCorePercents = cpuCorePercents)
+    }
+
+    TaskManagerNewTaskButton(onClick = onNewTask)
+}
+
+@Composable
+private fun TaskManagerCloseButton(onClick: () -> Unit) {
+    val paneScale = LocalPaneScale.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed = interactionSource.collectIsPressedAsState().value
+    val bgColor by animateColorAsState(
+        targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
+        animationSpec = tween(120),
+        label = "taskManagerCloseBg",
+    )
+    val size = (32f * paneScale).dp
+    val shape = RoundedCornerShape((8f * paneScale).dp)
+    Box(
+        modifier =
+            Modifier
+                .size(size)
+                .clip(shape)
+                .background(bgColor)
+                .border(1.dp, RestingCardBorder, shape)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Close,
+            contentDescription = stringResource(R.string.common_ui_close),
+            tint = DrawerTextPrimary,
+            modifier = Modifier.size((18f * paneScale).dp),
+        )
+    }
+}
+
+@Composable
+private fun TaskManagerStatTile(
+    title: String,
+    detail: String,
+    modifier: Modifier = Modifier,
+    selected: Boolean = false,
+    onClick: (() -> Unit)? = null,
+) {
+    val paneScale = LocalPaneScale.current
+    val shape = RoundedCornerShape((10f * paneScale).dp)
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed = interactionSource.collectIsPressedAsState().value
+    val bgColor by animateColorAsState(
+        targetValue =
+            when {
+                pressed -> PaneInnerPressed
+                else -> PaneInnerResting
+            },
+        animationSpec = tween(120),
+        label = "taskManagerStatTileBg",
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (selected) DrawerAccent else RestingCardBorder,
+        animationSpec = tween(120),
+        label = "taskManagerStatTileBorder",
+    )
+    val clickModifier =
+        if (onClick != null) {
+            Modifier.clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            )
+        } else {
+            Modifier
+        }
+
+    Column(
+        modifier =
+            modifier
+                .clip(shape)
+                .background(bgColor)
+                .border(1.dp, borderColor, shape)
+                .then(clickModifier)
+                .padding(horizontal = (10f * paneScale).dp, vertical = (8f * paneScale).dp),
+        verticalArrangement = Arrangement.spacedBy((2f * paneScale).dp),
+    ) {
+        Text(
+            text = title,
+            color = DrawerAccent,
+            fontSize = (12f * paneScale).sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = detail,
+            color = DrawerTextSecondary,
+            fontSize = (11f * paneScale).sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TaskManagerCpuCoreGrid(cpuCorePercents: List<Int>) {
+    val paneScale = LocalPaneScale.current
+    val shape = RoundedCornerShape((10f * paneScale).dp)
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(PaneInnerResting)
+                .border(1.dp, RestingCardBorder, shape)
+                .padding(horizontal = (10f * paneScale).dp, vertical = (8f * paneScale).dp),
+        verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp),
+    ) {
+        Text(
+            text = stringResource(R.string.session_task_per_core_usage),
+            color = DrawerTextPrimary,
+            fontSize = (12f * paneScale).sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy((6f * paneScale).dp),
+            verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp),
+        ) {
+            cpuCorePercents.forEachIndexed { index, percent ->
+                TaskManagerCpuCoreChip(coreIndex = index, percent = percent)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TaskManagerCpuCoreChip(coreIndex: Int, percent: Int) {
+    val paneScale = LocalPaneScale.current
+    val shape = RoundedCornerShape((6f * paneScale).dp)
+    Row(
+        modifier =
+            Modifier
+                .clip(shape)
+                .background(PaneSurfaceColor)
+                .border(1.dp, RestingCardBorder, shape)
+                .padding(horizontal = (8f * paneScale).dp, vertical = (4f * paneScale).dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy((6f * paneScale).dp),
+    ) {
+        Text(
+            text = stringResource(R.string.session_task_core_label, coreIndex),
+            color = DrawerTextSecondary,
+            fontSize = (11f * paneScale).sp,
+            fontWeight = FontWeight.Medium,
+        )
+        Text(
+            text = "$percent%",
+            color = DrawerAccent,
+            fontSize = (11f * paneScale).sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+@Composable
+private fun TaskManagerNewTaskButton(onClick: () -> Unit) {
+    val paneScale = LocalPaneScale.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed = interactionSource.collectIsPressedAsState().value
+    val bgColor by animateColorAsState(
+        targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
+        animationSpec = tween(120),
+        label = "taskManagerNewTaskBg",
+    )
+    val shape = RoundedCornerShape((12f * paneScale).dp)
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(bgColor)
+                .border(1.dp, RestingCardBorder, shape)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                )
+                .padding(horizontal = (12f * paneScale).dp, vertical = (10f * paneScale).dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.session_task_new_task),
+            color = DrawerAccent,
+            fontSize = (13f * paneScale).sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+@Composable
+private fun TaskManagerProcessHeader() {
+    val paneScale = LocalPaneScale.current
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = (4f * paneScale).dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.session_task_process_name),
+            color = DrawerTextSecondary,
+            fontSize = (11f * paneScale).sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = stringResource(R.string.session_task_pid),
+            color = DrawerTextSecondary,
+            fontSize = (11f * paneScale).sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.End,
+            modifier = Modifier.width((54f * paneScale).dp),
+        )
+        Text(
+            text = stringResource(R.string.session_task_memory),
+            color = DrawerTextSecondary,
+            fontSize = (11f * paneScale).sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.End,
+            modifier = Modifier.width((78f * paneScale).dp),
+        )
+        Spacer(modifier = Modifier.width((46f * paneScale).dp))
+    }
+}
+
+@Composable
+private fun TaskManagerProcessRow(
+    process: TaskManagerProcess,
+    onEndProcess: () -> Unit,
+) {
+    val paneScale = LocalPaneScale.current
+    val shape = RoundedCornerShape((8f * paneScale).dp)
+    val displayName = if (process.isWow64) "${process.name} *32" else process.name
+
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(PaneInnerResting)
+                .border(1.dp, RestingCardBorder, shape)
+                .padding(horizontal = (8f * paneScale).dp, vertical = (6f * paneScale).dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = displayName,
+            color = DrawerTextPrimary,
+            fontSize = (12f * paneScale).sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = process.pid.toString(),
+            color = DrawerTextSecondary,
+            fontSize = (12f * paneScale).sp,
+            textAlign = TextAlign.End,
+            modifier = Modifier.width((54f * paneScale).dp),
+        )
+        Text(
+            text = process.memoryFormatted,
+            color = DrawerTextSecondary,
+            fontSize = (12f * paneScale).sp,
+            textAlign = TextAlign.End,
+            modifier = Modifier.width((78f * paneScale).dp),
+        )
+        Spacer(modifier = Modifier.width((10f * paneScale).dp))
+        TaskManagerEndButton(onClick = onEndProcess)
+    }
+}
+
+@Composable
+private fun TaskManagerEndButton(onClick: () -> Unit) {
+    val paneScale = LocalPaneScale.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed = interactionSource.collectIsPressedAsState().value
+    val bgColor by animateColorAsState(
+        targetValue = if (pressed) TileExitPressed else TileExitResting,
+        animationSpec = tween(120),
+        label = "taskManagerEndBtn",
+    )
+    val size = (32f * paneScale).dp
+    val shape = RoundedCornerShape((8f * paneScale).dp)
+    Box(
+        modifier =
+            Modifier
+                .size(size)
+                .clip(shape)
+                .background(bgColor)
+                .border(1.dp, GlassExitTint.copy(alpha = 0.34f), shape)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Close,
+            contentDescription = stringResource(R.string.session_task_end_process),
+            tint = GlassExitTint,
+            modifier = Modifier.size((16f * paneScale).dp),
+        )
+    }
+}
 
 @Composable
 private fun PaneSectionLabel(text: String) {
