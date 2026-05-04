@@ -14,20 +14,21 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.winlator.cmod.shared.theme.WinNativeTheme
-import kotlin.math.abs
 
 const val XSERVER_DRAWER_EDGE_SWIPE_DP = 140
 
@@ -71,9 +72,7 @@ private fun XServerDisplayHost(
     callbacks: XServerDisplayHostCallbacks,
 ) {
     val density = LocalDensity.current
-    val viewConfiguration = LocalViewConfiguration.current
     val edgeSwipePx = with(density) { XSERVER_DRAWER_EDGE_SWIPE_DP.dp.toPx() }
-    val touchSlop = viewConfiguration.touchSlop
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     DisposableEffect(stateHolder) {
@@ -120,18 +119,21 @@ private fun XServerDisplayHost(
             }
     }
 
+    LaunchedEffect(drawerState) {
+        snapshotFlow { drawerState.targetValue }
+            .collect { value ->
+                if (value == DrawerValue.Open && !drawerState.isOpen) {
+                    callbacks.onDrawerGestureClaimed()
+                }
+            }
+    }
+
     val drawerInMotion =
         drawerState.currentValue == DrawerValue.Open ||
             drawerState.targetValue == DrawerValue.Open ||
             stateHolder.isDrawerOpen
-    val materialGesturesEnabled = drawerState.isOpen && !stateHolder.isPaneOpen()
-    val edgeOpenEnabled =
-        drawerState.isClosed &&
-            !stateHolder.isDrawerOpen &&
-            !drawerState.isAnimationRunning
-    val drawerContentVisible = drawerInMotion || stateHolder.gyroActivatorDialogState != null
-    val dialogState = stateHolder.gyroActivatorDialogState
-    val dialogVisible = dialogState != null
+    val drawerContentVisible = drawerInMotion
+    val dialogVisible = false
 
     LaunchedEffect(dialogVisible) {
         callbacks.onDialogVisibilityChanged(dialogVisible)
@@ -141,12 +143,12 @@ private fun XServerDisplayHost(
         Box(modifier = Modifier.fillMaxSize()) {
             ModalNavigationDrawer(
                 drawerState = drawerState,
-                gesturesEnabled = materialGesturesEnabled && !dialogVisible,
+                gesturesEnabled = !dialogVisible,
                 scrimColor = Color.Transparent,
                 drawerContent = {
                     ModalDrawerSheet(
                         drawerShape = RectangleShape,
-                        drawerContainerColor = Color.Transparent,
+                        drawerContainerColor = PaneSurfaceColor,
                         drawerContentColor = Color.Unspecified,
                         drawerTonalElevation = 0.dp,
                         windowInsets = WindowInsets(0, 0, 0, 0),
@@ -167,89 +169,46 @@ private fun XServerDisplayHost(
                     }
                 },
             ) {
-                AndroidView(
-                    factory = { displayFrame },
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .xServerDrawerEdgeSwipe(
-                                enabled = edgeOpenEnabled && !dialogVisible,
-                                edgeWidthPx = edgeSwipePx,
-                                touchSlop = touchSlop,
-                                onClaim = {
-                                    callbacks.onDrawerGestureClaimed()
-                                    stateHolder.openDrawer()
-                                },
-                            ),
-                    update = {},
-                )
-            }
-
-            dialogState?.let { state ->
-                Box(modifier = Modifier.fillMaxSize()) {
-                    XServerGyroscopeActivatorDialog(
-                        currentLabel = state.currentLabel,
-                        onDismiss = {
-                            stateHolder.hideGyroActivatorDialog()
-                            state.onDismiss()
-                        },
-                        onSelected = { keycode ->
-                            stateHolder.hideGyroActivatorDialog()
-                            state.onSelected(keycode)
-                        },
-                        names = state.names,
-                        keycodes = state.keycodes,
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                    AndroidView(
+                        factory = { displayFrame },
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .xServerDrawerEdgeGate(
+                                    enabled = drawerState.isClosed,
+                                    edgeWidthPx = edgeSwipePx,
+                                ),
+                        update = {},
                     )
                 }
             }
+
         }
     }
 }
 
-private fun Modifier.xServerDrawerEdgeSwipe(
+private fun Modifier.xServerDrawerEdgeGate(
     enabled: Boolean,
     edgeWidthPx: Float,
-    touchSlop: Float,
-    onClaim: () -> Unit,
 ): Modifier =
-    pointerInput(enabled, edgeWidthPx, touchSlop) {
+    pointerInput(enabled, edgeWidthPx) {
         if (!enabled) return@pointerInput
         awaitPointerEventScope {
             while (true) {
-                val down = awaitFirstDown(
-                    requireUnconsumed = false,
-                    pass = PointerEventPass.Initial,
-                )
-                if (down.position.x > edgeWidthPx) continue
+                val down = awaitFirstDown(requireUnconsumed = false)
+                if (down.position.x <= edgeWidthPx) continue
 
                 val pointerId = down.id
-                val startPosition = down.position
-                var claimed = false
-
                 while (true) {
-                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    val event = awaitPointerEvent()
                     val change = event.changes.firstOrNull { it.id == pointerId } ?: break
                     if (!change.pressed) break
-
-                    val dragDelta = change.position - startPosition
-                    val dx = dragDelta.x
-                    val dy = dragDelta.y
-                    val absDx = abs(dx)
-                    val absDy = abs(dy)
-
-                    if (!claimed) {
-                        if (absDy >= touchSlop && absDy >= absDx) break
-                        if (dx <= -touchSlop) break
-                        if (dx >= touchSlop && absDx > absDy) {
-                            claimed = true
-                            onClaim()
-                        }
-                    }
-
-                    if (claimed) {
+                    if (change.positionChanged()) {
                         change.consume()
                     }
                 }
             }
         }
     }
+

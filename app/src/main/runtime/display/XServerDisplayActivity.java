@@ -110,7 +110,6 @@ import com.winlator.cmod.runtime.compat.fexcore.FEXCoreManager;
 import com.winlator.cmod.runtime.compat.gamefixes.GameFixes;
 import com.winlator.cmod.runtime.audio.alsaserver.ALSAClient;
 import com.winlator.cmod.runtime.input.ControllerAssignmentDialog;
-import com.winlator.cmod.runtime.input.InputControlsDialog;
 import com.winlator.cmod.runtime.input.controls.ControlsProfile;
 import com.winlator.cmod.runtime.input.controls.ControllerManager;
 import com.winlator.cmod.runtime.input.controls.ExternalController;
@@ -290,7 +289,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private float hudTransparency = 1.0f;
     private float hudScale = 1.0f;
-    private boolean[] hudElements = new boolean[]{true, true, true, true, true, true};
+    private boolean[] hudElements = new boolean[]{true, true, true, true, true, true, true};
     private boolean dualSeriesBattery = false;
     private boolean hudCardExpanded = false;
     private boolean screenEffectsCardExpanded = false;
@@ -2831,41 +2830,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return index < names.length ? names[index] : names[0];
     }
 
-    private void showGyroActivatorPicker() {
-        if (drawerStateHolder == null) return;
-
-        String[] names = getResources().getStringArray(R.array.button_options);
-        int[] keycodes = getResources().getIntArray(R.array.button_keycodes);
-
-        drawerStateHolder.showGyroActivatorDialog(
-            currentGyroActivatorLabel(),
-            names,
-            keycodes,
-            () -> {
-                clearGyroActivatorDialog();
-                return kotlin.Unit.INSTANCE;
-            },
-            (keycode) -> {
-                preferences.edit().putInt("gyro_trigger_button", keycode).apply();
-                clearGyroActivatorDialog();
-                renderDrawerMenu();
-                return kotlin.Unit.INSTANCE;
-            }
-        );
-    }
-
-    private void clearGyroActivatorDialog() {
-        if (drawerStateHolder != null) {
-            drawerStateHolder.hideGyroActivatorDialog();
-        }
-        if (displayHostComposeView != null) {
-            displayHostComposeView.clearFocus();
-            displayHostComposeView.requestFocus();
-        }
-    }
-
     private void renderDrawerMenu() {
         if (displayHostComposeView == null || xServerDisplayFrame == null) return;
+
+        ArrayList<ControlsProfile> inputProfiles = inputControlsManager != null ? inputControlsManager.getProfiles(true) : new ArrayList<>();
+        ArrayList<String> inputProfileNames = new ArrayList<>();
+        int inputSelectedIndex = 0;
+        inputProfileNames.add("-- " + getString(R.string.common_ui_disabled) + " --");
+        ControlsProfile activeProfile = inputControlsView != null ? inputControlsView.getProfile() : null;
+        for (int i = 0; i < inputProfiles.size(); i++) {
+            ControlsProfile profile = inputProfiles.get(i);
+            if (activeProfile != null && profile.id == activeProfile.id) inputSelectedIndex = i + 1;
+            inputProfileNames.add(profile.getName());
+        }
 
         XServerDrawerState state = XServerDrawerMenuKt.buildXServerDrawerState(
                 this,
@@ -2901,7 +2878,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 fsrEnabled,
                 fsrMode,
                 fsrSharpness,
-                colorProfile
+                colorProfile,
+                inputProfileNames,
+                inputSelectedIndex,
+                preferences.getBoolean("show_touchscreen_controls_enabled", false),
+                isTapToClickEnabled,
+                preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY),
+                preferences.getBoolean("touchscreen_haptics_enabled", false),
+                preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true)
         );
 
         if (drawerActionListener == null) {
@@ -2964,8 +2948,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     }
 
                     @Override
-                    public void onGyroscopeActivatorClick() {
-                        showGyroActivatorPicker();
+                    public void onGyroscopeActivatorSelected(int keycode) {
+                        preferences.edit().putInt("gyro_trigger_button", keycode).apply();
+                        renderDrawerMenu();
                     }
 
                     @Override
@@ -3079,6 +3064,68 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         applyScreenEffects();
                         renderDrawerMenu();
                     }
+
+                    @Override
+                    public void onInputControlsProfileSelected(int index) {
+                        if (index <= 0) {
+                            hideInputControls();
+                        } else {
+                            ArrayList<ControlsProfile> profiles = inputControlsManager != null ? inputControlsManager.getProfiles(true) : new ArrayList<>();
+                            if (index - 1 < profiles.size()) showInputControls(profiles.get(index - 1));
+                        }
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsShowOverlayChanged(boolean enabled) {
+                        if (inputControlsView != null) inputControlsView.setShowTouchscreenControls(enabled);
+                        preferences.edit().putBoolean("show_touchscreen_controls_enabled", enabled).apply();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsTapToClickChanged(boolean enabled) {
+                        isTapToClickEnabled = enabled;
+                        if (touchpadView != null) touchpadView.setTapToClickEnabled(enabled);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsOverlayOpacityChanged(float opacity) {
+                        if (inputControlsView != null) inputControlsView.setOverlayOpacity(opacity);
+                        preferences.edit().putFloat("overlay_opacity", opacity).apply();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsTouchscreenHapticsChanged(boolean enabled) {
+                        preferences.edit().putBoolean("touchscreen_haptics_enabled", enabled).apply();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsGamepadVibrationChanged(boolean enabled) {
+                        preferences.edit().putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled).apply();
+                        if (winHandler != null) winHandler.setGlobalVibrationEnabled(enabled);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsEditClick() {
+                        ControlsProfile activeProfile = inputControlsView != null ? inputControlsView.getProfile() : null;
+                        Intent intent = new Intent(XServerDisplayActivity.this, UnifiedActivity.class);
+                        intent.putExtra("edit_input_controls", true);
+                        intent.putExtra("selected_profile_id", activeProfile != null ? activeProfile.id : 0);
+                        intent.putExtra("return_to_game_on_back", true);
+                        editInputControlsCallback = () -> {
+                            hideInputControls();
+                            if (inputControlsManager != null) inputControlsManager.loadProfiles(true);
+                            ControlsProfile reactivated = activeProfile != null && inputControlsManager != null ? inputControlsManager.getProfile(activeProfile.id) : null;
+                            if (reactivated != null) showInputControls(reactivated);
+                            renderDrawerMenu();
+                        };
+                        controlsEditorActivityResultLauncher.launch(intent);
+                    }
                 };
         }
 
@@ -3191,9 +3238,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 hudElements[0] = obj.optBoolean("showFPS", true);
                 hudElements[1] = obj.optBoolean("showRenderer", true);
                 hudElements[2] = obj.optBoolean("showGPU", true);
-                hudElements[3] = obj.optBoolean("showCpuRam", true);
-                hudElements[4] = obj.optBoolean("showBattTemp", true);
-                hudElements[5] = obj.optBoolean("showGraph", true);
+                boolean legacyCpuRam = obj.optBoolean("showCpuRam", true);
+                hudElements[3] = obj.optBoolean("showCPU", legacyCpuRam);
+                hudElements[4] = obj.optBoolean("showRAM", legacyCpuRam);
+                hudElements[5] = obj.optBoolean("showBattTemp", true);
+                hudElements[6] = obj.optBoolean("showGraph", true);
             } catch (JSONException e) {
                 Log.e("XServerDisplayActivity", "Failed to load HUD settings", e);
             }
@@ -3209,9 +3258,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             obj.put("showFPS", hudElements[0]);
             obj.put("showRenderer", hudElements[1]);
             obj.put("showGPU", hudElements[2]);
-            obj.put("showCpuRam", hudElements[3]);
-            obj.put("showBattTemp", hudElements[4]);
-            obj.put("showGraph", hudElements[5]);
+            obj.put("showCPU", hudElements[3]);
+            obj.put("showRAM", hudElements[4]);
+            obj.put("showBattTemp", hudElements[5]);
+            obj.put("showGraph", hudElements[6]);
             container.putExtra("hudSettings", obj.toString());
             container.saveData();
         } catch (JSONException e) {
@@ -3249,10 +3299,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 break;
             case R.id.main_menu_keyboard:
                 AppUtils.showKeyboard(this);
-                closeDrawerMenu();
-                break;
-            case R.id.main_menu_input_controls:
-                showInputControlsDialog();
                 closeDrawerMenu();
                 break;
             case R.id.main_menu_controller_manager:
@@ -3316,11 +3362,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 new TaskManagerDialog(this).show();
                 break;
             case R.id.main_menu_magnifier:
-                if (isNativeRenderingEnabled) {
-                    showToast(this, getString(R.string.session_drawer_magnifier_disabled_native_subtitle));
-                    renderDrawerMenu();
-                    break;
-                }
                 if (magnifierView == null) {
                     FrameLayout container = xServerDisplayFrame;
                     magnifierView = new MagnifierView(this);
@@ -4304,85 +4345,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
 
-
-    private void showInputControlsDialog() {
-        final InputControlsDialog dialog = new InputControlsDialog(this);
-
-        // Load profile list
-        Runnable loadProfileSpinner = () -> {
-            ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
-            ArrayList<String> profileItems = new ArrayList<>();
-            int selectedPosition = 0;
-            profileItems.add("-- "+getString(R.string.common_ui_disabled)+" --");
-            for (int i = 0; i < profiles.size(); i++) {
-                ControlsProfile profile = profiles.get(i);
-                if (inputControlsView.getProfile() != null && profile.id == inputControlsView.getProfile().id)
-                    selectedPosition = i + 1;
-                profileItems.add(profile.getName());
-            }
-            dialog.getProfileNames().setValue(profileItems);
-            dialog.getSelectedProfileIndex().setIntValue(selectedPosition);
-        };
-        loadProfileSpinner.run();
-
-        // Initialize checkbox states
-        dialog.getShowTouchscreenControls().setValue(preferences.getBoolean("show_touchscreen_controls_enabled", false));
-        dialog.getTapToClickEnabled().setValue(isTapToClickEnabled);
-        dialog.getOverlayOpacity().setValue(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
-        dialog.getTouchscreenHaptics().setValue(preferences.getBoolean("touchscreen_haptics_enabled", false));
-        dialog.getGamepadVibration().setValue(preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true));
-
-        final Runnable updateProfile = () -> {
-            int position = dialog.getSelectedProfileIndex().getIntValue();
-            if (position > 0) {
-                showInputControls(inputControlsManager.getProfiles(true).get(position - 1));
-            }
-            else hideInputControls();
-        };
-
-        // Settings button callback
-        dialog.setOnSettingsClickCallback(() -> {
-            int position = dialog.getSelectedProfileIndex().getIntValue();
-            Intent intent = new Intent(this, UnifiedActivity.class);
-            intent.putExtra("edit_input_controls", true);
-            intent.putExtra("selected_profile_id", position > 0 ? inputControlsManager.getProfiles(true).get(position - 1).id : 0);
-            intent.putExtra("return_to_game_on_back", true);
-            editInputControlsCallback = () -> {
-                hideInputControls();
-                inputControlsManager.loadProfiles(true);
-                loadProfileSpinner.run();
-                updateProfile.run();
-            };
-            controlsEditorActivityResultLauncher.launch(intent);
-        });
-
-        // Confirm callback
-        dialog.setOnConfirmCallback(() -> {
-            inputControlsView.setShowTouchscreenControls(dialog.getShowTouchscreenControls().getValue());
-            isTapToClickEnabled = dialog.getTapToClickEnabled().getValue();
-            if (touchpadView != null) touchpadView.setTapToClickEnabled(isTapToClickEnabled);
-
-            float overlayOpacity = dialog.getOverlayOpacity().getValue();
-            inputControlsView.setOverlayOpacity(overlayOpacity);
-            boolean isHapticsEnabled = dialog.getTouchscreenHaptics().getValue();
-            boolean isGamepadVibrationEnabled = dialog.getGamepadVibration().getValue();
-            SharedPreferences.Editor editor = preferences.edit();
-            editor.putBoolean("show_touchscreen_controls_enabled", dialog.getShowTouchscreenControls().getValue());
-            editor.putFloat("overlay_opacity", overlayOpacity);
-            editor.putBoolean("touchscreen_haptics_enabled", isHapticsEnabled);
-            editor.putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, isGamepadVibrationEnabled);
-            editor.apply();
-            if (winHandler != null) {
-                winHandler.setGlobalVibrationEnabled(isGamepadVibrationEnabled);
-            }
-            touchpadView.setOnTouchListener(null);
-            updateProfile.run();
-        });
-
-        dialog.setOnCancelCallback(updateProfile::run);
-
-        dialog.show();
-    }
 
     private ControlsProfile findFirstVirtualProfile() {
         ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
