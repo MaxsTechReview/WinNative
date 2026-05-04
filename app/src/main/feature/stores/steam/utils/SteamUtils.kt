@@ -970,7 +970,7 @@ object SteamUtils {
      *  - steam_settings/steam_appid.txt
      *  - steam_settings/depots.txt
      *  - steam_settings/configs.user.ini  ([user::general] + conditional [user::saves])
-     *  - steam_settings/configs.app.ini   ([app::dlcs] with real IDs, [app::cloud_save::general/win])
+     *  - steam_settings/configs.app.ini   ([app::dlcs], [app::controller], [app::cloud_save::general/win])
      *  - steam_settings/configs.main.ini  ([main::connectivity] with offline support)
      *  - steam_settings/controller/       (Steam Input VDF config if useSteamInput=true)
      *  - steam_settings/supported_languages.txt
@@ -1082,6 +1082,12 @@ object SteamUtils {
                         ) {
                             appendLine("${hiddenDlcApp.id}=dlc${hiddenDlcApp.id}")
                         }
+                    }
+                    appendLine()
+                    appendLine("[app::controller]")
+                    appendLine("steam_input=${if (useSteamInput) 1 else 0}")
+                    if (useSteamInput) {
+                        appendLine("type=XBOXONE")
                     }
                     if (appInfo != null) {
                         appendLine()
