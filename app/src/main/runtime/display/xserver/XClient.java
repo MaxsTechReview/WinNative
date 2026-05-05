@@ -175,10 +175,10 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
     }
 
     long sleepTime = nextFrameTimeNanos - now;
-    
+
     // Only sleep if we are actually early by more than 0.5ms (VSync Bias)
     if (sleepTime > 500_000L) {
-      // Deep sleep for the bulk of the time. 
+      // Deep sleep for the bulk of the time.
       // 4ms buffer provides maximum stability against Android OS jitter.
       if (sleepTime > 4_000_000L) {
         long sleepMs = (sleepTime - 4_000_000L) / 1_000_000L;
@@ -187,7 +187,7 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
         } catch (InterruptedException ignored) {}
       }
 
-      // High-precision spin for the final 4ms. 
+      // High-precision spin for the final 4ms.
       // This is the "Unity Style" heart-beat that guarantees VSync alignment.
       while (System.nanoTime() < nextFrameTimeNanos) {
         // Spin lock for exact nanosecond precision

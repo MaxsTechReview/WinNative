@@ -545,16 +545,9 @@
     <string name="session_drawer_toggle_relative_mouse">切換相對滑鼠移動</string>
     <string name="session_drawer_toggle_mouse">切換滑鼠</string>
     <string name="session_drawer_pause_resume">暫停/繼續</string>
-    <string name="session_drawer_keyboard_subtitle">開啟軟體鍵盤</string>
-    <string name="session_drawer_input_controls_subtitle">設定或切換螢幕控制</string>
     <string name="session_drawer_relative_mouse_movement">相對滑鼠移動</string>
     <string name="session_drawer_mouse_input">滑鼠輸入</string>
-    <string name="session_drawer_fullscreen_subtitle">切換全螢幕渲染</string>
     <string name="session_drawer_picture_in_picture">子母畫面</string>
-    <string name="session_drawer_pip_subtitle">將遊戲縮小為浮動視窗</string>
-    <string name="session_drawer_task_manager_subtitle">檢視和管理執行中的程序</string>
-    <string name="session_drawer_magnifier_subtitle">放大顯示畫面</string>
-    <string name="session_drawer_logs_subtitle">開啟 Wine 和 Box64 日誌</string>
     <string name="session_drawer_exit_subtitle">關閉執行中的工作階段</string>
     <string name="session_drawer_touchscreen_overlay">觸控螢幕覆蓋層</string>
     <string name="session_drawer_resume">繼續</string>
@@ -562,9 +555,10 @@
     <string name="session_drawer_wine_processes_paused">Wine 程序已暫停</string>
     <string name="session_drawer_pause_all_wine_processes">暫停所有 Wine 程序</string>
     <string name="session_drawer_hud_element_fps">FPS</string>
-    <string name="session_drawer_hud_element_api">API</string>
+    <string name="session_drawer_hud_element_api">GFX</string>
     <string name="session_drawer_hud_element_gpu">GPU</string>
     <string name="session_drawer_hud_element_cpu">CPU</string>
+    <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">電量</string>
     <string name="session_drawer_hud_element_graph">圖表</string>
 
@@ -575,10 +569,18 @@
     <string name="session_task_pid">PID</string>
     <string name="session_task_memory">記憶體</string>
     <string name="session_task_end_process">結束程序</string>
+    <string name="session_task_set_affinity">設定親和性</string>
+    <string name="session_task_affinity_title">處理器親和性</string>
+    <string name="session_task_affinity_all_cores">所有核心</string>
     <string name="session_task_new_task">新增工作</string>
     <string name="session_task_processes">程序</string>
-    <string name="session_task_bring_to_front">移至最前</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
+    <string name="session_task_per_core_usage">每個核心使用率</string>
+    <string name="session_task_core_label">核心 %1$d</string>
+    <plurals name="session_task_core_count">
+        <item quantity="one">%d 個核心</item>
+        <item quantity="other">%d 個核心</item>
+    </plurals>
 
 
     <!-- Session > Display -->
@@ -1008,6 +1010,39 @@
     <string name="session_drawer_fps_monitor">FPS 監視器</string>
     <string name="session_drawer_fps_monitor_subtitle">顯示即時效能統計資料</string>
     <string name="session_drawer_dual_series_battery">Dual Series 電量</string>
+    <string name="session_drawer_command_center">控制中心</string>
+    <string name="session_drawer_command_center_input">輸入</string>
+    <string name="session_drawer_command_center_display">顯示</string>
+    <string name="session_drawer_command_center_system">系統</string>
+    <string name="session_drawer_fps_limiter">FPS 限制器</string>
+    <string name="session_drawer_fps_limiter_off">關閉</string>
+    <string name="session_drawer_screen_effects_subtitle">縮放和色彩效果</string>
+    <string name="session_drawer_color_profile">色彩效果</string>
+    <string name="session_drawer_color_profile_disabled">已停用</string>
+    <string name="session_drawer_color_profile_hdr">HDR</string>
+    <string name="session_drawer_color_profile_natural">自然</string>
+    <string name="session_drawer_color_profile_crt">CRT 效果</string>
+    <string name="session_drawer_upscaler_dls">鮮豔</string>
+    <string name="session_drawer_calibrate_advanced">進階校準</string>
+    <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_gyro">陀螺儀</string>
+    <string name="session_drawer_rail_label_effects">FX</string>
+    <string name="session_drawer_rail_label_apps">更多</string>
+    <string name="session_drawer_rail_label_keyboard">鍵盤</string>
+    <string name="session_drawer_rail_label_input_controls">控制</string>
+    <string name="session_drawer_rail_label_relative_mouse">相對滑鼠</string>
+    <string name="session_drawer_rail_label_mouse">滑鼠</string>
+    <string name="session_drawer_rail_label_fullscreen">全螢幕</string>
+    <string name="session_drawer_rail_label_pip">子母</string>
+    <string name="session_drawer_rail_label_native">原生</string>
+    <string name="session_drawer_rail_label_magnifier">縮放</string>
+    <string name="session_drawer_rail_label_task_manager">工作</string>
+    <string name="session_drawer_rail_label_logs">日誌</string>
+    <string name="session_drawer_super_resolution">銳化濾鏡</string>
+    <string name="session_drawer_upscaler_mode">濾鏡</string>
+    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_main_menu_title">選單</string>
+    <string name="session_gyroscope_activator">啟動器</string>
     <string name="settings_general_check_for_updates">檢查更新</string>
     <string name="settings_general_check_for_updates_summary">啟動時及定期自動檢查新版本。</string>
     <string name="setup_wizard_containers">容器設定</string>

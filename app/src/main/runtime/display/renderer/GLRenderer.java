@@ -49,6 +49,11 @@ public class GLRenderer
   private String[] unviewableWMClasses = null;
   private float magnifierZoom = 1.0f;
   private boolean magnifierEnabled = true;
+  private boolean magnifierUIActive = false;
+  private float magnifierPanX = 0f;
+  private float magnifierPanY = 0f;
+  private boolean magnifierPanInitialized = false;
+  private static final float MAGNIFIER_DEADZONE_FRACTION = 0.6f;
   public int surfaceWidth;
   public int surfaceHeight;
   private boolean cpuSaverMode = false;
@@ -155,30 +160,7 @@ public class GLRenderer
 
     // Apply basic transformations and draw windows
     if (magnifierEnabled) {
-      // Apply magnifier transformations if enabled
-      float pointerX = 0;
-      float pointerY = 0;
-      float magnifierZoom = !screenOffsetYRelativeToCursor ? this.magnifierZoom : 1.0f;
-
-      if (magnifierZoom != 1.0f) {
-        pointerX =
-            Mathf.clamp(
-                xServer.pointer.getX() * magnifierZoom - xServer.screenInfo.width * 0.5f,
-                0,
-                xServer.screenInfo.width * Math.abs(1.0f - magnifierZoom));
-      }
-
-      if (screenOffsetYRelativeToCursor || magnifierZoom != 1.0f) {
-        float scaleY = magnifierZoom != 1.0f ? Math.abs(1.0f - magnifierZoom) : 0.5f;
-        float offsetY = xServer.screenInfo.height * (screenOffsetYRelativeToCursor ? 0.25f : 0.5f);
-        pointerY =
-            Mathf.clamp(
-                xServer.pointer.getY() * magnifierZoom - offsetY,
-                0,
-                xServer.screenInfo.height * scaleY);
-      }
-
-      XForm.makeTransform(tmpXForm2, -pointerX, -pointerY, magnifierZoom, magnifierZoom, 0);
+      computeMagnifierPan(tmpXForm2);
     } else {
       if (!fullscreen) {
         int pointerY = 0;
@@ -447,8 +429,77 @@ public class GLRenderer
   }
 
   public void setMagnifierZoom(float magnifierZoom) {
-    this.magnifierZoom = magnifierZoom;
+    if (this.magnifierZoom != magnifierZoom) {
+      this.magnifierZoom = magnifierZoom;
+      magnifierPanInitialized = false;
+    }
     requestRenderCoalesced();
+  }
+
+  private void computeMagnifierPan(float[] outXForm) {
+    float currentZoom = !screenOffsetYRelativeToCursor ? this.magnifierZoom : 1.0f;
+    if (currentZoom <= 1.0f && !screenOffsetYRelativeToCursor) {
+      magnifierPanX = 0;
+      magnifierPanY = 0;
+      magnifierPanInitialized = false;
+      XForm.identity(outXForm);
+      return;
+    }
+
+    int screenW = xServer.screenInfo.width;
+    int screenH = xServer.screenInfo.height;
+    float cursorX = xServer.pointer.getX();
+    float cursorY = xServer.pointer.getY();
+
+    if (currentZoom > 1.0f) {
+      float maxPanX = screenW * (currentZoom - 1.0f);
+      float maxPanY = screenH * (currentZoom - 1.0f);
+
+      if (!magnifierPanInitialized) {
+        magnifierPanX = Mathf.clamp(cursorX * currentZoom - screenW * 0.5f, 0, maxPanX);
+        magnifierPanY = Mathf.clamp(cursorY * currentZoom - screenH * 0.5f, 0, maxPanY);
+        magnifierPanInitialized = true;
+      }
+
+      float visibleW = screenW / currentZoom;
+      float visibleH = screenH / currentZoom;
+      float marginX = visibleW * (1.0f - MAGNIFIER_DEADZONE_FRACTION) * 0.5f;
+      float marginY = visibleH * (1.0f - MAGNIFIER_DEADZONE_FRACTION) * 0.5f;
+
+      float visibleLeft = magnifierPanX / currentZoom;
+      float visibleTop = magnifierPanY / currentZoom;
+      float visibleRight = visibleLeft + visibleW;
+      float visibleBottom = visibleTop + visibleH;
+
+      if (cursorX < visibleLeft + marginX) {
+        magnifierPanX = (cursorX - marginX) * currentZoom;
+      } else if (cursorX > visibleRight - marginX) {
+        magnifierPanX = (cursorX - visibleW + marginX) * currentZoom;
+      }
+      if (cursorY < visibleTop + marginY) {
+        magnifierPanY = (cursorY - marginY) * currentZoom;
+      } else if (cursorY > visibleBottom - marginY) {
+        magnifierPanY = (cursorY - visibleH + marginY) * currentZoom;
+      }
+
+      magnifierPanX = Mathf.clamp(magnifierPanX, 0, maxPanX);
+      magnifierPanY = Mathf.clamp(magnifierPanY, 0, maxPanY);
+    } else {
+      magnifierPanX = 0;
+      magnifierPanY = 0;
+      magnifierPanInitialized = false;
+    }
+
+    float panY = magnifierPanY;
+    if (currentZoom == 1.0f && screenOffsetYRelativeToCursor) {
+      panY =
+          Mathf.clamp(
+              xServer.pointer.getY() * 1.0f - screenH * 0.25f,
+              0,
+              screenH * 0.5f);
+    }
+
+    XForm.makeTransform(outXForm, -magnifierPanX, -panY, currentZoom, currentZoom, 0);
   }
 
   public int getSurfaceWidth() {
@@ -475,13 +526,30 @@ public class GLRenderer
     if (cpuSaverMode != enable) {
       cpuSaverMode = enable;
       viewportNeedsUpdate = true;
-      xServerView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
+      applyRenderMode();
       requestRenderCoalesced();
     }
   }
 
   public boolean isNativeMode() {
     return cpuSaverMode;
+  }
+
+  public void setMagnifierUIActive(boolean active) {
+    if (magnifierUIActive == active) return;
+    magnifierUIActive = active;
+    magnifierPanInitialized = false;
+    viewportNeedsUpdate = true;
+    applyRenderMode();
+    requestRenderCoalesced();
+  }
+
+  public boolean isMagnifierUIActive() {
+    return magnifierUIActive;
+  }
+
+  private void applyRenderMode() {
+    xServerView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
   }
 
   public void setFpsLimit(int fps) {
@@ -542,27 +610,7 @@ public class GLRenderer
       GLES20.glDisable(GLES20.GL_BLEND);
 
       if (magnifierEnabled) {
-        float pointerX = 0;
-        float pointerY = 0;
-        float currentZoom = !screenOffsetYRelativeToCursor ? magnifierZoom : 1.0f;
-        if (currentZoom != 1.0f) {
-          pointerX =
-              Mathf.clamp(
-                  xServer.pointer.getX() * currentZoom - xServer.screenInfo.width * 0.5f,
-                  0,
-                  xServer.screenInfo.width * Math.abs(1.0f - currentZoom));
-        }
-        if (screenOffsetYRelativeToCursor || currentZoom != 1.0f) {
-          float scaleY = currentZoom != 1.0f ? Math.abs(1.0f - currentZoom) : 0.5f;
-          float offsetY =
-              xServer.screenInfo.height * (screenOffsetYRelativeToCursor ? 0.25f : 0.5f);
-          pointerY =
-              Mathf.clamp(
-                  xServer.pointer.getY() * currentZoom - offsetY,
-                  0,
-                  xServer.screenInfo.height * scaleY);
-        }
-        XForm.makeTransform(tmpXForm2, -pointerX, -pointerY, currentZoom, currentZoom, 0);
+        computeMagnifierPan(tmpXForm2);
       } else if (!fullscreen) {
         int pointerY = 0;
         if (screenOffsetYRelativeToCursor) {
