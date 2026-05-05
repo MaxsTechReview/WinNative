@@ -545,16 +545,9 @@ Ad es. <b>META</b> per il <i>tasto META</i>, \n
     <string name="session_drawer_toggle_relative_mouse">Attiva/Disattiva movimento relativo del mouse</string>
     <string name="session_drawer_toggle_mouse">Attiva/Disattiva mouse</string>
     <string name="session_drawer_pause_resume">Pausa/Riprendi</string>
-    <string name="session_drawer_keyboard_subtitle">Apri la tastiera virtuale</string>
-    <string name="session_drawer_input_controls_subtitle">Configura o attiva i controlli su schermo</string>
     <string name="session_drawer_relative_mouse_movement">Movimento relativo del mouse</string>
     <string name="session_drawer_mouse_input">Input mouse</string>
-    <string name="session_drawer_fullscreen_subtitle">Attiva il rendering a schermo intero</string>
     <string name="session_drawer_picture_in_picture">Picture in Picture</string>
-    <string name="session_drawer_pip_subtitle">Riduci il gioco in una finestra flottante</string>
-    <string name="session_drawer_task_manager_subtitle">Ispeziona e gestisci i processi in esecuzione</string>
-    <string name="session_drawer_magnifier_subtitle">Ingrandisci il display</string>
-    <string name="session_drawer_logs_subtitle">Apri i log di Wine e Box64</string>
     <string name="session_drawer_exit_subtitle">Chiudi la sessione in corso</string>
     <string name="session_drawer_touchscreen_overlay">Overlay touchscreen</string>
     <string name="session_drawer_resume">Riprendi</string>
@@ -562,9 +555,10 @@ Ad es. <b>META</b> per il <i>tasto META</i>, \n
     <string name="session_drawer_wine_processes_paused">Processi Wine in pausa</string>
     <string name="session_drawer_pause_all_wine_processes">Metti in pausa tutti i processi Wine</string>
     <string name="session_drawer_hud_element_fps">FPS</string>
-    <string name="session_drawer_hud_element_api">API</string>
+    <string name="session_drawer_hud_element_api">GFX</string>
     <string name="session_drawer_hud_element_gpu">GPU</string>
     <string name="session_drawer_hud_element_cpu">CPU</string>
+    <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Batt.</string>
     <string name="session_drawer_hud_element_graph">Graf.</string>
 
@@ -575,10 +569,18 @@ Ad es. <b>META</b> per il <i>tasto META</i>, \n
     <string name="session_task_pid">PID</string>
     <string name="session_task_memory">Memoria</string>
     <string name="session_task_end_process">Termina processo</string>
+    <string name="session_task_set_affinity">Imposta affinità</string>
+    <string name="session_task_affinity_title">Affinità processore</string>
+    <string name="session_task_affinity_all_cores">Tutti i core</string>
     <string name="session_task_new_task">Nuova attività</string>
     <string name="session_task_processes">Processi</string>
-    <string name="session_task_bring_to_front">Porta in primo piano</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
+    <string name="session_task_per_core_usage">Utilizzo per core</string>
+    <string name="session_task_core_label">Core %1$d</string>
+    <plurals name="session_task_core_count">
+        <item quantity="one">%d core</item>
+        <item quantity="other">%d core</item>
+    </plurals>
 
 
     <!-- Session > Display -->
@@ -1008,6 +1010,39 @@ Percorso installato:
     <string name="session_drawer_fps_monitor">Monitor FPS</string>
     <string name="session_drawer_fps_monitor_subtitle">Mostra statistiche prestazioni in tempo reale</string>
     <string name="session_drawer_dual_series_battery">Batteria Dual Series</string>
+    <string name="session_drawer_command_center">Centro comandi</string>
+    <string name="session_drawer_command_center_input">Input</string>
+    <string name="session_drawer_command_center_display">Schermo</string>
+    <string name="session_drawer_command_center_system">Sistema</string>
+    <string name="session_drawer_fps_limiter">Limitatore FPS</string>
+    <string name="session_drawer_fps_limiter_off">Disattivato</string>
+    <string name="session_drawer_screen_effects_subtitle">Upscaling ed effetti colore</string>
+    <string name="session_drawer_color_profile">Effetto colore</string>
+    <string name="session_drawer_color_profile_disabled">Disabilitato</string>
+    <string name="session_drawer_color_profile_hdr">HDR</string>
+    <string name="session_drawer_color_profile_natural">Naturale</string>
+    <string name="session_drawer_color_profile_crt">Effetto CRT</string>
+    <string name="session_drawer_upscaler_dls">Vivido</string>
+    <string name="session_drawer_calibrate_advanced">Calibrazione avanzata</string>
+    <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_gyro">Giro</string>
+    <string name="session_drawer_rail_label_effects">FX</string>
+    <string name="session_drawer_rail_label_apps">Altro</string>
+    <string name="session_drawer_rail_label_keyboard">Tastiera</string>
+    <string name="session_drawer_rail_label_input_controls">Comandi</string>
+    <string name="session_drawer_rail_label_relative_mouse">RelMouse</string>
+    <string name="session_drawer_rail_label_mouse">Mouse</string>
+    <string name="session_drawer_rail_label_fullscreen">Schermo intero</string>
+    <string name="session_drawer_rail_label_pip">PiP</string>
+    <string name="session_drawer_rail_label_native">Nativo</string>
+    <string name="session_drawer_rail_label_magnifier">Zoom</string>
+    <string name="session_drawer_rail_label_task_manager">Attività</string>
+    <string name="session_drawer_rail_label_logs">Log</string>
+    <string name="session_drawer_super_resolution">Filtri Nitidezza</string>
+    <string name="session_drawer_upscaler_mode">Filtro</string>
+    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_main_menu_title">Menu</string>
+    <string name="session_gyroscope_activator">Attivatore</string>
     <string name="settings_general_check_for_updates">Controlla aggiornamenti</string>
     <string name="settings_general_check_for_updates_summary">Controlla automaticamente la presenza di nuove versioni dell\'app all\'avvio e periodicamente.</string>
     <string name="setup_wizard_containers">Configurazione container</string>

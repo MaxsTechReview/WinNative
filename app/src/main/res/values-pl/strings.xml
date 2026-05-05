@@ -549,16 +549,9 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="session_drawer_toggle_relative_mouse">Przełącz ruch względny myszy</string>
     <string name="session_drawer_toggle_mouse">Przełącz mysz</string>
     <string name="session_drawer_pause_resume">Wstrzymaj/Wznów</string>
-    <string name="session_drawer_keyboard_subtitle">Otwórz klawiaturę programową</string>
-    <string name="session_drawer_input_controls_subtitle">Konfiguruj lub przełączaj kontrolki ekranowe</string>
     <string name="session_drawer_relative_mouse_movement">Ruch względny myszy</string>
     <string name="session_drawer_mouse_input">Wejście myszy</string>
-    <string name="session_drawer_fullscreen_subtitle">Przełącz renderowanie pełnoekranowe</string>
     <string name="session_drawer_picture_in_picture">Obraz w obrazie</string>
-    <string name="session_drawer_pip_subtitle">Zmniejsz grę do pływającego okna</string>
-    <string name="session_drawer_task_manager_subtitle">Sprawdzaj i zarządzaj uruchomionymi procesami</string>
-    <string name="session_drawer_magnifier_subtitle">Przybliż obraz</string>
-    <string name="session_drawer_logs_subtitle">Otwórz logi Wine i Box64</string>
     <string name="session_drawer_exit_subtitle">Zamknij bieżącą sesję</string>
     <string name="session_drawer_touchscreen_overlay">Nakładka dotykowa</string>
     <string name="session_drawer_resume">Wznów</string>
@@ -566,9 +559,10 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="session_drawer_wine_processes_paused">Procesy Wine są wstrzymane</string>
     <string name="session_drawer_pause_all_wine_processes">Wstrzymaj wszystkie procesy Wine</string>
     <string name="session_drawer_hud_element_fps">FPS</string>
-    <string name="session_drawer_hud_element_api">API</string>
+    <string name="session_drawer_hud_element_api">GFX</string>
     <string name="session_drawer_hud_element_gpu">GPU</string>
     <string name="session_drawer_hud_element_cpu">CPU</string>
+    <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Bat.</string>
     <string name="session_drawer_hud_element_graph">Wykr.</string>
 
@@ -579,10 +573,20 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="session_task_pid">PID</string>
     <string name="session_task_memory">Pamięć</string>
     <string name="session_task_end_process">Zakończ proces</string>
+    <string name="session_task_set_affinity">Ustaw koligację</string>
+    <string name="session_task_affinity_title">Koligacja procesora</string>
+    <string name="session_task_affinity_all_cores">Wszystkie rdzenie</string>
     <string name="session_task_new_task">Nowe zadanie</string>
     <string name="session_task_processes">Procesy</string>
-    <string name="session_task_bring_to_front">Przenieś na wierzch</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
+    <string name="session_task_per_core_usage">Użycie na rdzeń</string>
+    <string name="session_task_core_label">Rdzeń %1$d</string>
+    <plurals name="session_task_core_count">
+        <item quantity="one">%d rdzeń</item>
+        <item quantity="few">%d rdzenie</item>
+        <item quantity="many">%d rdzeni</item>
+        <item quantity="other">%d rdzenia</item>
+    </plurals>
 
 
     <!-- Session > Display -->
@@ -1012,6 +1016,39 @@ Zainstalowana ścieżka:
     <string name="session_drawer_fps_monitor">Monitor FPS</string>
     <string name="session_drawer_fps_monitor_subtitle">Pokaż statystyki wydajności w czasie rzeczywistym</string>
     <string name="session_drawer_dual_series_battery">Bateria Dual Series</string>
+    <string name="session_drawer_command_center">Centrum poleceń</string>
+    <string name="session_drawer_command_center_input">Wejście</string>
+    <string name="session_drawer_command_center_display">Ekran</string>
+    <string name="session_drawer_command_center_system">System</string>
+    <string name="session_drawer_fps_limiter">Ogranicznik FPS</string>
+    <string name="session_drawer_fps_limiter_off">Wył.</string>
+    <string name="session_drawer_screen_effects_subtitle">Skalowanie i efekty kolorów</string>
+    <string name="session_drawer_color_profile">Efekt koloru</string>
+    <string name="session_drawer_color_profile_disabled">Wyłączone</string>
+    <string name="session_drawer_color_profile_hdr">HDR</string>
+    <string name="session_drawer_color_profile_natural">Naturalny</string>
+    <string name="session_drawer_color_profile_crt">Efekt CRT</string>
+    <string name="session_drawer_upscaler_dls">Żywy</string>
+    <string name="session_drawer_calibrate_advanced">Zaawansowana kalibracja</string>
+    <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_gyro">Gyro</string>
+    <string name="session_drawer_rail_label_effects">FX</string>
+    <string name="session_drawer_rail_label_apps">Więcej</string>
+    <string name="session_drawer_rail_label_keyboard">Klawiatura</string>
+    <string name="session_drawer_rail_label_input_controls">Sterow.</string>
+    <string name="session_drawer_rail_label_relative_mouse">RelMysz</string>
+    <string name="session_drawer_rail_label_mouse">Mysz</string>
+    <string name="session_drawer_rail_label_fullscreen">Pełny ekran</string>
+    <string name="session_drawer_rail_label_pip">PiP</string>
+    <string name="session_drawer_rail_label_native">Natyw.</string>
+    <string name="session_drawer_rail_label_magnifier">Zoom</string>
+    <string name="session_drawer_rail_label_task_manager">Zad.</string>
+    <string name="session_drawer_rail_label_logs">Logi</string>
+    <string name="session_drawer_super_resolution">Filtry Wyostrzania</string>
+    <string name="session_drawer_upscaler_mode">Filtr</string>
+    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_main_menu_title">Menu</string>
+    <string name="session_gyroscope_activator">Aktywator</string>
     <string name="settings_general_check_for_updates">Sprawdź aktualizacje</string>
     <string name="settings_general_check_for_updates_summary">Automatycznie sprawdzaj nowe wersje aplikacji przy uruchomieniu i okresowo.</string>
     <string name="setup_wizard_containers">Konfiguracja kontenera</string>

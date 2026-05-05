@@ -545,16 +545,9 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="session_drawer_toggle_relative_mouse">Comuta miscarea relativa a mouse-ului</string>
     <string name="session_drawer_toggle_mouse">Comuta mouse-ul</string>
     <string name="session_drawer_pause_resume">Pauza/Reluare</string>
-    <string name="session_drawer_keyboard_subtitle">Deschide tastatura software</string>
-    <string name="session_drawer_input_controls_subtitle">Configureaza sau comuta controalele de pe ecran</string>
     <string name="session_drawer_relative_mouse_movement">Miscare relativa mouse</string>
     <string name="session_drawer_mouse_input">Intrare mouse</string>
-    <string name="session_drawer_fullscreen_subtitle">Comuta randarea pe ecran complet</string>
     <string name="session_drawer_picture_in_picture">Imagine in imagine</string>
-    <string name="session_drawer_pip_subtitle">Micsoreaza jocul intr-o fereastra plutitoare</string>
-    <string name="session_drawer_task_manager_subtitle">Inspecteaza si gestioneaza procesele active</string>
-    <string name="session_drawer_magnifier_subtitle">Mareste afisajul</string>
-    <string name="session_drawer_logs_subtitle">Deschide jurnalele Wine si Box64</string>
     <string name="session_drawer_exit_subtitle">Inchide sesiunea curenta</string>
     <string name="session_drawer_touchscreen_overlay">Suprapunere tactila</string>
     <string name="session_drawer_resume">Reluare</string>
@@ -562,9 +555,10 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="session_drawer_wine_processes_paused">Procesele Wine sunt in pauza</string>
     <string name="session_drawer_pause_all_wine_processes">Pune in pauza toate procesele Wine</string>
     <string name="session_drawer_hud_element_fps">FPS</string>
-    <string name="session_drawer_hud_element_api">API</string>
+    <string name="session_drawer_hud_element_api">GFX</string>
     <string name="session_drawer_hud_element_gpu">GPU</string>
     <string name="session_drawer_hud_element_cpu">CPU</string>
+    <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Bat.</string>
     <string name="session_drawer_hud_element_graph">Grafic</string>
 
@@ -575,10 +569,18 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="session_task_pid">PID</string>
     <string name="session_task_memory">Memorie</string>
     <string name="session_task_end_process">Opreste proces</string>
+    <string name="session_task_set_affinity">Seteaza afinitatea</string>
+    <string name="session_task_affinity_title">Afinitate procesor</string>
+    <string name="session_task_affinity_all_cores">Toate nucleele</string>
     <string name="session_task_new_task">Activitate noua</string>
     <string name="session_task_processes">Procese</string>
-    <string name="session_task_bring_to_front">Adu in prim-plan</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
+    <string name="session_task_per_core_usage">Utilizare per nucleu</string>
+    <string name="session_task_core_label">Nucleu %1$d</string>
+    <plurals name="session_task_core_count">
+        <item quantity="one">%d nucleu</item>
+        <item quantity="other">%d nuclee</item>
+    </plurals>
 
 
     <!-- Session > Display -->
@@ -1008,6 +1010,39 @@ Cale instalata:
     <string name="session_drawer_fps_monitor">Monitor FPS</string>
     <string name="session_drawer_fps_monitor_subtitle">Afișează statisticile de performanță în timp real</string>
     <string name="session_drawer_dual_series_battery">Baterie Dual Series</string>
+    <string name="session_drawer_command_center">Centru de comandă</string>
+    <string name="session_drawer_command_center_input">Intrare</string>
+    <string name="session_drawer_command_center_display">Afișaj</string>
+    <string name="session_drawer_command_center_system">Sistem</string>
+    <string name="session_drawer_fps_limiter">Limitator FPS</string>
+    <string name="session_drawer_fps_limiter_off">Oprit</string>
+    <string name="session_drawer_screen_effects_subtitle">Scalare si efecte de culoare</string>
+    <string name="session_drawer_color_profile">Efect de culoare</string>
+    <string name="session_drawer_color_profile_disabled">Dezactivat</string>
+    <string name="session_drawer_color_profile_hdr">HDR</string>
+    <string name="session_drawer_color_profile_natural">Natural</string>
+    <string name="session_drawer_color_profile_crt">Efect CRT</string>
+    <string name="session_drawer_upscaler_dls">Viu</string>
+    <string name="session_drawer_calibrate_advanced">Calibrare avansată</string>
+    <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_gyro">Giro</string>
+    <string name="session_drawer_rail_label_effects">FX</string>
+    <string name="session_drawer_rail_label_apps">Mai multe</string>
+    <string name="session_drawer_rail_label_keyboard">Tastatura</string>
+    <string name="session_drawer_rail_label_input_controls">Comenzi</string>
+    <string name="session_drawer_rail_label_relative_mouse">RelMouse</string>
+    <string name="session_drawer_rail_label_mouse">Mouse</string>
+    <string name="session_drawer_rail_label_fullscreen">Ecran complet</string>
+    <string name="session_drawer_rail_label_pip">PiP</string>
+    <string name="session_drawer_rail_label_native">Nativ</string>
+    <string name="session_drawer_rail_label_magnifier">Zoom</string>
+    <string name="session_drawer_rail_label_task_manager">Sarcini</string>
+    <string name="session_drawer_rail_label_logs">Loguri</string>
+    <string name="session_drawer_super_resolution">Filtre Claritate</string>
+    <string name="session_drawer_upscaler_mode">Filtru</string>
+    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_main_menu_title">Meniu</string>
+    <string name="session_gyroscope_activator">Activator</string>
     <string name="settings_general_check_for_updates">Verifică actualizările</string>
     <string name="settings_general_check_for_updates_summary">Verifică automat dacă există versiuni noi ale aplicației la pornire și periodic.</string>
     <string name="setup_wizard_containers">Configurare container</string>

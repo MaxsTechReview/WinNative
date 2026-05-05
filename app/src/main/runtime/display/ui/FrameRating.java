@@ -64,7 +64,8 @@ public class FrameRating extends LinearLayout implements Runnable {
   private volatile int cpuTemp;
   private float currentMs;
   private boolean enableBattTemp;
-  private boolean enableCpuRam;
+  private boolean enableCpu;
+  private boolean enableRam;
   private boolean enableFps;
   private boolean enableGpu;
   private boolean enableGraph;
@@ -133,7 +134,8 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.enableFps = true;
     this.enableGraph = true;
     this.enableGpu = true;
-    this.enableCpuRam = true;
+    this.enableCpu = true;
+    this.enableRam = true;
     this.enableBattTemp = true;
     this.enableRenderer = true;
     this.cpuPercent = -1;
@@ -649,16 +651,19 @@ public class FrameRating extends LinearLayout implements Runnable {
         }
         break;
       case 3:
-        this.enableCpuRam = visible;
+        this.enableCpu = visible;
         if (this.tvCpu != null) this.tvCpu.setVisibility(v);
-        if (this.tvRam != null) this.tvRam.setVisibility(v);
         break;
       case 4:
+        this.enableRam = visible;
+        if (this.tvRam != null) this.tvRam.setVisibility(v);
+        break;
+      case 5:
         this.enableBattTemp = visible;
         if (this.tvBat != null) this.tvBat.setVisibility(v);
         if (this.tvTemp != null) this.tvTemp.setVisibility(v);
         break;
-      case 5:
+      case 6:
         this.enableGraph = visible;
         if (this.graphContainer != null) {
           this.graphContainer.setVisibility(v);
@@ -828,27 +833,27 @@ public class FrameRating extends LinearLayout implements Runnable {
         this.gpuFailCount++;
       }
     }
-    if (this.enableCpuRam) {
-      if (this.canReadCpu) {
-        try {
-          short[] clocks = CPUStatus.getCurrentClockSpeeds();
-          if (clocks != null && clocks.length > 0) {
-            long cur = 0;
-            long max = 0;
-            for (int i = 0; i < clocks.length; i++) {
-              cur += clocks[i];
-              max += CPUStatus.getMaxClockSpeed(i);
-            }
-            if (max > 0) {
-              this.cpuPercent = (int) ((cur * 100) / max);
-              this.cpuFailCount = 0;
-            }
+    if (this.enableCpu && this.canReadCpu) {
+      try {
+        short[] clocks = CPUStatus.getCurrentClockSpeeds();
+        if (clocks != null && clocks.length > 0) {
+          long cur = 0;
+          long max = 0;
+          for (int i = 0; i < clocks.length; i++) {
+            cur += clocks[i];
+            max += CPUStatus.getMaxClockSpeed(i);
           }
-        } catch (Exception e) {
-          this.cpuPercent = -1;
-          this.cpuFailCount++;
+          if (max > 0) {
+            this.cpuPercent = (int) ((cur * 100) / max);
+            this.cpuFailCount = 0;
+          }
         }
+      } catch (Exception e) {
+        this.cpuPercent = -1;
+        this.cpuFailCount++;
       }
+    }
+    if (this.enableRam) {
       try {
         ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
         ((ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE)).getMemoryInfo(mi);
@@ -899,24 +904,24 @@ public class FrameRating extends LinearLayout implements Runnable {
       this.tvGpuLoad.setVisibility(View.VISIBLE);
     } else if (this.tvGpuLoad != null) this.tvGpuLoad.setVisibility(View.GONE);
 
-    if (this.enableCpuRam) {
-      if (this.tvCpu != null) {
-        SpannableStringBuilder b = new SpannableStringBuilder();
-        append(b, "CPU ", this.C_CPU);
-        append(b, this.cpuPercent >= 0 ? this.cpuPercent + "%" : "N/A", this.C_VALUE);
-        this.tvCpu.setText(b);
-        this.tvCpu.setVisibility(View.VISIBLE);
-      }
-      if (this.tvRam != null) {
-        SpannableStringBuilder b = new SpannableStringBuilder();
-        append(b, "RAM ", this.C_RAM);
-        append(b, this.ramText, this.C_VALUE);
-        this.tvRam.setText(b);
-        this.tvRam.setVisibility(View.VISIBLE);
-      }
-    } else {
-      if (this.tvCpu != null) this.tvCpu.setVisibility(View.GONE);
-      if (this.tvRam != null) this.tvRam.setVisibility(View.GONE);
+    if (this.enableCpu && this.tvCpu != null) {
+      SpannableStringBuilder b = new SpannableStringBuilder();
+      append(b, "CPU ", this.C_CPU);
+      append(b, this.cpuPercent >= 0 ? this.cpuPercent + "%" : "N/A", this.C_VALUE);
+      this.tvCpu.setText(b);
+      this.tvCpu.setVisibility(View.VISIBLE);
+    } else if (this.tvCpu != null) {
+      this.tvCpu.setVisibility(View.GONE);
+    }
+
+    if (this.enableRam && this.tvRam != null) {
+      SpannableStringBuilder b = new SpannableStringBuilder();
+      append(b, "RAM ", this.C_RAM);
+      append(b, this.ramText, this.C_VALUE);
+      this.tvRam.setText(b);
+      this.tvRam.setVisibility(View.VISIBLE);
+    } else if (this.tvRam != null) {
+      this.tvRam.setVisibility(View.GONE);
     }
 
     if (this.enableBattTemp) {
