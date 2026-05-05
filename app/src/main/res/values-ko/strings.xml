@@ -569,6 +569,9 @@
     <string name="session_task_pid">PID</string>
     <string name="session_task_memory">메모리</string>
     <string name="session_task_end_process">프로세스 종료</string>
+    <string name="session_task_set_affinity">선호도 설정</string>
+    <string name="session_task_affinity_title">프로세서 선호도</string>
+    <string name="session_task_affinity_all_cores">모든 코어</string>
     <string name="session_task_new_task">새 작업</string>
     <string name="session_task_processes">프로세스</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>

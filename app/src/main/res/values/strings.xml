@@ -684,6 +684,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_task_pid">PID</string>
     <string name="session_task_memory">Memory</string>
     <string name="session_task_end_process">End Process</string>
+    <string name="session_task_set_affinity">Set Affinity</string>
+    <string name="session_task_affinity_title">Processor Affinity</string>
+    <string name="session_task_affinity_all_cores">All cores</string>
     <string name="session_task_new_task">New Task</string>
     <string name="session_task_processes">Processes</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>

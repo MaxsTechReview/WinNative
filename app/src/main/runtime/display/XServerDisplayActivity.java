@@ -70,7 +70,6 @@ import com.winlator.cmod.feature.setup.SetupWizardActivity;
 import com.winlator.cmod.runtime.container.Container;
 import com.winlator.cmod.runtime.container.ContainerManager;
 import com.winlator.cmod.runtime.container.Shortcut;
-import com.winlator.cmod.shared.ui.dialog.ContentDialog;
 import com.winlator.cmod.feature.settings.DebugDialog;
 import com.winlator.cmod.feature.settings.DXVKConfigUtils;
 import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils;
@@ -3171,12 +3170,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
                     @Override
                     public void onTaskManagerEndProcess(String name) {
-                        ContentDialog.confirm(
-                                XServerDisplayActivity.this,
-                                R.string.session_task_confirm_end_process,
-                                () -> {
-                                    if (winHandler != null) winHandler.killProcess(name);
-                                });
+                        if (winHandler != null) winHandler.killProcess(name);
+                    }
+
+                    @Override
+                    public void onTaskManagerSetAffinity(int pid, int affinityMask) {
+                        if (winHandler != null) {
+                            winHandler.setProcessAffinity(pid, affinityMask);
+                            winHandler.listProcesses();
+                        }
                     }
 
                     @Override
@@ -3298,6 +3300,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 processInfo.pid,
                 processInfo.name,
                 processInfo.getFormattedMemoryUsage(),
+                processInfo.affinityMask,
                 processInfo.wow64Process));
 
         if (index == numProcesses - 1) {

@@ -569,6 +569,9 @@ Par ex. <b>META</b> pour la <i>touche META</i>, \n
     <string name="session_task_pid">PID</string>
     <string name="session_task_memory">Mémoire</string>
     <string name="session_task_end_process">Terminer le processus</string>
+    <string name="session_task_set_affinity">Définir l\'affinité</string>
+    <string name="session_task_affinity_title">Affinité processeur</string>
+    <string name="session_task_affinity_all_cores">Tous les cœurs</string>
     <string name="session_task_new_task">Nouvelle tâche</string>
     <string name="session_task_processes">Processus</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>

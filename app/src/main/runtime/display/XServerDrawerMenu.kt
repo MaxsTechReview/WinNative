@@ -177,6 +177,7 @@ private val GlassExitTint = Color(0xFFE07B6B)
 private val LocalPaneScale = staticCompositionLocalOf { 1f }
 private const val PaneScaleMin = 0.78f
 private const val PaneScaleReferenceHeightDp = 520f
+private const val PendingTaskAffinityTimeoutMs = 2500L
 
 private fun computePaneScale(availableHeight: Dp): Float =
     (availableHeight.value / PaneScaleReferenceHeightDp).coerceIn(PaneScaleMin, 1f)
@@ -195,6 +196,7 @@ data class TaskManagerProcess(
     val pid: Int,
     val name: String,
     val memoryFormatted: String,
+    val affinityMask: Int,
     val isWow64: Boolean,
 )
 
@@ -205,6 +207,11 @@ data class TaskManagerPaneState(
     val cpuCorePercents: List<Int> = emptyList(),
     val memoryPercent: Int = 0,
     val memoryDetail: String = "",
+)
+
+private data class PendingTaskAffinity(
+    val affinityMask: Int,
+    val requestedAtMillis: Long,
 )
 
 // Top-rail pane specs.
@@ -421,6 +428,8 @@ interface XServerDrawerActionListener {
     fun onTaskManagerCpuExpandedChanged(expanded: Boolean)
 
     fun onTaskManagerEndProcess(name: String)
+
+    fun onTaskManagerSetAffinity(pid: Int, affinityMask: Int)
 
     fun onTaskManagerNewTask(command: String)
 }
@@ -1928,14 +1937,44 @@ private fun TaskManagerPaneContent(
     onClose: () -> Unit,
 ) {
     var showNewTaskDialog by remember { mutableStateOf(false) }
+    var processPendingEnd by remember { mutableStateOf<TaskManagerProcess?>(null) }
+    var expandedAffinityPid by remember { mutableStateOf<Int?>(null) }
+    val pendingAffinities = remember { mutableStateMapOf<Int, PendingTaskAffinity>() }
 
     DisposableEffect(Unit) {
         listener.onTaskManagerVisibilityChanged(true)
         onDispose { listener.onTaskManagerVisibilityChanged(false) }
     }
 
+    LaunchedEffect(taskManagerState.processes) {
+        val visibleProcessPids = taskManagerState.processes.map { it.pid }.toSet()
+        val now = System.currentTimeMillis()
+        pendingAffinities.keys.toList().forEach { pid ->
+            if (pid !in visibleProcessPids) pendingAffinities.remove(pid)
+        }
+        taskManagerState.processes.forEach { process ->
+            val pending = pendingAffinities[process.pid]
+            if (
+                pending != null &&
+                    (pending.affinityMask == process.affinityMask ||
+                        now - pending.requestedAtMillis > PendingTaskAffinityTimeoutMs)
+            ) {
+                pendingAffinities.remove(process.pid)
+            }
+        }
+        if (expandedAffinityPid != null && expandedAffinityPid !in visibleProcessPids) {
+            expandedAffinityPid = null
+        }
+    }
+
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val paneScale = computePaneScale(maxHeight)
+        val affinityCoreCount =
+            if (taskManagerState.cpuCoreCount > 0) {
+                taskManagerState.cpuCoreCount
+            } else {
+                Runtime.getRuntime().availableProcessors()
+            }
         CompositionLocalProvider(LocalPaneScale provides paneScale) {
             Column(
                 modifier =
@@ -1976,9 +2015,23 @@ private fun TaskManagerPaneContent(
                         ) {
                             taskManagerState.processes.forEach { process ->
                                 key(process.pid) {
-                                    TaskManagerProcessRow(
+                                    val selectedAffinityMask =
+                                        pendingAffinities[process.pid]?.affinityMask ?: process.affinityMask
+                                    TaskManagerProcessCard(
                                         process = process,
-                                        onEndProcess = { listener.onTaskManagerEndProcess(process.name) },
+                                        expanded = expandedAffinityPid == process.pid,
+                                        affinityMask = selectedAffinityMask,
+                                        coreCount = affinityCoreCount,
+                                        onToggleAffinity = {
+                                            expandedAffinityPid =
+                                                if (expandedAffinityPid == process.pid) null else process.pid
+                                        },
+                                        onAffinityMaskChanged = { affinityMask ->
+                                            pendingAffinities[process.pid] =
+                                                PendingTaskAffinity(affinityMask, System.currentTimeMillis())
+                                            listener.onTaskManagerSetAffinity(process.pid, affinityMask)
+                                        },
+                                        onEndProcess = { processPendingEnd = process },
                                     )
                                 }
                             }
@@ -1995,6 +2048,17 @@ private fun TaskManagerPaneContent(
             onConfirm = { command ->
                 showNewTaskDialog = false
                 listener.onTaskManagerNewTask(command)
+            },
+        )
+    }
+
+    processPendingEnd?.let { process ->
+        TaskManagerEndProcessDialog(
+            process = process,
+            onDismiss = { processPendingEnd = null },
+            onConfirm = {
+                processPendingEnd = null
+                listener.onTaskManagerEndProcess(process.name)
             },
         )
     }
@@ -2167,6 +2231,8 @@ private fun TaskManagerStatTile(
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
         Text(
             text = detail,
@@ -2174,6 +2240,8 @@ private fun TaskManagerStatTile(
             fontSize = (10f * paneScale).sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
@@ -2284,6 +2352,244 @@ private fun TaskManagerNewTaskButton(onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TaskManagerAffinityOptions(
+    affinityMask: Int,
+    coreCount: Int,
+    onAffinityMaskChanged: (Int) -> Unit,
+) {
+    val paneScale = LocalPaneScale.current
+    val effectiveCoreCount = coreCount.coerceAtLeast(1).coerceAtMost(32)
+    val selectedMask = sanitizeTaskAffinityMask(affinityMask, effectiveCoreCount)
+    val fullMask = taskAffinityFullMask(effectiveCoreCount)
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(
+                    start = (8f * paneScale).dp,
+                    end = (8f * paneScale).dp,
+                    bottom = (8f * paneScale).dp,
+                ),
+        verticalArrangement = Arrangement.spacedBy((7f * paneScale).dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy((6f * paneScale).dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Tune,
+                contentDescription = null,
+                tint = DrawerAccent,
+                modifier = Modifier.size((15f * paneScale).dp),
+            )
+            Text(
+                text = stringResource(R.string.session_task_affinity_title),
+                color = DrawerTextPrimary,
+                fontSize = (12f * paneScale).sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy((5f * paneScale).dp),
+            verticalArrangement = Arrangement.spacedBy((5f * paneScale).dp),
+        ) {
+            TaskManagerAffinityChip(
+                label = stringResource(R.string.session_task_affinity_all_cores),
+                selected = selectedMask == fullMask,
+                onClick = { onAffinityMaskChanged(fullMask) },
+            )
+            for (coreIndex in 0 until effectiveCoreCount) {
+                val bit = 1 shl coreIndex
+                TaskManagerAffinityChip(
+                    label = stringResource(R.string.session_task_core_label, coreIndex),
+                    selected = (selectedMask and bit) != 0,
+                    onClick = {
+                        val nextMask =
+                            if ((selectedMask and bit) != 0) {
+                                selectedMask and bit.inv()
+                            } else {
+                                selectedMask or bit
+                            }
+                        if ((nextMask and fullMask) != 0) {
+                            onAffinityMaskChanged(nextMask and fullMask)
+                        }
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TaskManagerAffinityChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val bgColor =
+        if (selected) {
+            DrawerAccent.copy(alpha = 0.16f)
+        } else {
+            PaneInnerResting
+        }
+    val borderColor = if (selected) DrawerAccent.copy(alpha = 0.56f) else RestingCardBorder
+    val textColor = if (selected) DrawerAccent else DrawerTextPrimary
+    Row(
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(bgColor)
+                .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                )
+                .padding(horizontal = 8.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Check,
+            contentDescription = null,
+            tint = DrawerAccent.copy(alpha = if (selected) 1f else 0f),
+            modifier = Modifier.size(13.dp),
+        )
+        Text(
+            text = label,
+            color = textColor,
+            fontSize = 11.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+        )
+    }
+}
+
+private fun taskAffinityFullMask(coreCount: Int): Int {
+    var mask = 0
+    for (index in 0 until coreCount.coerceAtLeast(1).coerceAtMost(32)) {
+        mask = mask or (1 shl index)
+    }
+    return mask
+}
+
+private fun sanitizeTaskAffinityMask(affinityMask: Int, coreCount: Int): Int {
+    val fullMask = taskAffinityFullMask(coreCount)
+    val sanitizedMask = affinityMask and fullMask
+    return if (sanitizedMask != 0) sanitizedMask else fullMask
+}
+
+@Composable
+private fun TaskManagerEndProcessDialog(
+    process: TaskManagerProcess,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val displayName = if (process.isWow64) "${process.name} *32" else process.name
+    val shape = RoundedCornerShape(12.dp)
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties =
+            DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+            ),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .safeDrawingPadding()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .widthIn(max = 292.dp)
+                        .fillMaxWidth()
+                        .clip(shape)
+                        .background(PaneSurfaceColor)
+                        .border(1.dp, GlassExitTint.copy(alpha = 0.32f), shape)
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = null,
+                        tint = GlassExitTint,
+                        modifier = Modifier.size(17.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.session_task_end_process),
+                        color = DrawerTextPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+
+                Text(
+                    text = displayName,
+                    color = DrawerTextPrimary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    text = stringResource(R.string.session_task_confirm_end_process),
+                    color = DrawerTextPrimary,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TaskManagerDialogButton(
+                        label = stringResource(R.string.common_ui_cancel),
+                        textColor = DrawerTextPrimary,
+                        modifier = Modifier.height(34.dp),
+                        verticalPadding = 0.dp,
+                        onClick = onDismiss,
+                    )
+                    TaskManagerDialogButton(
+                        label = stringResource(R.string.session_task_end_process),
+                        textColor = GlassExitTint,
+                        modifier = Modifier.height(34.dp),
+                        verticalPadding = 0.dp,
+                        fontWeight = FontWeight.Medium,
+                        backgroundColor = GlassExitTint.copy(alpha = 0.12f),
+                        borderColor = GlassExitTint.copy(alpha = 0.34f),
+                        onClick = onConfirm,
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun TaskManagerNewTaskDialog(
     onDismiss: () -> Unit,
@@ -2357,6 +2663,7 @@ private fun TaskManagerNewTaskDialog(
                     modifier =
                         Modifier
                             .fillMaxWidth()
+                            .height(48.dp)
                             .focusRequester(focusRequester),
                     singleLine = true,
                     textStyle =
@@ -2392,11 +2699,15 @@ private fun TaskManagerNewTaskDialog(
                     TaskManagerDialogButton(
                         label = stringResource(R.string.common_ui_cancel),
                         textColor = DrawerTextPrimary,
+                        modifier = Modifier.height(34.dp),
+                        verticalPadding = 0.dp,
                         onClick = onDismiss,
                     )
                     TaskManagerDialogButton(
                         label = stringResource(R.string.common_ui_ok),
                         textColor = DrawerAccent,
+                        modifier = Modifier.height(34.dp),
+                        verticalPadding = 0.dp,
                         backgroundColor = DrawerAccent.copy(alpha = 0.12f),
                         borderColor = DrawerAccent.copy(alpha = 0.34f),
                         onClick = {
@@ -2415,12 +2726,15 @@ private fun TaskManagerDialogButton(
     label: String,
     textColor: Color,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     backgroundColor: Color = PaneInnerResting,
     borderColor: Color = RestingCardBorder,
+    fontWeight: FontWeight = FontWeight.SemiBold,
+    verticalPadding: Dp = 8.dp,
 ) {
     Box(
         modifier =
-            Modifier
+            modifier
                 .widthIn(min = 72.dp)
                 .clip(RoundedCornerShape(9.dp))
                 .background(backgroundColor)
@@ -2430,14 +2744,16 @@ private fun TaskManagerDialogButton(
                     indication = null,
                     onClick = onClick,
                 )
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+                .padding(horizontal = 14.dp, vertical = verticalPadding),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
             color = textColor,
             fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = fontWeight,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -2477,49 +2793,99 @@ private fun TaskManagerProcessHeader() {
 }
 
 @Composable
-private fun TaskManagerProcessRow(
+private fun TaskManagerProcessCard(
     process: TaskManagerProcess,
+    expanded: Boolean,
+    affinityMask: Int,
+    coreCount: Int,
+    onToggleAffinity: () -> Unit,
+    onAffinityMaskChanged: (Int) -> Unit,
     onEndProcess: () -> Unit,
 ) {
     val paneScale = LocalPaneScale.current
     val shape = RoundedCornerShape((8f * paneScale).dp)
     val displayName = if (process.isWow64) "${process.name} *32" else process.name
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed = interactionSource.collectIsPressedAsState().value
+    val bgColor by animateColorAsState(
+        targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
+        animationSpec = tween(120),
+        label = "taskManagerProcessRowBg",
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (expanded) DrawerAccent.copy(alpha = 0.62f) else RestingCardBorder,
+        animationSpec = tween(160),
+        label = "taskManagerProcessCardBorder",
+    )
 
-    Row(
+    Column(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .clip(shape)
-                .background(PaneInnerResting)
-                .border(1.dp, RestingCardBorder, shape)
-                .padding(horizontal = (8f * paneScale).dp, vertical = (6f * paneScale).dp),
-        verticalAlignment = Alignment.CenterVertically,
+                .background(bgColor)
+                .border(1.dp, borderColor, shape),
     ) {
-        Text(
-            text = displayName,
-            color = DrawerTextPrimary,
-            fontSize = (12f * paneScale).sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            text = process.pid.toString(),
-            color = DrawerTextSecondary,
-            fontSize = (12f * paneScale).sp,
-            textAlign = TextAlign.End,
-            modifier = Modifier.width((54f * paneScale).dp),
-        )
-        Text(
-            text = process.memoryFormatted,
-            color = DrawerTextSecondary,
-            fontSize = (12f * paneScale).sp,
-            textAlign = TextAlign.End,
-            modifier = Modifier.width((78f * paneScale).dp),
-        )
-        Spacer(modifier = Modifier.width((10f * paneScale).dp))
-        TaskManagerEndButton(onClick = onEndProcess)
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = onToggleAffinity,
+                    )
+                    .padding(horizontal = (8f * paneScale).dp, vertical = (6f * paneScale).dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = displayName,
+                color = DrawerTextPrimary,
+                fontSize = (12f * paneScale).sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = process.pid.toString(),
+                color = DrawerTextSecondary,
+                fontSize = (12f * paneScale).sp,
+                textAlign = TextAlign.End,
+                modifier = Modifier.width((54f * paneScale).dp),
+            )
+            Text(
+                text = process.memoryFormatted,
+                color = DrawerTextSecondary,
+                fontSize = (12f * paneScale).sp,
+                textAlign = TextAlign.End,
+                modifier = Modifier.width((78f * paneScale).dp),
+            )
+            Spacer(modifier = Modifier.width((10f * paneScale).dp))
+            TaskManagerEndButton(onClick = onEndProcess)
+        }
+
+        AnimatedVisibility(
+            visible = expanded,
+            enter =
+                fadeIn(animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)) +
+                    expandVertically(
+                        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                        expandFrom = Alignment.Top,
+                    ),
+            exit =
+                fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)) +
+                    shrinkVertically(
+                        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                        shrinkTowards = Alignment.Top,
+                    ),
+        ) {
+            TaskManagerAffinityOptions(
+                affinityMask = affinityMask,
+                coreCount = coreCount,
+                onAffinityMaskChanged = onAffinityMaskChanged,
+            )
+        }
     }
 }
 

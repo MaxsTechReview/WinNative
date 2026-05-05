@@ -569,6 +569,9 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="session_task_pid">PID</string>
     <string name="session_task_memory">Memorie</string>
     <string name="session_task_end_process">Opreste proces</string>
+    <string name="session_task_set_affinity">Seteaza afinitatea</string>
+    <string name="session_task_affinity_title">Afinitate procesor</string>
+    <string name="session_task_affinity_all_cores">Toate nucleele</string>
     <string name="session_task_new_task">Activitate noua</string>
     <string name="session_task_processes">Procese</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>

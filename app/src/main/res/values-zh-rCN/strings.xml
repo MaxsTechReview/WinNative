@@ -569,6 +569,9 @@
     <string name="session_task_pid">PID</string>
     <string name="session_task_memory">内存</string>
     <string name="session_task_end_process">结束进程</string>
+    <string name="session_task_set_affinity">设置亲和性</string>
+    <string name="session_task_affinity_title">处理器亲和性</string>
+    <string name="session_task_affinity_all_cores">所有核心</string>
     <string name="session_task_new_task">新建任务</string>
     <string name="session_task_processes">进程</string>
     <string name="session_task_cpu_usage_format">CPU（%1$d%%）</string>
