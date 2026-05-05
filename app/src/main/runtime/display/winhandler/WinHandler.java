@@ -164,7 +164,7 @@ public class WinHandler {
     }
     this.gcmRumbleMode =
         GcmRumbleMode.fromPrefValue(
-            this.preferences.getString(GcmRumbleMode.PREF_KEY, GcmRumbleMode.KNOWN.toPrefValue()));
+            this.preferences.getString(GcmRumbleMode.PREF_KEY, GcmRumbleMode.DISABLED.toPrefValue()));
     this.gamepadRumbleManager.setMode(this.gcmRumbleMode);
   }
 

@@ -87,8 +87,6 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix ".vibrodebug"
-            versionNameSuffix "-vibrodebug"
             minifyEnabled false
             // Use release signing if available, otherwise fall back to default debug signing
             signingConfig signingConfigs.release.storeFile != null ? signingConfigs.release : signingConfigs.debug
