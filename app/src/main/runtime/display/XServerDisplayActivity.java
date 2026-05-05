@@ -5,9 +5,11 @@ import static com.winlator.cmod.shared.android.AppUtils.showToast;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ShortcutManager;
 import android.content.SharedPreferences;
@@ -51,7 +53,6 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.compose.ui.platform.ComposeView;
-import androidx.core.view.GravityCompat;
 import androidx.core.view.WindowInsetsCompat;
 import com.winlator.cmod.BuildConfig;
 import com.winlator.cmod.feature.stores.steam.enums.Marker;
@@ -59,7 +60,6 @@ import com.winlator.cmod.feature.stores.steam.utils.MarkerUtils;
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager;
 import com.winlator.cmod.feature.stores.steam.utils.SteamUtils;
 
-import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.preference.PreferenceManager;
 import com.winlator.cmod.R;
 import com.winlator.cmod.app.config.SettingsConfig;
@@ -70,7 +70,6 @@ import com.winlator.cmod.feature.setup.SetupWizardActivity;
 import com.winlator.cmod.runtime.container.Container;
 import com.winlator.cmod.runtime.container.ContainerManager;
 import com.winlator.cmod.runtime.container.Shortcut;
-import com.winlator.cmod.shared.ui.dialog.ContentDialog;
 import com.winlator.cmod.feature.settings.DebugDialog;
 import com.winlator.cmod.feature.settings.DXVKConfigUtils;
 import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils;
@@ -88,6 +87,7 @@ import com.winlator.cmod.shared.android.AppUtils;
 import com.winlator.cmod.shared.android.AppTerminationHelper;
 import com.winlator.cmod.runtime.wine.EnvVars;
 import com.winlator.cmod.shared.io.FileUtils;
+import com.winlator.cmod.runtime.system.CPUStatus;
 import com.winlator.cmod.runtime.system.GPUInformation;
 import com.winlator.cmod.shared.util.KeyValueSet;
 import com.winlator.cmod.shared.util.Callback;
@@ -112,7 +112,6 @@ import com.winlator.cmod.runtime.compat.fexcore.FEXCoreManager;
 import com.winlator.cmod.runtime.compat.gamefixes.GameFixes;
 import com.winlator.cmod.runtime.audio.alsaserver.ALSAClient;
 import com.winlator.cmod.runtime.input.ControllerAssignmentDialog;
-import com.winlator.cmod.runtime.input.InputControlsDialog;
 import com.winlator.cmod.runtime.input.controls.ControlsProfile;
 import com.winlator.cmod.runtime.input.controls.ControllerManager;
 import com.winlator.cmod.runtime.input.controls.ExternalController;
@@ -132,7 +131,6 @@ import com.winlator.cmod.runtime.system.ui.LogView;
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
 import com.winlator.cmod.runtime.display.winhandler.OnGetProcessInfoListener;
 import com.winlator.cmod.runtime.display.winhandler.ProcessInfo;
-import com.winlator.cmod.runtime.display.winhandler.TaskManagerDialog;
 import com.winlator.cmod.runtime.display.winhandler.WinHandler;
 import com.winlator.cmod.runtime.display.connector.UnixSocketConfig;
 import com.winlator.cmod.runtime.display.environment.ImageFs;
@@ -167,6 +165,8 @@ import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Locale;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.CountDownLatch;
@@ -239,7 +239,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private InputControlsView inputControlsView;
     private TouchpadView touchpadView;
     private XEnvironment environment;
-    private DrawerLayout drawerLayout;
+    private ComposeView displayHostComposeView;
+    private FrameLayout xServerDisplayFrame;
     private ContainerManager containerManager;
     protected Container container;
     private XServer xServer;
@@ -291,7 +292,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private float hudTransparency = 1.0f;
     private float hudScale = 1.0f;
-    private boolean[] hudElements = new boolean[]{true, true, true, true, true, true};
+    private boolean[] hudElements = new boolean[]{true, true, true, true, true, true, true};
     private boolean dualSeriesBattery = false;
     private boolean hudCardExpanded = false;
     private boolean screenEffectsCardExpanded = false;
@@ -302,6 +303,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean gyroscopeCardExpanded = false;
     private XServerDrawerStateHolder drawerStateHolder;
     private XServerDrawerActionListener drawerActionListener;
+    private Timer taskManagerTimer;
+    private final ArrayList<TaskManagerProcess> taskManagerAccum = new ArrayList<>();
+    private boolean taskManagerCpuExpanded = false;
+    private boolean taskManagerPaneVisible = false;
+    private short[] cachedMaxClockSpeeds;
+    private boolean drawerEdgeGesturePossible = false;
+    private float drawerEdgeGestureStartX = 0f;
+    private float drawerEdgeGestureStartY = 0f;
+    private int drawerEdgeGesturePointerId = -1;
 
     // Inside the XServerDisplayActivity class
     private SensorManager sensorManager;
@@ -541,6 +551,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         launchedFromPinnedShortcut = isPinnedShortcutLaunchIntent(getIntent());
         
         setContentView(R.layout.xserver_display_activity);
+        xServerDisplayFrame = new FrameLayout(this);
+        xServerDisplayFrame.setId(R.id.FLXServerDisplay);
+        xServerDisplayFrame.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
 
         // Initialize ControllerManager for multi-controller support
         ControllerManager.getInstance().init(this);
@@ -621,8 +636,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         contentsManager = new ContentsManager(this);
         contentsManager.syncContents();
 
-        drawerLayout = findViewById(R.id.DrawerLayout);
-        drawerLayout.setOnApplyWindowInsetsListener((view, windowInsets) -> {
+        displayHostComposeView = findViewById(R.id.XServerDisplayHost);
+        displayHostComposeView.setOnApplyWindowInsetsListener((view, windowInsets) -> {
             WindowInsetsCompat compatInsets = WindowInsetsCompat.toWindowInsetsCompat(windowInsets, view);
             WindowInsetsCompat clearedInsets = new WindowInsetsCompat.Builder(compatInsets)
                     .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.NONE)
@@ -630,13 +645,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             android.view.WindowInsets platformInsets = clearedInsets.toWindowInsets();
             return platformInsets != null ? platformInsets : windowInsets;
         });
-        drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
 
-        ComposeView navigationComposeView = findViewById(R.id.NavigationComposeView);
         enableLogsMenu = preferences.getBoolean("enable_wine_debug", false) || preferences.getBoolean("enable_box64_logs", false);
         isNativeRenderingEnabled = preferences.getBoolean("use_dri3", true);
-        navigationComposeView.setPointerIcon(PointerIcon.getSystemIcon(this, PointerIcon.TYPE_ARROW));
-        navigationComposeView.setOnFocusChangeListener((v, hasFocus) -> navigationFocused = hasFocus);
+        displayHostComposeView.setPointerIcon(PointerIcon.getSystemIcon(this, PointerIcon.TYPE_ARROW));
+        displayHostComposeView.setFocusable(true);
+        displayHostComposeView.setFocusableInTouchMode(true);
+        displayHostComposeView.setOnFocusChangeListener((v, hasFocus) -> navigationFocused = hasFocus);
         renderDrawerMenu();
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -644,23 +659,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 handleNavigationBackPressed();
             }
         });
-        drawerLayout.addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
-            @Override
-            public void onDrawerOpened(View drawerView) {
-                super.onDrawerOpened(drawerView);
-                renderDrawerMenu();
-                navigationComposeView.requestFocus();
-            }
 
-            @Override
-            public void onDrawerClosed(View drawerView) {
-                super.onDrawerClosed(drawerView);
-                if (hudCardExpanded) {
-                    hudCardExpanded = false;
-                    renderDrawerMenu();
-                }
-            }
-        });
+        // Keep the drawer edge swipe available on gesture-navigation devices without
+        // letting Compose compete with normal container drags across the whole display.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            final android.view.View gestureExclusionView = displayHostComposeView;
+            final int edgePx = (int) (XServerDisplayHostKt.XSERVER_DRAWER_EDGE_SWIPE_DP * getResources().getDisplayMetrics().density);
+            final Runnable applyExclusion = () -> {
+                if (gestureExclusionView.getHeight() <= 0) return;
+                gestureExclusionView.setSystemGestureExclusionRects(
+                        java.util.Collections.singletonList(
+                                new android.graphics.Rect(0, 0, edgePx, gestureExclusionView.getHeight())));
+            };
+            gestureExclusionView.post(applyExclusion);
+            gestureExclusionView.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or_, ob) -> applyExclusion.run());
+        }
 
         imageFs = ImageFs.find(this);
         GuestProgramLauncherComponent.ensureImageFsNativeLibrary(this, imageFs, "libfakeinput.so");
@@ -1724,6 +1737,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (!cleaningUp) {
             ProcessHelper.resumeAllWineProcesses();
         }
+
+        // Resume task-manager polling only if the pane is still the active selection.
+        if (taskManagerPaneVisible && taskManagerTimer == null) {
+            startTaskManagerPolling();
+        }
     }
 
     @Override
@@ -1758,6 +1776,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         handler.removeCallbacks(savePlaytimeRunnable);
         if (!cleaningUp) {
             ProcessHelper.pauseAllWineProcesses();
+        }
+
+        // Suspend task-manager polling while backgrounded; onResume restarts it
+        // if the pane is still the active selection.
+        if (taskManagerTimer != null) {
+            taskManagerTimer.cancel();
+            taskManagerTimer = null;
+            if (winHandler != null) winHandler.setOnGetProcessInfoListener(null);
+            taskManagerAccum.clear();
         }
     }
 
@@ -2790,11 +2817,27 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private void handleNavigationBackPressed() {
         if (environment != null) {
-            if (!drawerLayout.isDrawerOpen(GravityCompat.START)) {
-                renderDrawerMenu();
-                drawerLayout.openDrawer(GravityCompat.START);
+            if (drawerStateHolder != null && drawerStateHolder.isPaneOpen()) {
+                drawerStateHolder.closeOpenPane();
+                return;
             }
-            else drawerLayout.closeDrawers();
+            if (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen()) {
+                openDrawerMenu();
+            }
+            else closeDrawerMenu();
+        }
+    }
+
+    private void openDrawerMenu() {
+        renderDrawerMenu();
+        if (drawerStateHolder != null) {
+            drawerStateHolder.openDrawer();
+        }
+    }
+
+    private void closeDrawerMenu() {
+        if (drawerStateHolder != null) {
+            drawerStateHolder.closeDrawer();
         }
     }
 
@@ -2813,49 +2856,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return index < names.length ? names[index] : names[0];
     }
 
-    private void showGyroActivatorPicker() {
-        final ComposeView dialogComposeView = findViewById(R.id.DialogComposeView);
-        final ComposeView navigationComposeView = findViewById(R.id.NavigationComposeView);
-        if (dialogComposeView == null) return;
-
-        String[] names = getResources().getStringArray(R.array.button_options);
-        int[] keycodes = getResources().getIntArray(R.array.button_keycodes);
-
-        dialogComposeView.setVisibility(View.VISIBLE);
-        dialogComposeView.setFocusable(true);
-        dialogComposeView.setClickable(true);
-        
-        XServerDrawerMenuKt.setupGyroActivatorDialog(
-            dialogComposeView,
-            currentGyroActivatorLabel(),
-            names,
-            keycodes,
-            () -> {
-                dialogComposeView.setVisibility(View.GONE);
-                dialogComposeView.setContent(null);
-                dialogComposeView.setFocusable(false);
-                dialogComposeView.setClickable(false);
-                dialogComposeView.clearFocus();
-                if (navigationComposeView != null) navigationComposeView.requestFocus();
-                return kotlin.Unit.INSTANCE;
-            },
-            (keycode) -> {
-                preferences.edit().putInt("gyro_trigger_button", keycode).apply();
-                dialogComposeView.setVisibility(View.GONE);
-                dialogComposeView.setContent(null);
-                dialogComposeView.setFocusable(false);
-                dialogComposeView.setClickable(false);
-                dialogComposeView.clearFocus();
-                if (navigationComposeView != null) navigationComposeView.requestFocus();
-                renderDrawerMenu();
-                return kotlin.Unit.INSTANCE;
-            }
-        );
-    }
-
     private void renderDrawerMenu() {
-        ComposeView navigationComposeView = findViewById(R.id.NavigationComposeView);
-        if (navigationComposeView == null) return;
+        if (displayHostComposeView == null || xServerDisplayFrame == null) return;
+
+        ArrayList<ControlsProfile> inputProfiles = inputControlsManager != null ? inputControlsManager.getProfiles(true) : new ArrayList<>();
+        ArrayList<String> inputProfileNames = new ArrayList<>();
+        int inputSelectedIndex = 0;
+        inputProfileNames.add("-- " + getString(R.string.common_ui_disabled) + " --");
+        ControlsProfile activeProfile = inputControlsView != null ? inputControlsView.getProfile() : null;
+        for (int i = 0; i < inputProfiles.size(); i++) {
+            ControlsProfile profile = inputProfiles.get(i);
+            if (activeProfile != null && profile.id == activeProfile.id) inputSelectedIndex = i + 1;
+            inputProfileNames.add(profile.getName());
+        }
 
         XServerDrawerState state = XServerDrawerMenuKt.buildXServerDrawerState(
                 this,
@@ -2864,6 +2877,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 frameRating != null && frameRating.getVisibility() == View.VISIBLE,
                 isPaused,
                 true,
+                magnifierView != null,
                 enableLogsMenu,
                 isNativeRenderingEnabled,
                 getString(R.string.session_xserver_native_rendering),
@@ -2891,7 +2905,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 fsrEnabled,
                 fsrMode,
                 fsrSharpness,
-                colorProfile
+                colorProfile,
+                inputProfileNames,
+                inputSelectedIndex,
+                preferences.getBoolean("show_touchscreen_controls_enabled", false),
+                isTapToClickEnabled,
+                preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY),
+                preferences.getBoolean("touchscreen_haptics_enabled", false),
+                preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true),
+                xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen()
         );
 
         if (drawerActionListener == null) {
@@ -2954,8 +2976,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     }
 
                     @Override
-                    public void onGyroscopeActivatorClick() {
-                        showGyroActivatorPicker();
+                    public void onGyroscopeActivatorSelected(int keycode) {
+                        preferences.edit().putInt("gyro_trigger_button", keycode).apply();
+                        renderDrawerMenu();
                     }
 
                     @Override
@@ -3069,21 +3092,278 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         applyScreenEffects();
                         renderDrawerMenu();
                     }
+
+                    @Override
+                    public void onInputControlsProfileSelected(int index) {
+                        if (index <= 0) {
+                            hideInputControls();
+                        } else {
+                            ArrayList<ControlsProfile> profiles = inputControlsManager != null ? inputControlsManager.getProfiles(true) : new ArrayList<>();
+                            if (index - 1 < profiles.size()) showInputControls(profiles.get(index - 1));
+                        }
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsShowOverlayChanged(boolean enabled) {
+                        if (inputControlsView != null) inputControlsView.setShowTouchscreenControls(enabled);
+                        preferences.edit().putBoolean("show_touchscreen_controls_enabled", enabled).apply();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsTapToClickChanged(boolean enabled) {
+                        isTapToClickEnabled = enabled;
+                        if (touchpadView != null) touchpadView.setTapToClickEnabled(enabled);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsOverlayOpacityChanged(float opacity) {
+                        if (inputControlsView != null) inputControlsView.setOverlayOpacity(opacity);
+                        preferences.edit().putFloat("overlay_opacity", opacity).apply();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsTouchscreenHapticsChanged(boolean enabled) {
+                        preferences.edit().putBoolean("touchscreen_haptics_enabled", enabled).apply();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsGamepadVibrationChanged(boolean enabled) {
+                        preferences.edit().putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled).apply();
+                        if (winHandler != null) winHandler.setGlobalVibrationEnabled(enabled);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsEditClick() {
+                        ControlsProfile activeProfile = inputControlsView != null ? inputControlsView.getProfile() : null;
+                        Intent intent = new Intent(XServerDisplayActivity.this, UnifiedActivity.class);
+                        intent.putExtra("edit_input_controls", true);
+                        intent.putExtra("selected_profile_id", activeProfile != null ? activeProfile.id : 0);
+                        intent.putExtra("return_to_game_on_back", true);
+                        editInputControlsCallback = () -> {
+                            hideInputControls();
+                            if (inputControlsManager != null) inputControlsManager.loadProfiles(true);
+                            ControlsProfile reactivated = activeProfile != null && inputControlsManager != null ? inputControlsManager.getProfile(activeProfile.id) : null;
+                            if (reactivated != null) showInputControls(reactivated);
+                            renderDrawerMenu();
+                        };
+                        controlsEditorActivityResultLauncher.launch(intent);
+                    }
+
+                    @Override
+                    public void onTaskManagerVisibilityChanged(boolean visible) {
+                        taskManagerPaneVisible = visible;
+                        if (visible) startTaskManagerPolling();
+                        else stopTaskManagerPolling();
+                    }
+
+                    @Override
+                    public void onTaskManagerCpuExpandedChanged(boolean expanded) {
+                        taskManagerCpuExpanded = expanded;
+                        pushTaskManagerSystemStats();
+                    }
+
+                    @Override
+                    public void onTaskManagerEndProcess(String name) {
+                        if (winHandler != null) winHandler.killProcess(name);
+                    }
+
+                    @Override
+                    public void onTaskManagerSetAffinity(int pid, int affinityMask) {
+                        if (winHandler != null) {
+                            winHandler.setProcessAffinity(pid, affinityMask);
+                            winHandler.listProcesses();
+                        }
+                    }
+
+                    @Override
+                    public void onTaskManagerNewTask(String command) {
+                        if (winHandler != null) winHandler.exec(command);
+                    }
                 };
         }
 
         if (drawerStateHolder == null) {
             drawerStateHolder = new XServerDrawerStateHolder(state);
-            XServerDrawerMenuKt.setupXServerDrawerComposeView(
-                    navigationComposeView,
+            XServerDisplayHostKt.setupXServerDisplayHost(
+                    displayHostComposeView,
+                    xServerDisplayFrame,
                     drawerStateHolder,
-                    this,
-                    drawerActionListener
+                    drawerActionListener,
+                    new XServerDisplayHostCallbacks() {
+                        @Override
+                        public void onDrawerSlide() {
+                            AppUtils.hideSystemUI(XServerDisplayActivity.this);
+                        }
+
+                        @Override
+                        public void onDrawerOpened() {
+                            renderDrawerMenu();
+                            if (displayHostComposeView != null) displayHostComposeView.requestFocus();
+                            AppUtils.hideSystemUI(XServerDisplayActivity.this);
+                        }
+
+                        @Override
+                        public void onDrawerClosed() {
+                            if (hudCardExpanded) {
+                                hudCardExpanded = false;
+                                renderDrawerMenu();
+                            }
+                            AppUtils.hideSystemUI(XServerDisplayActivity.this);
+                        }
+
+                        @Override
+                        public void onDrawerGestureClaimed() {
+                            if (touchpadView != null) {
+                                touchpadView.resetInputState();
+                            }
+                            if (inputControlsView != null) {
+                                inputControlsView.cancelActiveTouches();
+                            }
+                        }
+
+                        @Override
+                        public void onDialogVisibilityChanged(boolean visible) {
+                            if (visible && displayHostComposeView != null) {
+                                displayHostComposeView.requestFocus();
+                            }
+                        }
+                    }
             );
             return;
         }
 
         drawerStateHolder.setState(state);
+    }
+
+    private void startTaskManagerPolling() {
+        if (winHandler == null) return;
+        stopTaskManagerPolling();
+        winHandler.setOnGetProcessInfoListener(new OnGetProcessInfoListener() {
+            @Override
+            public void onGetProcessInfo(int index, int numProcesses, ProcessInfo processInfo) {
+                runOnUiThread(() -> handleTaskManagerProcessInfo(index, numProcesses, processInfo));
+            }
+        });
+
+        Timer timer = new Timer();
+        taskManagerTimer = timer;
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                runOnUiThread(() -> {
+                    if (winHandler != null) winHandler.listProcesses();
+                    pushTaskManagerSystemStats();
+                });
+            }
+        }, 0, 1000);
+    }
+
+    private void stopTaskManagerPolling() {
+        if (taskManagerTimer != null) {
+            taskManagerTimer.cancel();
+            taskManagerTimer = null;
+        }
+        if (winHandler != null) winHandler.setOnGetProcessInfoListener(null);
+        taskManagerAccum.clear();
+        taskManagerCpuExpanded = false;
+        if (drawerStateHolder != null) {
+            drawerStateHolder.setTaskManagerState(new TaskManagerPaneState(
+                    new ArrayList<>(), 0, 0, new ArrayList<>(), 0, ""));
+        }
+    }
+
+    private void handleTaskManagerProcessInfo(int index, int numProcesses, ProcessInfo processInfo) {
+        if (drawerStateHolder == null) return;
+
+        if (index == 0) taskManagerAccum.clear();
+
+        if (numProcesses == 0) {
+            taskManagerAccum.clear();
+            TaskManagerPaneState current = drawerStateHolder.getTaskManagerState();
+            drawerStateHolder.setTaskManagerState(new TaskManagerPaneState(
+                    new ArrayList<>(),
+                    current.getCpuPercent(),
+                    current.getCpuCoreCount(),
+                    current.getCpuCorePercents(),
+                    current.getMemoryPercent(),
+                    current.getMemoryDetail()));
+            return;
+        }
+
+        taskManagerAccum.add(new TaskManagerProcess(
+                processInfo.pid,
+                processInfo.name,
+                processInfo.getFormattedMemoryUsage(),
+                processInfo.affinityMask,
+                processInfo.wow64Process));
+
+        if (index == numProcesses - 1) {
+            TaskManagerPaneState current = drawerStateHolder.getTaskManagerState();
+            drawerStateHolder.setTaskManagerState(new TaskManagerPaneState(
+                    new ArrayList<>(taskManagerAccum),
+                    current.getCpuPercent(),
+                    current.getCpuCoreCount(),
+                    current.getCpuCorePercents(),
+                    current.getMemoryPercent(),
+                    current.getMemoryDetail()));
+        }
+    }
+
+    private void pushTaskManagerSystemStats() {
+        if (drawerStateHolder == null) return;
+
+        short[] clockSpeeds = CPUStatus.getCurrentClockSpeeds();
+        if (cachedMaxClockSpeeds == null || cachedMaxClockSpeeds.length != clockSpeeds.length) {
+            short[] maxes = new short[clockSpeeds.length];
+            for (int i = 0; i < clockSpeeds.length; i++) maxes[i] = CPUStatus.getMaxClockSpeed(i);
+            cachedMaxClockSpeeds = maxes;
+        }
+
+        int totalClock = 0;
+        short maxClock = 0;
+        for (int i = 0; i < clockSpeeds.length; i++) {
+            totalClock += clockSpeeds[i];
+            if (cachedMaxClockSpeeds[i] > maxClock) maxClock = cachedMaxClockSpeeds[i];
+        }
+        int cpuPercent = 0;
+        if (clockSpeeds.length > 0 && maxClock > 0) {
+            int avg = totalClock / clockSpeeds.length;
+            cpuPercent = (int) (((float) avg / maxClock) * 100.0f);
+        }
+
+        ArrayList<Integer> corePercents;
+        if (taskManagerCpuExpanded) {
+            corePercents = new ArrayList<>(clockSpeeds.length);
+            for (int i = 0; i < clockSpeeds.length; i++) {
+                short maxFor = cachedMaxClockSpeeds[i];
+                int corePercent = maxFor > 0 ? (int) (((float) clockSpeeds[i] / maxFor) * 100.0f) : 0;
+                corePercents.add(corePercent);
+            }
+        } else {
+            corePercents = new ArrayList<>();
+        }
+
+        ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        ActivityManager.MemoryInfo memInfo = new ActivityManager.MemoryInfo();
+        am.getMemoryInfo(memInfo);
+        long usedMem = memInfo.totalMem - memInfo.availMem;
+        int memPercent = (int) (((double) usedMem / memInfo.totalMem) * 100.0f);
+        String memDetail = StringUtils.formatBytes(usedMem, false) + "/" + StringUtils.formatBytes(memInfo.totalMem);
+
+        TaskManagerPaneState current = drawerStateHolder.getTaskManagerState();
+        drawerStateHolder.setTaskManagerState(new TaskManagerPaneState(
+                current.getProcesses(),
+                cpuPercent,
+                clockSpeeds.length,
+                corePercents,
+                memPercent,
+                memDetail));
     }
 
     private void applyScreenEffects() {
@@ -3142,9 +3422,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 hudElements[0] = obj.optBoolean("showFPS", true);
                 hudElements[1] = obj.optBoolean("showRenderer", true);
                 hudElements[2] = obj.optBoolean("showGPU", true);
-                hudElements[3] = obj.optBoolean("showCpuRam", true);
-                hudElements[4] = obj.optBoolean("showBattTemp", true);
-                hudElements[5] = obj.optBoolean("showGraph", true);
+                boolean legacyCpuRam = obj.optBoolean("showCpuRam", true);
+                hudElements[3] = obj.optBoolean("showCPU", legacyCpuRam);
+                hudElements[4] = obj.optBoolean("showRAM", legacyCpuRam);
+                hudElements[5] = obj.optBoolean("showBattTemp", true);
+                hudElements[6] = obj.optBoolean("showGraph", true);
             } catch (JSONException e) {
                 Log.e("XServerDisplayActivity", "Failed to load HUD settings", e);
             }
@@ -3160,9 +3442,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             obj.put("showFPS", hudElements[0]);
             obj.put("showRenderer", hudElements[1]);
             obj.put("showGPU", hudElements[2]);
-            obj.put("showCpuRam", hudElements[3]);
-            obj.put("showBattTemp", hudElements[4]);
-            obj.put("showGraph", hudElements[5]);
+            obj.put("showCPU", hudElements[3]);
+            obj.put("showRAM", hudElements[4]);
+            obj.put("showBattTemp", hudElements[5]);
+            obj.put("showGraph", hudElements[6]);
             container.putExtra("hudSettings", obj.toString());
             container.saveData();
         } catch (JSONException e) {
@@ -3184,7 +3467,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @SuppressLint("SourceLockedOrientationActivity")
     private boolean handleDrawerAction(int itemId) {
-        final GLRenderer renderer = xServerView.getRenderer();
+        // The drawer can be opened during startup before setupUI() attaches the display
+        // and input views. Ignore display-dependent actions until those views exist.
+        if (requiresDisplayReady(itemId) && !isDisplayReady()) {
+            renderDrawerMenu();
+            return false;
+        }
+
+        final GLRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
         switch (itemId) {
             case R.id.main_menu_gyroscope_reset:
                 if (winHandler != null) {
@@ -3193,19 +3483,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 break;
             case R.id.main_menu_keyboard:
                 AppUtils.showKeyboard(this);
-                drawerLayout.closeDrawers();
-                break;
-            case R.id.main_menu_input_controls:
-                showInputControlsDialog();
-                drawerLayout.closeDrawers();
+                closeDrawerMenu();
                 break;
             case R.id.main_menu_controller_manager:
                 ControllerAssignmentDialog.show(this, winHandler);
-                drawerLayout.closeDrawers();
+                closeDrawerMenu();
                 break;
             case R.id.main_menu_fps_monitor:
                 if (frameRating == null) {
-                    FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
+                    FrameLayout rootView = xServerDisplayFrame;
                     frameRating = new FrameRating(this, graphicsDriverConfig);
                     frameRating.setRenderer(lastRendererName);
                     if (lastGpuName != null) frameRating.setGpuName(lastGpuName);
@@ -3254,19 +3540,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 break;
             case R.id.main_menu_pip_mode:
                 enterPictureInPictureMode(new android.app.PictureInPictureParams.Builder().build());
-                drawerLayout.closeDrawers();
-                break;
-            case R.id.main_menu_task_manager:
-                new TaskManagerDialog(this).show();
+                closeDrawerMenu();
                 break;
             case R.id.main_menu_magnifier:
-                if (isNativeRenderingEnabled) {
-                    showToast(this, getString(R.string.session_drawer_magnifier_disabled_native_subtitle));
-                    renderDrawerMenu();
-                    break;
-                }
-                if (magnifierView == null) {
-                    FrameLayout container = findViewById(R.id.FLXServerDisplay);
+                if (magnifierView != null) {
+                    xServerDisplayFrame.removeView(magnifierView);
+                    magnifierView = null;
+                    renderer.setMagnifierZoom(1.0f);
+                    renderer.setMagnifierUIActive(false);
+                } else {
+                    FrameLayout container = xServerDisplayFrame;
                     magnifierView = new MagnifierView(this);
                     magnifierView.setZoomButtonCallback(value -> {
                         renderer.setMagnifierZoom(Mathf.clamp(renderer.getMagnifierZoom() + value, 1.0f, 3.0f));
@@ -3276,8 +3559,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     magnifierView.setHideButtonCallback(() -> {
                         container.removeView(magnifierView);
                         magnifierView = null;
+                        renderer.setMagnifierZoom(1.0f);
+                        renderer.setMagnifierUIActive(false);
+                        renderDrawerMenu();
                     });
                     container.addView(magnifierView);
+                    renderer.setMagnifierUIActive(true);
                 }
                 renderDrawerMenu();
                 break;
@@ -3294,11 +3581,33 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     : R.string.session_xserver_native_rendering_disabled_toast));
                 break;
             case R.id.main_menu_exit:
-                drawerLayout.closeDrawers();
+                closeDrawerMenu();
                 exit();
                 break;
         }
         return true;
+    }
+
+    private boolean isDisplayReady() {
+        return xServer != null
+                && xServerView != null
+                && xServerView.getRenderer() != null
+                && touchpadView != null
+                && inputControlsView != null;
+    }
+
+    private boolean requiresDisplayReady(int itemId) {
+        switch (itemId) {
+            case R.id.main_menu_input_controls:
+            case R.id.main_menu_fps_monitor:
+            case R.id.main_menu_relative_mouse_movement:
+            case R.id.main_menu_disable_mouse:
+            case R.id.main_menu_toggle_fullscreen:
+            case R.id.main_menu_magnifier:
+                return true;
+            default:
+                return false;
+        }
     }
 
     @Override
@@ -3948,7 +4257,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void setupUI() {
-        FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
+        FrameLayout rootView = xServerDisplayFrame;
         xServerView = new XServerView(this, xServer);
         final GLRenderer renderer = xServerView.getRenderer();
         renderer.setCursorVisible(false);
@@ -3975,9 +4284,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         touchpadView.setSensitivity(globalCursorSpeed);
         touchpadView.setMouseEnabled(!isMouseDisabled);
         touchpadView.setFourFingersTapCallback(() -> {
-            if (!drawerLayout.isDrawerOpen(GravityCompat.START)) {
-                renderDrawerMenu();
-                drawerLayout.openDrawer(GravityCompat.START);
+            if (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen()) {
+                openDrawerMenu();
             }
         });
         rootView.addView(touchpadView);
@@ -4026,7 +4334,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         startTouchscreenTimeout();
 
-        AppUtils.observeSoftKeyboardVisibility(drawerLayout, renderer::setScreenOffsetYRelativeToCursor);
+        AppUtils.observeSoftKeyboardVisibility(displayHostComposeView, renderer::setScreenOffsetYRelativeToCursor);
     }
 
 
@@ -4227,85 +4535,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
 
-
-    private void showInputControlsDialog() {
-        final InputControlsDialog dialog = new InputControlsDialog(this);
-
-        // Load profile list
-        Runnable loadProfileSpinner = () -> {
-            ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
-            ArrayList<String> profileItems = new ArrayList<>();
-            int selectedPosition = 0;
-            profileItems.add("-- "+getString(R.string.common_ui_disabled)+" --");
-            for (int i = 0; i < profiles.size(); i++) {
-                ControlsProfile profile = profiles.get(i);
-                if (inputControlsView.getProfile() != null && profile.id == inputControlsView.getProfile().id)
-                    selectedPosition = i + 1;
-                profileItems.add(profile.getName());
-            }
-            dialog.getProfileNames().setValue(profileItems);
-            dialog.getSelectedProfileIndex().setIntValue(selectedPosition);
-        };
-        loadProfileSpinner.run();
-
-        // Initialize checkbox states
-        dialog.getShowTouchscreenControls().setValue(preferences.getBoolean("show_touchscreen_controls_enabled", false));
-        dialog.getTapToClickEnabled().setValue(isTapToClickEnabled);
-        dialog.getOverlayOpacity().setValue(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
-        dialog.getTouchscreenHaptics().setValue(preferences.getBoolean("touchscreen_haptics_enabled", false));
-        dialog.getGamepadVibration().setValue(preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true));
-
-        final Runnable updateProfile = () -> {
-            int position = dialog.getSelectedProfileIndex().getIntValue();
-            if (position > 0) {
-                showInputControls(inputControlsManager.getProfiles(true).get(position - 1));
-            }
-            else hideInputControls();
-        };
-
-        // Settings button callback
-        dialog.setOnSettingsClickCallback(() -> {
-            int position = dialog.getSelectedProfileIndex().getIntValue();
-            Intent intent = new Intent(this, UnifiedActivity.class);
-            intent.putExtra("edit_input_controls", true);
-            intent.putExtra("selected_profile_id", position > 0 ? inputControlsManager.getProfiles(true).get(position - 1).id : 0);
-            intent.putExtra("return_to_game_on_back", true);
-            editInputControlsCallback = () -> {
-                hideInputControls();
-                inputControlsManager.loadProfiles(true);
-                loadProfileSpinner.run();
-                updateProfile.run();
-            };
-            controlsEditorActivityResultLauncher.launch(intent);
-        });
-
-        // Confirm callback
-        dialog.setOnConfirmCallback(() -> {
-            inputControlsView.setShowTouchscreenControls(dialog.getShowTouchscreenControls().getValue());
-            isTapToClickEnabled = dialog.getTapToClickEnabled().getValue();
-            if (touchpadView != null) touchpadView.setTapToClickEnabled(isTapToClickEnabled);
-
-            float overlayOpacity = dialog.getOverlayOpacity().getValue();
-            inputControlsView.setOverlayOpacity(overlayOpacity);
-            boolean isHapticsEnabled = dialog.getTouchscreenHaptics().getValue();
-            boolean isGamepadVibrationEnabled = dialog.getGamepadVibration().getValue();
-            SharedPreferences.Editor editor = preferences.edit();
-            editor.putBoolean("show_touchscreen_controls_enabled", dialog.getShowTouchscreenControls().getValue());
-            editor.putFloat("overlay_opacity", overlayOpacity);
-            editor.putBoolean("touchscreen_haptics_enabled", isHapticsEnabled);
-            editor.putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, isGamepadVibrationEnabled);
-            editor.apply();
-            if (winHandler != null) {
-                winHandler.setGlobalVibrationEnabled(isGamepadVibrationEnabled);
-            }
-            touchpadView.setOnTouchListener(null);
-            updateProfile.run();
-        });
-
-        dialog.setOnCancelCallback(updateProfile::run);
-
-        dialog.show();
-    }
 
     private ControlsProfile findFirstVirtualProfile() {
         ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
@@ -4592,6 +4821,79 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String bcnEmulationCache = graphicsDriverConfig.get("bcnEmulationCache");
         envVars.put("WRAPPER_USE_BCN_CACHE", bcnEmulationCache);
 
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        handleDrawerEdgeSwipe(event);
+        return super.dispatchTouchEvent(event);
+    }
+
+    private void handleDrawerEdgeSwipe(MotionEvent event) {
+        if (drawerStateHolder == null || drawerStateHolder.isDrawerOpen() || displayHostComposeView == null) {
+            resetDrawerEdgeGesture();
+            return;
+        }
+
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN: {
+                drawerEdgeGestureStartX = event.getX();
+                drawerEdgeGestureStartY = event.getY();
+                drawerEdgeGesturePointerId = event.getPointerId(0);
+                drawerEdgeGesturePossible =
+                        drawerEdgeGestureStartX <= getDrawerEdgeSwipePx()
+                                && !isTouchInsideMagnifier(drawerEdgeGestureStartX, drawerEdgeGestureStartY);
+                break;
+            }
+            case MotionEvent.ACTION_MOVE: {
+                if (!drawerEdgeGesturePossible) return;
+                int pointerIndex = event.findPointerIndex(drawerEdgeGesturePointerId);
+                if (pointerIndex < 0) {
+                    resetDrawerEdgeGesture();
+                    return;
+                }
+
+                float dx = event.getX(pointerIndex) - drawerEdgeGestureStartX;
+                float dy = event.getY(pointerIndex) - drawerEdgeGestureStartY;
+                int slop = android.view.ViewConfiguration.get(this).getScaledTouchSlop();
+
+                if (dx > slop && dx > Math.abs(dy)) {
+                    if (touchpadView != null) {
+                        touchpadView.resetInputState();
+                    }
+                    if (inputControlsView != null) {
+                        inputControlsView.cancelActiveTouches();
+                    }
+                    openDrawerMenu();
+                    resetDrawerEdgeGesture();
+                } else if (Math.abs(dy) > slop && Math.abs(dy) > dx) {
+                    resetDrawerEdgeGesture();
+                }
+                break;
+            }
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                resetDrawerEdgeGesture();
+                break;
+        }
+    }
+
+    private int getDrawerEdgeSwipePx() {
+        return (int) (XServerDisplayHostKt.XSERVER_DRAWER_EDGE_SWIPE_DP * getResources().getDisplayMetrics().density);
+    }
+
+    private boolean isTouchInsideMagnifier(float x, float y) {
+        return magnifierView != null
+                && magnifierView.getParent() != null
+                && x >= magnifierView.getX()
+                && x <= magnifierView.getX() + magnifierView.getWidth()
+                && y >= magnifierView.getY()
+                && y <= magnifierView.getY() + magnifierView.getHeight();
+    }
+
+    private void resetDrawerEdgeGesture() {
+        drawerEdgeGesturePossible = false;
+        drawerEdgeGesturePointerId = -1;
     }
 
     @Override

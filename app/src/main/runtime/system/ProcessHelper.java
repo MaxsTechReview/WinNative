@@ -346,7 +346,7 @@ public abstract class ProcessHelper {
     int affinityMask = 0;
     for (String value : values) {
       byte index = Byte.parseByte(value);
-      affinityMask |= (int) Math.pow(2, index);
+      if (index >= 0 && index < Integer.SIZE) affinityMask |= 1 << index;
     }
     return Integer.toHexString(affinityMask);
   }
@@ -359,7 +359,7 @@ public abstract class ProcessHelper {
       String v = value.trim().replaceAll("[^0-9]", "");
       if (v.isEmpty()) continue;
       byte index = Byte.parseByte(v);
-      affinityMask |= (int) Math.pow(2, index);
+      if (index >= 0 && index < Integer.SIZE) affinityMask |= 1 << index;
     }
     return affinityMask;
   }
@@ -367,14 +367,15 @@ public abstract class ProcessHelper {
   public static int getAffinityMask(boolean[] cpuList) {
     int affinityMask = 0;
     for (int i = 0; i < cpuList.length; i++) {
-      if (cpuList[i]) affinityMask |= (int) Math.pow(2, i);
+      if (i >= Integer.SIZE) break;
+      if (cpuList[i]) affinityMask |= 1 << i;
     }
     return affinityMask;
   }
 
   public static int getAffinityMask(int from, int to) {
     int affinityMask = 0;
-    for (int i = from; i < to; i++) affinityMask |= (int) Math.pow(2, i);
+    for (int i = Math.max(0, from); i < to && i < Integer.SIZE; i++) affinityMask |= 1 << i;
     return affinityMask;
   }
 

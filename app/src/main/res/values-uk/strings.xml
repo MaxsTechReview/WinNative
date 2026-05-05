@@ -549,16 +549,9 @@
     <string name="session_drawer_toggle_relative_mouse">Перемкнути відносний рух миші</string>
     <string name="session_drawer_toggle_mouse">Перемкнути мишу</string>
     <string name="session_drawer_pause_resume">Пауза/Продовжити</string>
-    <string name="session_drawer_keyboard_subtitle">Відкрити програмну клавіатуру</string>
-    <string name="session_drawer_input_controls_subtitle">Налаштувати або перемкнути екранні елементи керування</string>
     <string name="session_drawer_relative_mouse_movement">Відносний рух миші</string>
     <string name="session_drawer_mouse_input">Введення миші</string>
-    <string name="session_drawer_fullscreen_subtitle">Перемкнути повноекранний рендеринг</string>
     <string name="session_drawer_picture_in_picture">Картинка в картинці</string>
-    <string name="session_drawer_pip_subtitle">Згорнути гру у плаваюче вікно</string>
-    <string name="session_drawer_task_manager_subtitle">Переглянути та керувати запущеними процесами</string>
-    <string name="session_drawer_magnifier_subtitle">Збільшити зображення на дисплеї</string>
-    <string name="session_drawer_logs_subtitle">Відкрити журнали Wine та Box64</string>
     <string name="session_drawer_exit_subtitle">Закрити поточну сесію</string>
     <string name="session_drawer_touchscreen_overlay">Сенсорне накладання</string>
     <string name="session_drawer_resume">Продовжити</string>
@@ -566,9 +559,10 @@
     <string name="session_drawer_wine_processes_paused">Процеси Wine призупинені</string>
     <string name="session_drawer_pause_all_wine_processes">Призупинити всі процеси Wine</string>
     <string name="session_drawer_hud_element_fps">FPS</string>
-    <string name="session_drawer_hud_element_api">API</string>
+    <string name="session_drawer_hud_element_api">GFX</string>
     <string name="session_drawer_hud_element_gpu">GPU</string>
     <string name="session_drawer_hud_element_cpu">CPU</string>
+    <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Бат.</string>
     <string name="session_drawer_hud_element_graph">Графік</string>
 
@@ -579,10 +573,20 @@
     <string name="session_task_pid">PID</string>
     <string name="session_task_memory">Пам\'ять</string>
     <string name="session_task_end_process">Завершити процес</string>
+    <string name="session_task_set_affinity">Встановити спорідненість</string>
+    <string name="session_task_affinity_title">Спорідненість процесора</string>
+    <string name="session_task_affinity_all_cores">Усі ядра</string>
     <string name="session_task_new_task">Нове завдання</string>
     <string name="session_task_processes">Процеси</string>
-    <string name="session_task_bring_to_front">На передній план</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
+    <string name="session_task_per_core_usage">Завантаження на ядро</string>
+    <string name="session_task_core_label">Ядро %1$d</string>
+    <plurals name="session_task_core_count">
+        <item quantity="one">%d ядро</item>
+        <item quantity="few">%d ядра</item>
+        <item quantity="many">%d ядер</item>
+        <item quantity="other">%d ядра</item>
+    </plurals>
 
 
     <!-- Session > Display -->
@@ -1012,6 +1016,39 @@
     <string name="session_drawer_fps_monitor">Монітор FPS</string>
     <string name="session_drawer_fps_monitor_subtitle">Показувати статистику продуктивності в реальному часі</string>
     <string name="session_drawer_dual_series_battery">Батарея Dual Series</string>
+    <string name="session_drawer_command_center">Центр керування</string>
+    <string name="session_drawer_command_center_input">Ввід</string>
+    <string name="session_drawer_command_center_display">Дисплей</string>
+    <string name="session_drawer_command_center_system">Система</string>
+    <string name="session_drawer_fps_limiter">Обмежувач FPS</string>
+    <string name="session_drawer_fps_limiter_off">Вимкнено</string>
+    <string name="session_drawer_screen_effects_subtitle">Масштабування та колірні ефекти</string>
+    <string name="session_drawer_color_profile">Колірний ефект</string>
+    <string name="session_drawer_color_profile_disabled">Деактивовано</string>
+    <string name="session_drawer_color_profile_hdr">HDR</string>
+    <string name="session_drawer_color_profile_natural">Природний</string>
+    <string name="session_drawer_color_profile_crt">Ефект CRT</string>
+    <string name="session_drawer_upscaler_dls">Яскравий</string>
+    <string name="session_drawer_calibrate_advanced">Розширене калібрування</string>
+    <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_gyro">Гіро</string>
+    <string name="session_drawer_rail_label_effects">FX</string>
+    <string name="session_drawer_rail_label_apps">Більше</string>
+    <string name="session_drawer_rail_label_keyboard">Клавіатура</string>
+    <string name="session_drawer_rail_label_input_controls">Керув.</string>
+    <string name="session_drawer_rail_label_relative_mouse">ВіднМ.</string>
+    <string name="session_drawer_rail_label_mouse">Миша</string>
+    <string name="session_drawer_rail_label_fullscreen">Повний екран</string>
+    <string name="session_drawer_rail_label_pip">PiP</string>
+    <string name="session_drawer_rail_label_native">Натив.</string>
+    <string name="session_drawer_rail_label_magnifier">Лупа</string>
+    <string name="session_drawer_rail_label_task_manager">Задачі</string>
+    <string name="session_drawer_rail_label_logs">Логи</string>
+    <string name="session_drawer_super_resolution">Фільтри Чіткості</string>
+    <string name="session_drawer_upscaler_mode">Фільтр</string>
+    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_main_menu_title">Меню</string>
+    <string name="session_gyroscope_activator">Активатор</string>
     <string name="settings_general_check_for_updates">Перевірити оновлення</string>
     <string name="settings_general_check_for_updates_summary">Автоматично перевіряти нові версії застосунку під час запуску та періодично.</string>
     <string name="setup_wizard_containers">Налаштування контейнера</string>

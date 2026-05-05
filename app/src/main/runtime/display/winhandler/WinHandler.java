@@ -518,7 +518,6 @@ public class WinHandler {
         XServer xServer = this.activity.getXServer();
         xServer.pointer.setX(x);
         xServer.pointer.setY(y);
-        this.activity.getXServerView().requestRender();
         return;
       default:
         return;

@@ -545,16 +545,9 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_drawer_toggle_relative_mouse">Skift relativ musebevægelse</string>
     <string name="session_drawer_toggle_mouse">Skift mus</string>
     <string name="session_drawer_pause_resume">Pause/Genoptag</string>
-    <string name="session_drawer_keyboard_subtitle">Åbn softwaretastaturet</string>
-    <string name="session_drawer_input_controls_subtitle">Konfigurer eller skift skærmkontroller</string>
     <string name="session_drawer_relative_mouse_movement">Relativ musebevægelse</string>
     <string name="session_drawer_mouse_input">Museinput</string>
-    <string name="session_drawer_fullscreen_subtitle">Skift fuldskærmsrendering</string>
     <string name="session_drawer_picture_in_picture">Billede-i-billede</string>
-    <string name="session_drawer_pip_subtitle">Formindsk spillet til et flydende vindue</string>
-    <string name="session_drawer_task_manager_subtitle">Inspicer og administrer kørende processer</string>
-    <string name="session_drawer_magnifier_subtitle">Zoom ind på skærmen</string>
-    <string name="session_drawer_logs_subtitle">Åbn Wine- og Box64-logfiler</string>
     <string name="session_drawer_exit_subtitle">Luk den kørende session</string>
     <string name="session_drawer_touchscreen_overlay">Touchskærm-overlay</string>
     <string name="session_drawer_resume">Genoptag</string>
@@ -562,9 +555,10 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_drawer_wine_processes_paused">Wine-processer er sat på pause</string>
     <string name="session_drawer_pause_all_wine_processes">Sæt alle Wine-processer på pause</string>
     <string name="session_drawer_hud_element_fps">FPS</string>
-    <string name="session_drawer_hud_element_api">API</string>
+    <string name="session_drawer_hud_element_api">GFX</string>
     <string name="session_drawer_hud_element_gpu">GPU</string>
     <string name="session_drawer_hud_element_cpu">CPU</string>
+    <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Bat.</string>
     <string name="session_drawer_hud_element_graph">Graf</string>
 
@@ -575,10 +569,18 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_task_pid">PID</string>
     <string name="session_task_memory">Hukommelse</string>
     <string name="session_task_end_process">Afslut proces</string>
+    <string name="session_task_set_affinity">Indstil affinitet</string>
+    <string name="session_task_affinity_title">Processor-affinitet</string>
+    <string name="session_task_affinity_all_cores">Alle kerner</string>
     <string name="session_task_new_task">Ny opgave</string>
     <string name="session_task_processes">Processer</string>
-    <string name="session_task_bring_to_front">Bring til forgrunden</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
+    <string name="session_task_per_core_usage">Brug pr. kerne</string>
+    <string name="session_task_core_label">Kerne %1$d</string>
+    <plurals name="session_task_core_count">
+        <item quantity="one">%d kerne</item>
+        <item quantity="other">%d kerner</item>
+    </plurals>
 
 
     <!-- Session > Display -->
@@ -1008,6 +1010,39 @@ Installeret sti:
     <string name="session_drawer_fps_monitor">FPS-overvågning</string>
     <string name="session_drawer_fps_monitor_subtitle">Vis ydeevnestatistik i realtid</string>
     <string name="session_drawer_dual_series_battery">Dual Series-batteri</string>
+    <string name="session_drawer_command_center">Kommandocenter</string>
+    <string name="session_drawer_command_center_input">Input</string>
+    <string name="session_drawer_command_center_display">Skærm</string>
+    <string name="session_drawer_command_center_system">System</string>
+    <string name="session_drawer_fps_limiter">FPS-begrænser</string>
+    <string name="session_drawer_fps_limiter_off">Fra</string>
+    <string name="session_drawer_screen_effects_subtitle">Opskalering og farveeffekter</string>
+    <string name="session_drawer_color_profile">Farveeffekt</string>
+    <string name="session_drawer_color_profile_disabled">Deaktiveret</string>
+    <string name="session_drawer_color_profile_hdr">HDR</string>
+    <string name="session_drawer_color_profile_natural">Naturlig</string>
+    <string name="session_drawer_color_profile_crt">CRT-effekt</string>
+    <string name="session_drawer_upscaler_dls">Levende</string>
+    <string name="session_drawer_calibrate_advanced">Avanceret kalibrering</string>
+    <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_gyro">Gyro</string>
+    <string name="session_drawer_rail_label_effects">FX</string>
+    <string name="session_drawer_rail_label_apps">Mere</string>
+    <string name="session_drawer_rail_label_keyboard">Tastatur</string>
+    <string name="session_drawer_rail_label_input_controls">Kontrol</string>
+    <string name="session_drawer_rail_label_relative_mouse">RelMus</string>
+    <string name="session_drawer_rail_label_mouse">Mus</string>
+    <string name="session_drawer_rail_label_fullscreen">Fuldskærm</string>
+    <string name="session_drawer_rail_label_pip">PiP</string>
+    <string name="session_drawer_rail_label_native">Nativ</string>
+    <string name="session_drawer_rail_label_magnifier">Zoom</string>
+    <string name="session_drawer_rail_label_task_manager">Opgaver</string>
+    <string name="session_drawer_rail_label_logs">Logs</string>
+    <string name="session_drawer_super_resolution">Skarphedsfiltre</string>
+    <string name="session_drawer_upscaler_mode">Filter</string>
+    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_main_menu_title">Menu</string>
+    <string name="session_gyroscope_activator">Aktivator</string>
     <string name="settings_general_check_for_updates">Søg efter opdateringer</string>
     <string name="settings_general_check_for_updates_summary">Søg automatisk efter nye appversioner ved opstart og med jævne mellemrum.</string>
     <string name="setup_wizard_containers">Containeropsætning</string>
