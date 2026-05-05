@@ -4,8 +4,10 @@ import android.widget.FrameLayout
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
@@ -17,7 +19,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -141,13 +142,14 @@ private fun XServerDisplayHost(
                 scrimColor = Color.Transparent,
                 drawerContent = {
                     ModalDrawerSheet(
-                        drawerShape = RectangleShape,
+                        drawerShape = RoundedCornerShape(20.dp),
                         drawerContainerColor = PaneSurfaceColor,
                         drawerContentColor = Color.Unspecified,
                         drawerTonalElevation = 0.dp,
                         windowInsets = WindowInsets(0, 0, 0, 0),
                         modifier =
                             Modifier
+                                .padding(start = 6.dp, top = 6.dp, bottom = 6.dp)
                                 .fillMaxHeight()
                                 .width(DrawerWidth),
                     ) {

@@ -1013,6 +1013,8 @@ Cale instalata:
     <string name="session_drawer_command_center_system">Sistem</string>
     <string name="session_drawer_fps_limiter">Limitator FPS</string>
     <string name="session_drawer_fps_limiter_off">Oprit</string>
+    <string name="session_drawer_screen_effects_subtitle">Scalare si efecte de culoare</string>
+    <string name="session_drawer_color_profile">Efect de culoare</string>
     <string name="session_drawer_color_profile_disabled">Dezactivat</string>
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">Natural</string>
@@ -1023,11 +1025,11 @@ Cale instalata:
     <string name="session_drawer_rail_label_gyro">Giro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">Mai multe</string>
-    <string name="session_drawer_rail_label_keyboard">Taste</string>
+    <string name="session_drawer_rail_label_keyboard">Tastatura</string>
     <string name="session_drawer_rail_label_input_controls">Comenzi</string>
     <string name="session_drawer_rail_label_relative_mouse">RelMouse</string>
     <string name="session_drawer_rail_label_mouse">Mouse</string>
-    <string name="session_drawer_rail_label_fullscreen">Plin</string>
+    <string name="session_drawer_rail_label_fullscreen">Ecran complet</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_native">Nativ</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>

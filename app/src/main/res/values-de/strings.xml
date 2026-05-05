@@ -1013,6 +1013,8 @@ Installierter Pfad:
     <string name="session_drawer_command_center_system">System</string>
     <string name="session_drawer_fps_limiter">FPS-Begrenzer</string>
     <string name="session_drawer_fps_limiter_off">Aus</string>
+    <string name="session_drawer_screen_effects_subtitle">Hochskalierung und Farbeffekte</string>
+    <string name="session_drawer_color_profile">Farbeffekt</string>
     <string name="session_drawer_color_profile_disabled">Deaktiviert</string>
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">Natürlich</string>
@@ -1023,11 +1025,11 @@ Installierter Pfad:
     <string name="session_drawer_rail_label_gyro">Gyro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">Mehr</string>
-    <string name="session_drawer_rail_label_keyboard">Tasten</string>
+    <string name="session_drawer_rail_label_keyboard">Tastatur</string>
     <string name="session_drawer_rail_label_input_controls">Steuer.</string>
     <string name="session_drawer_rail_label_relative_mouse">Rel.Maus</string>
     <string name="session_drawer_rail_label_mouse">Maus</string>
-    <string name="session_drawer_rail_label_fullscreen">Vollb.</string>
+    <string name="session_drawer_rail_label_fullscreen">Vollbild</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_native">Nativ</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>

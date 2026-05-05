@@ -2,10 +2,15 @@ package com.winlator.cmod.runtime.display
 
 import android.app.Activity
 import android.content.Context
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                import androidx.compose.animation.expandVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
@@ -35,11 +40,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeight
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -49,6 +57,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.automirrored.outlined.ViewList
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.Check
@@ -96,6 +105,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -118,76 +129,51 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.theme.WinNativeBackground
+import com.winlator.cmod.shared.theme.WinNativeOutline
+import com.winlator.cmod.shared.theme.WinNativePanel
+import com.winlator.cmod.shared.theme.WinNativeSurface
+import com.winlator.cmod.shared.theme.WinNativeTextPrimary
+import com.winlator.cmod.shared.theme.WinNativeTextSecondary
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import com.winlator.cmod.shared.ui.dialog.WinNativeDialogButton
 import com.winlator.cmod.shared.ui.dialog.WinNativeDialogShell
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import kotlin.math.roundToInt
 
-// Drawer-local "Carbon Cyan" palette. Fully self-contained — does not pull from
-// the shared WinNative theme tokens, so the rest of the app keeps its blue cast
-// while the session drawer reads as warm-charcoal with a cool cyan accent.
-//
-// All surfaces are OPAQUE on purpose: the drawer overlays gameplay, and
-// translucent surfaces (the previous design) wash out unpredictably depending
-// on what's on screen behind them.
+// Drawer-local colors.
+private const val DrawerSheetAlpha = 0.86f
+private const val DrawerSurfaceAlpha = 0.72f
+private const val DrawerPressedAlpha = 0.88f
+private const val DrawerGradientLift = 0.014f
 
-// Drawer-local accent palette — monochromatic blue, three roles, distinguished by
-// hue + lightness within the blue family:
-//   DrawerAccent (blue-500)     — brand / "you are here" / interactive UI: rail
-//                                 underline, selected tab, sliders, switches,
-//                                 dropdowns, focus rings. Tailwind blue-500: true
-//                                 blue, deep saturation, classic primary.
-//   DrawerActiveAccent (sky)    — "this thing is currently running": active card
-//                                 borders, FPS-on / Pause / Native-on indicators.
-//                                 Brighter and more cyan-leaning than the primary,
-//                                 so an active card pops against a selected tile.
-//   GlassExitTint (coral)       — destructive: Exit affordance. Stays warm because
-//                                 a blue exit signal wouldn't read as "stop."
-private val DrawerAccent = Color(0xFF60A5FA)
-private val DrawerActiveAccent = Color(0xFF38BDF8)
-private val DrawerTextPrimary = Color(0xFFE8ECF1)
-private val DrawerTextSecondary = Color(0xFF8B95A6)
-private val DrawerOutline = Color(0xFF2E343F)
-private val DrawerBackground = Color(0xFF14161A)
+private val DrawerAccent = Color(0xFF2196F3)
+private val DrawerActiveAccent = Color(0xFF29B6F6)
+private val DrawerTextPrimary = WinNativeTextPrimary.copy(alpha = 0.88f)
+private val DrawerTextSecondary = WinNativeTextSecondary.copy(alpha = 0.82f)
+private val DrawerOutline = WinNativeOutline
+private val DrawerBackground = WinNativeBackground.copy(alpha = DrawerSheetAlpha)
 
-// Container surfaces — opaque warm charcoal. Body sits one stop darker than
-// the rail so the tab strip stratifies cleanly without translucency tricks.
-internal val PaneSurfaceColor = Color(0xFF14161A)
-private val PaneSurfacePressed = Color(0xFF1F232B)
+internal val PaneSurfaceColor = WinNativeBackground.copy(alpha = DrawerSheetAlpha)
+private val PaneSurfacePressed = Color(0xFF232B3A).copy(alpha = DrawerPressedAlpha)
 
-// Top rail surface — one step lighter than the body for a clean section break.
-private val TopRailSurfaceColor = Color(0xFF1B1E24)
+private val TopRailSurfaceColor = WinNativeSurface.copy(alpha = DrawerSheetAlpha)
 
-// Tile / inner-row fills — solid surface steps, not white-overlay tints.
-private val TileResting = Color(0xFF22262E)
-// Exit tile: deep maroon-charcoal. Signals "destructive" but pairs with the
-// cyan accent rather than fighting it (the previous saturated red did).
-private val TileExitResting = Color(0xFF3A2125)
-private val TileExitPressed = Color(0xFF4A2A30)
-// Inner pane sections — slightly darker than tiles to recede into the body.
-private val PaneInnerResting = Color(0xFF1A1D23)
-private val PaneInnerPressed = Color(0xFF2D323C)
-private val RestingCardBorder = Color(0xFF2E343F)
-private val DisabledCardBorder = Color(0xFF1F232B)
-
-// Active-state treatment — coloured border, in teal, signals "this thing is
-// currently running" (FPS Monitor on, Native Rendering on, Pause active, etc.).
-// Distinct from amber DrawerAccent which signals "user-driven UI state" (selected
-// tab, focused field, expanded card, slider thumb).
+private val TileResting = Color(0xFF20283A).copy(alpha = DrawerSurfaceAlpha)
+private val TileExitResting = Color(0xFF3A2125).copy(alpha = DrawerSurfaceAlpha)
+private val TileExitPressed = Color(0xFF4A2A30).copy(alpha = DrawerPressedAlpha)
+private val PaneInnerResting = WinNativePanel.copy(alpha = DrawerSurfaceAlpha)
+private val PaneInnerPressed = Color(0xFF242B3A).copy(alpha = DrawerPressedAlpha)
+private val RestingCardBorder = WinNativeOutline.copy(alpha = 0.72f)
+private val DisabledCardBorder = Color(0xFF202033).copy(alpha = 0.58f)
 private val ActiveCardBorder = DrawerActiveAccent
-
-// Hairline that separates the bottom Pause/Exit row from the body content.
-private val BottomDividerColor = Color(0xFF2E343F)
-
-// Tint for exit-tile/icons in the rail and the activator dialog's outline.
+private val BottomDividerColor = WinNativeOutline
 private val GlassExitTint = Color(0xFFE07B6B)
 
-// Pane content scales down on short displays (e.g. 5.5" landscape) so text and
-// controls keep usable proportions instead of overflowing or wasting space.
-// Reference height (520.dp) maps to scale 1.0; smaller heights compress linearly
-// down to 0.78. Wider tablets always render at full scale.
+// Pane content scales down on short displays.
 private val LocalPaneScale = staticCompositionLocalOf { 1f }
 private const val PaneScaleMin = 0.78f
 private const val PaneScaleReferenceHeightDp = 520f
@@ -221,10 +207,7 @@ data class TaskManagerPaneState(
     val memoryDetail: String = "",
 )
 
-// Declarative spec for a top-rail tab that opens a pane below. To add a new pane:
-//   1. Add a value to DrawerPane.
-//   2. Append a RailPaneSpec entry below.
-//   3. Add a `when (openPane)` branch rendering its pane content.
+// Top-rail pane specs.
 private data class RailPaneSpec(
     val pane: DrawerPane,
     val itemId: Int,
@@ -261,23 +244,16 @@ private val RAIL_PANES =
 private val RAIL_PANE_ITEM_IDS = RAIL_PANES.map { it.itemId }.toSet()
 private val PINNED_BOTTOM_ITEM_IDS = setOf(R.id.main_menu_pause, R.id.main_menu_exit)
 
-// Top rail (pane tabs) — horizontal scroll of compact icon+label tiles.
-// The tile sizes itself to its content with symmetric padding so the selected
-// outline reads as evenly inset on all sides (rather than hugging the icon
-// horizontally and the label vertically).
 private val TopRailTileMinWidth = 64.dp
 private val TopRailTileHorizontalPadding = 10.dp
 private val TopRailTileTopPadding = 6.dp
 private val TopRailTileBottomPadding = 4.dp
 private val TopRailTileSpacing = 6.dp
 
-// Action cards (formerly the right drawer's items) — the body's default view.
 private const val ActionCardColumns = 3
 private val ActionCardMinHeight = 72.dp
 private val ActionCardSpacing = 8.dp
 
-// Per-card reveal stagger — each card fades+slides in this many ms after the previous one.
-// Total reveal time = (cardCount - 1) * stagger + duration; tuned to feel snappy on ~9 cards.
 private const val ActionCardRevealStaggerMs = 28
 private const val ActionCardRevealDurationMs = 220
 
@@ -446,7 +422,7 @@ interface XServerDrawerActionListener {
 
     fun onTaskManagerEndProcess(name: String)
 
-    fun onTaskManagerNewTask()
+    fun onTaskManagerNewTask(command: String)
 }
 
 fun buildXServerDrawerState(
@@ -492,6 +468,7 @@ fun buildXServerDrawerState(
     inputControlsOverlayOpacity: Float = 0.4f,
     inputControlsTouchscreenHaptics: Boolean = false,
     inputControlsGamepadVibration: Boolean = true,
+    fullscreenEnabled: Boolean = false,
 ): XServerDrawerState {
     val items =
         mutableListOf(
@@ -544,6 +521,7 @@ fun buildXServerDrawerState(
                 title = context.getString(R.string.session_drawer_toggle_fullscreen),
                 subtitle = "",
                 icon = Icons.Outlined.Fullscreen,
+                active = fullscreenEnabled,
             ),
             XServerDrawerItem(
                 itemId = R.id.main_menu_screen_effects,
@@ -593,9 +571,6 @@ fun buildXServerDrawerState(
     }
 
     if (showLogs) {
-        // Inserted at index 0 so it's the first card in the filtered grid
-        // (the rail-pane items at the top of the list — fps_monitor, gyroscope,
-        // screen_effects — are filtered out of the cards section).
         items.add(
             0,
             XServerDrawerItem(
@@ -684,12 +659,7 @@ internal fun XServerDrawerContent(
     listener: XServerDrawerActionListener,
     onDismiss: () -> Unit,
 ) {
-    // Card stagger reveal — fires once per drawer-open session. The drawer host removes
-    // XServerDrawerContent from composition entirely when the drawer closes (see
-    // XServerDisplayHost: drawerContentVisible gate), so this LaunchedEffect runs again
-    // on the next open. Crucially it does NOT run when the user navigates from a pane
-    // back to the Menu tab — the Crossfade only re-creates ActionCardGrid, not its
-    // parent, so this state survives that transition.
+    // Keep card reveal state stable while switching between panes.
     val cardsRevealed = remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { cardsRevealed.value = true }
 
@@ -705,17 +675,32 @@ internal fun XServerDrawerContent(
             CompositionLocalProvider(LocalPaneScale provides paneScale) {
                 Column(modifier = Modifier.fillMaxSize()) {
                     val railVisible = openPane != DrawerPane.TASK_MANAGER
-                    if (railVisible) {
-                        TopRail(
-                            state = state,
-                            openPane = openPane,
-                            onTabClick = { spec ->
-                                onOpenPaneChange(if (openPane == spec.pane) null else spec.pane)
-                            },
-                            onMenuClick = { onOpenPaneChange(null) },
-                        )
+                    val chromeEnter =
+                        expandVertically(
+                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                        ) + fadeIn(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing))
+                    val chromeExit =
+                        shrinkVertically(
+                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                        ) + fadeOut(animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing))
 
-                        ThinDivider()
+                    AnimatedVisibility(
+                        visible = railVisible,
+                        enter = chromeEnter,
+                        exit = chromeExit,
+                    ) {
+                        Column {
+                            TopRail(
+                                state = state,
+                                openPane = openPane,
+                                onTabClick = { spec ->
+                                    onOpenPaneChange(if (openPane == spec.pane) null else spec.pane)
+                                },
+                                onMenuClick = { onOpenPaneChange(null) },
+                            )
+
+                            ThinDivider()
+                        }
                     }
 
                     Box(
@@ -724,9 +709,26 @@ internal fun XServerDrawerContent(
                                 .weight(1f, fill = true)
                                 .fillMaxWidth(),
                     ) {
-                        Crossfade(
+                        AnimatedContent(
                             targetState = openPane,
-                            animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
+                            transitionSpec = {
+                                val enteringTaskManager = targetState == DrawerPane.TASK_MANAGER
+                                val returningToMenu = targetState == null
+                                if (enteringTaskManager) {
+                                    (
+                                        slideInVertically(
+                                            initialOffsetY = { it / 3 },
+                                            animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
+                                        ) + fadeIn(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
+                                    ) togetherWith fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)) using
+                                        SizeTransform(clip = false)
+                                } else if (returningToMenu) {
+                                    EnterTransition.None togetherWith ExitTransition.None
+                                } else {
+                                    fadeIn(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)) togetherWith
+                                        fadeOut(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
+                                }
+                            },
                             label = "drawerBody",
                         ) { pane ->
                             when (pane) {
@@ -752,13 +754,19 @@ internal fun XServerDrawerContent(
                         }
                     }
 
-                    if (openPane == null) {
-                        ThinDivider()
+                    AnimatedVisibility(
+                        visible = openPane == null,
+                        enter = chromeEnter,
+                        exit = chromeExit,
+                    ) {
+                        Column {
+                            ThinDivider()
 
-                        BottomActions(
-                            state = state,
-                            listener = listener,
-                        )
+                            BottomActions(
+                                state = state,
+                                listener = listener,
+                            )
+                        }
                     }
                 }
             }
@@ -766,7 +774,6 @@ internal fun XServerDrawerContent(
     }
 }
 
-// Tracked layout bounds for one rail tile, in the rail's own coordinate space.
 private data class RailTileBounds(val offsetX: Float, val width: Float, val height: Float)
 
 @Composable
@@ -780,8 +787,6 @@ private fun TopRail(
     val density = LocalDensity.current
     val activeSpecs = RAIL_PANES.filter { spec -> state.items.any { it.itemId == spec.itemId } }
 
-    // Rail tiles report their bounds here so the sliding indicator can size+position itself.
-    // Map keyed by tileKey so a tile's entry survives reorders/recompositions.
     val tileBounds = remember { mutableStateMapOf<String, RailTileBounds>() }
 
     val selectedKey =
@@ -791,8 +796,6 @@ private fun TopRail(
         }
     val selectedBounds = tileBounds[selectedKey]
 
-    // Indicator slides between tiles. Initial value (0.dp / 0.dp) is hidden; once
-    // a tile reports its bounds we animate to that target on every selection change.
     val indicatorAnimSpec = tween<Dp>(durationMillis = 240, easing = FastOutSlowInEasing)
     val indicatorX by animateDpAsState(
         targetValue = selectedBounds?.let { with(density) { it.offsetX.toDp() } } ?: 0.dp,
@@ -815,9 +818,6 @@ private fun TopRail(
         label = "topRailIndicatorAlpha",
     )
 
-    // Underline geometry: thin accent bar pinned to the bottom of the selected tile,
-    // inset slightly from the tile edges so it reads as a tab indicator rather than
-    // a full-width divider.
     val underlineThickness = (2f * paneScale).dp
     val underlineHorizontalInset = (6f * paneScale).dp
 
@@ -833,8 +833,6 @@ private fun TopRail(
                     bottom = (2f * paneScale).dp,
                 ),
     ) {
-        // Sliding underline indicator — sits at the bottom of the selected tile and
-        // animates x/width to slide between tiles.
         if (selectedBounds != null) {
             Box(
                 modifier =
@@ -855,7 +853,6 @@ private fun TopRail(
             horizontalArrangement = Arrangement.spacedBy(TopRailTileSpacing),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Menu tile is selected whenever no pane is open — the body shows the action card grid.
             TopRailTile(
                 icon = Icons.Outlined.Apps,
                 label = stringResource(R.string.session_drawer_main_menu_title),
@@ -911,8 +908,6 @@ private fun TopRailTile(
             ),
         label = "topRailScale_$tileKey",
     )
-    // Selected fill is now drawn by the sliding indicator pill in the rail's parent.
-    // Tiles only paint a press feedback fill when not selected.
     val bgColor by animateColorAsState(
         targetValue =
             when {
@@ -922,11 +917,6 @@ private fun TopRailTile(
         animationSpec = tween(120),
         label = "topRailBg_$tileKey",
     )
-    // Tint splits brand vs running:
-    //   selected -> amber (this is the open pane / "you are here")
-    //   active && !selected -> teal (this rail item has something turned on, but
-    //                                you aren't currently looking at it)
-    //   otherwise -> primary text colour
     val tint by animateColorAsState(
         targetValue =
             when {
@@ -1032,18 +1022,19 @@ private fun ActionCardGrid(
                             .weight(1f)
                             .heightIn(min = ActionCardMinHeight * paneScale),
                     onClick = {
-                        if (item.itemId == R.id.main_menu_task_manager) {
-                            onOpenTaskManager()
-                        } else {
-                            onActionInvoked()
-                            listener.onActionSelected(item.itemId)
+                        when (item.itemId) {
+                            R.id.main_menu_task_manager -> onOpenTaskManager()
+                            R.id.main_menu_relative_mouse_movement,
+                            R.id.main_menu_disable_mouse,
+                            R.id.main_menu_toggle_fullscreen -> listener.onActionSelected(item.itemId)
+                            else -> {
+                                onActionInvoked()
+                                listener.onActionSelected(item.itemId)
+                            }
                         }
                     },
                 )
             }
-            // Pad the trailing row so a lone card (e.g. Logs when total isn't a
-            // multiple of ActionCardColumns) stays 1/3 width instead of stretching
-            // across the whole row via .weight(1f).
             val trailing = (ActionCardColumns - cards.size % ActionCardColumns) % ActionCardColumns
             repeat(trailing) {
                 Spacer(modifier = Modifier.weight(1f))
@@ -1066,9 +1057,6 @@ private fun ActionCard(
     val pressed = interactionSource.collectIsPressedAsState().value
     val enabled = item.enabled
 
-    // Staggered fade+slide-up entrance. Delay grows with reveal index so cards appear
-    // in reading order. Once revealed the values stay at their target — recomposes
-    // from press/state changes don't re-trigger the entrance.
     val staggerDelay = revealIndex * ActionCardRevealStaggerMs
     val revealAlpha by animateFloatAsState(
         targetValue = if (revealed) 1f else 0f,
@@ -1135,9 +1123,9 @@ private fun ActionCard(
     val shape = RoundedCornerShape(cornerRadius)
     val topColor =
         Color(
-            red = (bgColor.red + (1f - bgColor.red) * 0.03f).coerceIn(0f, 1f),
-            green = (bgColor.green + (1f - bgColor.green) * 0.03f).coerceIn(0f, 1f),
-            blue = (bgColor.blue + (1f - bgColor.blue) * 0.03f).coerceIn(0f, 1f),
+            red = (bgColor.red + (1f - bgColor.red) * DrawerGradientLift).coerceIn(0f, 1f),
+            green = (bgColor.green + (1f - bgColor.green) * DrawerGradientLift).coerceIn(0f, 1f),
+            blue = (bgColor.blue + (1f - bgColor.blue) * DrawerGradientLift).coerceIn(0f, 1f),
             alpha = bgColor.alpha,
         )
     val cardBrush = Brush.verticalGradient(listOf(topColor, bgColor))
@@ -1303,8 +1291,6 @@ private fun ThinDivider() {
     )
 }
 
-// Short labels for action cards. Each fits on one line inside the card; falls back
-// to item.title for items without an entry.
 private fun railLabelResFor(itemId: Int): Int? =
     when (itemId) {
         R.id.main_menu_keyboard -> R.string.session_drawer_rail_label_keyboard
@@ -1326,9 +1312,6 @@ private fun PaneEnableRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    // Pane-header toggles render identically to the in-pane DrawerBooleanRow so the
-    // FPS Monitor / Gyroscope headers visually match Dual Series Battery / Super
-    // Resolution rather than letting the Switch dominate a single-line title.
     DrawerBooleanRow(
         title = title,
         checked = checked,
@@ -1944,6 +1927,8 @@ private fun TaskManagerPaneContent(
     listener: XServerDrawerActionListener,
     onClose: () -> Unit,
 ) {
+    var showNewTaskDialog by remember { mutableStateOf(false) }
+
     DisposableEffect(Unit) {
         listener.onTaskManagerVisibilityChanged(true)
         onDispose { listener.onTaskManagerVisibilityChanged(false) }
@@ -1965,7 +1950,7 @@ private fun TaskManagerPaneContent(
                     cpuCorePercents = taskManagerState.cpuCorePercents,
                     memoryPercent = taskManagerState.memoryPercent,
                     memoryDetail = taskManagerState.memoryDetail,
-                    onNewTask = listener::onTaskManagerNewTask,
+                    onNewTask = { showNewTaskDialog = true },
                     onClose = onClose,
                     onCpuExpandedChanged = listener::onTaskManagerCpuExpandedChanged,
                 )
@@ -2002,6 +1987,16 @@ private fun TaskManagerPaneContent(
                 }
             }
         }
+    }
+
+    if (showNewTaskDialog) {
+        TaskManagerNewTaskDialog(
+            onDismiss = { showNewTaskDialog = false },
+            onConfirm = { command ->
+                showNewTaskDialog = false
+                listener.onTaskManagerNewTask(command)
+            },
+        )
     }
 }
 
@@ -2093,8 +2088,8 @@ private fun TaskManagerCloseButton(onClick: () -> Unit) {
         animationSpec = tween(120),
         label = "taskManagerCloseBg",
     )
-    val size = (32f * paneScale).dp
-    val shape = RoundedCornerShape((8f * paneScale).dp)
+    val size = (38f * paneScale).dp
+    val shape = RoundedCornerShape((10f * paneScale).dp)
     Box(
         modifier =
             Modifier
@@ -2113,7 +2108,7 @@ private fun TaskManagerCloseButton(onClick: () -> Unit) {
             imageVector = Icons.Outlined.Close,
             contentDescription = stringResource(R.string.common_ui_close),
             tint = DrawerTextPrimary,
-            modifier = Modifier.size((18f * paneScale).dp),
+            modifier = Modifier.size((22f * paneScale).dp),
         )
     }
 }
@@ -2162,13 +2157,13 @@ private fun TaskManagerStatTile(
                 .background(bgColor)
                 .border(1.dp, borderColor, shape)
                 .then(clickModifier)
-                .padding(horizontal = (10f * paneScale).dp, vertical = (8f * paneScale).dp),
-        verticalArrangement = Arrangement.spacedBy((2f * paneScale).dp),
+                .padding(horizontal = (8f * paneScale).dp, vertical = (6f * paneScale).dp),
+        verticalArrangement = Arrangement.spacedBy((1f * paneScale).dp),
     ) {
         Text(
             text = title,
             color = DrawerAccent,
-            fontSize = (12f * paneScale).sp,
+            fontSize = (11f * paneScale).sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -2176,7 +2171,7 @@ private fun TaskManagerStatTile(
         Text(
             text = detail,
             color = DrawerTextSecondary,
-            fontSize = (11f * paneScale).sp,
+            fontSize = (10f * paneScale).sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -2195,19 +2190,19 @@ private fun TaskManagerCpuCoreGrid(cpuCorePercents: List<Int>) {
                 .clip(shape)
                 .background(PaneInnerResting)
                 .border(1.dp, RestingCardBorder, shape)
-                .padding(horizontal = (10f * paneScale).dp, vertical = (8f * paneScale).dp),
-        verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp),
+                .padding(horizontal = (8f * paneScale).dp, vertical = (6f * paneScale).dp),
+        verticalArrangement = Arrangement.spacedBy((4f * paneScale).dp),
     ) {
         Text(
             text = stringResource(R.string.session_task_per_core_usage),
             color = DrawerTextPrimary,
-            fontSize = (12f * paneScale).sp,
+            fontSize = (11f * paneScale).sp,
             fontWeight = FontWeight.SemiBold,
         )
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy((6f * paneScale).dp),
-            verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp),
+            horizontalArrangement = Arrangement.spacedBy((4f * paneScale).dp),
+            verticalArrangement = Arrangement.spacedBy((4f * paneScale).dp),
         ) {
             cpuCorePercents.forEachIndexed { index, percent ->
                 TaskManagerCpuCoreChip(coreIndex = index, percent = percent)
@@ -2226,20 +2221,20 @@ private fun TaskManagerCpuCoreChip(coreIndex: Int, percent: Int) {
                 .clip(shape)
                 .background(PaneSurfaceColor)
                 .border(1.dp, RestingCardBorder, shape)
-                .padding(horizontal = (8f * paneScale).dp, vertical = (4f * paneScale).dp),
+                .padding(horizontal = (6f * paneScale).dp, vertical = (3f * paneScale).dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy((6f * paneScale).dp),
+        horizontalArrangement = Arrangement.spacedBy((4f * paneScale).dp),
     ) {
         Text(
             text = stringResource(R.string.session_task_core_label, coreIndex),
             color = DrawerTextSecondary,
-            fontSize = (11f * paneScale).sp,
+            fontSize = (10f * paneScale).sp,
             fontWeight = FontWeight.Medium,
         )
         Text(
             text = "$percent%",
             color = DrawerAccent,
-            fontSize = (11f * paneScale).sp,
+            fontSize = (10f * paneScale).sp,
             fontWeight = FontWeight.SemiBold,
         )
     }
@@ -2255,6 +2250,7 @@ private fun TaskManagerNewTaskButton(onClick: () -> Unit) {
         animationSpec = tween(120),
         label = "taskManagerNewTaskBg",
     )
+    val tint = if (pressed) DrawerAccent.copy(alpha = 0.76f) else DrawerAccent
     val shape = RoundedCornerShape((12f * paneScale).dp)
     Row(
         modifier =
@@ -2272,10 +2268,175 @@ private fun TaskManagerNewTaskButton(onClick: () -> Unit) {
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Icon(
+            imageVector = Icons.Outlined.Add,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size((18f * paneScale).dp),
+        )
+        Spacer(Modifier.width((6f * paneScale).dp))
         Text(
             text = stringResource(R.string.session_task_new_task),
-            color = DrawerAccent,
-            fontSize = (13f * paneScale).sp,
+            color = tint,
+            fontSize = (14f * paneScale).sp,
+            fontWeight = FontWeight.Medium,
+        )
+    }
+}
+
+@Composable
+private fun TaskManagerNewTaskDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    var command by remember { mutableStateOf("taskmgr.exe") }
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val shape = RoundedCornerShape(14.dp)
+
+    fun submit() {
+        val trimmed = command.trim()
+        if (trimmed.isNotEmpty()) onConfirm(trimmed)
+    }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+        keyboardController?.show()
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties =
+            DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+            ),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .safeDrawingPadding()
+                    .imePadding()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .widthIn(max = 310.dp)
+                        .fillMaxWidth()
+                        .clip(shape)
+                        .background(PaneSurfaceColor)
+                        .border(1.dp, RestingCardBorder, shape)
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Add,
+                        contentDescription = null,
+                        tint = DrawerAccent,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.session_task_new_task),
+                        color = DrawerTextPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+
+                OutlinedTextField(
+                    value = command,
+                    onValueChange = { command = it },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
+                    singleLine = true,
+                    textStyle =
+                        androidx.compose.material3.MaterialTheme.typography.bodyMedium.copy(
+                            color = DrawerTextPrimary,
+                            fontSize = 13.sp,
+                        ),
+                    colors =
+                        OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = DrawerAccent,
+                            unfocusedBorderColor = RestingCardBorder,
+                            focusedTextColor = DrawerTextPrimary,
+                            unfocusedTextColor = DrawerTextPrimary,
+                            focusedContainerColor = PaneInnerResting,
+                            unfocusedContainerColor = PaneInnerResting,
+                            cursorColor = DrawerAccent,
+                        ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions =
+                        KeyboardActions(
+                            onDone = {
+                                keyboardController?.hide()
+                                submit()
+                            },
+                        ),
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TaskManagerDialogButton(
+                        label = stringResource(R.string.common_ui_cancel),
+                        textColor = DrawerTextPrimary,
+                        onClick = onDismiss,
+                    )
+                    TaskManagerDialogButton(
+                        label = stringResource(R.string.common_ui_ok),
+                        textColor = DrawerAccent,
+                        backgroundColor = DrawerAccent.copy(alpha = 0.12f),
+                        borderColor = DrawerAccent.copy(alpha = 0.34f),
+                        onClick = {
+                            keyboardController?.hide()
+                            submit()
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TaskManagerDialogButton(
+    label: String,
+    textColor: Color,
+    onClick: () -> Unit,
+    backgroundColor: Color = PaneInnerResting,
+    borderColor: Color = RestingCardBorder,
+) {
+    Box(
+        modifier =
+            Modifier
+                .widthIn(min = 72.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(backgroundColor)
+                .border(1.dp, borderColor, RoundedCornerShape(9.dp))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                )
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = textColor,
+            fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
         )
     }
@@ -2403,7 +2564,7 @@ private fun PaneSectionLabel(text: String) {
     Text(
         text = text,
         color = DrawerTextPrimary,
-        fontSize = (12f * paneScale).sp,
+        fontSize = (14f * paneScale).sp,
         fontWeight = FontWeight.Medium,
         letterSpacing = 0.3.sp,
     )
@@ -2631,45 +2792,50 @@ private fun CompactSlider(
             activeTickColor = Color.Transparent,
             inactiveTickColor = Color.Transparent,
         )
-    Slider(
-        value = value,
-        onValueChange = onValueChange,
-        valueRange = valueRange,
-        steps = steps,
-        modifier = Modifier.fillMaxWidth().requiredHeight(20.dp),
-        colors = sliderColors,
-        thumb = {
-            Box(
-                modifier =
-                    Modifier
-                        .size(14.dp)
-                        .clip(CircleShape)
-                        .background(DrawerAccent),
-            )
-        },
-        track = { sliderState ->
-            val span = sliderState.valueRange.endInclusive - sliderState.valueRange.start
-            val fraction =
-                if (span <= 0f) 0f else ((sliderState.value - sliderState.valueRange.start) / span).coerceIn(0f, 1f)
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(3.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(TileResting),
-            ) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            steps = steps,
+            modifier = Modifier.fillMaxWidth(0.96f).requiredHeight(20.dp),
+            colors = sliderColors,
+            thumb = {
                 Box(
                     modifier =
                         Modifier
-                            .fillMaxWidth(fraction)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(2.dp))
+                            .size(14.dp)
+                            .clip(CircleShape)
                             .background(DrawerAccent),
                 )
-            }
-        },
-    )
+            },
+            track = { sliderState ->
+                val span = sliderState.valueRange.endInclusive - sliderState.valueRange.start
+                val fraction =
+                    if (span <= 0f) 0f else ((sliderState.value - sliderState.valueRange.start) / span).coerceIn(0f, 1f)
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(TileResting),
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth(fraction)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(DrawerAccent),
+                    )
+                }
+            },
+        )
+    }
 }
 
 private fun Float.snapToStep(

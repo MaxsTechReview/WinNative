@@ -1013,6 +1013,8 @@ Percorso installato:
     <string name="session_drawer_command_center_system">Sistema</string>
     <string name="session_drawer_fps_limiter">Limitatore FPS</string>
     <string name="session_drawer_fps_limiter_off">Disattivato</string>
+    <string name="session_drawer_screen_effects_subtitle">Upscaling ed effetti colore</string>
+    <string name="session_drawer_color_profile">Effetto colore</string>
     <string name="session_drawer_color_profile_disabled">Disabilitato</string>
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">Naturale</string>
@@ -1023,11 +1025,11 @@ Percorso installato:
     <string name="session_drawer_rail_label_gyro">Giro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">Altro</string>
-    <string name="session_drawer_rail_label_keyboard">Tasti</string>
+    <string name="session_drawer_rail_label_keyboard">Tastiera</string>
     <string name="session_drawer_rail_label_input_controls">Comandi</string>
     <string name="session_drawer_rail_label_relative_mouse">RelMouse</string>
     <string name="session_drawer_rail_label_mouse">Mouse</string>
-    <string name="session_drawer_rail_label_fullscreen">Pieno</string>
+    <string name="session_drawer_rail_label_fullscreen">Schermo intero</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_native">Nativo</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>

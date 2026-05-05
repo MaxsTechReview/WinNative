@@ -1013,6 +1013,8 @@
     <string name="session_drawer_command_center_system">시스템</string>
     <string name="session_drawer_fps_limiter">FPS 제한기</string>
     <string name="session_drawer_fps_limiter_off">끄기</string>
+    <string name="session_drawer_screen_effects_subtitle">업스케일링 및 색상 효과</string>
+    <string name="session_drawer_color_profile">색상 효과</string>
     <string name="session_drawer_color_profile_disabled">비활성화됨</string>
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">자연</string>
@@ -1023,11 +1025,11 @@
     <string name="session_drawer_rail_label_gyro">자이로</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">더 보기</string>
-    <string name="session_drawer_rail_label_keyboard">키</string>
+    <string name="session_drawer_rail_label_keyboard">키보드</string>
     <string name="session_drawer_rail_label_input_controls">컨트롤</string>
     <string name="session_drawer_rail_label_relative_mouse">상대마우스</string>
     <string name="session_drawer_rail_label_mouse">마우스</string>
-    <string name="session_drawer_rail_label_fullscreen">전체</string>
+    <string name="session_drawer_rail_label_fullscreen">전체 화면</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_native">네이티브</string>
     <string name="session_drawer_rail_label_magnifier">확대</string>

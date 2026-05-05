@@ -1013,6 +1013,8 @@ Chemin installé :
     <string name="session_drawer_command_center_system">Système</string>
     <string name="session_drawer_fps_limiter">Limiteur FPS</string>
     <string name="session_drawer_fps_limiter_off">Désactivé</string>
+    <string name="session_drawer_screen_effects_subtitle">Mise à l\'échelle et effets de couleur</string>
+    <string name="session_drawer_color_profile">Effet de couleur</string>
     <string name="session_drawer_color_profile_disabled">Désactivé</string>
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">Naturel</string>
@@ -1023,11 +1025,11 @@ Chemin installé :
     <string name="session_drawer_rail_label_gyro">Gyro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">Plus</string>
-    <string name="session_drawer_rail_label_keyboard">Touches</string>
+    <string name="session_drawer_rail_label_keyboard">Clavier</string>
     <string name="session_drawer_rail_label_input_controls">Manettes</string>
     <string name="session_drawer_rail_label_relative_mouse">Rel.Souris</string>
     <string name="session_drawer_rail_label_mouse">Souris</string>
-    <string name="session_drawer_rail_label_fullscreen">Plein</string>
+    <string name="session_drawer_rail_label_fullscreen">Plein écran</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_native">Natif</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>

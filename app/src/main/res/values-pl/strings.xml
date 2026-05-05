@@ -1019,6 +1019,8 @@ Zainstalowana ścieżka:
     <string name="session_drawer_command_center_system">System</string>
     <string name="session_drawer_fps_limiter">Ogranicznik FPS</string>
     <string name="session_drawer_fps_limiter_off">Wył.</string>
+    <string name="session_drawer_screen_effects_subtitle">Skalowanie i efekty kolorów</string>
+    <string name="session_drawer_color_profile">Efekt koloru</string>
     <string name="session_drawer_color_profile_disabled">Wyłączone</string>
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">Naturalny</string>
@@ -1029,11 +1031,11 @@ Zainstalowana ścieżka:
     <string name="session_drawer_rail_label_gyro">Gyro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">Więcej</string>
-    <string name="session_drawer_rail_label_keyboard">Klaw.</string>
+    <string name="session_drawer_rail_label_keyboard">Klawiatura</string>
     <string name="session_drawer_rail_label_input_controls">Sterow.</string>
     <string name="session_drawer_rail_label_relative_mouse">RelMysz</string>
     <string name="session_drawer_rail_label_mouse">Mysz</string>
-    <string name="session_drawer_rail_label_fullscreen">Pełny</string>
+    <string name="session_drawer_rail_label_fullscreen">Pełny ekran</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_native">Natyw.</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>

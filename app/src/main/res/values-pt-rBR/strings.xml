@@ -1013,6 +1013,8 @@ Caminho instalado:
     <string name="session_drawer_command_center_system">Sistema</string>
     <string name="session_drawer_fps_limiter">Limitador de FPS</string>
     <string name="session_drawer_fps_limiter_off">Desligado</string>
+    <string name="session_drawer_screen_effects_subtitle">Upscaling e efeitos de cor</string>
+    <string name="session_drawer_color_profile">Efeito de cor</string>
     <string name="session_drawer_color_profile_disabled">Desativado</string>
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">Natural</string>
@@ -1023,11 +1025,11 @@ Caminho instalado:
     <string name="session_drawer_rail_label_gyro">Giro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">Mais</string>
-    <string name="session_drawer_rail_label_keyboard">Teclas</string>
+    <string name="session_drawer_rail_label_keyboard">Teclado</string>
     <string name="session_drawer_rail_label_input_controls">Controles</string>
     <string name="session_drawer_rail_label_relative_mouse">RelMouse</string>
     <string name="session_drawer_rail_label_mouse">Mouse</string>
-    <string name="session_drawer_rail_label_fullscreen">Cheia</string>
+    <string name="session_drawer_rail_label_fullscreen">Tela cheia</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_native">Nativo</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>

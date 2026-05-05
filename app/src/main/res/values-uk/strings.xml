@@ -1019,6 +1019,8 @@
     <string name="session_drawer_command_center_system">Система</string>
     <string name="session_drawer_fps_limiter">Обмежувач FPS</string>
     <string name="session_drawer_fps_limiter_off">Вимкнено</string>
+    <string name="session_drawer_screen_effects_subtitle">Масштабування та колірні ефекти</string>
+    <string name="session_drawer_color_profile">Колірний ефект</string>
     <string name="session_drawer_color_profile_disabled">Деактивовано</string>
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">Природний</string>
@@ -1029,11 +1031,11 @@
     <string name="session_drawer_rail_label_gyro">Гіро</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">Більше</string>
-    <string name="session_drawer_rail_label_keyboard">Клав.</string>
+    <string name="session_drawer_rail_label_keyboard">Клавіатура</string>
     <string name="session_drawer_rail_label_input_controls">Керув.</string>
     <string name="session_drawer_rail_label_relative_mouse">ВіднМ.</string>
     <string name="session_drawer_rail_label_mouse">Миша</string>
-    <string name="session_drawer_rail_label_fullscreen">Повн.</string>
+    <string name="session_drawer_rail_label_fullscreen">Повний екран</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_native">Натив.</string>
     <string name="session_drawer_rail_label_magnifier">Лупа</string>

@@ -1013,6 +1013,8 @@
     <string name="session_drawer_command_center_system">系统</string>
     <string name="session_drawer_fps_limiter">FPS 限制器</string>
     <string name="session_drawer_fps_limiter_off">关闭</string>
+    <string name="session_drawer_screen_effects_subtitle">缩放和色彩效果</string>
+    <string name="session_drawer_color_profile">色彩效果</string>
     <string name="session_drawer_color_profile_disabled">已禁用</string>
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">自然</string>
@@ -1023,7 +1025,7 @@
     <string name="session_drawer_rail_label_gyro">陀螺仪</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">更多</string>
-    <string name="session_drawer_rail_label_keyboard">按键</string>
+    <string name="session_drawer_rail_label_keyboard">键盘</string>
     <string name="session_drawer_rail_label_input_controls">控制</string>
     <string name="session_drawer_rail_label_relative_mouse">相对鼠标</string>
     <string name="session_drawer_rail_label_mouse">鼠标</string>

@@ -2913,7 +2913,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 isTapToClickEnabled,
                 preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY),
                 preferences.getBoolean("touchscreen_haptics_enabled", false),
-                preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true)
+                preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true),
+                xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen()
         );
 
         if (drawerActionListener == null) {
@@ -3179,14 +3180,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     }
 
                     @Override
-                    public void onTaskManagerNewTask() {
-                        ContentDialog.prompt(
-                                XServerDisplayActivity.this,
-                                R.string.session_task_new_task,
-                                "taskmgr.exe",
-                                (command) -> {
-                                    if (winHandler != null) winHandler.exec(command);
-                                });
+                    public void onTaskManagerNewTask(String command) {
+                        if (winHandler != null) winHandler.exec(command);
                     }
                 };
         }
