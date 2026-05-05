@@ -320,11 +320,72 @@ public class PresentExtension
         queryVersion(client, inputStream, outputStream);
         break;
       case ClientOpcodes.PRESENT_PIXMAP:
+        int pixmapId;
+        boolean isLargeFrame = false;
         try (XLock lock =
             client.xServer.lock(XServer.Lockable.WINDOW_MANAGER, XServer.Lockable.PIXMAP_MANAGER)) {
-          presentPixmap(client, inputStream, outputStream);
+          int windowId = inputStream.readInt();
+          pixmapId = inputStream.readInt();
+          int serial = inputStream.readInt();
+          inputStream.skip(8);
+          short xOff = inputStream.readShort();
+          short yOff = inputStream.readShort();
+          inputStream.skip(8);
+          int idleFence = inputStream.readInt();
+          inputStream.skip(client.getRemainingRequestLength());
+
+          final Window window = client.xServer.windowManager.getWindow(windowId);
+          if (window == null) throw new BadWindow(windowId);
+
+          final Pixmap pixmap = client.xServer.pixmapManager.getPixmap(pixmapId);
+          if (pixmap == null) throw new BadPixmap(pixmapId);
+
+          Drawable content = window.getContent();
+          if (content.visual.depth != pixmap.drawable.visual.depth) throw new BadMatch();
+
+          long ust = System.nanoTime() / 1000;
+          long msc = ust / FAKE_INTERVAL;
+
+          synchronized (content.renderLock) {
+            Mode mode;
+            if (canDirectScanout(content, pixmap.drawable, xOff, yOff)) {
+              releasePendingScanout(window);
+              content.setScanoutSource(pixmap.drawable);
+              PendingScanout pendingScanout = new PendingScanout();
+              pendingScanout.window = window;
+              pendingScanout.pixmap = pixmap;
+              pendingScanout.serial = serial;
+              pendingScanout.idleFence = idleFence;
+              pendingScanouts.put(window.id, pendingScanout);
+              mode = Mode.FLIP;
+            } else {
+              releasePendingScanout(window);
+              content.copyArea(
+                  (short) 0,
+                  (short) 0,
+                  xOff,
+                  yOff,
+                  pixmap.drawable.width,
+                  pixmap.drawable.height,
+                  pixmap.drawable);
+              sendIdleNotify(window, pixmap, serial, idleFence);
+              mode = Mode.COPY;
+            }
+            sendCompleteNotify(window, serial, Kind.PIXMAP, mode, ust, msc);
+            client.xServer.windowManager.triggerOnFramePresented(window);
+          }
+
+          if (pixmap.drawable.width > client.xServer.screenInfo.width / 2) {
+            isLargeFrame = true;
+          }
         }
-        client.enforceAbsoluteFramerate();
+
+        if (client.xServer.getRenderer() != null)
+          client.xServer.getRenderer().requestRenderCoalesced();
+
+        if (isLargeFrame) {
+          client.enforceAbsoluteFramerate();
+        }
         break;
       case ClientOpcodes.SELECT_INPUT:
         try (XLock lock = client.xServer.lock(XServer.Lockable.WINDOW_MANAGER)) {

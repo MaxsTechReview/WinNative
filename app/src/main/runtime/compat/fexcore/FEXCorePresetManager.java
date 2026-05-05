@@ -325,6 +325,6 @@ public class FEXCorePresetManager {
     int selectedPosition = spinner.getSelectedItemPosition();
     if (adapter != null && adapter.getCount() > 0 && selectedPosition >= 0) {
       return ((FEXCorePreset) adapter.getItem(selectedPosition)).id;
-    } else return FEXCorePreset.COMPATIBILITY;
+    } else return FEXCorePreset.PERFORMANCE;
   }
 }

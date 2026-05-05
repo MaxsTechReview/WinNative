@@ -114,6 +114,32 @@ public class Shortcut {
     loadCoverArt();
 
     Container.checkObsoleteOrMissingProperties(extraData);
+
+    normalizeEmulatorExtrasForArch();
+  }
+
+  // If a per-game shortcut overrides the emulator/emulator64 fields, sanitize the
+  // override so a stale legacy value (e.g. "Box64" persisted before the
+  // arm64ec/x86_64 dropdowns were arch-filtered) doesn't override the
+  // already-normalized container value at launch time. Only rewrites in-memory;
+  // a real saveData() happens whenever the user next saves shortcut settings.
+  private void normalizeEmulatorExtrasForArch() {
+    if (container == null) return;
+    boolean arm64ec = "arm64ec".equalsIgnoreCase(container.getExtra("wineprefixArch"));
+
+    String emu32 = getExtra("emulator");
+    if (emu32 != null && !emu32.isEmpty()) {
+      String norm = arm64ec
+              ? Container.sanitizeArm64ecEmulator32(emu32)
+              : Container.sanitizeX86Emulator(emu32);
+      if (!norm.equals(emu32)) putExtra("emulator", norm);
+    }
+
+    String emu64 = getExtra("emulator64");
+    if (emu64 != null && !emu64.isEmpty()) {
+      String norm = arm64ec ? "fexcore" : Container.sanitizeX86Emulator(emu64);
+      if (!norm.equals(emu64)) putExtra("emulator64", norm);
+    }
   }
 
   private void loadCoverArt() {

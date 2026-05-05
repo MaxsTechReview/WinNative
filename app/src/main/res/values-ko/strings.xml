@@ -545,16 +545,9 @@
     <string name="session_drawer_toggle_relative_mouse">상대 마우스 이동 전환</string>
     <string name="session_drawer_toggle_mouse">마우스 전환</string>
     <string name="session_drawer_pause_resume">일시 중지/재개</string>
-    <string name="session_drawer_keyboard_subtitle">소프트 키보드 열기</string>
-    <string name="session_drawer_input_controls_subtitle">화면 컨트롤 구성 또는 전환</string>
     <string name="session_drawer_relative_mouse_movement">상대 마우스 이동</string>
     <string name="session_drawer_mouse_input">마우스 입력</string>
-    <string name="session_drawer_fullscreen_subtitle">전체 화면 렌더링 전환</string>
     <string name="session_drawer_picture_in_picture">PiP (화면 속 화면)</string>
-    <string name="session_drawer_pip_subtitle">게임을 플로팅 창으로 축소</string>
-    <string name="session_drawer_task_manager_subtitle">실행 중인 프로세스 검사 및 관리</string>
-    <string name="session_drawer_magnifier_subtitle">디스플레이 확대</string>
-    <string name="session_drawer_logs_subtitle">Wine 및 Box64 로그 열기</string>
     <string name="session_drawer_exit_subtitle">실행 중인 세션 닫기</string>
     <string name="session_drawer_touchscreen_overlay">터치스크린 오버레이</string>
     <string name="session_drawer_resume">재개</string>
@@ -562,9 +555,10 @@
     <string name="session_drawer_wine_processes_paused">Wine 프로세스가 일시 중지되었습니다</string>
     <string name="session_drawer_pause_all_wine_processes">모든 Wine 프로세스 일시 중지</string>
     <string name="session_drawer_hud_element_fps">FPS</string>
-    <string name="session_drawer_hud_element_api">API</string>
+    <string name="session_drawer_hud_element_api">GFX</string>
     <string name="session_drawer_hud_element_gpu">GPU</string>
     <string name="session_drawer_hud_element_cpu">CPU</string>
+    <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">배터리</string>
     <string name="session_drawer_hud_element_graph">그래프</string>
 
@@ -575,10 +569,18 @@
     <string name="session_task_pid">PID</string>
     <string name="session_task_memory">메모리</string>
     <string name="session_task_end_process">프로세스 종료</string>
+    <string name="session_task_set_affinity">선호도 설정</string>
+    <string name="session_task_affinity_title">프로세서 선호도</string>
+    <string name="session_task_affinity_all_cores">모든 코어</string>
     <string name="session_task_new_task">새 작업</string>
     <string name="session_task_processes">프로세스</string>
-    <string name="session_task_bring_to_front">앞으로 가져오기</string>
     <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
+    <string name="session_task_per_core_usage">코어별 사용률</string>
+    <string name="session_task_core_label">코어 %1$d</string>
+    <plurals name="session_task_core_count">
+        <item quantity="one">코어 %d개</item>
+        <item quantity="other">코어 %d개</item>
+    </plurals>
 
 
     <!-- Session > Display -->
@@ -1008,6 +1010,39 @@
     <string name="session_drawer_fps_monitor">FPS 모니터</string>
     <string name="session_drawer_fps_monitor_subtitle">실시간 성능 통계 표시</string>
     <string name="session_drawer_dual_series_battery">듀얼 시리즈 배터리</string>
+    <string name="session_drawer_command_center">명령 센터</string>
+    <string name="session_drawer_command_center_input">입력</string>
+    <string name="session_drawer_command_center_display">디스플레이</string>
+    <string name="session_drawer_command_center_system">시스템</string>
+    <string name="session_drawer_fps_limiter">FPS 제한기</string>
+    <string name="session_drawer_fps_limiter_off">끄기</string>
+    <string name="session_drawer_screen_effects_subtitle">업스케일링 및 색상 효과</string>
+    <string name="session_drawer_color_profile">색상 효과</string>
+    <string name="session_drawer_color_profile_disabled">비활성화됨</string>
+    <string name="session_drawer_color_profile_hdr">HDR</string>
+    <string name="session_drawer_color_profile_natural">자연</string>
+    <string name="session_drawer_color_profile_crt">CRT 효과</string>
+    <string name="session_drawer_upscaler_dls">선명</string>
+    <string name="session_drawer_calibrate_advanced">고급 보정</string>
+    <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_gyro">자이로</string>
+    <string name="session_drawer_rail_label_effects">FX</string>
+    <string name="session_drawer_rail_label_apps">더 보기</string>
+    <string name="session_drawer_rail_label_keyboard">키보드</string>
+    <string name="session_drawer_rail_label_input_controls">컨트롤</string>
+    <string name="session_drawer_rail_label_relative_mouse">상대마우스</string>
+    <string name="session_drawer_rail_label_mouse">마우스</string>
+    <string name="session_drawer_rail_label_fullscreen">전체 화면</string>
+    <string name="session_drawer_rail_label_pip">PiP</string>
+    <string name="session_drawer_rail_label_native">네이티브</string>
+    <string name="session_drawer_rail_label_magnifier">확대</string>
+    <string name="session_drawer_rail_label_task_manager">작업</string>
+    <string name="session_drawer_rail_label_logs">로그</string>
+    <string name="session_drawer_super_resolution">선명도 필터</string>
+    <string name="session_drawer_upscaler_mode">필터</string>
+    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_main_menu_title">메뉴</string>
+    <string name="session_gyroscope_activator">활성화</string>
     <string name="settings_general_check_for_updates">업데이트 확인</string>
     <string name="settings_general_check_for_updates_summary">앱 실행 시와 주기적으로 새 버전을 자동으로 확인합니다.</string>
     <string name="setup_wizard_containers">컨테이너 설정</string>

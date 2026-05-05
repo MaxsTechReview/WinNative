@@ -358,7 +358,9 @@ private void showControlElementSettings(View anchorView) {
           @Override
           public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
             if (!blockingUpdate) {
-              element.setType(ControlElement.Type.values()[position]);
+              ControlElement.Type newType = ControlElement.Type.values()[position];
+              if (newType == element.getType()) return;
+              element.setType(newType);
               profile.save();
               callback.run();
               inputControlsView.invalidate();
@@ -456,7 +458,7 @@ private void showControlElementSettings(View anchorView) {
     int typeIndex = 0;
     if (selectedBinding.isMouse()) {
       typeIndex = 1;
-    } else if (selectedBinding.isGamepad()) {
+    } else if (selectedBinding.isGamepad() || (selectedBinding == Binding.NONE && (element.getType() == ControlElement.Type.STICK || element.getType() == ControlElement.Type.D_PAD))) {
       typeIndex = 2;
     }
     sBindingType.setSelection(typeIndex);

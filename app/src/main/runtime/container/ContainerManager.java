@@ -254,6 +254,27 @@ public class ContainerManager {
               + " emulator64=" + container.getEmulator64());
       }
 
+      // Auto-fill emulator versions when the caller didn't provide them. The
+      // "Profiles -> Create Container" path passes only name+wineVersion, so
+      // without this the container ends up with empty FEXCore/WowBox64/Box64
+      // versions and GuestProgramLauncherComponent skips DLL extraction at
+      // launch ("No FEXCore version selected"), leaving libarm64ecfex.dll out
+      // of system32 and crashing wineboot.
+      if (!data.has("fexcoreVersion") && container.getFEXCoreVersion().isEmpty()) {
+          String v = pickNewestInstalledVersion(contentsManager, ContentProfile.ContentType.CONTENT_TYPE_FEXCORE);
+          if (!v.isEmpty()) container.setFEXCoreVersion(v);
+      }
+      if (!data.has("box64Version") && container.getBox64Version().isEmpty()) {
+          String emu = container.getEmulator() + "," + container.getEmulator64();
+          ContentProfile.ContentType type = emu.contains("wowbox64")
+              ? ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64
+              : ContentProfile.ContentType.CONTENT_TYPE_BOX64;
+          String v = pickNewestInstalledVersion(contentsManager, type);
+          if (!v.isEmpty()) container.setBox64Version(v);
+      }
+      Log.d("ContainerManager", "createContainer: versions fexcoreVersion='"
+          + container.getFEXCoreVersion() + "' box64Version='" + container.getBox64Version() + "'");
+
       if (!extractContainerPatternFile(
           container, container.getWineVersion(), contentsManager, containerDir, null)) {
         Log.e(
@@ -264,10 +285,16 @@ public class ContainerManager {
         return null;
       }
       Log.d("ContainerManager", "createContainer: container pattern extracted successfully");
-      container.putExtra(
-          "wineprefixArch",
-          WineInfo.fromIdentifier(context, contentsManager, wineVersion).getArch());
+      WineInfo wineInfoForArch = WineInfo.fromIdentifier(context, contentsManager, wineVersion);
+      container.putExtra("wineprefixArch", wineInfoForArch.getArch());
       container.putExtra("wineprefixNeedsUpdate", null);
+
+      // Record the VC++ 2015-2022 runtime as installed when the proton wcp has
+      // laid down the DLLs. Without this Burn-based vc_redist sees "not installed"
+      // and tries to run its installer UI, which crashes on Wine ARM64EC's theme
+      // init (and on x86_64 just wastes time). Game prereq checks pass too.
+      com.winlator.cmod.runtime.wine.WineUtils.seedVcRedistRegistryIfDllsPresent(
+          containerDir, wineInfoForArch.isArm64EC());
 
       //            // Extract the selected graphics driver files
       //            String driverVersion = container.getGraphicsDriverVersion();
@@ -284,6 +311,27 @@ public class ContainerManager {
       Log.e("ContainerManager", "Error creating container", e);
     }
     return null;
+  }
+
+  // Returns "<verName>" of the newest installed profile of the given type, or "" if none.
+  // Mirrors SetupWizardActivity.resolvePreferredContentVersion's "newest installed" path.
+  private String pickNewestInstalledVersion(ContentsManager contentsManager, ContentProfile.ContentType type) {
+    if (contentsManager == null) return "";
+    java.util.List<ContentProfile> profiles = contentsManager.getProfiles(type);
+    if (profiles == null || profiles.isEmpty()) return "";
+    ContentProfile best = null;
+    for (ContentProfile p : profiles) {
+      if (!p.isInstalled) continue;
+      if (best == null) { best = p; continue; }
+      if (p.verCode > best.verCode) { best = p; continue; }
+      if (p.verCode == best.verCode
+          && p.verName != null
+          && best.verName != null
+          && p.verName.compareToIgnoreCase(best.verName) > 0) {
+        best = p;
+      }
+    }
+    return best != null && best.verName != null ? best.verName : "";
   }
 
   private void duplicateContainer(Container srcContainer) {

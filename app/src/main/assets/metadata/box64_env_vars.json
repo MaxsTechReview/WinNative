@@ -27,7 +27,7 @@
     {"name" : "BOX64_X87_NO80BITS", "values" : ["0", "1"], "toggleSwitch" : true, "defaultValue" : "0"},
     {"name" : "BOX64_CPUTYPE", "values" : ["0", "1"], "defaultValue" : "0"},
     {"name" : "BOX64_MAXCPU", "values" : ["0", "4", "8", "16", "32", "64"], "defaultValue" : "0"},
-    {"name" : "BOX64_UNITYPLAYER", "values" : ["0", "1"], "toggleSwitch" : true, "defaultValue" : "1"},
+    {"name" : "BOX64_UNITYPLAYER", "values" : ["0", "1"], "toggleSwitch" : true, "defaultValue" : "0"},
     {"name" : "BOX64_UNITY", "values" : ["0", "1"], "toggleSwitch" : true, "defaultValue" : "0"},
     {"name" : "BOX64_MMAP32", "values" :  ["0", "1"], "toggleSwitch" : true, "defaultValue" :  "1"}
 ]
