@@ -278,6 +278,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private int taskAffinityMaskWoW64 = 0;
     private int frameRatingWindowId = -1;
     private boolean cursorLock; // Flag to track if pointer capture was requested
+    private android.net.wifi.WifiManager.MulticastLock multicastLock;
     private final float[] xform = XForm.getInstance();
     private ContentsManager contentsManager;
     private boolean navigationFocused = false;
@@ -562,7 +563,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         preloaderDialog = new PreloaderDialog(this);
 
-        cursorLock = preferences.getBoolean("cursor_lock", false);
+        cursorLock = preferences.getBoolean("cursor_lock", true);
+
+        try {
+            android.net.wifi.WifiManager wifiManager = (android.net.wifi.WifiManager)
+                    getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            if (wifiManager != null) {
+                multicastLock = wifiManager.createMulticastLock("winnative-xserver");
+                multicastLock.setReferenceCounted(false);
+                multicastLock.acquire();
+            }
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Failed to acquire MulticastLock", e);
+        }
         dualSeriesBattery = preferences.getBoolean(FrameRating.PREF_HUD_DUAL_SERIES_BATTERY, false);
 
         // Check for Dark Mode
@@ -2745,6 +2758,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         activityDestroyed.set(true);
         if (preloaderDialog != null) {
             preloaderDialog.close();
+        }
+        if (multicastLock != null && multicastLock.isHeld()) {
+            try {
+                multicastLock.release();
+            } catch (Exception ignored) {}
         }
         super.onDestroy();
         // Schedule a deferred update check 10 s after game exit
@@ -4942,15 +4960,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
 
-        boolean handled = inputControlsView.onKeyEvent(event);
-        if (winHandler != null) {
-            handled |= winHandler.onKeyEvent(event);
-        }
-        if (xServer != null && xServer.keyboard != null) {
-            handled |= xServer.keyboard.onKeyEvent(event);
-        }
-
-        if (handled) return true;
+        if (inputControlsView != null && inputControlsView.onKeyEvent(event)) return true;
+        if (winHandler != null && winHandler.onKeyEvent(event)) return true;
+        if (xServer != null && xServer.keyboard != null && xServer.keyboard.onKeyEvent(event)) return true;
 
         if (event.getAction() == KeyEvent.ACTION_DOWN &&
                 (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_MODE ||

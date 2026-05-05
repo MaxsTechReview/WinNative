@@ -636,7 +636,6 @@ class TouchpadView(
 
     fun onExternalMouseEvent(event: MotionEvent): Boolean {
         if (!isExternalPointerEvent(event)) return false
-        if (!mouseEnabled) return true
         resetMousePointerTimeout()
         val actionButton = event.actionButton
         return when (event.action) {
