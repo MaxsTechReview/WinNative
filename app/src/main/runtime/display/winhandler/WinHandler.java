@@ -66,9 +66,6 @@ public class WinHandler {
   private static final long VIRTUAL_REBALANCE_AFTER_PHYSICAL_DISCONNECT_MS = 200;
   private static final float GYRO_AXIS_EPSILON = 0.001f;
   private static final float GYRO_TRIGGER_PRESS_THRESHOLD = 0.15f;
-  /** @deprecated Kept for migration only. Use {@link GcmRumbleMode#PREF_KEY}. */
-  @Deprecated
-  public static final String PREF_GAMESIR_USB_VIBRATION = "gamesir_usb_vibration_enabled";
   private final XServerDisplayActivity activity;
   private String fakeInputBasePath;
   private final InputManager inputManager;
@@ -101,7 +98,7 @@ public class WinHandler {
   private volatile boolean vibrationRunning = false;
   private final boolean[] vibrationEnabledSlots = new boolean[MAX_CONTROLLERS];
   private boolean globalVibrationEnabled = true;
-  private GcmRumbleMode gcmRumbleMode = GcmRumbleMode.KNOWN;
+  private GcmRumbleMode gcmRumbleMode = GcmRumbleMode.DISABLED;
   private int fallbackSlot = -1;
   private ExternalController currentController;
   private final GamepadState outputGamepadState = new GamepadState();
@@ -151,17 +148,6 @@ public class WinHandler {
     }
     this.globalVibrationEnabled =
         this.preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true);
-    // Migrate old boolean pref → new enum pref
-    if (!this.preferences.contains(GcmRumbleMode.PREF_KEY)
-        && this.preferences.contains(PREF_GAMESIR_USB_VIBRATION)) {
-      boolean oldEnabled = this.preferences.getBoolean(PREF_GAMESIR_USB_VIBRATION, true);
-      this.preferences
-          .edit()
-          .putString(
-              GcmRumbleMode.PREF_KEY,
-              (oldEnabled ? GcmRumbleMode.KNOWN : GcmRumbleMode.DISABLED).toPrefValue())
-          .apply();
-    }
     this.gcmRumbleMode =
         GcmRumbleMode.fromPrefValue(
             this.preferences.getString(GcmRumbleMode.PREF_KEY, GcmRumbleMode.DISABLED.toPrefValue()));
@@ -1135,18 +1121,6 @@ public class WinHandler {
     this.gcmRumbleMode = mode;
     this.preferences.edit().putString(GcmRumbleMode.PREF_KEY, mode.toPrefValue()).apply();
     this.gamepadRumbleManager.setMode(mode);
-  }
-
-  /** @deprecated Use {@link #isGameSirUsbVibrationEnabled()} */
-  @Deprecated
-  public boolean isGameSirUsbVibrationEnabled() {
-    return this.gcmRumbleMode != GcmRumbleMode.DISABLED;
-  }
-
-  /** @deprecated Use {@link #setGcmRumbleMode(GcmRumbleMode)} */
-  @Deprecated
-  public void setGameSirUsbVibrationEnabled(boolean enabled) {
-    setGcmRumbleMode(enabled ? GcmRumbleMode.KNOWN : GcmRumbleMode.DISABLED);
   }
 
   public int getMaxControllers() {

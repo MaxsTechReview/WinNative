@@ -2913,7 +2913,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY),
                 preferences.getBoolean("touchscreen_haptics_enabled", false),
                 preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true),
-                preferences.getString(com.winlator.cmod.runtime.input.rumble.GcmRumbleMode.PREF_KEY, com.winlator.cmod.runtime.input.rumble.GcmRumbleMode.KNOWN.toPrefValue()),
+                preferences.getString(com.winlator.cmod.runtime.input.rumble.GcmRumbleMode.PREF_KEY, com.winlator.cmod.runtime.input.rumble.GcmRumbleMode.DISABLED.toPrefValue()),
                 xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen()
         );
 
@@ -4543,9 +4543,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             finish();
         });
     }
-
-
-
 
 
     private ControlsProfile findFirstVirtualProfile() {

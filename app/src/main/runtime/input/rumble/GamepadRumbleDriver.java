@@ -7,6 +7,8 @@ public interface GamepadRumbleDriver {
 
   boolean supports(InputDevice device, GcmRumbleMode mode);
 
+  void setMode(GcmRumbleMode mode);
+
   void requestPermissionIfNeeded();
 
   boolean rumble(int slot, int strong, int weak);

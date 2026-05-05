@@ -31,6 +31,7 @@ public class GameSirG8UsbRumbleDriver implements GamepadRumbleDriver {
 
   private boolean permissionRequested;
   private String requestedDeviceName;
+  private GcmRumbleMode mode = GcmRumbleMode.DISABLED;
 
   public GameSirG8UsbRumbleDriver(Context context, Handler handler) {
     this.context = context;
@@ -40,6 +41,11 @@ public class GameSirG8UsbRumbleDriver implements GamepadRumbleDriver {
   @Override
   public String getName() {
     return "GameSir G8+ USB";
+  }
+
+  @Override
+  public void setMode(GcmRumbleMode mode) {
+    this.mode = mode;
   }
 
   @Override
@@ -192,7 +198,8 @@ public class GameSirG8UsbRumbleDriver implements GamepadRumbleDriver {
 
   private UsbDevice findDevice(UsbManager usbManager) {
     for (UsbDevice device : usbManager.getDeviceList().values()) {
-      if (device.getVendorId() == VENDOR_ID && device.getProductId() == G8_MFI_PRODUCT_ID) {
+      if (device.getVendorId() != VENDOR_ID) continue;
+      if (mode == GcmRumbleMode.ALL || device.getProductId() == G8_MFI_PRODUCT_ID) {
         return device;
       }
     }

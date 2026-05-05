@@ -15,7 +15,7 @@ public class GamepadRumbleManager {
   private final Runnable[] pendingStops = new Runnable[MAX_CONTROLLERS];
   private final GamepadRumbleDriver[] activeDrivers = new GamepadRumbleDriver[MAX_CONTROLLERS];
 
-  private GcmRumbleMode mode = GcmRumbleMode.KNOWN;
+  private GcmRumbleMode mode = GcmRumbleMode.DISABLED;
 
   public GamepadRumbleManager(Context context, Handler handler) {
     this.handler = handler;
@@ -28,21 +28,13 @@ public class GamepadRumbleManager {
   public void setMode(GcmRumbleMode mode) {
     this.mode = mode;
     for (GamepadRumbleDriver driver : drivers) {
-      if (driver instanceof GameSirX5sBleRumbleDriver) {
-        ((GameSirX5sBleRumbleDriver) driver).setMode(mode);
-      }
+      driver.setMode(mode);
     }
     if (mode != GcmRumbleMode.DISABLED) {
       requestPermissionIfNeeded();
     } else {
       stopAll();
     }
-  }
-
-  /** @deprecated Use {@link #setMode(GcmRumbleMode)} */
-  @Deprecated
-  public void setEnabled(boolean enabled) {
-    setMode(enabled ? GcmRumbleMode.KNOWN : GcmRumbleMode.DISABLED);
   }
 
   public void requestPermissionIfNeeded() {

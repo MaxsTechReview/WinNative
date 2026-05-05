@@ -19,14 +19,14 @@ public enum GcmRumbleMode {
   public static final String PREF_KEY = "gcm_rumble_mode";
 
   public static GcmRumbleMode fromPrefValue(String value) {
-    if (value == null) return KNOWN;
+    if (value == null) return DISABLED;
     switch (value) {
-      case "disabled":
-        return DISABLED;
+      case "known":
+        return KNOWN;
       case "all":
         return ALL;
       default:
-        return KNOWN;
+        return DISABLED;
     }
   }
 

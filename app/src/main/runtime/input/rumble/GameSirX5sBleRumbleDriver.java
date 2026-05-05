@@ -566,8 +566,9 @@ public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
     }
   }
 
-  private GcmRumbleMode currentMode = GcmRumbleMode.KNOWN;
+  private GcmRumbleMode currentMode = GcmRumbleMode.DISABLED;
 
+  @Override
   public void setMode(GcmRumbleMode mode) {
     this.currentMode = mode;
   }
