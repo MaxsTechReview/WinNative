@@ -798,6 +798,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 data.put("fexcoreVersion", fexcoreVersion)
                 data.put("fexcorePreset", fexcorePreset)
                 data.put("desktopTheme", desktopTheme)
+                data.put("swapRB", if (state.selectedSurfaceEffect.intValue == 1) "1" else "0")
                 data.put("wineVersion", selectedWineStr)
                 data.put("midiSoundFont", midiSoundFont)
                 data.put("lc_all", state.lcAll.value)
