@@ -29,6 +29,7 @@ class InputControlsDialog(
     val overlayOpacity = mutableStateOf(0.4f)
     val touchscreenHaptics = mutableStateOf(false)
     val gamepadVibration = mutableStateOf(true)
+    val gcmRumbleMode = mutableStateOf("known")
 
     var onConfirmCallback: Runnable? = null
     var onCancelCallback: Runnable? = null
@@ -70,6 +71,7 @@ class InputControlsDialog(
                                     overlayOpacity = overlayOpacity.value,
                                     touchscreenHaptics = touchscreenHaptics.value,
                                     gamepadVibration = gamepadVibration.value,
+                                    gcmRumbleMode = gcmRumbleMode.value,
                                 ),
                             onProfileSelected = { index ->
                                 selectedProfileIndex.intValue = index
@@ -80,6 +82,7 @@ class InputControlsDialog(
                             onOverlayOpacityChange = { overlayOpacity.value = it },
                             onTouchscreenHapticsChange = { touchscreenHaptics.value = it },
                             onGamepadVibrationChange = { gamepadVibration.value = it },
+                            onGcmRumbleModeChange = { gcmRumbleMode.value = it },
                             onCancel = {
                                 onCancelCallback?.run()
                                 dismiss()

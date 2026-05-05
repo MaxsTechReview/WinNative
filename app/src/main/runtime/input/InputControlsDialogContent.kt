@@ -31,6 +31,8 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -75,6 +77,7 @@ data class InputControlsState(
     val overlayOpacity: Float = 0.4f,
     val touchscreenHaptics: Boolean = false,
     val gamepadVibration: Boolean = true,
+    val gcmRumbleMode: String = "known",
 )
 
 @Composable
@@ -87,6 +90,7 @@ fun InputControlsDialogContent(
     onOverlayOpacityChange: (Float) -> Unit,
     onTouchscreenHapticsChange: (Boolean) -> Unit,
     onGamepadVibrationChange: (Boolean) -> Unit,
+    onGcmRumbleModeChange: (String) -> Unit,
     onCancel: () -> Unit,
     onConfirm: () -> Unit,
 ) {
@@ -183,6 +187,10 @@ fun InputControlsDialogContent(
                             label = stringResource(R.string.session_gamepad_enable_vibration),
                             checked = state.gamepadVibration,
                             onCheckedChange = onGamepadVibrationChange,
+                        )
+                        GcmRumbleModeRow(
+                            mode = state.gcmRumbleMode,
+                            onModeChange = onGcmRumbleModeChange,
                         )
                     }
                 }
@@ -586,5 +594,79 @@ private fun OverlayOpacitySlider(
             ),
             modifier = Modifier.height(32.dp).padding(horizontal = 0.dp)
         )
+    }
+}
+
+private data class GcmModeOption(val value: String, val label: String)
+
+private val gcmModeOptions = listOf(
+    GcmModeOption("disabled", "Disabled"),
+    GcmModeOption("known", "Known devices (G8+, X5s)"),
+    GcmModeOption("all", "All GameSir (experimental)"),
+)
+
+@Composable
+private fun GcmRumbleModeRow(
+    mode: String,
+    onModeChange: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val currentLabel = gcmModeOptions.firstOrNull { it.value == mode }?.label ?: mode
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(11.dp))
+            .background(InputControlsSecondarySurface)
+            .border(1.dp, InputControlsSecondaryOutline, RoundedCornerShape(11.dp))
+            .clickable { expanded = true }
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "GameSir GCM vibration",
+            color = WinNativeTextPrimary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.weight(1f),
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = currentLabel,
+                color = WinNativeAccent,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                contentDescription = null,
+                tint = WinNativeTextSecondary,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            gcmModeOptions.forEach { option ->
+                val isSelected = option.value == mode
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = option.label,
+                            color = if (isSelected) WinNativeAccent else WinNativeTextPrimary,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        )
+                    },
+                    onClick = {
+                        onModeChange(option.value)
+                        expanded = false
+                    },
+                )
+            }
+        }
     }
 }

@@ -4254,6 +4254,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         dialog.getOverlayOpacity().setValue(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
         dialog.getTouchscreenHaptics().setValue(preferences.getBoolean("touchscreen_haptics_enabled", false));
         dialog.getGamepadVibration().setValue(preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true));
+        dialog.getGcmRumbleMode().setValue(
+            preferences.getString(com.winlator.cmod.runtime.input.rumble.GcmRumbleMode.PREF_KEY,
+                com.winlator.cmod.runtime.input.rumble.GcmRumbleMode.KNOWN.toPrefValue()));
 
         final Runnable updateProfile = () -> {
             int position = dialog.getSelectedProfileIndex().getIntValue();
@@ -4289,14 +4292,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             inputControlsView.setOverlayOpacity(overlayOpacity);
             boolean isHapticsEnabled = dialog.getTouchscreenHaptics().getValue();
             boolean isGamepadVibrationEnabled = dialog.getGamepadVibration().getValue();
+            com.winlator.cmod.runtime.input.rumble.GcmRumbleMode gcmMode =
+                com.winlator.cmod.runtime.input.rumble.GcmRumbleMode.fromPrefValue(
+                    dialog.getGcmRumbleMode().getValue());
             SharedPreferences.Editor editor = preferences.edit();
             editor.putBoolean("show_touchscreen_controls_enabled", dialog.getShowTouchscreenControls().getValue());
             editor.putFloat("overlay_opacity", overlayOpacity);
             editor.putBoolean("touchscreen_haptics_enabled", isHapticsEnabled);
             editor.putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, isGamepadVibrationEnabled);
+            editor.putString(com.winlator.cmod.runtime.input.rumble.GcmRumbleMode.PREF_KEY, gcmMode.toPrefValue());
             editor.apply();
             if (winHandler != null) {
                 winHandler.setGlobalVibrationEnabled(isGamepadVibrationEnabled);
+                winHandler.setGcmRumbleMode(gcmMode);
             }
             touchpadView.setOnTouchListener(null);
             updateProfile.run();
