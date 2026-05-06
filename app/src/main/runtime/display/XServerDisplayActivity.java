@@ -302,7 +302,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void tryCapturePointer() {
-        if (touchpadView != null && hasExternalMouse() && drawerLayout != null && !drawerLayout.isDrawerOpen(GravityCompat.START)) {
+        if (touchpadView != null && hasExternalMouse() && (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen())) {
             touchpadView.postDelayed(() -> {
                 if (touchpadView != null) {
                     touchpadView.requestFocus();
@@ -2964,12 +2964,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (drawerStateHolder != null) {
             drawerStateHolder.openDrawer();
         }
+        if (touchpadView != null) {
+            touchpadView.releasePointerCapture();
+            touchpadView.setOnCapturedPointerListener(null);
+        }
     }
 
     private void closeDrawerMenu() {
         if (drawerStateHolder != null) {
             drawerStateHolder.closeDrawer();
         }
+        tryCapturePointer();
     }
 
     private String currentGyroActivatorLabel() {
