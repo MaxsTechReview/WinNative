@@ -129,7 +129,7 @@ import com.winlator.cmod.runtime.display.ui.XServerView;
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity;
 import com.winlator.cmod.runtime.input.ui.InputControlsView;
 import com.winlator.cmod.runtime.input.ui.TouchpadView;
-import com.winlator.cmod.runtime.system.ui.LogView;
+import com.winlator.cmod.runtime.system.LogFileUtils;
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
 import com.winlator.cmod.runtime.display.winhandler.OnGetProcessInfoListener;
 import com.winlator.cmod.runtime.display.winhandler.ProcessInfo;
@@ -897,7 +897,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         ProcessHelper.removeAllDebugCallbacks();
         if (enableLogsMenu) {
-            LogView.setFilename(getExecutable());
+            LogFileUtils.setFilename(getExecutable());
             attachLogStreamSink();
         }
 
@@ -2103,7 +2103,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private void attachLogStreamSink() {
         try {
-            logStreamFile = LogView.getLogFile(this);
+            logStreamFile = LogFileUtils.getLogFile(this);
             logStreamWriter = new BufferedWriter(new FileWriter(logStreamFile));
         } catch (IOException e) {
             Log.w("XServerLogs", "Failed to open log file writer", e);
