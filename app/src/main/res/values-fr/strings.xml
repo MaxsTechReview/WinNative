@@ -1038,6 +1038,16 @@ Chemin installé :
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Tâches</string>
     <string name="session_drawer_rail_label_logs">Logs</string>
+    <string name="session_drawer_logs_clear">Effacer</string>
+    <string name="session_drawer_logs_pause">Pause</string>
+    <string name="session_drawer_logs_resume">Reprendre</string>
+    <string name="session_drawer_logs_paused_indicator">En pause</string>
+    <string name="session_drawer_logs_line_count">%1$d lignes</string>
+    <string name="session_drawer_logs_share">Partager</string>
+    <string name="session_drawer_logs_share_subject">Logs de session</string>
+    <string name="session_drawer_logs_share_chooser">Partager les logs de session</string>
+    <string name="session_drawer_logs_share_failed">Échec du partage des logs</string>
+    <string name="session_drawer_logs_share_empty">Aucune ligne de log à partager</string>
     <string name="session_drawer_super_resolution">Filtres de Netteté</string>
     <string name="session_drawer_upscaler_mode">Filtre</string>
     <string name="session_drawer_upscaler_fsr">FSR 1</string>

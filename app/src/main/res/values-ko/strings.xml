@@ -1038,6 +1038,16 @@
     <string name="session_drawer_rail_label_magnifier">확대</string>
     <string name="session_drawer_rail_label_task_manager">작업</string>
     <string name="session_drawer_rail_label_logs">로그</string>
+    <string name="session_drawer_logs_clear">지우기</string>
+    <string name="session_drawer_logs_pause">일시 중지</string>
+    <string name="session_drawer_logs_resume">다시 시작</string>
+    <string name="session_drawer_logs_paused_indicator">일시 중지됨</string>
+    <string name="session_drawer_logs_line_count">%1$d줄</string>
+    <string name="session_drawer_logs_share">공유</string>
+    <string name="session_drawer_logs_share_subject">세션 로그</string>
+    <string name="session_drawer_logs_share_chooser">세션 로그 공유</string>
+    <string name="session_drawer_logs_share_failed">로그를 공유하지 못했습니다</string>
+    <string name="session_drawer_logs_share_empty">공유할 로그 줄이 없습니다</string>
     <string name="session_drawer_super_resolution">선명도 필터</string>
     <string name="session_drawer_upscaler_mode">필터</string>
     <string name="session_drawer_upscaler_fsr">FSR 1</string>
