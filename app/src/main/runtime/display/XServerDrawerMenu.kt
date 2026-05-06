@@ -308,6 +308,7 @@ data class XServerDrawerState(
     val invertGyroY: Boolean = false,
     val gyroscopeCardExpanded: Boolean = false,
     val fpsLimit: Int = 0,
+    val rtsGesturesEnabled: Boolean = false,
     val screenEffectsCardExpanded: Boolean = false,
     val fsrEnabled: Boolean = false,
     val fsrMode: Int = 0,
@@ -477,6 +478,10 @@ interface XServerDrawerActionListener {
 
     fun onFPSLimitChanged(limit: Int)
 
+    fun onRTSGesturesEnabledChanged(enabled: Boolean)
+
+    fun onRTSGesturesEditClick()
+
     fun onScreenEffectsCardExpandedChanged(expanded: Boolean)
 
     fun onFSREnabledChanged(enabled: Boolean)
@@ -556,6 +561,7 @@ fun buildXServerDrawerState(
     fsrMode: Int = 0,
     fsrSharpness: Int = 100,
     colorProfile: Int = 0,
+    rtsGesturesEnabled: Boolean = false,
     inputControlsProfileNames: List<String> = emptyList(),
     inputControlsSelectedProfileIndex: Int = 0,
     inputControlsShowOverlay: Boolean = false,
@@ -706,6 +712,7 @@ fun buildXServerDrawerState(
         invertGyroY = invertGyroY,
         gyroscopeCardExpanded = gyroscopeCardExpanded,
         fpsLimit = fpsLimit,
+        rtsGesturesEnabled = rtsGesturesEnabled,
         screenEffectsCardExpanded = screenEffectsCardExpanded,
         fsrEnabled = fsrEnabled,
         fsrMode = fsrMode,
@@ -1740,6 +1747,40 @@ private fun InputControlsPaneContent(
                     checked = state.inputControlsGamepadVibration,
                     onCheckedChange = listener::onInputControlsGamepadVibrationChanged,
                 )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        DrawerBooleanRow(
+                            title = stringResource(R.string.touch_gestures),
+                            checked = state.rtsGesturesEnabled,
+                            onCheckedChange = listener::onRTSGesturesEnabledChanged,
+                        )
+                    }
+
+                    if (state.rtsGesturesEnabled) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size((44f * paneScale).dp)
+                                    .clip(RoundedCornerShape((14f * paneScale).dp))
+                                    .background(PaneInnerResting)
+                                    .border(1.dp, RestingCardBorder, RoundedCornerShape((14f * paneScale).dp))
+                                    .clickable(onClick = listener::onRTSGesturesEditClick),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Tune,
+                                contentDescription = null,
+                                tint = DrawerTextPrimary,
+                                modifier = Modifier.size((20f * paneScale).dp),
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -3770,5 +3811,23 @@ private fun ChipFlow(content: @Composable () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(gap),
     ) {
         content()
+    }
+}
+
+fun setupTouchGestureSettingsDialog(
+    composeView: androidx.compose.ui.platform.ComposeView,
+    config: com.winlator.cmod.runtime.input.ui.TouchGestureConfig,
+    onDismiss: () -> Unit,
+    onConfigChange: (com.winlator.cmod.runtime.input.ui.TouchGestureConfig) -> Unit
+) {
+    composeView.setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+    composeView.setContent {
+        WinNativeTheme {
+            com.winlator.cmod.runtime.input.ui.TouchGestureSettingsDialog(
+                config = config,
+                onDismiss = onDismiss,
+                onConfigChange = onConfigChange
+            )
+        }
     }
 }

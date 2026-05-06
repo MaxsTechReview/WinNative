@@ -623,6 +623,20 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_sharpness">Sharpness</string>
     <string name="session_drawer_color_profile">Color Effect</string>
     <string name="session_drawer_picture_in_picture">Picture in Picture</string>
+
+    <!-- Touch Gestures -->
+    <string name="touch_gestures">RTS Touch Gestures</string>
+    <string name="touch_gestures_action_none">None</string>
+    <string name="touch_gestures_action_middle_click">Middle Click</string>
+    <string name="touch_gestures_action_wasd">WASD Keys</string>
+    <string name="touch_gestures_action_arrow_keys">Arrow Keys</string>
+    <string name="touch_gestures_action_scroll">Scroll Wheel</string>
+    <string name="touch_gestures_action_scroll_wheel">Scroll Wheel</string>
+    <string name="touch_gestures_action_zoom_keys">Zoom Keys (+/-)</string>
+    <string name="touch_gestures_pinch">Pinch (Zoom)</string>
+    <string name="touch_gestures_three_finger_tap">Three-Finger Tap</string>
+    <string name="touch_gestures_four_finger_tap">Four-Finger Tap</string>
+    <string name="touch_gestures_edit">Edit Gestures</string>
     <string name="session_drawer_exit_subtitle">Close the running session</string>
     <string name="session_drawer_touchscreen_overlay">Touchscreen Overlay</string>
     <string name="session_drawer_resume">Resume</string>

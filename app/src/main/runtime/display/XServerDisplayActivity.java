@@ -2992,6 +2992,30 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return index < names.length ? names[index] : names[0];
     }
 
+    private void showTouchGestureSettingsDialog() {
+        if (shortcut == null) return;
+
+        final ComposeView composeView = new ComposeView(this);
+        composeView.setId(R.id.DialogComposeView);
+
+        XServerDrawerMenuKt.setupTouchGestureSettingsDialog(
+            composeView,
+            shortcut.getTouchGestureConfig(),
+            () -> {
+                ((ViewGroup)composeView.getParent()).removeView(composeView);
+                drawerLayout.openDrawer(GravityCompat.START);
+            },
+            config -> {
+                shortcut.setTouchGestureConfig(config);
+                shortcut.saveData();
+                if (touchpadView != null) touchpadView.setGestureConfig(config);
+            }
+        );
+
+        addContentView(composeView, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        drawerLayout.closeDrawers();
+    }
+
     private void renderDrawerMenu() {
         if (displayHostComposeView == null || xServerDisplayFrame == null) return;
 
@@ -3042,6 +3066,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 fsrMode,
                 fsrSharpness,
                 colorProfile,
+                touchpadView != null && touchpadView.getGestureConfig().enabled,
                 inputProfileNames,
                 inputSelectedIndex,
                 preferences.getBoolean("show_touchscreen_controls_enabled", false),
@@ -3189,6 +3214,23 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             shortcut.saveData();
                         }
                         renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onRTSGesturesEnabledChanged(boolean enabled) {
+                        if (shortcut != null) {
+                            TouchGestureConfig config = shortcut.getTouchGestureConfig();
+                            config.enabled = enabled;
+                            shortcut.setTouchGestureConfig(config);
+                            shortcut.saveData();
+                            if (touchpadView != null) touchpadView.setGestureConfig(config);
+                        }
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onRTSGesturesEditClick() {
+                        showTouchGestureSettingsDialog();
                     }
 
                     @Override
