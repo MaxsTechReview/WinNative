@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
@@ -48,6 +49,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -62,6 +66,7 @@ import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.Keyboard
@@ -73,6 +78,7 @@ import androidx.compose.material.icons.outlined.PictureInPictureAlt
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.ScreenRotation
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Tune
@@ -121,6 +127,7 @@ import androidx.compose.ui.res.integerArrayResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
@@ -190,7 +197,14 @@ private enum class HUDMetricEditor(
     SCALE(minPercent = 50, maxPercent = 200),
 }
 
-internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS, TASK_MANAGER }
+internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS, TASK_MANAGER, LOGS }
+
+internal const val LogsPaneMaxLines = 2000
+
+data class LogsPaneState(
+    val lines: List<String> = emptyList(),
+    val paused: Boolean = false,
+)
 
 data class TaskManagerProcess(
     val pid: Int,
@@ -313,6 +327,17 @@ class XServerDrawerStateHolder(
 ) {
     var state by mutableStateOf(initialState, neverEqualPolicy())
     var taskManagerState by mutableStateOf(TaskManagerPaneState(), neverEqualPolicy())
+    var logsState by mutableStateOf(LogsPaneState(), neverEqualPolicy())
+        private set
+    private val logsBuffer = java.util.Collections.synchronizedList(ArrayList<String>(LogsPaneMaxLines))
+    @Volatile private var logsPausedFlag = false
+    @Volatile private var logsPaneVisibleFlag = false
+    private val logsMainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val logsFlushPending = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val logsFlushRunnable = Runnable {
+        logsFlushPending.set(false)
+        flushLogsBufferToState()
+    }
     private var drawerOpen by mutableStateOf(false)
     internal var openPane by mutableStateOf<DrawerPane?>(null)
     private var paneVisibilityListener: ((Boolean) -> Unit)? = null
@@ -353,6 +378,59 @@ class XServerDrawerStateHolder(
         if (wasVisible != nowVisible) paneVisibilityListener?.invoke(nowVisible)
     }
 
+    fun openLogsPane() {
+        setOpenPaneAndNotify(DrawerPane.LOGS)
+    }
+
+    /**
+     * Append a log line. Safe to call from any thread. When the logs pane is not
+     * visible, this only stores the line in an off-thread ring buffer — no
+     * recomposition or main-thread work is scheduled. The buffer is flushed into
+     * observable state when the pane becomes visible (and live while visible,
+     * coalesced through a single posted runnable).
+     */
+    fun appendLogLine(line: String) {
+        if (logsPausedFlag) return
+        synchronized(logsBuffer) {
+            logsBuffer.add(line)
+            while (logsBuffer.size > LogsPaneMaxLines) logsBuffer.removeAt(0)
+        }
+        if (logsPaneVisibleFlag && logsFlushPending.compareAndSet(false, true)) {
+            logsMainHandler.post(logsFlushRunnable)
+        }
+    }
+
+    private fun flushLogsBufferToState() {
+        val snapshot = synchronized(logsBuffer) { ArrayList(logsBuffer) }
+        logsState = logsState.copy(lines = snapshot)
+    }
+
+    fun clearLogLines() {
+        synchronized(logsBuffer) { logsBuffer.clear() }
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            logsState = logsState.copy(lines = emptyList())
+        } else {
+            logsMainHandler.post { logsState = logsState.copy(lines = emptyList()) }
+        }
+    }
+
+    fun setLogsPaused(paused: Boolean) {
+        if (logsPausedFlag == paused) return
+        logsPausedFlag = paused
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            logsState = logsState.copy(paused = paused)
+        } else {
+            logsMainHandler.post { logsState = logsState.copy(paused = paused) }
+        }
+    }
+
+    fun setLogsPaneVisible(visible: Boolean) {
+        if (logsPaneVisibleFlag == visible) return
+        logsPaneVisibleFlag = visible
+        if (visible) flushLogsBufferToState()
+    }
+
+    fun snapshotLogLines(): List<String> = synchronized(logsBuffer) { ArrayList(logsBuffer) }
 }
 
 interface XServerDrawerActionListener {
@@ -432,6 +510,14 @@ interface XServerDrawerActionListener {
     fun onTaskManagerSetAffinity(pid: Int, affinityMask: Int)
 
     fun onTaskManagerNewTask(command: String)
+
+    fun onLogsClear()
+
+    fun onLogsPauseChanged(paused: Boolean)
+
+    fun onLogsPaneVisibilityChanged(visible: Boolean)
+
+    fun onLogsShare()
 }
 
 fun buildXServerDrawerState(
@@ -650,6 +736,7 @@ fun setupXServerDrawerComposeView(
             XServerDrawerContent(
                 state = stateHolder.state,
                 taskManagerState = stateHolder.taskManagerState,
+                logsState = stateHolder.logsState,
                 openPane = stateHolder.openPane,
                 onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
                 listener = listener,
@@ -663,6 +750,7 @@ fun setupXServerDrawerComposeView(
 internal fun XServerDrawerContent(
     state: XServerDrawerState,
     taskManagerState: TaskManagerPaneState,
+    logsState: LogsPaneState,
     openPane: DrawerPane?,
     onOpenPaneChange: (DrawerPane?) -> Unit,
     listener: XServerDrawerActionListener,
@@ -683,7 +771,7 @@ internal fun XServerDrawerContent(
             val paneScale = computePaneScale(maxHeight)
             CompositionLocalProvider(LocalPaneScale provides paneScale) {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    val railVisible = openPane != DrawerPane.TASK_MANAGER
+                    val railVisible = openPane != DrawerPane.TASK_MANAGER && openPane != DrawerPane.LOGS
                     val chromeEnter =
                         expandVertically(
                             animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
@@ -722,8 +810,9 @@ internal fun XServerDrawerContent(
                             targetState = openPane,
                             transitionSpec = {
                                 val enteringTaskManager = targetState == DrawerPane.TASK_MANAGER
+                                val enteringLogs = targetState == DrawerPane.LOGS
                                 val returningToMenu = targetState == null
-                                if (enteringTaskManager) {
+                                if (enteringTaskManager || enteringLogs) {
                                     (
                                         slideInVertically(
                                             initialOffsetY = { it / 3 },
@@ -751,12 +840,19 @@ internal fun XServerDrawerContent(
                                         listener = listener,
                                         onClose = { onOpenPaneChange(null) },
                                     )
+                                DrawerPane.LOGS ->
+                                    LogsPaneContent(
+                                        logsState = logsState,
+                                        listener = listener,
+                                        onClose = { onOpenPaneChange(null) },
+                                    )
                                 null ->
                                     ActionCardGrid(
                                         state = state,
                                         listener = listener,
                                         cardsRevealed = cardsRevealed.value,
                                         onOpenTaskManager = { onOpenPaneChange(DrawerPane.TASK_MANAGER) },
+                                        onOpenLogs = { onOpenPaneChange(DrawerPane.LOGS) },
                                     )
                             }
                         }
@@ -997,6 +1093,7 @@ private fun ActionCardGrid(
     listener: XServerDrawerActionListener,
     cardsRevealed: Boolean,
     onOpenTaskManager: () -> Unit,
+    onOpenLogs: () -> Unit,
 ) {
     val paneScale = LocalPaneScale.current
     val cards =
@@ -1031,6 +1128,7 @@ private fun ActionCardGrid(
                     onClick = {
                         when (item.itemId) {
                             R.id.main_menu_task_manager -> onOpenTaskManager()
+                            R.id.main_menu_logs -> onOpenLogs()
                             R.id.main_menu_relative_mouse_movement,
                             R.id.main_menu_disable_mouse,
                             R.id.main_menu_toggle_fullscreen -> listener.onActionSelected(item.itemId)
@@ -2056,6 +2154,205 @@ private fun TaskManagerPaneContent(
                 listener.onTaskManagerEndProcess(process.name)
             },
         )
+    }
+}
+
+@Composable
+private fun LogsPaneContent(
+    logsState: LogsPaneState,
+    listener: XServerDrawerActionListener,
+    onClose: () -> Unit,
+) {
+    DisposableEffect(Unit) {
+        listener.onLogsPaneVisibilityChanged(true)
+        onDispose { listener.onLogsPaneVisibilityChanged(false) }
+    }
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val paneScale = computePaneScale(maxHeight)
+        CompositionLocalProvider(LocalPaneScale provides paneScale) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = (12f * paneScale).dp, vertical = (10f * paneScale).dp),
+                verticalArrangement = Arrangement.spacedBy((10f * paneScale).dp),
+            ) {
+                LogsPaneHeader(
+                    paused = logsState.paused,
+                    lineCount = logsState.lines.size,
+                    onClear = { listener.onLogsClear() },
+                    onTogglePause = { listener.onLogsPauseChanged(!logsState.paused) },
+                    onShare = { listener.onLogsShare() },
+                    onClose = onClose,
+                )
+
+                LogsPaneList(
+                    lines = logsState.lines,
+                    paused = logsState.paused,
+                    modifier = Modifier.weight(1f, fill = true).fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LogsPaneHeader(
+    paused: Boolean,
+    lineCount: Int,
+    onClear: () -> Unit,
+    onTogglePause: () -> Unit,
+    onShare: () -> Unit,
+    onClose: () -> Unit,
+) {
+    val paneScale = LocalPaneScale.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.session_drawer_logs),
+                color = DrawerTextPrimary,
+                fontSize = (16f * paneScale).sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text =
+                    if (paused) {
+                        stringResource(R.string.session_drawer_logs_paused_indicator) +
+                            " · " +
+                            stringResource(R.string.session_drawer_logs_line_count, lineCount)
+                    } else {
+                        stringResource(R.string.session_drawer_logs_line_count, lineCount)
+                    },
+                color = if (paused) DrawerAccent else DrawerTextSecondary,
+                fontSize = (11f * paneScale).sp,
+                fontWeight = FontWeight.Medium,
+            )
+        }
+
+        LogsPaneActionTile(
+            icon = if (paused) Icons.Outlined.PlayArrow else Icons.Outlined.Pause,
+            contentDescription =
+                if (paused) {
+                    stringResource(R.string.session_drawer_logs_resume)
+                } else {
+                    stringResource(R.string.session_drawer_logs_pause)
+                },
+            onClick = onTogglePause,
+        )
+        LogsPaneActionTile(
+            icon = Icons.Outlined.DeleteSweep,
+            contentDescription = stringResource(R.string.session_drawer_logs_clear),
+            onClick = onClear,
+        )
+        LogsPaneActionTile(
+            icon = Icons.Outlined.Share,
+            contentDescription = stringResource(R.string.session_drawer_logs_share),
+            onClick = onShare,
+        )
+
+        Spacer(Modifier.width((16f * paneScale).dp))
+
+        TaskManagerCloseButton(onClick = onClose)
+    }
+}
+
+@Composable
+private fun LogsPaneActionTile(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    val paneScale = LocalPaneScale.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed = interactionSource.collectIsPressedAsState().value
+    val tint by animateColorAsState(
+        targetValue = if (pressed) DrawerAccent else DrawerTextPrimary,
+        animationSpec = tween(120),
+        label = "logsActionTileTint",
+    )
+    Box(
+        modifier =
+            Modifier
+                .size((38f * paneScale).dp)
+                .clip(CircleShape)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size((24f * paneScale).dp),
+        )
+    }
+}
+
+@Composable
+private fun LogsPaneList(
+    lines: List<String>,
+    paused: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val paneScale = LocalPaneScale.current
+    val shape = RoundedCornerShape((10f * paneScale).dp)
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(lines.size, paused) {
+        if (!paused && lines.isNotEmpty()) {
+            listState.scrollToItem((lines.size - 1).coerceAtLeast(0))
+        }
+    }
+
+    Box(
+        modifier =
+            modifier
+                .clip(shape)
+                .background(PaneInnerResting)
+                .border(1.dp, RestingCardBorder, shape),
+    ) {
+        if (lines.isEmpty()) {
+            Text(
+                text = stringResource(R.string.common_ui_no_items_to_display),
+                color = DrawerTextSecondary,
+                fontSize = (12f * paneScale).sp,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = (24f * paneScale).dp),
+                textAlign = TextAlign.Center,
+            )
+        } else {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding =
+                    PaddingValues(
+                        horizontal = (10f * paneScale).dp,
+                        vertical = (8f * paneScale).dp,
+                    ),
+                verticalArrangement = Arrangement.spacedBy((1f * paneScale).dp),
+            ) {
+                items(lines) { line ->
+                    Text(
+                        text = line,
+                        color = DrawerTextPrimary,
+                        fontSize = (11f * paneScale).sp,
+                        fontFamily = FontFamily.Monospace,
+                        lineHeight = (14f * paneScale).sp,
+                        letterSpacing = 0.sp,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
     }
 }
 

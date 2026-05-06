@@ -675,6 +675,16 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Tasks</string>
     <string name="session_drawer_rail_label_logs">Logs</string>
+    <string name="session_drawer_logs_clear">Clear</string>
+    <string name="session_drawer_logs_pause">Pause</string>
+    <string name="session_drawer_logs_resume">Resume</string>
+    <string name="session_drawer_logs_paused_indicator">Paused</string>
+    <string name="session_drawer_logs_line_count">%1$d lines</string>
+    <string name="session_drawer_logs_share">Share</string>
+    <string name="session_drawer_logs_share_subject">Session logs</string>
+    <string name="session_drawer_logs_share_chooser">Share session logs</string>
+    <string name="session_drawer_logs_share_failed">Failed to share logs</string>
+    <string name="session_drawer_logs_share_empty">No log lines to share</string>
     <string name="session_gyroscope_activator">Activator</string>
 
     <!-- Session > Task Manager -->

@@ -287,6 +287,7 @@ private fun XServerDisplayHost(
                     XServerDrawerContent(
                         state = stateHolder.state,
                         taskManagerState = stateHolder.taskManagerState,
+                        logsState = stateHolder.logsState,
                         openPane = stateHolder.openPane,
                         onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
                         listener = listener,

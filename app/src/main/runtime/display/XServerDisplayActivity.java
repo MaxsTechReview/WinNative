@@ -20,7 +20,9 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.net.Uri;
 import android.opengl.GLSurfaceView;
+import android.text.format.DateFormat;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -52,6 +54,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.FileProvider;
 import androidx.compose.ui.platform.ComposeView;
 import androidx.core.view.WindowInsetsCompat;
 import com.winlator.cmod.BuildConfig;
@@ -70,7 +73,6 @@ import com.winlator.cmod.feature.setup.SetupWizardActivity;
 import com.winlator.cmod.runtime.container.Container;
 import com.winlator.cmod.runtime.container.ContainerManager;
 import com.winlator.cmod.runtime.container.Shortcut;
-import com.winlator.cmod.feature.settings.DebugDialog;
 import com.winlator.cmod.feature.settings.DXVKConfigUtils;
 import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils;
 import com.winlator.cmod.feature.shortcuts.ShortcutsFragment;
@@ -155,12 +157,16 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
 import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -273,7 +279,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private WineRequestHandler wineRequestHandler;
     private float globalCursorSpeed = 1.0f;
     private MagnifierView magnifierView;
-    private DebugDialog debugDialog;
+    private Callback<String> logStreamSink;
+    private BufferedWriter logStreamWriter;
+    private File logStreamFile;
     private int taskAffinityMask = 0;
     private int taskAffinityMaskWoW64 = 0;
     private int frameRatingWindowId = -1;
@@ -890,7 +898,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         ProcessHelper.removeAllDebugCallbacks();
         if (enableLogsMenu) {
             LogView.setFilename(getExecutable());
-            ProcessHelper.addDebugCallback(debugDialog = new DebugDialog(this));
+            attachLogStreamSink();
         }
 
         graphicsDriver = container.getGraphicsDriver();
@@ -2093,17 +2101,114 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    private void cleanupDebugDialog(String trigger) {
-        DebugDialog dialog = debugDialog;
-        if (dialog == null) return;
+    private void attachLogStreamSink() {
         try {
-            ProcessHelper.removeDebugCallback(dialog);
-            dialog.dispose();
-        } catch (Exception e) {
-            Log.w("XServerLeakCheck", "Failed to release debug dialog during " + trigger, e);
-        } finally {
-            debugDialog = null;
+            logStreamFile = LogView.getLogFile(this);
+            logStreamWriter = new BufferedWriter(new FileWriter(logStreamFile));
+        } catch (IOException e) {
+            Log.w("XServerLogs", "Failed to open log file writer", e);
+            logStreamWriter = null;
+            logStreamFile = null;
         }
+        Callback<String> sink = new Callback<String>() {
+            @Override
+            public synchronized void call(String line) {
+                String stamped = "[" + DateFormat.format("HH:mm:ss", System.currentTimeMillis())
+                        + "]  " + line.replace("\n", "");
+                XServerDrawerStateHolder holder = drawerStateHolder;
+                if (holder != null) holder.appendLogLine(stamped);
+                BufferedWriter writer = logStreamWriter;
+                if (writer != null) {
+                    try {
+                        writer.write(stamped);
+                        writer.write("\n");
+                        writer.flush();
+                    } catch (IOException ignored) {
+                    }
+                }
+            }
+        };
+        logStreamSink = sink;
+        ProcessHelper.addDebugCallback(sink);
+    }
+
+    private void shareLogStream() {
+        try {
+            File shareDir = new File(getCacheDir(), "log_shares");
+            if (!shareDir.exists()) shareDir.mkdirs();
+            String stamp = (String) DateFormat.format("yyyy-MM-dd_HH-mm-ss", new Date());
+            File shareFile = new File(shareDir, "session_logs_" + stamp + ".txt");
+
+            BufferedWriter writer = logStreamWriter;
+            if (writer != null) {
+                try {
+                    writer.flush();
+                } catch (IOException ignored) {
+                }
+            }
+
+            File source = logStreamFile;
+            boolean wrote = false;
+            if (source != null && source.exists() && source.length() > 0) {
+                try (java.io.InputStream in = new java.io.FileInputStream(source);
+                     java.io.OutputStream out = new java.io.FileOutputStream(shareFile)) {
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                    out.flush();
+                    wrote = true;
+                }
+            }
+
+            if (!wrote) {
+                XServerDrawerStateHolder holder = drawerStateHolder;
+                List<String> lines = holder != null ? holder.snapshotLogLines() : new ArrayList<>();
+                if (lines.isEmpty()) {
+                    showToast(this, getString(R.string.session_drawer_logs_share_empty));
+                    return;
+                }
+                try (BufferedWriter out = new BufferedWriter(new FileWriter(shareFile))) {
+                    for (String line : lines) {
+                        out.write(line);
+                        out.write("\n");
+                    }
+                }
+            }
+
+            String authority = getPackageName() + ".tileprovider";
+            Uri uri = FileProvider.getUriForFile(this, authority, shareFile);
+            Intent shareIntent = new Intent(Intent.ACTION_SEND);
+            shareIntent.setType("text/plain");
+            shareIntent.putExtra(Intent.EXTRA_STREAM, uri);
+            shareIntent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.session_drawer_logs_share_subject));
+            shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(shareIntent, getString(R.string.session_drawer_logs_share_chooser)));
+        } catch (Exception e) {
+            Log.w("XServerLogs", "Failed to share log stream", e);
+            showToast(this, getString(R.string.session_drawer_logs_share_failed));
+        }
+    }
+
+    private void cleanupDebugDialog(String trigger) {
+        Callback<String> sink = logStreamSink;
+        if (sink != null) {
+            try {
+                ProcessHelper.removeDebugCallback(sink);
+            } catch (Exception e) {
+                Log.w("XServerLeakCheck", "Failed to remove log sink during " + trigger, e);
+            }
+            logStreamSink = null;
+        }
+        BufferedWriter writer = logStreamWriter;
+        if (writer != null) {
+            try {
+                writer.close();
+            } catch (IOException ignored) {
+            } finally {
+                logStreamWriter = null;
+            }
+        }
+        logStreamFile = null;
     }
 
     private void stopXServer(String trigger) {
@@ -3185,6 +3290,26 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onTaskManagerNewTask(String command) {
                         if (winHandler != null) winHandler.exec(command);
                     }
+
+                    @Override
+                    public void onLogsClear() {
+                        if (drawerStateHolder != null) drawerStateHolder.clearLogLines();
+                    }
+
+                    @Override
+                    public void onLogsPauseChanged(boolean paused) {
+                        if (drawerStateHolder != null) drawerStateHolder.setLogsPaused(paused);
+                    }
+
+                    @Override
+                    public void onLogsPaneVisibilityChanged(boolean visible) {
+                        if (drawerStateHolder != null) drawerStateHolder.setLogsPaneVisible(visible);
+                    }
+
+                    @Override
+                    public void onLogsShare() {
+                        shareLogStream();
+                    }
                 };
         }
 
@@ -3567,9 +3692,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     renderer.setMagnifierUIActive(true);
                 }
                 renderDrawerMenu();
-                break;
-            case R.id.main_menu_logs:
-                debugDialog.show();
                 break;
             case R.id.main_menu_native_rendering:
                 isNativeRenderingEnabled = !isNativeRenderingEnabled;
