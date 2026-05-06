@@ -38,6 +38,7 @@ class TouchpadView(
         const val MAX_TAP_MILLISECONDS: Short = 200
         const val CURSOR_ACCELERATION = 1.25f
         const val CURSOR_ACCELERATION_THRESHOLD: Byte = 6
+        private const val MIN_SENSITIVITY = 0.1f
         private const val CLICK_DELAYED_TIME: Byte = 50
         private const val EFFECTIVE_TOUCH_DISTANCE: Byte = 20
         private const val UPDATE_FORM_DELAYED_TIME = 50
@@ -594,7 +595,7 @@ class TouchpadView(
     }
 
     fun setSensitivity(sensitivity: Float) {
-        this.sensitivity = sensitivity
+        this.sensitivity = sensitivity.coerceAtLeast(MIN_SENSITIVITY)
     }
 
     fun setPointerButtonLeftEnabled(enabled: Boolean) {

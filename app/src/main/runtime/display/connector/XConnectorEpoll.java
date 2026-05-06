@@ -96,8 +96,9 @@ public class XConnectorEpoll implements Runnable {
               () -> {
                 connectionHandler.handleNewConnection(client);
                 while (client.connected
-                    && waitForSocketRead(client.clientSocket.fd, client.shutdownFd))
-                  ;
+                    && waitForSocketRead(client.clientSocket.fd, client.shutdownFd)) {
+                  handleExistingConnection(client.clientSocket.fd);
+                }
               });
       client.pollThread.start();
     } else connectionHandler.handleNewConnection(client);

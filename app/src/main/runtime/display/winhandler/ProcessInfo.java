@@ -24,9 +24,9 @@ public class ProcessInfo {
   }
 
   public String getCPUList() {
-    int numProcessors = Runtime.getRuntime().availableProcessors();
+    int numProcessors = Math.min(Runtime.getRuntime().availableProcessors(), Integer.SIZE);
     ArrayList<String> cpuList = new ArrayList<>();
-    for (byte i = 0; i < numProcessors; i++) {
+    for (int i = 0; i < numProcessors; i++) {
       if ((affinityMask & (1 << i)) != 0) cpuList.add(String.valueOf(i));
     }
     return String.join(",", cpuList.toArray(new String[0]));
