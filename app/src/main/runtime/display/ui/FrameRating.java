@@ -61,6 +61,8 @@ public class FrameRating extends LinearLayout implements Runnable {
   private static final int ANCHOR_BOTTOM_LEFT = 3;
   private static final int ANCHOR_BOTTOM_CENTER = 4;
   private static final int ANCHOR_BOTTOM_RIGHT = 5;
+  private static final int ANCHOR_LEFT_CENTER = 6;
+  private static final int ANCHOR_RIGHT_CENTER = 7;
   private int currentAnchor = ANCHOR_NONE;
   private PopupWindow positionPopup;
   private ViewTreeObserver.OnGlobalLayoutListener parentLayoutListener;
@@ -535,22 +537,48 @@ public class FrameRating extends LinearLayout implements Runnable {
     header.setPadding(dp(14), dp(6), dp(14), dp(8));
     menuLayout.addView(header);
 
-    int[] anchors = {
-      ANCHOR_TOP_LEFT,
-      ANCHOR_TOP_CENTER,
-      ANCHOR_TOP_RIGHT,
-      ANCHOR_BOTTOM_LEFT,
-      ANCHOR_BOTTOM_CENTER,
-      ANCHOR_BOTTOM_RIGHT
-    };
-    int[] labelRes = {
-      R.string.hud_position_top_left,
-      R.string.hud_position_top_center,
-      R.string.hud_position_top_right,
-      R.string.hud_position_bottom_left,
-      R.string.hud_position_bottom_center,
-      R.string.hud_position_bottom_right
-    };
+    boolean isVertical = getOrientation() == LinearLayout.VERTICAL;
+    int[] anchors;
+    int[] labelRes;
+    if (isVertical) {
+      anchors = new int[] {
+        ANCHOR_TOP_LEFT,
+        ANCHOR_TOP_CENTER,
+        ANCHOR_TOP_RIGHT,
+        ANCHOR_LEFT_CENTER,
+        ANCHOR_RIGHT_CENTER,
+        ANCHOR_BOTTOM_LEFT,
+        ANCHOR_BOTTOM_CENTER,
+        ANCHOR_BOTTOM_RIGHT
+      };
+      labelRes = new int[] {
+        R.string.hud_position_top_left,
+        R.string.hud_position_top_center,
+        R.string.hud_position_top_right,
+        R.string.hud_position_left_center,
+        R.string.hud_position_right_center,
+        R.string.hud_position_bottom_left,
+        R.string.hud_position_bottom_center,
+        R.string.hud_position_bottom_right
+      };
+    } else {
+      anchors = new int[] {
+        ANCHOR_TOP_LEFT,
+        ANCHOR_TOP_CENTER,
+        ANCHOR_TOP_RIGHT,
+        ANCHOR_BOTTOM_LEFT,
+        ANCHOR_BOTTOM_CENTER,
+        ANCHOR_BOTTOM_RIGHT
+      };
+      labelRes = new int[] {
+        R.string.hud_position_top_left,
+        R.string.hud_position_top_center,
+        R.string.hud_position_top_right,
+        R.string.hud_position_bottom_left,
+        R.string.hud_position_bottom_center,
+        R.string.hud_position_bottom_right
+      };
+    }
 
     for (int i = 0; i < anchors.length; i++) {
       final int anchor = anchors[i];
@@ -644,6 +672,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     float maxX = Math.max(0f, parentView.getWidth() - scaledW);
     float maxY = Math.max(0f, parentView.getHeight() - scaledH);
     float centerX = Math.max(0f, (parentView.getWidth() - scaledW) / 2f);
+    float centerY = Math.max(0f, (parentView.getHeight() - scaledH) / 2f);
 
     float targetX, targetY;
     switch (anchor) {
@@ -658,6 +687,14 @@ public class FrameRating extends LinearLayout implements Runnable {
       case ANCHOR_TOP_RIGHT:
         targetX = maxX;
         targetY = 0f;
+        break;
+      case ANCHOR_LEFT_CENTER:
+        targetX = 0f;
+        targetY = centerY;
+        break;
+      case ANCHOR_RIGHT_CENTER:
+        targetX = maxX;
+        targetY = centerY;
         break;
       case ANCHOR_BOTTOM_LEFT:
         targetX = 0f;
