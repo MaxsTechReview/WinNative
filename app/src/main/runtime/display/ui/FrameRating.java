@@ -9,21 +9,30 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.content.res.ColorStateList;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
 import android.os.BatteryManager;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.text.SpannableStringBuilder;
 import android.text.style.ForegroundColorSpan;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
+import android.widget.GridLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.TextView;
 import androidx.preference.PreferenceManager;
 import com.winlator.cmod.R;
@@ -44,6 +53,21 @@ public class FrameRating extends LinearLayout implements Runnable {
   public static final String PREF_HUD_SCALE = "hud_scale";
   public static final String PREF_HUD_ALPHA = "hud_alpha";
   public static final String PREF_HUD_ELEMENTS = "hud_elements";
+  public static final String PREF_HUD_ANCHOR = "hud_anchor";
+
+  // Anchor positions for the long-press position menu
+  private static final int ANCHOR_NONE = -1;
+  private static final int ANCHOR_TOP_LEFT = 0;
+  private static final int ANCHOR_TOP_CENTER = 1;
+  private static final int ANCHOR_TOP_RIGHT = 2;
+  private static final int ANCHOR_BOTTOM_LEFT = 3;
+  private static final int ANCHOR_BOTTOM_CENTER = 4;
+  private static final int ANCHOR_BOTTOM_RIGHT = 5;
+  private static final int ANCHOR_LEFT_CENTER = 6;
+  private static final int ANCHOR_RIGHT_CENTER = 7;
+  private int currentAnchor = ANCHOR_NONE;
+  private PopupWindow positionPopup;
+  private ViewTreeObserver.OnGlobalLayoutListener parentLayoutListener;
   private final int C_BAT;
   private final int C_CPU;
   private final int C_DIVISOR;
@@ -278,6 +302,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     bringToFront();
     setElevation(1000.0f);
     restorePersistedPosition();
+    installParentLayoutListener();
     removeCallbacks(this);
     post(this);
     startStatsUpdate();
@@ -287,10 +312,55 @@ public class FrameRating extends LinearLayout implements Runnable {
   protected void onDetachedFromWindow() {
     super.onDetachedFromWindow();
     removeCallbacks(this);
+    removeParentLayoutListener();
+    dismissPositionPopup();
     stopStatsUpdate();
   }
 
-  // ── Touch: tap cycles display mode, drag moves HUD ───────────────
+  @Override
+  protected void onLayout(boolean changed, int l, int t, int r, int b) {
+    super.onLayout(changed, l, t, r, b);
+    if (changed) {
+      post(
+          () -> {
+            if (currentAnchor != ANCHOR_NONE) {
+              applyAnchor(currentAnchor, false);
+            } else {
+              clampToParentBounds(this);
+            }
+          });
+    }
+  }
+
+  private void installParentLayoutListener() {
+    final View parentView = (View) getParent();
+    if (parentView == null) {
+      return;
+    }
+    removeParentLayoutListener();
+    this.parentLayoutListener =
+        () -> {
+          if (currentAnchor != ANCHOR_NONE) {
+            applyAnchor(currentAnchor, false);
+          } else {
+            clampToParentBounds(this);
+          }
+        };
+    parentView.getViewTreeObserver().addOnGlobalLayoutListener(this.parentLayoutListener);
+  }
+
+  private void removeParentLayoutListener() {
+    if (this.parentLayoutListener == null) {
+      return;
+    }
+    View parentView = (View) getParent();
+    if (parentView != null) {
+      parentView.getViewTreeObserver().removeOnGlobalLayoutListener(this.parentLayoutListener);
+    }
+    this.parentLayoutListener = null;
+  }
+
+  // ── Touch: tap cycles display mode, drag moves HUD, long-press shows menu ──
   private void setupTapAndDragListener() {
     setOnTouchListener(
         new View.OnTouchListener() {
@@ -299,12 +369,26 @@ public class FrameRating extends LinearLayout implements Runnable {
           private float downRawX, downRawY;
           private long downTime;
           private boolean isDragging = false;
+          private boolean longPressFired = false;
+          private final Handler longPressHandler = new Handler(Looper.getMainLooper());
+          private final Runnable longPressRunnable =
+              new Runnable() {
+                @Override
+                public void run() {
+                  if (!isDragging && activePointerId != -1) {
+                    longPressFired = true;
+                    showPositionMenu();
+                  }
+                }
+              };
           private static final float TAP_SLOP = 20f;
+          private static final long LONG_PRESS_MS = 500L;
 
           @Override
           public boolean onTouch(View view, MotionEvent event) {
             if (event.getPointerCount() > 1) {
               this.activePointerId = -1;
+              this.longPressHandler.removeCallbacks(this.longPressRunnable);
               return false;
             }
             switch (event.getActionMasked()) {
@@ -316,7 +400,10 @@ public class FrameRating extends LinearLayout implements Runnable {
                 this.downRawY = event.getRawY();
                 this.downTime = SystemClock.elapsedRealtime();
                 this.isDragging = false;
+                this.longPressFired = false;
                 view.bringToFront();
+                this.longPressHandler.removeCallbacks(this.longPressRunnable);
+                this.longPressHandler.postDelayed(this.longPressRunnable, LONG_PRESS_MS);
                 return true;
               case MotionEvent.ACTION_MOVE:
                 if (this.activePointerId != -1) {
@@ -324,8 +411,9 @@ public class FrameRating extends LinearLayout implements Runnable {
                   float dy = Math.abs(event.getRawY() - this.downRawY);
                   if (dx > TAP_SLOP || dy > TAP_SLOP) {
                     this.isDragging = true;
+                    this.longPressHandler.removeCallbacks(this.longPressRunnable);
                   }
-                  if (this.isDragging) {
+                  if (this.isDragging && !this.longPressFired) {
                     view.setX(event.getRawX() + this.dX);
                     view.setY(event.getRawY() + this.dY);
                     clampToParentBounds(view);
@@ -335,14 +423,20 @@ public class FrameRating extends LinearLayout implements Runnable {
                 break;
               case MotionEvent.ACTION_UP:
               case MotionEvent.ACTION_CANCEL:
+                this.longPressHandler.removeCallbacks(this.longPressRunnable);
                 if (this.activePointerId != -1) {
                   long elapsed = SystemClock.elapsedRealtime() - this.downTime;
-                  if (!this.isDragging && elapsed < 400) {
+                  if (this.longPressFired) {
+                    // Menu was shown — consume the up event
+                  } else if (!this.isDragging && elapsed < 400) {
                     // Short tap → cycle display mode
                     cycleDisplayMode();
                   } else if (this.isDragging) {
                     clampToParentBounds(view);
                     persistPosition(view.getX(), view.getY());
+                    // Manual drag clears any anchor lock
+                    currentAnchor = ANCHOR_NONE;
+                    preferences.edit().putInt(PREF_HUD_ANCHOR, ANCHOR_NONE).apply();
                   }
                   this.activePointerId = -1;
                   return true;
@@ -363,6 +457,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   private void loadPersistedHudPreferences() {
     this.displayMode = this.preferences.getInt(PREF_HUD_DISPLAY_MODE, 0);
     this.dualSeriesBattery = this.preferences.getBoolean(PREF_HUD_DUAL_SERIES_BATTERY, false);
+    this.currentAnchor = this.preferences.getInt(PREF_HUD_ANCHOR, ANCHOR_NONE);
   }
 
   private void restorePersistedPosition() {
@@ -398,10 +493,243 @@ public class FrameRating extends LinearLayout implements Runnable {
       return;
     }
 
-    float maxX = Math.max(0f, parentView.getWidth() - view.getWidth());
-    float maxY = Math.max(0f, parentView.getHeight() - view.getHeight());
+    // Scale pivot is (0,0) — visible bounds extend by width*scaleX, height*scaleY
+    float scaledW = view.getWidth() * Math.max(view.getScaleX(), 0.01f);
+    float scaledH = view.getHeight() * Math.max(view.getScaleY(), 0.01f);
+    float maxX = Math.max(0f, parentView.getWidth() - scaledW);
+    float maxY = Math.max(0f, parentView.getHeight() - scaledH);
     view.setX(Math.max(0f, Math.min(view.getX(), maxX)));
     view.setY(Math.max(0f, Math.min(view.getY(), maxY)));
+  }
+
+  // ── Long-press position menu ─────────────────────────────────────
+  private int dp(float v) {
+    return (int)
+        TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP, v, getResources().getDisplayMetrics());
+  }
+
+  private void showPositionMenu() {
+    if (!isAttachedToWindow()) {
+      return;
+    }
+    dismissPositionPopup();
+
+    int surface = androidx.core.content.ContextCompat.getColor(context, R.color.settings_popup_surface);
+    int edge = androidx.core.content.ContextCompat.getColor(context, R.color.settings_popup_surface_edge);
+    int textColor = androidx.core.content.ContextCompat.getColor(context, R.color.settings_text_primary);
+    int rippleColor = 0x33A0C8FF;
+
+    GradientDrawable bg = new GradientDrawable();
+    bg.setColor(surface);
+    bg.setCornerRadius(dp(12));
+    bg.setStroke(dp(1), edge);
+
+    LinearLayout menuLayout = new LinearLayout(context);
+    menuLayout.setOrientation(LinearLayout.VERTICAL);
+    menuLayout.setBackground(bg);
+    menuLayout.setPadding(dp(10), dp(10), dp(10), dp(10));
+    menuLayout.setElevation(dp(8));
+
+    TextView header = new TextView(context);
+    header.setText(R.string.hud_position_menu_title);
+    header.setTextColor(textColor);
+    header.setAlpha(0.7f);
+    header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
+    header.setPadding(dp(4), dp(2), dp(4), dp(8));
+    menuLayout.addView(header);
+
+    GridLayout grid = new GridLayout(context);
+    grid.setColumnCount(3);
+    grid.setRowCount(3);
+
+    final int cellSize = dp(48);
+    final int cellMargin = dp(2);
+    final int iconPadding = dp(10);
+
+    int[][] cells = {
+      {ANCHOR_TOP_LEFT,    R.drawable.ic_hud_arrow_north_west},
+      {ANCHOR_TOP_CENTER,  R.drawable.ic_hud_arrow_north},
+      {ANCHOR_TOP_RIGHT,   R.drawable.ic_hud_arrow_north_east},
+      {ANCHOR_LEFT_CENTER, R.drawable.ic_hud_arrow_west},
+      {-1,                 0}, // empty middle
+      {ANCHOR_RIGHT_CENTER,R.drawable.ic_hud_arrow_east},
+      {ANCHOR_BOTTOM_LEFT, R.drawable.ic_hud_arrow_south_west},
+      {ANCHOR_BOTTOM_CENTER,R.drawable.ic_hud_arrow_south},
+      {ANCHOR_BOTTOM_RIGHT,R.drawable.ic_hud_arrow_south_east},
+    };
+
+    for (int[] cell : cells) {
+      final int anchor = cell[0];
+      final int iconRes = cell[1];
+
+      GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
+      lp.width = cellSize;
+      lp.height = cellSize;
+      lp.setMargins(cellMargin, cellMargin, cellMargin, cellMargin);
+
+      if (anchor == -1) {
+        View placeholder = new View(context);
+        placeholder.setLayoutParams(lp);
+        grid.addView(placeholder);
+        continue;
+      }
+
+      ImageView item = new ImageView(context);
+      item.setLayoutParams(lp);
+      item.setImageResource(iconRes);
+      item.setScaleType(ImageView.ScaleType.FIT_CENTER);
+      item.setPadding(iconPadding, iconPadding, iconPadding, iconPadding);
+      item.setBackground(buildItemRipple(rippleColor));
+      item.setClickable(true);
+      item.setFocusable(true);
+      item.setContentDescription(getResources().getString(labelForAnchor(anchor)));
+      item.setOnClickListener(
+          v -> {
+            applyAnchor(anchor, true);
+            dismissPositionPopup();
+          });
+      grid.addView(item);
+    }
+
+    menuLayout.addView(grid);
+
+    PopupWindow popup = new PopupWindow(menuLayout,
+        ViewGroup.LayoutParams.WRAP_CONTENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT,
+        true);
+    popup.setOutsideTouchable(true);
+    popup.setElevation(dp(8));
+    popup.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0));
+    this.positionPopup = popup;
+
+    menuLayout.measure(
+        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+    int popupW = menuLayout.getMeasuredWidth();
+    int popupH = menuLayout.getMeasuredHeight();
+
+    View parentView = (View) getParent();
+    int parentW = parentView != null ? parentView.getWidth() : popupW;
+    int parentH = parentView != null ? parentView.getHeight() : popupH;
+    int[] parentLoc = new int[2];
+    if (parentView != null) parentView.getLocationOnScreen(parentLoc);
+
+    int hudCenterX = (int) (getX() + (getWidth() * getScaleX()) / 2f);
+    int hudCenterY = (int) (getY() + (getHeight() * getScaleY()) / 2f);
+    int x = Math.max(dp(8), Math.min(hudCenterX - popupW / 2, parentW - popupW - dp(8)));
+    int y = Math.max(dp(8), Math.min(hudCenterY - popupH / 2, parentH - popupH - dp(8)));
+
+    popup.showAtLocation(parentView != null ? parentView : this, Gravity.NO_GRAVITY,
+        parentLoc[0] + x, parentLoc[1] + y);
+  }
+
+  private int labelForAnchor(int anchor) {
+    switch (anchor) {
+      case ANCHOR_TOP_LEFT: return R.string.hud_position_top_left;
+      case ANCHOR_TOP_CENTER: return R.string.hud_position_top_center;
+      case ANCHOR_TOP_RIGHT: return R.string.hud_position_top_right;
+      case ANCHOR_LEFT_CENTER: return R.string.hud_position_left_center;
+      case ANCHOR_RIGHT_CENTER: return R.string.hud_position_right_center;
+      case ANCHOR_BOTTOM_LEFT: return R.string.hud_position_bottom_left;
+      case ANCHOR_BOTTOM_CENTER: return R.string.hud_position_bottom_center;
+      case ANCHOR_BOTTOM_RIGHT: return R.string.hud_position_bottom_right;
+      default: return R.string.hud_position_menu_title;
+    }
+  }
+
+  private android.graphics.drawable.Drawable buildItemRipple(int rippleColor) {
+    GradientDrawable mask = new GradientDrawable();
+    mask.setColor(0xFFFFFFFF);
+    mask.setCornerRadius(dp(8));
+    return new RippleDrawable(ColorStateList.valueOf(rippleColor), null, mask);
+  }
+
+  private void dismissPositionPopup() {
+    if (this.positionPopup != null) {
+      try {
+        this.positionPopup.dismiss();
+      } catch (Exception ignored) {
+      }
+      this.positionPopup = null;
+    }
+  }
+
+  private void applyAnchor(int anchor, boolean persist) {
+    View parentView = (View) getParent();
+    if (parentView == null
+        || parentView.getWidth() <= 0
+        || parentView.getHeight() <= 0
+        || getWidth() <= 0
+        || getHeight() <= 0) {
+      // Defer until we have valid dimensions
+      this.currentAnchor = anchor;
+      if (persist) {
+        preferences.edit().putInt(PREF_HUD_ANCHOR, anchor).apply();
+      }
+      post(
+          () -> {
+            if (getWidth() > 0 && getHeight() > 0) {
+              applyAnchor(anchor, false);
+            }
+          });
+      return;
+    }
+
+    float scaledW = getWidth() * Math.max(getScaleX(), 0.01f);
+    float scaledH = getHeight() * Math.max(getScaleY(), 0.01f);
+    float maxX = Math.max(0f, parentView.getWidth() - scaledW);
+    float maxY = Math.max(0f, parentView.getHeight() - scaledH);
+    float centerX = Math.max(0f, (parentView.getWidth() - scaledW) / 2f);
+    float centerY = Math.max(0f, (parentView.getHeight() - scaledH) / 2f);
+
+    float targetX, targetY;
+    switch (anchor) {
+      case ANCHOR_TOP_LEFT:
+        targetX = 0f;
+        targetY = 0f;
+        break;
+      case ANCHOR_TOP_CENTER:
+        targetX = centerX;
+        targetY = 0f;
+        break;
+      case ANCHOR_TOP_RIGHT:
+        targetX = maxX;
+        targetY = 0f;
+        break;
+      case ANCHOR_LEFT_CENTER:
+        targetX = 0f;
+        targetY = centerY;
+        break;
+      case ANCHOR_RIGHT_CENTER:
+        targetX = maxX;
+        targetY = centerY;
+        break;
+      case ANCHOR_BOTTOM_LEFT:
+        targetX = 0f;
+        targetY = maxY;
+        break;
+      case ANCHOR_BOTTOM_CENTER:
+        targetX = centerX;
+        targetY = maxY;
+        break;
+      case ANCHOR_BOTTOM_RIGHT:
+        targetX = maxX;
+        targetY = maxY;
+        break;
+      default:
+        return;
+    }
+
+    targetX = Math.max(0f, Math.min(targetX, maxX));
+    targetY = Math.max(0f, Math.min(targetY, maxY));
+    setX(targetX);
+    setY(targetY);
+    this.currentAnchor = anchor;
+    persistPosition(targetX, targetY);
+    if (persist) {
+      preferences.edit().putInt(PREF_HUD_ANCHOR, anchor).apply();
+    }
   }
 
   private void applyDisplayMode() {

@@ -646,6 +646,15 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">BAT</string>
     <string name="session_drawer_hud_element_graph">Graph</string>
+    <string name="hud_position_menu_title">Move HUD to</string>
+    <string name="hud_position_top_left">Top Left</string>
+    <string name="hud_position_top_center">Top Center</string>
+    <string name="hud_position_top_right">Top Right</string>
+    <string name="hud_position_left_center">Left Center</string>
+    <string name="hud_position_right_center">Right Center</string>
+    <string name="hud_position_bottom_left">Bottom Left</string>
+    <string name="hud_position_bottom_center">Bottom Center</string>
+    <string name="hud_position_bottom_right">Bottom Right</string>
     <string name="session_drawer_hud_alpha_input_title">Set Alpha</string>
     <string name="session_drawer_hud_scale_input_title">Set Scale</string>
     <string name="session_drawer_hud_input_hint">Enter a value from %1$d to %2$d. Values above the limit are clamped.</string>
