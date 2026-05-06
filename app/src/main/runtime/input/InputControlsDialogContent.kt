@@ -75,6 +75,7 @@ data class InputControlsState(
     val overlayOpacity: Float = 0.4f,
     val touchscreenHaptics: Boolean = false,
     val gamepadVibration: Boolean = true,
+    val rtsTouchEnabled: Boolean = false,
 )
 
 @Composable
@@ -87,6 +88,8 @@ fun InputControlsDialogContent(
     onOverlayOpacityChange: (Float) -> Unit,
     onTouchscreenHapticsChange: (Boolean) -> Unit,
     onGamepadVibrationChange: (Boolean) -> Unit,
+    onRTSTouchEnabledChange: (Boolean) -> Unit,
+    onEditRTSTouchClick: () -> Unit,
     onCancel: () -> Unit,
     onConfirm: () -> Unit,
 ) {
@@ -183,6 +186,14 @@ fun InputControlsDialogContent(
                             label = stringResource(R.string.session_gamepad_enable_vibration),
                             checked = state.gamepadVibration,
                             onCheckedChange = onGamepadVibrationChange,
+                        )
+
+                        OptionWithButton(
+                            label = stringResource(R.string.touch_gestures_enabled),
+                            checked = state.rtsTouchEnabled,
+                            onCheckedChange = onRTSTouchEnabledChange,
+                            buttonLabel = stringResource(R.string.touch_gestures_edit),
+                            onButtonClick = onEditRTSTouchClick
                         )
                     }
                 }
@@ -586,5 +597,69 @@ private fun OverlayOpacitySlider(
             ),
             modifier = Modifier.height(32.dp).padding(horizontal = 0.dp)
         )
+    }
+}
+
+@Composable
+private fun OptionWithButton(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    buttonLabel: String,
+    onButtonClick: () -> Unit,
+) {
+    val cardInteractionSource = remember { MutableInteractionSource() }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(11.dp))
+                .background(InputControlsSecondarySurface)
+                .border(1.dp, InputControlsSecondaryOutline, RoundedCornerShape(11.dp))
+                .clickable(
+                    interactionSource = cardInteractionSource,
+                    indication = null,
+                ) { onCheckedChange(!checked) }
+                .height(44.dp)
+                .padding(horizontal = 9.dp),
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.size(15.dp),
+            colors =
+                CheckboxDefaults.colors(
+                    checkedColor = WinNativeAccent,
+                    uncheckedColor = InputControlsSecondaryOutline,
+                    checkmarkColor = Color.White,
+                ),
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = label,
+            color = WinNativeTextPrimary,
+            fontSize = 12.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Spacer(Modifier.width(8.dp))
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(WinNativeSurface)
+                .border(1.dp, InputControlsSecondaryOutline, RoundedCornerShape(8.dp))
+                .clickable(onClick = onButtonClick)
+                .padding(horizontal = 10.dp, vertical = 4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = buttonLabel,
+                color = WinNativeAccent,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }

@@ -27,8 +27,10 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import androidx.preference.PreferenceManager
 import com.winlator.cmod.BuildConfig
 import com.winlator.cmod.R
+import org.json.JSONObject
 import com.winlator.cmod.app.PluviaApp
 import com.winlator.cmod.feature.library.DriveItem
 import com.winlator.cmod.feature.library.EnvVarItem
@@ -69,6 +71,7 @@ import com.winlator.cmod.runtime.display.XServerDisplayActivity
 import com.winlator.cmod.runtime.input.controls.InputControlsManager
 import com.winlator.cmod.runtime.audio.midi.MidiManager
 import com.winlator.cmod.runtime.display.winhandler.WinHandler
+import com.winlator.cmod.runtime.input.ui.TouchGestureConfig
 import java.io.File
 import java.lang.reflect.Field
 import java.util.Arrays
@@ -359,6 +362,11 @@ class ShortcutSettingsComposeDialog private constructor(
             if ((inputType and WinHandler.FLAG_DINPUT_MAPPER_STANDARD.toInt()) == WinHandler.FLAG_DINPUT_MAPPER_STANDARD.toInt()) 0 else 1
         state.disableXInput.value = shortcut.getExtra("disableXinput", "0") == "1"
         state.simTouchScreen.value = shortcut.getExtra("simTouchScreen", "0") == "1"
+
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        state.touchGestureConfig.value = shortcut.getTouchGestureConfig() ?: TouchGestureConfig.fromJSONObject(
+            runCatching<JSONObject> { JSONObject(prefs.getString("global_touch_gesture_config", "{}")!!) }.getOrNull()
+        )
 
         // Steam options
         val gameSource = shortcut.getExtra("game_source", "")
@@ -1151,6 +1159,9 @@ class ShortcutSettingsComposeDialog private constructor(
                 "simTouchScreen",
                 if (state.simTouchScreen.value) "1" else "0"
             )
+
+            // Touch Gesture Config
+            shortcut.setTouchGestureConfig(state.touchGestureConfig.value)
 
             // Launch EXE path
             val launchExePath = normalizeLaunchExeForShortcut(state.launchExePath.value)

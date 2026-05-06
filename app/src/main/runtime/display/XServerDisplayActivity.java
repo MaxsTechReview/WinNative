@@ -128,6 +128,7 @@ import com.winlator.cmod.runtime.display.ui.XServerView;
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity;
 import com.winlator.cmod.runtime.input.ui.InputControlsView;
 import com.winlator.cmod.runtime.input.ui.TouchpadView;
+import com.winlator.cmod.runtime.input.ui.TouchGestureConfig;
 import com.winlator.cmod.runtime.system.ui.LogView;
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
 import com.winlator.cmod.runtime.display.winhandler.OnGetProcessInfoListener;
@@ -3971,6 +3972,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         globalCursorSpeed = preferences.getFloat("cursor_speed", 1.0f);
         touchpadView = new TouchpadView(this, xServer, timeoutHandler, hideControlsRunnable);
+
+        TouchGestureConfig touchGestureConfig = null;
+        if (shortcut != null) touchGestureConfig = shortcut.getTouchGestureConfig();
+
+        if (touchGestureConfig == null) {
+            String json = preferences.getString("global_touch_gesture_config", "{}");
+            try {
+                touchGestureConfig = TouchGestureConfig.Companion.fromJSONObject(new JSONObject(json));
+            } catch (JSONException e) {
+                touchGestureConfig = new TouchGestureConfig();
+            }
+        }
+        touchpadView.setGestureConfig(touchGestureConfig);
+
         touchpadView.setTapToClickEnabled(isTapToClickEnabled);
         touchpadView.setSensitivity(globalCursorSpeed);
         touchpadView.setMouseEnabled(!isMouseDisabled);
@@ -4255,6 +4270,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         dialog.getTouchscreenHaptics().setValue(preferences.getBoolean("touchscreen_haptics_enabled", false));
         dialog.getGamepadVibration().setValue(preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true));
 
+        TouchGestureConfig touchGestureConfig = null;
+        if (shortcut != null) touchGestureConfig = shortcut.getTouchGestureConfig();
+
+        if (touchGestureConfig == null) {
+            String json = preferences.getString("global_touch_gesture_config", "{}");
+            try {
+                touchGestureConfig = TouchGestureConfig.Companion.fromJSONObject(new JSONObject(json));
+            } catch (JSONException e) {
+                touchGestureConfig = new TouchGestureConfig();
+            }
+        }
+        dialog.getRtsTouchEnabled().setValue(touchGestureConfig.getEnabled());
+        dialog.getTouchGestureConfig().setValue(touchGestureConfig);
+
         final Runnable updateProfile = () -> {
             int position = dialog.getSelectedProfileIndex().getIntValue();
             if (position > 0) {
@@ -4289,6 +4318,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             inputControlsView.setOverlayOpacity(overlayOpacity);
             boolean isHapticsEnabled = dialog.getTouchscreenHaptics().getValue();
             boolean isGamepadVibrationEnabled = dialog.getGamepadVibration().getValue();
+
+            TouchGestureConfig newTouchGestureConfig = dialog.getTouchGestureConfig().getValue();
+            newTouchGestureConfig.setEnabled(dialog.getRtsTouchEnabled().getValue());
+            if (shortcut != null) {
+                shortcut.setTouchGestureConfig(newTouchGestureConfig);
+                shortcut.saveData();
+            } else {
+                preferences.edit().putString("global_touch_gesture_config", newTouchGestureConfig.toJSONObject().toString()).apply();
+            }
+            if (touchpadView != null) touchpadView.setGestureConfig(newTouchGestureConfig);
+
             SharedPreferences.Editor editor = preferences.edit();
             editor.putBoolean("show_touchscreen_controls_enabled", dialog.getShowTouchscreenControls().getValue());
             editor.putFloat("overlay_opacity", overlayOpacity);

@@ -31,6 +31,10 @@ public class Keyboard {
     return modifiersMask;
   }
 
+  public XKeycode getXKeycode(int androidKeycode) {
+    return (androidKeycode >= 0 && androidKeycode < keycodeMap.length) ? keycodeMap[androidKeycode] : null;
+  }
+
   public void setKeysyms(byte keycode, int minKeysym, int majKeysym) {
     int index = keycode - 8;
     keysyms[index * KEYSYMS_PER_KEYCODE + 0] = minKeysym;

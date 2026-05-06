@@ -1138,4 +1138,20 @@ Installed path:
     <string name="preloader_platform_gog">GOG</string>
     <string name="preloader_platform_custom">Custom Game</string>
 
+    <string name="touch_gestures">Touch Gestures</string>
+    <string name="touch_gestures_edit">Edit</string>
+    <string name="touch_gestures_enabled">Enable RTS Touch Gestures</string>
+    <string name="touch_gestures_two_finger_pan">Two-Finger Pan</string>
+    <string name="touch_gestures_pinch">Pinch-to-Zoom</string>
+    <string name="touch_gestures_three_finger_tap">Three-Finger Tap</string>
+    <string name="touch_gestures_four_finger_tap">Four-Finger Tap</string>
+    <string name="touch_gestures_action_none">None</string>
+    <string name="touch_gestures_action_middle_click">Middle Click</string>
+    <string name="touch_gestures_action_wasd">WASD</string>
+    <string name="touch_gestures_action_arrow_keys">Arrow Keys</string>
+    <string name="touch_gestures_action_scroll">Scroll</string>
+    <string name="touch_gestures_action_scroll_wheel">Scroll Wheel</string>
+    <string name="touch_gestures_action_zoom_keys">Zoom Keys</string>
+    <string name="touch_gestures_action_left_click">Left Click</string>
+    <string name="touch_gestures_action_right_click">Right Click</string>
 </resources>

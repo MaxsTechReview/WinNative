@@ -14,6 +14,8 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.winlator.cmod.R
+import com.winlator.cmod.runtime.input.ui.TouchGestureConfig
+import com.winlator.cmod.runtime.input.ui.TouchGestureSettingsDialog
 import com.winlator.cmod.shared.theme.WinNativeTheme
 
 class InputControlsDialog(
@@ -29,10 +31,14 @@ class InputControlsDialog(
     val overlayOpacity = mutableStateOf(0.4f)
     val touchscreenHaptics = mutableStateOf(false)
     val gamepadVibration = mutableStateOf(true)
+    val rtsTouchEnabled = mutableStateOf(false)
+    val touchGestureConfig = mutableStateOf(TouchGestureConfig())
+    private val showTouchGestureSettings = mutableStateOf(false)
 
     var onConfirmCallback: Runnable? = null
     var onCancelCallback: Runnable? = null
     var onSettingsClickCallback: Runnable? = null
+    var onEditRTSTouchClickCallback: Runnable? = null
 
     init {
         dialog =
@@ -70,6 +76,7 @@ class InputControlsDialog(
                                     overlayOpacity = overlayOpacity.value,
                                     touchscreenHaptics = touchscreenHaptics.value,
                                     gamepadVibration = gamepadVibration.value,
+                                    rtsTouchEnabled = rtsTouchEnabled.value,
                                 ),
                             onProfileSelected = { index ->
                                 selectedProfileIndex.intValue = index
@@ -80,6 +87,8 @@ class InputControlsDialog(
                             onOverlayOpacityChange = { overlayOpacity.value = it },
                             onTouchscreenHapticsChange = { touchscreenHaptics.value = it },
                             onGamepadVibrationChange = { gamepadVibration.value = it },
+                            onRTSTouchEnabledChange = { rtsTouchEnabled.value = it },
+                            onEditRTSTouchClick = { showTouchGestureSettings.value = true },
                             onCancel = {
                                 onCancelCallback?.run()
                                 dismiss()
@@ -89,6 +98,14 @@ class InputControlsDialog(
                                 dismiss()
                             },
                         )
+
+                        if (showTouchGestureSettings.value) {
+                            TouchGestureSettingsDialog(
+                                config = touchGestureConfig.value,
+                                onConfigChange = { touchGestureConfig.value = it },
+                                onDismiss = { showTouchGestureSettings.value = false }
+                            )
+                        }
                     }
                 }
             }

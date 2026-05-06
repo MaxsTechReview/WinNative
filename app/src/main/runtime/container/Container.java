@@ -3,6 +3,7 @@ package com.winlator.cmod.runtime.container;
 import android.os.Environment;
 
 import com.winlator.cmod.runtime.compat.box64.Box64Preset;
+import com.winlator.cmod.runtime.input.ui.TouchGestureConfig;
 import com.winlator.cmod.runtime.wine.EnvVars;
 import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.shared.util.KeyValueSet;
@@ -328,6 +329,19 @@ public class Container {
         catch (JSONException e) {}
     }
 
+    public TouchGestureConfig getTouchGestureConfig() {
+        try {
+            return TouchGestureConfig.Companion.fromJSONObject(extraData != null && extraData.has("touchGestureConfig") ? extraData.getJSONObject("touchGestureConfig") : null);
+        }
+        catch (JSONException e) {
+            return new TouchGestureConfig();
+        }
+    }
+
+    public void setTouchGestureConfig(TouchGestureConfig config) {
+        putExtra("touchGestureConfig", config.toJSONObject());
+    }
+
     public String getWineVersion() {
         return wineVersion;
     }
@@ -511,6 +525,9 @@ public class Container {
                     break;
                 case "startupSelection" :
                     setStartupSelection((byte)data.getInt(key));
+                    break;
+                case "touchGestureConfig" :
+                    setTouchGestureConfig(TouchGestureConfig.Companion.fromJSONObject(data.getJSONObject(key)));
                     break;
                 case "extraData" : {
                     JSONObject extraData = data.getJSONObject(key);

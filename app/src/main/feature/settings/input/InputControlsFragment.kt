@@ -188,6 +188,8 @@ class InputControlsFragment : Fragment() {
                                 onBindingTypeClick = ::showBindingTypePicker,
                                 onBindingValueClick = ::showBindingValuePicker,
                                 onRemoveBinding = ::removeBinding,
+                                onRTSTouchEnabledChanged = ::setRTSTouchEnabled,
+                                onRTSTouchConfigChanged = ::setRTSTouchConfig,
                             ),
                     )
                 }
@@ -303,6 +305,14 @@ class InputControlsFragment : Fragment() {
                 triggerTypeIndex = preferences.getInt("trigger_type", ExternalController.TRIGGER_IS_AXIS.toInt()),
                 triggerCardExpanded = triggerTypeExpanded,
                 triggerDescription = triggerDescription,
+                rtsTouchEnabled = preferences.getBoolean("rts_touch_enabled", false),
+                touchGestureConfig = com.winlator.cmod.runtime.input.ui.TouchGestureConfig.fromJSONObject(
+                    try {
+                        org.json.JSONObject(preferences.getString("global_touch_gesture_config", "{}")!!)
+                    } catch (e: Exception) {
+                        null
+                    }
+                ),
                 controllerCards =
                     visibleControllers.map { controller ->
                         InputControllerCardState(
@@ -323,8 +333,30 @@ class InputControlsFragment : Fragment() {
                 dialog = dialogState,
             )
     }
+private fun setRTSTouchEnabled(enabled: Boolean) {
+    val jsonString = preferences.getString("global_touch_gesture_config", "{}") ?: "{}"
+    try {
+        val json = org.json.JSONObject(jsonString)
+        json.put("enabled", enabled)
+        preferences.edit()
+            .putBoolean("rts_touch_enabled", enabled)
+            .putString("global_touch_gesture_config", json.toString())
+            .apply()
+    } catch (e: Exception) {
+        preferences.edit().putBoolean("rts_touch_enabled", enabled).apply()
+    }
+    publishUiState()
+}
 
-    private fun buildBindingState(
+private fun setRTSTouchConfig(config: com.winlator.cmod.runtime.input.ui.TouchGestureConfig) {
+    preferences.edit()
+        .putString("global_touch_gesture_config", config.toJSONObject().toString())
+        .putBoolean("rts_touch_enabled", config.enabled)
+        .apply()
+    publishUiState()
+}
+
+private fun buildBindingState(
         controller: ExternalController,
         bindingTypeEntries: Array<String>,
     ): List<InputControllerBindingState> =

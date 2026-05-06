@@ -55,6 +55,7 @@ import com.winlator.cmod.runtime.compat.fexcore.FEXCorePresetManager
 import com.winlator.cmod.runtime.audio.midi.MidiManager
 import com.winlator.cmod.runtime.display.winhandler.WinHandler
 import com.winlator.cmod.runtime.display.environment.ImageFs
+import com.winlator.cmod.runtime.input.ui.TouchGestureConfig
 import org.json.JSONObject
 import java.io.File
 import java.util.Locale
@@ -377,6 +378,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         }
 
         state.fullscreenStretched.value = c?.isFullscreenStretched() ?: false
+        state.touchGestureConfig.value = c?.getTouchGestureConfig() ?: TouchGestureConfig()
 
         // Steam fields are shortcut-only in the UI; leave any existing steam
         // state on the container untouched — saveSettings() skips them.
@@ -797,6 +799,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 data.put("midiSoundFont", midiSoundFont)
                 data.put("lc_all", state.lcAll.value)
                 data.put("execArgs", state.execArgs.value)
+                data.put("touchGestureConfig", state.touchGestureConfig.value.toJSONObject())
 
                 preloaderDialog.show(R.string.containers_list_creating)
                 ImageFs.find(File(context.filesDir, "imagefs"))
