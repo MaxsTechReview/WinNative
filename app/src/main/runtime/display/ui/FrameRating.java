@@ -29,6 +29,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
+import android.widget.GridLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.TextView;
@@ -526,7 +528,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     LinearLayout menuLayout = new LinearLayout(context);
     menuLayout.setOrientation(LinearLayout.VERTICAL);
     menuLayout.setBackground(bg);
-    menuLayout.setPadding(dp(6), dp(8), dp(6), dp(8));
+    menuLayout.setPadding(dp(10), dp(10), dp(10), dp(10));
     menuLayout.setElevation(dp(8));
 
     TextView header = new TextView(context);
@@ -534,70 +536,63 @@ public class FrameRating extends LinearLayout implements Runnable {
     header.setTextColor(textColor);
     header.setAlpha(0.7f);
     header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
-    header.setPadding(dp(14), dp(6), dp(14), dp(8));
+    header.setPadding(dp(4), dp(2), dp(4), dp(8));
     menuLayout.addView(header);
 
-    boolean isVertical = getOrientation() == LinearLayout.VERTICAL;
-    int[] anchors;
-    int[] labelRes;
-    if (isVertical) {
-      anchors = new int[] {
-        ANCHOR_TOP_LEFT,
-        ANCHOR_TOP_CENTER,
-        ANCHOR_TOP_RIGHT,
-        ANCHOR_LEFT_CENTER,
-        ANCHOR_RIGHT_CENTER,
-        ANCHOR_BOTTOM_LEFT,
-        ANCHOR_BOTTOM_CENTER,
-        ANCHOR_BOTTOM_RIGHT
-      };
-      labelRes = new int[] {
-        R.string.hud_position_top_left,
-        R.string.hud_position_top_center,
-        R.string.hud_position_top_right,
-        R.string.hud_position_left_center,
-        R.string.hud_position_right_center,
-        R.string.hud_position_bottom_left,
-        R.string.hud_position_bottom_center,
-        R.string.hud_position_bottom_right
-      };
-    } else {
-      anchors = new int[] {
-        ANCHOR_TOP_LEFT,
-        ANCHOR_TOP_CENTER,
-        ANCHOR_TOP_RIGHT,
-        ANCHOR_BOTTOM_LEFT,
-        ANCHOR_BOTTOM_CENTER,
-        ANCHOR_BOTTOM_RIGHT
-      };
-      labelRes = new int[] {
-        R.string.hud_position_top_left,
-        R.string.hud_position_top_center,
-        R.string.hud_position_top_right,
-        R.string.hud_position_bottom_left,
-        R.string.hud_position_bottom_center,
-        R.string.hud_position_bottom_right
-      };
-    }
+    GridLayout grid = new GridLayout(context);
+    grid.setColumnCount(3);
+    grid.setRowCount(3);
 
-    for (int i = 0; i < anchors.length; i++) {
-      final int anchor = anchors[i];
-      TextView item = new TextView(context);
-      item.setText(labelRes[i]);
-      item.setTextColor(textColor);
-      item.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
-      item.setPadding(dp(14), dp(10), dp(28), dp(10));
-      item.setMinWidth(dp(180));
+    final int cellSize = dp(48);
+    final int cellMargin = dp(2);
+    final int iconPadding = dp(10);
+
+    int[][] cells = {
+      {ANCHOR_TOP_LEFT,    R.drawable.ic_hud_arrow_north_west},
+      {ANCHOR_TOP_CENTER,  R.drawable.ic_hud_arrow_north},
+      {ANCHOR_TOP_RIGHT,   R.drawable.ic_hud_arrow_north_east},
+      {ANCHOR_LEFT_CENTER, R.drawable.ic_hud_arrow_west},
+      {-1,                 0}, // empty middle
+      {ANCHOR_RIGHT_CENTER,R.drawable.ic_hud_arrow_east},
+      {ANCHOR_BOTTOM_LEFT, R.drawable.ic_hud_arrow_south_west},
+      {ANCHOR_BOTTOM_CENTER,R.drawable.ic_hud_arrow_south},
+      {ANCHOR_BOTTOM_RIGHT,R.drawable.ic_hud_arrow_south_east},
+    };
+
+    for (int[] cell : cells) {
+      final int anchor = cell[0];
+      final int iconRes = cell[1];
+
+      GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
+      lp.width = cellSize;
+      lp.height = cellSize;
+      lp.setMargins(cellMargin, cellMargin, cellMargin, cellMargin);
+
+      if (anchor == -1) {
+        View placeholder = new View(context);
+        placeholder.setLayoutParams(lp);
+        grid.addView(placeholder);
+        continue;
+      }
+
+      ImageView item = new ImageView(context);
+      item.setLayoutParams(lp);
+      item.setImageResource(iconRes);
+      item.setScaleType(ImageView.ScaleType.FIT_CENTER);
+      item.setPadding(iconPadding, iconPadding, iconPadding, iconPadding);
       item.setBackground(buildItemRipple(rippleColor));
       item.setClickable(true);
       item.setFocusable(true);
+      item.setContentDescription(getResources().getString(labelForAnchor(anchor)));
       item.setOnClickListener(
           v -> {
             applyAnchor(anchor, true);
             dismissPositionPopup();
           });
-      menuLayout.addView(item);
+      grid.addView(item);
     }
+
+    menuLayout.addView(grid);
 
     PopupWindow popup = new PopupWindow(menuLayout,
         ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -627,6 +622,20 @@ public class FrameRating extends LinearLayout implements Runnable {
 
     popup.showAtLocation(parentView != null ? parentView : this, Gravity.NO_GRAVITY,
         parentLoc[0] + x, parentLoc[1] + y);
+  }
+
+  private int labelForAnchor(int anchor) {
+    switch (anchor) {
+      case ANCHOR_TOP_LEFT: return R.string.hud_position_top_left;
+      case ANCHOR_TOP_CENTER: return R.string.hud_position_top_center;
+      case ANCHOR_TOP_RIGHT: return R.string.hud_position_top_right;
+      case ANCHOR_LEFT_CENTER: return R.string.hud_position_left_center;
+      case ANCHOR_RIGHT_CENTER: return R.string.hud_position_right_center;
+      case ANCHOR_BOTTOM_LEFT: return R.string.hud_position_bottom_left;
+      case ANCHOR_BOTTOM_CENTER: return R.string.hud_position_bottom_center;
+      case ANCHOR_BOTTOM_RIGHT: return R.string.hud_position_bottom_right;
+      default: return R.string.hud_position_menu_title;
+    }
   }
 
   private android.graphics.drawable.Drawable buildItemRipple(int rippleColor) {
