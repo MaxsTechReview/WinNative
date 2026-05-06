@@ -639,40 +639,37 @@ public class FrameRating extends LinearLayout implements Runnable {
       return;
     }
 
-    float pad = dp(8);
     float scaledW = getWidth() * Math.max(getScaleX(), 0.01f);
     float scaledH = getHeight() * Math.max(getScaleY(), 0.01f);
     float maxX = Math.max(0f, parentView.getWidth() - scaledW);
     float maxY = Math.max(0f, parentView.getHeight() - scaledH);
     float centerX = Math.max(0f, (parentView.getWidth() - scaledW) / 2f);
-    float bottomY = maxY - pad;
-    float rightX = maxX - pad;
 
     float targetX, targetY;
     switch (anchor) {
       case ANCHOR_TOP_LEFT:
-        targetX = pad;
-        targetY = pad;
+        targetX = 0f;
+        targetY = 0f;
         break;
       case ANCHOR_TOP_CENTER:
         targetX = centerX;
-        targetY = pad;
+        targetY = 0f;
         break;
       case ANCHOR_TOP_RIGHT:
-        targetX = rightX;
-        targetY = pad;
+        targetX = maxX;
+        targetY = 0f;
         break;
       case ANCHOR_BOTTOM_LEFT:
-        targetX = pad;
-        targetY = bottomY;
+        targetX = 0f;
+        targetY = maxY;
         break;
       case ANCHOR_BOTTOM_CENTER:
         targetX = centerX;
-        targetY = bottomY;
+        targetY = maxY;
         break;
       case ANCHOR_BOTTOM_RIGHT:
-        targetX = rightX;
-        targetY = bottomY;
+        targetX = maxX;
+        targetY = maxY;
         break;
       default:
         return;
