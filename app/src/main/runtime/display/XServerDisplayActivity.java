@@ -8,6 +8,7 @@ import android.app.Activity;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ShortcutManager;
 import android.content.SharedPreferences;
@@ -18,6 +19,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.hardware.input.InputManager;
 import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Bundle;
@@ -276,10 +278,36 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private int taskAffinityMask = 0;
     private int taskAffinityMaskWoW64 = 0;
     private int frameRatingWindowId = -1;
-    private boolean cursorLock; // Flag to track if pointer capture was requested
     private final float[] xform = XForm.getInstance();
     private ContentsManager contentsManager;
     private boolean navigationFocused = false;
+
+    private boolean hasExternalMouse() {
+        InputManager inputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
+        for (int deviceId : inputManager.getInputDeviceIds()) {
+            InputDevice device = inputManager.getInputDevice(deviceId);
+            if (device != null && !device.isVirtual() && (device.getSources() & InputDevice.SOURCE_MOUSE) != 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void tryCapturePointer() {
+        if (touchpadView != null && hasExternalMouse() && drawerLayout != null && !drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            touchpadView.postDelayed(() -> {
+                if (touchpadView != null) {
+                    touchpadView.requestFocus();
+                    touchpadView.requestPointerCapture();
+                    touchpadView.setOnCapturedPointerListener((view, event) -> {
+                        handleCapturedPointer(event);
+                        return true;
+                    });
+                }
+            }, 100);
+        }
+    }
+
     private MidiHandler midiHandler;
     private String midiSoundFont = "";
     private String lc_all = "";
@@ -547,7 +575,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         preloaderDialog = new PreloaderDialog(this);
 
-        cursorLock = preferences.getBoolean("cursor_lock", false);
         dualSeriesBattery = preferences.getBoolean(FrameRating.PREF_HUD_DUAL_SERIES_BATTERY, false);
 
         // Check for Dark Mode
@@ -650,6 +677,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 super.onDrawerOpened(drawerView);
                 renderDrawerMenu();
                 navigationComposeView.requestFocus();
+                if (touchpadView != null) {
+                    touchpadView.releasePointerCapture();
+                    touchpadView.setOnCapturedPointerListener(null);
+                }
             }
 
             @Override
@@ -659,6 +690,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     hudCardExpanded = false;
                     renderDrawerMenu();
                 }
+                tryCapturePointer();
             }
         });
 
@@ -3305,25 +3337,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
 
-        if (hasFocus && cursorLock) {
-            touchpadView.requestPointerCapture();
-            touchpadView.setOnCapturedPointerListener(new View.OnCapturedPointerListener() {
-                @Override
-                public boolean onCapturedPointer(View view, MotionEvent event) {
-                    handleCapturedPointer(event);
-                    return true;
-                }
-            });
+        if (hasFocus) {
+            tryCapturePointer();
         }
-        else if (!hasFocus) {
+        else {
             if (touchpadView != null) {
                 touchpadView.resetInputState();
+                touchpadView.releasePointerCapture();
+                touchpadView.setOnCapturedPointerListener(null);
             }
             if (inputControlsView != null) {
                 inputControlsView.cancelActiveTouches();
             }
-            touchpadView.releasePointerCapture();
-            touchpadView.setOnCapturedPointerListener(null);
         }
     }
 

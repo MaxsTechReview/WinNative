@@ -48,6 +48,7 @@ public class GrabManager implements WindowManager.OnWindowModificationListener {
           window, xServer.inputDeviceManager.getPointWindow(), PointerWindowEvent.Mode.UNGRAB);
       window = null;
       eventListener = null;
+      xServer.windowManager.setConfinedWindow(null);
     }
   }
 
