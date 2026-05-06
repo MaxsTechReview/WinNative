@@ -4825,7 +4825,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
-        handleDrawerEdgeSwipe(event);
         return super.dispatchTouchEvent(event);
     }
 

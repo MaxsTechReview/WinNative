@@ -756,7 +756,6 @@ internal fun XServerDrawerContent(
                                         state = state,
                                         listener = listener,
                                         cardsRevealed = cardsRevealed.value,
-                                        onActionInvoked = onDismiss,
                                         onOpenTaskManager = { onOpenPaneChange(DrawerPane.TASK_MANAGER) },
                                     )
                             }
@@ -997,7 +996,6 @@ private fun ActionCardGrid(
     state: XServerDrawerState,
     listener: XServerDrawerActionListener,
     cardsRevealed: Boolean,
-    onActionInvoked: () -> Unit,
     onOpenTaskManager: () -> Unit,
 ) {
     val paneScale = LocalPaneScale.current
@@ -1036,10 +1034,7 @@ private fun ActionCardGrid(
                             R.id.main_menu_relative_mouse_movement,
                             R.id.main_menu_disable_mouse,
                             R.id.main_menu_toggle_fullscreen -> listener.onActionSelected(item.itemId)
-                            else -> {
-                                onActionInvoked()
-                                listener.onActionSelected(item.itemId)
-                            }
+                            else -> listener.onActionSelected(item.itemId)
                         }
                     },
                 )
