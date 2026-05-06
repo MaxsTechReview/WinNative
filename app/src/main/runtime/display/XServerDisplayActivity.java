@@ -3810,7 +3810,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private boolean shouldUsePointerCapture() {
-        return cursorLock;
+        return preferences != null && preferences.getBoolean("cursor_lock", false);
     }
 
     private void updatePointerCapture() {
