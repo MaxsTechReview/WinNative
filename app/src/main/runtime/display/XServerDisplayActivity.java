@@ -466,6 +466,22 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return shortcut != null ? shortcut.getSettingExtra(key, containerValue) : containerValue;
     }
 
+    private boolean getBooleanSessionOption(String key, boolean defaultValue) {
+        boolean fallback = preferences != null ? preferences.getBoolean(key, defaultValue) : defaultValue;
+        if (shortcut == null) return fallback;
+        String rawValue = shortcut.getExtra(key, String.valueOf(fallback));
+        return parseBoolean(rawValue);
+    }
+
+    private void setBooleanSessionOption(String key, boolean value) {
+        if (shortcut != null) {
+            shortcut.putExtra(key, String.valueOf(value));
+            shortcut.saveData();
+        } else if (preferences != null) {
+            preferences.edit().putBoolean(key, value).apply();
+        }
+    }
+
     private String getShortcutWineVersionOverride() {
         if (shortcut == null || shortcutUsesContainerDefaults()) return "";
         return shortcut.getExtra("wineVersion");
@@ -1688,11 +1704,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 break;
             case MotionEvent.ACTION_MOVE:
             case MotionEvent.ACTION_HOVER_MOVE:
-                float[] transformedPoint = XForm.transformPoint(xform, event.getX(), event.getY());
+                int[] delta = getCapturedPointerDelta(event);
+                if (delta[0] == 0 && delta[1] == 0) break;
                 if (xServer.isRelativeMouseMovement())
-                    xServer.getWinHandler().mouseEvent(MouseEventFlags.MOVE, (int)transformedPoint[0], (int)transformedPoint[1], 0);
+                    xServer.getWinHandler().mouseEvent(MouseEventFlags.MOVE, delta[0], delta[1], 0);
                 else
-                    xServer.injectPointerMoveDelta((int)transformedPoint[0], (int)transformedPoint[1]);
+                    xServer.injectPointerMoveDelta(delta[0], delta[1]);
                 handled = true;
                 break;
             case MotionEvent.ACTION_SCROLL:
@@ -1715,6 +1732,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 handled = true;
                 break;
         }
+    }
+
+    private int[] getCapturedPointerDelta(MotionEvent event) {
+        float dx = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
+        float dy = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
+        if (dx == 0.0f && dy == 0.0f) {
+            dx = event.getX();
+            dy = event.getY();
+        }
+        return new int[]{
+                (int)(xform[0] * dx + xform[2] * dy),
+                (int)(xform[1] * dx + xform[3] * dy)
+        };
     }
 
     @Override
@@ -2934,6 +2964,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void openDrawerMenu() {
+        releasePointerCapture();
         renderDrawerMenu();
         if (drawerStateHolder != null) {
             drawerStateHolder.openDrawer();
@@ -3328,6 +3359,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
                         @Override
                         public void onDrawerOpened() {
+                            releasePointerCapture();
                             renderDrawerMenu();
                             if (displayHostComposeView != null) displayHostComposeView.requestFocus();
                             AppUtils.hideSystemUI(XServerDisplayActivity.this);
@@ -3339,6 +3371,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                 hudCardExpanded = false;
                                 renderDrawerMenu();
                             }
+                            updatePointerCapture();
                             AppUtils.hideSystemUI(XServerDisplayActivity.this);
                         }
 
@@ -3641,6 +3674,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             case R.id.main_menu_relative_mouse_movement:
                 isRelativeMouseMovement = !isRelativeMouseMovement;
                 xServer.setRelativeMouseMovement(isRelativeMouseMovement);
+                updatePointerCapture();
                 renderDrawerMenu();
                 break;
             case R.id.main_menu_disable_mouse:
@@ -3736,8 +3770,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
 
-        if (hasFocus && cursorLock) {
-            touchpadView.requestPointerCapture();
+        if (hasFocus && shouldUsePointerCapture()) {
+            updatePointerCapture();
+        }
+        else if (!hasFocus) {
+            releasePointerCapture();
+        }
+    }
+
+    private boolean shouldUsePointerCapture() {
+        return cursorLock;
+    }
+
+    private void updatePointerCapture() {
+        if (touchpadView == null) return;
+        if (shouldUsePointerCapture()) {
             touchpadView.setOnCapturedPointerListener(new View.OnCapturedPointerListener() {
                 @Override
                 public boolean onCapturedPointer(View view, MotionEvent event) {
@@ -3745,16 +3792,25 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     return true;
                 }
             });
-        }
-        else if (!hasFocus) {
-            if (touchpadView != null) {
-                touchpadView.resetInputState();
+            if (!touchpadView.hasPointerCapture()) {
+                touchpadView.requestPointerCapture();
             }
-            if (inputControlsView != null) {
-                inputControlsView.cancelActiveTouches();
+        } else {
+            releasePointerCapture();
+        }
+    }
+
+    private void releasePointerCapture() {
+        boolean hadPointerCapture = touchpadView != null && touchpadView.hasPointerCapture();
+        if (touchpadView != null) {
+            if (hadPointerCapture) {
+                touchpadView.resetInputState();
             }
             touchpadView.releasePointerCapture();
             touchpadView.setOnCapturedPointerListener(null);
+        }
+        if (hadPointerCapture && inputControlsView != null) {
+            inputControlsView.cancelActiveTouches();
         }
     }
 
@@ -4951,7 +5007,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void handleDrawerEdgeSwipe(MotionEvent event) {
-        if (drawerStateHolder == null || drawerStateHolder.isDrawerOpen() || displayHostComposeView == null) {
+        if (drawerStateHolder == null
+                || drawerStateHolder.isDrawerOpen()
+                || displayHostComposeView == null) {
             resetDrawerEdgeGesture();
             return;
         }
