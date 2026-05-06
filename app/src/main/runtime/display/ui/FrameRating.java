@@ -528,7 +528,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     LinearLayout menuLayout = new LinearLayout(context);
     menuLayout.setOrientation(LinearLayout.VERTICAL);
     menuLayout.setBackground(bg);
-    menuLayout.setPadding(dp(8), dp(8), dp(8), dp(8));
+    menuLayout.setPadding(dp(5), dp(5), dp(5), dp(5));
     menuLayout.setElevation(dp(8));
 
     TextView header = new TextView(context);
@@ -536,7 +536,11 @@ public class FrameRating extends LinearLayout implements Runnable {
     header.setTextColor(textColor);
     header.setAlpha(0.7f);
     header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f);
-    header.setPadding(dp(3), dp(1), dp(3), dp(6));
+    header.setGravity(Gravity.CENTER_HORIZONTAL);
+    header.setLayoutParams(new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT,
+        LinearLayout.LayoutParams.WRAP_CONTENT));
+    header.setPadding(dp(4), dp(1), dp(4), dp(4));
     menuLayout.addView(header);
 
     GridLayout grid = new GridLayout(context);
@@ -544,7 +548,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     grid.setRowCount(3);
 
     final int cellSize = dp(36);
-    final int cellMargin = dp(2);
+    final int cellMargin = dp(1);
     final int iconPadding = dp(7);
 
     int[][] cells = {
