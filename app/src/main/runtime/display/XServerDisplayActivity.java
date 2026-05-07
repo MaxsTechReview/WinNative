@@ -4879,9 +4879,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         envVars.put("GALLIUM_DRIVER", "zink");
         envVars.put("LIBGL_KOPPER_DISABLE", "true");
 
+        String wrapperAsset = "mali".equals(graphicsDriver)
+                ? "graphics_driver/mali.tzst"
+                : "graphics_driver/wrapper.tzst";
+        File gfxManifestFile = new File(rootDir, GRAPHICS_DRIVER_MANIFEST);
+        String previouslyExtractedDriver = readGraphicsDriverMarker(gfxManifestFile);
+        boolean wrapperDriverChanged = !graphicsDriver.equals(previouslyExtractedDriver);
+
         if (firstTimeBoot) {
             Log.d("XServerDisplayActivity", "First time container boot, re-extracting libs");
-            TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/wrapper" + ".tzst", rootDir);
+            extractWrapperWithManifest(wrapperAsset, rootDir, gfxManifestFile, graphicsDriver);
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "layers" + ".tzst", rootDir);
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/extra_libs" + ".tzst", rootDir);
             if (wineInfo != null && wineInfo.isArm64EC() && !GPUInformation.getRenderer(null, null).contains("Mali")) {
@@ -4891,6 +4898,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     Log.w("XServerDisplayActivity", "zink_dlls.tzst not found or extraction failed", e);
                 }
             }
+        } else if (wrapperDriverChanged) {
+            Log.d("XServerDisplayActivity", "Graphics driver changed (" + previouslyExtractedDriver +
+                    " -> " + graphicsDriver + "), swapping " + wrapperAsset);
+            deleteFilesFromGraphicsDriverManifest(gfxManifestFile, rootDir);
+            extractWrapperWithManifest(wrapperAsset, rootDir, gfxManifestFile, graphicsDriver);
         }
 
         if (adrenoToolsDriverId != null && !adrenoToolsDriverId.isEmpty()
@@ -4999,6 +5011,73 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String bcnEmulationCache = graphicsDriverConfig.get("bcnEmulationCache");
         envVars.put("WRAPPER_USE_BCN_CACHE", bcnEmulationCache);
 
+    }
+
+    private static final String GRAPHICS_DRIVER_MANIFEST = ".graphics_driver_manifest";
+
+    private void extractWrapperWithManifest(String assetPath, File rootDir, File manifestFile, String driverName) {
+        final ArrayList<String> extracted = new ArrayList<>();
+        final String rootPath = rootDir.getAbsolutePath();
+        OnExtractFileListener listener = (file, size) -> {
+            String fp = file.getAbsolutePath();
+            if (fp.startsWith(rootPath)) {
+                String rel = fp.substring(rootPath.length());
+                if (rel.startsWith(File.separator)) rel = rel.substring(1);
+                if (!rel.isEmpty()) extracted.add(rel);
+            }
+            return file;
+        };
+        boolean ok = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, assetPath, rootDir, listener);
+        if (!ok) {
+            Log.e("XServerDisplayActivity", "Failed to extract " + assetPath);
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append(driverName).append('\n');
+        for (String rel : extracted) sb.append(rel).append('\n');
+        if (!FileUtils.writeString(manifestFile, sb.toString())) {
+            Log.w("XServerDisplayActivity", "Failed to write graphics driver manifest");
+        }
+    }
+
+    private static String readGraphicsDriverMarker(File manifestFile) {
+        if (!manifestFile.isFile()) return "";
+        ArrayList<String> lines = FileUtils.readLines(manifestFile);
+        if (lines == null || lines.isEmpty()) return "";
+        String first = lines.get(0);
+        return first != null ? first.trim() : "";
+    }
+
+    private static void deleteFilesFromGraphicsDriverManifest(File manifestFile, File rootDir) {
+        if (!manifestFile.isFile()) return;
+        ArrayList<String> lines = FileUtils.readLines(manifestFile);
+        if (lines == null || lines.size() <= 1) return;
+        HashSet<File> dirs = new HashSet<>();
+        for (int i = 1; i < lines.size(); i++) {
+            String rel = lines.get(i);
+            if (rel == null) continue;
+            rel = rel.trim();
+            if (rel.isEmpty()) continue;
+            File f = new File(rootDir, rel);
+            if (f.isDirectory()) {
+                dirs.add(f);
+            } else {
+                f.delete();
+            }
+        }
+        boolean progress = true;
+        while (progress) {
+            progress = false;
+            Iterator<File> it = dirs.iterator();
+            while (it.hasNext()) {
+                File d = it.next();
+                if (d.delete()) {
+                    it.remove();
+                    progress = true;
+                }
+            }
+        }
+        manifestFile.delete();
     }
 
     @Override
