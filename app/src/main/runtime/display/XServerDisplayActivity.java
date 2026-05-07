@@ -128,6 +128,7 @@ import com.winlator.cmod.runtime.display.ui.MagnifierView;
 import com.winlator.cmod.runtime.display.ui.XServerView;
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity;
 import com.winlator.cmod.runtime.input.ui.InputControlsView;
+import com.winlator.cmod.runtime.input.ui.TouchGestureConfig;
 import com.winlator.cmod.runtime.input.ui.TouchpadView;
 import com.winlator.cmod.runtime.system.LogFileUtils;
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
@@ -2996,14 +2997,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (shortcut == null) return;
 
         final ComposeView composeView = new ComposeView(this);
-        composeView.setId(R.id.DialogComposeView);
+        composeView.setId(View.generateViewId());
 
         XServerDrawerMenuKt.setupTouchGestureSettingsDialog(
             composeView,
             shortcut.getTouchGestureConfig(),
             () -> {
                 ((ViewGroup)composeView.getParent()).removeView(composeView);
-                drawerLayout.openDrawer(GravityCompat.START);
+                openDrawerMenu();
             },
             config -> {
                 shortcut.setTouchGestureConfig(config);
@@ -3013,7 +3014,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         );
 
         addContentView(composeView, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        drawerLayout.closeDrawers();
+        closeDrawerMenu();
     }
 
     private void renderDrawerMenu() {

@@ -1105,6 +1105,8 @@ class TouchpadView(
         this.gestureConfig = config
     }
 
+    fun getGestureConfig(): TouchGestureConfig = gestureConfig
+
     private fun handlePinch(scaleFactor: Float) {
         if (gestureConfig.pinchAction == TouchGestureConfig.PinchAction.SCROLL_WHEEL) {
             val button = if (scaleFactor > 1.0f) Pointer.Button.BUTTON_SCROLL_UP else Pointer.Button.BUTTON_SCROLL_DOWN
