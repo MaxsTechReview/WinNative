@@ -522,30 +522,34 @@ public class FrameRating extends LinearLayout implements Runnable {
 
     GradientDrawable bg = new GradientDrawable();
     bg.setColor(surface);
-    bg.setCornerRadius(dp(12));
+    bg.setCornerRadius(dp(10));
     bg.setStroke(dp(1), edge);
 
     LinearLayout menuLayout = new LinearLayout(context);
     menuLayout.setOrientation(LinearLayout.VERTICAL);
     menuLayout.setBackground(bg);
-    menuLayout.setPadding(dp(10), dp(10), dp(10), dp(10));
+    menuLayout.setPadding(dp(5), dp(5), dp(5), dp(5));
     menuLayout.setElevation(dp(8));
 
     TextView header = new TextView(context);
     header.setText(R.string.hud_position_menu_title);
     header.setTextColor(textColor);
     header.setAlpha(0.7f);
-    header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
-    header.setPadding(dp(4), dp(2), dp(4), dp(8));
+    header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f);
+    header.setGravity(Gravity.CENTER_HORIZONTAL);
+    header.setLayoutParams(new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT,
+        LinearLayout.LayoutParams.WRAP_CONTENT));
+    header.setPadding(dp(4), dp(1), dp(4), dp(4));
     menuLayout.addView(header);
 
     GridLayout grid = new GridLayout(context);
     grid.setColumnCount(3);
     grid.setRowCount(3);
 
-    final int cellSize = dp(48);
-    final int cellMargin = dp(2);
-    final int iconPadding = dp(10);
+    final int cellSize = dp(36);
+    final int cellMargin = dp(1);
+    final int iconPadding = dp(7);
 
     int[][] cells = {
       {ANCHOR_TOP_LEFT,    R.drawable.ic_hud_arrow_north_west},

@@ -29,6 +29,7 @@ import com.winlator.cmod.runtime.input.controls.ControlsProfile;
 import com.winlator.cmod.runtime.input.controls.InputControlsManager;
 import com.winlator.cmod.runtime.input.ui.InputControlsView;
 import com.winlator.cmod.shared.android.AppUtils;
+import com.winlator.cmod.shared.ui.toast.WinToast;
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity;
 import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.shared.math.Mathf;
@@ -87,25 +88,25 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
     switch (v.getId()) {
       case R.id.BTAddElement:
         if (!inputControlsView.addElement()) {
-          AppUtils.showToast(this, R.string.input_controls_editor_no_profile_selected);
+          WinToast.show(this, R.string.input_controls_editor_no_profile_selected);
         }
         break;
       case R.id.BTRemoveElement:
         if (!inputControlsView.removeElement()) {
-          AppUtils.showToast(this, R.string.input_controls_editor_no_element_selected);
+          WinToast.show(this, R.string.input_controls_editor_no_element_selected);
         }
         break;
       case R.id.BTElementSettings:
         ControlElement selectedElement = inputControlsView.getSelectedElement();
         if (selectedElement != null) {
           showControlElementSettings(v);
-        } else AppUtils.showToast(this, R.string.input_controls_editor_no_element_selected);
+        } else WinToast.show(this, R.string.input_controls_editor_no_element_selected);
         break;
       case R.id.BTColorPicker:
         ControlElement selectedElementForColor = inputControlsView.getSelectedElement();
         if (selectedElementForColor != null) {
           showColorPicker(v);
-        } else AppUtils.showToast(this, R.string.input_controls_editor_no_element_selected);
+        } else WinToast.show(this, R.string.input_controls_editor_no_element_selected);
         break;
     }
   }
@@ -185,7 +186,7 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
                   inputControlsView.invalidate();
                   profile.save();
                 } catch (Exception e) {
-                  AppUtils.showToast(this, "Invalid Color");
+                  WinToast.show(this, "Invalid Color");
                 }
               }
               popupWindow.dismiss();

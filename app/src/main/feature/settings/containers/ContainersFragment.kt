@@ -26,7 +26,7 @@ import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.content.ContentsManager
 import com.winlator.cmod.runtime.display.XServerDisplayActivity
 import com.winlator.cmod.runtime.display.environment.ImageFs
-import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.ui.dialog.PreloaderDialog
 import com.winlator.cmod.shared.theme.WinNativeTheme
@@ -106,7 +106,7 @@ class ContainersFragment : Fragment() {
     private fun openAddContainer() {
         val context = context ?: return
         if (!ImageFs.find(context).isValid) {
-            AppUtils.showToast(context, R.string.setup_wizard_system_image_not_installed, Toast.LENGTH_LONG)
+            WinToast.show(context, R.string.setup_wizard_system_image_not_installed, Toast.LENGTH_LONG)
             return
         }
 
@@ -118,7 +118,7 @@ class ContainersFragment : Fragment() {
             requireActivity().runOnUiThread {
                 if (!isAdded) return@runOnUiThread
                 if (!installed) {
-                    AppUtils.showToast(ctx, R.string.container_no_wine_installed, Toast.LENGTH_LONG)
+                    WinToast.show(ctx, R.string.container_no_wine_installed, Toast.LENGTH_LONG)
                     return@runOnUiThread
                 }
                 ContainerSettingsComposeDialog(requireActivity(), null, ::loadContainersList).show()
