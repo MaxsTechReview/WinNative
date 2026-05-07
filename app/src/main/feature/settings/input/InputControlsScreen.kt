@@ -252,6 +252,8 @@ data class InputControlsScreenActions(
     val onBindingTypeClick: (String, Int) -> Unit,
     val onBindingValueClick: (String, Int) -> Unit,
     val onRemoveBinding: (String, Int) -> Unit,
+    val onRTSTouchEnabledChanged: (Boolean) -> Unit,
+    val onRTSTouchConfigChanged: (com.winlator.cmod.runtime.input.ui.TouchGestureConfig) -> Unit,
 )
 
 @Composable
