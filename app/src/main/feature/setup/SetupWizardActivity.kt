@@ -190,7 +190,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         private const val KEY_LAST_CONTENT_PREFIX = "last_content_"
         private const val KEY_DEFAULT_JSON_CACHE = "default_json_cache"
         private const val DEFAULT_JSON_URL =
-            "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/blob/main/default.json"
+            "https://github.com/Xnick417x/winlator-nightly-wcp/blob/main/default.json"
 
         @JvmStatic
         fun isSetupComplete(context: Context): Boolean = prefs(context).getBoolean(KEY_SETUP_COMPLETE, false)
@@ -415,49 +415,49 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             PackageSpec(
                 label = "DXVK 2.7.1 GPLAsync",
                 type = ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-                url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-Dxvk/Dxvk-2.7.1-gplasync.wcp",
+                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Dxvk/Dxvk-2.7.1-gplasync.wcp",
                 nameHint = "dxvk-2.7.1-gplasync",
             ),
             PackageSpec(
                 label = "DXVK 2.7.1 ARM64EC GPLAsync",
                 type = ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-                url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-Arm64ec-Dxvk/Dxvk-2.7.1-arm64ec-gplasync.wcp",
+                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Arm64ec-Dxvk/Dxvk-2.7.1-arm64ec-gplasync.wcp",
                 nameHint = "Dxvk-2.7.1-arm64ec-gplasync",
             ),
             PackageSpec(
                 label = "VKD3D Proton 3.0b",
                 type = ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
-                url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-Vk3dk/Vk3dk-proton-3.0b.wcp",
+                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Vk3dk/Vk3dk-proton-3.0b.wcp",
                 nameHint = "Vk3dk-proton-3.0b",
             ),
             PackageSpec(
                 label = "VKD3D ARM64EC 3.0b",
                 type = ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
-                url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-Arm64ec-Vk3dk/Vk3dk-arm64ec-3.0b.wcp",
+                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Arm64ec-Vk3dk/Vk3dk-arm64ec-3.0b.wcp",
                 nameHint = "Vk3dk-arm64ec-3.0b",
             ),
             PackageSpec(
                 label = "DXVK 2.4.1 pre-reg",
                 type = ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-                url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-Dxvk/Dxvk-2.4.1-pre-reg.wcp",
+                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Dxvk/Dxvk-2.4.1-pre-reg.wcp",
                 nameHint = "Dxvk-2.4.1-pre-reg",
             ),
             PackageSpec(
                 label = "FEX 2604",
                 type = ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
-                url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-FEX/FEX-2604.wcp",
+                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-FEX/FEX-2604.wcp",
                 nameHint = "FEX-2604",
             ),
             PackageSpec(
                 label = "Box64 0.4.1 fix",
                 type = ContentProfile.ContentType.CONTENT_TYPE_BOX64,
-                url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-Box64/Box64-0.4.1-fix.wcp",
+                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Box64/Box64-0.4.1-fix.wcp",
                 nameHint = "Box64-0.4.1-fix",
             ),
             PackageSpec(
                 label = "Wowbox64 0.4.1",
                 type = ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64,
-                url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-wowbox64/Wowbox64-0.4.1.wcp",
+                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-wowbox64/Wowbox64-0.4.1.wcp",
                 nameHint = "Wowbox64-0.4.1",
             ),
         )
@@ -467,7 +467,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             label = "Recommended x86-64",
             archToken = "x86_64",
             fallbackType = ContentProfile.ContentType.CONTENT_TYPE_WINE,
-            fallbackUrl = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Wine/wine-9.20-x86_64.wcp",
+            fallbackUrl = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Wine/wine-9.20-x86_64.wcp",
             fallbackNameHint = "wine-9.20-x86_64",
             containerDisplayName = { profile ->
                 "${runtimeDisplayLabel(profile)} x86-64"
@@ -499,7 +499,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             label = "Recommended ARM64EC",
             archToken = "arm64ec",
             fallbackType = ContentProfile.ContentType.CONTENT_TYPE_PROTON,
-            fallbackUrl = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/GameNative/Proton-10-arm64ec-coffincolors.wcp",
+            fallbackUrl = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/GameNative/Proton-10-arm64ec-coffincolors.wcp",
             fallbackNameHint = "Proton-10-arm64ec-coffincolors",
             containerDisplayName = { profile ->
                 "${runtimeDisplayLabel(profile)} ARM64EC"
