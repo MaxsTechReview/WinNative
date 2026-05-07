@@ -17,7 +17,6 @@ import `in`.dragonbra.javasteam.protobufs.steamclient.Enums.ECloudStoragePersist
 import `in`.dragonbra.javasteam.steam.handlers.steamcloud.AppFileChangeList
 import `in`.dragonbra.javasteam.steam.handlers.steamcloud.AppFileInfo
 import `in`.dragonbra.javasteam.steam.handlers.steamcloud.SteamCloud
-import `in`.dragonbra.javasteam.util.crypto.CryptoHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -30,12 +29,15 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import timber.log.Timber
 import java.io.FileOutputStream
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.io.RandomAccessFile
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
 import java.util.Date
 import java.util.stream.Collectors
 import java.util.zip.ZipInputStream
@@ -47,8 +49,8 @@ import kotlin.time.measureTime
  * [Steam Auto Cloud](https://partner.steamgames.com/doc/features/cloud#steam_auto-cloud)
  */
 object SteamAutoCloud {
-    private const val MAX_USER_FILE_RETRIES = 3
     private const val MAX_CLOUD_FILE_SIZE_BYTES = 100L * 1024L * 1024L
+    private const val DOWNLOAD_TMP_SUFFIX = ".steamtmp"
 
     private data class FileChanges(
         val filesDeleted: List<UserFileInfo>,
@@ -77,6 +79,24 @@ object SteamAutoCloud {
             total += bytesRead
             progress(total)
         }
+    }
+
+    /**
+     * Stream a SHA-1 hash without loading the whole file into memory. Saves can be up
+     * to 100 MB each and we hash every save twice per sync; readAllBytes blew up on
+     * low-RAM Android devices.
+     */
+    private fun streamingSha(path: Path): ByteArray {
+        val digest = MessageDigest.getInstance("SHA-1")
+        Files.newInputStream(path).use { input ->
+            val buf = ByteArray(64 * 1024)
+            while (true) {
+                val n = input.read(buf)
+                if (n < 0) break
+                if (n > 0) digest.update(buf, 0, n)
+            }
+        }
+        return digest.digest()
     }
 
     fun syncUserFiles(
@@ -299,7 +319,7 @@ object SteamAutoCloud {
                                     pattern = userFile.pattern,
                                     maxDepth = if (userFile.recursive != 0) -1 else 0,
                                 ).map {
-                                    val sha = CryptoHelper.shaHash(Files.readAllBytes(it))
+                                    val sha = streamingSha(it)
 
                                     Timber.i("Found ${it.pathString}\n\tin ${userFile.prefix}\n\twith sha [${sha.joinToString(", ")}]")
 
@@ -322,7 +342,11 @@ object SteamAutoCloud {
 
                     result
                 } else {
-                    // Fallback: no UFS patterns; scan SteamUserData root recursively (depth 5)
+                    // Fallback: no UFS patterns; scan SteamUserData root recursively (depth 5).
+                    // We can't tell saves from logs/caches without a manifest, but the cloud
+                    // server-side will reject anything above MAX_CLOUD_FILE_SIZE_BYTES and the
+                    // whole batch fails — pre-filter oversize files so one bloated log doesn't
+                    // permanently break sync for this game.
                     val rootType = PathType.SteamUserData
                     val basePath = Paths.get(prefixToPath(rootType.toString()))
 
@@ -334,8 +358,26 @@ object SteamAutoCloud {
                                 rootPath = basePath,
                                 pattern = "*",
                                 maxDepth = 5,
-                            ).map {
-                                val sha = CryptoHelper.shaHash(Files.readAllBytes(it))
+                            ).filter { path ->
+                                val size =
+                                    try {
+                                        Files.size(path)
+                                    } catch (_: Exception) {
+                                        return@filter false
+                                    }
+                                if (size > MAX_CLOUD_FILE_SIZE_BYTES) {
+                                    Timber.w(
+                                        "Skipping oversize file in fallback scan: %s (%d bytes > %d)",
+                                        path,
+                                        size,
+                                        MAX_CLOUD_FILE_SIZE_BYTES,
+                                    )
+                                    false
+                                } else {
+                                    true
+                                }
+                            }.map {
+                                val sha = streamingSha(it)
 
                                 val relativePath = basePath.relativize(it).pathString
 
@@ -399,9 +441,30 @@ object SteamAutoCloud {
 
                     filesToDownload.forEachIndexed { index, file ->
                         val prefixedPath = getFilePrefixPath(file, fileList)
+                        val remotePathForFile = getFileRemotePath(file, fileList)
                         val actualFilePath = getFullFilePath(file, fileList)
                         if (actualFilePath == null) {
                             Timber.w("Skipping download for unsupported Steam cloud path $prefixedPath")
+                            return@forEachIndexed
+                        }
+
+                        // Path-traversal guard: reject any cloud-supplied filename that resolves
+                        // outside the prefix root. Steam is trusted, but a malformed entry
+                        // (e.g. "..\\..\\system.reg") must never be allowed to overwrite Wine
+                        // system files.
+                        val rootBase =
+                            Paths
+                                .get(prefixToPath(remotePathForFile.root.toString()))
+                                .toAbsolutePath()
+                                .normalize()
+                        val targetNormalized = actualFilePath.toAbsolutePath().normalize()
+                        if (!targetNormalized.startsWith(rootBase)) {
+                            Timber.e(
+                                "Refusing path-traversal target outside save root: %s (root=%s, prefixedPath=%s)",
+                                targetNormalized,
+                                rootBase,
+                                prefixedPath,
+                            )
                             return@forEachIndexed
                         }
 
@@ -440,72 +503,124 @@ object SteamAutoCloud {
                                     httpClient.newCall(request).execute()
                                 }
 
-                            if (!response.isSuccessful) {
-                                Timber.w("File download of $prefixedPath was unsuccessful")
-                                response.close()
-                                return@forEachIndexed
-                            }
+                            response.use { downloadResponse ->
+                                if (!downloadResponse.isSuccessful) {
+                                    Timber.w("File download of $prefixedPath was unsuccessful")
+                                    return@forEachIndexed
+                                }
 
-                            try {
+                                // Atomic write: stream into a sibling .steamtmp file, fsync, verify
+                                // size, then rename into place. Prevents truncated/partial saves
+                                // from being left in the destination if the stream aborts.
+                                val tmpPath =
+                                    actualFilePath.resolveSibling(actualFilePath.fileName.toString() + DOWNLOAD_TMP_SUFFIX)
                                 val totalFileSize = fileDownloadInfo.rawFileSize.toLong()
                                 var totalBytesRead = 0L
                                 var lastReportedProgress = -1f
                                 val progressThreshold = 0.01f // Update every 1%
+                                var commitTmp = false
 
-                                val copyToFile: (InputStream) -> Unit = { input ->
-                                    Files.createDirectories(actualFilePath.parent)
+                                try {
+                                    actualFilePath.parent?.let { parent -> Files.createDirectories(parent) }
+                                    // Clean up any leftover tmp from a previously aborted run.
+                                    try {
+                                        Files.deleteIfExists(tmpPath)
+                                    } catch (_: Exception) {
+                                        // best-effort
+                                    }
 
-                                    FileOutputStream(actualFilePath.toString()).use { fs ->
-                                        input.copyTo(fs, 8 * 1024) { bytesRead ->
-                                            totalBytesRead = bytesRead
-                                            if (totalFileSize > 0) {
-                                                val currentProgress = (totalBytesRead.toFloat() / totalFileSize).coerceIn(0f, 1f)
-                                                if (currentProgress - lastReportedProgress >= progressThreshold || currentProgress >= 1f) {
-                                                    onProgress?.invoke("Downloading ${file.filename}", currentProgress)
-                                                    lastReportedProgress = currentProgress
+                                    val copyToFile: (InputStream) -> Unit = { input ->
+                                        FileOutputStream(tmpPath.toString()).use { fs ->
+                                            input.copyTo(fs, 8 * 1024) { bytesRead ->
+                                                totalBytesRead = bytesRead
+                                                if (totalFileSize > 0) {
+                                                    val currentProgress = (totalBytesRead.toFloat() / totalFileSize).coerceIn(0f, 1f)
+                                                    if (currentProgress - lastReportedProgress >= progressThreshold || currentProgress >= 1f) {
+                                                        onProgress?.invoke("Downloading ${file.filename}", currentProgress)
+                                                        lastReportedProgress = currentProgress
+                                                    }
                                                 }
+                                            }
+                                            // Force bytes to disk before the rename so a crash
+                                            // between move and process exit can't leave the
+                                            // destination pointing at unsynced pages.
+                                            try {
+                                                fs.fd.sync()
+                                            } catch (e: Exception) {
+                                                Timber.w(e, "fsync failed for %s; continuing", tmpPath)
+                                            }
+                                        }
+                                    }
+
+                                    withTimeout(SteamService.responseTimeout) {
+                                        if (fileDownloadInfo.fileSize != fileDownloadInfo.rawFileSize) {
+                                            downloadResponse.body?.byteStream()?.use { inputStream ->
+                                                ZipInputStream(inputStream).use { zipInput ->
+                                                    val entry = zipInput.nextEntry
+
+                                                    if (entry == null) {
+                                                        Timber.w("Downloaded user file $prefixedPath has no zip entries")
+                                                        return@withTimeout
+                                                    }
+
+                                                    copyToFile(zipInput)
+
+                                                    if (zipInput.nextEntry != null) {
+                                                        throw IOException(
+                                                            "Downloaded user file $prefixedPath has more than one zip entry",
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            downloadResponse.body?.byteStream()?.use { inputStream ->
+                                                copyToFile(inputStream)
                                             }
                                         }
 
                                         if (totalBytesRead != totalFileSize) {
-                                            Timber.w("Bytes read from stream of $prefixedPath does not match expected size")
+                                            throw IOException(
+                                                "Truncated download for $prefixedPath: $totalBytesRead/$totalFileSize bytes",
+                                            )
+                                        }
+
+                                        // Atomic publish into the destination. ATOMIC_MOVE is
+                                        // not portable when combined with REPLACE_EXISTING (some
+                                        // FS implementations throw UnsupportedOperationException),
+                                        // so try ATOMIC_MOVE alone first; on Android's POSIX FS
+                                        // rename(2) atomically replaces. Fall back to plain
+                                        // REPLACE_EXISTING if the FS rejects ATOMIC_MOVE.
+                                        try {
+                                            Files.move(
+                                                tmpPath,
+                                                actualFilePath,
+                                                StandardCopyOption.ATOMIC_MOVE,
+                                            )
+                                        } catch (_: Exception) {
+                                            Files.move(
+                                                tmpPath,
+                                                actualFilePath,
+                                                StandardCopyOption.REPLACE_EXISTING,
+                                            )
+                                        }
+                                        commitTmp = true
+
+                                        filesDownloaded++
+
+                                        bytesDownloaded += fileDownloadInfo.fileSize
+                                    }
+                                } catch (e: Exception) {
+                                    Timber.w(e, "Could not download $actualFilePath; preserving existing local file")
+                                } finally {
+                                    if (!commitTmp) {
+                                        try {
+                                            Files.deleteIfExists(tmpPath)
+                                        } catch (_: Exception) {
+                                            // best-effort
                                         }
                                     }
                                 }
-
-                                withTimeout(SteamService.responseTimeout) {
-                                    if (fileDownloadInfo.fileSize != fileDownloadInfo.rawFileSize) {
-                                        response.body?.byteStream()?.use { inputStream ->
-                                            ZipInputStream(inputStream).use { zipInput ->
-                                                val entry = zipInput.nextEntry
-
-                                                if (entry == null) {
-                                                    Timber.w("Downloaded user file $prefixedPath has no zip entries")
-                                                    return@withTimeout
-                                                }
-
-                                                copyToFile(zipInput)
-
-                                                if (zipInput.nextEntry != null) {
-                                                    Timber.e("Downloaded user file $prefixedPath has more than one zip entry")
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        response.body?.byteStream()?.use { inputStream ->
-                                            copyToFile(inputStream)
-                                        }
-                                    }
-
-                                    filesDownloaded++
-
-                                    bytesDownloaded += fileDownloadInfo.fileSize
-                                }
-                            } catch (e: Exception) {
-                                Timber.w("Could not download $actualFilePath: %s", e.message)
                             }
-
-                            response.close()
                         } else {
                             Timber.w("URL host of $prefixedPath was empty")
                         }
@@ -845,24 +960,43 @@ object SteamAutoCloud {
                                 } else {
                                     getFilesDiff(remoteUserFiles, allLocalUserFiles).second.filesDeleted
                                 }
-                            microsecDeleteFiles =
-                                measureTime {
-                                    var totalFilesDeleted = 0
 
-                                    filesDeletedByCloud.forEach {
-                                        val deleted = Files.deleteIfExists(it.getAbsPath(prefixToPath))
-                                        if (deleted) totalFilesDeleted++
-                                    }
-
-                                    filesDeleted = totalFilesDeleted
-                                }.inWholeMicroseconds
-
+                            // Download FIRST. Only delete local-only files once every cloud
+                            // download has succeeded — a partial download must not leave the
+                            // user with both the new bytes missing AND their old saves wiped.
+                            val expectedDownloads = remoteUserFiles.size
                             microsecDownloadFiles =
                                 measureTime {
                                     val downloadInfo = downloadFiles(appFileListChange, parentScope).await()
                                     filesDownloaded = downloadInfo.filesDownloaded
                                     bytesDownloaded = downloadInfo.bytesDownloaded
                                 }.inWholeMicroseconds
+
+                            val downloadsAllSucceeded = filesDownloaded >= expectedDownloads
+
+                            microsecDeleteFiles =
+                                measureTime {
+                                    if (!downloadsAllSucceeded) {
+                                        Timber.w(
+                                            "Skipping ${filesDeletedByCloud.size} local delete(s): only " +
+                                                "$filesDownloaded/$expectedDownloads cloud files downloaded successfully. " +
+                                                "Local saves will be preserved until the next sync.",
+                                        )
+                                        filesDeleted = 0
+                                    } else {
+                                        var totalFilesDeleted = 0
+                                        filesDeletedByCloud.forEach {
+                                            val deleted = Files.deleteIfExists(it.getAbsPath(prefixToPath))
+                                            if (deleted) totalFilesDeleted++
+                                        }
+                                        filesDeleted = totalFilesDeleted
+                                    }
+                                }.inWholeMicroseconds
+
+                            if (!downloadsAllSucceeded) {
+                                syncResult = SyncResult.DownloadFail
+                                return@async PostSyncInfo(syncResult)
+                            }
 
                             val updatedLocalFiles: Map<String, List<UserFileInfo>>
                             val hasLocalChanges: Boolean
@@ -874,7 +1008,10 @@ object SteamAutoCloud {
                                 }.inWholeMicroseconds
 
                             if (hasLocalChanges) {
-                                Timber.e("Failed to download latest user files after $MAX_USER_FILE_RETRIES tries")
+                                Timber.e(
+                                    "Local hashes still differ from cloud after download " +
+                                        "(downloaded=$filesDownloaded, expected=$expectedDownloads); aborting",
+                                )
 
                                 syncResult = SyncResult.DownloadFail
 
@@ -957,11 +1094,37 @@ object SteamAutoCloud {
                         }
 
                     if (localAppChangeNumber < 0 && localHasFiles && !remoteHasFiles && preferredSave != SaveLocation.Remote) {
-                        Timber.i("No previous Steam cloud baseline and no remote files; uploading existing local saves")
-                        microsecAcExit =
-                            measureTime {
-                                uploadUserFiles(parentScope).await()
-                            }.inWholeMicroseconds
+                        // First-sync upload is only safe when the cloud is *genuinely* empty.
+                        // If currentChangeNumber > 0, the cloud has a prior history that the
+                        // server omitted from this response (transient javasteam/network
+                        // glitch). Uploading would silently overwrite real cloud data.
+                        // Surface a conflict so the launcher can ask the user explicitly.
+                        if (cloudAppChangeNumber > 0) {
+                            Timber.w(
+                                "Refusing blind upload: cloud changeNumber=$cloudAppChangeNumber but " +
+                                    "returned no files. Treating as conflict so launcher can prompt the user.",
+                            )
+                            when (preferredSave) {
+                                SaveLocation.Local -> {
+                                    microsecAcExit =
+                                        measureTime {
+                                            uploadUserFiles(parentScope).await()
+                                        }.inWholeMicroseconds
+                                }
+                                else -> {
+                                    syncResult = SyncResult.Conflict
+                                    remoteTimestamp = 0L
+                                    localTimestamp =
+                                        allLocalUserFiles.map { it.timestamp }.maxOrNull() ?: 0L
+                                }
+                            }
+                        } else {
+                            Timber.i("No previous Steam cloud baseline and no remote files; uploading existing local saves")
+                            microsecAcExit =
+                                measureTime {
+                                    uploadUserFiles(parentScope).await()
+                                }.inWholeMicroseconds
+                        }
                     } else if (effectiveLocalAppChangeNumber < cloudAppChangeNumber) {
                         microsecAcLaunch =
                             measureTime {

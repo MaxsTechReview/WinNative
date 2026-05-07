@@ -1,6 +1,9 @@
 package com.winlator.cmod.feature.steamcloudsync
 
 import android.app.Activity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import com.winlator.cmod.R
 import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
 import com.winlator.cmod.feature.sync.google.GoogleAuthMode
@@ -9,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import timber.log.Timber
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 object SteamLaunchCloudSync {
     fun interface StatusSink {
@@ -45,7 +49,25 @@ object SteamLaunchCloudSync {
         var useCloud = false
         var keepBackup = false
         val timestamps = SteamCloudSyncHelper.getConflictTimestamps(activity, shortcut)
+
+        // If the activity is destroyed (back-to-launcher, system kill, finish())
+        // while the dialog is up, the latch must still count down or this thread
+        // will block forever. Attach a lifecycle observer that releases the latch
+        // on ON_DESTROY; the default of useCloud=false then falls back to "keep
+        // local" — the safer choice when no user input is captured.
+        val lifecycle = (activity as? LifecycleOwner)?.lifecycle
+        val cancelObserver =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_DESTROY) {
+                    Timber.tag("SteamLaunchCloudSync").w(
+                        "Activity destroyed while cloud-conflict dialog was up; releasing latch",
+                    )
+                    dialogLatch.countDown()
+                }
+            }
+
         activity.runOnUiThread {
+            lifecycle?.addObserver(cancelObserver)
             CloudSyncConflictDialog.show(
                 activity,
                 timestamps,
@@ -63,11 +85,21 @@ object SteamLaunchCloudSync {
         }
 
         try {
-            dialogLatch.await()
+            // Belt-and-suspenders timeout in case both the dialog and the lifecycle
+            // observer somehow fail to fire. 10 minutes is generous for a user
+            // looking at the dialog, but bounds the worst case.
+            if (!dialogLatch.await(10, TimeUnit.MINUTES)) {
+                Timber.tag("SteamLaunchCloudSync").w(
+                    "Cloud-conflict dialog timed out after 10 minutes; treating as 'keep local'",
+                )
+            }
         } catch (_: InterruptedException) {
             Thread.currentThread().interrupt()
+            activity.runOnUiThread { lifecycle?.removeObserver(cancelObserver) }
             return
         }
+
+        activity.runOnUiThread { lifecycle?.removeObserver(cancelObserver) }
 
         if (!useCloud) return
         if (keepBackup) {
