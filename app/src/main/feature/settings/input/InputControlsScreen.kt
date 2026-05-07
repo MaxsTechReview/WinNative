@@ -2160,6 +2160,3 @@ private fun BindingSelectionButton(
         )
     }
 }
-        )
-    }
-}
