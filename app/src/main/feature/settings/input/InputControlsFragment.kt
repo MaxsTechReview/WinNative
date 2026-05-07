@@ -934,9 +934,9 @@ class InputControlsFragment : Fragment() {
         ) { which ->
             binding.binding =
                 when (which) {
-                    0 -> Binding.keyboardBindingValues().firstOrNull() ?: Binding.NONE
-                    1 -> Binding.mouseBindingValues().firstOrNull() ?: Binding.NONE
-                    2 -> Binding.gamepadBindingValues().firstOrNull() ?: Binding.NONE
+                    0 -> Binding.keyboardBindingValues().getOrNull(1) ?: Binding.NONE
+                    1 -> Binding.mouseBindingValues().getOrNull(1) ?: Binding.NONE
+                    2 -> Binding.gamepadBindingValues().getOrNull(1) ?: Binding.NONE
                     else -> Binding.NONE
                 }
             currentProfile?.putController(controller)
@@ -1147,7 +1147,7 @@ class InputControlsFragment : Fragment() {
     companion object {
         private const val ARG_SELECTED_PROFILE_ID = "selectedProfileId"
         private const val INPUT_CONTROLS_URL =
-            "https://raw.githubusercontent.com/Xnick417x/Winlator-Bionic-Nightly-wcp/main/Profiles/%s"
+            "https://raw.githubusercontent.com/Xnick417x/winlator-nightly-wcp/main/Profiles/%s"
         private const val PREF_SELECTED_PROFILE_ID = "input_controls_selected_profile_id"
 
         fun newInstance(profileId: Int = 0): InputControlsFragment =

@@ -1044,6 +1044,16 @@ Zainstalowana ścieżka:
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Zad.</string>
     <string name="session_drawer_rail_label_logs">Logi</string>
+    <string name="session_drawer_logs_clear">Wyczyść</string>
+    <string name="session_drawer_logs_pause">Wstrzymaj</string>
+    <string name="session_drawer_logs_resume">Wznów</string>
+    <string name="session_drawer_logs_paused_indicator">Wstrzymano</string>
+    <string name="session_drawer_logs_line_count">%1$d wierszy</string>
+    <string name="session_drawer_logs_share">Udostępnij</string>
+    <string name="session_drawer_logs_share_subject">Logi sesji</string>
+    <string name="session_drawer_logs_share_chooser">Udostępnij logi sesji</string>
+    <string name="session_drawer_logs_share_failed">Nie udało się udostępnić logów</string>
+    <string name="session_drawer_logs_share_empty">Brak wierszy logu do udostępnienia</string>
     <string name="session_drawer_super_resolution">Filtry Wyostrzania</string>
     <string name="session_drawer_upscaler_mode">Filtr</string>
     <string name="session_drawer_upscaler_fsr">FSR 1</string>

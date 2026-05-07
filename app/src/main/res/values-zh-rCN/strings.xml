@@ -1038,6 +1038,16 @@
     <string name="session_drawer_rail_label_magnifier">缩放</string>
     <string name="session_drawer_rail_label_task_manager">任务</string>
     <string name="session_drawer_rail_label_logs">日志</string>
+    <string name="session_drawer_logs_clear">清除</string>
+    <string name="session_drawer_logs_pause">暂停</string>
+    <string name="session_drawer_logs_resume">继续</string>
+    <string name="session_drawer_logs_paused_indicator">已暂停</string>
+    <string name="session_drawer_logs_line_count">%1$d 行</string>
+    <string name="session_drawer_logs_share">分享</string>
+    <string name="session_drawer_logs_share_subject">会话日志</string>
+    <string name="session_drawer_logs_share_chooser">分享会话日志</string>
+    <string name="session_drawer_logs_share_failed">无法分享日志</string>
+    <string name="session_drawer_logs_share_empty">没有可分享的日志行</string>
     <string name="session_drawer_super_resolution">锐化滤镜</string>
     <string name="session_drawer_upscaler_mode">滤镜</string>
     <string name="session_drawer_upscaler_fsr">FSR 1</string>
