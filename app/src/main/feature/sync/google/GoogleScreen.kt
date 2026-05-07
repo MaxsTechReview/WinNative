@@ -171,7 +171,7 @@ fun GoogleScreen() {
                     CloudSyncManager.signIn(currentActivity) { success, message ->
                         busy = false
                         googleSignedIn = success
-                        AppUtils.showToast(context, message)
+                        WinToast.show(context, message)
                         refreshRemoteState()
                     }
                 },
@@ -181,7 +181,7 @@ fun GoogleScreen() {
                     CloudSyncManager.signOut(currentActivity) { success, message ->
                         busy = false
                         googleSignedIn = !success
-                        AppUtils.showToast(context, message)
+                        WinToast.show(context, message)
                         loadCachedState()
                     }
                 },
@@ -205,7 +205,7 @@ fun GoogleScreen() {
                     scope.launch {
                         try {
                             val message = CloudSyncManager.backupStoreLogins(currentActivity)
-                            AppUtils.showToast(context, message)
+                            WinToast.show(context, message)
                             syncState = CloudSyncManager.refreshStoreLoginState(currentActivity)
                             googleSignedIn = syncState.googleSignedIn
                         } finally {
@@ -219,7 +219,7 @@ fun GoogleScreen() {
                     scope.launch {
                         try {
                             val message = CloudSyncManager.restoreStoreLogins(currentActivity)
-                            AppUtils.showToast(context, message)
+                            WinToast.show(context, message)
                             syncState = CloudSyncManager.refreshStoreLoginState(currentActivity)
                             googleSignedIn = syncState.googleSignedIn
                         } finally {
@@ -245,7 +245,7 @@ fun GoogleScreen() {
                     scope.launch {
                         try {
                             val alreadyAuthorized = GameSaveBackupManager.requestDriveAuthorization(currentActivity)
-                            AppUtils.showToast(
+                            WinToast.show(
                                 context,
                                 if (alreadyAuthorized) {
                                     driveConnected = true
@@ -255,7 +255,7 @@ fun GoogleScreen() {
                                 },
                             )
                         } catch (e: Exception) {
-                            AppUtils.showToast(context, "Drive authorization failed: ${e.message}")
+                            WinToast.show(context, "Drive authorization failed: ${e.message}")
                         } finally {
                             busy = false
                         }
@@ -264,7 +264,7 @@ fun GoogleScreen() {
                 onToggle = { newValue ->
                     if (newValue) {
                         if (!driveConnected) {
-                            AppUtils.showToast(context, context.getString(R.string.google_cloud_connect_drive_first))
+                            WinToast.show(context, context.getString(R.string.google_cloud_connect_drive_first))
                             return@AutoBackupCard
                         }
                         autoBackupEnabled = true
