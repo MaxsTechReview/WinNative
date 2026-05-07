@@ -3067,7 +3067,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 fsrMode,
                 fsrSharpness,
                 colorProfile,
-                touchpadView != null && touchpadView.getGestureConfig().enabled,
+                touchpadView != null && touchpadView.getGestureConfig().getEnabled(),
                 inputProfileNames,
                 inputSelectedIndex,
                 preferences.getBoolean("show_touchscreen_controls_enabled", false),

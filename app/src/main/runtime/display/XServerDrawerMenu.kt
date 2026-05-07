@@ -2,6 +2,8 @@ package com.winlator.cmod.runtime.display
 
 import android.app.Activity
 import android.content.Context
+import androidx.core.util.Consumer
+import com.winlator.cmod.runtime.input.ui.TouchGestureConfig
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -3816,17 +3818,17 @@ private fun ChipFlow(content: @Composable () -> Unit) {
 
 fun setupTouchGestureSettingsDialog(
     composeView: androidx.compose.ui.platform.ComposeView,
-    config: com.winlator.cmod.runtime.input.ui.TouchGestureConfig,
-    onDismiss: () -> Unit,
-    onConfigChange: (com.winlator.cmod.runtime.input.ui.TouchGestureConfig) -> Unit
+    config: TouchGestureConfig,
+    onDismiss: Runnable,
+    onConfigChange: Consumer<TouchGestureConfig>
 ) {
     composeView.setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
     composeView.setContent {
         WinNativeTheme {
             com.winlator.cmod.runtime.input.ui.TouchGestureSettingsDialog(
                 config = config,
-                onDismiss = onDismiss,
-                onConfigChange = onConfigChange
+                onDismiss = { onDismiss.run() },
+                onConfigChange = { onConfigChange.accept(it) }
             )
         }
     }
