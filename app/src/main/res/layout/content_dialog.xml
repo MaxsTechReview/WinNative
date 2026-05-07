@@ -130,7 +130,7 @@
                 android:orientation="horizontal">
 
                 <Button
-                    android:id="@id/BTReset"
+                    android:id="@+id/BTReset"
                     android:visibility="gone"
                     android:text="@string/common_ui_reset"
                     style="@style/ContentDialogButtonNeutral" />

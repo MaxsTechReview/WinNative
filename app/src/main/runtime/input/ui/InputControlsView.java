@@ -657,6 +657,12 @@ public class InputControlsView extends View {
               moveCursor = false;
             }
 
+            if (moveCursor) {
+              cursor.set(
+                  (int) Mathf.roundTo(x, snappingSize),
+                  (int) Mathf.roundTo(y, snappingSize));
+            }
+
             selectElement(element);
             break;
           }
@@ -666,6 +672,13 @@ public class InputControlsView extends View {
               selectedElement.setX((int) Mathf.roundTo(event.getX() - offsetX, snappingSize));
               selectedElement.setY((int) Mathf.roundTo(event.getY() - offsetY, snappingSize));
               invalidate();
+            } else if (moveCursor) {
+              int newX = (int) Mathf.roundTo(event.getX(), snappingSize);
+              int newY = (int) Mathf.roundTo(event.getY(), snappingSize);
+              if (newX != cursor.x || newY != cursor.y) {
+                cursor.set(newX, newY);
+                invalidate();
+              }
             }
             break;
           }
