@@ -155,6 +155,8 @@ data class InputControlsScreenState(
     val triggerTypeIndex: Int = 1,
     val triggerCardExpanded: Boolean = false,
     val triggerDescription: String = "",
+    val rtsTouchEnabled: Boolean = false,
+    val touchGestureConfig: com.winlator.cmod.runtime.input.ui.TouchGestureConfig? = null,
     val controllerCards: List<InputControllerCardState> = emptyList(),
     val dialog: InputControlsDialogUiState = InputControlsDialogUiState.None,
 )
@@ -2155,6 +2157,9 @@ private fun BindingSelectionButton(
             contentDescription = null,
             tint = InputTextSecondary,
             modifier = Modifier.size(12.dp),
+        )
+    }
+}
         )
     }
 }
