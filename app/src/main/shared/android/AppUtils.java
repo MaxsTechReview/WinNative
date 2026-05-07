@@ -7,27 +7,21 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
-import android.graphics.Bitmap;
 import android.graphics.Rect;
 import android.os.Build;
-import android.os.Handler;
 import android.os.Looper;
 import android.text.Html;
 import android.util.TypedValue;
-import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.Spinner;
 import android.widget.TextView;
-import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.pm.PackageInfoCompat;
@@ -39,16 +33,12 @@ import com.winlator.cmod.R;
 import com.winlator.cmod.shared.util.Callback;
 import com.winlator.cmod.shared.util.StringUtils;
 import com.winlator.cmod.shared.util.UnitUtils;
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
 public abstract class AppUtils {
-  private static WeakReference<Toast> globalToastReference = null;
-  private static WeakReference<PopupWindow> globalPopupToastReference = null;
-
   public static void keepScreenOn(Activity activity) {
     activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
   }
@@ -187,132 +177,6 @@ public abstract class AppUtils {
     int orientation = context.getResources().getConfiguration().orientation;
     float scale = orientation == Configuration.ORIENTATION_PORTRAIT ? 0.8f : 0.5f;
     return (int) UnitUtils.dpToPx(UnitUtils.pxToDp(AppUtils.getScreenWidth()) * scale);
-  }
-
-  public static Toast showToast(Context context, int textResId) {
-    return showToast(context, context.getString(textResId));
-  }
-
-  public static Toast showToast(Context context, int textResId, Bitmap iconBitmap) {
-    return showToast(context, context.getString(textResId), iconBitmap);
-  }
-
-  public static Toast showToast(Context context, int textResId, int toastDuration) {
-    return showToast(context, context.getString(textResId), toastDuration);
-  }
-
-  public static void showToast(Context context, int textResId, long durationMs) {
-    showToast(context, context.getString(textResId), durationMs);
-  }
-
-  public static Toast showToast(final Context context, final String text) {
-    return showToast(context, text, null);
-  }
-
-  public static Toast showToast(final Context context, final String text, final int toastDuration) {
-    return showToast(context, text, null, toastDuration);
-  }
-
-  public static Toast showToast(final Context context, final String text, final Bitmap iconBitmap) {
-    return showToast(
-        context, text, iconBitmap, text.length() >= 40 ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT);
-  }
-
-  public static Toast showToast(
-      final Context context, final String text, final Bitmap iconBitmap, final int toastDuration) {
-    if (!isUiThread()) {
-      new Handler(Looper.getMainLooper())
-          .post(() -> showToast(context, text, iconBitmap, toastDuration));
-      return null;
-    }
-
-    dismissActiveToasts();
-    Toast toast =
-        new Toast(
-            context.getApplicationContext() != null ? context.getApplicationContext() : context);
-    toast.setDuration(toastDuration);
-    toast.setGravity(Gravity.CENTER | Gravity.BOTTOM, 0, 50);
-    toast.setView(createToastView(context, text, iconBitmap));
-    toast.show();
-    globalToastReference = new WeakReference<>(toast);
-    return toast;
-  }
-
-  public static void showToast(final Context context, final String text, final long durationMs) {
-    if (!isUiThread()) {
-      new Handler(Looper.getMainLooper()).post(() -> showToast(context, text, durationMs));
-      return;
-    }
-
-    dismissActiveToasts();
-
-    if (!(context instanceof Activity)) {
-      showToast(context, text);
-      return;
-    }
-
-    Activity activity = (Activity) context;
-    if (activity.isFinishing() || activity.isDestroyed()) {
-      return;
-    }
-    showPopupToast(activity, text, null, durationMs);
-  }
-
-  private static View createToastView(Context context, String text, Bitmap iconBitmap) {
-    View view = LayoutInflater.from(context).inflate(R.layout.custom_toast, null);
-    ((TextView) view.findViewById(R.id.TextView)).setText(text);
-
-    ImageView iconView = view.findViewById(R.id.IconView);
-    if (iconBitmap != null) {
-      iconView.setImageBitmap(iconBitmap);
-    } else {
-      iconView.setImageResource(R.mipmap.ic_launcher);
-    }
-    iconView.setVisibility(View.VISIBLE);
-    return view;
-  }
-
-  private static void dismissActiveToasts() {
-    if (globalToastReference != null) {
-      Toast toast = globalToastReference.get();
-      if (toast != null) toast.cancel();
-      globalToastReference = null;
-    }
-
-    if (globalPopupToastReference != null) {
-      PopupWindow popupWindow = globalPopupToastReference.get();
-      if (popupWindow != null) popupWindow.dismiss();
-      globalPopupToastReference = null;
-    }
-  }
-
-  private static void showPopupToast(
-      Activity activity, String text, Bitmap iconBitmap, long durationMs) {
-    View view = createToastView(activity, text, iconBitmap);
-
-    PopupWindow popupWindow =
-        new PopupWindow(
-            view, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, false);
-    popupWindow.setTouchable(false);
-    popupWindow.setOutsideTouchable(false);
-    popupWindow.setClippingEnabled(false);
-    popupWindow.showAtLocation(
-        activity.getWindow().getDecorView(), Gravity.CENTER | Gravity.BOTTOM, 0, 50);
-    globalPopupToastReference = new WeakReference<>(popupWindow);
-
-    view.postDelayed(
-        () -> {
-          try {
-            PopupWindow currentPopup =
-                globalPopupToastReference != null ? globalPopupToastReference.get() : null;
-            if (currentPopup == popupWindow && popupWindow.isShowing()) {
-              popupWindow.dismiss();
-              globalPopupToastReference = null;
-            }
-          } catch (Exception ignored) {
-          }
-        },
-        durationMs);
   }
 
   public static PopupWindow showPopupWindow(View anchor, View contentView) {

@@ -73,7 +73,7 @@ import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.system.GPUInformation
 import com.winlator.cmod.shared.android.AppTerminationHelper
-import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.NotificationHelper
 import com.winlator.cmod.shared.io.StorageUtils
 import dagger.hilt.android.AndroidEntryPoint
@@ -2111,7 +2111,7 @@ class SteamService :
                 Timber.w("Download aborted: No downloadable depots found for appId: $appId")
                 instance?.let { service ->
                     service.scope.launch(Dispatchers.Main) {
-                        AppUtils.showToast(service.applicationContext, "No downloadable content found for this game", Toast.LENGTH_LONG)
+                        WinToast.show(service.applicationContext, "No downloadable content found for this game", Toast.LENGTH_LONG)
                     }
                 }
                 return null
@@ -2212,7 +2212,7 @@ class SteamService :
             dest.delete()
             withContext(Dispatchers.Main) {
                 val msg = "Download failed with ${lastError?.message ?: "unknown error"}. Please disable VPN or try a different network."
-                AppUtils.showToast(context.applicationContext, msg, android.widget.Toast.LENGTH_LONG)
+                WinToast.show(context.applicationContext, msg, android.widget.Toast.LENGTH_LONG)
             }
             throw IOException(
                 "Failed to download $fileName. Please check your network connection or try a VPN.",
@@ -2534,7 +2534,7 @@ class SteamService :
                         Timber.e("Failed to create download directory (mkdirs returned false): $appDirPath")
                         instance?.let { service ->
                             service.scope.launch(Dispatchers.Main) {
-                                AppUtils.showToast(
+                                WinToast.show(
                                     service.applicationContext,
                                     "Failed to create download directory. Check permissions.",
                                     Toast.LENGTH_LONG,
@@ -2689,7 +2689,7 @@ class SteamService :
                     )
                     instance?.let { service ->
                         service.scope.launch(Dispatchers.Main) {
-                            AppUtils.showToast(
+                            WinToast.show(
                                 service.applicationContext,
                                 "Resume failed: download scope changed. Please cancel and re-download.",
                                 Toast.LENGTH_LONG,
@@ -2796,7 +2796,7 @@ class SteamService :
                     // Show success message to user
                     instance?.let { service ->
                         service.scope.launch(Dispatchers.Main) {
-                            AppUtils.showToast(service.applicationContext, "Download complete", Toast.LENGTH_SHORT)
+                            WinToast.show(service.applicationContext, "Download complete", Toast.LENGTH_SHORT)
                         }
                     }
 
@@ -2997,7 +2997,7 @@ class SteamService :
                                             Timber.i("Retry attempt $attempt/$maxRetries for appId: $appId")
                                             di.updateStatusMessage("Retrying download (attempt $attempt/$maxRetries)...")
                                             withContext(Dispatchers.Main) {
-                                                AppUtils.showToast(
+                                                WinToast.show(
                                                     instance?.applicationContext ?: return@withContext,
                                                     "Retrying download (attempt $attempt/$maxRetries)...",
                                                     Toast.LENGTH_SHORT,
@@ -3305,7 +3305,7 @@ class SteamService :
                                     // Show success message to user
                                     instance?.let { service ->
                                         service.scope.launch(Dispatchers.Main) {
-                                            AppUtils.showToast(service.applicationContext, "Download complete", Toast.LENGTH_SHORT)
+                                            WinToast.show(service.applicationContext, "Download complete", Toast.LENGTH_SHORT)
                                             Unit
                                         }
                                     }
@@ -3405,7 +3405,7 @@ class SteamService :
                                 // Show error to user
                                 instance?.let { service ->
                                     service.scope.launch(Dispatchers.Main) {
-                                        AppUtils.showToast(service.applicationContext, "Download failed: $errorMsg", Toast.LENGTH_LONG)
+                                        WinToast.show(service.applicationContext, "Download failed: $errorMsg", Toast.LENGTH_LONG)
                                         Unit
                                     }
                                 }
@@ -3511,7 +3511,7 @@ class SteamService :
             // Show success message to user for no-op/resume completion
             instance?.let { service ->
                 service.scope.launch(Dispatchers.Main) {
-                    AppUtils.showToast(service.applicationContext, "Download complete", Toast.LENGTH_SHORT)
+                    WinToast.show(service.applicationContext, "Download complete", Toast.LENGTH_SHORT)
                     Unit
                 }
             }
@@ -3845,7 +3845,7 @@ class SteamService :
 
                 instance?.let { service ->
                     service.scope.launch(Dispatchers.Main) {
-                        AppUtils.showToast(
+                        WinToast.show(
                             service.applicationContext,
                             "Download error for depot ${item.appId}: ${error.message}",
                             Toast.LENGTH_LONG,
