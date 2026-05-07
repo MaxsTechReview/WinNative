@@ -3,7 +3,10 @@ package com.winlator.cmod.runtime.display.renderer;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
+import android.view.Choreographer;
 import android.view.Surface;
 import androidx.preference.PreferenceManager;
 import com.winlator.cmod.BuildConfig;
@@ -24,6 +27,7 @@ import com.winlator.cmod.shared.math.XForm;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Native Vulkan compositor.
@@ -64,6 +68,11 @@ public class VulkanRenderer
     private String[] unviewableWMClasses = null;
     private float magnifierZoom = 1.0f;
     private boolean magnifierEnabled = true;
+    private boolean magnifierUIActive = false;
+    private float magnifierPanX = 0f;
+    private float magnifierPanY = 0f;
+    private boolean magnifierPanInitialized = false;
+    private static final float MAGNIFIER_DEADZONE_FRACTION = 0.6f;
     public int surfaceWidth;
     public int surfaceHeight;
     private boolean cpuSaverMode = false;
@@ -97,6 +106,8 @@ public class VulkanRenderer
 
     private final ByteBuffer sceneBuf =
             ByteBuffer.allocateDirect(SCENE_BUF_SIZE).order(ByteOrder.nativeOrder());
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final AtomicBoolean renderRequested = new AtomicBoolean(false);
 
     // Reusable scratch — sized once, refilled per frame.
     private final float[] sceneXform = XForm.getInstance();
@@ -111,6 +122,16 @@ public class VulkanRenderer
 
         xServer.windowManager.addOnWindowModificationListener(this);
         xServer.pointer.addOnPointerMotionListener(this);
+    }
+
+    public void requestRenderCoalesced() {
+        if (renderRequested.compareAndSet(false, true)) {
+            mainHandler.post(() ->
+                    Choreographer.getInstance().postFrameCallback(frameTimeNanos -> {
+                        renderRequested.set(false);
+                        xServerView.requestRender();
+                    }));
+        }
     }
 
     private Drawable createRootCursorDrawable() {
@@ -197,22 +218,7 @@ public class VulkanRenderer
         boolean useScissor = false;
 
         if (magnifierEnabled) {
-            float pointerX = 0;
-            float pointerY = 0;
-            float zoom = !screenOffsetYRelativeToCursor ? magnifierZoom : 1.0f;
-            if (zoom != 1.0f) {
-                pointerX = Mathf.clamp(
-                        xServer.pointer.getX() * zoom - xServer.screenInfo.width * 0.5f,
-                        0, xServer.screenInfo.width * Math.abs(1.0f - zoom));
-            }
-            if (screenOffsetYRelativeToCursor || zoom != 1.0f) {
-                float scaleY = zoom != 1.0f ? Math.abs(1.0f - zoom) : 0.5f;
-                float offsetY = xServer.screenInfo.height * (screenOffsetYRelativeToCursor ? 0.25f : 0.5f);
-                pointerY = Mathf.clamp(
-                        xServer.pointer.getY() * zoom - offsetY,
-                        0, xServer.screenInfo.height * scaleY);
-            }
-            XForm.makeTransform(sceneXform, -pointerX, -pointerY, zoom, zoom, 0);
+            computeMagnifierPan(sceneXform);
         } else if (!fullscreen) {
             int pointerY = 0;
             if (screenOffsetYRelativeToCursor) {
@@ -415,24 +421,24 @@ public class VulkanRenderer
     @Override
     public void onMapWindow(Window window) {
         xServerView.queueEvent(this::updateScene);
-        xServerView.requestRender();
+        requestRenderCoalesced();
     }
 
     @Override
     public void onUnmapWindow(Window window) {
         xServerView.queueEvent(this::updateScene);
-        xServerView.requestRender();
+        requestRenderCoalesced();
     }
 
     @Override
     public void onChangeWindowZOrder(Window window) {
         xServerView.queueEvent(this::updateScene);
-        xServerView.requestRender();
+        requestRenderCoalesced();
     }
 
     @Override
     public void onUpdateWindowContent(Window window) {
-        xServerView.requestRender();
+        requestRenderCoalesced();
     }
 
     @Override
@@ -442,12 +448,12 @@ public class VulkanRenderer
         } else {
             xServerView.queueEvent(() -> updateWindowPosition(window));
         }
-        xServerView.requestRender();
+        requestRenderCoalesced();
     }
 
     @Override
     public void onUpdateWindowAttributes(Window window, Bitmask mask) {
-        if (mask.isSet(WindowAttributes.FLAG_CURSOR)) xServerView.requestRender();
+        if (mask.isSet(WindowAttributes.FLAG_CURSOR)) requestRenderCoalesced();
     }
 
     public void requestCursorRender() {
@@ -462,7 +468,7 @@ public class VulkanRenderer
 
     @Override
     public void onFramePresented(Window window) {
-        xServerView.requestRender();
+        requestRenderCoalesced();
     }
 
     private void updateScene() {
@@ -513,7 +519,7 @@ public class VulkanRenderer
     public void toggleFullscreen() {
         fullscreen = !fullscreen;
         viewportNeedsUpdate = true;
-        xServerView.requestRender();
+        requestRenderCoalesced();
     }
 
     public boolean isFullscreen() { return fullscreen; }
@@ -521,7 +527,7 @@ public class VulkanRenderer
     public void setCursorVisible(boolean v) {
         if (this.cursorVisible == v) return;
         this.cursorVisible = v;
-        xServerView.requestRender();
+        requestRenderCoalesced();
     }
 
     public boolean isCursorVisible() { return cursorVisible; }
@@ -530,14 +536,82 @@ public class VulkanRenderer
 
     public void setScreenOffsetYRelativeToCursor(boolean v) {
         this.screenOffsetYRelativeToCursor = v;
-        xServerView.requestRender();
+        requestRenderCoalesced();
     }
 
     public float getMagnifierZoom() { return magnifierZoom; }
 
     public void setMagnifierZoom(float v) {
-        this.magnifierZoom = v;
-        xServerView.requestRender();
+        if (this.magnifierZoom != v) {
+            this.magnifierZoom = v;
+            magnifierPanInitialized = false;
+        }
+        requestRenderCoalesced();
+    }
+
+    private void computeMagnifierPan(float[] outXForm) {
+        float currentZoom = !screenOffsetYRelativeToCursor ? this.magnifierZoom : 1.0f;
+        if (currentZoom <= 1.0f && !screenOffsetYRelativeToCursor) {
+            magnifierPanX = 0;
+            magnifierPanY = 0;
+            magnifierPanInitialized = false;
+            XForm.identity(outXForm);
+            return;
+        }
+
+        int screenW = xServer.screenInfo.width;
+        int screenH = xServer.screenInfo.height;
+        float cursorX = xServer.pointer.getX();
+        float cursorY = xServer.pointer.getY();
+
+        if (currentZoom > 1.0f) {
+            float maxPanX = screenW * (currentZoom - 1.0f);
+            float maxPanY = screenH * (currentZoom - 1.0f);
+
+            if (!magnifierPanInitialized) {
+                magnifierPanX = Mathf.clamp(cursorX * currentZoom - screenW * 0.5f, 0, maxPanX);
+                magnifierPanY = Mathf.clamp(cursorY * currentZoom - screenH * 0.5f, 0, maxPanY);
+                magnifierPanInitialized = true;
+            }
+
+            float visibleW = screenW / currentZoom;
+            float visibleH = screenH / currentZoom;
+            float marginX = visibleW * (1.0f - MAGNIFIER_DEADZONE_FRACTION) * 0.5f;
+            float marginY = visibleH * (1.0f - MAGNIFIER_DEADZONE_FRACTION) * 0.5f;
+
+            float visibleLeft = magnifierPanX / currentZoom;
+            float visibleTop = magnifierPanY / currentZoom;
+            float visibleRight = visibleLeft + visibleW;
+            float visibleBottom = visibleTop + visibleH;
+
+            if (cursorX < visibleLeft + marginX) {
+                magnifierPanX = (cursorX - marginX) * currentZoom;
+            } else if (cursorX > visibleRight - marginX) {
+                magnifierPanX = (cursorX - visibleW + marginX) * currentZoom;
+            }
+            if (cursorY < visibleTop + marginY) {
+                magnifierPanY = (cursorY - marginY) * currentZoom;
+            } else if (cursorY > visibleBottom - marginY) {
+                magnifierPanY = (cursorY - visibleH + marginY) * currentZoom;
+            }
+
+            magnifierPanX = Mathf.clamp(magnifierPanX, 0, maxPanX);
+            magnifierPanY = Mathf.clamp(magnifierPanY, 0, maxPanY);
+        } else {
+            magnifierPanX = 0;
+            magnifierPanY = 0;
+            magnifierPanInitialized = false;
+        }
+
+        float panY = magnifierPanY;
+        if (currentZoom == 1.0f && screenOffsetYRelativeToCursor) {
+            panY = Mathf.clamp(
+                    xServer.pointer.getY() * 1.0f - screenH * 0.25f,
+                    0,
+                    screenH * 0.5f);
+        }
+
+        XForm.makeTransform(outXForm, -magnifierPanX, -panY, currentZoom, currentZoom, 0);
     }
 
     public int getSurfaceWidth() { return surfaceWidth; }
@@ -551,11 +625,22 @@ public class VulkanRenderer
             cpuSaverMode = enable;
             viewportNeedsUpdate = true;
             xServerView.setRenderMode(XServerSurfaceView.RENDERMODE_WHEN_DIRTY);
-            xServerView.requestRender();
+            requestRenderCoalesced();
         }
     }
 
     public boolean isNativeMode() { return cpuSaverMode; }
+
+    public void setMagnifierUIActive(boolean active) {
+        if (magnifierUIActive == active) return;
+        magnifierUIActive = active;
+        magnifierPanInitialized = false;
+        viewportNeedsUpdate = true;
+        xServerView.setRenderMode(XServerSurfaceView.RENDERMODE_WHEN_DIRTY);
+        requestRenderCoalesced();
+    }
+
+    public boolean isMagnifierUIActive() { return magnifierUIActive; }
 
     public void setFpsLimit(int fps) {
         currentFpsLimit = Math.max(0, Math.min(fps, MAX_FPS_LIMIT));
