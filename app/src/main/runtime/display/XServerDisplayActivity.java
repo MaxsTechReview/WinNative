@@ -1,7 +1,5 @@
 package com.winlator.cmod.runtime.display;
 
-import static com.winlator.cmod.shared.android.AppUtils.showToast;
-
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -87,6 +85,7 @@ import com.winlator.cmod.runtime.content.ContentsManager;
 import com.winlator.cmod.runtime.content.AdrenotoolsManager;
 import com.winlator.cmod.shared.android.AppUtils;
 import com.winlator.cmod.shared.android.AppTerminationHelper;
+import com.winlator.cmod.shared.ui.toast.WinToast;
 import com.winlator.cmod.runtime.wine.EnvVars;
 import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.runtime.system.CPUStatus;
@@ -774,7 +773,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         || (shortcutPath != null && !shortcutPath.isEmpty());
                 if (launchedFromShortcutIdentity) {
                     disableUnavailablePinnedShortcut(containerId, shortcutUuid, shortcutPath, shortcutPathHash);
-                    showToast(this, R.string.shortcuts_list_not_available);
+                    WinToast.show(this, R.string.shortcuts_list_not_available);
                     finish();
                     return;
                 }
@@ -2194,7 +2193,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 XServerDrawerStateHolder holder = drawerStateHolder;
                 List<String> lines = holder != null ? holder.snapshotLogLines() : new ArrayList<>();
                 if (lines.isEmpty()) {
-                    showToast(this, getString(R.string.session_drawer_logs_share_empty));
+                    WinToast.show(this, getString(R.string.session_drawer_logs_share_empty));
                     return;
                 }
                 try (BufferedWriter out = new BufferedWriter(new FileWriter(shareFile))) {
@@ -2215,7 +2214,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             startActivity(Intent.createChooser(shareIntent, getString(R.string.session_drawer_logs_share_chooser)));
         } catch (Exception e) {
             Log.w("XServerLogs", "Failed to share log stream", e);
-            showToast(this, getString(R.string.session_drawer_logs_share_failed));
+            WinToast.show(this, getString(R.string.session_drawer_logs_share_failed));
         }
     }
 
@@ -3732,7 +3731,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 preferences.edit().putBoolean("use_dri3", isNativeRenderingEnabled).apply();
                 if (frameRating != null) frameRating.setIsNative(isNativeRenderingEnabled);
                 renderDrawerMenu();
-                showToast(this, getString(isNativeRenderingEnabled
+                WinToast.show(this, getString(isNativeRenderingEnabled
                     ? R.string.session_xserver_native_rendering_enabled_toast
                     : R.string.session_xserver_native_rendering_disabled_toast));
                 break;
@@ -7886,7 +7885,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             } catch (Exception e) {
                 Log.w("XServerDisplayActivity", "Real Steam watchdog: wineserver -k failed", e);
             }
-            runOnUiThread(() -> AppUtils.showToast(
+            runOnUiThread(() -> WinToast.show(
                     XServerDisplayActivity.this,
                     "Steam client failed to start. Try toggling Launch Steam Client off.",
                     android.widget.Toast.LENGTH_LONG));

@@ -119,7 +119,7 @@ import com.winlator.cmod.runtime.content.Downloader
 import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.display.environment.ImageFsInstaller
 import com.winlator.cmod.runtime.wine.WineInfo
-import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.FixedFontScaleFragmentActivity
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.io.TarCompressorUtils
@@ -300,7 +300,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 } else {
                     "Download a Wine/Proton package and create a container before launching games."
                 }
-            AppUtils.showToast(context, message, Toast.LENGTH_LONG)
+            WinToast.show(context, message, Toast.LENGTH_LONG)
 
             val intent =
                 when {

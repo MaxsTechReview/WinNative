@@ -36,7 +36,7 @@ import com.winlator.cmod.runtime.input.controls.ExternalController
 import com.winlator.cmod.runtime.input.controls.ExternalControllerBinding
 import com.winlator.cmod.runtime.input.controls.InputControlsManager
 import com.winlator.cmod.runtime.input.ui.InputControlsView
-import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.io.HttpUtils
@@ -409,7 +409,7 @@ class InputControlsFragment : Fragment() {
     private fun showProfilePicker() {
         val profiles = manager.profiles
         if (profiles.isEmpty()) {
-            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_found)
+            WinToast.show(requireContext(), R.string.input_controls_editor_no_profile_found)
             return
         }
 
@@ -438,7 +438,7 @@ class InputControlsFragment : Fragment() {
                 },
             )
         } else {
-            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
+            WinToast.show(requireContext(), R.string.input_controls_editor_no_profile_selected)
         }
     }
 
@@ -468,7 +468,7 @@ class InputControlsFragment : Fragment() {
                 publishUiState()
             }
         } else {
-            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
+            WinToast.show(requireContext(), R.string.input_controls_editor_no_profile_selected)
         }
     }
 
@@ -488,7 +488,7 @@ class InputControlsFragment : Fragment() {
                 publishUiState()
             }
         } else {
-            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
+            WinToast.show(requireContext(), R.string.input_controls_editor_no_profile_selected)
         }
     }
 
@@ -509,7 +509,7 @@ class InputControlsFragment : Fragment() {
                 publishUiState()
             }
         } else {
-            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
+            WinToast.show(requireContext(), R.string.input_controls_editor_no_profile_selected)
         }
     }
 
@@ -548,10 +548,10 @@ class InputControlsFragment : Fragment() {
                             }
                         }
                     } else {
-                        AppUtils.showToast(activity, R.string.input_controls_editor_unable_to_load_list)
+                        WinToast.show(activity, R.string.input_controls_editor_unable_to_load_list)
                     }
                 } else {
-                    AppUtils.showToast(activity, R.string.input_controls_editor_unable_to_load_list)
+                    WinToast.show(activity, R.string.input_controls_editor_unable_to_load_list)
                 }
             }
         }
@@ -606,7 +606,7 @@ class InputControlsFragment : Fragment() {
                         remoteProfileRequestInFlight.set(false)
                         refreshVisibleControllers()
                         publishUiState()
-                        AppUtils.showToast(
+                        WinToast.show(
                             activity,
                             if (importedCount.get() > 0) {
                                 R.string.settings_content_download_complete
@@ -681,7 +681,7 @@ class InputControlsFragment : Fragment() {
     private fun importProfileFromJson(jsonString: String?) {
         try {
             if (jsonString.isNullOrBlank()) {
-                AppUtils.showToast(
+                WinToast.show(
                     requireContext(),
                     getString(R.string.input_controls_editor_unable_to_import) + ": Empty file",
                 )
@@ -702,13 +702,13 @@ class InputControlsFragment : Fragment() {
                 manager.loadProfiles(false)
                 refreshVisibleControllers()
                 publishUiState()
-                AppUtils.showToast(
+                WinToast.show(
                     requireContext(),
                     getString(R.string.input_controls_editor_unable_to_import) + ": Invalid profile data",
                 )
             }
         } catch (e: Exception) {
-            AppUtils.showToast(
+            WinToast.show(
                 requireContext(),
                 getString(R.string.input_controls_editor_unable_to_import) + ": " + e.message,
             )
@@ -720,13 +720,13 @@ class InputControlsFragment : Fragment() {
         if (profile != null) {
             val exportedFile = manager.exportProfile(profile)
             if (exportedFile != null) {
-                AppUtils.showToast(
+                WinToast.show(
                     requireContext(),
                     getString(R.string.input_controls_editor_profile_exported_to) + " " + exportedFile.path,
                 )
             }
         } else {
-            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
+            WinToast.show(requireContext(), R.string.input_controls_editor_no_profile_selected)
         }
     }
 
@@ -849,7 +849,7 @@ class InputControlsFragment : Fragment() {
     private fun toggleControllerExpanded(controllerId: String) {
         val profile = currentProfile
         if (profile == null) {
-            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
+            WinToast.show(requireContext(), R.string.input_controls_editor_no_profile_selected)
             return
         }
 
