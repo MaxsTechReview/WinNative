@@ -22,6 +22,7 @@ import org.json.JSONObject;
 
 public class ControlElement {
   public static final float STICK_DEAD_ZONE = 0.01f;
+  private static final float TOUCH_STICK_DEAD_ZONE = 0.15f;
   public static final float DPAD_DEAD_ZONE = 0.3f;
   public static final float STICK_SENSITIVITY = 2.0f;
   public static final float TRACKPAD_MIN_SPEED = 0.8f;
@@ -1062,10 +1063,12 @@ return boundingBox;
           float finalX = 0;
           float finalY = 0;
 
-          if (magnitude > STICK_DEAD_ZONE) {
+          if (magnitude > TOUCH_STICK_DEAD_ZONE) {
             float normalizedX = deltaX / magnitude;
             float normalizedY = deltaY / magnitude;
-            float scaledMagnitude = Math.max(0, magnitude - 0.01f) * STICK_SENSITIVITY;
+            float scaledMagnitude =
+                ((magnitude - TOUCH_STICK_DEAD_ZONE) / (1.0f - TOUCH_STICK_DEAD_ZONE))
+                    * STICK_SENSITIVITY;
             scaledMagnitude = Math.min(scaledMagnitude, 1.0f);
             finalX = normalizedX * scaledMagnitude;
             finalY = normalizedY * scaledMagnitude;
@@ -1077,10 +1080,10 @@ return boundingBox;
           }
         } else {
           final boolean[] states = {
-            deltaY <= -STICK_DEAD_ZONE,
-            deltaX >= STICK_DEAD_ZONE,
-            deltaY >= STICK_DEAD_ZONE,
-            deltaX <= -STICK_DEAD_ZONE
+            deltaY <= -TOUCH_STICK_DEAD_ZONE,
+            deltaX >= TOUCH_STICK_DEAD_ZONE,
+            deltaY >= TOUCH_STICK_DEAD_ZONE,
+            deltaX <= -TOUCH_STICK_DEAD_ZONE
           };
 
           for (byte i = 0; i < 4; i++) {
