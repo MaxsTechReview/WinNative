@@ -3221,7 +3221,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onRTSGesturesEnabledChanged(boolean enabled) {
                         if (shortcut != null) {
                             TouchGestureConfig config = shortcut.getTouchGestureConfig();
-                            config.enabled = enabled;
+                            config.setEnabled(enabled);
                             shortcut.setTouchGestureConfig(config);
                             shortcut.saveData();
                             if (touchpadView != null) touchpadView.setGestureConfig(config);
