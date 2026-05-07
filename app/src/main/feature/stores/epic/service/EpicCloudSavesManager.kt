@@ -1203,17 +1203,23 @@ object EpicCloudSavesManager {
         chunkNum: Int,
         packagedFiles: MutableMap<String, ByteArray>,
     ): com.winlator.cmod.feature.stores.epic.service.manifest.ChunkInfo {
-        // Don't pad: Legendary stores last-chunk windowSize as the actual byte count.
-        // Padding wastes upload bandwidth, inflates cloud storage, and (because every
-        // hash is computed over the padded data) yields chunk files whose CDL entry
-        // disagrees with what other Epic clients would compute over the real save bytes.
+        // Pad to 1 MiB and compute hashes over the padded buffer — this is what Legendary does
+        // (`chunk.py:65-67` `data` setter pads, then `chunk.hash`/`chunk.sha_hash` are computed
+        // lazily over the padded `self.data`). `ChunkInfo.windowSize` and the chunk header's
+        // `uncompressedSize` must report the padded length so any other Epic client that does
+        // verify hashes sees a self-consistent chunk file.
+        val paddedData =
+            if (data.size < 1024 * 1024) {
+                data + ByteArray(1024 * 1024 - data.size)
+            } else {
+                data
+            }
 
-        // Hashes computed over the actual chunk contents only
         val shaHash =
             java.security.MessageDigest
                 .getInstance("SHA-1")
-                .digest(data)
-        val rollingHash = calculateRollingHash(data)
+                .digest(paddedData)
+        val rollingHash = calculateRollingHash(paddedData)
 
         // Compute groupNum exactly as Legendary does:
         // group_num = crc32(struct.pack('<IIII', *guid)) & 0xffffffff) % 100
@@ -1235,10 +1241,10 @@ object EpicCloudSavesManager {
         chunkInfo.hash = rollingHash
         chunkInfo.shaHash = shaHash
         chunkInfo.groupNum = groupNum
-        chunkInfo.windowSize = data.size
+        chunkInfo.windowSize = paddedData.size
 
         // Compress chunk — pass guid so the header GUID matches the CDL entry
-        val compressedData = compressChunk(data, guid, rollingHash, shaHash)
+        val compressedData = compressChunk(paddedData, guid, rollingHash, shaHash)
         chunkInfo.fileSize = compressedData.size.toLong()
 
         // Store chunk data under its canonical path
@@ -1428,9 +1434,11 @@ object EpicCloudSavesManager {
         val documentsPath = File(winePrefix, "drive_c/users/$user/Documents").absolutePath
         val savedGamesPath = File(winePrefix, "drive_c/users/$user/Saved Games").absolutePath
 
-        // Per Legendary's convention, {appdata} resolves to Windows %APPDATA% (Roaming),
-        // matching the placeholder Epic Games Launcher uses in cloud-save folder templates.
-        pathVars["{appdata}"] = roamingAppDataPath
+        // Counter-intuitive but matches the canonical Legendary mapping at `core.py:892`
+        // and `core.py:961` (`'{appdata}': '%LOCALAPPDATA%'` and `wine_folders['Local AppData']`).
+        // Epic's catalog templates use `{appdata}` to mean the Local AppData directory, not
+        // Windows's `%APPDATA%` (Roaming) which the name might suggest.
+        pathVars["{appdata}"] = localAppDataPath
         pathVars["{localappdata}"] = localAppDataPath
         pathVars["{roamingappdata}"] = roamingAppDataPath
         pathVars["{userdir}"] = documentsPath
@@ -1498,25 +1506,15 @@ object EpicCloudSavesManager {
                     }
                 }
 
-                // Only descend into a subdirectory when the resolved path itself
-                // contains NO files. Some games (e.g., titles using `{userdir}/Saved Games/<game>/<userId>/`)
-                // place saves under a per-user folder, but if the game also stores files
-                // alongside (configs, lock files), descending would point uploads/downloads
-                // at the wrong tree and silently lose data. Prefer the resolved path
-                // whenever it has any files of its own.
-                val rootHasFiles = allContents.any { it.isFile }
-                if (!rootHasFiles) {
-                    val subDirs = finalPath.listFiles { it -> it.isDirectory } ?: emptyArray()
-                    val dirWithFiles =
-                        subDirs.firstOrNull { subDir ->
-                            subDir.listFiles()?.any { it.isFile } == true
-                        }
-                    if (dirWithFiles != null) {
-                        Timber.tag("Epic").d("[Cloud Saves] Found saves in subdirectory: ${dirWithFiles.name}")
-                        dirWithFiles
-                    } else {
-                        finalPath
+                // Always check for subdirectories with files
+                val subDirs = finalPath.listFiles { it -> it.isDirectory } ?: emptyArray()
+                val dirWithFiles =
+                    subDirs.firstOrNull { subDir ->
+                        subDir.listFiles()?.any { it.isFile } == true
                     }
+                if (dirWithFiles != null) {
+                    Timber.tag("Epic").d("[Cloud Saves] Found saves in subdirectory: ${dirWithFiles.name}")
+                    dirWithFiles
                 } else {
                     finalPath
                 }
