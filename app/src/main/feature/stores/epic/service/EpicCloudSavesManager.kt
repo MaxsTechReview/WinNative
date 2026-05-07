@@ -86,6 +86,57 @@ object EpicCloudSavesManager {
         }
 
     /**
+     * Pre-flight for the game-exit upload path: returns `true` only when an upload
+     * could plausibly succeed — the game opts into cloud saves (Epic catalog
+     * provides a `CloudSaveFolder` template, [EpicGame.cloudSaveEnabled] = true),
+     * the user is signed in, and the resolved save directory contains at least
+     * one file to push.
+     *
+     * Without this guard, [XServerDisplayActivity.runExitUploadWithRetries] hits
+     * an immediate `false` from [syncCloudSaves] for any Epic game that doesn't
+     * support cloud saves (most don't — it's an opt-in catalog flag) or for any
+     * fresh install with no saves yet, and then runs the full retry-with-backoff
+     * loop showing the user "Cloud Sync Uploading… Retry 3/3" for a permanent
+     * no-op.
+     *
+     * Non-suspend so Java callers (the activity is .java) can call it directly.
+     */
+    @JvmStatic
+    fun canAttemptExitUpload(
+        context: Context,
+        appId: Int,
+    ): Boolean =
+        kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+            try {
+                val game = EpicService.getEpicGameOf(appId) ?: return@runBlocking false
+                if (!game.cloudSaveEnabled) {
+                    Timber.tag("Epic").i("[Cloud Saves] Skip exit upload: ${game.title} does not opt into Epic cloud saves")
+                    return@runBlocking false
+                }
+                val credentialsResult = EpicAuthManager.getStoredCredentials(context)
+                if (credentialsResult.isFailure) {
+                    Timber.tag("Epic").i("[Cloud Saves] Skip exit upload: not signed in to Epic")
+                    return@runBlocking false
+                }
+                val creds = credentialsResult.getOrNull() ?: return@runBlocking false
+                val saveDir = resolveSaveDirectory(context, game, creds.accountId)
+                if (saveDir == null || !saveDir.exists()) {
+                    Timber.tag("Epic").i("[Cloud Saves] Skip exit upload: no save directory yet for ${game.title}")
+                    return@runBlocking false
+                }
+                val hasAnyFile = saveDir.walkTopDown().any { it.isFile }
+                if (!hasAnyFile) {
+                    Timber.tag("Epic").i("[Cloud Saves] Skip exit upload: save directory empty for ${game.title}")
+                    return@runBlocking false
+                }
+                true
+            } catch (e: Exception) {
+                Timber.tag("Epic").w(e, "[Cloud Saves] canAttemptExitUpload threw, skipping")
+                false
+            }
+        }
+
+    /**
      * Sync cloud saves for a game (bidirectional sync with conflict detection)
      * preferredAction = download -> Force downloads all files and overwrites current files
      * preferredAction = upload -> Force uploads all files
