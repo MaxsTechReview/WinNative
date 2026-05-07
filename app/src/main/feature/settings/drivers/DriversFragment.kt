@@ -21,7 +21,7 @@ import com.winlator.cmod.R
 import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.runtime.content.AdrenotoolsManager
 import com.winlator.cmod.runtime.content.Downloader
-import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import kotlinx.coroutines.Dispatchers
@@ -242,7 +242,7 @@ class DriversFragment : Fragment() {
             saveRepos()
             publishState()
         } else {
-            AppUtils.showToast(requireContext(), "Default repositories already present")
+            WinToast.show(requireContext(), "Default repositories already present")
         }
     }
 
@@ -316,7 +316,7 @@ class DriversFragment : Fragment() {
             publishState()
 
             if (releases.isEmpty()) {
-                AppUtils.showToast(requireContext(), R.string.settings_drivers_repo_fetch_failed)
+                WinToast.show(requireContext(), R.string.settings_drivers_repo_fetch_failed)
             }
         }
     }
@@ -491,7 +491,7 @@ class DriversFragment : Fragment() {
             if (!success) {
                 output.delete()
                 clearDownloadProgress()
-                AppUtils.showToast(requireContext(), R.string.settings_drivers_repo_download_failed)
+                WinToast.show(requireContext(), R.string.settings_drivers_repo_download_failed)
                 return@launch
             }
 
@@ -536,7 +536,7 @@ class DriversFragment : Fragment() {
             onComplete?.invoke()
 
             if (installedDriverId.isBlank()) {
-                AppUtils.showToast(requireContext(), R.string.settings_drivers_install_failed)
+                WinToast.show(requireContext(), R.string.settings_drivers_install_failed)
                 return@launch
             }
 
