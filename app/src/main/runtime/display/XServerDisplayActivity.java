@@ -298,6 +298,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private Runnable configChangedCallback = null;
     private boolean isPaused = false;
     private boolean isRelativeMouseMovement = false;
+    private boolean showTouchGestureSettingsDialog = false;
+    private TouchGestureConfig touchGestureConfig;
     private boolean isNativeRenderingEnabled = true;
 
     private float hudTransparency = 1.0f;
@@ -2994,33 +2996,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return index < names.length ? names[index] : names[0];
     }
 
-    private void showTouchGestureSettingsDialog() {
-        if (shortcut == null) return;
-
-        final ComposeView composeView = new ComposeView(this);
-        composeView.setId(View.generateViewId());
-
-        XServerDrawerMenuKt.setupTouchGestureSettingsDialog(
-            composeView,
-            shortcut.getTouchGestureConfig(),
-            () -> {
-                ViewParent parent = composeView.getParent();
-                if (parent instanceof ViewGroup) {
-                    ((ViewGroup)parent).removeView(composeView);
-                    openDrawerMenu();
-                }
-            },
-            config -> {
-                shortcut.setTouchGestureConfig(config);
-                shortcut.saveData();
-                if (touchpadView != null) touchpadView.setGestureConfig(config);
-            }
-        );
-
-        addContentView(composeView, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        closeDrawerMenu();
-    }
-
     private void renderDrawerMenu() {
         if (displayHostComposeView == null || xServerDisplayFrame == null) return;
 
@@ -3034,6 +3009,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (activeProfile != null && profile.id == activeProfile.id) inputSelectedIndex = i + 1;
             inputProfileNames.add(profile.getName());
         }
+
+        if (touchGestureConfig == null && shortcut != null) touchGestureConfig = shortcut.getTouchGestureConfig();
 
         XServerDrawerState state = XServerDrawerMenuKt.buildXServerDrawerState(
                 this,
@@ -3079,7 +3056,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY),
                 preferences.getBoolean("touchscreen_haptics_enabled", false),
                 preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true),
-                xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen()
+                xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen(),
+                showTouchGestureSettingsDialog,
+                touchGestureConfig
         );
 
         if (drawerActionListener == null) {
@@ -3235,7 +3214,24 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
                     @Override
                     public void onRTSGesturesEditClick() {
-                        showTouchGestureSettingsDialog();
+                        showTouchGestureSettingsDialog = true;
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onRTSGesturesConfigChanged(TouchGestureConfig config) {
+                        touchGestureConfig = config;
+                        if (shortcut != null) {
+                            shortcut.setTouchGestureConfig(config);
+                            shortcut.saveData();
+                            if (touchpadView != null) touchpadView.setGestureConfig(config);
+                        }
+                    }
+
+                    @Override
+                    public void onRTSGesturesDialogDismissed() {
+                        showTouchGestureSettingsDialog = false;
+                        renderDrawerMenu();
                     }
 
                     @Override

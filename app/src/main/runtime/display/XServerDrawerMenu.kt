@@ -323,6 +323,8 @@ data class XServerDrawerState(
     val inputControlsOverlayOpacity: Float = 0.4f,
     val inputControlsTouchscreenHaptics: Boolean = false,
     val inputControlsGamepadVibration: Boolean = true,
+    val showTouchGestureSettingsDialog: Boolean = false,
+    val touchGestureConfig: TouchGestureConfig? = null,
 )
 
 class XServerDrawerStateHolder(
@@ -483,6 +485,10 @@ interface XServerDrawerActionListener {
     fun onRTSGesturesEnabledChanged(enabled: Boolean)
 
     fun onRTSGesturesEditClick()
+
+    fun onRTSGesturesConfigChanged(config: TouchGestureConfig)
+
+    fun onRTSGesturesDialogDismissed()
 
     fun onScreenEffectsCardExpandedChanged(expanded: Boolean)
 
@@ -752,6 +758,14 @@ fun setupXServerDrawerComposeView(
                 onDismiss = { onDismiss.run() },
             )
         }
+    }
+
+    if (state.showTouchGestureSettingsDialog && state.touchGestureConfig != null) {
+        com.winlator.cmod.runtime.input.ui.TouchGestureSettingsDialog(
+            config = state.touchGestureConfig,
+            onConfigChange = { listener.onRTSGesturesConfigChanged(it) },
+            onDismiss = { listener.onRTSGesturesDialogDismissed() }
+        )
     }
 }
 
@@ -3813,23 +3827,5 @@ private fun ChipFlow(content: @Composable () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(gap),
     ) {
         content()
-    }
-}
-
-fun setupTouchGestureSettingsDialog(
-    composeView: androidx.compose.ui.platform.ComposeView,
-    config: TouchGestureConfig,
-    onDismiss: Runnable,
-    onConfigChange: Consumer<TouchGestureConfig>
-) {
-    composeView.setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-    composeView.setContent {
-        WinNativeTheme {
-            com.winlator.cmod.runtime.input.ui.TouchGestureSettingsDialog(
-                config = config,
-                onDismiss = { onDismiss.run() },
-                onConfigChange = { onConfigChange.accept(it) }
-            )
-        }
     }
 }
