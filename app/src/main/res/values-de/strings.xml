@@ -1038,6 +1038,16 @@ Installierter Pfad:
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Aufg.</string>
     <string name="session_drawer_rail_label_logs">Logs</string>
+    <string name="session_drawer_logs_clear">Löschen</string>
+    <string name="session_drawer_logs_pause">Pause</string>
+    <string name="session_drawer_logs_resume">Fortsetzen</string>
+    <string name="session_drawer_logs_paused_indicator">Pausiert</string>
+    <string name="session_drawer_logs_line_count">%1$d Zeilen</string>
+    <string name="session_drawer_logs_share">Teilen</string>
+    <string name="session_drawer_logs_share_subject">Sitzungslogs</string>
+    <string name="session_drawer_logs_share_chooser">Sitzungslogs teilen</string>
+    <string name="session_drawer_logs_share_failed">Logs konnten nicht geteilt werden</string>
+    <string name="session_drawer_logs_share_empty">Keine Logzeilen zum Teilen</string>
     <string name="session_drawer_super_resolution">Schärfungsfilter</string>
     <string name="session_drawer_upscaler_mode">Filter</string>
     <string name="session_drawer_upscaler_fsr">FSR 1</string>

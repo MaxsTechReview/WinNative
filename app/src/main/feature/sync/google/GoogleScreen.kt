@@ -70,7 +70,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
-import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import kotlinx.coroutines.launch
 
@@ -153,7 +153,7 @@ fun GoogleScreen() {
                     CloudSyncManager.signIn(currentActivity) { success, message ->
                         busy = false
                         googleSignedIn = success
-                        AppUtils.showToast(context, message)
+                        WinToast.show(context, message)
                         refreshState()
                     }
                 },
@@ -163,7 +163,7 @@ fun GoogleScreen() {
                     CloudSyncManager.signOut(currentActivity) { success, message ->
                         busy = false
                         googleSignedIn = !success
-                        AppUtils.showToast(context, message)
+                        WinToast.show(context, message)
                         refreshState()
                     }
                 },
@@ -184,7 +184,7 @@ fun GoogleScreen() {
                     scope.launch {
                         try {
                             val message = CloudSyncManager.backupStoreLogins(currentActivity)
-                            AppUtils.showToast(context, message)
+                            WinToast.show(context, message)
                             syncState = CloudSyncManager.readStoreLoginState(currentActivity)
                             googleSignedIn = syncState.googleSignedIn
                         } finally {
@@ -198,7 +198,7 @@ fun GoogleScreen() {
                     scope.launch {
                         try {
                             val message = CloudSyncManager.restoreStoreLogins(currentActivity)
-                            AppUtils.showToast(context, message)
+                            WinToast.show(context, message)
                             syncState = CloudSyncManager.readStoreLoginState(currentActivity)
                             googleSignedIn = syncState.googleSignedIn
                         } finally {
@@ -233,7 +233,7 @@ fun GoogleScreen() {
                                     autoBackupPrefs.edit().putBoolean("cloud_sync_auto_backup", false).apply()
                                 }
                             } catch (e: Exception) {
-                                AppUtils.showToast(context, "Drive authorization failed: ${e.message}")
+                                WinToast.show(context, "Drive authorization failed: ${e.message}")
                             } finally {
                                 busy = false
                             }

@@ -30,7 +30,7 @@ import com.winlator.cmod.app.update.UpdateChecker
 import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.runtime.audio.midi.MidiManager
 import com.winlator.cmod.runtime.display.environment.ImageFsInstaller
-import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.android.LocaleHelper
 import com.winlator.cmod.shared.android.RefreshRateUtils
@@ -96,10 +96,10 @@ class OtherSettingsFragment : Fragment() {
                         onCheckForUpdatesNow = {
                             val started = UpdateChecker.checkForUpdateManual(ctx)
                             if (started) {
-                                AppUtils.showToast(ctx, R.string.settings_other_checking_for_updates)
+                                WinToast.show(ctx, R.string.settings_other_checking_for_updates)
                             } else {
                                 val seconds = UpdateChecker.manualCheckCooldownSeconds()
-                                AppUtils.showToast(
+                                WinToast.show(
                                     ctx,
                                     getString(R.string.settings_other_update_check_cooldown, seconds),
                                 )
@@ -153,7 +153,7 @@ class OtherSettingsFragment : Fragment() {
                         },
                         onEnableFileProviderChanged = { checked ->
                             preferences.edit { putBoolean("enable_file_provider", checked) }
-                            AppUtils.showToast(ctx, R.string.settings_general_take_effect_next_startup)
+                            WinToast.show(ctx, R.string.settings_general_take_effect_next_startup)
                             refresh()
                         },
                         onOpenInBrowserChanged = { checked ->
@@ -332,17 +332,17 @@ class OtherSettingsFragment : Fragment() {
         val ctx = context ?: return
         val idx = uiState.soundFontIndex
         if (idx == 0) {
-            AppUtils.showToast(ctx, R.string.settings_audio_cannot_remove_default)
+            WinToast.show(ctx, R.string.settings_audio_cannot_remove_default)
             return
         }
         val fileName = uiState.soundFontFiles.getOrNull(idx) ?: return
         ContentDialog.confirm(ctx, R.string.settings_audio_confirm_remove_sound_font) {
             if (MidiManager.removeSF2File(ctx, fileName)) {
-                AppUtils.showToast(ctx, R.string.settings_audio_sound_font_removed_success)
+                WinToast.show(ctx, R.string.settings_audio_sound_font_removed_success)
                 uiState = uiState.copy(soundFontIndex = 0)
                 refresh()
             } else {
-                AppUtils.showToast(ctx, R.string.settings_audio_sound_font_removed_failed)
+                WinToast.show(ctx, R.string.settings_audio_sound_font_removed_failed)
             }
         }
     }

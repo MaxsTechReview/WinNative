@@ -14,6 +14,7 @@ import com.winlator.cmod.R;
 import com.winlator.cmod.runtime.wine.WineThemeManager;
 import com.winlator.cmod.shared.android.ActivityResultHost;
 import com.winlator.cmod.shared.android.AppUtils;
+import com.winlator.cmod.shared.ui.toast.WinToast;
 import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.shared.util.UnitUtils;
 import java.io.File;
@@ -62,7 +63,7 @@ public class ImagePickerView extends AppCompatImageButton implements View.OnClic
           if (host != null) {
             host.launchWallpaperImagePicker();
           } else {
-            AppUtils.showToast(context, "Image picker is unavailable on this screen.");
+            WinToast.show(context, "Image picker is unavailable on this screen.");
           }
         });
 

@@ -1038,6 +1038,16 @@ Percorso installato:
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Attività</string>
     <string name="session_drawer_rail_label_logs">Log</string>
+    <string name="session_drawer_logs_clear">Cancella</string>
+    <string name="session_drawer_logs_pause">Pausa</string>
+    <string name="session_drawer_logs_resume">Riprendi</string>
+    <string name="session_drawer_logs_paused_indicator">In pausa</string>
+    <string name="session_drawer_logs_line_count">%1$d righe</string>
+    <string name="session_drawer_logs_share">Condividi</string>
+    <string name="session_drawer_logs_share_subject">Log della sessione</string>
+    <string name="session_drawer_logs_share_chooser">Condividi log della sessione</string>
+    <string name="session_drawer_logs_share_failed">Impossibile condividere i log</string>
+    <string name="session_drawer_logs_share_empty">Nessuna riga di log da condividere</string>
     <string name="session_drawer_super_resolution">Filtri Nitidezza</string>
     <string name="session_drawer_upscaler_mode">Filtro</string>
     <string name="session_drawer_upscaler_fsr">FSR 1</string>

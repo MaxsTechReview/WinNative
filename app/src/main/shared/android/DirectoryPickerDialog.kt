@@ -97,6 +97,7 @@ import com.winlator.cmod.shared.theme.WinNativeSurface
 import com.winlator.cmod.shared.theme.WinNativeTextPrimary
 import com.winlator.cmod.shared.theme.WinNativeTextSecondary
 import com.winlator.cmod.shared.theme.WinNativeTheme
+import com.winlator.cmod.shared.ui.toast.WinToast
 import java.io.File
 import java.util.Locale
 
@@ -938,7 +939,7 @@ object DirectoryPickerDialog {
             return true
         }
 
-        AppUtils.showToast(
+        WinToast.show(
             activity,
             activity.getString(R.string.common_ui_grant_all_files_access_browse),
             Toast.LENGTH_LONG,

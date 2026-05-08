@@ -7,7 +7,7 @@ import android.util.Log;
 import com.winlator.cmod.BuildConfig;
 import com.winlator.cmod.R;
 import com.winlator.cmod.app.shell.UnifiedActivity;
-import com.winlator.cmod.shared.android.AppUtils;
+import com.winlator.cmod.shared.ui.toast.WinToast;
 
 public class ShortcutBroadcastReceiver extends BroadcastReceiver {
 
@@ -21,7 +21,7 @@ public class ShortcutBroadcastReceiver extends BroadcastReceiver {
     String action = intent.getAction();
     if (ACTION_PIN_SHORTCUT_RESULT.equals(action)) {
       Log.d(LOG_TAG, "Pinned shortcut confirmed by launcher.");
-      AppUtils.showToast(context, R.string.shortcuts_list_added);
+      WinToast.show(context, R.string.shortcuts_list_added);
       UnifiedActivity.Companion.refreshLibrary();
       return;
     }
@@ -33,7 +33,7 @@ public class ShortcutBroadcastReceiver extends BroadcastReceiver {
         UnifiedActivity.Companion.refreshLibrary();
       } else {
         Log.d(LOG_TAG, "Shortcut addition failed.");
-        AppUtils.showToast(context, R.string.shortcuts_list_failed_add);
+        WinToast.show(context, R.string.shortcuts_list_failed_add);
       }
       return;
     }

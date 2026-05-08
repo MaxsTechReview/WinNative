@@ -1038,6 +1038,16 @@ Installeret sti:
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Opgaver</string>
     <string name="session_drawer_rail_label_logs">Logs</string>
+    <string name="session_drawer_logs_clear">Ryd</string>
+    <string name="session_drawer_logs_pause">Pause</string>
+    <string name="session_drawer_logs_resume">Fortsæt</string>
+    <string name="session_drawer_logs_paused_indicator">Sat på pause</string>
+    <string name="session_drawer_logs_line_count">%1$d linjer</string>
+    <string name="session_drawer_logs_share">Del</string>
+    <string name="session_drawer_logs_share_subject">Sessionslogs</string>
+    <string name="session_drawer_logs_share_chooser">Del sessionslogs</string>
+    <string name="session_drawer_logs_share_failed">Kunne ikke dele logs</string>
+    <string name="session_drawer_logs_share_empty">Ingen loglinjer at dele</string>
     <string name="session_drawer_super_resolution">Skarphedsfiltre</string>
     <string name="session_drawer_upscaler_mode">Filter</string>
     <string name="session_drawer_upscaler_fsr">FSR 1</string>

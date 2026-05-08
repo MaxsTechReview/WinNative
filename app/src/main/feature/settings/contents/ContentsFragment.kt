@@ -25,7 +25,7 @@ import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
 import com.winlator.cmod.runtime.content.Downloader
-import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.io.StorageUtils
@@ -446,7 +446,7 @@ class ContentsFragment : Fragment() {
                         if (sourceRemoteUrl != null) {
                             manager.registerRemoteProfileAlias(sourceRemoteUrl, profile)
                         }
-                        AppUtils.showToast(requireContext(), completionMessage)
+                        WinToast.show(requireContext(), completionMessage)
                         manager.syncContents()
                         currentContentType = profile.type
                         publishState()
@@ -490,7 +490,7 @@ class ContentsFragment : Fragment() {
                             containerManager.createContainerAsync(data, manager) { newContainer ->
                                 preloaderDialog.close()
                                 if (newContainer != null) {
-                                    AppUtils.showToast(
+                                    WinToast.show(
                                         requireContext(),
                                         getString(R.string.settings_content_container_created, uniqueName),
                                     )
@@ -515,7 +515,7 @@ class ContentsFragment : Fragment() {
                 .onFailure {
                     runOnMain {
                         clearDownloadProgress()
-                        AppUtils.showToast(requireContext(), R.string.input_controls_editor_unable_to_import)
+                        WinToast.show(requireContext(), R.string.input_controls_editor_unable_to_import)
                     }
                 }
         }
@@ -586,7 +586,7 @@ class ContentsFragment : Fragment() {
                 )
             } else if (isAdded) {
                 clearDownloadProgress()
-                AppUtils.showToast(requireContext(), R.string.settings_content_download_failed)
+                WinToast.show(requireContext(), R.string.settings_content_download_failed)
             }
         }
     }

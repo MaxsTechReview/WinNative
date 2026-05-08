@@ -7,7 +7,7 @@ import android.widget.Toast
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.wine.WineUtils
-import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.io.TarCompressorUtils
 import java.io.File
@@ -97,7 +97,7 @@ object SteamClientManager {
             if (!success) {
                 val finalError = error ?: "All download sources failed"
                 Handler(Looper.getMainLooper()).post {
-                    AppUtils.showToast(context, "Steam download failed: $finalError. Try disabling VPN.", Toast.LENGTH_LONG)
+                    WinToast.show(context, "Steam download failed: $finalError. Try disabling VPN.", Toast.LENGTH_LONG)
                 }
             }
 
@@ -198,7 +198,7 @@ object SteamClientManager {
 
         Log.e(TAG, "Failed to download $fileName from all sources")
         Handler(Looper.getMainLooper()).post {
-            AppUtils.showToast(context, failureMessage, Toast.LENGTH_LONG)
+            WinToast.show(context, failureMessage, Toast.LENGTH_LONG)
         }
         return false
     }
@@ -296,7 +296,7 @@ object SteamClientManager {
         if (!isSteamDownloaded(context)) {
             Log.d(TAG, "Steam files not found, downloading...")
             Handler(Looper.getMainLooper()).post {
-                AppUtils.showToast(context, "Downloading Steam client...", Toast.LENGTH_SHORT)
+                WinToast.show(context, "Downloading Steam client...", Toast.LENGTH_SHORT)
             }
 
             if (!ensureArchiveReady(context, "steam.tzst", "Failed to download Steam client")) {
@@ -310,7 +310,7 @@ object SteamClientManager {
         if (success) {
             Log.d(TAG, "Steam client extracted successfully")
             Handler(Looper.getMainLooper()).post {
-                AppUtils.showToast(context, "Steam client ready", Toast.LENGTH_SHORT)
+                WinToast.show(context, "Steam client ready", Toast.LENGTH_SHORT)
             }
         } else {
             Log.e(TAG, "Failed to extract steam.tzst")
