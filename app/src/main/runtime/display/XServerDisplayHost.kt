@@ -168,7 +168,12 @@ private fun XServerDisplayHost(
                                 } else {
                                     down.position.x <= edgeWidthPx
                                 }
-                            if (!canStartFromHere) return@awaitEachGesture
+                            if (!canStartFromHere) {
+                                if (stateHolder.isDrawerOpen && down.position.x > drawerWidthPx) {
+                                    stateHolder.closeDrawer()
+                                }
+                                return@awaitEachGesture
+                            }
 
                             var gestureClaimed = false
                             var cancelledByVerticalDrag = false
