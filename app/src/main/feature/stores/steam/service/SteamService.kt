@@ -4187,12 +4187,17 @@ class SteamService :
                 val steamInstance = instance ?: return@withContext null
                 val steamCloud = steamInstance._steamCloud ?: return@withContext null
                 try {
-                    steamCloud
-                        .getAppFileListChange(appId, 0)
-                        .await()
-                        .files
-                        .mapNotNull { file -> file.timestamp?.time?.takeIf { it > 0L } }
-                        .maxOrNull()
+                    val localChangeNumber = steamInstance.changeNumbersDao.getByAppId(appId)?.changeNumber ?: 0L
+                    listOf(localChangeNumber, 0L)
+                        .distinct()
+                        .firstNotNullOfOrNull { changeNumber ->
+                            steamCloud
+                                .getAppFileListChange(appId, changeNumber)
+                                .await()
+                                .files
+                                .mapNotNull { file -> file.timestamp?.time?.takeIf { it > 0L } }
+                                .maxOrNull()
+                        }
                 } catch (e: Exception) {
                     Timber.e(e, "Failed to read newest remote Steam cloud timestamp for appId=$appId")
                     null

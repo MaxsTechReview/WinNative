@@ -10,6 +10,8 @@ import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 import com.winlator.cmod.runtime.container.Shortcut
 import kotlinx.coroutines.runBlocking
 import timber.log.Timber
+import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -121,6 +123,53 @@ object SteamCloudSyncHelper {
         }
     }
 
+    private fun newestTimestampInFiles(
+        rootPath: Path,
+        pattern: String,
+        maxDepth: Int,
+    ): Long? {
+        val stream = FileUtils.findFilesRecursive(rootPath, pattern, maxDepth = maxDepth)
+        return try {
+            var newest = 0L
+            stream.forEach { path ->
+                val modified =
+                    runCatching {
+                        if (Files.isRegularFile(path)) Files.getLastModifiedTime(path).toMillis() else 0L
+                    }.getOrDefault(0L)
+                if (modified > newest) {
+                    newest = modified
+                }
+            }
+            newest.takeIf { it > 0L }
+        } finally {
+            stream.close()
+        }
+    }
+
+    private fun getNewestActualLocalCloudSaveTimestamp(
+        context: Context,
+        appId: Int,
+    ): Long? {
+        val appInfo = SteamService.getAppInfoOf(appId) ?: return null
+        val prefixToPath = steamPrefixResolver(context, appId)
+
+        val savePatterns = appInfo.ufs.saveFilePatterns.filter { it.root.isWindows }
+        if (savePatterns.isEmpty()) {
+            val basePath = Paths.get(prefixToPath(PathType.SteamUserData.name))
+            return newestTimestampInFiles(basePath, "*", maxDepth = 5)
+        }
+
+        return savePatterns
+            .mapNotNull { pattern ->
+                val basePath = Paths.get(prefixToPath(pattern.root.name), pattern.substitutedPath)
+                newestTimestampInFiles(
+                    rootPath = basePath,
+                    pattern = pattern.pattern,
+                    maxDepth = if (pattern.recursive != 0) -1 else 0,
+                )
+            }.maxOrNull()
+    }
+
     @JvmStatic
     fun cloudSavesDiffer(
         context: Context,
@@ -146,6 +195,7 @@ object SteamCloudSyncHelper {
         val appId = shortcut.getExtra("app_id").toIntOrNull()
         return runBlocking {
             try {
+                val localActual = appId?.let { getNewestActualLocalCloudSaveTimestamp(context, it) }
                 val localTracked =
                     appId
                         ?.let { SteamService.getTrackedCloudSaveFiles(it) }
@@ -154,7 +204,7 @@ object SteamCloudSyncHelper {
                     appId
                         ?.let { SteamService.getNewestRemoteCloudSaveTimestamp(it) }
                 CloudSyncConflictTimestamps(
-                    localTimestampLabel = formatTimestamp(localTracked),
+                    localTimestampLabel = formatTimestamp(localActual ?: localTracked),
                     cloudTimestampLabel = formatTimestamp(remoteNewest),
                 )
             } catch (e: Exception) {
