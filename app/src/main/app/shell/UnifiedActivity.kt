@@ -190,7 +190,6 @@ import com.winlator.cmod.runtime.input.ControllerHelper
 import com.winlator.cmod.runtime.wine.PeIconExtractor
 import com.winlator.cmod.shared.android.ActivityResultHost
 import com.winlator.cmod.shared.android.AppTerminationHelper
-import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity
 import com.winlator.cmod.shared.android.RefreshRateUtils
@@ -513,8 +512,6 @@ class UnifiedActivity :
                 android.view.KeyEvent.KEYCODE_BUTTON_Y,
                 android.view.KeyEvent.KEYCODE_BUTTON_L1,
                 android.view.KeyEvent.KEYCODE_BUTTON_R1,
-                android.view.KeyEvent.KEYCODE_BUTTON_L2,
-                android.view.KeyEvent.KEYCODE_BUTTON_R2,
                 android.view.KeyEvent.KEYCODE_DPAD_CENTER,
                 -> true
 
@@ -827,7 +824,7 @@ class UnifiedActivity :
                     }
                 when (event) {
                     is com.winlator.cmod.feature.stores.common.StoreSessionEvent.SessionExpired -> {
-                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                        com.winlator.cmod.shared.ui.toast.WinToast.show(
                             this@UnifiedActivity,
                             "$label session expired — please sign in again",
                             android.widget.Toast.LENGTH_LONG,
@@ -1245,13 +1242,13 @@ class UnifiedActivity :
                         scope.launch {
                             val authResult = EpicAuthManager.authenticateWithCode(context, code)
                             if (authResult.isSuccess) {
-                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                     context,
                                     R.string.stores_accounts_logged_in_epic,
                                     android.widget.Toast.LENGTH_SHORT,
                                 )
                             } else {
-                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                     context,
                                     getString(R.string.stores_accounts_epic_login_failed, authResult.exceptionOrNull()?.message),
                                     android.widget.Toast.LENGTH_LONG,
@@ -1273,13 +1270,13 @@ class UnifiedActivity :
                             val authResult = GOGAuthManager.authenticateWithCode(context, code)
                             if (authResult.isSuccess) {
                                 GOGService.start(context)
-                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                     context,
                                     R.string.stores_accounts_logged_in_gog,
                                     android.widget.Toast.LENGTH_SHORT,
                                 )
                             } else {
-                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                     context,
                                     getString(R.string.stores_accounts_gog_login_failed, authResult.exceptionOrNull()?.message),
                                     android.widget.Toast.LENGTH_LONG,
@@ -1414,32 +1411,6 @@ class UnifiedActivity :
                         }
                     }
 
-                    android.view.KeyEvent.KEYCODE_BUTTON_L2 -> {
-                        if (key == "downloads") {
-                            val pausableDownloads =
-                                DownloadService.getAllDownloads().filter {
-                                    val status = it.second.getStatusFlow().value
-                                    status != DownloadPhase.COMPLETE && status != DownloadPhase.CANCELLED
-                                }
-                            if (pausableDownloads.isNotEmpty()) {
-                                val allPausableDownloadsPaused =
-                                    pausableDownloads.all {
-                                        it.second.getStatusFlow().value == DownloadPhase.PAUSED
-                                    }
-                                if (allPausableDownloadsPaused) {
-                                    DownloadService.resumeAll()
-                                } else {
-                                    DownloadService.pauseAll()
-                                }
-                            }
-                        }
-                    }
-
-                    android.view.KeyEvent.KEYCODE_BUTTON_R2 -> {
-                        if (key == "downloads") {
-                            DownloadService.cancelAll()
-                        }
-                    }
                 }
             }
         }
@@ -3160,7 +3131,7 @@ class UnifiedActivity :
 
                             zos.close()
                             withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                     context,
                                     R.string.saves_import_export_exported,
                                     android.widget.Toast.LENGTH_SHORT,
@@ -3170,7 +3141,7 @@ class UnifiedActivity :
                         } catch (e: Exception) {
                             e.printStackTrace()
                             withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                     context,
                                     getString(R.string.saves_import_export_exported_failed, e.message),
                                     android.widget.Toast.LENGTH_SHORT,
@@ -3234,7 +3205,7 @@ class UnifiedActivity :
                             }
                             zis.close()
                             withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                     context,
                                     R.string.saves_import_export_imported,
                                     android.widget.Toast.LENGTH_SHORT,
@@ -3244,7 +3215,7 @@ class UnifiedActivity :
                         } catch (e: Exception) {
                             e.printStackTrace()
                             withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                     context,
                                     getString(R.string.saves_import_export_imported_failed, e.message),
                                     android.widget.Toast.LENGTH_SHORT,
@@ -3321,7 +3292,7 @@ class UnifiedActivity :
                                                 shortcutRefreshKey++
                                             }
                                             if (!created) {
-                                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                     context,
                                                     context.getString(
                                                         R.string.library_games_failed_to_create_shortcut,
@@ -3375,7 +3346,7 @@ class UnifiedActivity :
                                 pinnedShortcutOverride = if (removed) false else hasPinnedShortcut
                                 shortcutRefreshKey++
                                 currentTab = GameSettingsScreen.Menu
-                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                     context,
                                     if (removed) {
                                         context.getString(R.string.shortcuts_list_removed)
@@ -3454,7 +3425,7 @@ class UnifiedActivity :
                         onCloudSyncToggle = { enabled ->
                             cloudSyncEnabled = enabled
                             setShortcutCloudSyncEnabled(shortcut, enabled)
-                            com.winlator.cmod.shared.android.AppUtils.showToast(
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
                                 context,
                                 if (enabled) {
                                     context.getString(R.string.cloud_sync_enabled_summary)
@@ -3480,7 +3451,7 @@ class UnifiedActivity :
                                             app.name,
                                         )
                                     isWorking = false
-                                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
                                         context,
                                         result.message,
                                         android.widget.Toast.LENGTH_SHORT,
@@ -3500,7 +3471,7 @@ class UnifiedActivity :
                                             app.name,
                                         )
                                     isWorking = false
-                                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
                                         context,
                                         result.message,
                                         android.widget.Toast.LENGTH_SHORT,
@@ -3520,7 +3491,7 @@ class UnifiedActivity :
                                         )
                                     withContext(Dispatchers.Main) {
                                         isWorking = false
-                                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
                                             context,
                                             if (ok) {
                                                 context.getString(
@@ -3567,7 +3538,7 @@ class UnifiedActivity :
                                     sc?.let { LibraryShortcutUtils.deleteShortcutArtifacts(context, it) }
                                     PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(app.id))
                                     withContext(Dispatchers.Main) {
-                                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
                                             context,
                                             getString(R.string.library_games_game_removed, app.name),
                                             android.widget.Toast.LENGTH_SHORT,
@@ -3580,13 +3551,13 @@ class UnifiedActivity :
                                     val result = EpicService.deleteGame(context, epicId)
                                     withContext(Dispatchers.Main) {
                                         if (result.isSuccess) {
-                                            com.winlator.cmod.shared.android.AppUtils.showToast(
+                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                 context,
                                                 getString(R.string.library_games_game_uninstalled, app.name),
                                                 android.widget.Toast.LENGTH_SHORT,
                                             )
                                         } else {
-                                            com.winlator.cmod.shared.android.AppUtils.showToast(
+                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                 context,
                                                 getString(
                                                     R.string.library_games_failed_to_uninstall_reason,
@@ -3602,13 +3573,13 @@ class UnifiedActivity :
                             } else {
                                 SteamService.uninstallApp(app.id) { success ->
                                     if (success) {
-                                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
                                             context,
                                             getString(R.string.library_games_game_uninstalled, app.name),
                                             android.widget.Toast.LENGTH_SHORT,
                                         )
                                     } else {
-                                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
                                             context,
                                             getString(R.string.library_games_failed_to_uninstall),
                                             android.widget.Toast.LENGTH_SHORT,
@@ -3714,7 +3685,7 @@ class UnifiedActivity :
                                                     shortcutRefreshKey++
                                                 }
                                                 if (!created) {
-                                                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                         context,
                                                         context.getString(
                                                             R.string.library_games_failed_to_create_shortcut,
@@ -3760,7 +3731,7 @@ class UnifiedActivity :
                                 pinnedShortcutOverride = if (removed) false else hasPinnedShortcut
                                 shortcutRefreshKey++
                                 currentTab = GameSettingsScreen.Menu
-                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                     context,
                                     if (removed) {
                                         context.getString(R.string.shortcuts_list_removed)
@@ -3786,7 +3757,7 @@ class UnifiedActivity :
                                         scope.launch(Dispatchers.IO) {
                                             GOGService.syncCloudSaves(context, "GOG_${app.id}", "auto")
                                         }
-                                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
                                             context,
                                             getString(R.string.google_cloud_sync_started),
                                             android.widget.Toast.LENGTH_SHORT,
@@ -3830,7 +3801,7 @@ class UnifiedActivity :
                         onCloudSyncToggle = { enabled ->
                             cloudSyncEnabled = enabled
                             setShortcutCloudSyncEnabled(shortcut, enabled)
-                            com.winlator.cmod.shared.android.AppUtils.showToast(
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
                                 context,
                                 if (enabled) {
                                     context.getString(R.string.cloud_sync_enabled_summary)
@@ -3856,7 +3827,7 @@ class UnifiedActivity :
                                             app.title,
                                         )
                                     isWorking = false
-                                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
                                         context,
                                         result.message,
                                         android.widget.Toast.LENGTH_SHORT,
@@ -3876,7 +3847,7 @@ class UnifiedActivity :
                                             app.title,
                                         )
                                     isWorking = false
-                                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
                                         context,
                                         result.message,
                                         android.widget.Toast.LENGTH_SHORT,
@@ -3896,7 +3867,7 @@ class UnifiedActivity :
                                         )
                                     withContext(Dispatchers.Main) {
                                         isWorking = false
-                                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
                                             context,
                                             if (ok) {
                                                 context.getString(
@@ -3930,13 +3901,13 @@ class UnifiedActivity :
                                 )
                                 withContext(Dispatchers.Main) {
                                     if (result.isSuccess) {
-                                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
                                             context,
                                             getString(R.string.library_games_game_uninstalled, app.title),
                                             android.widget.Toast.LENGTH_SHORT,
                                         )
                                     } else {
-                                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
                                             context,
                                             getString(
                                                 R.string.library_games_failed_to_uninstall_reason,
@@ -4218,7 +4189,7 @@ class UnifiedActivity :
                             }
                             zos.close()
                             withContext(Dispatchers.Main) {
-                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                     context,
                                     R.string.saves_import_export_exported,
                                     android.widget.Toast.LENGTH_SHORT,
@@ -4227,7 +4198,7 @@ class UnifiedActivity :
                         } catch (e: Exception) {
                             e.printStackTrace()
                             withContext(Dispatchers.Main) {
-                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                     context,
                                     getString(R.string.saves_import_export_exported_failed, e.message),
                                     android.widget.Toast.LENGTH_SHORT,
@@ -4277,7 +4248,7 @@ class UnifiedActivity :
                             }
                             zis.close()
                             withContext(Dispatchers.Main) {
-                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                     context,
                                     R.string.saves_import_export_imported,
                                     android.widget.Toast.LENGTH_SHORT,
@@ -4286,7 +4257,7 @@ class UnifiedActivity :
                         } catch (e: Exception) {
                             e.printStackTrace()
                             withContext(Dispatchers.Main) {
-                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                     context,
                                     getString(R.string.saves_import_export_imported_failed, e.message),
                                     android.widget.Toast.LENGTH_SHORT,
@@ -4609,7 +4580,7 @@ class UnifiedActivity :
                                                                 shortcutRefreshKey++
                                                             }
                                                             if (!created) {
-                                                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                                     context,
                                                                     context.getString(
                                                                         R.string.library_games_failed_to_create_shortcut,
@@ -4701,7 +4672,7 @@ class UnifiedActivity :
                                                 pinnedShortcutOverride = if (removed) false else hasPinnedShortcut
                                                 shortcutRefreshKey++
                                                 currentScreen = LibraryDetailScreen.Main
-                                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                     context,
                                                     if (removed) {
                                                         context.getString(R.string.shortcuts_list_removed)
@@ -4743,7 +4714,7 @@ class UnifiedActivity :
                                                             scope.launch(Dispatchers.IO) {
                                                                 GOGService.syncCloudSaves(context, "GOG_${gogGame!!.id}", "auto")
                                                             }
-                                                            com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                                 context,
                                                                 getString(R.string.google_cloud_sync_started),
                                                                 android.widget.Toast.LENGTH_SHORT,
@@ -4866,7 +4837,7 @@ class UnifiedActivity :
                                     onCloudSyncToggle = { enabled ->
                                         cloudSyncEnabled = enabled
                                         setShortcutCloudSyncEnabled(detailShortcut, enabled)
-                                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
                                             context,
                                             if (enabled) {
                                                 context.getString(R.string.cloud_sync_enabled_summary)
@@ -4892,7 +4863,7 @@ class UnifiedActivity :
                                                         app.name,
                                                     )
                                                 isWorking = false
-                                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                     context,
                                                     result.message,
                                                     android.widget.Toast.LENGTH_SHORT,
@@ -4912,7 +4883,7 @@ class UnifiedActivity :
                                                         app.name,
                                                     )
                                                 isWorking = false
-                                                com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                     context,
                                                     result.message,
                                                     android.widget.Toast.LENGTH_SHORT,
@@ -4932,7 +4903,7 @@ class UnifiedActivity :
                                                     )
                                                 withContext(Dispatchers.Main) {
                                                     isWorking = false
-                                                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                         context,
                                                         if (ok) {
                                                             context.getString(
@@ -5000,13 +4971,13 @@ class UnifiedActivity :
                                                     )
                                                     withContext(Dispatchers.Main) {
                                                         if (result.isSuccess) {
-                                                            com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                                 context,
                                                                 getString(R.string.library_games_game_uninstalled, app.name),
                                                                 android.widget.Toast.LENGTH_SHORT,
                                                             )
                                                         } else {
-                                                            com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                                 context,
                                                                 getString(
                                                                     R.string.library_games_failed_to_uninstall_reason,
@@ -5031,7 +5002,7 @@ class UnifiedActivity :
                                                         ).delete()
                                                     PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(app.id))
                                                     withContext(Dispatchers.Main) {
-                                                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                             context,
                                                             getString(R.string.library_games_game_removed, app.name),
                                                             android.widget.Toast.LENGTH_SHORT,
@@ -5044,13 +5015,13 @@ class UnifiedActivity :
                                                     val result = EpicService.deleteGame(context, epicId)
                                                     withContext(Dispatchers.Main) {
                                                         if (result.isSuccess) {
-                                                            com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                                 context,
                                                                 getString(R.string.library_games_game_uninstalled, app.name),
                                                                 android.widget.Toast.LENGTH_SHORT,
                                                             )
                                                         } else {
-                                                            com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                                 context,
                                                                 getString(
                                                                     R.string.library_games_failed_to_uninstall_reason,
@@ -5065,13 +5036,13 @@ class UnifiedActivity :
                                             } else {
                                                 SteamService.uninstallApp(app.id) { success ->
                                                     if (success) {
-                                                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                             context,
                                                             getString(R.string.library_games_game_uninstalled, app.name),
                                                             android.widget.Toast.LENGTH_SHORT,
                                                         )
                                                     } else {
-                                                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                             context,
                                                             getString(R.string.library_games_failed_to_uninstall),
                                                             android.widget.Toast.LENGTH_SHORT,
@@ -6264,7 +6235,7 @@ class UnifiedActivity :
                                 EpicCloudSavesManager.syncCloudSaves(context, app.id, "auto")
                             }
                             onDismissRequest()
-                            com.winlator.cmod.shared.android.AppUtils.showToast(
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
                                 context,
                                 context.getString(R.string.google_cloud_sync_started),
                                 android.widget.Toast.LENGTH_SHORT,
@@ -6282,7 +6253,7 @@ class UnifiedActivity :
                             val result = EpicService.deleteGame(context, app.id)
                             withContext(Dispatchers.Main) {
                                 if (!result.isSuccess) {
-                                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
                                         context,
                                         getString(
                                             R.string.library_games_failed_to_uninstall_reason,
@@ -6651,7 +6622,7 @@ class UnifiedActivity :
                             GOGService.syncCloudSaves(context, "GOG_${app.id}", "auto")
                         }
                         onDismissRequest()
-                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                        com.winlator.cmod.shared.ui.toast.WinToast.show(
                             context,
                             context.getString(R.string.google_cloud_sync_started),
                             android.widget.Toast.LENGTH_SHORT,
@@ -6671,7 +6642,7 @@ class UnifiedActivity :
                             )
                             withContext(Dispatchers.Main) {
                                 if (!result.isSuccess) {
-                                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
                                         context,
                                         getString(
                                             R.string.library_games_failed_to_uninstall_reason,
@@ -7094,9 +7065,6 @@ class UnifiedActivity :
                 .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
                 .tabScreenPadding(top = DownloadsHeaderTopPadding),
         ) {
-            val isController = ControllerHelper.isControllerConnected()
-            val isPS = ControllerHelper.isPlayStationController()
-
             // Read tick to ensure global button state reacts to per-download status changes.
             @Suppress("UNUSED_EXPRESSION")
             tick
@@ -7159,9 +7127,7 @@ class UnifiedActivity :
 
                 DownloadsQueueButton(
                     label = pauseResumeLabel,
-                    icon = if (isPaused || allPausableDownloadsPaused) Icons.Outlined.PlayArrow else Icons.Outlined.Pause,
                     accentColor = Accent,
-                    controllerBadge = if (isController) if (isPS) "L2" else "LT" else null,
                     onClick = {
                         if (selectedId == null) {
                             if (allPausableDownloadsPaused) {
@@ -7182,9 +7148,7 @@ class UnifiedActivity :
 
                 DownloadsQueueButton(
                     label = cancelLabel,
-                    icon = Icons.Outlined.Close,
                     accentColor = DangerRed,
-                    controllerBadge = if (isController) if (isPS) "R2" else "RT" else null,
                     onClick = {
                         if (selectedId == null) {
                             DownloadService.cancelAll()
@@ -7206,7 +7170,6 @@ class UnifiedActivity :
 
                 DownloadsQueueButton(
                     label = stringResource(R.string.downloads_queue_clear),
-                    icon = Icons.Outlined.Delete,
                     accentColor = TextSecondary,
                     onClick = {
                         DownloadService.clearCompletedDownloads()
@@ -7301,11 +7264,9 @@ class UnifiedActivity :
     @Composable
     private fun DownloadsQueueButton(
         label: String,
-        icon: ImageVector,
         accentColor: Color,
         enabled: Boolean,
         modifier: Modifier = Modifier,
-        controllerBadge: String? = null,
         onClick: () -> Unit,
     ) {
         val contentColor = if (enabled) accentColor else TextSecondary.copy(alpha = 0.48f)
@@ -7325,8 +7286,6 @@ class UnifiedActivity :
             contentPadding = PaddingValues(horizontal = 8.dp),
             shape = RoundedCornerShape(8.dp),
         ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = contentColor)
-            Spacer(Modifier.width(6.dp))
             Text(
                 label,
                 color = contentColor,
@@ -7335,10 +7294,6 @@ class UnifiedActivity :
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (controllerBadge != null) {
-                Spacer(Modifier.width(6.dp))
-                ControllerBadge(controllerBadge)
-            }
         }
     }
 
@@ -8244,7 +8199,7 @@ class UnifiedActivity :
                                     gameId,
                                     target,
                                 )
-                            com.winlator.cmod.shared.android.AppUtils.showToast(
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
                                 context,
                                 if (result.success) {
                                     context.getString(R.string.cloud_saves_history_restore_success)
@@ -8313,7 +8268,7 @@ class UnifiedActivity :
                                     target,
                                     newLabel,
                                 )
-                            com.winlator.cmod.shared.android.AppUtils.showToast(
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
                                 context,
                                 if (result.success) {
                                     context.getString(R.string.cloud_saves_history_rename_success)
@@ -8380,7 +8335,7 @@ class UnifiedActivity :
                                     this@UnifiedActivity,
                                     target,
                                 )
-                            com.winlator.cmod.shared.android.AppUtils.showToast(
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
                                 context,
                                 if (result.success) {
                                     context.getString(R.string.cloud_saves_history_delete_success)
@@ -8860,7 +8815,7 @@ class UnifiedActivity :
             )
         if (result == ShortcutsFragment.PinShortcutResult.REUSED_EXISTING) {
             val toastIcon = artworkBitmap ?: shortcut.icon
-            com.winlator.cmod.shared.android.AppUtils.showToast(
+            com.winlator.cmod.shared.ui.toast.WinToast.show(
                 context,
                 R.string.shortcuts_list_readded_existing,
                 toastIcon,
@@ -8907,7 +8862,7 @@ class UnifiedActivity :
             val gameDir = java.io.File(gameInstallPath)
             if (!gameDir.exists()) {
                 withContext(Dispatchers.Main) {
-                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                    com.winlator.cmod.shared.ui.toast.WinToast.show(
                         context,
                         "Game not installed: ${app.name}",
                         android.widget.Toast.LENGTH_SHORT,
@@ -9024,7 +8979,7 @@ class UnifiedActivity :
             val gameDir = java.io.File(gameInstallPath)
             if (!gameDir.exists()) {
                 withContext(Dispatchers.Main) {
-                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                    com.winlator.cmod.shared.ui.toast.WinToast.show(
                         context,
                         "Game not installed: ${app.title}",
                         android.widget.Toast.LENGTH_SHORT,
@@ -9192,7 +9147,7 @@ class UnifiedActivity :
             val gameDir = java.io.File(gameInstallPath)
             if (!gameDir.exists()) {
                 withContext(Dispatchers.Main) {
-                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                    com.winlator.cmod.shared.ui.toast.WinToast.show(
                         context,
                         "Game not installed: ${app.title}",
                         android.widget.Toast.LENGTH_SHORT,
@@ -9473,7 +9428,7 @@ class UnifiedActivity :
 
             if (shortcut == null) {
                 withContext(Dispatchers.Main) {
-                    com.winlator.cmod.shared.android.AppUtils.showToast(
+                    com.winlator.cmod.shared.ui.toast.WinToast.show(
                         context,
                         "Custom game shortcut not found: $gameName",
                         android.widget.Toast.LENGTH_SHORT,
@@ -10005,7 +9960,7 @@ class UnifiedActivity :
 
         fun selectExecutable(path: String) {
             if (!path.endsWith(".exe", ignoreCase = true) || !java.io.File(path).isFile) {
-                com.winlator.cmod.shared.android.AppUtils.showToast(
+                com.winlator.cmod.shared.ui.toast.WinToast.show(
                     context,
                     R.string.common_ui_select_valid_exe_file,
                     android.widget.Toast.LENGTH_SHORT,
@@ -10200,7 +10155,7 @@ class UnifiedActivity :
                             OutlinedButton(
                                 onClick = {
                                     if (selectedExePath == null || gameName.isBlank() || gameFolder == null) {
-                                        com.winlator.cmod.shared.android.AppUtils.showToast(
+                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
                                             context,
                                             context.getString(R.string.library_games_select_exe_provide_name),
                                             android.widget.Toast.LENGTH_SHORT,
@@ -10212,7 +10167,7 @@ class UnifiedActivity :
                                         addCustomGame(context, gameName.trim(), selectedExePath!!, gameFolder!!)
                                         withContext(Dispatchers.Main) {
                                             isAdding = false
-                                            com.winlator.cmod.shared.android.AppUtils.showToast(
+                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                 context,
                                                 "$gameName added!",
                                                 android.widget.Toast.LENGTH_SHORT,
@@ -10250,7 +10205,7 @@ class UnifiedActivity :
             return true
         }
 
-        com.winlator.cmod.shared.android.AppUtils.showToast(
+        com.winlator.cmod.shared.ui.toast.WinToast.show(
             context,
             "Grant All files access to browse Downloads directly.",
             android.widget.Toast.LENGTH_LONG,

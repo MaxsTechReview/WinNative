@@ -22,7 +22,7 @@ import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import com.winlator.cmod.R
 import com.winlator.cmod.app.config.SettingsConfig
-import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.theme.WinNativeTheme
@@ -183,7 +183,7 @@ class DebugFragment : Fragment() {
                 .getShareableLogFiles(ctx)
 
         if (files.isEmpty()) {
-            AppUtils.showToast(ctx, R.string.settings_debug_no_logs_available)
+            WinToast.show(ctx, R.string.settings_debug_no_logs_available)
             return
         }
 
@@ -222,7 +222,7 @@ class DebugFragment : Fragment() {
 
             Handler(Looper.getMainLooper()).postDelayed({ cleanupSharedLogs() }, 3 * 60 * 1000L)
         } catch (e: Exception) {
-            AppUtils.showToast(ctx, getString(R.string.settings_debug_capture_failed, e.message ?: ""))
+            WinToast.show(ctx, getString(R.string.settings_debug_capture_failed, e.message ?: ""))
         }
     }
 

@@ -1,0 +1,123 @@
+name: Tag APK Artifacts
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor:
+          - name: Standard
+            variant: Standard
+            gradleTask: assembleStandardDebug
+            apkPath: app/build/outputs/apk/standard/debug/standard.apk
+          - name: Ludashi
+            variant: Ludashi
+            gradleTask: assembleLudashiDebug
+            apkPath: app/build/outputs/apk/ludashi/debug/ludashi.apk
+          - name: Pubg
+            variant: Pubg
+            gradleTask: assemblePubgDebug
+            apkPath: app/build/outputs/apk/pubg/debug/pubg.apk
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Cache LFS
+        uses: actions/cache@v5
+        with:
+          path: .git/lfs
+          key: lfs-${{ hashFiles('**/*.txz', '**/*.tzst') }}
+          restore-keys: lfs-
+
+      - name: Pull LFS files
+        run: git lfs pull
+
+      - name: Cache NDK build outputs
+        uses: actions/cache@v5
+        with:
+          path: |
+            app/.cxx
+            app/build/intermediates/cxx
+          key: tag-ndk-${{ matrix.flavor.name }}-${{ hashFiles('app/src/main/cpp/**', 'app/build.gradle', 'app/src/main/cpp/CMakeLists.txt') }}
+          restore-keys: |
+            tag-ndk-${{ matrix.flavor.name }}-
+            tag-ndk-
+            ndk-
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          validate-wrappers: true
+          cache-cleanup: 'on-success'
+
+      - name: Decode keystore and build debug APK
+        timeout-minutes: 15
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          GRADLE_OPTS: -Xmx4g -XX:+UseG1GC
+          VERSION_NAME: ${{ github.ref_name }}
+        run: |
+          export KEYSTORE_FILE="${{ github.workspace }}/release.jks"
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_FILE"
+          else
+            export KEYSTORE_PASSWORD="dummypass"
+            export KEY_ALIAS="winnative"
+            export KEY_PASSWORD="dummypass"
+            keytool -genkey -v \
+              -keystore "$KEYSTORE_FILE" \
+              -alias winnative \
+              -keyalg RSA -keysize 2048 -validity 1 \
+              -storepass dummypass -keypass dummypass \
+              -dname "CN=CI, OU=CI, O=CI, L=CI, ST=CI, C=US"
+          fi
+          ./gradlew :app:${{ matrix.flavor.gradleTask }} --build-cache --parallel -x lint
+
+      - name: Prepare APK for upload
+        id: package
+        env:
+          APK_PATH: ${{ matrix.flavor.apkPath }}
+          VARIANT_NAME: ${{ matrix.flavor.variant }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          upload_dir="artifacts/apk"
+          mkdir -p "$upload_dir"
+          safe_ref=$(printf '%s' "$REF_NAME" | tr '/[:space:]' '-' | tr -cd 'A-Za-z0-9._-')
+          apk_name="WinNative-${safe_ref}-${VARIANT_NAME}.apk"
+          cp "$APK_PATH" "$upload_dir/$apk_name"
+          echo "artifact_name=WinNative-${safe_ref}-${VARIANT_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.package.outputs.artifact_name }}
+          path: artifacts/apk/*.apk
+          retention-days: 30
+          if-no-files-found: error
