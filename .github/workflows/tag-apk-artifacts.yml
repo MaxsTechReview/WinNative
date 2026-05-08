@@ -74,12 +74,31 @@ jobs:
           validate-wrappers: true
           cache-cleanup: 'on-success'
 
-      - name: Build debug APK
+      - name: Decode keystore and build debug APK
         timeout-minutes: 15
         env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           GRADLE_OPTS: -Xmx4g -XX:+UseG1GC
           VERSION_NAME: ${{ github.ref_name }}
-        run: ./gradlew :app:${{ matrix.flavor.gradleTask }} --build-cache --parallel -x lint
+        run: |
+          export KEYSTORE_FILE="${{ github.workspace }}/release.jks"
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_FILE"
+          else
+            export KEYSTORE_PASSWORD="dummypass"
+            export KEY_ALIAS="winnative"
+            export KEY_PASSWORD="dummypass"
+            keytool -genkey -v \
+              -keystore "$KEYSTORE_FILE" \
+              -alias winnative \
+              -keyalg RSA -keysize 2048 -validity 1 \
+              -storepass dummypass -keypass dummypass \
+              -dname "CN=CI, OU=CI, O=CI, L=CI, ST=CI, C=US"
+          fi
+          ./gradlew :app:${{ matrix.flavor.gradleTask }} --build-cache --parallel -x lint
 
       - name: Prepare APK for upload
         id: package
