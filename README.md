@@ -28,7 +28,7 @@ Designed for enthusiasts and power users, WinNative delivers the full Winlator e
 
 ### How to Build
 
-**Requirements:** Android Studio, JDK 17, NDK `27.3.13750724`, and CMake.
+**Requirements:** Android Studio, JDK 17, NDK `30.0.14904198`, and CMake.
 
 1. **Clone the repository and update submodules** (Required):
    ```bash
@@ -37,7 +37,24 @@ Designed for enthusiasts and power users, WinNative delivers the full Winlator e
    git submodule update --init --recursive
    ```
 2. **Build via Android Studio:** Open the `WinNative` directory, let Gradle sync, then select **Build > Build APK(s)**.
-3. **Build via CLI:** Run `.\gradlew.bat assembleDebug` (Windows).
+3. **Build via CLI:** Run `.\gradlew.bat :app:assembleStandardDebug` (Windows).
+
+---
+
+### Controller Vibration
+
+WinNative now supports external controller rumble through two paths:
+
+1. **Standard Android controller vibration**
+   - Uses `InputDevice` vibrator APIs, including `VibratorManager` on newer Android versions.
+   - Covers controllers that expose vibration through the normal Android input stack.
+
+2. **USB Xbox360-style rumble fallback**
+   - Requests USB host permission for compatible external controllers.
+   - Opens Xbox360-style USB controller interfaces directly and sends rumble packets when the Android input stack does not expose a usable vibrator.
+   - This path is intended for newer Android devices and controllers that enumerate as generic Xbox pads or require app-level USB access for rumble.
+
+This behavior was validated on a real device/controller combination where standard Android vibration alone was not sufficient.
 
 ---
 

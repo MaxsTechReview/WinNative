@@ -9,7 +9,9 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.os.VibratorManager;
 import android.util.Log;
+import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import androidx.preference.PreferenceManager;
@@ -65,6 +67,7 @@ public class WinHandler {
   private final XServerDisplayActivity activity;
   private String fakeInputBasePath;
   private final InputManager inputManager;
+  private final UsbControllerManager usbControllerManager;
   private InetAddress localhost;
   private OnGetProcessInfoListener onGetProcessInfoListener;
   private SharedPreferences preferences;
@@ -128,6 +131,7 @@ public class WinHandler {
   public WinHandler(XServerDisplayActivity activity) {
     this.activity = activity;
     this.inputManager = (InputManager) activity.getSystemService(Context.INPUT_SERVICE);
+    this.usbControllerManager = new UsbControllerManager(activity);
     this.inputManager.registerInputDeviceListener(this.inputDeviceListener, null);
     this.preferences = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
     for (int i = 0; i < MAX_CONTROLLERS; i++) {
@@ -141,6 +145,7 @@ public class WinHandler {
     }
     this.globalVibrationEnabled =
         this.preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true);
+    this.usbControllerManager.start();
   }
 
   public int preAssignConnectedControllers() {
@@ -214,6 +219,8 @@ public class WinHandler {
     if (controller == null) {
       return false;
     }
+
+    this.usbControllerManager.ensurePermissionForInputDevice(deviceId, "controller-detected");
 
     int slot = assignSlot(deviceId);
     if (slot >= 0) {
@@ -478,6 +485,7 @@ public class WinHandler {
     if (this.sendExecutor != null) this.sendExecutor.shutdownNow();
     if (this.receiveExecutor != null) this.receiveExecutor.shutdownNow();
     if (this.vibrationExecutor != null) this.vibrationExecutor.shutdownNow();
+    this.usbControllerManager.stop();
   }
 
   private void handleRequest(byte requestCode, int port) {
@@ -962,7 +970,7 @@ public class WinHandler {
       return;
     }
 
-    Vibrator vibrator = null;
+    List<Vibrator> vibrators = new ArrayList<>();
     Integer slotOwner = null;
     for (Map.Entry<Integer, Integer> entry : this.deviceToSlot.entrySet()) {
       if (entry.getValue() == slot) {
@@ -977,46 +985,128 @@ public class WinHandler {
     }
 
     if (slotOwner != null && slotOwner == OSC_DEVICE_ID) {
-      vibrator = (Vibrator) this.activity.getSystemService(Context.VIBRATOR_SERVICE);
+      addSystemVibrator(vibrators);
     } else if (slotOwner != null) {
+      boolean usbRumbleSent = false;
       for (Map.Entry<Integer, Integer> entry : this.deviceToSlot.entrySet()) {
         if (entry.getValue() != slot || entry.getKey() == OSC_DEVICE_ID) {
           continue;
         }
-        android.view.InputDevice device = android.view.InputDevice.getDevice(entry.getKey());
-        if (device == null) {
-          continue;
+        this.usbControllerManager.ensurePermissionForInputDevice(entry.getKey(), "vibration-slot-" + slot);
+        if (this.usbControllerManager.sendRumbleForInputDevice(entry.getKey(), strong, weak)) {
+          usbRumbleSent = true;
+          break;
         }
-        Vibrator candidate = device.getVibrator();
-        if (candidate != null && candidate.hasVibrator()) {
-          vibrator = candidate;
+        List<Vibrator> deviceVibrators = getDeviceVibrators(entry.getKey());
+        if (!deviceVibrators.isEmpty()) {
+          vibrators.addAll(deviceVibrators);
           break;
         }
       }
 
-      if ((vibrator == null || !vibrator.hasVibrator())
+      if (usbRumbleSent) {
+        return;
+      }
+
+      if (vibrators.isEmpty()
           && !this.deviceToSlot.containsKey(OSC_DEVICE_ID)
           && (this.fallbackSlot == -1 || this.fallbackSlot == slot)) {
-        vibrator = (Vibrator) this.activity.getSystemService(Context.VIBRATOR_SERVICE);
+        addSystemVibrator(vibrators);
         this.fallbackSlot = slot;
       }
     }
 
-    if (vibrator == null || !vibrator.hasVibrator()) {
+    if (vibrators.isEmpty()) {
+      if (slotOwner != null && slotOwner != OSC_DEVICE_ID) {
+        Log.i(
+            "WinHandler",
+            "No Android controller vibrators exposed for slot "
+                + slot
+                + "; usbPermission="
+                + this.usbControllerManager.hasPermissionForInputDevice(slotOwner)
+                + ". USB rumble path still needed.");
+      }
       return;
     }
 
+    int duration = Math.max(1, durationMs);
     if (strong > 0 || weak > 0) {
-      int intensity = Math.max(strong, weak);
-      int amplitude = Math.min(255, Math.max(1, (int) ((intensity / 65535.0f) * 255.0f)));
-      int duration = Math.max(1, durationMs);
-      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-        vibrator.vibrate(VibrationEffect.createOneShot(duration, amplitude));
+      int strongAmplitude = toAndroidAmplitude(strong);
+      int weakAmplitude = toAndroidAmplitude(weak);
+      if (vibrators.size() >= 2) {
+        // Android documents controller vibrator ordering as left motor first, right motor second.
+        playVibration(vibrators.get(0), strongAmplitude, duration);
+        playVibration(vibrators.get(1), weakAmplitude, duration);
+        for (int i = 2; i < vibrators.size(); i++) {
+          playVibration(vibrators.get(i), Math.max(strongAmplitude, weakAmplitude), duration);
+        }
       } else {
-        vibrator.vibrate(duration);
+        playVibration(vibrators.get(0), Math.max(strongAmplitude, weakAmplitude), duration);
       }
     } else {
+      for (Vibrator vibrator : vibrators) {
+        vibrator.cancel();
+      }
+    }
+  }
+
+  private void addSystemVibrator(List<Vibrator> vibrators) {
+    Vibrator vibrator = (Vibrator) this.activity.getSystemService(Context.VIBRATOR_SERVICE);
+    if (vibrator != null && vibrator.hasVibrator()) {
+      vibrators.add(vibrator);
+    }
+  }
+
+  private List<Vibrator> getDeviceVibrators(int deviceId) {
+    ArrayList<Vibrator> vibrators = new ArrayList<>();
+    InputDevice device = InputDevice.getDevice(deviceId);
+    if (device == null) {
+      return vibrators;
+    }
+
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+      VibratorManager vibratorManager = device.getVibratorManager();
+      if (vibratorManager != null) {
+        int[] vibratorIds = vibratorManager.getVibratorIds();
+        for (int vibratorId : vibratorIds) {
+          Vibrator vibrator = vibratorManager.getVibrator(vibratorId);
+          if (vibrator != null && vibrator.hasVibrator()) {
+            vibrators.add(vibrator);
+          }
+        }
+      }
+    }
+
+    if (!vibrators.isEmpty()) {
+      return vibrators;
+    }
+
+    Vibrator legacyVibrator = device.getVibrator();
+    if (legacyVibrator != null && legacyVibrator.hasVibrator()) {
+      vibrators.add(legacyVibrator);
+    }
+    return vibrators;
+  }
+
+  private int toAndroidAmplitude(int intensity) {
+    if (intensity <= 0) {
+      return 0;
+    }
+    return Math.min(255, Math.max(1, (int) ((intensity / 65535.0f) * 255.0f)));
+  }
+
+  private void playVibration(Vibrator vibrator, int amplitude, int duration) {
+    if (vibrator == null || !vibrator.hasVibrator()) {
+      return;
+    }
+    if (amplitude <= 0) {
       vibrator.cancel();
+      return;
+    }
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+      vibrator.vibrate(VibrationEffect.createOneShot(duration, amplitude));
+    } else {
+      vibrator.vibrate(duration);
     }
   }
 
@@ -1085,6 +1175,7 @@ public class WinHandler {
     this.gyroActivatorPressed = false;
     this.lastGyroTargetSource = GAMEPAD_SOURCE_NONE;
     this.lastGyroTargetController = null;
+    this.usbControllerManager.stop();
   }
 
   private ExternalController getController(int deviceId) {
