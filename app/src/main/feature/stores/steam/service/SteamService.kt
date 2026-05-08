@@ -90,6 +90,7 @@ import `in`.dragonbra.javasteam.enums.EOSType
 import `in`.dragonbra.javasteam.enums.EPersonaState
 import `in`.dragonbra.javasteam.enums.EResult
 import `in`.dragonbra.javasteam.networking.steam3.ProtocolTypes
+import `in`.dragonbra.javasteam.protobufs.steamclient.Enums.ECloudStoragePersistState
 import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesAuthSteamclient.CAuthentication_PollAuthSessionStatus_Request
 import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesClientObjects.ECloudPendingRemoteOperation
 import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesClientserverUserstats
@@ -4188,16 +4189,17 @@ class SteamService :
                 val steamCloud = steamInstance._steamCloud ?: return@withContext null
                 try {
                     val localChangeNumber = steamInstance.changeNumbersDao.getByAppId(appId)?.changeNumber ?: 0L
-                    listOf(localChangeNumber, 0L)
+                    listOf(0L, localChangeNumber)
                         .distinct()
-                        .firstNotNullOfOrNull { changeNumber ->
+                        .mapNotNull { changeNumber ->
                             steamCloud
                                 .getAppFileListChange(appId, changeNumber)
                                 .await()
                                 .files
+                                .filter { it.persistState == ECloudStoragePersistState.k_ECloudStoragePersistStatePersisted }
                                 .mapNotNull { file -> file.timestamp?.time?.takeIf { it > 0L } }
                                 .maxOrNull()
-                        }
+                        }.maxOrNull()
                 } catch (e: Exception) {
                     Timber.e(e, "Failed to read newest remote Steam cloud timestamp for appId=$appId")
                     null
