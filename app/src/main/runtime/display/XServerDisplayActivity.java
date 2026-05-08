@@ -3003,8 +3003,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             composeView,
             shortcut.getTouchGestureConfig(),
             () -> {
-                ((ViewGroup)composeView.getParent()).removeView(composeView);
-                openDrawerMenu();
+                ViewParent parent = composeView.getParent();
+                if (parent instanceof ViewGroup) {
+                    ((ViewGroup)parent).removeView(composeView);
+                    openDrawerMenu();
+                }
             },
             config -> {
                 shortcut.setTouchGestureConfig(config);
