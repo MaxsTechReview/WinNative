@@ -512,8 +512,6 @@ class UnifiedActivity :
                 android.view.KeyEvent.KEYCODE_BUTTON_Y,
                 android.view.KeyEvent.KEYCODE_BUTTON_L1,
                 android.view.KeyEvent.KEYCODE_BUTTON_R1,
-                android.view.KeyEvent.KEYCODE_BUTTON_L2,
-                android.view.KeyEvent.KEYCODE_BUTTON_R2,
                 android.view.KeyEvent.KEYCODE_DPAD_CENTER,
                 -> true
 
@@ -1413,32 +1411,6 @@ class UnifiedActivity :
                         }
                     }
 
-                    android.view.KeyEvent.KEYCODE_BUTTON_L2 -> {
-                        if (key == "downloads") {
-                            val pausableDownloads =
-                                DownloadService.getAllDownloads().filter {
-                                    val status = it.second.getStatusFlow().value
-                                    status != DownloadPhase.COMPLETE && status != DownloadPhase.CANCELLED
-                                }
-                            if (pausableDownloads.isNotEmpty()) {
-                                val allPausableDownloadsPaused =
-                                    pausableDownloads.all {
-                                        it.second.getStatusFlow().value == DownloadPhase.PAUSED
-                                    }
-                                if (allPausableDownloadsPaused) {
-                                    DownloadService.resumeAll()
-                                } else {
-                                    DownloadService.pauseAll()
-                                }
-                            }
-                        }
-                    }
-
-                    android.view.KeyEvent.KEYCODE_BUTTON_R2 -> {
-                        if (key == "downloads") {
-                            DownloadService.cancelAll()
-                        }
-                    }
                 }
             }
         }
@@ -7093,9 +7065,6 @@ class UnifiedActivity :
                 .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
                 .tabScreenPadding(top = DownloadsHeaderTopPadding),
         ) {
-            val isController = ControllerHelper.isControllerConnected()
-            val isPS = ControllerHelper.isPlayStationController()
-
             // Read tick to ensure global button state reacts to per-download status changes.
             @Suppress("UNUSED_EXPRESSION")
             tick
@@ -7158,9 +7127,7 @@ class UnifiedActivity :
 
                 DownloadsQueueButton(
                     label = pauseResumeLabel,
-                    icon = if (isPaused || allPausableDownloadsPaused) Icons.Outlined.PlayArrow else Icons.Outlined.Pause,
                     accentColor = Accent,
-                    controllerBadge = if (isController) if (isPS) "L2" else "LT" else null,
                     onClick = {
                         if (selectedId == null) {
                             if (allPausableDownloadsPaused) {
@@ -7181,9 +7148,7 @@ class UnifiedActivity :
 
                 DownloadsQueueButton(
                     label = cancelLabel,
-                    icon = Icons.Outlined.Close,
                     accentColor = DangerRed,
-                    controllerBadge = if (isController) if (isPS) "R2" else "RT" else null,
                     onClick = {
                         if (selectedId == null) {
                             DownloadService.cancelAll()
@@ -7205,7 +7170,6 @@ class UnifiedActivity :
 
                 DownloadsQueueButton(
                     label = stringResource(R.string.downloads_queue_clear),
-                    icon = Icons.Outlined.Delete,
                     accentColor = TextSecondary,
                     onClick = {
                         DownloadService.clearCompletedDownloads()
@@ -7300,11 +7264,9 @@ class UnifiedActivity :
     @Composable
     private fun DownloadsQueueButton(
         label: String,
-        icon: ImageVector,
         accentColor: Color,
         enabled: Boolean,
         modifier: Modifier = Modifier,
-        controllerBadge: String? = null,
         onClick: () -> Unit,
     ) {
         val contentColor = if (enabled) accentColor else TextSecondary.copy(alpha = 0.48f)
@@ -7324,8 +7286,6 @@ class UnifiedActivity :
             contentPadding = PaddingValues(horizontal = 8.dp),
             shape = RoundedCornerShape(8.dp),
         ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = contentColor)
-            Spacer(Modifier.width(6.dp))
             Text(
                 label,
                 color = contentColor,
@@ -7334,10 +7294,6 @@ class UnifiedActivity :
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (controllerBadge != null) {
-                Spacer(Modifier.width(6.dp))
-                ControllerBadge(controllerBadge)
-            }
         }
     }
 
