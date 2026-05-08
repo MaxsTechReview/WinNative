@@ -1038,6 +1038,16 @@ Cale instalata:
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Sarcini</string>
     <string name="session_drawer_rail_label_logs">Loguri</string>
+    <string name="session_drawer_logs_clear">Șterge</string>
+    <string name="session_drawer_logs_pause">Pauză</string>
+    <string name="session_drawer_logs_resume">Reia</string>
+    <string name="session_drawer_logs_paused_indicator">În pauză</string>
+    <string name="session_drawer_logs_line_count">%1$d linii</string>
+    <string name="session_drawer_logs_share">Partajează</string>
+    <string name="session_drawer_logs_share_subject">Loguri de sesiune</string>
+    <string name="session_drawer_logs_share_chooser">Partajează logurile sesiunii</string>
+    <string name="session_drawer_logs_share_failed">Nu s-au putut partaja logurile</string>
+    <string name="session_drawer_logs_share_empty">Nu există linii de log de partajat</string>
     <string name="session_drawer_super_resolution">Filtre Claritate</string>
     <string name="session_drawer_upscaler_mode">Filtru</string>
     <string name="session_drawer_upscaler_fsr">FSR 1</string>

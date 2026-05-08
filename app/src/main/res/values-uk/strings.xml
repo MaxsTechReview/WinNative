@@ -1044,6 +1044,16 @@
     <string name="session_drawer_rail_label_magnifier">Лупа</string>
     <string name="session_drawer_rail_label_task_manager">Задачі</string>
     <string name="session_drawer_rail_label_logs">Логи</string>
+    <string name="session_drawer_logs_clear">Очистити</string>
+    <string name="session_drawer_logs_pause">Пауза</string>
+    <string name="session_drawer_logs_resume">Відновити</string>
+    <string name="session_drawer_logs_paused_indicator">Призупинено</string>
+    <string name="session_drawer_logs_line_count">%1$d рядків</string>
+    <string name="session_drawer_logs_share">Поділитися</string>
+    <string name="session_drawer_logs_share_subject">Логи сеансу</string>
+    <string name="session_drawer_logs_share_chooser">Поділитися логами сеансу</string>
+    <string name="session_drawer_logs_share_failed">Не вдалося поділитися логами</string>
+    <string name="session_drawer_logs_share_empty">Немає рядків логу для надсилання</string>
     <string name="session_drawer_super_resolution">Фільтри Чіткості</string>
     <string name="session_drawer_upscaler_mode">Фільтр</string>
     <string name="session_drawer_upscaler_fsr">FSR 1</string>

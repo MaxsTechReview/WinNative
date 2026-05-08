@@ -49,6 +49,7 @@ import com.winlator.cmod.runtime.container.Shortcut
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
 import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.android.ImageUtils
 import com.winlator.cmod.shared.io.AssetPaths
@@ -214,9 +215,9 @@ class ShortcutSettingsComposeDialog private constructor(
                     addShortcutToScreen(shortcut)
                 }
                 if (result == ShortcutsFragment.PinShortcutResult.REUSED_EXISTING) {
-                    AppUtils.showToast(context, R.string.shortcuts_list_readded_existing, shortcut.icon)
+                    WinToast.show(context, R.string.shortcuts_list_readded_existing, shortcut.icon)
                 } else if (result == ShortcutsFragment.PinShortcutResult.FAILED) {
-                    AppUtils.showToast(
+                    WinToast.show(
                         context,
                         context.getString(
                             R.string.library_games_failed_to_create_shortcut,
@@ -1383,7 +1384,7 @@ class ShortcutSettingsComposeDialog private constructor(
     private fun applySelectedExePath(path: String) {
         val exeFile = File(path)
         if (!exeFile.isFile || !exeFile.name.endsWith(".exe", ignoreCase = true)) {
-            AppUtils.showToast(context, R.string.common_ui_select_valid_exe_file, Toast.LENGTH_SHORT)
+            WinToast.show(context, R.string.common_ui_select_valid_exe_file, Toast.LENGTH_SHORT)
             return
         }
 
@@ -1580,7 +1581,7 @@ class ShortcutSettingsComposeDialog private constructor(
     ) {
         val bitmap = ImageUtils.getBitmapFromUri(context, uri, 1024)
         if (bitmap == null) {
-            AppUtils.showToast(context, R.string.shortcuts_library_artwork_failed, Toast.LENGTH_SHORT)
+            WinToast.show(context, R.string.shortcuts_library_artwork_failed, Toast.LENGTH_SHORT)
             return
         }
 
@@ -1589,7 +1590,7 @@ class ShortcutSettingsComposeDialog private constructor(
         val slot = getLibraryArtworkSlot(target) ?: return
         val outputFile = LibraryShortcutArtwork.buildManagedViewArtworkFile(context, shortcut, slot)
         if (!FileUtils.saveBitmapToFile(bitmap, outputFile)) {
-            AppUtils.showToast(context, R.string.shortcuts_library_artwork_failed, Toast.LENGTH_SHORT)
+            WinToast.show(context, R.string.shortcuts_library_artwork_failed, Toast.LENGTH_SHORT)
             return
         }
 
