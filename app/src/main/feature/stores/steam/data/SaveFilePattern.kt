@@ -10,6 +10,8 @@ data class SaveFilePattern(
     val path: String,
     val pattern: String,
     val recursive: Int = 0,
+    val uploadRoot: PathType = root,
+    val uploadPath: String = path,
 ) {
     val prefix: String
         get() {

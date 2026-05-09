@@ -4922,6 +4922,7 @@ class UnifiedActivity :
                                             }
                                         }
                                     },
+                                    showBottomBack = false,
                                     onBack = { currentScreen = LibraryDetailScreen.Main },
                                 )
                                 }
@@ -5059,19 +5060,21 @@ class UnifiedActivity :
                         }
                     }
 
-                    // Close button overlay
-                    IconButton(
-                        onClick = onDismissRequest,
-                        modifier =
-                            Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(16.dp)
-                                .size(42.dp)
-                                .shadow(8.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.35f))
-                                .clip(CircleShape)
-                                .background(BgDark.copy(alpha = 0.7f)),
-                    ) {
-                        Icon(Icons.Outlined.Close, contentDescription = "Close", tint = TextPrimary)
+                    if (currentScreen != LibraryDetailScreen.CloudSaves) {
+                        // Close button overlay
+                        IconButton(
+                            onClick = onDismissRequest,
+                            modifier =
+                                Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(16.dp)
+                                    .size(42.dp)
+                                    .shadow(8.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.35f))
+                                    .clip(CircleShape)
+                                    .background(BgDark.copy(alpha = 0.7f)),
+                        ) {
+                            Icon(Icons.Outlined.Close, contentDescription = "Close", tint = TextPrimary)
+                        }
                     }
                 }
             }
@@ -8042,6 +8045,7 @@ class UnifiedActivity :
         onBackup: () -> Unit,
         onRestore: () -> Unit,
         onSyncFromCloud: () -> Unit,
+        showBottomBack: Boolean = true,
         onBack: () -> Unit,
     ) {
         val scope = rememberCoroutineScope()
@@ -8059,6 +8063,7 @@ class UnifiedActivity :
         var entryPendingDelete by remember {
             mutableStateOf<GameSaveBackupManager.BackupHistoryEntry?>(null)
         }
+        val steamManagedCloud = gameSource == GameSaveBackupManager.GameSource.STEAM
 
         LaunchedEffect(gameSource, gameId, historyRefreshKey) {
             if (!historyRequested) return@LaunchedEffect
@@ -8098,11 +8103,12 @@ class UnifiedActivity :
             TogglePairCard(
                 cloudSyncEnabled = cloudSyncEnabled,
                 offlineModeEnabled = offlineModeEnabled,
+                showCloudSync = !steamManagedCloud,
                 onCloudSyncToggle = onCloudSyncToggle,
                 onOfflineModeToggle = onOfflineModeToggle,
             )
 
-            if (isWorking) {
+            if (!steamManagedCloud && isWorking) {
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth(),
                     color = Accent,
@@ -8117,54 +8123,58 @@ class UnifiedActivity :
                     GameSaveBackupManager.GameSource.GOG -> stringResource(R.string.preloader_platform_gog)
                 }
 
-            ActionWithHelper(
-                icon = Icons.Outlined.CloudSync,
-                label = stringResource(R.string.cloud_saves_sync_from_provider, providerLabel),
-                helper = stringResource(R.string.cloud_saves_sync_summary, providerLabel),
-                onClick = { if (!isWorking) onSyncFromCloud() },
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
+            if (!steamManagedCloud) {
                 ActionWithHelper(
-                    icon = Icons.Outlined.CloudUpload,
-                    label = stringResource(R.string.cloud_saves_backup),
-                    helper = stringResource(R.string.cloud_saves_backup_summary),
-                    modifier = Modifier.weight(1f),
-                    onClick = onBackup,
+                    icon = Icons.Outlined.CloudSync,
+                    label = stringResource(R.string.cloud_saves_sync_from_provider, providerLabel),
+                    helper = stringResource(R.string.cloud_saves_sync_summary, providerLabel),
+                    onClick = { if (!isWorking) onSyncFromCloud() },
                 )
-                ActionWithHelper(
-                    icon = Icons.Outlined.CloudDownload,
-                    label = stringResource(R.string.cloud_saves_restore),
-                    helper = stringResource(R.string.cloud_saves_restore_summary),
-                    modifier = Modifier.weight(1f),
-                    onClick = onRestore,
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    ActionWithHelper(
+                        icon = Icons.Outlined.CloudUpload,
+                        label = stringResource(R.string.cloud_saves_backup),
+                        helper = stringResource(R.string.cloud_saves_backup_summary),
+                        modifier = Modifier.weight(1f),
+                        onClick = onBackup,
+                    )
+                    ActionWithHelper(
+                        icon = Icons.Outlined.CloudDownload,
+                        label = stringResource(R.string.cloud_saves_restore),
+                        helper = stringResource(R.string.cloud_saves_restore_summary),
+                        modifier = Modifier.weight(1f),
+                        onClick = onRestore,
+                    )
+                }
+
+                SaveHistorySection(
+                    loading = historyLoading,
+                    entries = historyEntries,
+                    onRefresh = {
+                        historyRequested = true
+                        historyRefreshKey++
+                    },
+                    onRestore = { entry -> entryPendingRestore = entry },
+                    onRename = { entry -> entryPendingRename = entry },
+                    onDelete = { entry -> entryPendingDelete = entry },
                 )
             }
 
-            SaveHistorySection(
-                loading = historyLoading,
-                entries = historyEntries,
-                onRefresh = {
-                    historyRequested = true
-                    historyRefreshKey++
-                },
-                onRestore = { entry -> entryPendingRestore = entry },
-                onRename = { entry -> entryPendingRename = entry },
-                onDelete = { entry -> entryPendingDelete = entry },
-            )
-
-            Spacer(Modifier.height(4.dp))
-            TextButton(onClick = onBack) {
-                Icon(
-                    Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = null,
-                    tint = TextSecondary,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.common_ui_back), color = TextSecondary)
+            if (showBottomBack) {
+                Spacer(Modifier.height(4.dp))
+                TextButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.common_ui_back), color = TextSecondary)
+                }
             }
         }
 
@@ -8547,6 +8557,7 @@ class UnifiedActivity :
     private fun TogglePairCard(
         cloudSyncEnabled: Boolean,
         offlineModeEnabled: Boolean,
+        showCloudSync: Boolean = true,
         onCloudSyncToggle: (Boolean) -> Unit,
         onOfflineModeToggle: (Boolean) -> Unit,
     ) {
@@ -8576,6 +8587,10 @@ class UnifiedActivity :
                     enabled = true,
                     onCheckedChange = onOfflineModeToggle,
                 )
+            }
+            if (!showCloudSync) {
+                offlineCell(Modifier.fillMaxWidth())
+                return@BoxWithConstraints
             }
             if (stacked) {
                 Column(

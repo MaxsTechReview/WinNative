@@ -96,16 +96,17 @@ object SteamCloudSyncHelper {
         val appInfo = SteamService.getAppInfoOf(appId) ?: return false
         val prefixToPath = steamPrefixResolver(context, appId)
 
-        val savePatterns = appInfo.ufs.saveFilePatterns.filter { it.root.isWindows }
-        if (savePatterns.isEmpty()) {
-            val basePath = Paths.get(prefixToPath(PathType.SteamUserData.name))
-            val stream = FileUtils.findFilesRecursive(basePath, "*", maxDepth = 5)
-            return try {
-                stream.findAny().isPresent
-            } finally {
-                stream.close()
-            }
+        val userDataPath = Paths.get(prefixToPath(PathType.SteamUserData.name))
+        val userDataStream = FileUtils.findFilesRecursive(userDataPath, "*", maxDepth = 5)
+        try {
+            if (userDataStream.findAny().isPresent) return true
+        } finally {
+            userDataStream.close()
         }
+
+        val savePatterns =
+            appInfo.ufs.saveFilePatterns
+                .filter { it.root.isWindows && it.root != PathType.SteamUserData }
 
         return savePatterns.any { pattern ->
             val basePath = Paths.get(prefixToPath(pattern.root.name), pattern.substitutedPath)
@@ -153,13 +154,16 @@ object SteamCloudSyncHelper {
         val appInfo = SteamService.getAppInfoOf(appId) ?: return null
         val prefixToPath = steamPrefixResolver(context, appId)
 
-        val savePatterns = appInfo.ufs.saveFilePatterns.filter { it.root.isWindows }
-        if (savePatterns.isEmpty()) {
-            val basePath = Paths.get(prefixToPath(PathType.SteamUserData.name))
-            return newestTimestampInFiles(basePath, "*", maxDepth = 5)
-        }
+        val userDataNewest =
+            newestTimestampInFiles(
+                Paths.get(prefixToPath(PathType.SteamUserData.name)),
+                "*",
+                maxDepth = 5,
+            )
 
-        return savePatterns
+        val patternNewest =
+            appInfo.ufs.saveFilePatterns
+                .filter { it.root.isWindows && it.root != PathType.SteamUserData }
             .mapNotNull { pattern ->
                 val basePath = Paths.get(prefixToPath(pattern.root.name), pattern.substitutedPath)
                 newestTimestampInFiles(
@@ -168,6 +172,8 @@ object SteamCloudSyncHelper {
                     maxDepth = if (pattern.recursive != 0) -1 else 0,
                 )
             }.maxOrNull()
+
+        return listOfNotNull(userDataNewest, patternNewest).maxOrNull()
     }
 
     @JvmStatic
