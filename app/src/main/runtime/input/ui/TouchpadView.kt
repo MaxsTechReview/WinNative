@@ -79,6 +79,7 @@ class TouchpadView(
     private var lastTapTime: Long = 0
     private var lastTapX = 0
     private var lastTapY = 0
+    private var activeLongPressAction: Binding = Binding.NONE
     private var longPressActive = false
     private var longPressTriggered = false
     private var doubleTapDetected = false
@@ -96,7 +97,7 @@ class TouchpadView(
     private var twoFingerLastY0 = 0f
     private var twoFingerLastX1 = 0f
     private var twoFingerLastY1 = 0f
-    private val TWO_FINGER_SETTLE_MS = 120L
+    private val TWO_FINGER_SETTLE_MS = 40L
     private val THREE_FINGER_SETTLE_MS = 50L
 
     private val preferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
@@ -107,7 +108,6 @@ class TouchpadView(
                 // GameNative: Hold action doesn't require movedBeyondTapThreshold to be false,
                 // but we should ensure we haven't CONSUMED a swipe yet.
                 if (!swipeHandled) {
-                    longPressTriggered = true
                     if (gestureConfig.enabled) {
                         val action = when (numFingers) {
                             1 -> gestureConfig.oneFingerLongPressAction
@@ -116,8 +116,13 @@ class TouchpadView(
                             4 -> gestureConfig.fourFingerLongPressAction
                             else -> Binding.NONE
                         }
-                        if (action != Binding.NONE) injectBindingAction(action)
+                        if (action != Binding.NONE) {
+                            longPressTriggered = true
+                            activeLongPressAction = action
+                            injectBindingAction(action)
+                        }
                     } else if (numFingers == 1) {
+                        longPressTriggered = true
                         if (xServer.isRelativeMouseMovement) {
                             xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTDOWN, 0, 0, 0)
                             xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTUP, 0, 0, 0)
@@ -477,6 +482,7 @@ class TouchpadView(
                 threeFingerTapFired = false
                 swipeHandled = false
                 gestureConsumed = false
+                activeLongPressAction = Binding.NONE
 
                 fingers[pointerId] = Finger(event.getX(actionIndex), event.getY(actionIndex))
                 handleTouchDown(event)
@@ -488,7 +494,7 @@ class TouchpadView(
                 if (currentTime - lastTapTime < MAX_TAP_MILLISECONDS && dx < 50 && dy < 50) {
                     doubleTapDetected = true
                     if (gestureConfig.enabled && gestureConfig.oneFingerDoubleTapAction != Binding.NONE) {
-                        injectBindingAction(gestureConfig.oneFingerDoubleTapAction)
+                        injectTapAction(gestureConfig.oneFingerDoubleTapAction)
                     }
                 } else {
                     longPressHandler.postDelayed(longPressRunnable, gestureConfig.oneFingerLongPressDuration.toLong())
@@ -506,6 +512,10 @@ class TouchpadView(
 
                 // Only restart long-press timer if we actually added a finger
                 if (numFingers > oldNumFingers) {
+                    if (longPressTriggered && activeLongPressAction != Binding.NONE) {
+                        injectReleaseAction(activeLongPressAction)
+                        activeLongPressAction = Binding.NONE
+                    }
                     longPressTriggered = false
                     gestureConsumed = false
                     longPressHandler.removeCallbacks(longPressRunnable)
@@ -604,6 +614,13 @@ class TouchpadView(
                 if (gestureOwnedPointerIds.contains(pointerId)) {
                     val finger = fingers[pointerId]
                     longPressHandler.removeCallbacks(longPressRunnable)
+
+                    if (longPressTriggered && activeLongPressAction != Binding.NONE) {
+                        injectReleaseAction(activeLongPressAction)
+                        activeLongPressAction = Binding.NONE
+                        longPressTriggered = false
+                        gestureConsumed = true // Prevent tap action on lift if we just released a hold
+                    }
                     
                     // Fire multi-finger tap actions on FIRST lift (GameNative logic)
                     if (gestureConfig.enabled && !longPressTriggered && !gestureConsumed && finger?.isTap() == true && !movedBeyondTapThreshold) {
@@ -631,14 +648,10 @@ class TouchpadView(
                 longPressHandler.removeCallbacks(longPressRunnable)
 
                 if (longPressTriggered) {
-                    val action = when (numFingers) {
-                        1 -> gestureConfig.oneFingerLongPressAction
-                        2 -> gestureConfig.twoFingerLongPressAction
-                        3 -> gestureConfig.threeFingerLongPressAction
-                        4 -> gestureConfig.fourFingerLongPressAction
-                        else -> Binding.NONE
+                    if (activeLongPressAction != Binding.NONE) {
+                        injectReleaseAction(activeLongPressAction)
+                        activeLongPressAction = Binding.NONE
                     }
-                    if (action != Binding.NONE) injectReleaseAction(action)
                     longPressTriggered = false
                 } else if (gestureConfig.enabled && !gestureConsumed && numFingers == 1) {
                     if (isDragging) {
@@ -687,6 +700,10 @@ class TouchpadView(
                     dragButtonPressed = false
                 }
                 if (longPressTriggered) {
+                    if (activeLongPressAction != Binding.NONE) {
+                        injectReleaseAction(activeLongPressAction)
+                        activeLongPressAction = Binding.NONE
+                    }
                     longPressTriggered = false
                 }
                 isDragging = false
