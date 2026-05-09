@@ -104,9 +104,9 @@ class TouchpadView(
     private val longPressRunnable =
         Runnable {
             if (tapToClickEnabled && numFingers >= 1) {
-                val activeFingers = fingers.filterNotNull()
-                // Use movedBeyondTapThreshold to ignore jitter
-                if (!movedBeyondTapThreshold) {
+                // GameNative: Hold action doesn't require movedBeyondTapThreshold to be false,
+                // but we should ensure we haven't CONSUMED a swipe yet.
+                if (!swipeHandled) {
                     longPressTriggered = true
                     if (gestureConfig.enabled) {
                         val action = when (numFingers) {
@@ -494,44 +494,49 @@ class TouchpadView(
             }
 
             MotionEvent.ACTION_POINTER_DOWN -> {
+                val oldNumFingers = numFingers
                 if (!gestureOwnedPointerIds.contains(pointerId)) {
                     gestureOwnedPointerIds.add(pointerId)
                     numFingers++
                 }
                 
                 fingers[pointerId] = Finger(event.getX(actionIndex), event.getY(actionIndex))
-                longPressHandler.removeCallbacks(longPressRunnable)
-                if (delayedPress != null) {
-                    removeCallbacks(delayedPress)
-                    delayedPress = null
-                    handleTouchUp()
-                }
-                
-                if (isDragging && dragButtonPressed) {
-                    handleTouchUp()
-                    dragButtonPressed = false
-                    isDragging = false
-                }
-                
-                if (numFingers == 2) {
-                    twoFingerDownTime = System.currentTimeMillis()
-                    val idx0 = event.findPointerIndex(gestureOwnedPointerIds[0])
-                    val idx1 = event.findPointerIndex(gestureOwnedPointerIds[1])
-                    if (idx0 >= 0 && idx1 >= 0) {
-                        twoFingerLastX0 = event.getX(idx0)
-                        twoFingerLastY0 = event.getY(idx0)
-                        twoFingerLastX1 = event.getX(idx1)
-                        twoFingerLastY1 = event.getY(idx1)
-                        pinchLastDistance = Math.hypot((event.getX(idx0) - event.getX(idx1)).toDouble(), (event.getY(idx0) - event.getY(idx1)).toDouble()).toFloat()
-                    }
-                }
 
-                val duration = when (numFingers) {
-                    2 -> gestureConfig.twoFingerLongPressDuration
-                    3 -> gestureConfig.threeFingerLongPressDuration
-                    else -> gestureConfig.fourFingerLongPressDuration
+                // Only restart long-press timer if we actually added a finger
+                if (numFingers > oldNumFingers) {
+                    longPressHandler.removeCallbacks(longPressRunnable)
+                    if (delayedPress != null) {
+                        removeCallbacks(delayedPress)
+                        delayedPress = null
+                        handleTouchUp()
+                    }
+                    
+                    if (isDragging && dragButtonPressed) {
+                        handleTouchUp()
+                        dragButtonPressed = false
+                        isDragging = false
+                    }
+                    
+                    if (numFingers == 2) {
+                        twoFingerDownTime = System.currentTimeMillis()
+                        val idx0 = event.findPointerIndex(gestureOwnedPointerIds[0])
+                        val idx1 = event.findPointerIndex(gestureOwnedPointerIds[1])
+                        if (idx0 >= 0 && idx1 >= 0) {
+                            twoFingerLastX0 = event.getX(idx0)
+                            twoFingerLastY0 = event.getY(idx0)
+                            twoFingerLastX1 = event.getX(idx1)
+                            twoFingerLastY1 = event.getY(idx1)
+                            pinchLastDistance = Math.hypot((event.getX(idx0) - event.getX(idx1)).toDouble(), (event.getY(idx0) - event.getY(idx1)).toDouble()).toFloat()
+                        }
+                    }
+
+                    val duration = when (numFingers) {
+                        2 -> gestureConfig.twoFingerLongPressDuration
+                        3 -> gestureConfig.threeFingerLongPressDuration
+                        else -> gestureConfig.fourFingerLongPressDuration
+                    }
+                    longPressHandler.postDelayed(longPressRunnable, duration.toLong())
                 }
-                longPressHandler.postDelayed(longPressRunnable, duration.toLong())
             }
 
             MotionEvent.ACTION_MOVE -> {
@@ -568,7 +573,7 @@ class TouchpadView(
                         1 -> handleTouchMove(event)
                         2 -> if (!isPinching) {
                             val activeFingers = gestureOwnedPointerIds.mapNotNull { fingers[it] }
-                            if (activeFingers.size == 2 && (activeFingers[0].travelDistance() > 10 || activeFingers[1].travelDistance() > 10)) {
+                            if (activeFingers.size == 2 && (activeFingers[0].travelDistance() > 30 || activeFingers[1].travelDistance() > 30)) {
                                 movedBeyondTapThreshold = true
                                 longPressHandler.removeCallbacks(longPressRunnable)
                                 handleRTSTwoFingerSwipe()
@@ -576,7 +581,7 @@ class TouchpadView(
                         }
                         3, 4 -> {
                             val activeFingers = gestureOwnedPointerIds.mapNotNull { fingers[it] }
-                            if (activeFingers.isNotEmpty() && activeFingers.first().travelDistance() > 10) {
+                            if (activeFingers.isNotEmpty() && activeFingers.first().travelDistance() > 30) {
                                 movedBeyondTapThreshold = true
                                 longPressHandler.removeCallbacks(longPressRunnable)
                                 handleSwipeDetection()

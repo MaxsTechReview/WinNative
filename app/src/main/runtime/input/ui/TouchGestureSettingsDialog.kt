@@ -266,7 +266,9 @@ fun TouchGestureSettingsDialog(
                 }
                 Button(
                     onClick = {
-                        onConfigChange(currentConfig)
+                        // FIX: Preserve the enabled state from the original config
+                        val finalConfig = currentConfig.copy(enabled = config.enabled)
+                        onConfigChange(finalConfig)
                         onDismiss()
                     },
                     modifier = Modifier.weight(1f),
