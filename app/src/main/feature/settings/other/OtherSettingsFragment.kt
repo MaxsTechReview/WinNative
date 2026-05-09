@@ -135,6 +135,12 @@ class OtherSettingsFragment : Fragment() {
                                 SettingsConfig.DEFAULT_SHORTCUT_EXPORT_PATH,
                             )
                         },
+                        onPickLocalSaveSyncPath = {
+                            pickStoredFolder(
+                                "local_save_sync_path_uri",
+                                SettingsConfig.DEFAULT_WINLATOR_PATH + "/SaveSync",
+                            )
+                        },
                         onCursorSpeedChanged = { percent ->
                             preferences.edit { putFloat("cursor_speed", percent / 100f) }
                             refresh()
@@ -162,6 +168,10 @@ class OtherSettingsFragment : Fragment() {
                         },
                         onShareClipboardChanged = { checked ->
                             preferences.edit { putBoolean("share_android_clipboard", checked) }
+                            refresh()
+                        },
+                        onLocalSaveSyncEnabledChanged = { checked ->
+                            preferences.edit { putBoolean("local_save_sync_enabled", checked) }
                             refresh()
                         },
                         onRunSetupWizard = {
@@ -208,6 +218,12 @@ class OtherSettingsFragment : Fragment() {
                 SettingsConfig.DEFAULT_SHORTCUT_EXPORT_PATH,
                 ctx,
             )
+        val localSaveSyncPath =
+            resolvePathString(
+                preferences.getString("local_save_sync_path_uri", null),
+                SettingsConfig.DEFAULT_WINLATOR_PATH + "/SaveSync",
+                ctx,
+            )
 
         uiState =
             OtherSettingsState(
@@ -218,6 +234,7 @@ class OtherSettingsFragment : Fragment() {
                 soundFontIndex = soundFontIndex,
                 winlatorPath = winlatorPath,
                 shortcutExportPath = shortcutExportPath,
+                localSaveSyncPath = localSaveSyncPath,
                 cursorSpeedPercent =
                     (preferences.getFloat("cursor_speed", 1.0f) * 100)
                         .toInt()
@@ -228,6 +245,7 @@ class OtherSettingsFragment : Fragment() {
                 enableFileProvider = preferences.getBoolean("enable_file_provider", true),
                 openInBrowser = preferences.getBoolean("open_with_android_browser", false),
                 shareClipboard = preferences.getBoolean("share_android_clipboard", false),
+                localSaveSyncEnabled = preferences.getBoolean("local_save_sync_enabled", false),
                 imagefsInstallProgress = uiState.imagefsInstallProgress,
             )
     }

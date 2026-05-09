@@ -4,6 +4,7 @@ import android.content.pm.ShortcutManager
 import android.os.Build
 import android.util.Log
 import com.winlator.cmod.R
+import com.winlator.cmod.feature.stores.steam.data.SteamApp
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.container.Shortcut
 import java.io.File
@@ -32,6 +33,67 @@ object LibraryShortcutUtils {
 
     @JvmStatic
     fun isCustomLibraryShortcut(shortcut: Shortcut): Boolean = inferGameSource(shortcut) == "CUSTOM"
+
+    @JvmStatic
+    fun getCustomDisplayName(shortcut: Shortcut): String =
+        shortcut
+            .getExtra("custom_name", shortcut.name)
+            .ifBlank { shortcut.name }
+
+    @JvmStatic
+    fun getCustomGameDirectory(shortcut: Shortcut): String =
+        normalizeCustomPath(
+            shortcut.getExtra(
+                "game_install_path",
+                shortcut.getExtra("custom_game_folder", ""),
+            ),
+        )
+
+    @JvmStatic
+    fun getCustomLaunchPath(shortcut: Shortcut): String =
+        normalizeCustomPath(shortcut.getExtra("launch_exe_path", shortcut.getExtra("custom_exe", "")))
+
+    @JvmStatic
+    fun buildCustomIdentity(shortcut: Shortcut): String =
+        buildCustomIdentity(
+            gameDir = getCustomGameDirectory(shortcut),
+            launchPath = getCustomLaunchPath(shortcut),
+            displayName = getCustomDisplayName(shortcut),
+        )
+
+    @JvmStatic
+    fun buildCustomIdentity(app: SteamApp): String =
+        buildCustomIdentity(
+            gameDir = normalizeCustomPath(app.gameDir),
+            launchPath = normalizeCustomPath(app.installDir),
+            displayName = app.name,
+        )
+
+    @JvmStatic
+    fun buildCustomLibraryId(identity: String): Int = -(identity.hashCode().and(0x7FFFFFFF) + 1)
+
+    @JvmStatic
+    fun matchesCustomApp(
+        shortcut: Shortcut,
+        app: SteamApp,
+    ): Boolean {
+        if (!isCustomLibraryShortcut(shortcut)) return false
+        val appIdentity = buildCustomIdentity(app)
+        val shortcutIdentity = buildCustomIdentity(shortcut)
+        if (appIdentity.isNotEmpty() && appIdentity == shortcutIdentity) {
+            return true
+        }
+
+        val appDir = normalizeCustomPath(app.gameDir)
+        val shortcutDir = getCustomGameDirectory(shortcut)
+        if (appDir.isNotEmpty() && appDir == shortcutDir) {
+            val appLaunch = normalizeCustomPath(app.installDir)
+            val shortcutLaunch = getCustomLaunchPath(shortcut)
+            return appLaunch.isEmpty() || shortcutLaunch.isEmpty() || appLaunch == shortcutLaunch
+        }
+
+        return getCustomDisplayName(shortcut).equals(app.name, ignoreCase = true)
+    }
 
     @JvmStatic
     fun detectCustomGameFolder(exeFile: File): File {
@@ -219,6 +281,32 @@ object LibraryShortcutUtils {
         }
         return root
     }
+
+    private fun buildCustomIdentity(
+        gameDir: String,
+        launchPath: String,
+        displayName: String,
+    ): String {
+        val normalizedDir = normalizeCustomPath(gameDir)
+        val normalizedLaunch = normalizeCustomPath(launchPath)
+        val normalizedName = displayName.trim().lowercase(Locale.US)
+
+        return when {
+            normalizedDir.isNotEmpty() && normalizedLaunch.isNotEmpty() -> "$normalizedDir|$normalizedLaunch"
+            normalizedDir.isNotEmpty() -> "dir:$normalizedDir"
+            normalizedLaunch.isNotEmpty() -> "exe:$normalizedLaunch"
+            normalizedName.isNotEmpty() -> "name:$normalizedName"
+            else -> ""
+        }
+    }
+
+    private fun normalizeCustomPath(path: String?): String =
+        path
+            .orEmpty()
+            .trim()
+            .replace('\\', '/')
+            .removeSuffix("/")
+            .lowercase(Locale.US)
 
     private fun shouldPromoteToParentPackageRoot(
         currentRoot: File,

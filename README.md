@@ -20,9 +20,27 @@ Designed for enthusiasts and power users, WinNative delivers the full Winlator e
 
 1. **Download:** Get the latest APK from the [Releases](https://github.com/maxjivi05/WinNative/releases) section.
 2. **Variants:**
+   - `standard`: Standard package name for general side-loading and testing.
    - `Ludashi`: Best for Xiaomi/RedMagic (Performance Mode trigger).
-   - `Vanilla`: Standard package name for side-loading with other forks.
 3. **Setup:** Launch the app, allow the ImageFS to install, and start adding your games manually or sync your library. 
+
+---
+
+### Versioning
+
+WinNative uses a simple staged release flow:
+
+- `Nightly`: scratch builds and local experiments that may include unfinished work.
+- `beta`: feature-complete test builds that need real-device validation before broader release.
+- `stable`: promoted releases after the beta line has been verified.
+
+The current source tree is set to **`0.22.0-beta.1`** (`versionCode 22`), which covers:
+
+- USB and Android controller rumble support improvements
+- local auto-save snapshots for imported `CUSTOM` games
+- `CUSTOM` library identity fixes so games no longer duplicate or disappear when switching containers
+
+For future releases, update `VERSION_NAME` and `VERSION_CODE` in `gradle.properties`, or override them in CI with `-PVERSION_NAME` / `-PVERSION_CODE`.
 
 ---
 
@@ -38,6 +56,7 @@ Designed for enthusiasts and power users, WinNative delivers the full Winlator e
    ```
 2. **Build via Android Studio:** Open the `WinNative` directory, let Gradle sync, then select **Build > Build APK(s)**.
 3. **Build via CLI:** Run `.\gradlew.bat :app:assembleStandardDebug` (Windows).
+4. **Override release metadata if needed:** For example, `.\gradlew.bat :app:assembleStandardDebug -PVERSION_NAME=0.22.0-beta.2 -PVERSION_CODE=23`.
 
 ---
 
@@ -55,6 +74,18 @@ WinNative now supports external controller rumble through two paths:
    - This path is intended for newer Android devices and controllers that enumerate as generic Xbox pads or require app-level USB access for rumble.
 
 This behavior was validated on a real device/controller combination where standard Android vibration alone was not sufficient.
+
+---
+
+### Local Save Auto Sync
+
+WinNative can automatically preserve imported `CUSTOM` game data locally between app reinstalls and container changes:
+
+- restore the newest local snapshot when the game launches
+- save a new snapshot when the game exits
+- keep the five most recent snapshots per game identity
+
+Configure this in **Other Settings** using **Local Save Sync Path** and **Enable Local Save Auto Sync**.
 
 ---
 

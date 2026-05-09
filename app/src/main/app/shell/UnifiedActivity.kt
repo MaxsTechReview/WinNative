@@ -306,6 +306,8 @@ class UnifiedActivity :
     // Track the currently selected game in the carousel for Game Settings button
     private var selectedSteamAppId: Int = 0
     private var selectedSteamAppName: String = ""
+    private var selectedSteamAppGameDir: String = ""
+    private var selectedSteamAppLaunchPath: String = ""
     private var selectedLibrarySource: String = ""
     private var selectedGogGameId: String = ""
 
@@ -1365,7 +1367,7 @@ class UnifiedActivity :
                             globalSettingsApp = (
                                 steamApps.find { it.id == selectedSteamAppId }
                                     ?: if (isCustom) {
-                                        SteamApp(id = selectedSteamAppId, name = selectedSteamAppName, developer = "Custom")
+                                        buildSelectedCustomApp()
                                     } else if (epicId > 0) {
                                         val epic = epicApps.find { it.id == epicId }
                                         SteamApp(
@@ -1387,7 +1389,7 @@ class UnifiedActivity :
                             val epicId = if (selectedSteamAppId >= 2000000000) selectedSteamAppId - 2000000000 else 0
                             val containerManager = ContainerManager(context)
                             if (isCustom) {
-                                launchCustomGame(context, containerManager, selectedSteamAppName)
+                                launchCustomGame(context, containerManager, buildSelectedCustomApp())
                             } else if (selectedLibrarySource == "GOG") {
                                 gogApps.find { it.id == selectedGogGameId }?.let {
                                     launchGogGame(context, containerManager, it)
@@ -1466,12 +1468,7 @@ class UnifiedActivity :
                                 globalSettingsApp = (
                                     steamApps.find { it.id == selectedSteamAppId }
                                         ?: if (selectedSteamAppId < 0) {
-                                            // Build a pseudo SteamApp for the custom game
-                                            SteamApp(
-                                                id = selectedSteamAppId,
-                                                name = selectedSteamAppName,
-                                                developer = "Custom",
-                                            )
+                                            buildSelectedCustomApp()
                                         } else if (selectedSteamAppId >= 2000000000) {
                                             val epicId = selectedSteamAppId - 2000000000
                                             val epic = epicApps.find { it.id == epicId }
@@ -2106,35 +2103,30 @@ class UnifiedActivity :
                         val allShortcuts = cm.loadShortcuts()
                         val apps =
                             allShortcuts
-                                .mapNotNull { shortcut ->
-                                    if (!LibraryShortcutUtils.isCustomLibraryShortcut(shortcut)) {
-                                        return@mapNotNull null
+                                .asSequence()
+                                .filter { LibraryShortcutUtils.isCustomLibraryShortcut(it) }
+                                .groupBy {
+                                    LibraryShortcutUtils.buildCustomIdentity(it).ifEmpty {
+                                        LibraryShortcutUtils.getCustomDisplayName(it)
                                     }
-
-                                    val displayName =
-                                        shortcut
-                                            .getExtra("custom_name", shortcut.name)
-                                            .ifBlank { shortcut.name }
-                                    
-                                    val uuid = shortcut.getExtra("uuid")
-                                    val customId = if (uuid.isNotEmpty()) {
-                                        // Use UUID hash to ensure ID stability across renames
-                                        -(uuid.hashCode().and(0x7FFFFFFF) + 1)
-                                    } else {
-                                        -(displayName.hashCode().and(0x7FFFFFFF) + 1)
-                                    }
+                                }
+                                .values
+                                .mapNotNull { groupedShortcuts ->
+                                    val shortcut = groupedShortcuts.firstOrNull() ?: return@mapNotNull null
+                                    val identity = LibraryShortcutUtils.buildCustomIdentity(shortcut)
+                                    val displayName = LibraryShortcutUtils.getCustomDisplayName(shortcut)
+                                    val gameDir = LibraryShortcutUtils.getCustomGameDirectory(shortcut)
+                                    val launchPath = LibraryShortcutUtils.getCustomLaunchPath(shortcut)
 
                                     SteamApp(
-                                        id = customId,
+                                        id = LibraryShortcutUtils.buildCustomLibraryId(identity.ifEmpty { displayName }),
                                         name = displayName,
                                         developer = "Custom",
-                                        gameDir =
-                                            shortcut.getExtra(
-                                                "game_install_path",
-                                                shortcut.getExtra("custom_game_folder", ""),
-                                            ),
+                                        gameDir = gameDir,
+                                        installDir = launchPath,
                                     )
                                 }
+                                .toList()
 
                         allShortcuts to apps
                     }
@@ -2533,6 +2525,8 @@ class UnifiedActivity :
             val app = displayedApps.getOrNull(focusIndex) ?: displayedApps.firstOrNull()
             selectedSteamAppId = app?.id ?: 0
             selectedSteamAppName = app?.name ?: ""
+            selectedSteamAppGameDir = app?.gameDir ?: ""
+            selectedSteamAppLaunchPath = app?.installDir ?: ""
             val gogGame = app?.let { visibleGogByPseudoId[it.id] }
             selectedLibrarySource =
                 when {
@@ -2549,6 +2543,8 @@ class UnifiedActivity :
             activity?.libraryFocusIndex?.value = index
             selectedSteamAppId = app.id
             selectedSteamAppName = app.name
+            selectedSteamAppGameDir = app.gameDir
+            selectedSteamAppLaunchPath = app.installDir
             val gogGame = visibleGogByPseudoId[app.id]
             selectedLibrarySource =
                 when {
@@ -4480,7 +4476,7 @@ class UnifiedActivity :
                                         PlayButton(onClick = {
                                             val containerManager = ContainerManager(context)
                                             if (isCustom) {
-                                                launchCustomGame(context, containerManager, app.name)
+                                                launchCustomGame(context, containerManager, app)
                                             } else if (isGog) {
                                                 launchGogGame(context, containerManager, gogGame!!)
                                             } else if (isEpic) {
@@ -5367,7 +5363,7 @@ class UnifiedActivity :
                 com.winlator.cmod.runtime.container
                     .ContainerManager(context)
             if (isCustom) {
-                launchCustomGame(context, containerManager, app.name)
+                launchCustomGame(context, containerManager, app)
             } else if (gogGame != null) {
                 launchGogGame(context, containerManager, gogGame)
             } else if (isEpic) {
@@ -7988,6 +7984,14 @@ class UnifiedActivity :
         epicId: Int,
     ): Shortcut? =
         when {
+            isCustom -> {
+                shortcuts.firstOrNull { LibraryShortcutUtils.matchesCustomApp(it, app) }
+                    ?: shortcuts.firstOrNull {
+                        LibraryShortcutUtils.isCustomLibraryShortcut(it) &&
+                            LibraryShortcutUtils.getCustomDisplayName(it).equals(app.name, ignoreCase = true)
+                    }
+            }
+
             isEpic -> {
                 shortcuts.find {
                     it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == epicId.toString()
@@ -9396,7 +9400,48 @@ class UnifiedActivity :
         }
     }
 
-    // Launch custom game by shortcut name
+    private fun buildSelectedCustomApp(): SteamApp =
+        SteamApp(
+            id = selectedSteamAppId,
+            name = selectedSteamAppName,
+            developer = "Custom",
+            gameDir = selectedSteamAppGameDir,
+            installDir = selectedSteamAppLaunchPath,
+        )
+
+    // Launch custom game by app identity
+    private fun launchCustomGame(
+        context: android.content.Context,
+        containerManager: ContainerManager,
+        app: SteamApp,
+    ) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val allShortcuts = containerManager.loadShortcuts()
+            val shortcut =
+                findShortcutForGame(
+                    shortcuts = allShortcuts,
+                    app = app,
+                    isCustom = true,
+                    isEpic = false,
+                    epicId = 0,
+                )
+
+            if (shortcut == null) {
+                withContext(Dispatchers.Main) {
+                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                        context,
+                        "Custom game shortcut not found: ${app.name}",
+                        android.widget.Toast.LENGTH_SHORT,
+                    )
+                }
+                return@launch
+            }
+
+            launchResolvedCustomShortcut(context, shortcut, app.name)
+        }
+    }
+
+    // Legacy fallback path when only the visible name is available
     private fun launchCustomGame(
         context: android.content.Context,
         containerManager: ContainerManager,
@@ -9437,25 +9482,33 @@ class UnifiedActivity :
                 return@launch
             }
 
-            // Backfill custom_name if missing (legacy shortcuts)
-            if (shortcut.getExtra("custom_name").isEmpty()) {
-                shortcut.putExtra("custom_name", gameName)
-                shortcut.saveData()
-            }
+            launchResolvedCustomShortcut(context, shortcut, gameName)
+        }
+    }
 
-            // Refresh storage-root mappings; custom game paths launch through the drive_c game symlink.
-            val gameFolder = shortcut.getExtra("custom_game_folder", "")
-            if (gameFolder.isNotEmpty()) {
-                normalizeContainerDrives(shortcut.container)
-                shortcut.container.saveData()
-            }
-            val intent = Intent(context, XServerDisplayActivity::class.java)
-            intent.putExtra("container_id", shortcut.container.id)
-            intent.putExtra("shortcut_path", shortcut.file.path)
-            intent.putExtra("shortcut_name", gameName)
-            withContext(Dispatchers.Main) {
-                launchGame(context, intent)
-            }
+    private suspend fun launchResolvedCustomShortcut(
+        context: android.content.Context,
+        shortcut: Shortcut,
+        displayName: String,
+    ) {
+        // Backfill custom_name if missing (legacy shortcuts)
+        if (shortcut.getExtra("custom_name").isEmpty()) {
+            shortcut.putExtra("custom_name", displayName)
+            shortcut.saveData()
+        }
+
+        // Refresh storage-root mappings; custom game paths launch through the drive_c game symlink.
+        val gameFolder = shortcut.getExtra("custom_game_folder", "")
+        if (gameFolder.isNotEmpty()) {
+            normalizeContainerDrives(shortcut.container)
+            shortcut.container.saveData()
+        }
+        val intent = Intent(context, XServerDisplayActivity::class.java)
+        intent.putExtra("container_id", shortcut.container.id)
+        intent.putExtra("shortcut_path", shortcut.file.path)
+        intent.putExtra("shortcut_name", displayName)
+        withContext(Dispatchers.Main) {
+            launchGame(context, intent)
         }
     }
 

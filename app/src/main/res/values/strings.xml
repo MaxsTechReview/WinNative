@@ -852,6 +852,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_general_paths_summary">Manage where Winlator stores its working data and where exported shortcuts are written.</string>
     <string name="settings_general_winlator_path_title">Winlator Path</string>
     <string name="settings_general_shortcut_export_path_title">Shortcut Export Path</string>
+    <string name="settings_general_local_save_sync_path_title">Local Save Sync Path</string>
+    <string name="settings_general_local_save_sync_title">Enable Local Save Auto Sync</string>
+    <string name="settings_general_local_save_sync_summary">Restore the newest local snapshot on launch, then save a new snapshot on exit and keep the 5 most recent backups.</string>
     <string name="settings_general_choose_path">Choose Path</string>
     <string name="settings_general_xserver_cursor_summary">Adjust pointer speed for touch, trackpad, and mouse input inside the XServer session.</string>
     <string name="settings_general_cursor_lock_title">True Mouse Control</string>

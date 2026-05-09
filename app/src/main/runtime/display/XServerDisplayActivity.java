@@ -77,6 +77,7 @@ import com.winlator.cmod.feature.shortcuts.ShortcutsFragment;
 import com.winlator.cmod.feature.sync.CloudSyncConflictDialog;
 import com.winlator.cmod.feature.sync.CloudSyncConflictTimestamps;
 import com.winlator.cmod.feature.sync.CloudSyncHelper;
+import com.winlator.cmod.feature.sync.local.LocalGameSaveSyncManager;
 import com.winlator.cmod.feature.stores.steam.ui.SteamClientDownloadFailureDialog;
 import com.winlator.cmod.feature.settings.WineD3DConfigUtils;
 import com.winlator.cmod.runtime.compat.SteamBridge;
@@ -1248,6 +1249,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 UpdateChecker.INSTANCE.cancelPostGameCheck();
 
                 if (shortcut != null) {
+                    runLocalRestoreOnLaunchIfEnabled(shortcut);
+
                     if (isCloudSyncEnabledForShortcut() && !CloudSyncHelper.isOfflineMode(shortcut)) {
                         CloudSyncHelper.forceDownloadOnContainerSwap(this, shortcut);
 
@@ -2433,8 +2436,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             return;
         }
 
-        // Wrap onComplete to chain auto backup to Google Drive after store sync finishes
-        Runnable afterStoreSync = () -> runAutoBackupIfEnabled(onComplete);
+        // Chain local snapshots first, then the existing Google Drive history backup.
+        Runnable afterStoreSync = () -> runLocalAutoBackupThenGoogle(onComplete);
 
         String gameSource = shortcut.getExtra("game_source");
         if ("STEAM".equals(gameSource)) {
@@ -2452,7 +2455,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             return;
         }
 
-        onComplete.run();
+        afterStoreSync.run();
     }
 
     private interface ExitUploadAction {
@@ -2601,6 +2604,85 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 && !normalized.contains("no local save files")
                 && !normalized.contains("save files are empty")
                 && !normalized.contains("cannot determine save directory");
+    }
+
+    private void runLocalRestoreOnLaunchIfEnabled(@Nullable Shortcut shortcut) {
+        if (shortcut == null || !"CUSTOM".equals(shortcut.getExtra("game_source", "CUSTOM"))) {
+            return;
+        }
+
+        if (!LocalGameSaveSyncManager.INSTANCE.isEnabled(this)) {
+            return;
+        }
+
+        if (container == null) {
+            return;
+        }
+
+        try {
+            Log.d("XServerDisplayActivity", "Checking local custom snapshot for container " + container.id);
+            LocalGameSaveSyncManager.SyncResult result =
+                    (LocalGameSaveSyncManager.SyncResult) kotlinx.coroutines.BuildersKt.runBlocking(
+                            kotlinx.coroutines.Dispatchers.getIO(),
+                            (scope, continuation) ->
+                                    LocalGameSaveSyncManager.INSTANCE.restoreLatestCustomContainerBackup(
+                                            this,
+                                            container,
+                                            shortcut,
+                                            continuation));
+            if (result.getSuccess()) {
+                Log.i("XServerDisplayActivity", "Local custom snapshot restored: " + result.getMessage());
+            } else {
+                Log.d("XServerDisplayActivity", "Local custom snapshot skipped: " + result.getMessage());
+            }
+        } catch (Throwable t) {
+            Log.w("XServerDisplayActivity", "Local custom restore failed", t);
+        }
+    }
+
+    private void runLocalAutoBackupThenGoogle(Runnable onComplete) {
+        runLocalAutoBackupIfEnabled(() -> runAutoBackupIfEnabled(onComplete));
+    }
+
+    private void runLocalAutoBackupIfEnabled(Runnable onComplete) {
+        if (shortcut == null || !"CUSTOM".equals(shortcut.getExtra("game_source", "CUSTOM"))) {
+            onComplete.run();
+            return;
+        }
+
+        if (!LocalGameSaveSyncManager.INSTANCE.isEnabled(this)) {
+            onComplete.run();
+            return;
+        }
+
+        if (container == null) {
+            onComplete.run();
+            return;
+        }
+        preloaderDialog.showOnUiThread("Saving local backup...");
+
+        runExitUploadWithRetries(
+                "Local save auto backup",
+                "Saving local backup...",
+                callback -> runBlockingExitUpload(
+                        "LocalSaveExitBackup",
+                        () -> {
+                            LocalGameSaveSyncManager.SyncResult result =
+                                    (LocalGameSaveSyncManager.SyncResult) kotlinx.coroutines.BuildersKt.runBlocking(
+                                            kotlinx.coroutines.Dispatchers.getIO(),
+                                            (scope, continuation) ->
+                                                    LocalGameSaveSyncManager.INSTANCE.backupCustomContainer(
+                                                            this,
+                                                            container,
+                                                            shortcut,
+                                                            continuation));
+                            return new ExitUploadResult(
+                                    result.getSuccess(),
+                                    result.getMessage(),
+                                    !result.getMessage().toLowerCase(java.util.Locale.US).contains("empty"));
+                        },
+                        callback),
+                onComplete);
     }
 
     /**

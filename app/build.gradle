@@ -29,7 +29,11 @@ ksp {
 
 def appVersionName = providers.gradleProperty("VERSION_NAME")
         .orElse(providers.environmentVariable("VERSION_NAME"))
-        .getOrElse("Nightly")
+        .getOrElse("0.22.0-beta.1")
+def appVersionCode = providers.gradleProperty("VERSION_CODE")
+        .orElse(providers.environmentVariable("VERSION_CODE"))
+        .map { it.toInteger() }
+        .getOrElse(22)
 
 android {
     namespace 'com.winlator.cmod'
@@ -39,7 +43,7 @@ android {
         applicationId "com.winnative.cmod"
         minSdk 26
         targetSdk 28
-        versionCode 21
+        versionCode appVersionCode
         versionName appVersionName
 
         externalNativeBuild {

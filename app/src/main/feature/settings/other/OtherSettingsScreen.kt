@@ -106,6 +106,7 @@ data class OtherSettingsState(
     val soundFontIndex: Int = 0,
     val winlatorPath: String = "",
     val shortcutExportPath: String = "",
+    val localSaveSyncPath: String = "",
     val cursorSpeedPercent: Int = 100,
     val useDRI3: Boolean = true,
     val cursorLock: Boolean = false,
@@ -113,6 +114,7 @@ data class OtherSettingsState(
     val enableFileProvider: Boolean = true,
     val openInBrowser: Boolean = false,
     val shareClipboard: Boolean = false,
+    val localSaveSyncEnabled: Boolean = false,
     val imagefsInstallProgress: Int? = null,
 )
 
@@ -147,6 +149,7 @@ fun OtherSettingsScreen(
     onRemoveSoundFont: () -> Unit,
     onPickWinlatorPath: () -> Unit,
     onPickShortcutExportPath: () -> Unit,
+    onPickLocalSaveSyncPath: () -> Unit,
     onCursorSpeedChanged: (Int) -> Unit,
     onUseDRI3Changed: (Boolean) -> Unit,
     onCursorLockChanged: (Boolean) -> Unit,
@@ -154,6 +157,7 @@ fun OtherSettingsScreen(
     onEnableFileProviderChanged: (Boolean) -> Unit,
     onOpenInBrowserChanged: (Boolean) -> Unit,
     onShareClipboardChanged: (Boolean) -> Unit,
+    onLocalSaveSyncEnabledChanged: (Boolean) -> Unit,
     onRunSetupWizard: () -> Unit,
     onReinstallImagefs: () -> Unit,
 ) {
@@ -246,6 +250,24 @@ fun OtherSettingsScreen(
                 label = stringResource(R.string.settings_general_shortcut_export_path_title),
                 path = state.shortcutExportPath,
                 onBrowse = onPickShortcutExportPath,
+            )
+        }
+
+        item(key = "local_save_sync_path_card") {
+            FolderPathCard(
+                label = stringResource(R.string.settings_general_local_save_sync_path_title),
+                path = state.localSaveSyncPath,
+                onBrowse = onPickLocalSaveSyncPath,
+            )
+        }
+
+        item(key = "local_save_sync_card") {
+            SettingsToggleCard(
+                title = stringResource(R.string.settings_general_local_save_sync_title),
+                subtitle = stringResource(R.string.settings_general_local_save_sync_summary),
+                icon = Icons.Outlined.Autorenew,
+                checked = state.localSaveSyncEnabled,
+                onCheckedChange = onLocalSaveSyncEnabledChanged,
             )
         }
 
