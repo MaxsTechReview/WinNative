@@ -759,14 +759,6 @@ fun setupXServerDrawerComposeView(
             )
         }
     }
-
-    if (state.showTouchGestureSettingsDialog && state.touchGestureConfig != null) {
-        com.winlator.cmod.runtime.input.ui.TouchGestureSettingsDialog(
-            config = state.touchGestureConfig,
-            onConfigChange = { listener.onRTSGesturesConfigChanged(it) },
-            onDismiss = { listener.onRTSGesturesDialogDismissed() }
-        )
-    }
 }
 
 @Composable
@@ -898,6 +890,14 @@ internal fun XServerDrawerContent(
                 }
             }
         }
+    }
+
+    if (state.showTouchGestureSettingsDialog && state.touchGestureConfig != null) {
+        com.winlator.cmod.runtime.input.ui.TouchGestureSettingsDialog(
+            config = state.touchGestureConfig,
+            onConfigChange = { listener.onRTSGesturesConfigChanged(it) },
+            onDismiss = { listener.onRTSGesturesDialogDismissed() }
+        )
     }
 }
 
