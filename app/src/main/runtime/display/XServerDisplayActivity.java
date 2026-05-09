@@ -3831,8 +3831,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     @Override
-    public void onPointerCaptureChange(boolean hasCapture) {
-        super.onPointerCaptureChange(hasCapture);
+    public void onPointerCaptureChanged(boolean hasCapture) {
+        super.onPointerCaptureChanged(hasCapture);
         if (xServer != null) {
             xServer.setPointerCaptureActive(hasCapture);
         }
