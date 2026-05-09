@@ -274,6 +274,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean firstTimeBoot = false;
     private SharedPreferences preferences;
     private boolean isMouseDisabled = false;
+    private boolean isPointerCaptureForcedOff = false;
+    private boolean isVolumeUpPressed = false;
+    private boolean isVolumeDownPressed = false;
     private OnExtractFileListener onExtractFileListener;
     private WinHandler winHandler;
     private WineRequestHandler wineRequestHandler;
@@ -304,12 +307,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (touchpadView != null && hasExternalMouse() && (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen())) {
             touchpadView.postDelayed(() -> {
                 if (touchpadView != null) {
-                    touchpadView.requestFocus();
-                    touchpadView.requestPointerCapture();
-                    touchpadView.setOnCapturedPointerListener((view, event) -> {
-                        handleCapturedPointer(event);
-                        return true;
-                    });
+                    updatePointerCapture();
                 }
             }, 100);
         }
@@ -1810,6 +1808,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     @Override
     public void onPause() {
         super.onPause();
+        isVolumeUpPressed = false;
+        isVolumeDownPressed = false;
         boolean gyroEnabled = preferences.getBoolean("gyro_enabled", false);
 
         if (gyroEnabled) {
@@ -3830,8 +3830,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
+    @Override
+    public void onPointerCaptureChange(boolean hasCapture) {
+        super.onPointerCaptureChange(hasCapture);
+        if (xServer != null) {
+            xServer.setPointerCaptureActive(hasCapture);
+        }
+    }
+
     private boolean shouldUsePointerCapture() {
-        return preferences != null && preferences.getBoolean("cursor_lock", false);
+        return !isPointerCaptureForcedOff && hasExternalMouse() && (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen());
     }
 
     private void updatePointerCapture() {
@@ -3845,6 +3853,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 }
             });
             if (!touchpadView.hasPointerCapture()) {
+                touchpadView.requestFocus();
                 touchpadView.requestPointerCapture();
             }
         } else {
@@ -5135,6 +5144,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         boolean handledByTouchpadView = false;
 
         if (isPointerMotionEvent(event) && touchpadView != null) {
+            if (shouldUsePointerCapture() && !touchpadView.hasPointerCapture()) {
+                updatePointerCapture();
+            }
             handledByTouchpadView = touchpadView.onExternalMouseEvent(event);
         }
 
@@ -5184,6 +5196,23 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         if (handled) return true;
+
+        int keyCode = event.getKeyCode();
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) isVolumeUpPressed = true;
+                else isVolumeDownPressed = true;
+
+                if (isVolumeUpPressed && isVolumeDownPressed) {
+                    isPointerCaptureForcedOff = !isPointerCaptureForcedOff;
+                    updatePointerCapture();
+                    return true;
+                }
+            } else if (event.getAction() == KeyEvent.ACTION_UP) {
+                if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) isVolumeUpPressed = false;
+                else isVolumeDownPressed = false;
+            }
+        }
 
         if (event.getAction() == KeyEvent.ACTION_DOWN &&
                 (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_MODE ||
