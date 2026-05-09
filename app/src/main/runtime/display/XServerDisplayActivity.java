@@ -2914,6 +2914,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             Log.e(tag, "MidiHandler socket still open");
         }
         cleanupDebugDialog("onDestroy");
+
+        // Epic ownership tokens are short-lived (~30 minutes server-side) and personally scoped
+        // to the running session. Clear them on game exit so we don't leave them sitting in the
+        // Wine prefix between launches; the next launch fetches a fresh token via the cache
+        // (still valid for ~25 minutes).
+        if (shortcut != null && "EPIC".equals(shortcut.getExtra("game_source"))) {
+            try {
+                com.winlator.cmod.feature.stores.epic.service.EpicService.Companion
+                        .cleanupLaunchTokens(getApplicationContext(), container);
+            } catch (Exception e) {
+                Log.w("EPIC", "Failed to cleanup ownership tokens on game exit", e);
+            }
+        }
     }
 
     private boolean isCustomShortcut() {

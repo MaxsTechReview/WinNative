@@ -181,5 +181,6 @@ data class EpicDLCInfo(
 data class EpicGameToken(
     val authCode: String, // Exchange code for -AUTH_PASSWORD parameter
     val accountId: String, // User account ID for -epicuserid
-    val ownershipToken: String? = null, // Optional DRM ownership token
+    val displayName: String = "", // Display name for -epicusername (matches Epic identity)
+    val ownershipToken: String? = null, // Optional DRM ownership token (hex-encoded bytes)
 )
