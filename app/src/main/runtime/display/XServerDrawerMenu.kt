@@ -578,6 +578,8 @@ fun buildXServerDrawerState(
     inputControlsTouchscreenHaptics: Boolean = false,
     inputControlsGamepadVibration: Boolean = true,
     fullscreenEnabled: Boolean = false,
+    showTouchGestureSettingsDialog: Boolean = false,
+    touchGestureConfig: TouchGestureConfig? = null,
 ): XServerDrawerState {
     val items =
         mutableListOf(
@@ -733,6 +735,8 @@ fun buildXServerDrawerState(
         inputControlsOverlayOpacity = inputControlsOverlayOpacity,
         inputControlsTouchscreenHaptics = inputControlsTouchscreenHaptics,
         inputControlsGamepadVibration = inputControlsGamepadVibration,
+        showTouchGestureSettingsDialog = showTouchGestureSettingsDialog,
+        touchGestureConfig = touchGestureConfig,
     )
 }
 
