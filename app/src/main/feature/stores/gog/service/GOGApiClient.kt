@@ -124,7 +124,7 @@ object GOGApiClient {
                         .Builder() // Returns an "owned" key with an array of ints.
                         .url(url)
                         .addHeader("Authorization", "Bearer ${credentials.accessToken}")
-                        .addHeader("User-Agent", "GameNative/1.0")
+                        .addHeader("User-Agent", "WinNative/1.0")
                         .get()
                         .build()
 
@@ -213,7 +213,7 @@ object GOGApiClient {
                         .Builder()
                         .url(url)
                         .addHeader("Authorization", "Bearer ${credentials.accessToken}")
-                        .addHeader("User-Agent", "GameNative/1.0")
+                        .addHeader("User-Agent", "WinNative/1.0")
                         .get()
                         .build()
 

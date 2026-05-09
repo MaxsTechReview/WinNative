@@ -2809,8 +2809,30 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             return;
         }
 
+        final int appId;
         try {
-            int appId = Integer.parseInt(appIdStr);
+            appId = Integer.parseInt(appIdStr);
+        } catch (NumberFormatException e) {
+            Log.w("XServerDisplayActivity", "Failed to parse Epic app_id for cloud sync", e);
+            onComplete.run();
+            return;
+        }
+
+        // Skip silently when an upload can't possibly succeed — the game doesn't opt
+        // into Epic cloud saves (most don't), the user isn't signed in, or there are
+        // no local save files yet. Otherwise the retry-with-backoff loop below would
+        // run three full rounds showing "Cloud Sync Uploading… Retry 3/3" for a
+        // permanent no-op.
+        if (!com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager
+                .canAttemptExitUpload(this, appId)) {
+            Log.i("XServerDisplayActivity",
+                    "Epic cloud sync skipped for appId=" + appId
+                            + " (game does not support cloud saves, user signed out, or no local save files)");
+            onComplete.run();
+            return;
+        }
+
+        try {
             Log.d("XServerDisplayActivity", "Syncing Epic cloud saves for appId=" + appId);
             preloaderDialog.showOnUiThread("Cloud Sync Uploading...");
 
@@ -2840,7 +2862,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             callback),
                     onComplete);
         } catch (Exception e) {
-            Log.w("XServerDisplayActivity", "Failed to parse Epic app_id for cloud sync", e);
+            Log.w("XServerDisplayActivity", "Failed to start Epic cloud sync", e);
             onComplete.run();
         }
     }
@@ -2938,6 +2960,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             Log.e(tag, "MidiHandler socket still open");
         }
         cleanupDebugDialog("onDestroy");
+
+        // Epic ownership tokens are short-lived (~30 minutes server-side) and personally scoped
+        // to the running session. Clear them on game exit so we don't leave them sitting in the
+        // Wine prefix between launches; the next launch fetches a fresh token via the cache
+        // (still valid for ~25 minutes).
+        if (shortcut != null && "EPIC".equals(shortcut.getExtra("game_source"))) {
+            try {
+                com.winlator.cmod.feature.stores.epic.service.EpicService.Companion
+                        .cleanupLaunchTokens(getApplicationContext(), container);
+            } catch (Exception e) {
+                Log.w("EPIC", "Failed to cleanup ownership tokens on game exit", e);
+            }
+        }
     }
 
     private boolean isCustomShortcut() {

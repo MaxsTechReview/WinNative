@@ -512,8 +512,6 @@ class UnifiedActivity :
                 android.view.KeyEvent.KEYCODE_BUTTON_Y,
                 android.view.KeyEvent.KEYCODE_BUTTON_L1,
                 android.view.KeyEvent.KEYCODE_BUTTON_R1,
-                android.view.KeyEvent.KEYCODE_BUTTON_L2,
-                android.view.KeyEvent.KEYCODE_BUTTON_R2,
                 android.view.KeyEvent.KEYCODE_DPAD_CENTER,
                 -> true
 
@@ -1413,32 +1411,6 @@ class UnifiedActivity :
                         }
                     }
 
-                    android.view.KeyEvent.KEYCODE_BUTTON_L2 -> {
-                        if (key == "downloads") {
-                            val pausableDownloads =
-                                DownloadService.getAllDownloads().filter {
-                                    val status = it.second.getStatusFlow().value
-                                    status != DownloadPhase.COMPLETE && status != DownloadPhase.CANCELLED
-                                }
-                            if (pausableDownloads.isNotEmpty()) {
-                                val allPausableDownloadsPaused =
-                                    pausableDownloads.all {
-                                        it.second.getStatusFlow().value == DownloadPhase.PAUSED
-                                    }
-                                if (allPausableDownloadsPaused) {
-                                    DownloadService.resumeAll()
-                                } else {
-                                    DownloadService.pauseAll()
-                                }
-                            }
-                        }
-                    }
-
-                    android.view.KeyEvent.KEYCODE_BUTTON_R2 -> {
-                        if (key == "downloads") {
-                            DownloadService.cancelAll()
-                        }
-                    }
                 }
             }
         }
@@ -7093,9 +7065,6 @@ class UnifiedActivity :
                 .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
                 .tabScreenPadding(top = DownloadsHeaderTopPadding),
         ) {
-            val isController = ControllerHelper.isControllerConnected()
-            val isPS = ControllerHelper.isPlayStationController()
-
             // Read tick to ensure global button state reacts to per-download status changes.
             @Suppress("UNUSED_EXPRESSION")
             tick
@@ -7158,9 +7127,7 @@ class UnifiedActivity :
 
                 DownloadsQueueButton(
                     label = pauseResumeLabel,
-                    icon = if (isPaused || allPausableDownloadsPaused) Icons.Outlined.PlayArrow else Icons.Outlined.Pause,
                     accentColor = Accent,
-                    controllerBadge = if (isController) if (isPS) "L2" else "LT" else null,
                     onClick = {
                         if (selectedId == null) {
                             if (allPausableDownloadsPaused) {
@@ -7181,9 +7148,7 @@ class UnifiedActivity :
 
                 DownloadsQueueButton(
                     label = cancelLabel,
-                    icon = Icons.Outlined.Close,
                     accentColor = DangerRed,
-                    controllerBadge = if (isController) if (isPS) "R2" else "RT" else null,
                     onClick = {
                         if (selectedId == null) {
                             DownloadService.cancelAll()
@@ -7205,7 +7170,6 @@ class UnifiedActivity :
 
                 DownloadsQueueButton(
                     label = stringResource(R.string.downloads_queue_clear),
-                    icon = Icons.Outlined.Delete,
                     accentColor = TextSecondary,
                     onClick = {
                         DownloadService.clearCompletedDownloads()
@@ -7300,11 +7264,9 @@ class UnifiedActivity :
     @Composable
     private fun DownloadsQueueButton(
         label: String,
-        icon: ImageVector,
         accentColor: Color,
         enabled: Boolean,
         modifier: Modifier = Modifier,
-        controllerBadge: String? = null,
         onClick: () -> Unit,
     ) {
         val contentColor = if (enabled) accentColor else TextSecondary.copy(alpha = 0.48f)
@@ -7324,8 +7286,6 @@ class UnifiedActivity :
             contentPadding = PaddingValues(horizontal = 8.dp),
             shape = RoundedCornerShape(8.dp),
         ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = contentColor)
-            Spacer(Modifier.width(6.dp))
             Text(
                 label,
                 color = contentColor,
@@ -7334,10 +7294,6 @@ class UnifiedActivity :
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (controllerBadge != null) {
-                Spacer(Modifier.width(6.dp))
-                ControllerBadge(controllerBadge)
-            }
         }
     }
 
@@ -9037,8 +8993,6 @@ class UnifiedActivity :
                 containerManager.loadShortcuts().find {
                     it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == app.id.toString()
                 }
-            val launchArgsResult = EpicGameLauncher.buildLaunchParameters(context, app)
-            val args = launchArgsResult.getOrNull()?.joinToString(" ") ?: ""
 
             if (existingShortcut != null) {
                 if (!SetupWizardActivity.isContainerUsable(context, existingShortcut.container)) {
@@ -9107,6 +9061,38 @@ class UnifiedActivity :
                 }
 
                 shortcut.saveData()
+
+                // Provision the EOS overlay into this container. Best-effort — failures are
+                // non-fatal (games without the EOS SDK ignore it; games with the SDK still run
+                // without the in-game HUD). Tokens must be staged inside the prefix because
+                // the dosdevices map doesn't expose the app cache dir on any drive letter.
+                runCatching {
+                    EpicService.installOverlay(context, shortcut.container)
+                }.onFailure {
+                    Log.w("EPIC", "EOS overlay install failed for ${app.appName}; launching anyway", it)
+                }
+
+                val launchArgsResult =
+                    EpicGameLauncher.buildLaunchParameters(
+                        context = context,
+                        game = app,
+                        container = shortcut.container,
+                    )
+                launchArgsResult.exceptionOrNull()?.let { err ->
+                    // The launch can still proceed (offline-tolerant titles, single-player non-DRM
+                    // games), so we don't abort — but surface the failure prominently so users
+                    // know why a DRM/online title may bounce to its login screen.
+                    Log.e("EPIC", "Failed to build Epic launch parameters for ${app.appName}: ${err.message}", err)
+                    withContext(Dispatchers.Main) {
+                        com.winlator.cmod.shared.ui.toast.WinToast.show(
+                            context,
+                            "Could not refresh Epic launch token: ${err.message ?: "unknown error"}",
+                            android.widget.Toast.LENGTH_LONG,
+                        )
+                    }
+                }
+                val args = launchArgsResult.getOrNull()?.joinToString(" ") ?: ""
+
                 val intent = Intent(context, XServerDisplayActivity::class.java)
                 intent.putExtra("container_id", shortcut.container.id)
                 intent.putExtra("shortcut_path", shortcut.file.path)
@@ -9157,6 +9143,11 @@ class UnifiedActivity :
                 content.append("\n[Extra Data]\n")
                 content.append("game_source=EPIC\n")
                 content.append("app_id=${app.id}\n")
+                if (app.catalogId.isNotEmpty()) {
+                    // Persist catalog_id so EpicGameFixHelper / GameFixes can dispatch the
+                    // per-catalog registry/env/folder fixes without a DB round-trip on launch.
+                    content.append("catalog_id=${app.catalogId}\n")
+                }
                 content.append("container_id=${container.id}\n")
                 content.append("game_install_path=${gameInstallPath}\n")
                 if (exePath.isNotEmpty()) {
@@ -9168,6 +9159,31 @@ class UnifiedActivity :
                     .writeString(shortcutFile, content.toString())
 
                 container.saveData()
+
+                // Best-effort EOS overlay provisioning — see existing-shortcut branch above.
+                runCatching {
+                    EpicService.installOverlay(context, container)
+                }.onFailure {
+                    Log.w("EPIC", "EOS overlay install failed for ${app.appName}; launching anyway", it)
+                }
+
+                val launchArgsResult =
+                    EpicGameLauncher.buildLaunchParameters(
+                        context = context,
+                        game = app,
+                        container = container,
+                    )
+                launchArgsResult.exceptionOrNull()?.let { err ->
+                    Log.e("EPIC", "Failed to build Epic launch parameters for ${app.appName}: ${err.message}", err)
+                    withContext(Dispatchers.Main) {
+                        com.winlator.cmod.shared.ui.toast.WinToast.show(
+                            context,
+                            "Could not refresh Epic launch token: ${err.message ?: "unknown error"}",
+                            android.widget.Toast.LENGTH_LONG,
+                        )
+                    }
+                }
+                val args = launchArgsResult.getOrNull()?.joinToString(" ") ?: ""
 
                 val intent = Intent(context, XServerDisplayActivity::class.java)
                 intent.putExtra("container_id", container.id)
