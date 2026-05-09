@@ -475,6 +475,8 @@ class TouchpadView(
                 threeFingerHoldTriggered = false
                 twoFingerTapFired = false
                 threeFingerTapFired = false
+                swipeHandled = false
+                gestureConsumed = false
 
                 fingers[pointerId] = Finger(event.getX(actionIndex), event.getY(actionIndex))
                 handleTouchDown(event)
@@ -504,6 +506,8 @@ class TouchpadView(
 
                 // Only restart long-press timer if we actually added a finger
                 if (numFingers > oldNumFingers) {
+                    longPressTriggered = false
+                    gestureConsumed = false
                     longPressHandler.removeCallbacks(longPressRunnable)
                     if (delayedPress != null) {
                         removeCallbacks(delayedPress)
