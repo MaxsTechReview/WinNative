@@ -19,6 +19,11 @@ object EpicAuthManager {
     private val _isLoggedInFlow = MutableStateFlow(false)
     val isLoggedInFlow = _isLoggedInFlow.asStateFlow()
 
+    // Denuvo ownership tokens are server-side valid ~30 minutes and the endpoint is
+    // rate-limited (~5 requests / 24h / game). Cache to disk and re-use a few minutes
+    // under the validity window to avoid burning the quota on relaunches.
+    private const val OWNERSHIP_TOKEN_CACHE_TTL_MS = 25L * 60L * 1000L
+
     fun updateLoginStatus(context: Context) {
         _isLoggedInFlow.value = isLoggedIn(context)
     }
@@ -29,6 +34,30 @@ object EpicAuthManager {
             dir.mkdirs()
         }
         return File(dir, "credentials.json").absolutePath
+    }
+
+    private fun ownershipTokenCacheFile(context: Context, namespace: String, catalogItemId: String): File {
+        val dir = File(context.filesDir, "epic/ownership_tokens").also { it.mkdirs() }
+        return File(dir, "${namespace.sanitizeForFilename()}_${catalogItemId.sanitizeForFilename()}.hex")
+    }
+
+    private fun readCachedOwnershipTokenHex(context: Context, namespace: String, catalogItemId: String): String? {
+        val file = ownershipTokenCacheFile(context, namespace, catalogItemId)
+        if (!file.exists()) return null
+        if (System.currentTimeMillis() - file.lastModified() >= OWNERSHIP_TOKEN_CACHE_TTL_MS) return null
+        return runCatching { file.readText().trim().takeIf { it.isNotEmpty() } }.getOrNull()
+    }
+
+    private fun writeOwnershipTokenHex(context: Context, namespace: String, catalogItemId: String, hex: String) {
+        runCatching {
+            ownershipTokenCacheFile(context, namespace, catalogItemId).writeText(hex)
+        }.onFailure { Timber.tag("Epic").w(it, "Failed caching ownership token for $namespace:$catalogItemId") }
+    }
+
+    private fun clearOwnershipTokenCache(context: Context) {
+        runCatching {
+            File(context.filesDir, "epic/ownership_tokens").listFiles()?.forEach { it.delete() }
+        }.onFailure { Timber.tag("Epic").w(it, "Failed clearing ownership token cache") }
     }
 
     fun hasStoredCredentials(context: Context): Boolean {
@@ -83,6 +112,7 @@ object EpicAuthManager {
      */
     fun clearStoredCredentials(context: Context): Boolean =
         try {
+            clearOwnershipTokenCache(context)
             val authFile = File(getCredentialsFilePath(context))
             val result =
                 if (authFile.exists()) {
@@ -261,27 +291,34 @@ object EpicAuthManager {
                     return Result.failure(Exception("Namespace and catalogItemId required for ownership token"))
                 }
 
-                Timber.d("Getting ownership token for $namespace:$catalogItemId...")
-                val ownershipResult =
-                    EpicAuthClient.getOwnershipToken(
-                        accessToken = credentials.accessToken,
-                        accountId = credentials.accountId,
-                        namespace = namespace,
-                        catalogItemId = catalogItemId,
-                    )
-
-                if (ownershipResult.isFailure) {
-                    val error = ownershipResult.exceptionOrNull()?.message ?: "Unknown error"
-                    Timber.e("Failed to get required ownership token: $error")
-                    return Result.failure(
-                        Exception("Failed to get ownership token for DRM-protected game: $error"),
-                    )
+                val cachedHex = readCachedOwnershipTokenHex(context, namespace, catalogItemId)
+                if (cachedHex != null) {
+                    Timber.d("Using cached ownership token for $namespace:$catalogItemId")
+                    ownershipTokenHex = cachedHex
                 } else {
-                    // Convert binary token to hex string for easier handling
-                    // Use toInt() and 0xFF to prevent sign extension of negative bytes
-                    val tokenBytes = ownershipResult.getOrNull()!!
-                    ownershipTokenHex = tokenBytes.joinToString("") { "%02x".format(it.toInt() and 0xFF) }
-                    Timber.d("Ownership token obtained (${tokenBytes.size} bytes)")
+                    Timber.d("Getting ownership token for $namespace:$catalogItemId...")
+                    val ownershipResult =
+                        EpicAuthClient.getOwnershipToken(
+                            accessToken = credentials.accessToken,
+                            accountId = credentials.accountId,
+                            namespace = namespace,
+                            catalogItemId = catalogItemId,
+                        )
+
+                    if (ownershipResult.isFailure) {
+                        val error = ownershipResult.exceptionOrNull()?.message ?: "Unknown error"
+                        Timber.e("Failed to get required ownership token: $error")
+                        return Result.failure(
+                            Exception("Failed to get ownership token for DRM-protected game: $error"),
+                        )
+                    } else {
+                        // Convert binary token to hex string for easier handling
+                        // Use toInt() and 0xFF to prevent sign extension of negative bytes
+                        val tokenBytes = ownershipResult.getOrNull()!!
+                        ownershipTokenHex = tokenBytes.joinToString("") { "%02x".format(it.toInt() and 0xFF) }
+                        writeOwnershipTokenHex(context, namespace, catalogItemId, ownershipTokenHex)
+                        Timber.d("Ownership token obtained (${tokenBytes.size} bytes) and cached")
+                    }
                 }
             }
 
@@ -289,6 +326,7 @@ object EpicAuthManager {
                 EpicGameToken(
                     authCode = exchangeCode,
                     accountId = credentials.accountId,
+                    displayName = credentials.displayName,
                     ownershipToken = ownershipTokenHex,
                 )
 
@@ -357,7 +395,9 @@ object EpicAuthManager {
                 accessToken = json.getString("access_token"),
                 refreshToken = json.getString("refresh_token"),
                 accountId = json.getString("account_id"),
-                displayName = json.getString("display_name"),
+                // Use optString so we don't kick existing users out on first run of a build that
+                // started persisting display_name — older credentials.json files don't have it.
+                displayName = json.optString("display_name", ""),
                 expiresAt = json.getLong("expires_at"),
                 refreshExpiresAt = json.optLong("refresh_expires_at", 0L),
             )

@@ -674,10 +674,60 @@ class EpicService : Service() {
             game: EpicGame,
             offline: Boolean = false,
             languageCode: String = "en-US",
-        ): Result<List<String>> = EpicGameLauncher.buildLaunchParameters(context, game, offline, languageCode)
+            container: com.winlator.cmod.runtime.container.Container? = null,
+        ): Result<List<String>> = EpicGameLauncher.buildLaunchParameters(context, game, offline, languageCode, container)
 
-        fun cleanupLaunchTokens(context: Context) {
-            EpicGameLauncher.cleanupOwnershipTokens(context)
+        fun cleanupLaunchTokens(
+            context: Context,
+            container: com.winlator.cmod.runtime.container.Container? = null,
+        ) {
+            EpicGameLauncher.cleanupOwnershipTokens(context, container)
+        }
+
+        // ==========================================================================
+        // EOS OVERLAY (DRM/Denuvo support helper) - Delegate to instance EpicOverlayManager
+        // ==========================================================================
+
+        /**
+         * Install the EOS overlay into [container]'s Wine prefix. Idempotent.
+         *
+         * Failure to install is non-fatal — call sites typically log and continue with the
+         * launch. Most games still run fine without the overlay; only in-game friend
+         * notifications / purchasing UI are missing.
+         */
+        suspend fun installOverlay(
+            context: Context,
+            container: com.winlator.cmod.runtime.container.Container,
+            forceReinstall: Boolean = false,
+            onProgress: ((Int, Int) -> Unit)? = null,
+        ): Result<Unit> {
+            val instance = getInstance()
+                ?: return Result.failure(Exception("Epic service is not active"))
+            return instance.epicOverlayManager.installOverlay(
+                context = context,
+                container = container,
+                forceReinstall = forceReinstall,
+                onProgress = onProgress,
+            )
+        }
+
+        /**
+         * True if the EOS overlay has been installed into [container]'s Wine prefix.
+         * Returns false if the service is not running.
+         */
+        fun isOverlayInstalled(container: com.winlator.cmod.runtime.container.Container): Boolean =
+            getInstance()?.epicOverlayManager?.isOverlayInstalled(container) ?: false
+
+        /**
+         * Remove the EOS overlay from [container]'s Wine prefix and clear its registry pointer.
+         * Returns failure if the service is not running.
+         */
+        suspend fun removeOverlay(
+            container: com.winlator.cmod.runtime.container.Container,
+        ): Result<Unit> {
+            val instance = getInstance()
+                ?: return Result.failure(Exception("Epic service is not active"))
+            return instance.epicOverlayManager.removeOverlay(container)
         }
 
         // ==========================================================================
@@ -709,6 +759,9 @@ class EpicService : Service() {
 
     @Inject
     lateinit var epicDownloadManager: EpicDownloadManager
+
+    @Inject
+    lateinit var epicOverlayManager: EpicOverlayManager
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
