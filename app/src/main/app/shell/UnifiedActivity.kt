@@ -4373,6 +4373,100 @@ class UnifiedActivity :
                 }
             }
 
+        val uninstallGame: () -> Unit = {
+            if (isGog) {
+                scope.launch(Dispatchers.IO) {
+                    val result = GOGService.deleteGame(
+                        context,
+                        LibraryItem(
+                            "GOG_${gogGame!!.id}",
+                            gogGame.title,
+                            com.winlator.cmod.feature.stores.steam.enums.GameSource.GOG,
+                        ),
+                    )
+                    withContext(Dispatchers.Main) {
+                        if (result.isSuccess) {
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                context,
+                                getString(R.string.library_games_game_uninstalled, app.name),
+                                android.widget.Toast.LENGTH_SHORT,
+                            )
+                        } else {
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                context,
+                                getString(
+                                    R.string.library_games_failed_to_uninstall_reason,
+                                    result.exceptionOrNull()?.message ?: getString(R.string.common_ui_unknown_error),
+                                ),
+                                android.widget.Toast.LENGTH_LONG,
+                            )
+                        }
+                        onDismissRequest()
+                    }
+                }
+            } else if (isCustom) {
+                scope.launch(Dispatchers.IO) {
+                    val cm = ContainerManager(context)
+                    val sc = findLibraryShortcutForGame(cm, app, isCustom, isEpic, epicId)
+                    sc?.let { LibraryShortcutUtils.deleteShortcutArtifacts(context, it) }
+                    java.io
+                        .File(
+                            context.filesDir,
+                            "custom_icons/${app.name.replace("/", "_")}.png",
+                        ).delete()
+                    PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(app.id))
+                    withContext(Dispatchers.Main) {
+                        com.winlator.cmod.shared.ui.toast.WinToast.show(
+                            context,
+                            getString(R.string.library_games_game_removed, app.name),
+                            android.widget.Toast.LENGTH_SHORT,
+                        )
+                        onDismissRequest()
+                    }
+                }
+            } else if (isEpic) {
+                scope.launch(Dispatchers.IO) {
+                    val result = EpicService.deleteGame(context, epicId)
+                    withContext(Dispatchers.Main) {
+                        if (result.isSuccess) {
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                context,
+                                getString(R.string.library_games_game_uninstalled, app.name),
+                                android.widget.Toast.LENGTH_SHORT,
+                            )
+                        } else {
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                context,
+                                getString(
+                                    R.string.library_games_failed_to_uninstall_reason,
+                                    result.exceptionOrNull()?.message ?: "",
+                                ),
+                                android.widget.Toast.LENGTH_LONG,
+                            )
+                        }
+                        onDismissRequest()
+                    }
+                }
+            } else {
+                SteamService.uninstallApp(app.id) { success ->
+                    if (success) {
+                        com.winlator.cmod.shared.ui.toast.WinToast.show(
+                            context,
+                            getString(R.string.library_games_game_uninstalled, app.name),
+                            android.widget.Toast.LENGTH_SHORT,
+                        )
+                    } else {
+                        com.winlator.cmod.shared.ui.toast.WinToast.show(
+                            context,
+                            getString(R.string.library_games_failed_to_uninstall),
+                            android.widget.Toast.LENGTH_SHORT,
+                        )
+                    }
+                    onDismissRequest()
+                }
+            }
+        }
+
         Dialog(
             onDismissRequest = onDismissRequest,
             properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -4542,7 +4636,7 @@ class UnifiedActivity :
                                     },
                                     onSaves = { activePopup = LibraryDetailPopup.Saves },
                                     onCloudSaves = { activePopup = LibraryDetailPopup.CloudSaves },
-                                    onUninstall = { currentScreen = LibraryDetailScreen.Uninstall },
+                                    onUninstall = uninstallGame,
                                 )
                             }
 
@@ -4858,100 +4952,7 @@ class UnifiedActivity :
                                             stringResource(
                                                 if (isCustom) R.string.common_ui_remove else R.string.common_ui_uninstall,
                                             ),
-                                        onConfirm = {
-                                            if (isGog) {
-                                                scope.launch(Dispatchers.IO) {
-                                                    val result = GOGService.deleteGame(
-                                                        context,
-                                                        LibraryItem(
-                                                            "GOG_${gogGame!!.id}",
-                                                            gogGame.title,
-                                                            com.winlator.cmod.feature.stores.steam.enums.GameSource.GOG,
-                                                        ),
-                                                    )
-                                                    withContext(Dispatchers.Main) {
-                                                        if (result.isSuccess) {
-                                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                                context,
-                                                                getString(R.string.library_games_game_uninstalled, app.name),
-                                                                android.widget.Toast.LENGTH_SHORT,
-                                                            )
-                                                        } else {
-                                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                                context,
-                                                                getString(
-                                                                    R.string.library_games_failed_to_uninstall_reason,
-                                                                    result.exceptionOrNull()?.message
-                                                                        ?: getString(R.string.common_ui_unknown_error),
-                                                                ),
-                                                                android.widget.Toast.LENGTH_LONG,
-                                                            )
-                                                        }
-                                                        onDismissRequest()
-                                                    }
-                                                }
-                                            } else if (isCustom) {
-                                                scope.launch(Dispatchers.IO) {
-                                                    val cm = ContainerManager(context)
-                                                    val sc = findLibraryShortcutForGame(cm, app, isCustom, isEpic, epicId)
-                                                    sc?.let { LibraryShortcutUtils.deleteShortcutArtifacts(context, it) }
-                                                    java.io
-                                                        .File(
-                                                            context.filesDir,
-                                                            "custom_icons/${app.name.replace("/", "_")}.png",
-                                                        ).delete()
-                                                    PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(app.id))
-                                                    withContext(Dispatchers.Main) {
-                                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                            context,
-                                                            getString(R.string.library_games_game_removed, app.name),
-                                                            android.widget.Toast.LENGTH_SHORT,
-                                                        )
-                                                        onDismissRequest()
-                                                    }
-                                                }
-                                            } else if (isEpic) {
-                                                scope.launch(Dispatchers.IO) {
-                                                    val result = EpicService.deleteGame(context, epicId)
-                                                    withContext(Dispatchers.Main) {
-                                                        if (result.isSuccess) {
-                                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                                context,
-                                                                getString(R.string.library_games_game_uninstalled, app.name),
-                                                                android.widget.Toast.LENGTH_SHORT,
-                                                            )
-                                                        } else {
-                                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                                context,
-                                                                getString(
-                                                                    R.string.library_games_failed_to_uninstall_reason,
-                                                                    result.exceptionOrNull()?.message ?: "",
-                                                                ),
-                                                                android.widget.Toast.LENGTH_LONG,
-                                                            )
-                                                        }
-                                                        onDismissRequest()
-                                                    }
-                                                }
-                                            } else {
-                                                SteamService.uninstallApp(app.id) { success ->
-                                                    if (success) {
-                                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                            context,
-                                                            getString(R.string.library_games_game_uninstalled, app.name),
-                                                            android.widget.Toast.LENGTH_SHORT,
-                                                        )
-                                                    } else {
-                                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                            context,
-                                                            getString(R.string.library_games_failed_to_uninstall),
-                                                            android.widget.Toast.LENGTH_SHORT,
-                                                        )
-                                                    }
-                                                    onDismissRequest()
-                                                }
-                                            }
-                                        },
+                                        onConfirm = uninstallGame,
                                         onCancel = { currentScreen = LibraryDetailScreen.Main },
                                     )
                                 }

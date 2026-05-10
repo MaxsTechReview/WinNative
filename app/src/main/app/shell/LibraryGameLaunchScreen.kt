@@ -40,6 +40,7 @@ import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -47,7 +48,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,6 +63,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -103,6 +107,7 @@ internal fun LibraryGameLaunchScreen(
     onUninstall: () -> Unit,
 ) {
     val context = LocalContext.current
+    var uninstallMenuOpen by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize()) {
         val edgePadding = 22.dp
@@ -345,18 +350,133 @@ internal fun LibraryGameLaunchScreen(
                             size = actionIconSize,
                             onClick = onCloudSaves,
                         )
-                        LaunchIconActionButton(
-                            icon = Icons.Outlined.Delete,
-                            contentDescription =
-                                stringResource(if (isCustom) R.string.common_ui_remove else R.string.common_ui_uninstall),
-                            size = actionIconSize,
-                            onClick = onUninstall,
-                            tint = LaunchDanger,
-                        )
+                        Box {
+                            LaunchIconActionButton(
+                                icon = Icons.Outlined.Delete,
+                                contentDescription =
+                                    stringResource(if (isCustom) R.string.common_ui_remove else R.string.common_ui_uninstall),
+                                size = actionIconSize,
+                                onClick = { uninstallMenuOpen = true },
+                                tint = LaunchDanger,
+                            )
+                            LaunchUninstallMenu(
+                                expanded = uninstallMenuOpen,
+                                appName = appName,
+                                isCustom = isCustom,
+                                onDismissRequest = { uninstallMenuOpen = false },
+                                onConfirm = {
+                                    uninstallMenuOpen = false
+                                    onUninstall()
+                                },
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun LaunchUninstallMenu(
+    expanded: Boolean,
+    appName: String,
+    isCustom: Boolean,
+    onDismissRequest: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val title = stringResource(if (isCustom) R.string.library_games_remove_game else R.string.library_games_uninstall_game)
+    val confirmLabel = stringResource(if (isCustom) R.string.common_ui_remove else R.string.common_ui_uninstall)
+    val message =
+        stringResource(
+            if (isCustom) R.string.library_games_remove_confirm else R.string.library_games_uninstall_confirm,
+            appName,
+        )
+
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        offset = DpOffset(x = 0.dp, y = (-72).dp),
+        modifier = Modifier.width(286.dp),
+        shape = RoundedCornerShape(12.dp),
+        containerColor = LaunchCard,
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+        tonalElevation = 0.dp,
+        shadowElevation = 14.dp,
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp),
+            ) {
+                Icon(
+                    Icons.Outlined.Delete,
+                    contentDescription = null,
+                    tint = LaunchDanger,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(
+                    title,
+                    color = LaunchTextPrimary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                message,
+                color = LaunchTextSecondary,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                LaunchMenuTextAction(
+                    label = stringResource(R.string.common_ui_cancel),
+                    textColor = LaunchTextSecondary,
+                    onClick = onDismissRequest,
+                )
+                LaunchMenuTextAction(
+                    label = confirmLabel,
+                    textColor = LaunchDanger,
+                    onClick = onConfirm,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LaunchMenuTextAction(
+    label: String,
+    textColor: Color,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(onClick = onClick)
+                .padding(horizontal = 10.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            color = textColor,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+        )
     }
 }
 
