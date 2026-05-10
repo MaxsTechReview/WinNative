@@ -482,6 +482,11 @@ class ShortcutSettingsComposeDialog private constructor(
             state.selectedDxWrapper
         )
 
+        // Surface Effect
+        val surfaceEffectArr = context.resources.getStringArray(R.array.surface_effect_entries).toList()
+        state.surfaceEffectEntries.value = surfaceEffectArr
+        state.selectedSurfaceEffect.intValue = if (getShortcutSetting("swapRB", container.getExtra("swapRB", "0")) == "1") 1 else 0
+
         // Audio driver
         val audioDriverArr =
             context.resources.getStringArray(R.array.audio_driver_entries).toList()
@@ -1002,6 +1007,10 @@ class ShortcutSettingsComposeDialog private constructor(
                 "dxwrapperConfig", dxwrapperConfig, container.getDXWrapperConfig()
             )
 
+            // Surface Effect
+            val swapRBStr = if (state.selectedSurfaceEffect.intValue == 1) "1" else "0"
+            hasContainerOverride = hasContainerOverride or saveOverride("swapRB", swapRBStr, container.getExtra("swapRB", "0"))
+
             // Audio
             val audioDriver = getIdentifierFromEntries(
                 state.audioDriverEntries.value, state.selectedAudioDriver.intValue
@@ -1268,6 +1277,7 @@ class ShortcutSettingsComposeDialog private constructor(
                 TAG,
                 "Saving shortcut name='${shortcut.name}' path='${shortcut.path}'" +
                     " usesContainerDefaults=${if (hasContainerOverride) "0" else "1"}" +
+                    " swapRB='${shortcut.getExtra("swapRB")}'" +
                     " box64Preset='${shortcut.getExtra("box64Preset")}'" +
                     " fexcorePreset='${shortcut.getExtra("fexcorePreset")}'" +
                     " wineVersion='${shortcut.getExtra("wineVersion")}'" +
@@ -2108,6 +2118,8 @@ class ShortcutSettingsComposeDialog private constructor(
             container.getAudioDriver(),
             state.selectedAudioDriver
         )
+
+        state.selectedSurfaceEffect.intValue = if (container.getExtra("swapRB", "0") == "1") 1 else 0
 
         val midiFont = container.getMIDISoundFont()
         val midiEntries = state.midiSoundFontEntries.value

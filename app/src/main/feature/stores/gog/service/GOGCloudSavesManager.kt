@@ -109,6 +109,37 @@ class GOGCloudSavesManager(
             }
     }
 
+    suspend fun needsSync(
+        localPath: String,
+        dirname: String,
+        clientId: String,
+        clientSecret: String,
+        lastSyncTimestamp: Long = 0,
+    ): Boolean =
+        withContext(Dispatchers.IO) {
+            if (clientSecret.isEmpty()) {
+                Timber.tag("GOG-CloudSaves").w("Cannot probe cloud sync for '$dirname': missing clientSecret")
+                return@withContext false
+            }
+
+            val syncDir = File(localPath)
+            val localFiles = if (syncDir.exists()) scanLocalFiles(syncDir) else emptyList()
+            val credentials =
+                GOGAuthManager.getGameCredentials(context, clientId, clientSecret).getOrNull() ?: run {
+                    Timber.tag("GOG-CloudSaves").e("Failed to get game-specific credentials for sync probe")
+                    return@withContext false
+                }
+            val cloudFiles = getCloudFiles(credentials.userId, clientId, dirname, credentials.accessToken)
+            val downloadableCloud = cloudFiles.filter { !it.isDeleted }
+
+            when {
+                localFiles.isNotEmpty() && cloudFiles.isEmpty() -> true
+                localFiles.isEmpty() && downloadableCloud.isNotEmpty() -> true
+                localFiles.isEmpty() && cloudFiles.isEmpty() -> false
+                else -> classifyFiles(localFiles, cloudFiles, lastSyncTimestamp).determineAction() != SyncAction.NONE
+            }
+        }
+
     suspend fun syncSaves(
         localPath: String,
         dirname: String,

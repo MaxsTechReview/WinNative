@@ -17,6 +17,7 @@
     <string name="common_ui_select_valid_exe_file">Будь ласка, виберіть дійсний файл .exe</string>
     <string name="common_ui_select_valid_icon_file">Будь ласка, виберіть дійсний файл .ico або .png.</string>
     <string name="common_ui_exit">Вийти</string>
+    <string name="common_ui_exit_app">Вийти із застосунку</string>
     <string name="common_ui_profile">Профіль</string>
     <string name="common_ui_name">Назва</string>
     <string name="common_ui_ok">OK</string>
@@ -110,7 +111,6 @@
     <string name="common_ui_grant_all_files_access_browse">Надайте повний доступ до файлів, щоб безпосередньо переглядати локальні теки.</string>
     <string name="common_ui_not_configured">Не налаштовано</string>
     <string name="common_ui_reinstall">Перевстановити</string>
-    <string name="common_ui_exit_app_confirm">Вийти з WinNative?</string>
     <string name="common_ui_elements_count">%1$d елементів</string>
     <string name="common_ui_disabled_placeholder">-- Вимкнено --</string>
     <string name="common_ui_enabled">Увімкнено</string>

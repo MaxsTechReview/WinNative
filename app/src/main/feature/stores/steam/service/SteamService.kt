@@ -66,6 +66,7 @@ import com.winlator.cmod.feature.stores.steam.utils.Net
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 import com.winlator.cmod.feature.stores.steam.utils.SteamUtils
 import com.winlator.cmod.feature.stores.steam.utils.generateSteamApp
+import com.winlator.cmod.feature.steamcloudsync.SteamAutoCloud
 import com.winlator.cmod.feature.sync.google.CloudSyncManager
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.container.ContainerManager
@@ -89,6 +90,7 @@ import `in`.dragonbra.javasteam.enums.EOSType
 import `in`.dragonbra.javasteam.enums.EPersonaState
 import `in`.dragonbra.javasteam.enums.EResult
 import `in`.dragonbra.javasteam.networking.steam3.ProtocolTypes
+import `in`.dragonbra.javasteam.protobufs.steamclient.Enums.ECloudStoragePersistState
 import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesAuthSteamclient.CAuthentication_PollAuthSessionStatus_Request
 import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesClientObjects.ECloudPendingRemoteOperation
 import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesClientserverUserstats
@@ -4181,6 +4183,62 @@ class SteamService :
                 instance?.fileChangeListsDao?.getByAppId(appId)?.userFileInfo
             }
 
+        suspend fun getNewestRemoteCloudSaveTimestamp(appId: Int): Long? =
+            withContext(Dispatchers.IO) {
+                val steamInstance = instance ?: return@withContext null
+                val steamCloud = steamInstance._steamCloud ?: return@withContext null
+                try {
+                    val localChangeNumber = steamInstance.changeNumbersDao.getByAppId(appId)?.changeNumber ?: 0L
+                    listOf(0L, localChangeNumber)
+                        .distinct()
+                        .mapNotNull { changeNumber ->
+                            steamCloud
+                                .getAppFileListChange(appId, changeNumber)
+                                .await()
+                                .files
+                                .filter { it.persistState == ECloudStoragePersistState.k_ECloudStoragePersistStatePersisted }
+                                .mapNotNull { file -> file.timestamp?.time?.takeIf { it > 0L } }
+                                .maxOrNull()
+                        }.maxOrNull()
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to read newest remote Steam cloud timestamp for appId=$appId")
+                    null
+                }
+            }
+
+        data class CloudConflictSnapshot(
+            val differs: Boolean,
+            val newestRemoteTimestamp: Long?,
+        )
+
+        /**
+         * Single-round-trip variant for the launch-time conflict prompt: returns both
+         * "does the cloud differ from local?" and the newest remote timestamp from
+         * the same `getAppFileListChange` response. Avoids 2-3 separate Steam round-trips
+         * when the dialog is about to be shown.
+         */
+        suspend fun fetchCloudConflictSnapshot(appId: Int): CloudConflictSnapshot? =
+            withContext(Dispatchers.IO) {
+                val steamInstance = instance ?: return@withContext null
+                val steamCloud = steamInstance._steamCloud ?: return@withContext null
+                val localCN = steamInstance.changeNumbersDao.getByAppId(appId)?.changeNumber
+                try {
+                    // Request the full file list so the timestamp scan covers everything,
+                    // not just the delta from localCN.
+                    val response = steamCloud.getAppFileListChange(appId, 0L).await()
+                    val differs = localCN == null || response.currentChangeNumber != localCN
+                    val newest =
+                        response.files
+                            .filter { it.persistState == ECloudStoragePersistState.k_ECloudStoragePersistStatePersisted }
+                            .mapNotNull { it.timestamp?.time?.takeIf { ts -> ts > 0L } }
+                            .maxOrNull()
+                    CloudConflictSnapshot(differs, newest)
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to fetch Steam cloud conflict snapshot for appId=$appId")
+                    null
+                }
+            }
+
         suspend fun forceSyncUserFiles(
             appId: Int,
             prefixToPath: (String) -> String,
@@ -4553,7 +4611,7 @@ class SteamService :
                                         appId = appId,
                                         clientId = clientId,
                                         uploadsCompleted = postSyncInfo?.uploadsCompleted == true,
-                                        uploadsRequired = postSyncInfo?.uploadsRequired == false,
+                                        uploadsRequired = postSyncInfo?.uploadsRequired == true,
                                     )
 
                                     if (syncResult == SyncResult.Success || syncResult == SyncResult.UpToDate) {
@@ -4723,12 +4781,6 @@ class SteamService :
                 }
             }
         }
-
-        data class FileChanges(
-            val filesDeleted: List<UserFileInfo>,
-            val filesModified: List<UserFileInfo>,
-            val filesCreated: List<UserFileInfo>,
-        )
 
         /**
          * loginusers.vdf writer for the OAuth-style refresh-token flow introduced in 2024.

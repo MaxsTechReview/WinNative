@@ -17,6 +17,7 @@
     <string name="common_ui_select_valid_exe_file">Wybierz prawidłowy plik .exe</string>
     <string name="common_ui_select_valid_icon_file">Wybierz prawidłowy plik .ico lub .png.</string>
     <string name="common_ui_exit">Wyjście</string>
+    <string name="common_ui_exit_app">Zamknij aplikację</string>
     <string name="common_ui_profile">Profil</string>
     <string name="common_ui_name">Nazwa</string>
     <string name="common_ui_ok">OK</string>
@@ -110,7 +111,6 @@
     <string name="common_ui_grant_all_files_access_browse">Przyznaj pełny dostęp do plików, aby bezpośrednio przeglądać lokalne foldery.</string>
     <string name="common_ui_not_configured">Nie skonfigurowano</string>
     <string name="common_ui_reinstall">Zainstaluj ponownie</string>
-    <string name="common_ui_exit_app_confirm">Zamknąć WinNative?</string>
     <string name="common_ui_elements_count">%1$d elementów</string>
     <string name="common_ui_disabled_placeholder">-- Wyłączone --</string>
     <string name="common_ui_enabled">Włączone</string>

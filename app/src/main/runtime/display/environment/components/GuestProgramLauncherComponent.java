@@ -830,18 +830,72 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     envVars.put("ANDROID_SYSVSHM_SERVER", rootDir.getPath() + UnixSocketConfig.SYSVSHM_SERVER_PATH);
 
     String primaryDNS = "8.8.4.4";
-    ConnectivityManager connectivityManager =
-        (ConnectivityManager) context.getSystemService(Service.CONNECTIVITY_SERVICE);
-    if (connectivityManager.getActiveNetwork() != null) {
-      ArrayList<InetAddress> dnsServers =
-          new ArrayList<>(
-              connectivityManager
-                  .getLinkProperties(connectivityManager.getActiveNetwork())
-                  .getDnsServers());
-      primaryDNS = dnsServers.get(0).toString().substring(1);
+    java.util.List<String> orderedDns = new java.util.ArrayList<>();
+    try {
+      ConnectivityManager connectivityManager =
+          (ConnectivityManager) context.getSystemService(Service.CONNECTIVITY_SERVICE);
+      android.net.Network activeNetwork =
+          connectivityManager != null ? connectivityManager.getActiveNetwork() : null;
+      android.net.LinkProperties linkProps =
+          activeNetwork != null ? connectivityManager.getLinkProperties(activeNetwork) : null;
+      java.util.List<InetAddress> dnsServers =
+          linkProps != null ? linkProps.getDnsServers() : null;
+      if (dnsServers != null && !dnsServers.isEmpty()) {
+        for (InetAddress dns : dnsServers) {
+          if (dns instanceof java.net.Inet4Address) {
+            String a = dns.getHostAddress();
+            if (a != null && !a.isEmpty()) orderedDns.add(a);
+          }
+        }
+        for (InetAddress dns : dnsServers) {
+          if (!(dns instanceof java.net.Inet4Address)) {
+            String a = dns.getHostAddress();
+            if (a != null && !a.isEmpty()) {
+              int pct = a.indexOf('%');
+              if (pct >= 0) a = a.substring(0, pct);
+              orderedDns.add(a);
+            }
+          }
+        }
+        if (!orderedDns.isEmpty()) primaryDNS = orderedDns.get(0);
+      }
+    } catch (Exception e) {
+      Log.w("GuestLauncher", "DNS capture failed, using fallback " + primaryDNS, e);
+    }
+    if (orderedDns.isEmpty()) {
+      orderedDns.add("8.8.4.4");
+      orderedDns.add("1.1.1.1");
     }
     envVars.put("ANDROID_RESOLV_DNS", primaryDNS);
     envVars.put("WINE_NEW_NDIS", "1");
+
+    // Refresh /usr/etc/resolv.conf and /usr/etc/hosts on every launch.
+    // The shipped imagefs ships stale DNS and a broken localhost mapping; rewrite
+    // them here so Linux-side tools inside the prefix (curl, openssl, busybox) and
+    // anything else that consults hosts/resolv.conf see the correct values.
+    try {
+      File etcDir = imageFs.getEtcDir();
+      if (etcDir.isDirectory() || etcDir.mkdirs()) {
+        StringBuilder resolv = new StringBuilder();
+        resolv.append("# Generated at launch by WinNative from Android DNS.\n");
+        for (String dns : orderedDns) {
+          resolv.append("nameserver ").append(dns).append('\n');
+        }
+        resolv.append("options edns0 timeout:2 attempts:2\n");
+        FileUtils.writeString(new File(etcDir, "resolv.conf"), resolv.toString());
+
+        FileUtils.writeString(
+            new File(etcDir, "hosts"),
+            "127.0.0.1\tlocalhost\n"
+                + "::1\t\tlocalhost ip6-localhost ip6-loopback\n"
+                + "fe00::0\t\tip6-localnet\n"
+                + "ff00::0\t\tip6-mcastprefix\n"
+                + "ff02::1\t\tip6-allnodes\n"
+                + "ff02::2\t\tip6-allrouters\n");
+      }
+    } catch (Exception e) {
+      Log.w("GuestLauncher", "Failed to refresh resolv.conf/hosts in imagefs", e);
+    }
 
     String ld_preload;
     if (!new File(imageFs.getLibDir(), "libandroid-sysvshm.so").exists()) {

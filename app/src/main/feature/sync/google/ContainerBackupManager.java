@@ -8,7 +8,6 @@ import com.google.android.gms.auth.api.identity.AuthorizationRequest;
 import com.google.android.gms.auth.api.identity.AuthorizationResult;
 import com.google.android.gms.auth.api.identity.Identity;
 import com.google.android.gms.common.api.Scope;
-import com.google.android.gms.games.PlayGames;
 import com.google.android.gms.tasks.Tasks;
 import com.winlator.cmod.runtime.container.Container;
 import com.winlator.cmod.shared.android.ActivityResultHost;
@@ -26,7 +25,6 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -44,9 +42,7 @@ public final class ContainerBackupManager {
   private static final String DRIVE_CONTAINERS_FOLDER_NAME = "Containers";
   private static final String DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
   private static final String PREFS_NAME = "google_store_login_sync";
-  private static final String KEY_GOOGLE_SYNC_ENABLED = "google_sync_enabled";
-  private static final int AUTH_SESSION_RETRY_COUNT = 5;
-  private static final long AUTH_SESSION_RETRY_DELAY_MS = 750L;
+  private static final String KEY_GOOGLE_DRIVE_CONNECTED = "google_drive_connected";
 
   private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
   private static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
@@ -132,7 +128,7 @@ public final class ContainerBackupManager {
   private static BackupResult performBackup(Activity activity, Container container) {
     try {
       Context context = activity.getApplicationContext();
-      String accessToken = requireAccessToken(activity, context);
+      String accessToken = requireAccessToken(activity, context, GoogleAuthMode.INTERACTIVE);
       if (accessToken == null) {
         return new BackupResult(
             false, "Google Drive authorization required. Please try again after granting access.");
@@ -174,7 +170,7 @@ public final class ContainerBackupManager {
   private static RestorePreparation prepareRestoreInternal(Activity activity, Container container) {
     try {
       Context context = activity.getApplicationContext();
-      String accessToken = requireAccessToken(activity, context);
+      String accessToken = requireAccessToken(activity, context, GoogleAuthMode.INTERACTIVE);
       if (accessToken == null) {
         return new RestorePreparation(
             false,
@@ -231,7 +227,7 @@ public final class ContainerBackupManager {
       Activity activity, Container container, DriveBackupFile driveFile) {
     try {
       Context context = activity.getApplicationContext();
-      String accessToken = requireAccessToken(activity, context);
+      String accessToken = requireAccessToken(activity, context, GoogleAuthMode.INTERACTIVE);
       if (accessToken == null) {
         return new BackupResult(
             false, "Google Drive authorization required. Please try again after granting access.");
@@ -261,53 +257,21 @@ public final class ContainerBackupManager {
     }
   }
 
-  private static String requireAccessToken(Activity activity, Context context) throws Exception {
-    if (!isGoogleSyncEnabled(context)) {
+  private static String requireAccessToken(
+      Activity activity, Context context, GoogleAuthMode authMode) throws Exception {
+    if (authMode == GoogleAuthMode.SILENT && !isDriveConnected(context)) {
       return null;
     }
-    if (!awaitAuthenticatedSession(activity)) {
-      throw new IllegalStateException("Not signed in to Google Play Games. Please sign in first.");
-    }
-    return getDriveAccessToken(activity);
+    return getDriveAccessToken(activity, authMode);
   }
 
-  private static boolean isGoogleSyncEnabled(Context context) {
+  private static boolean isDriveConnected(Context context) {
     return context
         .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        .getBoolean(KEY_GOOGLE_SYNC_ENABLED, false);
+        .getBoolean(KEY_GOOGLE_DRIVE_CONNECTED, false);
   }
 
-  private static boolean awaitAuthenticatedSession(Activity activity) throws InterruptedException {
-    PlayGamesBootstrap.ensureInitialized(activity);
-    for (int attempt = 0; attempt < AUTH_SESSION_RETRY_COUNT; attempt++) {
-      if (isAuthenticatedBlocking(activity)) {
-        return true;
-      }
-      if (attempt < AUTH_SESSION_RETRY_COUNT - 1) {
-        Thread.sleep(AUTH_SESSION_RETRY_DELAY_MS);
-      }
-    }
-    return false;
-  }
-
-  private static boolean isAuthenticatedBlocking(Activity activity) {
-    try {
-      PlayGamesBootstrap.ensureInitialized(activity);
-      Object result =
-          Tasks.await(
-              PlayGames.getGamesSignInClient(activity).isAuthenticated(), 10, TimeUnit.SECONDS);
-      return result != null
-          && Boolean.TRUE.equals(result.getClass().getMethod("isAuthenticated").invoke(result));
-    } catch (TimeoutException timeout) {
-      Timber.tag(TAG).e(timeout, "Timed out waiting for Google authentication state");
-      return false;
-    } catch (Exception error) {
-      Timber.tag(TAG).e(error, "Failed to read Google authentication state");
-      return false;
-    }
-  }
-
-  private static String getDriveAccessToken(Activity activity) {
+  private static String getDriveAccessToken(Activity activity, GoogleAuthMode authMode) {
     try {
       AuthorizationRequest authRequest =
           AuthorizationRequest.builder()
@@ -321,6 +285,10 @@ public final class ContainerBackupManager {
       }
 
       if (authResult.hasResolution()) {
+        if (authMode == GoogleAuthMode.SILENT) {
+          Timber.tag(TAG).i("Drive authorization requires consent; silent caller skipped UI");
+          return null;
+        }
         if (authResult.getPendingIntent() != null) {
           activity.runOnUiThread(
               () -> {
@@ -342,7 +310,16 @@ public final class ContainerBackupManager {
         return null;
       }
 
-      return authResult.getAccessToken();
+      String accessToken = authResult.getAccessToken();
+      if (accessToken != null) {
+        activity
+            .getApplicationContext()
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_GOOGLE_DRIVE_CONNECTED, true)
+            .apply();
+      }
+      return accessToken;
     } catch (Exception error) {
       Timber.tag(TAG).e(error, "Failed to get Drive access token");
       return null;
