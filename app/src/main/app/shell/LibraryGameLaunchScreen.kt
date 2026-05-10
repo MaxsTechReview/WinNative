@@ -1,0 +1,541 @@
+package com.winlator.cmod.app.shell
+
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.CloudSync
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.SportsEsports
+import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
+import com.winlator.cmod.R
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+private val LaunchBlack = Color.Black
+private val LaunchCard = Color(0xFF12121B)
+private val LaunchAccent = Color(0xFF1A9FFF)
+private val LaunchAccentGlow = Color(0xFF58A6FF)
+private val LaunchTextPrimary = Color(0xFFF0F4FF)
+private val LaunchTextSecondary = Color(0xFF93A6BC)
+private val LaunchDanger = Color(0xFFFF6B6B)
+
+@Composable
+internal fun LibraryGameLaunchScreen(
+    appName: String,
+    subtitle: String,
+    sourceLabel: String,
+    heroImageUrl: Any?,
+    customHeroImageCacheKey: String?,
+    releaseDateEpochSeconds: Long,
+    totalPlaytimeMillis: Long,
+    playCount: Int,
+    lastPlayedMillis: Long,
+    installSizeText: String?,
+    isCustom: Boolean,
+    hasPinnedShortcut: Boolean,
+    showSavesAction: Boolean,
+    onBack: () -> Unit,
+    onPlay: () -> Unit,
+    onSettings: () -> Unit,
+    onShortcut: () -> Unit,
+    onSaves: () -> Unit,
+    onCloudSaves: () -> Unit,
+    onUninstall: () -> Unit,
+) {
+    val context = LocalContext.current
+
+    Box(Modifier.fillMaxSize()) {
+        val edgePadding = 22.dp
+        val bottomPadding = 20.dp
+        val actionIconSize = 48.dp
+        val actionIconSpacing = 8.dp
+        val actionWidth = actionIconSize * 5 + actionIconSpacing * 4
+        val playHeight = 56.dp
+        val contentGap = 18.dp
+        val topSafeInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
+        val horizontalSafeInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
+        val bottomSafeInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
+
+        if (heroImageUrl != null) {
+            val heroRequest =
+                remember(heroImageUrl, customHeroImageCacheKey, context) {
+                    ImageRequest
+                        .Builder(context)
+                        .data(heroImageUrl)
+                        .apply {
+                            if (customHeroImageCacheKey != null) {
+                                memoryCacheKey(customHeroImageCacheKey)
+                                diskCacheKey(customHeroImageCacheKey)
+                            }
+                        }.crossfade(150)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .build()
+                }
+            AsyncImage(
+                model = heroRequest,
+                contentDescription = "$appName artwork",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                alignment = Alignment.Center,
+            )
+        } else {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(LaunchAccent.copy(alpha = 0.34f), LaunchCard, LaunchBlack),
+                            radius = 980f,
+                        ),
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Outlined.SportsEsports,
+                    contentDescription = null,
+                    tint = LaunchTextPrimary.copy(alpha = 0.18f),
+                    modifier = Modifier.size(132.dp),
+                )
+            }
+        }
+
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        colorStops =
+                            arrayOf(
+                                0.0f to LaunchBlack.copy(alpha = 0.9f),
+                                0.36f to LaunchBlack.copy(alpha = 0.58f),
+                                0.72f to LaunchBlack.copy(alpha = 0.18f),
+                                1.0f to LaunchBlack.copy(alpha = 0.62f),
+                            ),
+                    ),
+                ),
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colorStops =
+                            arrayOf(
+                                0.0f to LaunchBlack.copy(alpha = 0.54f),
+                                0.36f to Color.Transparent,
+                                0.72f to LaunchBlack.copy(alpha = 0.32f),
+                                1.0f to LaunchBlack.copy(alpha = 0.94f),
+                            ),
+                    ),
+                ),
+        )
+
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(horizontalSafeInsets)
+                    .windowInsetsPadding(topSafeInsets)
+                    .padding(start = edgePadding, top = 12.dp, end = edgePadding),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(
+                onClick = onBack,
+                modifier =
+                    Modifier
+                        .size(54.dp)
+                        .clip(CircleShape)
+                        .background(LaunchBlack.copy(alpha = 0.5f))
+                        .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape),
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = stringResource(R.string.common_ui_back),
+                    tint = LaunchTextPrimary,
+                    modifier = Modifier.size(30.dp),
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            SourceTag(sourceLabel = sourceLabel)
+        }
+
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(horizontalSafeInsets)
+                    .windowInsetsPadding(topSafeInsets)
+                    .windowInsetsPadding(bottomSafeInsets)
+                    .padding(start = edgePadding, top = 68.dp, end = edgePadding, bottom = bottomPadding),
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(
+                modifier = Modifier.widthIn(max = 640.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    appName,
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = LaunchTextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (subtitle.isNotBlank()) {
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = LaunchTextPrimary.copy(alpha = 0.72f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (releaseDateEpochSeconds > 0L) {
+                    val releaseDateText = remember(releaseDateEpochSeconds) { formatReleaseDate(releaseDateEpochSeconds) }
+                    Text(
+                        releaseDateText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = LaunchTextPrimary.copy(alpha = 0.6f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(contentGap),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    if (totalPlaytimeMillis > 0L) {
+                        val playtimeText = remember(totalPlaytimeMillis) { formatLibraryPlaytime(totalPlaytimeMillis) }
+                        GameStatChip(
+                            icon = Icons.Outlined.Schedule,
+                            label = stringResource(R.string.library_games_playtime),
+                            value = playtimeText,
+                        )
+                    }
+                    if (playCount > 0) {
+                        GameStatChip(
+                            icon = Icons.Outlined.SportsEsports,
+                            label = stringResource(R.string.library_games_plays),
+                            value = playCount.toString(),
+                        )
+                    }
+                    if (lastPlayedMillis > 0L) {
+                        val lastPlayedText = remember(lastPlayedMillis) { formatLibraryLastPlayed(lastPlayedMillis) }
+                        GameStatChip(
+                            icon = Icons.Outlined.History,
+                            label = stringResource(R.string.library_games_last_played),
+                            value = lastPlayedText,
+                        )
+                    }
+                    if (installSizeText != null) {
+                        GameStatChip(
+                            icon = Icons.Outlined.Storage,
+                            label = stringResource(R.string.common_ui_size),
+                            value = installSizeText,
+                        )
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.width(actionWidth),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    LaunchPlayButton(height = playHeight, onClick = onPlay)
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(actionIconSpacing),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        LaunchIconActionButton(
+                            icon = Icons.Outlined.Settings,
+                            contentDescription = stringResource(R.string.common_ui_settings),
+                            size = actionIconSize,
+                            onClick = onSettings,
+                        )
+                        LaunchIconActionButton(
+                            icon = Icons.Outlined.Home,
+                            contentDescription =
+                                stringResource(
+                                    if (hasPinnedShortcut) R.string.common_ui_remove else R.string.common_ui_shortcut,
+                            ),
+                            size = actionIconSize,
+                            onClick = onShortcut,
+                        )
+                        if (showSavesAction) {
+                            LaunchIconActionButton(
+                                icon = Icons.Outlined.Save,
+                                contentDescription = stringResource(R.string.saves_import_export_title),
+                                size = actionIconSize,
+                                onClick = onSaves,
+                            )
+                        }
+                        LaunchIconActionButton(
+                            icon = Icons.Outlined.CloudSync,
+                            contentDescription = stringResource(R.string.cloud_saves_title),
+                            size = actionIconSize,
+                            onClick = onCloudSaves,
+                        )
+                        LaunchIconActionButton(
+                            icon = Icons.Outlined.Delete,
+                            contentDescription =
+                                stringResource(if (isCustom) R.string.common_ui_remove else R.string.common_ui_uninstall),
+                            size = actionIconSize,
+                            onClick = onUninstall,
+                            tint = LaunchDanger,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SourceTag(
+    sourceLabel: String,
+) {
+    Surface(
+        color = Color.White.copy(alpha = 0.1f),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Box(
+                Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(LaunchAccent),
+            )
+            Text(
+                sourceLabel.uppercase(),
+                color = LaunchTextPrimary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun GameStatChip(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        color = LaunchBlack.copy(alpha = 0.44f),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.11f)),
+    ) {
+        Row(
+            modifier =
+                Modifier.padding(
+                    horizontal = 10.dp,
+                    vertical = 8.dp,
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = LaunchAccentGlow)
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(
+                    label.uppercase(),
+                    color = LaunchTextSecondary,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    value,
+                    color = LaunchTextPrimary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LaunchPlayButton(
+    height: Dp,
+    onClick: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = 600f),
+        label = "launchPlayScale",
+    )
+
+    val playShape = remember { RoundedCornerShape(12.dp) }
+    Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(height)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }.clip(playShape)
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(Color(0xFF00B4D8), LaunchAccent, Color(0xFF7B2FF7)),
+                    ),
+                ).clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Icon(
+                Icons.Outlined.PlayArrow,
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
+                tint = Color.White,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                stringResource(R.string.library_games_play),
+                color = Color.White,
+                fontSize = 19.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+@Composable
+private fun LaunchIconActionButton(
+    icon: ImageVector,
+    contentDescription: String,
+    size: Dp,
+    onClick: () -> Unit,
+    tint: Color = Color.White,
+) {
+    Surface(
+        modifier =
+            Modifier
+                .size(size)
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(onClick = onClick),
+        color = LaunchBlack.copy(alpha = 0.46f),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, tint.copy(alpha = 0.18f)),
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(
+                icon,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(28.dp),
+                tint = tint,
+            )
+        }
+    }
+}
+
+private fun formatReleaseDate(releaseDateEpochSeconds: Long): String =
+    SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+        .format(Date(releaseDateEpochSeconds * 1000L))
+
+private fun formatLibraryPlaytime(playtimeMillis: Long): String {
+    val totalMinutes = (playtimeMillis / 60000L).coerceAtLeast(1L)
+    val hours = totalMinutes / 60L
+    val minutes = totalMinutes % 60L
+    return when {
+        hours > 0L && minutes > 0L -> "${hours}h ${minutes}m"
+        hours > 0L -> "${hours}h"
+        else -> "${minutes}m"
+    }
+}
+
+private fun formatLibraryLastPlayed(lastPlayedMillis: Long): String =
+    SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(lastPlayedMillis))

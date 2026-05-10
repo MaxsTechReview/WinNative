@@ -12,6 +12,7 @@ import com.winlator.cmod.feature.stores.gog.service.GOGService
 import com.winlator.cmod.feature.stores.steam.enums.PathType
 import com.winlator.cmod.feature.stores.steam.service.SteamService
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
+import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.shared.android.ActivityResultHost
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -75,7 +76,7 @@ object GameSaveBackupManager {
             .writeTimeout(60, TimeUnit.SECONDS)
             .build()
 
-    enum class GameSource { STEAM, EPIC, GOG }
+    enum class GameSource { STEAM, EPIC, GOG, CUSTOM }
 
     /** Origin of a history backup — identifies which side of a conflict it came from. */
     enum class BackupOrigin(val tag: String) {
@@ -464,6 +465,8 @@ object GameSaveBackupManager {
                 GameSource.GOG -> {
                     GOGService.syncCloudSaves(context, "GOG_$gameId", "download")
                 }
+
+                GameSource.CUSTOM -> false
             }
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "syncDownFromProvider failed for $source/$gameId")
@@ -491,6 +494,8 @@ object GameSaveBackupManager {
                 GameSource.GOG -> {
                     GOGService.syncCloudSaves(context, "GOG_$gameId", "upload")
                 }
+
+                GameSource.CUSTOM -> false
             }
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "syncUpToProvider failed for $source/$gameId")
@@ -510,6 +515,7 @@ object GameSaveBackupManager {
             GameSource.STEAM -> getSteamSaveSources(context, gameId, forRestore)
             GameSource.EPIC -> getEpicSaveSources(context, gameId, forRestore)
             GameSource.GOG -> getGogSaveSources(context, gameId, forRestore)
+            GameSource.CUSTOM -> getCustomSaveSources(context, gameId, forRestore)
         }
 
     private suspend fun getSteamSaveSources(
@@ -630,6 +636,39 @@ object GameSaveBackupManager {
                 null
             }
         }
+    }
+
+    private suspend fun getCustomSaveSources(
+        context: Context,
+        gameId: String,
+        forRestore: Boolean,
+    ): List<SaveBackupSource> {
+        val shortcuts = ContainerManager(context).loadShortcuts()
+        val shortcut =
+            shortcuts.find {
+                it.getExtra("game_source") == "CUSTOM" &&
+                    (
+                        it.getExtra("app_id") == gameId ||
+                            it.getExtra("custom_name") == gameId ||
+                            it.name == gameId
+                    )
+            } ?: return emptyList()
+
+        val sources = linkedMapOf<String, SaveBackupSource>()
+        val prefixDir = File(shortcut.container.getRootDir(), ".wine/drive_c/users/xuser")
+        listOf("Documents", "Saved Games", "AppData").forEach { dirName ->
+            val dir = File(prefixDir, dirName)
+            if (forRestore || (dir.exists() && !dir.listFiles().isNullOrEmpty())) {
+                sources["custom/$dirName"] = SaveBackupSource("custom/$dirName", dir)
+            }
+        }
+
+        val customGameFolder = shortcut.getExtra("custom_game_folder", "").takeIf { it.isNotBlank() }?.let(::File)
+        if (customGameFolder != null && (forRestore || (customGameFolder.exists() && !customGameFolder.listFiles().isNullOrEmpty()))) {
+            sources["custom/game_folder"] = SaveBackupSource("custom/game_folder", customGameFolder)
+        }
+
+        return sources.values.toList()
     }
 
     // ── Zip helpers ──

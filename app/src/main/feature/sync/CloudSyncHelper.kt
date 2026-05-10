@@ -322,6 +322,7 @@ object CloudSyncHelper {
                         forceEpicDownloadById(context, appId)
                     }
                     GameSaveBackupManager.GameSource.GOG -> forceGogDownloadById(context, gameId)
+                    GameSaveBackupManager.GameSource.CUSTOM -> false
                 }
             }
         if (result) {
