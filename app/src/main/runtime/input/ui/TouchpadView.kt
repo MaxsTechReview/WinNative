@@ -140,7 +140,7 @@ class TouchpadView(
         background = createTransparentBg()
         isClickable = true
         isFocusable = true
-        isFocusableInTouchMode = false
+        isFocusableInTouchMode = true
         pointerIcon = PointerIcon.load(resources, R.drawable.hidden_pointer_arrow)
 
         scaleDetector = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {

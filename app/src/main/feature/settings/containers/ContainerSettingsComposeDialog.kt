@@ -40,6 +40,7 @@ import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils
 import com.winlator.cmod.feature.settings.WineD3DConfigUtils
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.runtime.wine.EnvVars
 import com.winlator.cmod.shared.io.FileUtils
@@ -110,7 +111,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 state.desktopWallpaperSelected.value = true
             } catch (e: Throwable) {
                 Log.e(TAG, "Error copying wallpaper", e)
-                AppUtils.showToast(
+                WinToast.show(
                     context,
                     context.getString(R.string.settings_containers_error_saving_wallpaper),
                     Toast.LENGTH_SHORT,
@@ -479,6 +480,10 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             state.selectedDxWrapper
         )
 
+        val surfaceEffectArr = context.resources.getStringArray(R.array.surface_effect_entries).toList()
+        state.surfaceEffectEntries.value = surfaceEffectArr
+        state.selectedSurfaceEffect.intValue = if (c?.getExtra("swapRB", "0") == "1") 1 else 0
+
         val audioDriverArr = context.resources.getStringArray(R.array.audio_driver_entries).toList()
         state.audioDriverEntries.value = audioDriverArr
         selectByIdentifier(
@@ -663,7 +668,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val c = container
         val name = state.name.value.trim()
         if (name.isEmpty()) {
-            AppUtils.showToast(context, context.getString(R.string.common_ui_name_cannot_be_empty), Toast.LENGTH_SHORT)
+            WinToast.show(context, context.getString(R.string.common_ui_name_cannot_be_empty), Toast.LENGTH_SHORT)
             return
         }
 
@@ -746,6 +751,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.setGraphicsDriverConfig(graphicsDriverConfig)
             c.setDXWrapper(dxwrapper)
             c.setDXWrapperConfig(dxwrapperConfig)
+            c.putExtra("swapRB", if (state.selectedSurfaceEffect.intValue == 1) "1" else "0")
             c.setAudioDriver(audioDriver)
             c.setEmulator(emulator)
             c.setEmulator64(emulator64)
@@ -793,6 +799,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 data.put("fexcoreVersion", fexcoreVersion)
                 data.put("fexcorePreset", fexcorePreset)
                 data.put("desktopTheme", desktopTheme)
+                data.put("swapRB", if (state.selectedSurfaceEffect.intValue == 1) "1" else "0")
                 data.put("wineVersion", selectedWineStr)
                 data.put("midiSoundFont", midiSoundFont)
                 data.put("lc_all", state.lcAll.value)
@@ -805,7 +812,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                     if (newContainer != null) {
                         saveMouseWarpOverride(newContainer)
                     } else {
-                        AppUtils.showToast(context, R.string.setup_wizard_unable_to_install_system_files)
+                        WinToast.show(context, R.string.setup_wizard_unable_to_install_system_files)
                     }
                     preloaderDialog.close()
                     dismiss()
@@ -813,7 +820,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             } catch (e: Throwable) {
                 Log.e(TAG, "Error creating container", e)
                 preloaderDialog.close()
-                AppUtils.showToast(
+                WinToast.show(
                     context,
                     context.getString(R.string.common_ui_error_with_message, e.message ?: ""),
                 )

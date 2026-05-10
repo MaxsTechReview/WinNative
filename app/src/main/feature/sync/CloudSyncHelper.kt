@@ -258,7 +258,10 @@ object CloudSyncHelper {
                                 ?.walkTopDown()
                                 ?.filter { it.isFile }
                                 ?.maxOfOrNull(File::lastModified)
-                        val prefs = context.getSharedPreferences("epic_games", Context.MODE_PRIVATE)
+                        // Must match the SharedPreferences name written by EpicCloudSavesManager.setSyncTimestamp.
+                        // Reading from "epic_games" silently always returned null and the conflict dialog
+                        // displayed "Unknown" for the cloud timestamp on every Epic prompt.
+                        val prefs = context.getSharedPreferences("epic_cloud_saves", Context.MODE_PRIVATE)
                         val cloudTimestamp =
                             prefs
                                 .getString("sync_timestamp_${appId ?: 0}", null)

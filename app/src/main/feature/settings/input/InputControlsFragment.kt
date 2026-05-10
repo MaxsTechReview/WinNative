@@ -36,7 +36,7 @@ import com.winlator.cmod.runtime.input.controls.ExternalController
 import com.winlator.cmod.runtime.input.controls.ExternalControllerBinding
 import com.winlator.cmod.runtime.input.controls.InputControlsManager
 import com.winlator.cmod.runtime.input.ui.InputControlsView
-import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.io.HttpUtils
@@ -441,7 +441,7 @@ private fun buildBindingState(
     private fun showProfilePicker() {
         val profiles = manager.profiles
         if (profiles.isEmpty()) {
-            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_found)
+            WinToast.show(requireContext(), R.string.input_controls_editor_no_profile_found)
             return
         }
 
@@ -470,7 +470,7 @@ private fun buildBindingState(
                 },
             )
         } else {
-            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
+            WinToast.show(requireContext(), R.string.input_controls_editor_no_profile_selected)
         }
     }
 
@@ -500,7 +500,7 @@ private fun buildBindingState(
                 publishUiState()
             }
         } else {
-            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
+            WinToast.show(requireContext(), R.string.input_controls_editor_no_profile_selected)
         }
     }
 
@@ -520,7 +520,7 @@ private fun buildBindingState(
                 publishUiState()
             }
         } else {
-            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
+            WinToast.show(requireContext(), R.string.input_controls_editor_no_profile_selected)
         }
     }
 
@@ -541,7 +541,7 @@ private fun buildBindingState(
                 publishUiState()
             }
         } else {
-            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
+            WinToast.show(requireContext(), R.string.input_controls_editor_no_profile_selected)
         }
     }
 
@@ -580,10 +580,10 @@ private fun buildBindingState(
                             }
                         }
                     } else {
-                        AppUtils.showToast(activity, R.string.input_controls_editor_unable_to_load_list)
+                        WinToast.show(activity, R.string.input_controls_editor_unable_to_load_list)
                     }
                 } else {
-                    AppUtils.showToast(activity, R.string.input_controls_editor_unable_to_load_list)
+                    WinToast.show(activity, R.string.input_controls_editor_unable_to_load_list)
                 }
             }
         }
@@ -638,7 +638,7 @@ private fun buildBindingState(
                         remoteProfileRequestInFlight.set(false)
                         refreshVisibleControllers()
                         publishUiState()
-                        AppUtils.showToast(
+                        WinToast.show(
                             activity,
                             if (importedCount.get() > 0) {
                                 R.string.settings_content_download_complete
@@ -713,7 +713,7 @@ private fun buildBindingState(
     private fun importProfileFromJson(jsonString: String?) {
         try {
             if (jsonString.isNullOrBlank()) {
-                AppUtils.showToast(
+                WinToast.show(
                     requireContext(),
                     getString(R.string.input_controls_editor_unable_to_import) + ": Empty file",
                 )
@@ -734,13 +734,13 @@ private fun buildBindingState(
                 manager.loadProfiles(false)
                 refreshVisibleControllers()
                 publishUiState()
-                AppUtils.showToast(
+                WinToast.show(
                     requireContext(),
                     getString(R.string.input_controls_editor_unable_to_import) + ": Invalid profile data",
                 )
             }
         } catch (e: Exception) {
-            AppUtils.showToast(
+            WinToast.show(
                 requireContext(),
                 getString(R.string.input_controls_editor_unable_to_import) + ": " + e.message,
             )
@@ -752,13 +752,13 @@ private fun buildBindingState(
         if (profile != null) {
             val exportedFile = manager.exportProfile(profile)
             if (exportedFile != null) {
-                AppUtils.showToast(
+                WinToast.show(
                     requireContext(),
                     getString(R.string.input_controls_editor_profile_exported_to) + " " + exportedFile.path,
                 )
             }
         } else {
-            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
+            WinToast.show(requireContext(), R.string.input_controls_editor_no_profile_selected)
         }
     }
 
@@ -881,7 +881,7 @@ private fun buildBindingState(
     private fun toggleControllerExpanded(controllerId: String) {
         val profile = currentProfile
         if (profile == null) {
-            AppUtils.showToast(requireContext(), R.string.input_controls_editor_no_profile_selected)
+            WinToast.show(requireContext(), R.string.input_controls_editor_no_profile_selected)
             return
         }
 
@@ -966,9 +966,9 @@ private fun buildBindingState(
         ) { which ->
             binding.binding =
                 when (which) {
-                    0 -> Binding.keyboardBindingValues().firstOrNull() ?: Binding.NONE
-                    1 -> Binding.mouseBindingValues().firstOrNull() ?: Binding.NONE
-                    2 -> Binding.gamepadBindingValues().firstOrNull() ?: Binding.NONE
+                    0 -> Binding.keyboardBindingValues().getOrNull(1) ?: Binding.NONE
+                    1 -> Binding.mouseBindingValues().getOrNull(1) ?: Binding.NONE
+                    2 -> Binding.gamepadBindingValues().getOrNull(1) ?: Binding.NONE
                     else -> Binding.NONE
                 }
             currentProfile?.putController(controller)
@@ -1179,7 +1179,7 @@ private fun buildBindingState(
     companion object {
         private const val ARG_SELECTED_PROFILE_ID = "selectedProfileId"
         private const val INPUT_CONTROLS_URL =
-            "https://raw.githubusercontent.com/Xnick417x/Winlator-Bionic-Nightly-wcp/main/Profiles/%s"
+            "https://raw.githubusercontent.com/Xnick417x/winlator-nightly-wcp/main/Profiles/%s"
         private const val PREF_SELECTED_PROFILE_ID = "input_controls_selected_profile_id"
 
         fun newInstance(profileId: Int = 0): InputControlsFragment =

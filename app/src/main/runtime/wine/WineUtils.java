@@ -1371,6 +1371,12 @@ public abstract class WineUtils {
       "Winmgmt:3",
       "wuauserv:3"
     };
+    // Services that MUST stay enabled in every startup mode so controllers keep
+    // working. PlugPlay enumerates devices, winebus is the HID bus driver,
+    // winehid is the HID protocol driver, and RpcSs is PlugPlay's RPC backbone —
+    // disabling any of them breaks gamepad input on launch.
+    final List<String> controllerCriticalServices =
+        Arrays.asList("winebus", "winehid", "PlugPlay", "RpcSs");
     File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
     byte selection = 0;
     try {
@@ -1384,17 +1390,13 @@ public abstract class WineUtils {
       for (String service : aggressiveServices) {
         String name = service.substring(0, service.indexOf(":"));
         int value = Character.getNumericValue(service.charAt(service.length() - 1));
-        if (selection == 1) {
-          if (servicesList.contains(service)
-              && !name.equals("winebus")
-              && !name.equals("winehid")
-              && !name.equals("PlugPlay")) {
+        if (controllerCriticalServices.contains(name)) {
+          value = 2;
+        } else if (selection == 1) {
+          if (servicesList.contains(service)) {
             value = 4;
           }
-        } else if (selection == 2
-            && !name.equals("winebus")
-            && !name.equals("winehid")
-            && !name.equals("PlugPlay")) {
+        } else if (selection == 2) {
           value = 4;
         }
         registryEditor.setDwordValue(

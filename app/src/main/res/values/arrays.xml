@@ -37,6 +37,10 @@
         <item>WineD3D</item>
         <item>DXVK+VKD3D</item>
     </string-array>
+    <string-array name="surface_effect_entries">
+        <item>RGBA</item>
+        <item>BGRA</item>
+    </string-array>
     <string-array name="ddrawrapper_entries">
         <item>CnC-DDraw</item>
         <item>Dd7To9</item>

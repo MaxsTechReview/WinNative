@@ -34,7 +34,7 @@ import com.winlator.cmod.runtime.container.Container;
 import com.winlator.cmod.runtime.container.ContainerManager;
 import com.winlator.cmod.runtime.container.Shortcut;
 import com.winlator.cmod.runtime.display.XServerDisplayActivity;
-import com.winlator.cmod.shared.android.AppUtils;
+import com.winlator.cmod.shared.ui.toast.WinToast;
 import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.shared.ui.dialog.ContentDialog;
 import com.winlator.cmod.shared.ui.dialog.WinNativeComposeDialogs;
@@ -72,7 +72,7 @@ public class ShortcutsFragment extends Fragment {
             new ShortcutSettingsComposeDialog(ShortcutsFragment.this, shortcut).show();
           } catch (Throwable e) {
             Log.e("ShortcutsFragment", "Error opening shortcut settings", e);
-            AppUtils.showToast(getContext(), R.string.shortcuts_list_error_opening_settings);
+            WinToast.show(getContext(), R.string.shortcuts_list_error_opening_settings);
           }
         }
 
@@ -80,10 +80,10 @@ public class ShortcutsFragment extends Fragment {
         public void onAddToHomeScreen(Shortcut shortcut) {
           PinShortcutResult result = addShortcutToScreen(shortcut);
           if (result == PinShortcutResult.REUSED_EXISTING) {
-            AppUtils.showToast(
+            WinToast.show(
                 requireContext(), R.string.shortcuts_list_readded_existing, shortcut.icon);
           } else {
-            AppUtils.showToast(
+            WinToast.show(
                 requireContext(),
                 result == PinShortcutResult.REQUESTED_NEW
                     ? R.string.shortcuts_list_added
@@ -173,9 +173,9 @@ public class ShortcutsFragment extends Fragment {
           if (fileDeleted) {
             disableShortcutOnScreen(requireContext(), shortcut);
             loadShortcutsList();
-            AppUtils.showToast(context, R.string.shortcuts_list_removed);
+            WinToast.show(context, R.string.shortcuts_list_removed);
           } else {
-            AppUtils.showToast(context, R.string.shortcuts_list_remove_failed);
+            WinToast.show(context, R.string.shortcuts_list_remove_failed);
           }
         });
   }
@@ -190,10 +190,10 @@ public class ShortcutsFragment extends Fragment {
         containers,
         selectedContainer -> {
           if (shortcut.cloneToContainer(selectedContainer)) {
-            AppUtils.showToast(context, R.string.shortcuts_list_cloned);
+            WinToast.show(context, R.string.shortcuts_list_cloned);
             loadShortcutsList();
           } else {
-            AppUtils.showToast(context, R.string.shortcuts_list_clone_failed);
+            WinToast.show(context, R.string.shortcuts_list_clone_failed);
           }
         });
   }
@@ -238,7 +238,7 @@ public class ShortcutsFragment extends Fragment {
     if (uriString != null) {
       String resolvedPath = FileUtils.getFilePathFromUri(getContext(), Uri.parse(uriString));
       if (resolvedPath == null || resolvedPath.isEmpty()) {
-        AppUtils.showToast(getContext(), R.string.common_ui_cannot_write_folder);
+        WinToast.show(getContext(), R.string.common_ui_cannot_write_folder);
         return;
       }
       shortcutsDir = new File(resolvedPath);
@@ -247,7 +247,7 @@ public class ShortcutsFragment extends Fragment {
     }
 
     if (!shortcutsDir.exists() && !shortcutsDir.mkdirs()) {
-      AppUtils.showToast(getContext(), R.string.common_ui_failed_create_directory);
+      WinToast.show(getContext(), R.string.common_ui_failed_create_directory);
       return;
     }
 
@@ -285,10 +285,10 @@ public class ShortcutsFragment extends Fragment {
           fileExists
               ? getString(R.string.shortcuts_properties_updated_at, exportFile.getPath())
               : getString(R.string.shortcuts_list_exported_to, exportFile.getPath());
-      AppUtils.showToast(getContext(), message);
+      WinToast.show(getContext(), message);
     } catch (IOException e) {
       Log.e("ShortcutsFragment", "Failed to export shortcut", e);
-      AppUtils.showToast(getContext(), R.string.shortcuts_list_failed_export);
+      WinToast.show(getContext(), R.string.shortcuts_list_failed_export);
     }
   }
 
@@ -320,7 +320,7 @@ public class ShortcutsFragment extends Fragment {
         playtimeText,
         () -> {
           playtimePrefs.edit().remove(playtimeKey).remove(playCountKey).apply();
-          AppUtils.showToast(getContext(), R.string.shortcuts_properties_properties_reset);
+          WinToast.show(getContext(), R.string.shortcuts_properties_properties_reset);
         })) {
       return;
     }
