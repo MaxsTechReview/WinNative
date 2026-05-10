@@ -3010,7 +3010,22 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             inputProfileNames.add(profile.getName());
         }
 
-        if (touchGestureConfig == null && shortcut != null) touchGestureConfig = shortcut.getTouchGestureConfig();
+        if (touchGestureConfig == null) {
+            if (shortcut != null) {
+                touchGestureConfig = shortcut.getTouchGestureConfig();
+            } else {
+                String configStr = preferences.getString("touch_gesture_config", "");
+                if (!configStr.isEmpty()) {
+                    try {
+                        touchGestureConfig = TouchGestureConfig.Companion.fromJSONObject(new JSONObject(configStr));
+                    } catch (JSONException e) {
+                        touchGestureConfig = new TouchGestureConfig();
+                    }
+                } else {
+                    touchGestureConfig = new TouchGestureConfig();
+                }
+            }
+        }
 
         XServerDrawerState state = XServerDrawerMenuKt.buildXServerDrawerState(
                 this,
@@ -3048,7 +3063,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 fsrMode,
                 fsrSharpness,
                 colorProfile,
-                touchpadView != null && touchpadView.getGestureConfig().getEnabled(),
+                touchGestureConfig.getEnabled(),
                 inputProfileNames,
                 inputSelectedIndex,
                 preferences.getBoolean("show_touchscreen_controls_enabled", false),
@@ -3202,13 +3217,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
                     @Override
                     public void onRTSGesturesEnabledChanged(boolean enabled) {
-                        if (shortcut != null) {
-                            TouchGestureConfig config = shortcut.getTouchGestureConfig();
-                            config.setEnabled(enabled);
-                            shortcut.setTouchGestureConfig(config);
-                            shortcut.saveData();
-                            if (touchpadView != null) touchpadView.setGestureConfig(config);
+                        if (touchGestureConfig == null) {
+                            if (shortcut != null) touchGestureConfig = shortcut.getTouchGestureConfig();
+                            else touchGestureConfig = new TouchGestureConfig();
                         }
+                        touchGestureConfig.setEnabled(enabled);
+
+                        if (shortcut != null) {
+                            shortcut.setTouchGestureConfig(touchGestureConfig);
+                            shortcut.saveData();
+                        } else {
+                            preferences.edit().putString("touch_gesture_config", touchGestureConfig.toJSONObject().toString()).apply();
+                        }
+
+                        if (touchpadView != null) touchpadView.setGestureConfig(touchGestureConfig);
                         renderDrawerMenu();
                     }
 
@@ -3224,10 +3246,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         if (shortcut != null) {
                             shortcut.setTouchGestureConfig(config);
                             shortcut.saveData();
-                            if (touchpadView != null) touchpadView.setGestureConfig(config);
+                        } else {
+                            preferences.edit().putString("touch_gesture_config", config.toJSONObject().toString()).apply();
                         }
+                        if (touchpadView != null) touchpadView.setGestureConfig(config);
+                        renderDrawerMenu();
                     }
-
                     @Override
                     public void onRTSGesturesDialogDismissed() {
                         showTouchGestureSettingsDialog = false;
@@ -4501,6 +4525,22 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         globalCursorSpeed = preferences.getFloat("cursor_speed", 1.0f);
         touchpadView = new TouchpadView(this, xServer, timeoutHandler, hideControlsRunnable);
+        
+        if (touchGestureConfig == null) {
+            if (shortcut != null) touchGestureConfig = shortcut.getTouchGestureConfig();
+            else {
+                String configStr = preferences.getString("touch_gesture_config", "");
+                if (!configStr.isEmpty()) {
+                    try {
+                        touchGestureConfig = TouchGestureConfig.Companion.fromJSONObject(new JSONObject(configStr));
+                    } catch (JSONException e) {
+                        touchGestureConfig = new TouchGestureConfig();
+                    }
+                } else touchGestureConfig = new TouchGestureConfig();
+            }
+        }
+        touchpadView.setGestureConfig(touchGestureConfig);
+        
         touchpadView.setTapToClickEnabled(isTapToClickEnabled);
         touchpadView.setSensitivity(globalCursorSpeed);
         touchpadView.setMouseEnabled(!isMouseDisabled);
