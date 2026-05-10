@@ -374,6 +374,20 @@ internal fun LibraryGameLaunchScreen(
                 }
             }
         }
+
+        if (uninstallMenuOpen) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(LaunchBlack.copy(alpha = 0.46f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { uninstallMenuOpen = false },
+                        ),
+            )
+        }
     }
 }
 
