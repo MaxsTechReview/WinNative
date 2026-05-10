@@ -38,6 +38,7 @@ class TouchpadView(
         const val MAX_TAP_MILLISECONDS: Short = 200
         const val CURSOR_ACCELERATION = 1.25f
         const val CURSOR_ACCELERATION_THRESHOLD: Byte = 6
+        private const val MIN_SENSITIVITY = 0.1f
         private const val CLICK_DELAYED_TIME: Byte = 50
         private const val EFFECTIVE_TOUCH_DISTANCE: Byte = 20
         private const val UPDATE_FORM_DELAYED_TIME = 50
@@ -84,7 +85,7 @@ class TouchpadView(
         background = createTransparentBg()
         isClickable = true
         isFocusable = true
-        isFocusableInTouchMode = false
+        isFocusableInTouchMode = true
         pointerIcon = PointerIcon.load(resources, R.drawable.hidden_pointer_arrow)
         updateXform(
             AppUtils.getScreenWidth(),
@@ -320,10 +321,11 @@ class TouchpadView(
 
             MotionEvent.ACTION_MOVE -> {
                 if (event.isFromSource(InputDevice.SOURCE_MOUSE)) {
-                    val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
                     if (xServer.isRelativeMouseMovement) {
-                        xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
+                        val delta = getExternalMouseDelta(event)
+                        xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, delta[0], delta[1], 0)
                     } else {
+                        val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
                         xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
                     }
                 } else {
@@ -594,7 +596,7 @@ class TouchpadView(
     }
 
     fun setSensitivity(sensitivity: Float) {
-        this.sensitivity = sensitivity
+        this.sensitivity = sensitivity.coerceAtLeast(MIN_SENSITIVITY)
     }
 
     fun setPointerButtonLeftEnabled(enabled: Boolean) {
@@ -676,10 +678,11 @@ class TouchpadView(
             }
 
             MotionEvent.ACTION_MOVE, MotionEvent.ACTION_HOVER_MOVE -> {
-                val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
                 if (xServer.isRelativeMouseMovement) {
-                    xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
+                    val delta = getExternalMouseDelta(event)
+                    xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, delta[0], delta[1], 0)
                 } else {
+                    val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
                     xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
                 }
                 true
@@ -703,6 +706,22 @@ class TouchpadView(
                 false
             }
         }
+    }
+
+    private fun getExternalMouseDelta(event: MotionEvent): IntArray {
+        var dx = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X)
+        var dy = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y)
+        if (dx == 0f && dy == 0f) {
+            val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
+            return intArrayOf(
+                (transformedPoint[0] - xServer.pointer.x).toInt(),
+                (transformedPoint[1] - xServer.pointer.y).toInt(),
+            )
+        }
+        return intArrayOf(
+            (xform[0] * dx + xform[2] * dy).toInt(),
+            (xform[1] * dx + xform[3] * dy).toInt(),
+        )
     }
 
     fun computeDeltaPoint(

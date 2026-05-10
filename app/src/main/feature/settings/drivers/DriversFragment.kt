@@ -21,7 +21,7 @@ import com.winlator.cmod.R
 import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.runtime.content.AdrenotoolsManager
 import com.winlator.cmod.runtime.content.Downloader
-import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import kotlinx.coroutines.Dispatchers
@@ -186,7 +186,16 @@ class DriversFragment : Fragment() {
 
     private fun defaultRepoList(): List<DriverRepo> =
         listOf(
-            DriverRepo(name = GITHUB_REPO_NAME, repoUrl = GITHUB_REPO_URL, apiUrl = GITHUB_API_URL),
+            DriverRepo(
+                name = WINNATIVE_DRIVERS_REPO_NAME,
+                repoUrl = WINNATIVE_DRIVERS_REPO_URL,
+                apiUrl = WINNATIVE_DRIVERS_API_URL,
+            ),
+            DriverRepo(
+                name = STEVEN_REPO_NAME,
+                repoUrl = STEVEN_REPO_URL,
+                apiUrl = STEVEN_API_URL,
+            ),
             DriverRepo(
                 name = WHITEBELYASH_REPO_NAME,
                 repoUrl = WHITEBELYASH_REPO_URL,
@@ -233,7 +242,7 @@ class DriversFragment : Fragment() {
             saveRepos()
             publishState()
         } else {
-            AppUtils.showToast(requireContext(), "Default repositories already present")
+            WinToast.show(requireContext(), "Default repositories already present")
         }
     }
 
@@ -307,7 +316,7 @@ class DriversFragment : Fragment() {
             publishState()
 
             if (releases.isEmpty()) {
-                AppUtils.showToast(requireContext(), R.string.settings_drivers_repo_fetch_failed)
+                WinToast.show(requireContext(), R.string.settings_drivers_repo_fetch_failed)
             }
         }
     }
@@ -482,7 +491,7 @@ class DriversFragment : Fragment() {
             if (!success) {
                 output.delete()
                 clearDownloadProgress()
-                AppUtils.showToast(requireContext(), R.string.settings_drivers_repo_download_failed)
+                WinToast.show(requireContext(), R.string.settings_drivers_repo_download_failed)
                 return@launch
             }
 
@@ -527,7 +536,7 @@ class DriversFragment : Fragment() {
             onComplete?.invoke()
 
             if (installedDriverId.isBlank()) {
-                AppUtils.showToast(requireContext(), R.string.settings_drivers_install_failed)
+                WinToast.show(requireContext(), R.string.settings_drivers_install_failed)
                 return@launch
             }
 
@@ -548,9 +557,13 @@ class DriversFragment : Fragment() {
     }
 
     companion object {
-        private const val GITHUB_REPO_NAME = "StevenMXZ/freedreno_turnip-CI"
-        private const val GITHUB_REPO_URL = "https://github.com/StevenMXZ/freedreno_turnip-CI/releases"
-        private const val GITHUB_API_URL = "https://api.github.com/repos/StevenMXZ/freedreno_turnip-CI/releases"
+        private const val WINNATIVE_DRIVERS_REPO_NAME = "WinNative Turnip Drivers"
+        private const val WINNATIVE_DRIVERS_REPO_URL = "https://github.com/WinNative-Emu/Drivers/releases"
+        private const val WINNATIVE_DRIVERS_API_URL = "https://api.github.com/repos/WinNative-Emu/Drivers/releases"
+
+        private const val STEVEN_REPO_NAME = "StevenMXZ/Adreno-Tools-Drivers"
+        private const val STEVEN_REPO_URL = "https://github.com/StevenMXZ/Adreno-Tools-Drivers/releases"
+        private const val STEVEN_API_URL = "https://api.github.com/repos/StevenMXZ/Adreno-Tools-Drivers/releases"
 
         private const val WHITEBELYASH_REPO_NAME = "whitebelyash/freedreno_turnip-CI"
         private const val WHITEBELYASH_REPO_URL = "https://github.com/whitebelyash/freedreno_turnip-CI/releases"

@@ -11,6 +11,7 @@ import com.winlator.cmod.R;
 import com.winlator.cmod.app.config.SettingsConfig;
 import com.winlator.cmod.runtime.wine.EnvVars;
 import com.winlator.cmod.shared.android.AppUtils;
+import com.winlator.cmod.shared.ui.toast.WinToast;
 import com.winlator.cmod.shared.io.FileUtils;
 import java.io.BufferedReader;
 import java.io.File;
@@ -65,8 +66,34 @@ public class FEXCorePresetManager {
       }
     }
 
+    normalizeSmcChecksEnvVars(envVars);
     Log.d(TAG, "getEnvVars resolved presetId='" + id + "' -> envVars='" + envVars.toString() + "'");
     return envVars;
+  }
+
+  public static void normalizeSmcChecksEnvVars(EnvVars envVars) {
+    normalizeSmcChecksEnvVars(envVars, null);
+  }
+
+  public static void normalizeSmcChecksEnvVars(EnvVars envVars, EnvVars preferredEnvVars) {
+    String smcChecks = envVars.get("FEX_SMCCHECKS");
+    String legacySmcChecks = envVars.get("FEX_SMC_CHECKS");
+    if (preferredEnvVars != null) {
+      String preferredSmcChecks = preferredEnvVars.get("FEX_SMCCHECKS");
+      String preferredLegacySmcChecks = preferredEnvVars.get("FEX_SMC_CHECKS");
+      if (!preferredSmcChecks.isEmpty()) {
+        smcChecks = preferredSmcChecks;
+      } else if (!preferredLegacySmcChecks.isEmpty()) {
+        smcChecks = preferredLegacySmcChecks;
+      }
+    }
+    if (smcChecks.isEmpty()) {
+      smcChecks = legacySmcChecks;
+    }
+    if (!smcChecks.isEmpty()) {
+      envVars.put("FEX_SMCCHECKS", smcChecks);
+      envVars.put("FEX_SMC_CHECKS", smcChecks);
+    }
   }
 
   public static ArrayList<FEXCorePreset> getPresets(Context context) {
@@ -226,13 +253,13 @@ public class FEXCorePresetManager {
       }
     }
     if (presetFile != null && presetFile.exists())
-      AppUtils.showToast(
+      WinToast.show(
           context,
           "Preset "
               + presetFile.getName()
               + " exported successfully at "
               + presetFile.getParentFile().getPath());
-    else AppUtils.showToast(context, "Failed to export preset");
+    else WinToast.show(context, "Failed to export preset");
   }
 
   public static void importPreset(Context context, InputStream stream) {
@@ -299,6 +326,6 @@ public class FEXCorePresetManager {
     int selectedPosition = spinner.getSelectedItemPosition();
     if (adapter != null && adapter.getCount() > 0 && selectedPosition >= 0) {
       return ((FEXCorePreset) adapter.getItem(selectedPosition)).id;
-    } else return FEXCorePreset.COMPATIBILITY;
+    } else return FEXCorePreset.PERFORMANCE;
   }
 }

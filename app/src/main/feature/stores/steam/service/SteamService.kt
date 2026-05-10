@@ -66,13 +66,14 @@ import com.winlator.cmod.feature.stores.steam.utils.Net
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 import com.winlator.cmod.feature.stores.steam.utils.SteamUtils
 import com.winlator.cmod.feature.stores.steam.utils.generateSteamApp
+import com.winlator.cmod.feature.steamcloudsync.SteamAutoCloud
 import com.winlator.cmod.feature.sync.google.CloudSyncManager
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.system.GPUInformation
 import com.winlator.cmod.shared.android.AppTerminationHelper
-import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.NotificationHelper
 import com.winlator.cmod.shared.io.StorageUtils
 import dagger.hilt.android.AndroidEntryPoint
@@ -89,6 +90,7 @@ import `in`.dragonbra.javasteam.enums.EOSType
 import `in`.dragonbra.javasteam.enums.EPersonaState
 import `in`.dragonbra.javasteam.enums.EResult
 import `in`.dragonbra.javasteam.networking.steam3.ProtocolTypes
+import `in`.dragonbra.javasteam.protobufs.steamclient.Enums.ECloudStoragePersistState
 import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesAuthSteamclient.CAuthentication_PollAuthSessionStatus_Request
 import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesClientObjects.ECloudPendingRemoteOperation
 import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesClientserverUserstats
@@ -2110,7 +2112,7 @@ class SteamService :
                 Timber.w("Download aborted: No downloadable depots found for appId: $appId")
                 instance?.let { service ->
                     service.scope.launch(Dispatchers.Main) {
-                        AppUtils.showToast(service.applicationContext, "No downloadable content found for this game", Toast.LENGTH_LONG)
+                        WinToast.show(service.applicationContext, "No downloadable content found for this game", Toast.LENGTH_LONG)
                     }
                 }
                 return null
@@ -2211,7 +2213,7 @@ class SteamService :
             dest.delete()
             withContext(Dispatchers.Main) {
                 val msg = "Download failed with ${lastError?.message ?: "unknown error"}. Please disable VPN or try a different network."
-                AppUtils.showToast(context.applicationContext, msg, android.widget.Toast.LENGTH_LONG)
+                WinToast.show(context.applicationContext, msg, android.widget.Toast.LENGTH_LONG)
             }
             throw IOException(
                 "Failed to download $fileName. Please check your network connection or try a VPN.",
@@ -2533,7 +2535,7 @@ class SteamService :
                         Timber.e("Failed to create download directory (mkdirs returned false): $appDirPath")
                         instance?.let { service ->
                             service.scope.launch(Dispatchers.Main) {
-                                AppUtils.showToast(
+                                WinToast.show(
                                     service.applicationContext,
                                     "Failed to create download directory. Check permissions.",
                                     Toast.LENGTH_LONG,
@@ -2688,7 +2690,7 @@ class SteamService :
                     )
                     instance?.let { service ->
                         service.scope.launch(Dispatchers.Main) {
-                            AppUtils.showToast(
+                            WinToast.show(
                                 service.applicationContext,
                                 "Resume failed: download scope changed. Please cancel and re-download.",
                                 Toast.LENGTH_LONG,
@@ -2795,7 +2797,7 @@ class SteamService :
                     // Show success message to user
                     instance?.let { service ->
                         service.scope.launch(Dispatchers.Main) {
-                            AppUtils.showToast(service.applicationContext, "Download complete", Toast.LENGTH_SHORT)
+                            WinToast.show(service.applicationContext, "Download complete", Toast.LENGTH_SHORT)
                         }
                     }
 
@@ -2996,7 +2998,7 @@ class SteamService :
                                             Timber.i("Retry attempt $attempt/$maxRetries for appId: $appId")
                                             di.updateStatusMessage("Retrying download (attempt $attempt/$maxRetries)...")
                                             withContext(Dispatchers.Main) {
-                                                AppUtils.showToast(
+                                                WinToast.show(
                                                     instance?.applicationContext ?: return@withContext,
                                                     "Retrying download (attempt $attempt/$maxRetries)...",
                                                     Toast.LENGTH_SHORT,
@@ -3304,7 +3306,7 @@ class SteamService :
                                     // Show success message to user
                                     instance?.let { service ->
                                         service.scope.launch(Dispatchers.Main) {
-                                            AppUtils.showToast(service.applicationContext, "Download complete", Toast.LENGTH_SHORT)
+                                            WinToast.show(service.applicationContext, "Download complete", Toast.LENGTH_SHORT)
                                             Unit
                                         }
                                     }
@@ -3404,7 +3406,7 @@ class SteamService :
                                 // Show error to user
                                 instance?.let { service ->
                                     service.scope.launch(Dispatchers.Main) {
-                                        AppUtils.showToast(service.applicationContext, "Download failed: $errorMsg", Toast.LENGTH_LONG)
+                                        WinToast.show(service.applicationContext, "Download failed: $errorMsg", Toast.LENGTH_LONG)
                                         Unit
                                     }
                                 }
@@ -3510,7 +3512,7 @@ class SteamService :
             // Show success message to user for no-op/resume completion
             instance?.let { service ->
                 service.scope.launch(Dispatchers.Main) {
-                    AppUtils.showToast(service.applicationContext, "Download complete", Toast.LENGTH_SHORT)
+                    WinToast.show(service.applicationContext, "Download complete", Toast.LENGTH_SHORT)
                     Unit
                 }
             }
@@ -3844,7 +3846,7 @@ class SteamService :
 
                 instance?.let { service ->
                     service.scope.launch(Dispatchers.Main) {
-                        AppUtils.showToast(
+                        WinToast.show(
                             service.applicationContext,
                             "Download error for depot ${item.appId}: ${error.message}",
                             Toast.LENGTH_LONG,
@@ -4179,6 +4181,62 @@ class SteamService :
         suspend fun getTrackedCloudSaveFiles(appId: Int): List<UserFileInfo>? =
             withContext(Dispatchers.IO) {
                 instance?.fileChangeListsDao?.getByAppId(appId)?.userFileInfo
+            }
+
+        suspend fun getNewestRemoteCloudSaveTimestamp(appId: Int): Long? =
+            withContext(Dispatchers.IO) {
+                val steamInstance = instance ?: return@withContext null
+                val steamCloud = steamInstance._steamCloud ?: return@withContext null
+                try {
+                    val localChangeNumber = steamInstance.changeNumbersDao.getByAppId(appId)?.changeNumber ?: 0L
+                    listOf(0L, localChangeNumber)
+                        .distinct()
+                        .mapNotNull { changeNumber ->
+                            steamCloud
+                                .getAppFileListChange(appId, changeNumber)
+                                .await()
+                                .files
+                                .filter { it.persistState == ECloudStoragePersistState.k_ECloudStoragePersistStatePersisted }
+                                .mapNotNull { file -> file.timestamp?.time?.takeIf { it > 0L } }
+                                .maxOrNull()
+                        }.maxOrNull()
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to read newest remote Steam cloud timestamp for appId=$appId")
+                    null
+                }
+            }
+
+        data class CloudConflictSnapshot(
+            val differs: Boolean,
+            val newestRemoteTimestamp: Long?,
+        )
+
+        /**
+         * Single-round-trip variant for the launch-time conflict prompt: returns both
+         * "does the cloud differ from local?" and the newest remote timestamp from
+         * the same `getAppFileListChange` response. Avoids 2-3 separate Steam round-trips
+         * when the dialog is about to be shown.
+         */
+        suspend fun fetchCloudConflictSnapshot(appId: Int): CloudConflictSnapshot? =
+            withContext(Dispatchers.IO) {
+                val steamInstance = instance ?: return@withContext null
+                val steamCloud = steamInstance._steamCloud ?: return@withContext null
+                val localCN = steamInstance.changeNumbersDao.getByAppId(appId)?.changeNumber
+                try {
+                    // Request the full file list so the timestamp scan covers everything,
+                    // not just the delta from localCN.
+                    val response = steamCloud.getAppFileListChange(appId, 0L).await()
+                    val differs = localCN == null || response.currentChangeNumber != localCN
+                    val newest =
+                        response.files
+                            .filter { it.persistState == ECloudStoragePersistState.k_ECloudStoragePersistStatePersisted }
+                            .mapNotNull { it.timestamp?.time?.takeIf { ts -> ts > 0L } }
+                            .maxOrNull()
+                    CloudConflictSnapshot(differs, newest)
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to fetch Steam cloud conflict snapshot for appId=$appId")
+                    null
+                }
             }
 
         suspend fun forceSyncUserFiles(
@@ -4553,7 +4611,7 @@ class SteamService :
                                         appId = appId,
                                         clientId = clientId,
                                         uploadsCompleted = postSyncInfo?.uploadsCompleted == true,
-                                        uploadsRequired = postSyncInfo?.uploadsRequired == false,
+                                        uploadsRequired = postSyncInfo?.uploadsRequired == true,
                                     )
 
                                     if (syncResult == SyncResult.Success || syncResult == SyncResult.UpToDate) {
@@ -4723,12 +4781,6 @@ class SteamService :
                 }
             }
         }
-
-        data class FileChanges(
-            val filesDeleted: List<UserFileInfo>,
-            val filesModified: List<UserFileInfo>,
-            val filesCreated: List<UserFileInfo>,
-        )
 
         /**
          * loginusers.vdf writer for the OAuth-style refresh-token flow introduced in 2024.

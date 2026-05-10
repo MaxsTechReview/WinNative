@@ -11,6 +11,7 @@ import com.winlator.cmod.R;
 import com.winlator.cmod.app.config.SettingsConfig;
 import com.winlator.cmod.runtime.wine.EnvVars;
 import com.winlator.cmod.shared.android.AppUtils;
+import com.winlator.cmod.shared.ui.toast.WinToast;
 import com.winlator.cmod.shared.io.FileUtils;
 import java.io.BufferedReader;
 import java.io.File;
@@ -269,13 +270,13 @@ public abstract class Box64PresetManager {
       }
     }
     if (presetFile != null && presetFile.exists())
-      AppUtils.showToast(
+      WinToast.show(
           context,
           "Preset "
               + presetFile.getName()
               + " exported successfully at "
               + presetFile.getParentFile().getPath());
-    else AppUtils.showToast(context, "Failed to export preset");
+    else WinToast.show(context, "Failed to export preset");
   }
 
   public static void importPreset(String prefix, Context context, InputStream stream) {
@@ -342,6 +343,6 @@ public abstract class Box64PresetManager {
     int selectedPosition = spinner.getSelectedItemPosition();
     if (adapter != null && adapter.getCount() > 0 && selectedPosition >= 0) {
       return ((Box64Preset) adapter.getItem(selectedPosition)).id;
-    } else return Box64Preset.COMPATIBILITY;
+    } else return Box64Preset.PERFORMANCE;
   }
 }

@@ -55,6 +55,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -116,7 +119,7 @@ import com.winlator.cmod.runtime.content.Downloader
 import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.display.environment.ImageFsInstaller
 import com.winlator.cmod.runtime.wine.WineInfo
-import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.FixedFontScaleFragmentActivity
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.io.TarCompressorUtils
@@ -187,7 +190,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         private const val KEY_LAST_CONTENT_PREFIX = "last_content_"
         private const val KEY_DEFAULT_JSON_CACHE = "default_json_cache"
         private const val DEFAULT_JSON_URL =
-            "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/blob/main/default.json"
+            "https://github.com/Xnick417x/winlator-nightly-wcp/blob/main/default.json"
 
         @JvmStatic
         fun isSetupComplete(context: Context): Boolean = prefs(context).getBoolean(KEY_SETUP_COMPLETE, false)
@@ -297,7 +300,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 } else {
                     "Download a Wine/Proton package and create a container before launching games."
                 }
-            AppUtils.showToast(context, message, Toast.LENGTH_LONG)
+            WinToast.show(context, message, Toast.LENGTH_LONG)
 
             val intent =
                 when {
@@ -412,49 +415,49 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             PackageSpec(
                 label = "DXVK 2.7.1 GPLAsync",
                 type = ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-                url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-Dxvk/Dxvk-2.7.1-gplasync.wcp",
+                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Dxvk/Dxvk-2.7.1-gplasync.wcp",
                 nameHint = "dxvk-2.7.1-gplasync",
             ),
             PackageSpec(
                 label = "DXVK 2.7.1 ARM64EC GPLAsync",
                 type = ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-                url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-Arm64ec-Dxvk/Dxvk-2.7.1-arm64ec-gplasync.wcp",
+                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Arm64ec-Dxvk/Dxvk-2.7.1-arm64ec-gplasync.wcp",
                 nameHint = "Dxvk-2.7.1-arm64ec-gplasync",
             ),
             PackageSpec(
                 label = "VKD3D Proton 3.0b",
                 type = ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
-                url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-Vk3dk/Vk3dk-proton-3.0b.wcp",
+                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Vk3dk/Vk3dk-proton-3.0b.wcp",
                 nameHint = "Vk3dk-proton-3.0b",
             ),
             PackageSpec(
                 label = "VKD3D ARM64EC 3.0b",
                 type = ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
-                url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-Arm64ec-Vk3dk/Vk3dk-arm64ec-3.0b.wcp",
+                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Arm64ec-Vk3dk/Vk3dk-arm64ec-3.0b.wcp",
                 nameHint = "Vk3dk-arm64ec-3.0b",
             ),
             PackageSpec(
                 label = "DXVK 2.4.1 pre-reg",
                 type = ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-                url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-Dxvk/Dxvk-2.4.1-pre-reg.wcp",
+                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Dxvk/Dxvk-2.4.1-pre-reg.wcp",
                 nameHint = "Dxvk-2.4.1-pre-reg",
             ),
             PackageSpec(
                 label = "FEX 2604",
                 type = ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
-                url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-FEX/FEX-2604.wcp",
+                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-FEX/FEX-2604.wcp",
                 nameHint = "FEX-2604",
             ),
             PackageSpec(
                 label = "Box64 0.4.1 fix",
                 type = ContentProfile.ContentType.CONTENT_TYPE_BOX64,
-                url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-Box64/Box64-0.4.1-fix.wcp",
+                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Box64/Box64-0.4.1-fix.wcp",
                 nameHint = "Box64-0.4.1-fix",
             ),
             PackageSpec(
                 label = "Wowbox64 0.4.1",
                 type = ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64,
-                url = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Stable-wowbox64/Wowbox64-0.4.1.wcp",
+                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-wowbox64/Wowbox64-0.4.1.wcp",
                 nameHint = "Wowbox64-0.4.1",
             ),
         )
@@ -464,7 +467,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             label = "Recommended x86-64",
             archToken = "x86_64",
             fallbackType = ContentProfile.ContentType.CONTENT_TYPE_WINE,
-            fallbackUrl = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/Wine/wine-9.20-x86_64.wcp",
+            fallbackUrl = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Wine/wine-9.20-x86_64.wcp",
             fallbackNameHint = "wine-9.20-x86_64",
             containerDisplayName = { profile ->
                 "${runtimeDisplayLabel(profile)} x86-64"
@@ -496,7 +499,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             label = "Recommended ARM64EC",
             archToken = "arm64ec",
             fallbackType = ContentProfile.ContentType.CONTENT_TYPE_PROTON,
-            fallbackUrl = "https://github.com/Xnick417x/Winlator-Bionic-Nightly-wcp/releases/download/GameNative/Proton-10-arm64ec-coffincolors.wcp",
+            fallbackUrl = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/GameNative/Proton-10-arm64ec-coffincolors.wcp",
             fallbackNameHint = "Proton-10-arm64ec-coffincolors",
             containerDisplayName = { profile ->
                 "${runtimeDisplayLabel(profile)} ARM64EC"
@@ -2713,21 +2716,25 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 )
             }
         } else {
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.TopCenter,
             ) {
-                LazyColumn(
+                val gridColumns = 3
+                val compactGrid = maxWidth < 720.dp || maxHeight < 280.dp
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(gridColumns),
                     modifier =
                         Modifier
-                            .widthIn(max = 420.dp)
+                            .widthIn(max = 960.dp)
                             .fillMaxWidth()
                             .fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(if (compactGrid) 8.dp else 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (compactGrid) 6.dp else 10.dp),
+                    contentPadding = PaddingValues(bottom = if (compactGrid) 4.dp else 12.dp),
                 ) {
-                    items(installedRuntimes) { profile ->
-                        RuntimeContainerCard(profile)
+                    gridItems(installedRuntimes) { profile ->
+                        RuntimeContainerCard(profile, compact = compactGrid)
                     }
                 }
             }
@@ -2735,7 +2742,10 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     }
 
     @Composable
-    private fun RuntimeContainerCard(profile: ContentProfile) {
+    private fun RuntimeContainerCard(
+        profile: ContentProfile,
+        compact: Boolean = false,
+    ) {
         val entryName = ContentsManager.getEntryName(profile)
         val displayName = runtimeDisplayLabel(profile)
         val isArm64 = profile.verName.contains("arm64ec", ignoreCase = true)
@@ -2768,7 +2778,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     .fillMaxWidth()
                     .background(bgColor, cardShape)
                     .border(1.dp, outlineColor, cardShape)
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                    .padding(horizontal = if (compact) 10.dp else 12.dp, vertical = if (compact) 6.dp else 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -2787,23 +2797,23 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         text = archLabel,
                         color = if (hasContainer) activeColor else Color(0xFF8B949E),
                         fontFamily = InterFont,
-                        fontSize = 9.sp,
+                        fontSize = if (compact) 8.sp else 9.sp,
                         letterSpacing = 1.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
-                Spacer(Modifier.height(3.dp))
+                Spacer(Modifier.height(if (compact) 1.dp else 3.dp))
                 Text(
                     text = displayName,
                     color = Color(0xFFE6EDF3),
                     fontFamily = InterFont,
                     fontWeight = FontWeight.Medium,
-                    fontSize = 12.sp,
+                    fontSize = if (compact) 11.sp else 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
             if (existingContainer == null) {
                 Button(
                     onClick = {
@@ -2834,8 +2844,8 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     },
                     enabled = !creating && transferState.value == null,
                     shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.height(28.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    modifier = Modifier.height(if (compact) 24.dp else 28.dp),
+                    contentPadding = PaddingValues(horizontal = if (compact) 9.dp else 12.dp, vertical = 0.dp),
                     colors =
                         ButtonDefaults.buttonColors(
                             containerColor = turquoise.copy(alpha = 0.14f),
@@ -2847,20 +2857,20 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 ) {
                     if (creating) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(if (compact) 12.dp else 14.dp),
                             color = turquoise,
                             strokeWidth = 2.dp,
                         )
-                        Spacer(Modifier.width(6.dp))
+                        Spacer(Modifier.width(if (compact) 4.dp else 6.dp))
                     }
                     Text(
                         text =
                             stringResource(
                                 if (creating) R.string.setup_wizard_creating_container else R.string.setup_wizard_create_container,
-                            ),
+                        ),
                         fontFamily = InterFont,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp,
+                        fontSize = if (compact) 9.sp else 10.sp,
                     )
                 }
             } else {
@@ -2871,8 +2881,8 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         openContainerDefaultSettings(id, type)
                     },
                     shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.height(28.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    modifier = Modifier.height(if (compact) 24.dp else 28.dp),
+                    contentPadding = PaddingValues(horizontal = if (compact) 9.dp else 12.dp, vertical = 0.dp),
                     colors =
                         ButtonDefaults.buttonColors(
                             containerColor = completedTurquoise.copy(alpha = 0.14f),
@@ -2883,7 +2893,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         text = stringResource(R.string.setup_wizard_default_settings),
                         fontFamily = InterFont,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp,
+                        fontSize = if (compact) 9.sp else 10.sp,
                     )
                 }
             }

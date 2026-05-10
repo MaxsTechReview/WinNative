@@ -18,17 +18,19 @@ data class UserFileInfo(
     val filename: String,
     val timestamp: Long,
     val sha: ByteArray,
+    val cloudRoot: PathType = root,
+    val cloudPath: String = path,
 ) {
     // "." and blank path both mean "root of path type" per Steam manifest.
     val prefix: String
         get() {
             val pathForPrefix =
                 when {
-                    path.isBlank() || path == "." -> ""
-                    else -> path
+                    cloudPath.isBlank() || cloudPath == "." -> ""
+                    else -> cloudPath
                 }
             return Paths
-                .get("%${root.name}%$pathForPrefix")
+                .get("%${cloudRoot.name}%$pathForPrefix")
                 .pathString
                 .replace("{64BitSteamID}", SteamUtils.getSteamId64().toString())
                 .replace("{Steam3AccountID}", SteamUtils.getSteam3AccountId().toString())
@@ -38,7 +40,7 @@ data class UserFileInfo(
     val prefixPath: String
         get() =
             when {
-                path.isBlank() || path == "." -> "$prefix$filename"
+                cloudPath.isBlank() || cloudPath == "." -> "$prefix$filename"
                 else -> Paths.get(prefix, filename).pathString
             }.replace("{64BitSteamID}", SteamUtils.getSteamId64().toString())
                 .replace("{Steam3AccountID}", SteamUtils.getSteam3AccountId().toString())

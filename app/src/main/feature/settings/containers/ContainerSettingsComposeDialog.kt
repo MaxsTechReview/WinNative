@@ -2,15 +2,20 @@ package com.winlator.cmod.feature.settings
 import android.app.Activity
 import android.app.Dialog
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import android.view.ViewGroup
 import android.view.Window
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
@@ -35,6 +40,7 @@ import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils
 import com.winlator.cmod.feature.settings.WineD3DConfigUtils
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.runtime.wine.EnvVars
 import com.winlator.cmod.shared.io.FileUtils
@@ -105,7 +111,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 state.desktopWallpaperSelected.value = true
             } catch (e: Throwable) {
                 Log.e(TAG, "Error copying wallpaper", e)
-                AppUtils.showToast(
+                WinToast.show(
                     context,
                     context.getString(R.string.settings_containers_error_saving_wallpaper),
                     Toast.LENGTH_SHORT,
@@ -158,7 +164,12 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             setViewTreeSavedStateRegistryOwner(activity as SavedStateRegistryOwner)
             setContent {
                 WinNativeTheme {
-                    GameSettingsContent(state = state, callbacks = createCallbacks())
+                    val defaultDensity = LocalDensity.current
+                    CompositionLocalProvider(
+                        LocalDensity provides Density(defaultDensity.density, fontScale = 1f)
+                    ) {
+                        GameSettingsContent(state = state, callbacks = createCallbacks())
+                    }
                 }
             }
         }
@@ -469,6 +480,10 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             state.selectedDxWrapper
         )
 
+        val surfaceEffectArr = context.resources.getStringArray(R.array.surface_effect_entries).toList()
+        state.surfaceEffectEntries.value = surfaceEffectArr
+        state.selectedSurfaceEffect.intValue = if (c?.getExtra("swapRB", "0") == "1") 1 else 0
+
         val audioDriverArr = context.resources.getStringArray(R.array.audio_driver_entries).toList()
         state.audioDriverEntries.value = audioDriverArr
         selectByIdentifier(
@@ -653,7 +668,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val c = container
         val name = state.name.value.trim()
         if (name.isEmpty()) {
-            AppUtils.showToast(context, context.getString(R.string.common_ui_name_cannot_be_empty), Toast.LENGTH_SHORT)
+            WinToast.show(context, context.getString(R.string.common_ui_name_cannot_be_empty), Toast.LENGTH_SHORT)
             return
         }
 
@@ -736,6 +751,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.setGraphicsDriverConfig(graphicsDriverConfig)
             c.setDXWrapper(dxwrapper)
             c.setDXWrapperConfig(dxwrapperConfig)
+            c.putExtra("swapRB", if (state.selectedSurfaceEffect.intValue == 1) "1" else "0")
             c.setAudioDriver(audioDriver)
             c.setEmulator(emulator)
             c.setEmulator64(emulator64)
@@ -783,6 +799,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 data.put("fexcoreVersion", fexcoreVersion)
                 data.put("fexcorePreset", fexcorePreset)
                 data.put("desktopTheme", desktopTheme)
+                data.put("swapRB", if (state.selectedSurfaceEffect.intValue == 1) "1" else "0")
                 data.put("wineVersion", selectedWineStr)
                 data.put("midiSoundFont", midiSoundFont)
                 data.put("lc_all", state.lcAll.value)
@@ -795,7 +812,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                     if (newContainer != null) {
                         saveMouseWarpOverride(newContainer)
                     } else {
-                        AppUtils.showToast(context, R.string.setup_wizard_unable_to_install_system_files)
+                        WinToast.show(context, R.string.setup_wizard_unable_to_install_system_files)
                     }
                     preloaderDialog.close()
                     dismiss()
@@ -803,7 +820,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             } catch (e: Throwable) {
                 Log.e(TAG, "Error creating container", e)
                 preloaderDialog.close()
-                AppUtils.showToast(
+                WinToast.show(
                     context,
                     context.getString(R.string.common_ui_error_with_message, e.message ?: ""),
                 )
@@ -874,7 +891,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         box64PresetIds = ids
         val saved = container?.getBox64Preset()
             ?: PreferenceManager.getDefaultSharedPreferences(context)
-                .getString("box64_preset", Box64Preset.COMPATIBILITY)
+                .getString("box64_preset", Box64Preset.PERFORMANCE)
         val idx = ids.indexOfFirst { it == saved }
         state.selectedBox64Preset.intValue = if (idx >= 0) idx else 0
     }
@@ -890,7 +907,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         fexcorePresetIds = ids
         val saved = container?.getFEXCorePreset()
             ?: PreferenceManager.getDefaultSharedPreferences(context)
-                .getString("fexcore_preset", FEXCorePreset.INTERMEDIATE)
+                .getString("fexcore_preset", FEXCorePreset.PERFORMANCE)
         val idx = ids.indexOfFirst { it == saved }
         state.selectedFexcorePreset.intValue = if (idx >= 0) idx else 0
     }
@@ -1317,7 +1334,9 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     }
 
     private fun buildEnvVarsString(): String {
-        val filtered = state.envVars.value.filterNot { it.key in SDL2_KEYS }
+        val filtered = state.envVars.value
+            .filter { it.key.isNotBlank() }
+            .filterNot { it.key in SDL2_KEYS }
         val merged = if (state.sdl2Compatibility.value) {
             filtered + SDL2_ENV_VARS.map { EnvVarItem(it.first, it.second) }
         } else filtered
@@ -1413,27 +1432,67 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     fun show() {
         dialog.show()
         dialog.window?.apply {
-            val dm = activity.resources.displayMetrics
-            val screenWidthDp = dm.widthPixels / dm.density
-            val dialogWidthDp = screenWidthDp * 0.88f
-            val isCompactLayout = dialogWidthDp < 720f
-            if (screenWidthDp < 600f) {
-                val dialogWidth = (dm.widthPixels * 0.96f).toInt()
-                val dialogHeight = (dm.heightPixels * 0.90f).toInt()
-                setLayout(dialogWidth, dialogHeight)
-            } else {
-                val dialogWidth = (dm.widthPixels * 0.88f).toInt()
-                val heightFactor = if (isCompactLayout) 0.90f else 0.88f
-                val dialogHeight = (dm.heightPixels * heightFactor).toInt()
-                setLayout(dialogWidth, dialogHeight)
-            }
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            applyDialogLayout()
+            decorView.post { applyDialogLayout() }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val params = attributes
                 params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
                 params.blurBehindRadius = 10
                 attributes = params
             }
         }
+    }
+
+    private fun Window.applyDialogLayout() {
+        val dm = activity.resources.displayMetrics
+        val hostView = activity.window?.decorView
+        val hostWidth = hostView?.width?.takeIf { it > 0 }
+        val hostHeight = hostView?.height?.takeIf { it > 0 }
+        val bounds =
+            if (hostWidth != null && hostHeight != null) {
+                hostWidth to hostHeight
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val windowBounds = activity.windowManager.currentWindowMetrics.bounds
+                windowBounds.width() to windowBounds.height()
+            } else {
+                dm.widthPixels to dm.heightPixels
+            }
+
+        val screenWidthDp = bounds.first / dm.density
+        val needsNearFullWidth = screenWidthDp < 820f
+        val widthFactor = if (needsNearFullWidth) 0.96f else 0.88f
+        val heightFactor = if (needsNearFullWidth) 0.90f else 0.88f
+        val navInsets =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                activity.windowManager.currentWindowMetrics.windowInsets.getInsetsIgnoringVisibility(
+                    WindowInsets.Type.navigationBars()
+                )
+            } else {
+                null
+            }
+        val cutoutInsets =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                activity.windowManager.currentWindowMetrics.windowInsets.getInsetsIgnoringVisibility(
+                    WindowInsets.Type.displayCutout()
+                )
+            } else {
+                null
+            }
+        val edgePaddingPx = (12f * dm.density).toInt().coerceAtLeast(1)
+        val cutoutPaddingCapPx = (8f * dm.density).toInt()
+        val leftInsetPx = maxOf(navInsets?.left ?: 0, (cutoutInsets?.left ?: 0).coerceAtMost(cutoutPaddingCapPx))
+        val rightInsetPx = maxOf(navInsets?.right ?: 0, (cutoutInsets?.right ?: 0).coerceAtMost(cutoutPaddingCapPx))
+        val topInsetPx = maxOf(navInsets?.top ?: 0, (cutoutInsets?.top ?: 0).coerceAtMost(cutoutPaddingCapPx))
+        val bottomInsetPx = maxOf(navInsets?.bottom ?: 0, (cutoutInsets?.bottom ?: 0).coerceAtMost(cutoutPaddingCapPx))
+        val horizontalInsetPx = maxOf(leftInsetPx, rightInsetPx)
+        val verticalInsetPx = maxOf(topInsetPx, bottomInsetPx)
+        val maxDialogWidth = (bounds.first - ((horizontalInsetPx + edgePaddingPx) * 2)).coerceAtLeast(1)
+        val maxDialogHeight = (bounds.second - ((verticalInsetPx + edgePaddingPx) * 2)).coerceAtLeast(1)
+
+        setLayout(
+            (bounds.first * widthFactor).toInt().coerceAtMost(maxDialogWidth),
+            (bounds.second * heightFactor).toInt().coerceAtMost(maxDialogHeight),
+        )
     }
 
     fun dismiss() {

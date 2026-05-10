@@ -199,9 +199,15 @@ class BinaryManifest : EpicManifest() {
         // Ensure metadata reflects the version we'll write into the header
         meta?.featureLevel = targetVersion
 
-        // Write each section into the stream directly — no intermediate fixed buffer.
-        // Legendary uses a BytesIO for the same reason: sections can be arbitrarily large.
-        val bodyBuffer = ByteBuffer.allocate(estimateBodySize()).order(ByteOrder.LITTLE_ENDIAN)
+        // Each section's `write()` does placeholder-then-back-fill of its size field, so it
+        // requires a buffer that supports random-access mutation (i.e. ByteBuffer, not a
+        // pure stream). Legendary side-steps this with Python's BytesIO which auto-grows;
+        // a fixed-capacity ByteBuffer can't, so when a single section's actual size exceeds
+        // the initial estimate (large saves with many files), the per-section write throws
+        // BufferOverflowException and the whole upload fails. Track the buffer in a `var`
+        // and reallocate to a larger size if a section won't fit, dumping any prior
+        // already-written bytes to the body stream first.
+        var bodyBuffer = ByteBuffer.allocate(estimateBodySize()).order(ByteOrder.LITTLE_ENDIAN)
 
         fun flushAndReset() {
             if (bodyBuffer.position() > 0) {
@@ -211,7 +217,13 @@ class BinaryManifest : EpicManifest() {
         }
 
         fun ensureSpace(needed: Int) {
-            if (bodyBuffer.remaining() < needed) flushAndReset()
+            if (bodyBuffer.remaining() < needed) {
+                flushAndReset()
+                if (bodyBuffer.capacity() < needed) {
+                    val newCapacity = maxOf(bodyBuffer.capacity() * 2, needed + 64 * 1024)
+                    bodyBuffer = ByteBuffer.allocate(newCapacity).order(ByteOrder.LITTLE_ENDIAN)
+                }
+            }
         }
 
         meta?.let { m ->
@@ -225,19 +237,26 @@ class BinaryManifest : EpicManifest() {
         }
 
         fileManifestList?.let { fml ->
+            // Worst-case oversize the estimate: filenames may be UTF-16 (× 2), and the
+            // section header itself adds ~8 bytes of overhead per element on top of the
+            // 28-byte chunk-part stride. Doubling the per-element estimate keeps
+            // `write()`'s back-fill in-bounds without a second reallocation pass.
             val needed =
                 fml.elements.sumOf {
-                    it.filename.length + it.symlinkTarget.length + 100 +
-                        it.installTags.sumOf { t -> t.length + 4 } +
-                        it.chunkParts.size * 28
+                    (it.filename.length + it.symlinkTarget.length) * 2 + 200 +
+                        it.installTags.sumOf { t -> t.length * 2 + 8 } +
+                        it.chunkParts.size * 32
                 }
-            ensureSpace(needed + 1_000)
+            ensureSpace(needed + 4_000)
             fml.write(bodyBuffer)
         }
 
-        customFields?.let {
-            ensureSpace(2_000)
-            it.write(bodyBuffer)
+        customFields?.let { cf ->
+            // CustomFields stores both keys and values as FStrings, so size on the wire is
+            // ~ sum((len * 2 + 8) for UTF-16 pessimism) per key plus the same per value, plus a small section header.
+            val needed = cf.estimatedSerializedSize() + 4_000
+            ensureSpace(needed)
+            cf.write(bodyBuffer)
         }
 
         flushAndReset()
@@ -889,6 +908,17 @@ data class CustomFields(
         value: String,
     ) {
         fields[key] = value
+    }
+
+    /**
+     * Worst-case bytes-on-wire for this section, used by `BinaryManifest.serialize()` to
+     * size its scratch buffer. Each FString costs `length * 2 + 8` (UTF-16 pessimism +
+     * length prefix + null terminator). Plus 9 bytes of section header (size + version +
+     * count). Always returns at least 256 so the empty case still gets a slab of headroom.
+     */
+    fun estimatedSerializedSize(): Int {
+        val payload = fields.entries.sumOf { (k, v) -> k.length * 2 + 8 + v.length * 2 + 8 }
+        return maxOf(payload + 9, 256)
     }
 
     companion object {

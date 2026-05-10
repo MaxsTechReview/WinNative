@@ -14,6 +14,7 @@ enum class PathType {
     WinAppDataLocalLow,
     WinAppDataRoaming,
     WinSavedGames,
+    WinProgramData,
     LinuxHome,
     LinuxXdgDataHome,
     LinuxXdgConfigHome,
@@ -103,6 +104,15 @@ enum class PathType {
                         ).toString()
                 }
 
+                WinProgramData -> {
+                    Paths
+                        .get(
+                            rootDir,
+                            winePrefix,
+                            "drive_c/ProgramData/",
+                        ).toString()
+                }
+
                 Root -> {
                     Paths
                         .get(
@@ -132,10 +142,15 @@ enum class PathType {
                 WinAppDataLocalLow,
                 WinAppDataRoaming,
                 WinSavedGames,
+                WinProgramData,
+                Root,
                 -> true
 
                 else -> false
             }
+
+    val isSupportedSteamCloudRoot: Boolean
+        get() = isWindows || this == Root
 
     companion object {
         val DEFAULT = SteamUserData
@@ -222,12 +237,16 @@ enum class PathType {
 
                 "%${SteamUserData.name.lowercase()}%",
                 SteamUserData.name.lowercase(),
+                "steamuserbasestorage",
+                "%steamuserbasestorage%",
                 -> {
                     SteamUserData
                 }
 
                 "%${WinMyDocuments.name.lowercase()}%",
                 WinMyDocuments.name.lowercase(),
+                "steamclouddocuments",
+                "%steamclouddocuments%",
                 -> {
                     WinMyDocuments
                 }
@@ -254,6 +273,12 @@ enum class PathType {
                 WinSavedGames.name.lowercase(),
                 -> {
                     WinSavedGames
+                }
+
+                "%${WinProgramData.name.lowercase()}%",
+                WinProgramData.name.lowercase(),
+                -> {
+                    WinProgramData
                 }
 
                 "%${LinuxHome.name.lowercase()}%",
@@ -286,8 +311,12 @@ enum class PathType {
                     MacAppSupport
                 }
 
-                "%ROOT_MOD%",
-                "ROOT_MOD",
+                "%root_mod%",
+                "root_mod",
+                "windowshome",
+                "%windowshome%",
+                "%${Root.name.lowercase()}%",
+                Root.name.lowercase(),
                 -> {
                     Root
                 }

@@ -27,6 +27,10 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
+def appVersionName = providers.gradleProperty("VERSION_NAME")
+        .orElse(providers.environmentVariable("VERSION_NAME"))
+        .getOrElse("Nightly")
+
 android {
     namespace 'com.winlator.cmod'
     compileSdk 35
@@ -36,7 +40,7 @@ android {
         minSdk 26
         targetSdk 28
         versionCode 21
-        versionName "7.1.4x-cmod"
+        versionName appVersionName
 
         externalNativeBuild {
             cmake {

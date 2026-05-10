@@ -1,13 +1,13 @@
 package com.winlator.cmod.runtime.display;
 
-import static com.winlator.cmod.shared.android.AppUtils.showToast;
-
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ShortcutManager;
 import android.content.SharedPreferences;
@@ -18,7 +18,10 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.hardware.input.InputManager;
+import android.net.Uri;
 import android.opengl.GLSurfaceView;
+import android.text.format.DateFormat;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -50,8 +53,8 @@ import androidx.core.graphics.Insets;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.FileProvider;
 import androidx.compose.ui.platform.ComposeView;
-import androidx.core.view.GravityCompat;
 import androidx.core.view.WindowInsetsCompat;
 import com.winlator.cmod.BuildConfig;
 import com.winlator.cmod.feature.stores.steam.enums.Marker;
@@ -59,7 +62,6 @@ import com.winlator.cmod.feature.stores.steam.utils.MarkerUtils;
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager;
 import com.winlator.cmod.feature.stores.steam.utils.SteamUtils;
 
-import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.preference.PreferenceManager;
 import com.winlator.cmod.R;
 import com.winlator.cmod.app.config.SettingsConfig;
@@ -70,14 +72,14 @@ import com.winlator.cmod.feature.setup.SetupWizardActivity;
 import com.winlator.cmod.runtime.container.Container;
 import com.winlator.cmod.runtime.container.ContainerManager;
 import com.winlator.cmod.runtime.container.Shortcut;
-import com.winlator.cmod.shared.ui.dialog.ContentDialog;
-import com.winlator.cmod.feature.settings.DebugDialog;
 import com.winlator.cmod.feature.settings.DXVKConfigUtils;
 import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils;
 import com.winlator.cmod.feature.shortcuts.ShortcutsFragment;
-import com.winlator.cmod.feature.sync.CloudSyncConflictDialog;
-import com.winlator.cmod.feature.sync.CloudSyncConflictTimestamps;
 import com.winlator.cmod.feature.sync.CloudSyncHelper;
+import com.winlator.cmod.feature.sync.EpicLaunchCloudSync;
+import com.winlator.cmod.feature.sync.GogLaunchCloudSync;
+import com.winlator.cmod.feature.steamcloudsync.SteamExitCloudSync;
+import com.winlator.cmod.feature.steamcloudsync.SteamLaunchCloudSync;
 import com.winlator.cmod.feature.stores.steam.ui.SteamClientDownloadFailureDialog;
 import com.winlator.cmod.feature.settings.WineD3DConfigUtils;
 import com.winlator.cmod.runtime.compat.SteamBridge;
@@ -86,8 +88,10 @@ import com.winlator.cmod.runtime.content.ContentsManager;
 import com.winlator.cmod.runtime.content.AdrenotoolsManager;
 import com.winlator.cmod.shared.android.AppUtils;
 import com.winlator.cmod.shared.android.AppTerminationHelper;
+import com.winlator.cmod.shared.ui.toast.WinToast;
 import com.winlator.cmod.runtime.wine.EnvVars;
 import com.winlator.cmod.shared.io.FileUtils;
+import com.winlator.cmod.runtime.system.CPUStatus;
 import com.winlator.cmod.runtime.system.GPUInformation;
 import com.winlator.cmod.shared.util.KeyValueSet;
 import com.winlator.cmod.shared.util.Callback;
@@ -112,7 +116,6 @@ import com.winlator.cmod.runtime.compat.fexcore.FEXCoreManager;
 import com.winlator.cmod.runtime.compat.gamefixes.GameFixes;
 import com.winlator.cmod.runtime.audio.alsaserver.ALSAClient;
 import com.winlator.cmod.runtime.input.ControllerAssignmentDialog;
-import com.winlator.cmod.runtime.input.InputControlsDialog;
 import com.winlator.cmod.runtime.input.controls.ControlsProfile;
 import com.winlator.cmod.runtime.input.controls.ControllerManager;
 import com.winlator.cmod.runtime.input.controls.ExternalController;
@@ -128,11 +131,10 @@ import com.winlator.cmod.runtime.display.ui.XServerView;
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity;
 import com.winlator.cmod.runtime.input.ui.InputControlsView;
 import com.winlator.cmod.runtime.input.ui.TouchpadView;
-import com.winlator.cmod.runtime.system.ui.LogView;
+import com.winlator.cmod.runtime.system.LogFileUtils;
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
 import com.winlator.cmod.runtime.display.winhandler.OnGetProcessInfoListener;
 import com.winlator.cmod.runtime.display.winhandler.ProcessInfo;
-import com.winlator.cmod.runtime.display.winhandler.TaskManagerDialog;
 import com.winlator.cmod.runtime.display.winhandler.WinHandler;
 import com.winlator.cmod.runtime.display.connector.UnixSocketConfig;
 import com.winlator.cmod.runtime.display.environment.ImageFs;
@@ -157,16 +159,22 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
 import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Locale;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.CountDownLatch;
@@ -239,7 +247,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private InputControlsView inputControlsView;
     private TouchpadView touchpadView;
     private XEnvironment environment;
-    private DrawerLayout drawerLayout;
+    private ComposeView displayHostComposeView;
+    private FrameLayout xServerDisplayFrame;
     private ContainerManager containerManager;
     protected Container container;
     private XServer xServer;
@@ -267,19 +276,46 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean firstTimeBoot = false;
     private SharedPreferences preferences;
     private boolean isMouseDisabled = false;
+    private boolean isPointerCaptureForcedOff = false;
+    private boolean isVolumeUpPressed = false;
+    private boolean isVolumeDownPressed = false;
     private OnExtractFileListener onExtractFileListener;
     private WinHandler winHandler;
     private WineRequestHandler wineRequestHandler;
     private float globalCursorSpeed = 1.0f;
     private MagnifierView magnifierView;
-    private DebugDialog debugDialog;
+    private Callback<String> logStreamSink;
+    private BufferedWriter logStreamWriter;
+    private File logStreamFile;
     private int taskAffinityMask = 0;
     private int taskAffinityMaskWoW64 = 0;
     private int frameRatingWindowId = -1;
-    private boolean cursorLock; // Flag to track if pointer capture was requested
+    private android.net.wifi.WifiManager.MulticastLock multicastLock;
     private final float[] xform = XForm.getInstance();
     private ContentsManager contentsManager;
     private boolean navigationFocused = false;
+
+    private boolean hasExternalMouse() {
+        InputManager inputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
+        for (int deviceId : inputManager.getInputDeviceIds()) {
+            InputDevice device = inputManager.getInputDevice(deviceId);
+            if (device != null && !device.isVirtual() && (device.getSources() & InputDevice.SOURCE_MOUSE) != 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void tryCapturePointer() {
+        if (touchpadView != null && hasExternalMouse() && (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen())) {
+            touchpadView.postDelayed(() -> {
+                if (touchpadView != null) {
+                    updatePointerCapture();
+                }
+            }, 100);
+        }
+    }
+
     private MidiHandler midiHandler;
     private String midiSoundFont = "";
     private String lc_all = "";
@@ -291,7 +327,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private float hudTransparency = 1.0f;
     private float hudScale = 1.0f;
-    private boolean[] hudElements = new boolean[]{true, true, true, true, true, true};
+    private boolean[] hudElements = new boolean[]{true, true, true, true, true, true, true};
     private boolean dualSeriesBattery = false;
     private boolean hudCardExpanded = false;
     private boolean screenEffectsCardExpanded = false;
@@ -302,6 +338,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean gyroscopeCardExpanded = false;
     private XServerDrawerStateHolder drawerStateHolder;
     private XServerDrawerActionListener drawerActionListener;
+    private Timer taskManagerTimer;
+    private final ArrayList<TaskManagerProcess> taskManagerAccum = new ArrayList<>();
+    private boolean taskManagerCpuExpanded = false;
+    private boolean taskManagerPaneVisible = false;
+    private short[] cachedMaxClockSpeeds;
+    private boolean drawerEdgeGesturePossible = false;
+    private float drawerEdgeGestureStartX = 0f;
+    private float drawerEdgeGestureStartY = 0f;
+    private int drawerEdgeGesturePointerId = -1;
 
     // Inside the XServerDisplayActivity class
     private SensorManager sensorManager;
@@ -448,6 +493,22 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return shortcut != null ? shortcut.getSettingExtra(key, containerValue) : containerValue;
     }
 
+    private boolean getBooleanSessionOption(String key, boolean defaultValue) {
+        boolean fallback = preferences != null ? preferences.getBoolean(key, defaultValue) : defaultValue;
+        if (shortcut == null) return fallback;
+        String rawValue = shortcut.getExtra(key, String.valueOf(fallback));
+        return parseBoolean(rawValue);
+    }
+
+    private void setBooleanSessionOption(String key, boolean value) {
+        if (shortcut != null) {
+            shortcut.putExtra(key, String.valueOf(value));
+            shortcut.saveData();
+        } else if (preferences != null) {
+            preferences.edit().putBoolean(key, value).apply();
+        }
+    }
+
     private String getShortcutWineVersionOverride() {
         if (shortcut == null || shortcutUsesContainerDefaults()) return "";
         return shortcut.getExtra("wineVersion");
@@ -541,13 +602,29 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         launchedFromPinnedShortcut = isPinnedShortcutLaunchIntent(getIntent());
         
         setContentView(R.layout.xserver_display_activity);
+        xServerDisplayFrame = new FrameLayout(this);
+        xServerDisplayFrame.setId(R.id.FLXServerDisplay);
+        xServerDisplayFrame.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
 
         // Initialize ControllerManager for multi-controller support
         ControllerManager.getInstance().init(this);
 
         preloaderDialog = new PreloaderDialog(this);
 
-        cursorLock = preferences.getBoolean("cursor_lock", false);
+        try {
+            android.net.wifi.WifiManager wifiManager = (android.net.wifi.WifiManager)
+                    getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            if (wifiManager != null) {
+                multicastLock = wifiManager.createMulticastLock("winnative-xserver");
+                multicastLock.setReferenceCounted(false);
+                multicastLock.acquire();
+            }
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Failed to acquire MulticastLock", e);
+        }
+
         dualSeriesBattery = preferences.getBoolean(FrameRating.PREF_HUD_DUAL_SERIES_BATTERY, false);
 
         // Check for Dark Mode
@@ -621,8 +698,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         contentsManager = new ContentsManager(this);
         contentsManager.syncContents();
 
-        drawerLayout = findViewById(R.id.DrawerLayout);
-        drawerLayout.setOnApplyWindowInsetsListener((view, windowInsets) -> {
+        displayHostComposeView = findViewById(R.id.XServerDisplayHost);
+        displayHostComposeView.setOnApplyWindowInsetsListener((view, windowInsets) -> {
             WindowInsetsCompat compatInsets = WindowInsetsCompat.toWindowInsetsCompat(windowInsets, view);
             WindowInsetsCompat clearedInsets = new WindowInsetsCompat.Builder(compatInsets)
                     .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.NONE)
@@ -630,13 +707,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             android.view.WindowInsets platformInsets = clearedInsets.toWindowInsets();
             return platformInsets != null ? platformInsets : windowInsets;
         });
-        drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
 
-        ComposeView navigationComposeView = findViewById(R.id.NavigationComposeView);
         enableLogsMenu = preferences.getBoolean("enable_wine_debug", false) || preferences.getBoolean("enable_box64_logs", false);
         isNativeRenderingEnabled = preferences.getBoolean("use_dri3", true);
-        navigationComposeView.setPointerIcon(PointerIcon.getSystemIcon(this, PointerIcon.TYPE_ARROW));
-        navigationComposeView.setOnFocusChangeListener((v, hasFocus) -> navigationFocused = hasFocus);
+        displayHostComposeView.setPointerIcon(PointerIcon.getSystemIcon(this, PointerIcon.TYPE_ARROW));
+        displayHostComposeView.setFocusable(true);
+        displayHostComposeView.setFocusableInTouchMode(true);
+        displayHostComposeView.setOnFocusChangeListener((v, hasFocus) -> navigationFocused = hasFocus);
         renderDrawerMenu();
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -644,23 +721,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 handleNavigationBackPressed();
             }
         });
-        drawerLayout.addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
-            @Override
-            public void onDrawerOpened(View drawerView) {
-                super.onDrawerOpened(drawerView);
-                renderDrawerMenu();
-                navigationComposeView.requestFocus();
-            }
 
-            @Override
-            public void onDrawerClosed(View drawerView) {
-                super.onDrawerClosed(drawerView);
-                if (hudCardExpanded) {
-                    hudCardExpanded = false;
-                    renderDrawerMenu();
-                }
-            }
-        });
+        // Keep the drawer edge swipe available on gesture-navigation devices without
+        // letting Compose compete with normal container drags across the whole display.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            final android.view.View gestureExclusionView = displayHostComposeView;
+            final int edgePx = (int) (XServerDisplayHostKt.XSERVER_DRAWER_EDGE_SWIPE_DP * getResources().getDisplayMetrics().density);
+            final Runnable applyExclusion = () -> {
+                if (gestureExclusionView.getHeight() <= 0) return;
+                gestureExclusionView.setSystemGestureExclusionRects(
+                        java.util.Collections.singletonList(
+                                new android.graphics.Rect(0, 0, edgePx, gestureExclusionView.getHeight())));
+            };
+            gestureExclusionView.post(applyExclusion);
+            gestureExclusionView.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or_, ob) -> applyExclusion.run());
+        }
 
         imageFs = ImageFs.find(this);
         GuestProgramLauncherComponent.ensureImageFsNativeLibrary(this, imageFs, "libfakeinput.so");
@@ -737,7 +812,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         || (shortcutPath != null && !shortcutPath.isEmpty());
                 if (launchedFromShortcutIdentity) {
                     disableUnavailablePinnedShortcut(containerId, shortcutUuid, shortcutPath, shortcutPathHash);
-                    showToast(this, R.string.shortcuts_list_not_available);
+                    WinToast.show(this, R.string.shortcuts_list_not_available);
                     finish();
                     return;
                 }
@@ -876,8 +951,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         ProcessHelper.removeAllDebugCallbacks();
         if (enableLogsMenu) {
-            LogView.setFilename(getExecutable());
-            ProcessHelper.addDebugCallback(debugDialog = new DebugDialog(this));
+            LogFileUtils.setFilename(getExecutable());
+            attachLogStreamSink();
         }
 
         graphicsDriver = container.getGraphicsDriver();
@@ -1211,63 +1286,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 // Cancel any pending post-game update check since we're launching a new game
                 UpdateChecker.INSTANCE.cancelPostGameCheck();
 
-                if (shortcut != null) {
-                    if (isCloudSyncEnabledForShortcut() && !CloudSyncHelper.isOfflineMode(shortcut)) {
-                        CloudSyncHelper.forceDownloadOnContainerSwap(this, shortcut);
-
-                        // Cloud save sync on every store-game launch
-                        if (CloudSyncHelper.isStoreGame(shortcut)) {
-                            if (!CloudSyncHelper.hasLocalCloudSaves(this, shortcut)) {
-                                // First launch — download silently
-                                showLaunchPreloader(getString(R.string.preloader_downloading_cloud));
-                                CloudSyncHelper.downloadCloudSaves(this, shortcut);
-                                showLaunchPreloader(getString(R.string.preloader_initializing));
-                            } else if (CloudSyncHelper.cloudSavesDiffer(this, shortcut)) {
-                                // Cloud differs from local — ask the user what to do
-                                final CountDownLatch dialogLatch = new CountDownLatch(1);
-                                final boolean[] useCloud = {false};
-                                final boolean[] keepBackup = {false};
-                                final CloudSyncConflictTimestamps timestamps = CloudSyncHelper.getConflictTimestamps(this, shortcut);
-                                runOnUiThread(() -> {
-                                    CloudSyncConflictDialog.show(
-                                        XServerDisplayActivity.this,
-                                        timestamps,
-                                        (boolean keep) -> {
-                                            useCloud[0] = true;
-                                            keepBackup[0] = keep;
-                                            dialogLatch.countDown();
-                                        },
-                                        (boolean keep) -> {
-                                            useCloud[0] = false;
-                                            keepBackup[0] = keep;
-                                            dialogLatch.countDown();
-                                        }
-                                    );
-                                });
-                                try {
-                                    dialogLatch.await();
-                                } catch (InterruptedException ignored) {}
-
-                                if (useCloud[0]) {
-                                    // Archive the local save that's about to be overwritten
-                                    if (keepBackup[0]) {
-                                        try {
-                                            backupDiscardedSaveForShortcut(shortcut,
-                                                com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupOrigin.LOCAL);
-                                        } catch (Throwable t) {
-                                            android.util.Log.w("CloudSync", "Pre-overwrite local backup failed", t);
-                                        }
-                                    }
-                                    showLaunchPreloader(getString(R.string.preloader_syncing_cloud));
-                                    CloudSyncHelper.downloadCloudSaves(this, shortcut);
-                                    showLaunchPreloader(getString(R.string.preloader_initializing));
-                                }
-                                // Keep Local: cloud version is about to be overwritten on next exit.
-                                // Capturing it would require a separate provider download — deferred for now.
-                            }
-                        }
-                    }
-                }
+                SteamLaunchCloudSync.syncBeforeLaunch(
+                        this,
+                        shortcut,
+                        isCloudSyncEnabledForShortcut(),
+                        this::showLaunchPreloader);
+                EpicLaunchCloudSync.syncBeforeLaunch(
+                        this,
+                        shortcut,
+                        isCloudSyncEnabledForShortcut(),
+                        this::showLaunchPreloader);
+                GogLaunchCloudSync.syncBeforeLaunch(
+                        this,
+                        shortcut,
+                        isCloudSyncEnabledForShortcut(),
+                        this::showLaunchPreloader);
                 setupWineSystemFiles();
                 extractGraphicsDriverFiles();
                 changeWineAudioDriver();
@@ -1667,11 +1700,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 break;
             case MotionEvent.ACTION_MOVE:
             case MotionEvent.ACTION_HOVER_MOVE:
-                float[] transformedPoint = XForm.transformPoint(xform, event.getX(), event.getY());
+                int[] delta = getCapturedPointerDelta(event);
+                if (delta[0] == 0 && delta[1] == 0) break;
                 if (xServer.isRelativeMouseMovement())
-                    xServer.getWinHandler().mouseEvent(MouseEventFlags.MOVE, (int)transformedPoint[0], (int)transformedPoint[1], 0);
+                    xServer.getWinHandler().mouseEvent(MouseEventFlags.MOVE, delta[0], delta[1], 0);
                 else
-                    xServer.injectPointerMoveDelta((int)transformedPoint[0], (int)transformedPoint[1]);
+                    xServer.injectPointerMoveDelta(delta[0], delta[1]);
                 handled = true;
                 break;
             case MotionEvent.ACTION_SCROLL:
@@ -1694,6 +1728,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 handled = true;
                 break;
         }
+    }
+
+    private int[] getCapturedPointerDelta(MotionEvent event) {
+        float dx = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
+        float dy = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
+        if (dx == 0.0f && dy == 0.0f) {
+            dx = event.getX();
+            dy = event.getY();
+        }
+        return new int[]{
+                (int)(xform[0] * dx + xform[2] * dy),
+                (int)(xform[1] * dx + xform[3] * dy)
+        };
     }
 
     @Override
@@ -1724,11 +1771,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (!cleaningUp) {
             ProcessHelper.resumeAllWineProcesses();
         }
+
+        // Resume task-manager polling only if the pane is still the active selection.
+        if (taskManagerPaneVisible && taskManagerTimer == null) {
+            startTaskManagerPolling();
+        }
     }
 
     @Override
     public void onPause() {
         super.onPause();
+        isVolumeUpPressed = false;
+        isVolumeDownPressed = false;
         boolean gyroEnabled = preferences.getBoolean("gyro_enabled", false);
 
         if (gyroEnabled) {
@@ -1758,6 +1812,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         handler.removeCallbacks(savePlaytimeRunnable);
         if (!cleaningUp) {
             ProcessHelper.pauseAllWineProcesses();
+        }
+
+        // Suspend task-manager polling while backgrounded; onResume restarts it
+        // if the pane is still the active selection.
+        if (taskManagerTimer != null) {
+            taskManagerTimer.cancel();
+            taskManagerTimer = null;
+            if (winHandler != null) winHandler.setOnGetProcessInfoListener(null);
+            taskManagerAccum.clear();
         }
     }
 
@@ -2066,17 +2129,114 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    private void cleanupDebugDialog(String trigger) {
-        DebugDialog dialog = debugDialog;
-        if (dialog == null) return;
+    private void attachLogStreamSink() {
         try {
-            ProcessHelper.removeDebugCallback(dialog);
-            dialog.dispose();
-        } catch (Exception e) {
-            Log.w("XServerLeakCheck", "Failed to release debug dialog during " + trigger, e);
-        } finally {
-            debugDialog = null;
+            logStreamFile = LogFileUtils.getLogFile(this);
+            logStreamWriter = new BufferedWriter(new FileWriter(logStreamFile));
+        } catch (IOException e) {
+            Log.w("XServerLogs", "Failed to open log file writer", e);
+            logStreamWriter = null;
+            logStreamFile = null;
         }
+        Callback<String> sink = new Callback<String>() {
+            @Override
+            public synchronized void call(String line) {
+                String stamped = "[" + DateFormat.format("HH:mm:ss", System.currentTimeMillis())
+                        + "]  " + line.replace("\n", "");
+                XServerDrawerStateHolder holder = drawerStateHolder;
+                if (holder != null) holder.appendLogLine(stamped);
+                BufferedWriter writer = logStreamWriter;
+                if (writer != null) {
+                    try {
+                        writer.write(stamped);
+                        writer.write("\n");
+                        writer.flush();
+                    } catch (IOException ignored) {
+                    }
+                }
+            }
+        };
+        logStreamSink = sink;
+        ProcessHelper.addDebugCallback(sink);
+    }
+
+    private void shareLogStream() {
+        try {
+            File shareDir = new File(getCacheDir(), "log_shares");
+            if (!shareDir.exists()) shareDir.mkdirs();
+            String stamp = (String) DateFormat.format("yyyy-MM-dd_HH-mm-ss", new Date());
+            File shareFile = new File(shareDir, "session_logs_" + stamp + ".txt");
+
+            BufferedWriter writer = logStreamWriter;
+            if (writer != null) {
+                try {
+                    writer.flush();
+                } catch (IOException ignored) {
+                }
+            }
+
+            File source = logStreamFile;
+            boolean wrote = false;
+            if (source != null && source.exists() && source.length() > 0) {
+                try (java.io.InputStream in = new java.io.FileInputStream(source);
+                     java.io.OutputStream out = new java.io.FileOutputStream(shareFile)) {
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                    out.flush();
+                    wrote = true;
+                }
+            }
+
+            if (!wrote) {
+                XServerDrawerStateHolder holder = drawerStateHolder;
+                List<String> lines = holder != null ? holder.snapshotLogLines() : new ArrayList<>();
+                if (lines.isEmpty()) {
+                    WinToast.show(this, getString(R.string.session_drawer_logs_share_empty));
+                    return;
+                }
+                try (BufferedWriter out = new BufferedWriter(new FileWriter(shareFile))) {
+                    for (String line : lines) {
+                        out.write(line);
+                        out.write("\n");
+                    }
+                }
+            }
+
+            String authority = getPackageName() + ".tileprovider";
+            Uri uri = FileProvider.getUriForFile(this, authority, shareFile);
+            Intent shareIntent = new Intent(Intent.ACTION_SEND);
+            shareIntent.setType("text/plain");
+            shareIntent.putExtra(Intent.EXTRA_STREAM, uri);
+            shareIntent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.session_drawer_logs_share_subject));
+            shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(shareIntent, getString(R.string.session_drawer_logs_share_chooser)));
+        } catch (Exception e) {
+            Log.w("XServerLogs", "Failed to share log stream", e);
+            WinToast.show(this, getString(R.string.session_drawer_logs_share_failed));
+        }
+    }
+
+    private void cleanupDebugDialog(String trigger) {
+        Callback<String> sink = logStreamSink;
+        if (sink != null) {
+            try {
+                ProcessHelper.removeDebugCallback(sink);
+            } catch (Exception e) {
+                Log.w("XServerLeakCheck", "Failed to remove log sink during " + trigger, e);
+            }
+            logStreamSink = null;
+        }
+        BufferedWriter writer = logStreamWriter;
+        if (writer != null) {
+            try {
+                writer.close();
+            } catch (IOException ignored) {
+            } finally {
+                logStreamWriter = null;
+            }
+        }
+        logStreamFile = null;
     }
 
     private void stopXServer(String trigger) {
@@ -2421,14 +2581,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }, workerName).start();
     }
 
-    private boolean isRetryableSteamExitSyncMessage(@Nullable String message) {
-        if (message == null || message.isEmpty()) {
-            return true;
-        }
-        String normalized = message.toLowerCase(java.util.Locale.US);
-        return !normalized.contains("offline");
-    }
-
     private boolean isRetryableGoogleDriveBackupMessage(@Nullable String message) {
         if (message == null || message.isEmpty()) {
             return true;
@@ -2521,100 +2673,32 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     /**
-     * Synchronously zip the current local save and upload it to the game's Save History folder.
-     * Called when the user is about to overwrite local with a cloud version and opted in to
-     * keeping a backup of the replaced side.
-     */
-    private void backupDiscardedSaveForShortcut(
-        com.winlator.cmod.runtime.container.Shortcut shortcut,
-        com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupOrigin origin
-    ) {
-        if (shortcut == null) return;
-        String gameSource = shortcut.getExtra("game_source");
-        String gameId;
-        com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource source;
-        if ("STEAM".equals(gameSource)) {
-            gameId = shortcut.getExtra("app_id");
-            source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.STEAM;
-        } else if ("EPIC".equals(gameSource)) {
-            gameId = shortcut.getExtra("app_id");
-            source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.EPIC;
-        } else if ("GOG".equals(gameSource)) {
-            gameId = shortcut.getExtra("gog_id");
-            source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.GOG;
-        } else {
-            return;
-        }
-        if (gameId == null || gameId.isEmpty()) return;
-
-        String gameName = shortcut.name != null ? shortcut.name : "Unknown";
-        final String gameIdFinal = gameId;
-        final com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource sourceFinal = source;
-        final String gameNameFinal = gameName;
-
-        try {
-            com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupResult result =
-                (com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupResult) kotlinx.coroutines.BuildersKt.runBlocking(
-                    kotlinx.coroutines.Dispatchers.getIO(),
-                    (scope, continuation) ->
-                        com.winlator.cmod.feature.sync.google.GameSaveBackupManager.INSTANCE.backupDiscardedSave(
-                            this, sourceFinal, gameIdFinal, gameNameFinal, origin, continuation
-                        )
-                );
-            android.util.Log.i("CloudSync", "Discarded save backup: " + result.getMessage());
-        } catch (Exception e) {
-            android.util.Log.w("CloudSync", "Failed to back up discarded save", e);
-        }
-    }
-
-    /**
      * Syncs Steam cloud saves when exiting a Steam game.
      * Calls SteamService.closeApp() which runs SteamAutoCloud.syncUserFiles()
      * to upload modified save files to Steam Cloud.
      */
     private void syncSteamCloudOnExit(Runnable onComplete) {
-        boolean isSteamGame = "STEAM".equals(shortcut.getExtra("game_source"));
-        if (!isSteamGame) {
+        String appId = shortcut.getExtra("app_id");
+        if (appId == null || appId.isEmpty()) {
             onComplete.run();
             return;
         }
-        
-        try {
-            int appId = Integer.parseInt(shortcut.getExtra("app_id"));
-            Log.d("XServerDisplayActivity", "Syncing Steam cloud saves for appId=" + appId);
-            
-            preloaderDialog.showOnUiThread("Cloud Sync Uploading...");
 
-            runExitUploadWithRetries(
-                    "Steam cloud sync for appId=" + appId,
-                    "Cloud Sync Uploading...",
-                    callback ->
-                            com.winlator.cmod.feature.stores.steam.service.SteamService.syncCloudOnExit(
-                                    this,
-                                    appId,
-                                    new com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.CloudSyncCallback() {
-                                        @Override
-                                        public void onProgress(String message, float progress) {
-                                            runOnUiThread(() -> {
-                                                int pct = (int) (progress * 100);
-                                                preloaderDialog.showOnUiThread(message + " (" + pct + "%)");
-                                            });
-                                        }
-
-                                        @Override
-                                        public void onComplete(boolean success, String message) {
-                                            callback.onComplete(
-                                                    new ExitUploadResult(
-                                                            success,
-                                                            message,
-                                                            isRetryableSteamExitSyncMessage(message)));
-                                        }
-                                    }),
-                    onComplete);
-        } catch (Exception e) {
-            Log.w("XServerDisplayActivity", "Failed to initiate Steam cloud sync", e);
-            onComplete.run();
-        }
+        runExitUploadWithRetries(
+                "Steam cloud sync for appId=" + appId,
+                "Cloud Sync Uploading...",
+                callback ->
+                        SteamExitCloudSync.syncOnExit(
+                                this,
+                                shortcut,
+                                text -> preloaderDialog.showOnUiThread(text),
+                                result ->
+                                        callback.onComplete(
+                                                new ExitUploadResult(
+                                                        result.getSuccess(),
+                                                        result.getMessage(),
+                                                        result.getRetryable()))),
+                onComplete);
     }
 
     private void syncEpicCloudOnExit(Runnable onComplete) {
@@ -2624,8 +2708,30 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             return;
         }
 
+        final int appId;
         try {
-            int appId = Integer.parseInt(appIdStr);
+            appId = Integer.parseInt(appIdStr);
+        } catch (NumberFormatException e) {
+            Log.w("XServerDisplayActivity", "Failed to parse Epic app_id for cloud sync", e);
+            onComplete.run();
+            return;
+        }
+
+        // Skip silently when an upload can't possibly succeed — the game doesn't opt
+        // into Epic cloud saves (most don't), the user isn't signed in, or there are
+        // no local save files yet. Otherwise the retry-with-backoff loop below would
+        // run three full rounds showing "Cloud Sync Uploading… Retry 3/3" for a
+        // permanent no-op.
+        if (!com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager
+                .canAttemptExitUpload(this, appId)) {
+            Log.i("XServerDisplayActivity",
+                    "Epic cloud sync skipped for appId=" + appId
+                            + " (game does not support cloud saves, user signed out, or no local save files)");
+            onComplete.run();
+            return;
+        }
+
+        try {
             Log.d("XServerDisplayActivity", "Syncing Epic cloud saves for appId=" + appId);
             preloaderDialog.showOnUiThread("Cloud Sync Uploading...");
 
@@ -2655,7 +2761,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             callback),
                     onComplete);
         } catch (Exception e) {
-            Log.w("XServerDisplayActivity", "Failed to parse Epic app_id for cloud sync", e);
+            Log.w("XServerDisplayActivity", "Failed to start Epic cloud sync", e);
             onComplete.run();
         }
     }
@@ -2719,6 +2825,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (preloaderDialog != null) {
             preloaderDialog.close();
         }
+        if (multicastLock != null && multicastLock.isHeld()) {
+            try {
+                multicastLock.release();
+            } catch (Exception ignored) {}
+        }
         super.onDestroy();
         // Schedule a deferred update check 10 s after game exit
         if (!switchLaunchInProgress.get()) {
@@ -2753,6 +2864,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             Log.e(tag, "MidiHandler socket still open");
         }
         cleanupDebugDialog("onDestroy");
+
+        // Epic ownership tokens are short-lived (~30 minutes server-side) and personally scoped
+        // to the running session. Clear them on game exit so we don't leave them sitting in the
+        // Wine prefix between launches; the next launch fetches a fresh token via the cache
+        // (still valid for ~25 minutes).
+        if (shortcut != null && "EPIC".equals(shortcut.getExtra("game_source"))) {
+            try {
+                com.winlator.cmod.feature.stores.epic.service.EpicService.Companion
+                        .cleanupLaunchTokens(getApplicationContext(), container);
+            } catch (Exception e) {
+                Log.w("EPIC", "Failed to cleanup ownership tokens on game exit", e);
+            }
+        }
     }
 
     private boolean isCustomShortcut() {
@@ -2790,12 +2914,34 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private void handleNavigationBackPressed() {
         if (environment != null) {
-            if (!drawerLayout.isDrawerOpen(GravityCompat.START)) {
-                renderDrawerMenu();
-                drawerLayout.openDrawer(GravityCompat.START);
+            if (drawerStateHolder != null && drawerStateHolder.isPaneOpen()) {
+                drawerStateHolder.closeOpenPane();
+                return;
             }
-            else drawerLayout.closeDrawers();
+            if (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen()) {
+                openDrawerMenu();
+            }
+            else closeDrawerMenu();
         }
+    }
+
+    private void openDrawerMenu() {
+        releasePointerCapture();
+        renderDrawerMenu();
+        if (drawerStateHolder != null) {
+            drawerStateHolder.openDrawer();
+        }
+        if (touchpadView != null) {
+            touchpadView.releasePointerCapture();
+            touchpadView.setOnCapturedPointerListener(null);
+        }
+    }
+
+    private void closeDrawerMenu() {
+        if (drawerStateHolder != null) {
+            drawerStateHolder.closeDrawer();
+        }
+        tryCapturePointer();
     }
 
     private String currentGyroActivatorLabel() {
@@ -2813,49 +2959,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return index < names.length ? names[index] : names[0];
     }
 
-    private void showGyroActivatorPicker() {
-        final ComposeView dialogComposeView = findViewById(R.id.DialogComposeView);
-        final ComposeView navigationComposeView = findViewById(R.id.NavigationComposeView);
-        if (dialogComposeView == null) return;
-
-        String[] names = getResources().getStringArray(R.array.button_options);
-        int[] keycodes = getResources().getIntArray(R.array.button_keycodes);
-
-        dialogComposeView.setVisibility(View.VISIBLE);
-        dialogComposeView.setFocusable(true);
-        dialogComposeView.setClickable(true);
-        
-        XServerDrawerMenuKt.setupGyroActivatorDialog(
-            dialogComposeView,
-            currentGyroActivatorLabel(),
-            names,
-            keycodes,
-            () -> {
-                dialogComposeView.setVisibility(View.GONE);
-                dialogComposeView.setContent(null);
-                dialogComposeView.setFocusable(false);
-                dialogComposeView.setClickable(false);
-                dialogComposeView.clearFocus();
-                if (navigationComposeView != null) navigationComposeView.requestFocus();
-                return kotlin.Unit.INSTANCE;
-            },
-            (keycode) -> {
-                preferences.edit().putInt("gyro_trigger_button", keycode).apply();
-                dialogComposeView.setVisibility(View.GONE);
-                dialogComposeView.setContent(null);
-                dialogComposeView.setFocusable(false);
-                dialogComposeView.setClickable(false);
-                dialogComposeView.clearFocus();
-                if (navigationComposeView != null) navigationComposeView.requestFocus();
-                renderDrawerMenu();
-                return kotlin.Unit.INSTANCE;
-            }
-        );
-    }
-
     private void renderDrawerMenu() {
-        ComposeView navigationComposeView = findViewById(R.id.NavigationComposeView);
-        if (navigationComposeView == null) return;
+        if (displayHostComposeView == null || xServerDisplayFrame == null) return;
+
+        ArrayList<ControlsProfile> inputProfiles = inputControlsManager != null ? inputControlsManager.getProfiles(true) : new ArrayList<>();
+        ArrayList<String> inputProfileNames = new ArrayList<>();
+        int inputSelectedIndex = 0;
+        inputProfileNames.add("-- " + getString(R.string.common_ui_disabled) + " --");
+        ControlsProfile activeProfile = inputControlsView != null ? inputControlsView.getProfile() : null;
+        for (int i = 0; i < inputProfiles.size(); i++) {
+            ControlsProfile profile = inputProfiles.get(i);
+            if (activeProfile != null && profile.id == activeProfile.id) inputSelectedIndex = i + 1;
+            inputProfileNames.add(profile.getName());
+        }
 
         XServerDrawerState state = XServerDrawerMenuKt.buildXServerDrawerState(
                 this,
@@ -2864,6 +2980,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 frameRating != null && frameRating.getVisibility() == View.VISIBLE,
                 isPaused,
                 true,
+                magnifierView != null,
                 enableLogsMenu,
                 isNativeRenderingEnabled,
                 getString(R.string.session_xserver_native_rendering),
@@ -2891,7 +3008,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 fsrEnabled,
                 fsrMode,
                 fsrSharpness,
-                colorProfile
+                colorProfile,
+                inputProfileNames,
+                inputSelectedIndex,
+                preferences.getBoolean("show_touchscreen_controls_enabled", false),
+                isTapToClickEnabled,
+                preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY),
+                preferences.getBoolean("touchscreen_haptics_enabled", false),
+                preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true),
+                xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen()
         );
 
         if (drawerActionListener == null) {
@@ -2954,8 +3079,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     }
 
                     @Override
-                    public void onGyroscopeActivatorClick() {
-                        showGyroActivatorPicker();
+                    public void onGyroscopeActivatorSelected(int keycode) {
+                        preferences.edit().putInt("gyro_trigger_button", keycode).apply();
+                        renderDrawerMenu();
                     }
 
                     @Override
@@ -3069,21 +3195,301 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         applyScreenEffects();
                         renderDrawerMenu();
                     }
+
+                    @Override
+                    public void onInputControlsProfileSelected(int index) {
+                        if (index <= 0) {
+                            hideInputControls();
+                        } else {
+                            ArrayList<ControlsProfile> profiles = inputControlsManager != null ? inputControlsManager.getProfiles(true) : new ArrayList<>();
+                            if (index - 1 < profiles.size()) showInputControls(profiles.get(index - 1));
+                        }
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsShowOverlayChanged(boolean enabled) {
+                        if (inputControlsView != null) inputControlsView.setShowTouchscreenControls(enabled);
+                        preferences.edit().putBoolean("show_touchscreen_controls_enabled", enabled).commit();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsTapToClickChanged(boolean enabled) {
+                        isTapToClickEnabled = enabled;
+                        if (touchpadView != null) touchpadView.setTapToClickEnabled(enabled);
+                        preferences.edit().putBoolean("tap_to_click_enabled", enabled).commit();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsOverlayOpacityChanged(float opacity) {
+                        if (inputControlsView != null) inputControlsView.setOverlayOpacity(opacity);
+                        preferences.edit().putFloat("overlay_opacity", opacity).commit();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsTouchscreenHapticsChanged(boolean enabled) {
+                        preferences.edit().putBoolean("touchscreen_haptics_enabled", enabled).commit();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsGamepadVibrationChanged(boolean enabled) {
+                        preferences.edit().putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled).commit();
+                        if (winHandler != null) winHandler.setGlobalVibrationEnabled(enabled);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsEditClick() {
+                        ControlsProfile activeProfile = inputControlsView != null ? inputControlsView.getProfile() : null;
+                        Intent intent = new Intent(XServerDisplayActivity.this, UnifiedActivity.class);
+                        intent.putExtra("edit_input_controls", true);
+                        intent.putExtra("selected_profile_id", activeProfile != null ? activeProfile.id : 0);
+                        intent.putExtra("return_to_game_on_back", true);
+                        editInputControlsCallback = () -> {
+                            hideInputControls();
+                            if (inputControlsManager != null) inputControlsManager.loadProfiles(true);
+                            ControlsProfile reactivated = activeProfile != null && inputControlsManager != null ? inputControlsManager.getProfile(activeProfile.id) : null;
+                            if (reactivated != null) showInputControls(reactivated);
+                            renderDrawerMenu();
+                        };
+                        controlsEditorActivityResultLauncher.launch(intent);
+                    }
+
+                    @Override
+                    public void onTaskManagerVisibilityChanged(boolean visible) {
+                        taskManagerPaneVisible = visible;
+                        if (visible) startTaskManagerPolling();
+                        else stopTaskManagerPolling();
+                    }
+
+                    @Override
+                    public void onTaskManagerCpuExpandedChanged(boolean expanded) {
+                        taskManagerCpuExpanded = expanded;
+                        pushTaskManagerSystemStats();
+                    }
+
+                    @Override
+                    public void onTaskManagerEndProcess(String name) {
+                        if (winHandler != null) winHandler.killProcess(name);
+                    }
+
+                    @Override
+                    public void onTaskManagerSetAffinity(int pid, int affinityMask) {
+                        if (winHandler != null) {
+                            winHandler.setProcessAffinity(pid, affinityMask);
+                            winHandler.listProcesses();
+                        }
+                    }
+
+                    @Override
+                    public void onTaskManagerNewTask(String command) {
+                        if (winHandler != null) winHandler.exec(command);
+                    }
+
+                    @Override
+                    public void onLogsClear() {
+                        if (drawerStateHolder != null) drawerStateHolder.clearLogLines();
+                    }
+
+                    @Override
+                    public void onLogsPauseChanged(boolean paused) {
+                        if (drawerStateHolder != null) drawerStateHolder.setLogsPaused(paused);
+                    }
+
+                    @Override
+                    public void onLogsPaneVisibilityChanged(boolean visible) {
+                        if (drawerStateHolder != null) drawerStateHolder.setLogsPaneVisible(visible);
+                    }
+
+                    @Override
+                    public void onLogsShare() {
+                        shareLogStream();
+                    }
                 };
         }
 
         if (drawerStateHolder == null) {
             drawerStateHolder = new XServerDrawerStateHolder(state);
-            XServerDrawerMenuKt.setupXServerDrawerComposeView(
-                    navigationComposeView,
+            XServerDisplayHostKt.setupXServerDisplayHost(
+                    displayHostComposeView,
+                    xServerDisplayFrame,
                     drawerStateHolder,
-                    this,
-                    drawerActionListener
+                    drawerActionListener,
+                    new XServerDisplayHostCallbacks() {
+                        @Override
+                        public void onDrawerSlide() {
+                            AppUtils.hideSystemUI(XServerDisplayActivity.this);
+                        }
+
+                        @Override
+                        public void onDrawerOpened() {
+                            releasePointerCapture();
+                            renderDrawerMenu();
+                            if (displayHostComposeView != null) displayHostComposeView.requestFocus();
+                            AppUtils.hideSystemUI(XServerDisplayActivity.this);
+                        }
+
+                        @Override
+                        public void onDrawerClosed() {
+                            if (hudCardExpanded) {
+                                hudCardExpanded = false;
+                                renderDrawerMenu();
+                            }
+                            updatePointerCapture();
+                            AppUtils.hideSystemUI(XServerDisplayActivity.this);
+                        }
+
+                        @Override
+                        public void onDrawerGestureClaimed() {
+                            if (touchpadView != null) {
+                                touchpadView.resetInputState();
+                            }
+                            if (inputControlsView != null) {
+                                inputControlsView.cancelActiveTouches();
+                            }
+                        }
+
+                        @Override
+                        public void onDialogVisibilityChanged(boolean visible) {
+                            if (visible && displayHostComposeView != null) {
+                                displayHostComposeView.requestFocus();
+                            }
+                        }
+                    }
             );
             return;
         }
 
         drawerStateHolder.setState(state);
+    }
+
+    private void startTaskManagerPolling() {
+        if (winHandler == null) return;
+        stopTaskManagerPolling();
+        winHandler.setOnGetProcessInfoListener(new OnGetProcessInfoListener() {
+            @Override
+            public void onGetProcessInfo(int index, int numProcesses, ProcessInfo processInfo) {
+                runOnUiThread(() -> handleTaskManagerProcessInfo(index, numProcesses, processInfo));
+            }
+        });
+
+        Timer timer = new Timer();
+        taskManagerTimer = timer;
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                runOnUiThread(() -> {
+                    if (winHandler != null) winHandler.listProcesses();
+                    pushTaskManagerSystemStats();
+                });
+            }
+        }, 0, 1000);
+    }
+
+    private void stopTaskManagerPolling() {
+        if (taskManagerTimer != null) {
+            taskManagerTimer.cancel();
+            taskManagerTimer = null;
+        }
+        if (winHandler != null) winHandler.setOnGetProcessInfoListener(null);
+        taskManagerAccum.clear();
+        taskManagerCpuExpanded = false;
+        if (drawerStateHolder != null) {
+            drawerStateHolder.setTaskManagerState(new TaskManagerPaneState(
+                    new ArrayList<>(), 0, 0, new ArrayList<>(), 0, ""));
+        }
+    }
+
+    private void handleTaskManagerProcessInfo(int index, int numProcesses, ProcessInfo processInfo) {
+        if (drawerStateHolder == null) return;
+
+        if (index == 0) taskManagerAccum.clear();
+
+        if (numProcesses == 0) {
+            taskManagerAccum.clear();
+            TaskManagerPaneState current = drawerStateHolder.getTaskManagerState();
+            drawerStateHolder.setTaskManagerState(new TaskManagerPaneState(
+                    new ArrayList<>(),
+                    current.getCpuPercent(),
+                    current.getCpuCoreCount(),
+                    current.getCpuCorePercents(),
+                    current.getMemoryPercent(),
+                    current.getMemoryDetail()));
+            return;
+        }
+
+        taskManagerAccum.add(new TaskManagerProcess(
+                processInfo.pid,
+                processInfo.name,
+                processInfo.getFormattedMemoryUsage(),
+                processInfo.affinityMask,
+                processInfo.wow64Process));
+
+        if (index == numProcesses - 1) {
+            TaskManagerPaneState current = drawerStateHolder.getTaskManagerState();
+            drawerStateHolder.setTaskManagerState(new TaskManagerPaneState(
+                    new ArrayList<>(taskManagerAccum),
+                    current.getCpuPercent(),
+                    current.getCpuCoreCount(),
+                    current.getCpuCorePercents(),
+                    current.getMemoryPercent(),
+                    current.getMemoryDetail()));
+        }
+    }
+
+    private void pushTaskManagerSystemStats() {
+        if (drawerStateHolder == null) return;
+
+        short[] clockSpeeds = CPUStatus.getCurrentClockSpeeds();
+        if (cachedMaxClockSpeeds == null || cachedMaxClockSpeeds.length != clockSpeeds.length) {
+            short[] maxes = new short[clockSpeeds.length];
+            for (int i = 0; i < clockSpeeds.length; i++) maxes[i] = CPUStatus.getMaxClockSpeed(i);
+            cachedMaxClockSpeeds = maxes;
+        }
+
+        int totalClock = 0;
+        short maxClock = 0;
+        for (int i = 0; i < clockSpeeds.length; i++) {
+            totalClock += clockSpeeds[i];
+            if (cachedMaxClockSpeeds[i] > maxClock) maxClock = cachedMaxClockSpeeds[i];
+        }
+        int cpuPercent = 0;
+        if (clockSpeeds.length > 0 && maxClock > 0) {
+            int avg = totalClock / clockSpeeds.length;
+            cpuPercent = (int) (((float) avg / maxClock) * 100.0f);
+        }
+
+        ArrayList<Integer> corePercents;
+        if (taskManagerCpuExpanded) {
+            corePercents = new ArrayList<>(clockSpeeds.length);
+            for (int i = 0; i < clockSpeeds.length; i++) {
+                short maxFor = cachedMaxClockSpeeds[i];
+                int corePercent = maxFor > 0 ? (int) (((float) clockSpeeds[i] / maxFor) * 100.0f) : 0;
+                corePercents.add(corePercent);
+            }
+        } else {
+            corePercents = new ArrayList<>();
+        }
+
+        ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        ActivityManager.MemoryInfo memInfo = new ActivityManager.MemoryInfo();
+        am.getMemoryInfo(memInfo);
+        long usedMem = memInfo.totalMem - memInfo.availMem;
+        int memPercent = (int) (((double) usedMem / memInfo.totalMem) * 100.0f);
+        String memDetail = StringUtils.formatBytes(usedMem, false) + "/" + StringUtils.formatBytes(memInfo.totalMem);
+
+        TaskManagerPaneState current = drawerStateHolder.getTaskManagerState();
+        drawerStateHolder.setTaskManagerState(new TaskManagerPaneState(
+                current.getProcesses(),
+                cpuPercent,
+                clockSpeeds.length,
+                corePercents,
+                memPercent,
+                memDetail));
     }
 
     private void applyScreenEffects() {
@@ -3142,9 +3548,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 hudElements[0] = obj.optBoolean("showFPS", true);
                 hudElements[1] = obj.optBoolean("showRenderer", true);
                 hudElements[2] = obj.optBoolean("showGPU", true);
-                hudElements[3] = obj.optBoolean("showCpuRam", true);
-                hudElements[4] = obj.optBoolean("showBattTemp", true);
-                hudElements[5] = obj.optBoolean("showGraph", true);
+                boolean legacyCpuRam = obj.optBoolean("showCpuRam", true);
+                hudElements[3] = obj.optBoolean("showCPU", legacyCpuRam);
+                hudElements[4] = obj.optBoolean("showRAM", legacyCpuRam);
+                hudElements[5] = obj.optBoolean("showBattTemp", true);
+                hudElements[6] = obj.optBoolean("showGraph", true);
             } catch (JSONException e) {
                 Log.e("XServerDisplayActivity", "Failed to load HUD settings", e);
             }
@@ -3160,9 +3568,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             obj.put("showFPS", hudElements[0]);
             obj.put("showRenderer", hudElements[1]);
             obj.put("showGPU", hudElements[2]);
-            obj.put("showCpuRam", hudElements[3]);
-            obj.put("showBattTemp", hudElements[4]);
-            obj.put("showGraph", hudElements[5]);
+            obj.put("showCPU", hudElements[3]);
+            obj.put("showRAM", hudElements[4]);
+            obj.put("showBattTemp", hudElements[5]);
+            obj.put("showGraph", hudElements[6]);
             container.putExtra("hudSettings", obj.toString());
             container.saveData();
         } catch (JSONException e) {
@@ -3184,7 +3593,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @SuppressLint("SourceLockedOrientationActivity")
     private boolean handleDrawerAction(int itemId) {
-        final GLRenderer renderer = xServerView.getRenderer();
+        // The drawer can be opened during startup before setupUI() attaches the display
+        // and input views. Ignore display-dependent actions until those views exist.
+        if (requiresDisplayReady(itemId) && !isDisplayReady()) {
+            renderDrawerMenu();
+            return false;
+        }
+
+        final GLRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
         switch (itemId) {
             case R.id.main_menu_gyroscope_reset:
                 if (winHandler != null) {
@@ -3193,19 +3609,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 break;
             case R.id.main_menu_keyboard:
                 AppUtils.showKeyboard(this);
-                drawerLayout.closeDrawers();
-                break;
-            case R.id.main_menu_input_controls:
-                showInputControlsDialog();
-                drawerLayout.closeDrawers();
+                closeDrawerMenu();
                 break;
             case R.id.main_menu_controller_manager:
                 ControllerAssignmentDialog.show(this, winHandler);
-                drawerLayout.closeDrawers();
+                closeDrawerMenu();
                 break;
             case R.id.main_menu_fps_monitor:
                 if (frameRating == null) {
-                    FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
+                    FrameLayout rootView = xServerDisplayFrame;
                     frameRating = new FrameRating(this, graphicsDriverConfig);
                     frameRating.setRenderer(lastRendererName);
                     if (lastGpuName != null) frameRating.setGpuName(lastGpuName);
@@ -3230,6 +3642,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             case R.id.main_menu_relative_mouse_movement:
                 isRelativeMouseMovement = !isRelativeMouseMovement;
                 xServer.setRelativeMouseMovement(isRelativeMouseMovement);
+                updatePointerCapture();
                 renderDrawerMenu();
                 break;
             case R.id.main_menu_disable_mouse:
@@ -3254,19 +3667,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 break;
             case R.id.main_menu_pip_mode:
                 enterPictureInPictureMode(new android.app.PictureInPictureParams.Builder().build());
-                drawerLayout.closeDrawers();
-                break;
-            case R.id.main_menu_task_manager:
-                new TaskManagerDialog(this).show();
+                closeDrawerMenu();
                 break;
             case R.id.main_menu_magnifier:
-                if (isNativeRenderingEnabled) {
-                    showToast(this, getString(R.string.session_drawer_magnifier_disabled_native_subtitle));
-                    renderDrawerMenu();
-                    break;
-                }
-                if (magnifierView == null) {
-                    FrameLayout container = findViewById(R.id.FLXServerDisplay);
+                if (magnifierView != null) {
+                    xServerDisplayFrame.removeView(magnifierView);
+                    magnifierView = null;
+                    renderer.setMagnifierZoom(1.0f);
+                    renderer.setMagnifierUIActive(false);
+                } else {
+                    FrameLayout container = xServerDisplayFrame;
                     magnifierView = new MagnifierView(this);
                     magnifierView.setZoomButtonCallback(value -> {
                         renderer.setMagnifierZoom(Mathf.clamp(renderer.getMagnifierZoom() + value, 1.0f, 3.0f));
@@ -3276,37 +3686,81 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     magnifierView.setHideButtonCallback(() -> {
                         container.removeView(magnifierView);
                         magnifierView = null;
+                        renderer.setMagnifierZoom(1.0f);
+                        renderer.setMagnifierUIActive(false);
+                        renderDrawerMenu();
                     });
                     container.addView(magnifierView);
+                    renderer.setMagnifierUIActive(true);
                 }
                 renderDrawerMenu();
-                break;
-            case R.id.main_menu_logs:
-                debugDialog.show();
                 break;
             case R.id.main_menu_native_rendering:
                 isNativeRenderingEnabled = !isNativeRenderingEnabled;
                 preferences.edit().putBoolean("use_dri3", isNativeRenderingEnabled).apply();
                 if (frameRating != null) frameRating.setIsNative(isNativeRenderingEnabled);
                 renderDrawerMenu();
-                showToast(this, getString(isNativeRenderingEnabled
+                WinToast.show(this, getString(isNativeRenderingEnabled
                     ? R.string.session_xserver_native_rendering_enabled_toast
                     : R.string.session_xserver_native_rendering_disabled_toast));
                 break;
             case R.id.main_menu_exit:
-                drawerLayout.closeDrawers();
+                closeDrawerMenu();
                 exit();
                 break;
         }
         return true;
     }
 
+    private boolean isDisplayReady() {
+        return xServer != null
+                && xServerView != null
+                && xServerView.getRenderer() != null
+                && touchpadView != null
+                && inputControlsView != null;
+    }
+
+    private boolean requiresDisplayReady(int itemId) {
+        switch (itemId) {
+            case R.id.main_menu_input_controls:
+            case R.id.main_menu_fps_monitor:
+            case R.id.main_menu_relative_mouse_movement:
+            case R.id.main_menu_disable_mouse:
+            case R.id.main_menu_toggle_fullscreen:
+            case R.id.main_menu_magnifier:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
 
-        if (hasFocus && cursorLock) {
-            touchpadView.requestPointerCapture();
+        if (hasFocus && shouldUsePointerCapture()) {
+            updatePointerCapture();
+        }
+        else if (!hasFocus) {
+            releasePointerCapture();
+        }
+    }
+
+    @Override
+    public void onPointerCaptureChanged(boolean hasCapture) {
+        super.onPointerCaptureChanged(hasCapture);
+        if (xServer != null) {
+            xServer.setPointerCaptureActive(hasCapture);
+        }
+    }
+
+    private boolean shouldUsePointerCapture() {
+        return !isPointerCaptureForcedOff && hasExternalMouse() && (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen());
+    }
+
+    private void updatePointerCapture() {
+        if (touchpadView == null) return;
+        if (shouldUsePointerCapture()) {
             touchpadView.setOnCapturedPointerListener(new View.OnCapturedPointerListener() {
                 @Override
                 public boolean onCapturedPointer(View view, MotionEvent event) {
@@ -3314,16 +3768,28 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     return true;
                 }
             });
-        }
-        else if (!hasFocus) {
-            if (touchpadView != null) {
-                touchpadView.resetInputState();
+            if (!touchpadView.hasPointerCapture()) {
+                touchpadView.requestFocus();
+                touchpadView.requestPointerCapture();
             }
-            if (inputControlsView != null) {
-                inputControlsView.cancelActiveTouches();
+        } else {
+            releasePointerCapture();
+        }
+    }
+
+    private void releasePointerCapture() {
+        boolean hadPointerCapture = touchpadView != null && touchpadView.hasPointerCapture();
+        if (touchpadView != null) {
+            if (hadPointerCapture) {
+                touchpadView.resetInputState();
+                touchpadView.releasePointerCapture();
+                touchpadView.setOnCapturedPointerListener(null);
             }
             touchpadView.releasePointerCapture();
             touchpadView.setOnCapturedPointerListener(null);
+        }
+        if (hadPointerCapture && inputControlsView != null) {
+            inputControlsView.cancelActiveTouches();
         }
     }
 
@@ -3948,11 +4414,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void setupUI() {
-        FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
+        FrameLayout rootView = xServerDisplayFrame;
         xServerView = new XServerView(this, xServer);
         final GLRenderer renderer = xServerView.getRenderer();
         renderer.setCursorVisible(false);
         renderer.setNativeMode(isNativeRenderingEnabled);
+        
+        boolean swapRB = shortcut != null ? shortcut.getExtra("swapRB", "0").equals("1") 
+                         : (container != null && container.getExtra("swapRB", "0").equals("1"));
+        renderer.swapRB = swapRB;
 
         if (shortcut != null) {
             renderer.setUnviewableWMClasses("explorer.exe");
@@ -3975,9 +4445,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         touchpadView.setSensitivity(globalCursorSpeed);
         touchpadView.setMouseEnabled(!isMouseDisabled);
         touchpadView.setFourFingersTapCallback(() -> {
-            if (!drawerLayout.isDrawerOpen(GravityCompat.START)) {
-                renderDrawerMenu();
-                drawerLayout.openDrawer(GravityCompat.START);
+            if (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen()) {
+                openDrawerMenu();
             }
         });
         rootView.addView(touchpadView);
@@ -4026,7 +4495,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         startTouchscreenTimeout();
 
-        AppUtils.observeSoftKeyboardVisibility(drawerLayout, renderer::setScreenOffsetYRelativeToCursor);
+        AppUtils.observeSoftKeyboardVisibility(displayHostComposeView, renderer::setScreenOffsetYRelativeToCursor);
     }
 
 
@@ -4227,84 +4696,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
 
-
-    private void showInputControlsDialog() {
-        final InputControlsDialog dialog = new InputControlsDialog(this);
-
-        // Load profile list
-        Runnable loadProfileSpinner = () -> {
-            ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
-            ArrayList<String> profileItems = new ArrayList<>();
-            int selectedPosition = 0;
-            profileItems.add("-- "+getString(R.string.common_ui_disabled)+" --");
-            for (int i = 0; i < profiles.size(); i++) {
-                ControlsProfile profile = profiles.get(i);
-                if (inputControlsView.getProfile() != null && profile.id == inputControlsView.getProfile().id)
-                    selectedPosition = i + 1;
-                profileItems.add(profile.getName());
-            }
-            dialog.getProfileNames().setValue(profileItems);
-            dialog.getSelectedProfileIndex().setIntValue(selectedPosition);
-        };
-        loadProfileSpinner.run();
-
-        // Initialize checkbox states
-        dialog.getShowTouchscreenControls().setValue(preferences.getBoolean("show_touchscreen_controls_enabled", false));
-        dialog.getTapToClickEnabled().setValue(isTapToClickEnabled);
-        dialog.getOverlayOpacity().setValue(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
-        dialog.getTouchscreenHaptics().setValue(preferences.getBoolean("touchscreen_haptics_enabled", false));
-        dialog.getGamepadVibration().setValue(preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true));
-
-        final Runnable updateProfile = () -> {
-            int position = dialog.getSelectedProfileIndex().getIntValue();
-            if (position > 0) {
-                showInputControls(inputControlsManager.getProfiles(true).get(position - 1));
-            }
-            else hideInputControls();
-        };
-
-        // Settings button callback
-        dialog.setOnSettingsClickCallback(() -> {
-            int position = dialog.getSelectedProfileIndex().getIntValue();
-            Intent intent = new Intent(this, UnifiedActivity.class);
-            intent.putExtra("edit_input_controls", true);
-            intent.putExtra("selected_profile_id", position > 0 ? inputControlsManager.getProfiles(true).get(position - 1).id : 0);
-            editInputControlsCallback = () -> {
-                hideInputControls();
-                inputControlsManager.loadProfiles(true);
-                loadProfileSpinner.run();
-                updateProfile.run();
-            };
-            controlsEditorActivityResultLauncher.launch(intent);
-        });
-
-        // Confirm callback
-        dialog.setOnConfirmCallback(() -> {
-            inputControlsView.setShowTouchscreenControls(dialog.getShowTouchscreenControls().getValue());
-            isTapToClickEnabled = dialog.getTapToClickEnabled().getValue();
-            if (touchpadView != null) touchpadView.setTapToClickEnabled(isTapToClickEnabled);
-
-            float overlayOpacity = dialog.getOverlayOpacity().getValue();
-            inputControlsView.setOverlayOpacity(overlayOpacity);
-            boolean isHapticsEnabled = dialog.getTouchscreenHaptics().getValue();
-            boolean isGamepadVibrationEnabled = dialog.getGamepadVibration().getValue();
-            SharedPreferences.Editor editor = preferences.edit();
-            editor.putBoolean("show_touchscreen_controls_enabled", dialog.getShowTouchscreenControls().getValue());
-            editor.putFloat("overlay_opacity", overlayOpacity);
-            editor.putBoolean("touchscreen_haptics_enabled", isHapticsEnabled);
-            editor.putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, isGamepadVibrationEnabled);
-            editor.apply();
-            if (winHandler != null) {
-                winHandler.setGlobalVibrationEnabled(isGamepadVibrationEnabled);
-            }
-            touchpadView.setOnTouchListener(null);
-            updateProfile.run();
-        });
-
-        dialog.setOnCancelCallback(updateProfile::run);
-
-        dialog.show();
-    }
 
     private ControlsProfile findFirstVirtualProfile() {
         ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
@@ -4594,11 +4985,88 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        return super.dispatchTouchEvent(event);
+    }
+
+    private void handleDrawerEdgeSwipe(MotionEvent event) {
+        if (drawerStateHolder == null
+                || drawerStateHolder.isDrawerOpen()
+                || displayHostComposeView == null) {
+            resetDrawerEdgeGesture();
+            return;
+        }
+
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN: {
+                drawerEdgeGestureStartX = event.getX();
+                drawerEdgeGestureStartY = event.getY();
+                drawerEdgeGesturePointerId = event.getPointerId(0);
+                drawerEdgeGesturePossible =
+                        drawerEdgeGestureStartX <= getDrawerEdgeSwipePx()
+                                && !isTouchInsideMagnifier(drawerEdgeGestureStartX, drawerEdgeGestureStartY);
+                break;
+            }
+            case MotionEvent.ACTION_MOVE: {
+                if (!drawerEdgeGesturePossible) return;
+                int pointerIndex = event.findPointerIndex(drawerEdgeGesturePointerId);
+                if (pointerIndex < 0) {
+                    resetDrawerEdgeGesture();
+                    return;
+                }
+
+                float dx = event.getX(pointerIndex) - drawerEdgeGestureStartX;
+                float dy = event.getY(pointerIndex) - drawerEdgeGestureStartY;
+                int slop = android.view.ViewConfiguration.get(this).getScaledTouchSlop();
+
+                if (dx > slop && dx > Math.abs(dy)) {
+                    if (touchpadView != null) {
+                        touchpadView.resetInputState();
+                    }
+                    if (inputControlsView != null) {
+                        inputControlsView.cancelActiveTouches();
+                    }
+                    openDrawerMenu();
+                    resetDrawerEdgeGesture();
+                } else if (Math.abs(dy) > slop && Math.abs(dy) > dx) {
+                    resetDrawerEdgeGesture();
+                }
+                break;
+            }
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                resetDrawerEdgeGesture();
+                break;
+        }
+    }
+
+    private int getDrawerEdgeSwipePx() {
+        return (int) (XServerDisplayHostKt.XSERVER_DRAWER_EDGE_SWIPE_DP * getResources().getDisplayMetrics().density);
+    }
+
+    private boolean isTouchInsideMagnifier(float x, float y) {
+        return magnifierView != null
+                && magnifierView.getParent() != null
+                && x >= magnifierView.getX()
+                && x <= magnifierView.getX() + magnifierView.getWidth()
+                && y >= magnifierView.getY()
+                && y <= magnifierView.getY() + magnifierView.getHeight();
+    }
+
+    private void resetDrawerEdgeGesture() {
+        drawerEdgeGesturePossible = false;
+        drawerEdgeGesturePointerId = -1;
+    }
+
+    @Override
     public boolean dispatchGenericMotionEvent(MotionEvent event) {
         boolean handledByWinHandler = false;
         boolean handledByTouchpadView = false;
 
         if (isPointerMotionEvent(event) && touchpadView != null) {
+            if (shouldUsePointerCapture() && !touchpadView.hasPointerCapture()) {
+                updatePointerCapture();
+            }
             handledByTouchpadView = touchpadView.onExternalMouseEvent(event);
         }
 
@@ -4648,6 +5116,23 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         if (handled) return true;
+
+        int keyCode = event.getKeyCode();
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) isVolumeUpPressed = true;
+                else isVolumeDownPressed = true;
+
+                if (isVolumeUpPressed && isVolumeDownPressed) {
+                    isPointerCaptureForcedOff = !isPointerCaptureForcedOff;
+                    updatePointerCapture();
+                    return true;
+                }
+            } else if (event.getAction() == KeyEvent.ACTION_UP) {
+                if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) isVolumeUpPressed = false;
+                else isVolumeDownPressed = false;
+            }
+        }
 
         if (event.getAction() == KeyEvent.ACTION_DOWN &&
                 (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_MODE ||
@@ -4793,12 +5278,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
             Iterator<String[]> oldWinComponentsIter = new KeyValueSet(container.getExtra("wincomponents", Container.FALLBACK_WINCOMPONENTS)).iterator();
 
+            // Bundled wincomponents/*.tzst archives only carry x86_64 PEs in system32/
+            // (and i386 in syswow64/). Extracting them into an ARM64EC prefix poisons
+            // system32 with wrong-arch DLLs, which kills the PE loader for any process
+            // that imports them — e.g. vc_redist refusing to launch.
+            boolean isArm64EC = wineInfo != null && wineInfo.isArm64EC();
+
             for (String[] wincomponent : new KeyValueSet(wincomponents)) {
                 if (wincomponent[1].equals(oldWinComponentsIter.next()[1]) && !firstTimeBoot) continue;
                 String identifier = wincomponent[0];
                 boolean useNative = wincomponent[1].equals("1");
 
-                if (useNative) {
+                if (useNative && !isArm64EC) {
                     TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "wincomponents/"+identifier+".tzst", windowsDir, onExtractFileListener);
                 }
                 else {
@@ -4808,7 +5299,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         dlls.add(!dlname.endsWith(".exe") ? dlname+".dll" : dlname);
                     }
                 }
-                Log.d("XServerDisplayActivity", "Setting wincomponent " + identifier + " to " + String.valueOf(useNative));
+                Log.d("XServerDisplayActivity", "Setting wincomponent " + identifier + " to " + useNative
+                        + (useNative && isArm64EC ? " (arm64ec: tzst skipped, restoring arch-correct DLLs)" : ""));
                 WineUtils.overrideWinComponentDlls(this, container, identifier, useNative);
                 WineUtils.setWinComponentRegistryKeys(systemRegFile, identifier, useNative, this);
             }
@@ -4821,24 +5313,33 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private void restoreOriginalDllFiles(final String... dlls) {
         File rootDir = imageFs.getRootDir();
         File windowsDir = new File(rootDir, ImageFs.WINEPREFIX+"/drive_c/windows");
-        File system32dlls = null;
-        File syswow64dlls = null;
 
-        if (wineInfo.isArm64EC())
-            system32dlls = new File(imageFs.getWinePath() + "/lib/wine/aarch64-windows");
-        else
-            system32dlls = new File(imageFs.getWinePath() + "/lib/wine/x86_64-windows");
-
-        syswow64dlls = new File(imageFs.getWinePath() + "/lib/wine/i386-windows");
-
+        File system32dlls = wineInfo.isArm64EC()
+                ? new File(imageFs.getWinePath() + "/lib/wine/aarch64-windows")
+                : new File(imageFs.getWinePath() + "/lib/wine/x86_64-windows");
+        File syswow64dlls = new File(imageFs.getWinePath() + "/lib/wine/i386-windows");
 
         for (String dll : dlls) {
-            File srcFile = new File(system32dlls, dll);
-            File dstFile = new File(windowsDir, "system32/" + dll);
-            FileUtils.copy(srcFile, dstFile);
-            srcFile = new File(syswow64dlls, dll);
-            dstFile = new File(windowsDir, "syswow64/" + dll);
-            FileUtils.copy(srcFile, dstFile);
+            restoreOneDll(new File(system32dlls, dll), new File(windowsDir, "system32/" + dll));
+            restoreOneDll(new File(syswow64dlls, dll), new File(windowsDir, "syswow64/" + dll));
+        }
+   }
+
+    // Copy src→dst. If src is missing we MUST delete dst; otherwise a stale wrong-arch
+    // PE (e.g. an x86_64 atl100.dll left over from a prior native overlay on an
+    // ARM64EC prefix) sticks around and breaks the PE loader for every process that
+    // imports it.
+    private static void restoreOneDll(File srcFile, File dstFile) {
+        if (srcFile.exists()) {
+            if (!FileUtils.copy(srcFile, dstFile))
+                Log.w("XServerDisplayActivity", "restoreOriginalDllFiles: copy failed " + srcFile + " -> " + dstFile);
+            return;
+        }
+        if (dstFile.exists()) {
+            if (dstFile.delete())
+                Log.w("XServerDisplayActivity", "restoreOriginalDllFiles: no source for " + srcFile + ", deleted stale " + dstFile);
+            else
+                Log.e("XServerDisplayActivity", "restoreOriginalDllFiles: no source for " + srcFile + " and failed to delete stale " + dstFile);
         }
    }
 
@@ -6131,26 +6632,35 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         // Either NTSync was explicitly requested, or no sync vars are set at all.
         // In both cases: try NTSync first, fall back to ESync if unavailable.
         if (canAccessNtsyncDevice()) {
-            // NTSync available — enable it, disable ESync (mutually exclusive).
-            envVars.put("WINENTSYNC", "1");
-            envVars.put("PROTON_USE_NTSYNC", "1");
-            envVars.remove("WINEESYNC");
-            envVars.put("PROTON_NO_ESYNC", "1");
-            Log.d("XServerDisplayActivity",
-                    "Sync: NTSync enabled (/dev/ntsync accessible) — disabled ESync");
-        } else {
-            // NTSync not available — fall back to ESync automatically.
-            envVars.remove("WINENTSYNC");
-            envVars.remove("PROTON_USE_NTSYNC");
-            envVars.put("WINEESYNC", "1");
-            envVars.remove("PROTON_NO_ESYNC");
-            if (ntSyncExplicit) {
-                Log.w("XServerDisplayActivity",
-                        "Sync: NTSync requested but /dev/ntsync not accessible — falling back to ESync");
-            } else {
+            // Check if user explicitly DISABLED NTSync in UI
+            String ntVal = envVars.get("WINENTSYNC");
+            boolean ntDisabled = "0".equals(ntVal) || "false".equalsIgnoreCase(ntVal);
+
+            if (!ntDisabled) {
+                // NTSync available and not disabled — enable it, disable ESync (mutually exclusive).
+                envVars.put("WINENTSYNC", "1");
+                envVars.put("PROTON_USE_NTSYNC", "1");
+                envVars.remove("WINEESYNC");
+                envVars.remove("WINEESYNC_WINLATOR");
+                envVars.remove("PROTON_USE_ESYNC");
+                envVars.put("PROTON_NO_ESYNC", "1");
                 Log.d("XServerDisplayActivity",
-                        "Sync: NTSync not available (no /dev/ntsync) — using ESync");
+                        "Sync: NTSync enabled (/dev/ntsync accessible) — disabled ESync");
+                return;
             }
+        }
+
+        // Default fallback: use ESync (either NTSync unavailable, or explicitly disabled by user)
+        envVars.remove("WINENTSYNC");
+        envVars.remove("PROTON_USE_NTSYNC");
+        envVars.put("WINEESYNC", "1");
+        envVars.remove("PROTON_NO_ESYNC");
+        if (ntSyncExplicit) {
+            Log.w("XServerDisplayActivity",
+                    "Sync: NTSync requested but /dev/ntsync not accessible or disabled — falling back to ESync");
+        } else {
+            Log.d("XServerDisplayActivity",
+                    "Sync: NTSync not available or disabled — using ESync");
         }
     }
 
@@ -7127,7 +7637,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     ? parseBoolean(getShortcutSetting("launchRealSteam", container.isLaunchRealSteam() ? "1" : "0"))
                     : container.isLaunchRealSteam();
 
-            if (launchRealSteamMode) {
+            boolean steamCloudSyncAllowed =
+                    isCloudSyncEnabledForShortcut()
+                            && !com.winlator.cmod.feature.sync.CloudSyncHelper.isOfflineMode(shortcut);
+            if (launchRealSteamMode && steamCloudSyncAllowed) {
                 // Seed or heal the shared Steam client store before launch.
                 // isSteamInstalled() only verifies file existence; isSharedSteamStorePristine()
                 // adds a size check that catches a Goldberg-stub overwrite (the #1 cause of
@@ -7279,7 +7792,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             // Local metadata cleanup — after javasteam has synced, Steam may still have
             // stale local state from previous sessions. Wipe both the metadata cache and
             // the remote/ save directory so Steam re-reads cleanly from the sync results.
-            if (launchRealSteamMode && steamAccountId > 0) {
+            if (launchRealSteamMode && steamCloudSyncAllowed && steamAccountId > 0) {
                 File userAppDir = new File(steamDir,
                         "userdata/" + steamAccountId + "/" + appId);
                 File remoteCache = new File(userAppDir, "remotecache.vdf");
@@ -7388,7 +7901,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             } catch (Exception e) {
                 Log.w("XServerDisplayActivity", "Real Steam watchdog: wineserver -k failed", e);
             }
-            runOnUiThread(() -> AppUtils.showToast(
+            runOnUiThread(() -> WinToast.show(
                     XServerDisplayActivity.this,
                     "Steam client failed to start. Try toggling Launch Steam Client off.",
                     android.widget.Toast.LENGTH_LONG));

@@ -23,7 +23,7 @@ import com.winlator.cmod.runtime.compat.box64.Box64PresetManager
 import com.winlator.cmod.runtime.compat.fexcore.FEXCorePreset
 import com.winlator.cmod.runtime.compat.fexcore.FEXCorePresetManager
 import com.winlator.cmod.runtime.wine.EnvVars
-import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.shared.io.FileUtils
@@ -125,7 +125,7 @@ class PresetsFragment : Fragment() {
                         onRenamePreset = { rawName ->
                             val selected = selectedPresetOption() ?: return@PresetsScreen
                             if (!selected.isCustom) {
-                                AppUtils.showToast(requireContext(), R.string.container_presets_cannot_rename)
+                                WinToast.show(requireContext(), R.string.container_presets_cannot_rename)
                                 return@PresetsScreen
                             }
                             val sanitized = sanitizePresetName(rawName)
@@ -165,7 +165,7 @@ class PresetsFragment : Fragment() {
                         onExportPreset = {
                             val selected = selectedPresetOption() ?: return@PresetsScreen
                             if (!selected.isCustom) {
-                                AppUtils.showToast(requireContext(), R.string.container_presets_cannot_export)
+                                WinToast.show(requireContext(), R.string.container_presets_cannot_export)
                                 return@PresetsScreen
                             }
                             when (currentEngine) {
@@ -191,7 +191,7 @@ class PresetsFragment : Fragment() {
                         onRemovePreset = {
                             val selected = selectedPresetOption() ?: return@PresetsScreen
                             if (!selected.isCustom) {
-                                AppUtils.showToast(requireContext(), R.string.container_presets_cannot_remove)
+                                WinToast.show(requireContext(), R.string.container_presets_cannot_remove)
                                 return@PresetsScreen
                             }
                             when (currentEngine) {
@@ -243,7 +243,7 @@ class PresetsFragment : Fragment() {
             }.onSuccess {
                 refresh(selectLatestPreset = true)
             }.onFailure {
-                AppUtils.showToast(requireContext(), R.string.container_presets_unable_to_import)
+                WinToast.show(requireContext(), R.string.container_presets_unable_to_import)
             }
         }
     }
@@ -412,7 +412,11 @@ class PresetsFragment : Fragment() {
         val suffix =
             when (engine) {
                 PresetEngine.BOX64 -> envVarName.removePrefix("BOX64_").lowercase(Locale.ENGLISH)
-                PresetEngine.FEXCORE -> envVarName.removePrefix("FEX_").lowercase(Locale.ENGLISH)
+                PresetEngine.FEXCORE ->
+                    when (envVarName) {
+                        "FEX_SMCCHECKS" -> "smc_checks"
+                        else -> envVarName.removePrefix("FEX_").lowercase(Locale.ENGLISH)
+                    }
             }
         return StringUtils.getString(requireContext(), "${engine.helpKeyPrefix}$suffix").orEmpty()
     }
@@ -542,8 +546,8 @@ class PresetsFragment : Fragment() {
     private val PresetEngine.defaultPresetId: String
         get() =
             when (this) {
-                PresetEngine.BOX64 -> Box64Preset.COMPATIBILITY
-                PresetEngine.FEXCORE -> FEXCorePreset.INTERMEDIATE
+                PresetEngine.BOX64 -> Box64Preset.PERFORMANCE
+                PresetEngine.FEXCORE -> FEXCorePreset.PERFORMANCE
             }
 
     private val PresetEngine.assetFile: String

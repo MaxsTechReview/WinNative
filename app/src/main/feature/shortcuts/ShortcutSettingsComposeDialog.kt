@@ -8,16 +8,20 @@ import android.content.pm.ShortcutManager
 import android.graphics.BitmapFactory
 import android.graphics.drawable.Icon
 import android.net.Uri
-import android.util.DisplayMetrics
+import android.os.Build
 import android.util.Log
 import android.view.ViewGroup
 import android.view.Window
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
@@ -45,6 +49,7 @@ import com.winlator.cmod.runtime.container.Shortcut
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
 import com.winlator.cmod.shared.android.AppUtils
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.android.ImageUtils
 import com.winlator.cmod.shared.io.AssetPaths
@@ -166,10 +171,15 @@ class ShortcutSettingsComposeDialog private constructor(
             setViewTreeSavedStateRegistryOwner(activity as SavedStateRegistryOwner)
             setContent {
                 WinNativeTheme {
-                    GameSettingsContent(
-                        state = state,
-                        callbacks = createCallbacks()
-                    )
+                    val defaultDensity = LocalDensity.current
+                    CompositionLocalProvider(
+                        LocalDensity provides Density(defaultDensity.density, fontScale = 1f)
+                    ) {
+                        GameSettingsContent(
+                            state = state,
+                            callbacks = createCallbacks()
+                        )
+                    }
                 }
             }
         }
@@ -205,9 +215,9 @@ class ShortcutSettingsComposeDialog private constructor(
                     addShortcutToScreen(shortcut)
                 }
                 if (result == ShortcutsFragment.PinShortcutResult.REUSED_EXISTING) {
-                    AppUtils.showToast(context, R.string.shortcuts_list_readded_existing, shortcut.icon)
+                    WinToast.show(context, R.string.shortcuts_list_readded_existing, shortcut.icon)
                 } else if (result == ShortcutsFragment.PinShortcutResult.FAILED) {
-                    AppUtils.showToast(
+                    WinToast.show(
                         context,
                         context.getString(
                             R.string.library_games_failed_to_create_shortcut,
@@ -471,6 +481,11 @@ class ShortcutSettingsComposeDialog private constructor(
             getShortcutSetting("dxwrapper", container.getDXWrapper()),
             state.selectedDxWrapper
         )
+
+        // Surface Effect
+        val surfaceEffectArr = context.resources.getStringArray(R.array.surface_effect_entries).toList()
+        state.surfaceEffectEntries.value = surfaceEffectArr
+        state.selectedSurfaceEffect.intValue = if (getShortcutSetting("swapRB", container.getExtra("swapRB", "0")) == "1") 1 else 0
 
         // Audio driver
         val audioDriverArr =
@@ -992,6 +1007,10 @@ class ShortcutSettingsComposeDialog private constructor(
                 "dxwrapperConfig", dxwrapperConfig, container.getDXWrapperConfig()
             )
 
+            // Surface Effect
+            val swapRBStr = if (state.selectedSurfaceEffect.intValue == 1) "1" else "0"
+            hasContainerOverride = hasContainerOverride or saveOverride("swapRB", swapRBStr, container.getExtra("swapRB", "0"))
+
             // Audio
             val audioDriver = getIdentifierFromEntries(
                 state.audioDriverEntries.value, state.selectedAudioDriver.intValue
@@ -1258,6 +1277,7 @@ class ShortcutSettingsComposeDialog private constructor(
                 TAG,
                 "Saving shortcut name='${shortcut.name}' path='${shortcut.path}'" +
                     " usesContainerDefaults=${if (hasContainerOverride) "0" else "1"}" +
+                    " swapRB='${shortcut.getExtra("swapRB")}'" +
                     " box64Preset='${shortcut.getExtra("box64Preset")}'" +
                     " fexcorePreset='${shortcut.getExtra("fexcorePreset")}'" +
                     " wineVersion='${shortcut.getExtra("wineVersion")}'" +
@@ -1374,7 +1394,7 @@ class ShortcutSettingsComposeDialog private constructor(
     private fun applySelectedExePath(path: String) {
         val exeFile = File(path)
         if (!exeFile.isFile || !exeFile.name.endsWith(".exe", ignoreCase = true)) {
-            AppUtils.showToast(context, R.string.common_ui_select_valid_exe_file, Toast.LENGTH_SHORT)
+            WinToast.show(context, R.string.common_ui_select_valid_exe_file, Toast.LENGTH_SHORT)
             return
         }
 
@@ -1571,7 +1591,7 @@ class ShortcutSettingsComposeDialog private constructor(
     ) {
         val bitmap = ImageUtils.getBitmapFromUri(context, uri, 1024)
         if (bitmap == null) {
-            AppUtils.showToast(context, R.string.shortcuts_library_artwork_failed, Toast.LENGTH_SHORT)
+            WinToast.show(context, R.string.shortcuts_library_artwork_failed, Toast.LENGTH_SHORT)
             return
         }
 
@@ -1580,7 +1600,7 @@ class ShortcutSettingsComposeDialog private constructor(
         val slot = getLibraryArtworkSlot(target) ?: return
         val outputFile = LibraryShortcutArtwork.buildManagedViewArtworkFile(context, shortcut, slot)
         if (!FileUtils.saveBitmapToFile(bitmap, outputFile)) {
-            AppUtils.showToast(context, R.string.shortcuts_library_artwork_failed, Toast.LENGTH_SHORT)
+            WinToast.show(context, R.string.shortcuts_library_artwork_failed, Toast.LENGTH_SHORT)
             return
         }
 
@@ -1725,7 +1745,9 @@ class ShortcutSettingsComposeDialog private constructor(
     private fun buildEnvVarsString(): String {
         // Keep the SDL2 keys in sync with the toggle.
         val sdl2Keys = sdl2EnvVars.map { it.first }.toSet()
-        val filtered = state.envVars.value.filterNot { it.key in sdl2Keys }
+        val filtered = state.envVars.value
+            .filter { it.key.isNotBlank() }
+            .filterNot { it.key in sdl2Keys }
         val merged = if (state.sdl2Compatibility.value) {
             filtered + sdl2EnvVars.map { EnvVarItem(it.first, it.second) }
         } else {
@@ -2097,6 +2119,8 @@ class ShortcutSettingsComposeDialog private constructor(
             state.selectedAudioDriver
         )
 
+        state.selectedSurfaceEffect.intValue = if (container.getExtra("swapRB", "0") == "1") 1 else 0
+
         val midiFont = container.getMIDISoundFont()
         val midiEntries = state.midiSoundFontEntries.value
         if (midiFont.isEmpty()) {
@@ -2246,36 +2270,70 @@ class ShortcutSettingsComposeDialog private constructor(
     fun show() {
         dialog.show()
         dialog.window?.apply {
-            val dm = activity.resources.displayMetrics
-            val screenWidthDp = dm.widthPixels / dm.density
-            val dialogWidthDp = screenWidthDp * 0.88f
-            // When the usable width is below the content's compact-layout breakpoint
-            // (720dp in GameSettingsContent), the Compose UI switches to stacked tabs
-            // with a bottom action bar, which needs more vertical room than the sidebar
-            // layout. Give the dialog near-full-height whenever compact layout will
-            // kick in; keep the roomier sidebar layout at a comfortable 88% otherwise.
-            val isCompactLayout = dialogWidthDp < 720f
-            if (screenWidthDp < 600f) {
-                // Small screen: most of the display with a comfortable margin.
-                val dialogWidth = (dm.widthPixels * 0.96f).toInt()
-                val dialogHeight = (dm.heightPixels * 0.90f).toInt()
-                setLayout(dialogWidth, dialogHeight)
-            } else {
-                val dialogWidth = (dm.widthPixels * 0.88f).toInt()
-                val heightFactor = if (isCompactLayout) 0.90f else 0.88f
-                val dialogHeight = (dm.heightPixels * heightFactor).toInt()
-                setLayout(dialogWidth, dialogHeight)
-            }
+            applyDialogLayout()
+            decorView.post { applyDialogLayout() }
 
             // Post-attach blur: set flag + radius in one setAttributes call so
             // WindowManager applies them atomically (otherwise blur can flicker).
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val params = attributes
                 params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
                 params.blurBehindRadius = 10
                 attributes = params
             }
         }
+    }
+
+    private fun Window.applyDialogLayout() {
+        val dm = activity.resources.displayMetrics
+        val hostView = activity.window?.decorView
+        val hostWidth = hostView?.width?.takeIf { it > 0 }
+        val hostHeight = hostView?.height?.takeIf { it > 0 }
+        val bounds =
+            if (hostWidth != null && hostHeight != null) {
+                hostWidth to hostHeight
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val windowBounds = activity.windowManager.currentWindowMetrics.bounds
+                windowBounds.width() to windowBounds.height()
+            } else {
+                dm.widthPixels to dm.heightPixels
+            }
+
+        val screenWidthDp = bounds.first / dm.density
+        val needsNearFullWidth = screenWidthDp < 820f
+        val widthFactor = if (needsNearFullWidth) 0.96f else 0.88f
+        val heightFactor = if (needsNearFullWidth) 0.90f else 0.88f
+        val navInsets =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                activity.windowManager.currentWindowMetrics.windowInsets.getInsetsIgnoringVisibility(
+                    WindowInsets.Type.navigationBars()
+                )
+            } else {
+                null
+            }
+        val cutoutInsets =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                activity.windowManager.currentWindowMetrics.windowInsets.getInsetsIgnoringVisibility(
+                    WindowInsets.Type.displayCutout()
+                )
+            } else {
+                null
+            }
+        val edgePaddingPx = (12f * dm.density).toInt().coerceAtLeast(1)
+        val cutoutPaddingCapPx = (8f * dm.density).toInt()
+        val leftInsetPx = maxOf(navInsets?.left ?: 0, (cutoutInsets?.left ?: 0).coerceAtMost(cutoutPaddingCapPx))
+        val rightInsetPx = maxOf(navInsets?.right ?: 0, (cutoutInsets?.right ?: 0).coerceAtMost(cutoutPaddingCapPx))
+        val topInsetPx = maxOf(navInsets?.top ?: 0, (cutoutInsets?.top ?: 0).coerceAtMost(cutoutPaddingCapPx))
+        val bottomInsetPx = maxOf(navInsets?.bottom ?: 0, (cutoutInsets?.bottom ?: 0).coerceAtMost(cutoutPaddingCapPx))
+        val horizontalInsetPx = maxOf(leftInsetPx, rightInsetPx)
+        val verticalInsetPx = maxOf(topInsetPx, bottomInsetPx)
+        val maxDialogWidth = (bounds.first - ((horizontalInsetPx + edgePaddingPx) * 2)).coerceAtLeast(1)
+        val maxDialogHeight = (bounds.second - ((verticalInsetPx + edgePaddingPx) * 2)).coerceAtLeast(1)
+
+        setLayout(
+            (bounds.first * widthFactor).toInt().coerceAtMost(maxDialogWidth),
+            (bounds.second * heightFactor).toInt().coerceAtMost(maxDialogHeight),
+        )
     }
 
     fun dismiss() {

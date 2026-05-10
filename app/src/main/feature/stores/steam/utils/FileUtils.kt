@@ -148,30 +148,68 @@ object FileUtils {
         maxDepth: Int = -1,
         includeDirectories: Boolean = false,
     ): Stream<Path> {
-        val patternParts = pattern.split("*").filter { it.isNotEmpty() }
         if (!Files.exists(rootPath)) return emptyList<Path>().stream()
 
         val results = mutableListOf<Path>()
-
-        fun matches(fileName: String): Boolean {
-            var startIndex = 0
-            for (part in patternParts) {
-                val index = fileName.indexOf(part, startIndex)
-                if (index < 0) return false
-                startIndex = index + part.length
-            }
-            return true
-        }
+        val matcher = compilePatternMatcher(pattern)
 
         walkThroughPath(rootPath, maxDepth) { path ->
             if (path.isDirectory()) {
-                if (includeDirectories && matches(path.name)) results.add(path)
-            } else if (matches(path.name)) {
+                if (includeDirectories && matcher(path.name)) results.add(path)
+            } else if (matcher(path.name)) {
                 results.add(path)
             }
         }
 
         return results.stream()
+    }
+
+    /**
+     * Short-circuiting variant of [findFilesRecursive] for "does anything match?"
+     * checks. Stops walking as soon as the first match is seen — wrapping the
+     * full-collect helper with `findAny()` would still scan the entire tree
+     * because [findFilesRecursive] returns an already-materialized list.
+     */
+    fun anyFileMatches(
+        rootPath: Path,
+        pattern: String,
+        maxDepth: Int = -1,
+        includeDirectories: Boolean = false,
+    ): Boolean {
+        if (!Files.exists(rootPath)) return false
+        val matcher = compilePatternMatcher(pattern)
+        return try {
+            walkThroughPath(rootPath, maxDepth) { path ->
+                val matched =
+                    if (path.isDirectory()) includeDirectories && matcher(path.name)
+                    else matcher(path.name)
+                if (matched) throw FoundMatch
+            }
+            false
+        } catch (_: FoundMatch) {
+            true
+        }
+    }
+
+    private object FoundMatch : RuntimeException() {
+        override fun fillInStackTrace(): Throwable = this
+    }
+
+    private fun compilePatternMatcher(pattern: String): (String) -> Boolean {
+        val parts = pattern.split("*").filter { it.isNotEmpty() }
+        return { fileName ->
+            var startIndex = 0
+            var ok = true
+            for (part in parts) {
+                val index = fileName.indexOf(part, startIndex)
+                if (index < 0) {
+                    ok = false
+                    break
+                }
+                startIndex = index + part.length
+            }
+            ok
+        }
     }
 
     fun assetExists(

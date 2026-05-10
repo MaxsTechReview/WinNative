@@ -18,6 +18,7 @@ import com.winlator.cmod.runtime.content.ContentsManager;
 import com.winlator.cmod.runtime.display.connector.UnixSocketConfig;
 import com.winlator.cmod.runtime.display.environment.EnvironmentComponent;
 import com.winlator.cmod.runtime.display.environment.ImageFs;
+import com.winlator.cmod.runtime.input.controls.FakeInputWriter;
 import com.winlator.cmod.runtime.system.GPUInformation;
 import com.winlator.cmod.runtime.system.ProcessHelper;
 import com.winlator.cmod.runtime.wine.EnvVars;
@@ -37,8 +38,8 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
   private String[] bindingPaths;
   private EnvVars envVars;
   private WineInfo wineInfo;
-  private String box64Preset = Box64Preset.COMPATIBILITY;
-  private String fexcorePreset = FEXCorePreset.INTERMEDIATE;
+  private String box64Preset = Box64Preset.PERFORMANCE;
+  private String fexcorePreset = FEXCorePreset.PERFORMANCE;
   private Callback<Integer> terminationCallback;
   private static final Object lock = new Object();
   private final ContentsManager contentsManager;
@@ -236,7 +237,13 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
       Log.d("GuestLauncher", "execShellCommand LD_PRELOAD=" + ldPreload.toString());
     }
     envVars.put("WINEESYNC_WINLATOR", "1");
-    mergeExternalEnvVars(envVars, envVars.get("LD_PRELOAD"), envVars.get("FAKE_EVDEV_DIR"));
+    mergeExternalEnvVars(
+        envVars,
+        envVars.get("LD_PRELOAD"),
+        envVars.get("FAKE_EVDEV_DIR"),
+        envVars.get("FAKE_EVDEV_MEMFD_PATHS"),
+        envVars.get("FAKE_UDEV_DATA_DIR"));
+    FEXCorePresetManager.normalizeSmcChecksEnvVars(envVars, this.envVars);
 
     // For arm64ec Wine builds the wine binary is native ARM64 — call it directly
     // with a fully-qualified path. Wrapping with box64 causes it to fail ELF
@@ -456,6 +463,18 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     this.shortcut = shortcut;
   }
 
+  private int getConfiguredControllerCount() {
+    int numControllers = 1;
+    if (shortcut != null) {
+      try {
+        numControllers = Integer.parseInt(shortcut.getExtra("numControllers", "1"));
+      } catch (NumberFormatException e) {
+        numControllers = 1;
+      }
+    }
+    return Math.max(1, Math.min(numControllers, 4));
+  }
+
   @Override
   public void start() {
     synchronized (lock) {
@@ -606,7 +625,11 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
   }
 
   private void mergeExternalEnvVars(
-      EnvVars envVars, String protectedLdPreload, String protectedFakeEvdevDir) {
+      EnvVars envVars,
+      String protectedLdPreload,
+      String protectedFakeEvdevDir,
+      String protectedFakeEvdevMemfdPaths,
+      String protectedFakeUdevDataDir) {
     if (this.envVars == null) {
       return;
     }
@@ -621,6 +644,8 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
     String overrideLdPreload = this.envVars.get("LD_PRELOAD");
     String overrideFakeEvdevDir = this.envVars.get("FAKE_EVDEV_DIR");
+    String overrideFakeEvdevMemfdPaths = this.envVars.get("FAKE_EVDEV_MEMFD_PATHS");
+    String overrideFakeUdevDataDir = this.envVars.get("FAKE_UDEV_DATA_DIR");
 
     envVars.putAll(this.envVars);
 
@@ -632,6 +657,96 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
       envVars.put("FAKE_EVDEV_DIR", protectedFakeEvdevDir);
     } else if (overrideFakeEvdevDir != null && !overrideFakeEvdevDir.isEmpty()) {
       envVars.put("FAKE_EVDEV_DIR", overrideFakeEvdevDir);
+    }
+
+    if (protectedFakeEvdevMemfdPaths != null && !protectedFakeEvdevMemfdPaths.isEmpty()) {
+      envVars.put("FAKE_EVDEV_MEMFD_PATHS", protectedFakeEvdevMemfdPaths);
+    } else if (overrideFakeEvdevMemfdPaths != null && !overrideFakeEvdevMemfdPaths.isEmpty()) {
+      envVars.put("FAKE_EVDEV_MEMFD_PATHS", overrideFakeEvdevMemfdPaths);
+    }
+
+    if (protectedFakeUdevDataDir != null && !protectedFakeUdevDataDir.isEmpty()) {
+      envVars.put("FAKE_UDEV_DATA_DIR", protectedFakeUdevDataDir);
+    } else if (overrideFakeUdevDataDir != null && !overrideFakeUdevDataDir.isEmpty()) {
+      envVars.put("FAKE_UDEV_DATA_DIR", overrideFakeUdevDataDir);
+    }
+  }
+
+  private void prepareFakeInputUdevMetadata(ImageFs imageFs, File devInputDir, EnvVars envVars) {
+    File rootDir = imageFs.getRootDir();
+    File udevDataDir = new File(rootDir, "run/udev/data");
+    if (!udevDataDir.exists() && !udevDataDir.mkdirs()) {
+      Log.w("GuestLauncher", "Failed to create fake udev data directory: " + udevDataDir);
+      return;
+    }
+
+    envVars.put("FAKE_UDEV_DATA_DIR", udevDataDir.getAbsolutePath());
+
+    File byIdDir = new File(devInputDir, "by-id");
+    if (!byIdDir.exists()) byIdDir.mkdirs();
+
+    int numControllers = getConfiguredControllerCount();
+    for (int slot = 0; slot < numControllers; slot++) {
+      int vendorId = 0x1234 + slot;
+      int productId = 0x5678 + slot;
+      int eventMinor = 64 + slot;
+      String name = "Generic HID Gamepad " + slot;
+      File udevData = new File(udevDataDir, "c13:" + eventMinor);
+      String vendor = String.format(java.util.Locale.US, "%04x", vendorId);
+      String product = String.format(java.util.Locale.US, "%04x", productId);
+      String symlink = "input/by-id/usb-WinNative_Generic_HID_Gamepad_" + slot + "-event-joystick";
+      String content =
+          "I:"
+              + slot
+              + "\n"
+              + "N:input/event"
+              + slot
+              + "\n"
+              + "S:"
+              + symlink
+              + "\n"
+              + "E:DEVNAME=/dev/input/event"
+              + slot
+              + "\n"
+              + "E:ID_INPUT=1\n"
+              + "E:ID_INPUT_JOYSTICK=1\n"
+              + "E:ID_BUS=usb\n"
+              + "E:ID_VENDOR=WinNative\n"
+              + "E:ID_VENDOR_ID="
+              + vendor
+              + "\n"
+              + "E:ID_MODEL=Generic_HID_Gamepad_"
+              + slot
+              + "\n"
+              + "E:ID_MODEL_ID="
+              + product
+              + "\n"
+              + "E:ID_SERIAL=WinNative_Generic_HID_Gamepad_"
+              + slot
+              + "\n"
+              + "E:NAME=\""
+              + name
+              + "\"\n"
+              + "E:TAGS=:uaccess:\n";
+      FileUtils.writeString(udevData, content);
+
+      File eventNode = new File(devInputDir, "event" + slot);
+      if (!eventNode.exists()) {
+        try {
+          eventNode.createNewFile();
+        } catch (Exception e) {
+          Log.w("GuestLauncher", "Failed to create fake input node " + eventNode, e);
+        }
+      }
+
+      File byIdLink = new File(byIdDir, "usb-WinNative_Generic_HID_Gamepad_" + slot + "-event-joystick");
+      if (!byIdLink.exists()) {
+        try {
+          FileUtils.symlink("../event" + slot, byIdLink.getPath());
+        } catch (Exception e) {
+          Log.w("GuestLauncher", "Failed to create fake input by-id symlink " + byIdLink, e);
+        }
+      }
     }
   }
 
@@ -715,18 +830,72 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     envVars.put("ANDROID_SYSVSHM_SERVER", rootDir.getPath() + UnixSocketConfig.SYSVSHM_SERVER_PATH);
 
     String primaryDNS = "8.8.4.4";
-    ConnectivityManager connectivityManager =
-        (ConnectivityManager) context.getSystemService(Service.CONNECTIVITY_SERVICE);
-    if (connectivityManager.getActiveNetwork() != null) {
-      ArrayList<InetAddress> dnsServers =
-          new ArrayList<>(
-              connectivityManager
-                  .getLinkProperties(connectivityManager.getActiveNetwork())
-                  .getDnsServers());
-      primaryDNS = dnsServers.get(0).toString().substring(1);
+    java.util.List<String> orderedDns = new java.util.ArrayList<>();
+    try {
+      ConnectivityManager connectivityManager =
+          (ConnectivityManager) context.getSystemService(Service.CONNECTIVITY_SERVICE);
+      android.net.Network activeNetwork =
+          connectivityManager != null ? connectivityManager.getActiveNetwork() : null;
+      android.net.LinkProperties linkProps =
+          activeNetwork != null ? connectivityManager.getLinkProperties(activeNetwork) : null;
+      java.util.List<InetAddress> dnsServers =
+          linkProps != null ? linkProps.getDnsServers() : null;
+      if (dnsServers != null && !dnsServers.isEmpty()) {
+        for (InetAddress dns : dnsServers) {
+          if (dns instanceof java.net.Inet4Address) {
+            String a = dns.getHostAddress();
+            if (a != null && !a.isEmpty()) orderedDns.add(a);
+          }
+        }
+        for (InetAddress dns : dnsServers) {
+          if (!(dns instanceof java.net.Inet4Address)) {
+            String a = dns.getHostAddress();
+            if (a != null && !a.isEmpty()) {
+              int pct = a.indexOf('%');
+              if (pct >= 0) a = a.substring(0, pct);
+              orderedDns.add(a);
+            }
+          }
+        }
+        if (!orderedDns.isEmpty()) primaryDNS = orderedDns.get(0);
+      }
+    } catch (Exception e) {
+      Log.w("GuestLauncher", "DNS capture failed, using fallback " + primaryDNS, e);
+    }
+    if (orderedDns.isEmpty()) {
+      orderedDns.add("8.8.4.4");
+      orderedDns.add("1.1.1.1");
     }
     envVars.put("ANDROID_RESOLV_DNS", primaryDNS);
     envVars.put("WINE_NEW_NDIS", "1");
+
+    // Refresh /usr/etc/resolv.conf and /usr/etc/hosts on every launch.
+    // The shipped imagefs ships stale DNS and a broken localhost mapping; rewrite
+    // them here so Linux-side tools inside the prefix (curl, openssl, busybox) and
+    // anything else that consults hosts/resolv.conf see the correct values.
+    try {
+      File etcDir = imageFs.getEtcDir();
+      if (etcDir.isDirectory() || etcDir.mkdirs()) {
+        StringBuilder resolv = new StringBuilder();
+        resolv.append("# Generated at launch by WinNative from Android DNS.\n");
+        for (String dns : orderedDns) {
+          resolv.append("nameserver ").append(dns).append('\n');
+        }
+        resolv.append("options edns0 timeout:2 attempts:2\n");
+        FileUtils.writeString(new File(etcDir, "resolv.conf"), resolv.toString());
+
+        FileUtils.writeString(
+            new File(etcDir, "hosts"),
+            "127.0.0.1\tlocalhost\n"
+                + "::1\t\tlocalhost ip6-localhost ip6-loopback\n"
+                + "fe00::0\t\tip6-localnet\n"
+                + "ff00::0\t\tip6-mcastprefix\n"
+                + "ff02::1\t\tip6-allnodes\n"
+                + "ff02::2\t\tip6-allrouters\n");
+      }
+    } catch (Exception e) {
+      Log.w("GuestLauncher", "Failed to refresh resolv.conf/hosts in imagefs", e);
+    }
 
     String ld_preload;
     if (!new File(imageFs.getLibDir(), "libandroid-sysvshm.so").exists()) {
@@ -798,16 +967,13 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
     File devInputDir = new File(imageFs.getRootDir(), "dev/input");
     devInputDir.mkdirs();
-    // XServerDisplayActivity pre-creates the configured controller count after the
-    // shortcut is loaded. Keep event0 available here as a minimum fallback.
-    File event0 = new File(devInputDir, "event0");
-    if (!event0.exists()) {
-      try {
-        event0.createNewFile();
-      } catch (Exception e) {
-      }
+    FakeInputWriter.prepareRingSlots(devInputDir, 4);
+    String fakeEvdevRingPaths = FakeInputWriter.getRingEnv(devInputDir);
+    if (!fakeEvdevRingPaths.isEmpty()) {
+      envVars.put("FAKE_EVDEV_MEMFD_PATHS", fakeEvdevRingPaths);
     }
     envVars.put("FAKE_EVDEV_DIR", devInputDir.getAbsolutePath());
+    prepareFakeInputUdevMetadata(imageFs, devInputDir, envVars);
     envVars.put("FAKE_EVDEV_VIBRATION", "1");
 
     // Ensure Proton-flavoured winebus.sys uses the evdev/SDL path that
@@ -821,7 +987,13 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
     // Preserve the launcher-owned preload/input paths while restoring the
     // full env built upstream in XServerDisplayActivity (driver, DXVK, Vulkan, etc).
-    mergeExternalEnvVars(envVars, envVars.get("LD_PRELOAD"), envVars.get("FAKE_EVDEV_DIR"));
+    mergeExternalEnvVars(
+        envVars,
+        envVars.get("LD_PRELOAD"),
+        envVars.get("FAKE_EVDEV_DIR"),
+        envVars.get("FAKE_EVDEV_MEMFD_PATHS"),
+        envVars.get("FAKE_UDEV_DATA_DIR"));
+    FEXCorePresetManager.normalizeSmcChecksEnvVars(envVars, this.envVars);
 
     String emulator = container.getEmulator();
     String emulator64 = container.getEmulator64();
@@ -844,9 +1016,19 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     if (overriddenCommand.isEmpty()) {
       if (wineInfo.isArm64EC()) {
         command = winePath + "/" + guestExecutable;
-        if (emulator.equalsIgnoreCase("wowbox64")) {
+        // Normalize defensively in case a stale/legacy emulator value slipped past
+        // Container.normalizeEmulatorFieldsForArch (e.g. external write to
+        // .container JSON). Treat anything that isn't literally "wowbox64" — case
+        // and whitespace insensitive — as fexcore.
+        String emu32 = (emulator == null) ? "" : emulator.trim().toLowerCase(java.util.Locale.ROOT);
+        if ("wowbox64".equals(emu32)) {
           envVars.put("HODLL", "wowbox64.dll");
         } else {
+          if (!"fexcore".equals(emu32)) {
+            Log.w("GuestProgramLauncherComponent",
+                    "Unrecognized arm64ec 32-bit emulator='" + emulator
+                            + "', defaulting HODLL=libwow64fex.dll");
+          }
           envVars.put("HODLL", "libwow64fex.dll");
         }
       } else {
