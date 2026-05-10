@@ -51,7 +51,6 @@ object CloudSyncManager {
     private const val KEY_GOOGLE_SYNC_ENABLED = "google_sync_enabled"
     private const val KEY_LAST_SYNC_TIME = "last_sync_time"
     private const val KEY_LAST_SYNC_ERROR = "last_sync_error"
-    private const val KEY_AUTO_BACKUP_PENDING = "auto_backup_pending"
     private const val SNAPSHOT_NAME = "store_logins_v1"
     private const val AUTH_SESSION_RETRY_COUNT = 5
     private const val AUTH_SESSION_RETRY_DELAY_MS = 750L
@@ -222,17 +221,6 @@ object CloudSyncManager {
         }
     }
 
-    fun queueStoreLoginBackup(context: Context) {
-        scheduleAutoBackup(context)
-    }
-
-    fun flushPendingBackup(activity: Activity) {
-        Timber.tag(TAG).v(
-            "Skipping automatic store login backup flush for %s; backups are manual-only",
-            activity::class.java.simpleName,
-        )
-    }
-
     suspend fun syncOnGoogleScreenOpened(activity: Activity): StoreLoginSyncState =
         withContext(Dispatchers.IO) {
             readCachedStoreLoginState(activity)
@@ -396,62 +384,6 @@ object CloudSyncManager {
                     lastSyncTime = remote.lastModifiedTime ?: remotePayload?.createdAt,
                 )
             }
-        }
-
-    private suspend fun performBackupIfAuthenticated(activity: Activity) {
-        withContext(Dispatchers.IO) {
-            Timber.tag(TAG).v(
-                "performBackupIfAuthenticated skipped for %s; backups are manual-only",
-                activity::class.java.simpleName,
-            )
-        }
-    }
-
-    /**
-     * Fire-and-forget auto-backup of store-login tokens. Invoked from credential-save paths
-     * (login, token refresh, background worker) so the Google snapshot always holds the latest
-     * refresh token instead of a stale one.
-     *
-     * - No-op if Google sync is disabled.
-     * - Marks a pending flag only; no UI, Play Games, or Saved Games work is started from
-     *   credential-save paths.
-     *
-     * Silent on both success and failure — this runs alongside normal API calls and must not
-     * interrupt the user with toasts.
-     */
-    fun scheduleAutoBackup(context: Context) {
-        if (!isGoogleSyncEnabled(context)) return
-        Timber.tag(TAG).i("Store-login auto-backup marked pending for %s", context.packageName)
-        prefs(context).edit().putBoolean(KEY_AUTO_BACKUP_PENDING, true).apply()
-    }
-
-    /**
-     * Called on Activity foreground — uploads the local payload if a previous [scheduleAutoBackup]
-     * was deferred (e.g. the refresh worker ran while the app was killed). No-op if no pending flag
-     * or sync disabled.
-     */
-    suspend fun flushPendingAutoBackup(activity: Activity) {
-        if (!prefs(activity).getBoolean(KEY_AUTO_BACKUP_PENDING, false)) return
-        if (!isGoogleSyncEnabled(activity)) {
-            prefs(activity).edit().putBoolean(KEY_AUTO_BACKUP_PENDING, false).apply()
-            return
-        }
-        Timber.tag(TAG).i(
-            "Store-login auto-backup is pending; Play Games upload is deferred to explicit Google settings actions",
-        )
-    }
-
-    /**
-     * Silent snapshot upload used by auto-backup paths. Returns true iff the upload ran to
-     * completion (including the no-op case where the remote payload already matches).
-     * Does not surface user-visible messages on failure.
-     */
-    private suspend fun performAutoBackupUpload(activity: Activity): Boolean =
-        withContext(Dispatchers.IO) {
-            Timber.tag(TAG).d(
-                "Automatic Play Games snapshot upload skipped; store-login backup only runs from Google settings",
-            )
-            false
         }
 
     private suspend fun rehydrateRestoredStores(

@@ -1,4 +1,4 @@
-package com.winlator.cmod.feature.steamcloudsync
+package com.winlator.cmod.feature.sync
 
 import android.app.Activity
 import androidx.lifecycle.Lifecycle
@@ -14,15 +14,11 @@ import timber.log.Timber
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-object SteamLaunchCloudSync {
+object GogLaunchCloudSync {
     fun interface StatusSink {
         fun show(text: String)
     }
 
-    /**
-     * Steam provider cloud saves need launch-time reconciliation. This is Steam-only
-     * and never starts Google Play Games or Drive consent.
-     */
     @JvmStatic
     fun syncBeforeLaunch(
         activity: Activity,
@@ -31,37 +27,32 @@ object SteamLaunchCloudSync {
         statusSink: StatusSink,
     ) {
         if (shortcut == null) return
-        if (shortcut.getExtra("game_source") != "STEAM") return
-        if (!cloudSyncEnabled || SteamCloudSyncHelper.isOfflineMode(shortcut)) return
+        if (shortcut.getExtra("game_source") != "GOG") return
+        if (!cloudSyncEnabled || CloudSyncHelper.isOfflineMode(shortcut)) return
 
-        SteamCloudSyncHelper.forceDownloadOnContainerSwap(activity, shortcut)
+        CloudSyncHelper.forceDownloadOnContainerSwap(activity, shortcut)
 
-        if (!SteamCloudSyncHelper.hasLocalCloudSaves(activity, shortcut)) {
+        if (!CloudSyncHelper.hasLocalCloudSaves(activity, shortcut)) {
             statusSink.show(activity.getString(R.string.preloader_downloading_cloud))
-            SteamCloudSyncHelper.downloadCloudSaves(activity, shortcut)
+            CloudSyncHelper.downloadCloudSaves(activity, shortcut)
             statusSink.show(activity.getString(R.string.preloader_initializing))
             return
         }
 
-        val probe = SteamCloudSyncHelper.probeCloudConflict(activity, shortcut)
-        if (!probe.differs) return
+        if (!CloudSyncHelper.cloudSavesDiffer(activity, shortcut)) return
 
         val dialogLatch = CountDownLatch(1)
         var useCloud = false
+        var useLocal = false
         var keepBackup = false
-        val timestamps = probe.timestamps
+        val timestamps = CloudSyncHelper.getGogConflictTimestamps(activity, shortcut)
 
-        // If the activity is destroyed (back-to-launcher, system kill, finish())
-        // while the dialog is up, the latch must still count down or this thread
-        // will block forever. Attach a lifecycle observer that releases the latch
-        // on ON_DESTROY; the default of useCloud=false then falls back to "keep
-        // local" — the safer choice when no user input is captured.
         val lifecycle = (activity as? LifecycleOwner)?.lifecycle
         val cancelObserver =
             LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_DESTROY) {
-                    Timber.tag("SteamLaunchCloudSync").w(
-                        "Activity destroyed while cloud-conflict dialog was up; releasing latch",
+                    Timber.tag("GogLaunchCloudSync").w(
+                        "Activity destroyed while GOG cloud-conflict dialog was up; releasing latch",
                     )
                     dialogLatch.countDown()
                 }
@@ -69,29 +60,26 @@ object SteamLaunchCloudSync {
 
         activity.runOnUiThread {
             lifecycle?.addObserver(cancelObserver)
-            SteamCloudConflictDialog.show(
-                activity,
-                timestamps,
+            GogCloudConflictDialog.show(
+                activity = activity,
+                timestamps = timestamps,
                 onUseCloud = { keep ->
                     useCloud = true
                     keepBackup = keep
                     dialogLatch.countDown()
                 },
-                onUseLocal = { keep ->
+                onUseLocal = {
                     useCloud = false
-                    keepBackup = keep
+                    useLocal = true
                     dialogLatch.countDown()
                 },
             )
         }
 
         try {
-            // Belt-and-suspenders timeout in case both the dialog and the lifecycle
-            // observer somehow fail to fire. 10 minutes is generous for a user
-            // looking at the dialog, but bounds the worst case.
             if (!dialogLatch.await(10, TimeUnit.MINUTES)) {
-                Timber.tag("SteamLaunchCloudSync").w(
-                    "Cloud-conflict dialog timed out after 10 minutes; treating as 'keep local'",
+                Timber.tag("GogLaunchCloudSync").w(
+                    "GOG cloud-conflict dialog timed out after 10 minutes; treating as 'keep local'",
                 )
             }
         } catch (_: InterruptedException) {
@@ -102,13 +90,21 @@ object SteamLaunchCloudSync {
 
         activity.runOnUiThread { lifecycle?.removeObserver(cancelObserver) }
 
-        if (!useCloud) return
-        if (keepBackup) {
-            backupDiscardedSave(activity, shortcut, GameSaveBackupManager.BackupOrigin.LOCAL)
+        when {
+            useCloud -> {
+                if (keepBackup) {
+                    backupDiscardedSave(activity, shortcut, GameSaveBackupManager.BackupOrigin.LOCAL)
+                }
+                statusSink.show(activity.getString(R.string.preloader_syncing_cloud))
+                CloudSyncHelper.downloadCloudSaves(activity, shortcut)
+                statusSink.show(activity.getString(R.string.preloader_initializing))
+            }
+            useLocal -> {
+                statusSink.show(activity.getString(R.string.preloader_syncing_cloud))
+                CloudSyncHelper.uploadCloudSaves(activity, shortcut)
+                statusSink.show(activity.getString(R.string.preloader_initializing))
+            }
         }
-        statusSink.show(activity.getString(R.string.preloader_syncing_cloud))
-        SteamCloudSyncHelper.downloadCloudSaves(activity, shortcut)
-        statusSink.show(activity.getString(R.string.preloader_initializing))
     }
 
     private fun backupDiscardedSave(
@@ -116,23 +112,23 @@ object SteamLaunchCloudSync {
         shortcut: Shortcut,
         origin: GameSaveBackupManager.BackupOrigin,
     ) {
-        val gameId = shortcut.getExtra("app_id").takeIf { it.isNotEmpty() } ?: return
+        val gameId = shortcut.getExtra("gog_id").ifEmpty { shortcut.getExtra("app_id") }.takeIf { it.isNotEmpty() } ?: return
         val gameName = shortcut.name ?: "Unknown"
         try {
             val result =
                 runBlocking(Dispatchers.IO) {
                     GameSaveBackupManager.backupDiscardedSave(
                         activity = activity,
-                        gameSource = GameSaveBackupManager.GameSource.STEAM,
+                        gameSource = GameSaveBackupManager.GameSource.GOG,
                         gameId = gameId,
                         gameName = gameName,
                         origin = origin,
                         authMode = GoogleAuthMode.SILENT,
                     )
                 }
-            Timber.tag("SteamLaunchCloudSync").i("Discarded Steam save backup: %s", result.message)
+            Timber.tag("GogLaunchCloudSync").i("Discarded GOG save backup: %s", result.message)
         } catch (e: Exception) {
-            Timber.tag("SteamLaunchCloudSync").w(e, "Failed to back up discarded Steam save")
+            Timber.tag("GogLaunchCloudSync").w(e, "Failed to back up discarded GOG save")
         }
     }
 }

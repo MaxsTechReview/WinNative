@@ -50,6 +50,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -71,6 +72,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import kotlinx.coroutines.launch
@@ -141,6 +145,25 @@ fun GoogleScreen() {
         syncState = CloudSyncManager.syncOnGoogleScreenOpened(currentActivity)
         googleSignedIn = syncState.googleSignedIn
         driveConnected = GameSaveBackupManager.isDriveConnected(context)
+    }
+
+    // The Drive consent UI runs in a separate task. When it returns,
+    // GameSaveBackupManager flips the connected pref but our in-memory
+    // copy is stale until we re-read on resume.
+    val lifecycleOwner = activity as? LifecycleOwner
+    DisposableEffect(lifecycleOwner) {
+        if (lifecycleOwner == null) {
+            onDispose { }
+        } else {
+            val observer =
+                LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_RESUME) {
+                        driveConnected = GameSaveBackupManager.isDriveConnected(context)
+                    }
+                }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        }
     }
 
     LazyColumn(

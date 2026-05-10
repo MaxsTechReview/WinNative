@@ -75,6 +75,8 @@ import com.winlator.cmod.feature.settings.DXVKConfigUtils;
 import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils;
 import com.winlator.cmod.feature.shortcuts.ShortcutsFragment;
 import com.winlator.cmod.feature.sync.CloudSyncHelper;
+import com.winlator.cmod.feature.sync.EpicLaunchCloudSync;
+import com.winlator.cmod.feature.sync.GogLaunchCloudSync;
 import com.winlator.cmod.feature.steamcloudsync.SteamExitCloudSync;
 import com.winlator.cmod.feature.steamcloudsync.SteamLaunchCloudSync;
 import com.winlator.cmod.feature.stores.steam.ui.SteamClientDownloadFailureDialog;
@@ -1248,6 +1250,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 UpdateChecker.INSTANCE.cancelPostGameCheck();
 
                 SteamLaunchCloudSync.syncBeforeLaunch(
+                        this,
+                        shortcut,
+                        isCloudSyncEnabledForShortcut(),
+                        this::showLaunchPreloader);
+                EpicLaunchCloudSync.syncBeforeLaunch(
+                        this,
+                        shortcut,
+                        isCloudSyncEnabledForShortcut(),
+                        this::showLaunchPreloader);
+                GogLaunchCloudSync.syncBeforeLaunch(
                         this,
                         shortcut,
                         isCloudSyncEnabledForShortcut(),

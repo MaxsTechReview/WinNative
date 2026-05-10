@@ -1,5 +1,12 @@
-package com.winlator.cmod.feature.steamcloudsync
+package com.winlator.cmod.feature.sync
 
+import android.app.Activity
+import android.app.Dialog
+import android.util.TypedValue
+import android.view.ViewGroup
+import android.view.Window
+import android.view.WindowManager
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,6 +31,7 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,35 +40,115 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.winlator.cmod.R
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
+import com.winlator.cmod.shared.theme.WinNativeTheme
 
-data class SteamCloudConflictTimestamps(
+private val EpicCloudConflictWindow = Color(0xFF171A21)
+private val EpicCloudConflictPanel = Color(0xFF1B2838)
+private val EpicCloudConflictText = Color(0xFFD6D7D9)
+private val EpicCloudConflictBlue = Color(0xFF66C0F4)
+private val EpicPanelAlt = Color(0xFF101822)
+private val EpicBorder = Color(0xFF2A475E)
+private val EpicButton = Color(0xFF2A9FD6)
+private val EpicButtonText = Color(0xFFE5F3FF)
+private val EpicMuted = Color(0xFF8F98A0)
+
+data class EpicCloudConflictTimestamps(
     val localTimestampLabel: String,
     val cloudTimestampLabel: String,
 )
 
-internal val SteamCloudConflictWindow = Color(0xFF171A21)
-internal val SteamCloudConflictPanel = Color(0xFF1B2838)
-internal val SteamCloudConflictText = Color(0xFFD6D7D9)
-internal val SteamCloudConflictBlue = Color(0xFF66C0F4)
+object EpicCloudConflictDialog {
+    @JvmStatic
+    fun show(
+        activity: Activity,
+        timestamps: EpicCloudConflictTimestamps,
+        onUseCloud: (keepBackup: Boolean) -> Unit,
+        onUseLocal: () -> Unit,
+    ) {
+        val dialog =
+            Dialog(activity, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar).apply {
+                requestWindowFeature(Window.FEATURE_NO_TITLE)
+                setCancelable(false)
+                window?.apply {
+                    setLayout(
+                        WindowManager.LayoutParams.MATCH_PARENT,
+                        WindowManager.LayoutParams.WRAP_CONTENT,
+                    )
+                    setBackgroundDrawableResource(android.R.color.transparent)
+                }
+            }
 
-private val SteamPanelAlt = Color(0xFF101822)
-private val SteamBorder = Color(0xFF2A475E)
-private val SteamButton = Color(0xFF2A9FD6)
-private val SteamButtonText = Color(0xFFE5F3FF)
-private val SteamMuted = Color(0xFF8F98A0)
+        val composeView =
+            ComposeView(activity).apply {
+                layoutParams =
+                    ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                    )
+                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+                (activity as? ComponentActivity)?.let {
+                    setViewTreeLifecycleOwner(it)
+                    setViewTreeSavedStateRegistryOwner(it)
+                }
+                setContent {
+                    WinNativeTheme(
+                        colorScheme =
+                            darkColorScheme(
+                                primary = EpicCloudConflictBlue,
+                                surface = EpicCloudConflictPanel,
+                                background = EpicCloudConflictWindow,
+                                onSurface = EpicCloudConflictText,
+                                onBackground = EpicCloudConflictText,
+                            ),
+                    ) {
+                        EpicCloudConflictDialogContent(
+                            timestamps = timestamps,
+                            initialKeepBackup = GameSaveBackupManager.isKeepReplacedBackupEnabled(activity),
+                            onKeepBackupChanged = { enabled ->
+                                GameSaveBackupManager.setKeepReplacedBackupEnabled(activity, enabled)
+                            },
+                            onUseCloud = { keepBackup ->
+                                dialog.dismiss()
+                                onUseCloud(keepBackup)
+                            },
+                            onUseLocal = {
+                                dialog.dismiss()
+                                onUseLocal()
+                            },
+                        )
+                    }
+                }
+            }
+
+        dialog.setContentView(composeView)
+        dialog.show()
+        dialog.window?.apply {
+            val dm = activity.resources.displayMetrics
+            val horizontalMarginPx =
+                TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16f, dm).toInt()
+            val maxDialogWidthPx =
+                TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 520f, dm).toInt()
+            val targetWidth = (dm.widthPixels - (horizontalMarginPx * 2)).coerceAtMost(maxDialogWidthPx)
+            setLayout(targetWidth, WindowManager.LayoutParams.WRAP_CONTENT)
+        }
+    }
+}
 
 @Composable
-internal fun SteamCloudConflictDialogContent(
-    timestamps: SteamCloudConflictTimestamps,
+internal fun EpicCloudConflictDialogContent(
+    timestamps: EpicCloudConflictTimestamps,
     initialKeepBackup: Boolean,
     onKeepBackupChanged: (Boolean) -> Unit,
     onUseCloud: (keepBackup: Boolean) -> Unit,
-    onUseLocal: (keepBackup: Boolean) -> Unit,
+    onUseLocal: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
     var keepBackup by remember { mutableStateOf(initialKeepBackup) }
@@ -72,28 +160,27 @@ internal fun SteamCloudConflictDialogContent(
                 .padding(10.dp)
                 .widthIn(max = 520.dp),
         shape = RoundedCornerShape(3.dp),
-        color = SteamCloudConflictWindow,
-        border = BorderStroke(1.dp, SteamBorder),
+        color = EpicCloudConflictWindow,
+        border = BorderStroke(1.dp, EpicBorder),
         tonalElevation = 0.dp,
     ) {
         BoxWithConstraints {
             val compactActions = maxWidth < 380.dp
-
             Column(
                 modifier =
                     Modifier
-                        .background(SteamCloudConflictWindow)
+                        .background(EpicCloudConflictWindow)
                         .heightIn(max = 430.dp),
             ) {
                 Text(
-                    text = "Steam Cloud Sync Conflict",
+                    text = "Epic Cloud Sync Conflict",
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .background(SteamCloudConflictPanel)
-                            .border(BorderStroke(0.dp, SteamCloudConflictPanel))
+                            .background(EpicCloudConflictPanel)
+                            .border(BorderStroke(0.dp, EpicCloudConflictPanel))
                             .padding(horizontal = 14.dp, vertical = 9.dp),
-                    color = SteamCloudConflictBlue,
+                    color = EpicCloudConflictBlue,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -107,14 +194,14 @@ internal fun SteamCloudConflictDialogContent(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Text(
-                        text = "Your local save data does not match Steam Cloud.",
-                        color = SteamCloudConflictText,
+                        text = "Your local save data does not match Epic Games cloud saves.",
+                        color = EpicCloudConflictText,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        text = "Choose which version to use before launching. The other version will be replaced.",
-                        color = SteamMuted,
+                        text = "Choose whether to keep the saves on this device or replace them with the Epic Games cloud version before launching.",
+                        color = EpicMuted,
                         fontSize = 12.sp,
                         lineHeight = 16.sp,
                     )
@@ -123,16 +210,16 @@ internal fun SteamCloudConflictDialogContent(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .background(SteamPanelAlt)
-                                .border(1.dp, SteamBorder, RoundedCornerShape(2.dp))
+                                .background(EpicPanelAlt)
+                                .border(1.dp, EpicBorder, RoundedCornerShape(2.dp))
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        VersionLine("Local files", timestamps.localTimestampLabel)
-                        VersionLine("Cloud files", timestamps.cloudTimestampLabel)
+                        EpicVersionLine("Local saves", timestamps.localTimestampLabel)
+                        EpicVersionLine("Epic cloud saves", timestamps.cloudTimestampLabel)
                     }
 
-                    KeepBackupCheckbox(
+                    EpicKeepBackupCheckbox(
                         checked = keepBackup,
                         onCheckedChange = { v ->
                             keepBackup = v
@@ -146,14 +233,14 @@ internal fun SteamCloudConflictDialogContent(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .background(SteamCloudConflictPanel)
+                                .background(EpicCloudConflictPanel)
                                 .padding(10.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        SteamOutlinedButton("Use Local Files", Modifier.fillMaxWidth()) {
-                            onUseLocal(keepBackup)
+                        EpicOutlinedButton("Use Local Saves", Modifier.fillMaxWidth()) {
+                            onUseLocal()
                         }
-                        SteamPrimaryButton("Use Cloud Files", Modifier.fillMaxWidth()) {
+                        EpicPrimaryButton("Use Epic Cloud", Modifier.fillMaxWidth()) {
                             onUseCloud(keepBackup)
                         }
                     }
@@ -162,15 +249,15 @@ internal fun SteamCloudConflictDialogContent(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .background(SteamCloudConflictPanel)
+                                .background(EpicCloudConflictPanel)
                                 .padding(10.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Spacer(modifier = Modifier.weight(1f))
-                        SteamOutlinedButton("Use Local Files", Modifier.widthIn(min = 132.dp)) {
-                            onUseLocal(keepBackup)
+                        EpicOutlinedButton("Use Local Saves", Modifier.widthIn(min = 132.dp)) {
+                            onUseLocal()
                         }
-                        SteamPrimaryButton("Use Cloud Files", Modifier.widthIn(min = 132.dp)) {
+                        EpicPrimaryButton("Use Epic Cloud", Modifier.widthIn(min = 132.dp)) {
                             onUseCloud(keepBackup)
                         }
                     }
@@ -181,7 +268,7 @@ internal fun SteamCloudConflictDialogContent(
 }
 
 @Composable
-private fun VersionLine(
+private fun EpicVersionLine(
     label: String,
     timestamp: String,
 ) {
@@ -193,20 +280,20 @@ private fun VersionLine(
         Text(
             text = label,
             modifier = Modifier.widthIn(min = 86.dp),
-            color = SteamMuted,
+            color = EpicMuted,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
         )
         Text(
             text = timestamp,
-            color = SteamCloudConflictText,
+            color = EpicCloudConflictText,
             fontSize = 12.sp,
         )
     }
 }
 
 @Composable
-private fun SteamPrimaryButton(
+private fun EpicPrimaryButton(
     text: String,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
@@ -217,8 +304,8 @@ private fun SteamPrimaryButton(
         shape = RoundedCornerShape(2.dp),
         colors =
             ButtonDefaults.buttonColors(
-                containerColor = SteamButton,
-                contentColor = SteamButtonText,
+                containerColor = EpicButton,
+                contentColor = EpicButtonText,
             ),
         contentPadding = ButtonDefaults.ContentPadding,
     ) {
@@ -227,7 +314,7 @@ private fun SteamPrimaryButton(
 }
 
 @Composable
-private fun SteamOutlinedButton(
+private fun EpicOutlinedButton(
     text: String,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
@@ -238,10 +325,10 @@ private fun SteamOutlinedButton(
         shape = RoundedCornerShape(2.dp),
         colors =
             ButtonDefaults.outlinedButtonColors(
-                contentColor = SteamCloudConflictText,
+                contentColor = EpicCloudConflictText,
                 containerColor = Color.Transparent,
             ),
-        border = BorderStroke(1.dp, SteamBorder),
+        border = BorderStroke(1.dp, EpicBorder),
         contentPadding = ButtonDefaults.ContentPadding,
     ) {
         Text(text = text, fontSize = 12.sp, fontWeight = FontWeight.Medium)
@@ -249,7 +336,7 @@ private fun SteamOutlinedButton(
 }
 
 @Composable
-private fun KeepBackupCheckbox(
+private fun EpicKeepBackupCheckbox(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
@@ -259,8 +346,8 @@ private fun KeepBackupCheckbox(
                 .fillMaxWidth()
                 .clickable { onCheckedChange(!checked) },
         shape = RoundedCornerShape(2.dp),
-        color = SteamPanelAlt,
-        border = BorderStroke(1.dp, SteamBorder),
+        color = EpicPanelAlt,
+        border = BorderStroke(1.dp, EpicBorder),
     ) {
         Row(
             modifier =
@@ -274,22 +361,22 @@ private fun KeepBackupCheckbox(
                 onCheckedChange = onCheckedChange,
                 colors =
                     CheckboxDefaults.colors(
-                        checkedColor = SteamCloudConflictBlue,
-                        uncheckedColor = SteamMuted,
-                        checkmarkColor = SteamCloudConflictWindow,
+                        checkedColor = EpicCloudConflictBlue,
+                        uncheckedColor = EpicMuted,
+                        checkmarkColor = EpicCloudConflictWindow,
                     ),
             )
             Spacer(Modifier.widthIn(min = 2.dp))
             Column(modifier = Modifier.padding(start = 4.dp)) {
                 Text(
-                    text = stringResource(R.string.cloud_saves_keep_replaced_backup),
-                    color = SteamCloudConflictText,
+                    text = "Back up local saves before using cloud",
+                    color = EpicCloudConflictText,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                 )
                 Text(
-                    text = stringResource(R.string.cloud_saves_keep_replaced_backup_summary),
-                    color = SteamMuted,
+                    text = "Creates a Save History entry before Epic cloud saves replace local files.",
+                    color = EpicMuted,
                     fontSize = 11.sp,
                     lineHeight = 14.sp,
                 )

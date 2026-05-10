@@ -1,9 +1,7 @@
 package com.winlator.cmod.feature.sync
 import android.content.Context
 import com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager
-import com.winlator.cmod.feature.stores.gog.service.GOGCloudSavesManager
 import com.winlator.cmod.feature.stores.gog.service.GOGService
-import com.winlator.cmod.feature.steamcloudsync.CloudSyncConflictTimestamps
 import com.winlator.cmod.feature.steamcloudsync.SteamCloudSyncHelper
 import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
 import com.winlator.cmod.runtime.container.Shortcut
@@ -20,6 +18,11 @@ object CloudSyncHelper {
         if (timestampMs == null || timestampMs <= 0L) return "Unknown"
         return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(timestampMs))
     }
+
+    private fun File.hasAnyFile(): Boolean = exists() && walkTopDown().any { it.isFile }
+
+    private fun normalizeGogAppId(appId: String): String =
+        if (appId.startsWith("GOG_", ignoreCase = true)) appId else "GOG_$appId"
 
     @JvmStatic
     fun forceDownloadOnContainerSwap(
@@ -130,8 +133,17 @@ object CloudSyncHelper {
         val prefs = context.getSharedPreferences("cloud_sync_state", Context.MODE_PRIVATE)
         if (prefs.contains("synced_${gameSource}_$appId")) return true
 
-        return gameSource == "STEAM" &&
-            SteamCloudSyncHelper.hasActualLocalSaves(context, appId.toIntOrNull() ?: return false)
+        return runBlocking {
+            when (gameSource) {
+                "STEAM" -> SteamCloudSyncHelper.hasActualLocalSaves(context, appId.toIntOrNull() ?: return@runBlocking false)
+                "EPIC" -> {
+                    val epicAppId = appId.toIntOrNull() ?: return@runBlocking false
+                    EpicCloudSavesManager.getResolvedSaveDirectory(context, epicAppId)?.hasAnyFile() == true
+                }
+                "GOG" -> GOGService.hasActualLocalCloudSaves(context, normalizeGogAppId(appId))
+                else -> false
+            }
+        }
     }
 
     /**
@@ -157,8 +169,8 @@ object CloudSyncHelper {
      * - **Steam**: compares local vs remote change numbers (single metadata call).
      * - **Epic**: uses [EpicCloudSavesManager.needsSync] which evaluates the
      *   sync action without performing it.
-     * - **GOG**: defaults to `true` when local saves exist (no lightweight
-     *   probe available; user is safely prompted).
+     * - **GOG**: compares resolved local saves with the provider file list
+     *   without downloading or uploading files.
      *
      * @return `true` if cloud data differs from local (dialog should be shown),
      *         `false` if saves are in sync or if the check cannot be performed.
@@ -184,9 +196,10 @@ object CloudSyncHelper {
                         EpicCloudSavesManager.needsSync(context, appId)
                     }
 
-                    // GOG has no lightweight probe; default to prompting user
+                    // GOG probe fetches metadata only; it does not download or upload save files.
                     "GOG" -> {
-                        true
+                        val appId = shortcut.getExtra("app_id").ifEmpty { shortcut.getExtra("gog_id") }
+                        GOGService.cloudSavesDiffer(context, normalizeGogAppId(appId)) ?: true
                     }
 
                     else -> {
@@ -202,71 +215,62 @@ object CloudSyncHelper {
     }
 
     @JvmStatic
-    fun getConflictTimestamps(
+    fun getEpicConflictTimestamps(
         context: Context,
         shortcut: Shortcut,
-    ): CloudSyncConflictTimestamps =
+    ): EpicCloudConflictTimestamps =
         runBlocking {
             try {
-                when (shortcut.getExtra("game_source")) {
-                    "EPIC" -> {
-                        val appId = shortcut.getExtra("app_id").toIntOrNull()
-                        val saveDir = appId?.let { EpicCloudSavesManager.getResolvedSaveDirectory(context, it) }
-                        val localNewest =
-                            saveDir
-                                ?.takeIf { it.exists() }
-                                ?.walkTopDown()
-                                ?.filter { it.isFile }
-                                ?.maxOfOrNull(File::lastModified)
-                        // Must match the SharedPreferences name written by EpicCloudSavesManager.setSyncTimestamp.
-                        // Reading from "epic_games" silently always returned null and the conflict dialog
-                        // displayed "Unknown" for the cloud timestamp on every Epic prompt.
-                        val prefs = context.getSharedPreferences("epic_cloud_saves", Context.MODE_PRIVATE)
-                        val cloudTimestamp =
-                            prefs
-                                .getString("sync_timestamp_${appId ?: 0}", null)
-                                ?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
-                        CloudSyncConflictTimestamps(
-                            localTimestampLabel = formatTimestamp(localNewest),
-                            cloudTimestampLabel = formatTimestamp(cloudTimestamp),
-                        )
-                    }
-
-                    "GOG" -> {
-                        val appId = shortcut.getExtra("app_id").ifEmpty { shortcut.getExtra("gog_id") }
-                        val installPath = shortcut.getExtra("game_install_path")
-                        val localNewest =
-                            installPath
-                                .takeIf { it.isNotEmpty() }
-                                ?.let { File(it) }
-                                ?.takeIf { it.exists() }
-                                ?.walkTopDown()
-                                ?.filter { it.isFile }
-                                ?.maxOfOrNull(File::lastModified)
-                        val rawAppId = if (appId.startsWith("GOG_", ignoreCase = true)) appId else "GOG_$appId"
-                        val gogManager = GOGService.getInstance()?.gogManager
-                        val cloudTimestamp =
-                            gogManager
-                                ?.getCloudSaveSyncTimestamp(rawAppId, "default")
-                                ?.toLongOrNull()
-                                ?.times(1000)
-                        CloudSyncConflictTimestamps(
-                            localTimestampLabel = formatTimestamp(localNewest),
-                            cloudTimestampLabel = formatTimestamp(cloudTimestamp),
-                        )
-                    }
-
-                    "STEAM" -> {
-                        SteamCloudSyncHelper.getConflictTimestamps(context, shortcut)
-                    }
-
-                    else -> {
-                        CloudSyncConflictTimestamps("Unknown", "Unknown")
-                    }
-                }
+                val appId = shortcut.getExtra("app_id").toIntOrNull()
+                val saveDir = appId?.let { EpicCloudSavesManager.getResolvedSaveDirectory(context, it) }
+                val localNewest =
+                    saveDir
+                        ?.takeIf { it.exists() }
+                        ?.walkTopDown()
+                        ?.filter { it.isFile }
+                        ?.maxOfOrNull(File::lastModified)
+                // Must match the SharedPreferences name written by EpicCloudSavesManager.setSyncTimestamp.
+                // Reading from "epic_games" silently always returned null and the conflict dialog
+                // displayed "Unknown" for the cloud timestamp on every Epic prompt.
+                val prefs = context.getSharedPreferences("epic_cloud_saves", Context.MODE_PRIVATE)
+                val cloudTimestamp =
+                    prefs
+                        .getString("sync_timestamp_${appId ?: 0}", null)
+                        ?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
+                EpicCloudConflictTimestamps(
+                    localTimestampLabel = formatTimestamp(localNewest),
+                    cloudTimestampLabel = formatTimestamp(cloudTimestamp),
+                )
             } catch (e: Exception) {
-                Timber.e(e, "Failed to build cloud conflict timestamps for %s", shortcut.name)
-                CloudSyncConflictTimestamps("Unknown", "Unknown")
+                Timber.e(e, "Failed to build Epic cloud conflict timestamps for %s", shortcut.name)
+                EpicCloudConflictTimestamps("Unknown", "Unknown")
+            }
+        }
+
+    @JvmStatic
+    fun getGogConflictTimestamps(
+        context: Context,
+        shortcut: Shortcut,
+    ): GogCloudConflictTimestamps =
+        runBlocking {
+            try {
+                val appId = shortcut.getExtra("app_id").ifEmpty { shortcut.getExtra("gog_id") }
+                val localNewest =
+                    GOGService
+                        .getResolvedSaveDirectories(context, normalizeGogAppId(appId))
+                        .asSequence()
+                        .filter { it.exists() }
+                        .flatMap { it.walkTopDown().asSequence() }
+                        .filter { it.isFile }
+                        .maxOfOrNull(File::lastModified)
+                val cloudTimestamp = GOGService.getNewestCloudSaveSyncTimestamp(context, normalizeGogAppId(appId))
+                GogCloudConflictTimestamps(
+                    localTimestampLabel = formatTimestamp(localNewest),
+                    cloudTimestampLabel = formatTimestamp(cloudTimestamp),
+                )
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to build GOG cloud conflict timestamps for %s", shortcut.name)
+                GogCloudConflictTimestamps("Unknown", "Unknown")
             }
         }
 
@@ -298,6 +302,62 @@ object CloudSyncHelper {
             result,
         )
         return result
+    }
+
+    /**
+     * Uploads the current local save files to the store cloud and records a sync marker.
+     */
+    @JvmStatic
+    fun uploadCloudSaves(
+        context: Context,
+        shortcut: Shortcut,
+    ): Boolean {
+        val result =
+            runBlocking {
+                when (shortcut.getExtra("game_source")) {
+                    "STEAM" -> false
+                    "GOG" -> uploadGogCloudSaves(context, shortcut)
+                    "EPIC" -> uploadEpicCloudSaves(context, shortcut)
+                    else -> false
+                }
+            }
+        if (result) {
+            markCloudSaveSynced(context, shortcut)
+        }
+        Timber.i(
+            "Cloud save upload for %s (source=%s): %s",
+            shortcut.name,
+            shortcut.getExtra("game_source"),
+            result,
+        )
+        return result
+    }
+
+    private suspend fun uploadGogCloudSaves(
+        context: Context,
+        shortcut: Shortcut,
+    ): Boolean {
+        val rawAppId = shortcut.getExtra("app_id").ifEmpty { shortcut.getExtra("gog_id") }
+        if (rawAppId.isEmpty()) return false
+        return try {
+            GOGService.syncCloudSaves(context, normalizeGogAppId(rawAppId), "upload")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to upload GOG cloud saves for appId=%s", rawAppId)
+            false
+        }
+    }
+
+    private suspend fun uploadEpicCloudSaves(
+        context: Context,
+        shortcut: Shortcut,
+    ): Boolean {
+        val appId = shortcut.getExtra("app_id").toIntOrNull() ?: return false
+        return try {
+            EpicCloudSavesManager.syncCloudSaves(context, appId, "upload")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to upload Epic cloud saves for appId=%d", appId)
+            false
+        }
     }
 
     /**

@@ -1,4 +1,5 @@
 package com.winlator.cmod.feature.steamcloudsync
+
 import android.app.Activity
 import android.app.Dialog
 import android.util.TypedValue
@@ -14,26 +15,13 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
 import com.winlator.cmod.shared.theme.WinNativeTheme
 
-data class CloudSyncConflictTimestamps(
-    val localTimestampLabel: String,
-    val cloudTimestampLabel: String,
-)
-
-/**
- * Callback for the cloud-save conflict dialog. [keepBackup] reflects whether the
- * user wanted the replaced side archived into Save History before the overwrite.
- */
-fun interface CloudSyncConflictChoice {
-    fun onChoice(keepBackup: Boolean)
-}
-
-object CloudSyncConflictDialog {
+object SteamCloudConflictDialog {
     @JvmStatic
     fun show(
         activity: Activity,
-        timestamps: CloudSyncConflictTimestamps,
-        onUseCloud: CloudSyncConflictChoice,
-        onUseLocal: CloudSyncConflictChoice,
+        timestamps: SteamCloudConflictTimestamps,
+        onUseCloud: (keepBackup: Boolean) -> Unit,
+        onUseLocal: (keepBackup: Boolean) -> Unit,
     ) {
         val dialog =
             Dialog(activity, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar).apply {
@@ -79,11 +67,11 @@ object CloudSyncConflictDialog {
                             },
                             onUseCloud = { keepBackup ->
                                 dialog.dismiss()
-                                onUseCloud.onChoice(keepBackup)
+                                onUseCloud(keepBackup)
                             },
                             onUseLocal = { keepBackup ->
                                 dialog.dismiss()
-                                onUseLocal.onChoice(keepBackup)
+                                onUseLocal(keepBackup)
                             },
                         )
                     }

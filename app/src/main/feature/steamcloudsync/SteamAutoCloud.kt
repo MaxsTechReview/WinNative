@@ -405,32 +405,20 @@ object SteamAutoCloud {
             }
 
             val getFilesDiff: (List<UserFileInfo>, List<UserFileInfo>) -> Pair<Boolean, FileChanges> = { currentFiles, oldFiles ->
-                val overlappingFiles =
-                    currentFiles.filter { currentFile ->
-                        oldFiles.any { currentFile.prefixPath == it.prefixPath }
-                    }
+                // Index by prefixPath so each diff bucket costs O(N+M) lookups instead of
+                // O(N*M) — the two-list scan blew up sync time on games with hundreds of
+                // mod or screenshot files.
+                val oldByPath = oldFiles.associateBy { it.prefixPath }
+                val currentByPath = currentFiles.associateBy { it.prefixPath }
 
-                val newFiles =
-                    currentFiles.filter { currentFile ->
-                        !oldFiles.any { currentFile.prefixPath == it.prefixPath }
-                    }
-
-                val deletedFiles =
-                    oldFiles.filter { oldFile ->
-                        !currentFiles.any { oldFile.prefixPath == it.prefixPath }
-                    }
-
+                val newFiles = currentFiles.filter { it.prefixPath !in oldByPath }
+                val deletedFiles = oldFiles.filter { it.prefixPath !in currentByPath }
                 val modifiedFiles =
-                    overlappingFiles.filter { file ->
-                        oldFiles
-                            .first {
-                                it.prefixPath == file.prefixPath
-                            }.let {
-                                Timber.i("Comparing SHA of ${it.prefixPath} and ${file.prefixPath}")
-                                Timber.i("[${it.sha.joinToString(", ")}]\n[${file.sha.joinToString(", ")}]")
-
-                                !it.sha.contentEquals(file.sha)
-                            }
+                    currentFiles.mapNotNull { current ->
+                        val old = oldByPath[current.prefixPath] ?: return@mapNotNull null
+                        Timber.i("Comparing SHA of ${old.prefixPath} and ${current.prefixPath}")
+                        Timber.i("[${old.sha.joinToString(", ")}]\n[${current.sha.joinToString(", ")}]")
+                        current.takeUnless { old.sha.contentEquals(current.sha) }
                     }
 
                 val changesExist = newFiles.isNotEmpty() || deletedFiles.isNotEmpty() || modifiedFiles.isNotEmpty()
@@ -440,6 +428,11 @@ object SteamAutoCloud {
 
             val hasHashConflicts: (Map<String, List<UserFileInfo>>, AppFileChangeList) -> Boolean =
                 { localUserFiles, fileList ->
+                    // Build a per-prefix filename index once instead of scanning the
+                    // whole list for every remote file.
+                    val localByPrefixAndName: Map<String, Map<String, UserFileInfo>> =
+                        localUserFiles.mapValues { (_, files) -> files.associateBy { it.filename } }
+
                     fileList.files.any { file ->
                         val remotePath = getFileRemotePath(file, fileList)
                         if (!remotePath.root.isSupportedSteamCloudRoot) {
@@ -453,21 +446,14 @@ object SteamAutoCloud {
                             } else {
                                 file.filename
                             }
-                        Timber.i("Checking for " + "${getFilePrefix(file, fileList)} in ${localUserFiles.keys}")
+                        val prefix = getFilePrefix(file, fileList)
+                        Timber.i("Checking for $prefix in ${localUserFiles.keys}")
 
-                        localUserFiles[getFilePrefix(file, fileList)]?.let { localUserFile ->
-                            localUserFile
-                                .firstOrNull {
-                                    Timber.i("Comparing $remoteFilename and ${it.filename}")
+                        val localMatch = localByPrefixAndName[prefix]?.get(remoteFilename) ?: return@any false
+                        Timber.i("Comparing SHA of ${getFilePrefixPath(file, fileList)} and ${localMatch.prefixPath}")
+                        Timber.i("[${file.shaFile.joinToString(", ")}]\n[${localMatch.sha.joinToString(", ")}]")
 
-                                    it.filename == remoteFilename
-                                }?.let {
-                                    Timber.i("Comparing SHA of ${getFilePrefixPath(file, fileList)} and ${it.prefixPath}")
-                                    Timber.i("[${file.shaFile.joinToString(", ")}]\n[${it.sha.joinToString(", ")}]")
-
-                                    !file.shaFile.contentEquals(it.sha)
-                                }
-                        } == true
+                        !file.shaFile.contentEquals(localMatch.sha)
                     }
                 }
 

@@ -4206,6 +4206,39 @@ class SteamService :
                 }
             }
 
+        data class CloudConflictSnapshot(
+            val differs: Boolean,
+            val newestRemoteTimestamp: Long?,
+        )
+
+        /**
+         * Single-round-trip variant for the launch-time conflict prompt: returns both
+         * "does the cloud differ from local?" and the newest remote timestamp from
+         * the same `getAppFileListChange` response. Avoids 2-3 separate Steam round-trips
+         * when the dialog is about to be shown.
+         */
+        suspend fun fetchCloudConflictSnapshot(appId: Int): CloudConflictSnapshot? =
+            withContext(Dispatchers.IO) {
+                val steamInstance = instance ?: return@withContext null
+                val steamCloud = steamInstance._steamCloud ?: return@withContext null
+                val localCN = steamInstance.changeNumbersDao.getByAppId(appId)?.changeNumber
+                try {
+                    // Request the full file list so the timestamp scan covers everything,
+                    // not just the delta from localCN.
+                    val response = steamCloud.getAppFileListChange(appId, 0L).await()
+                    val differs = localCN == null || response.currentChangeNumber != localCN
+                    val newest =
+                        response.files
+                            .filter { it.persistState == ECloudStoragePersistState.k_ECloudStoragePersistStatePersisted }
+                            .mapNotNull { it.timestamp?.time?.takeIf { ts -> ts > 0L } }
+                            .maxOrNull()
+                    CloudConflictSnapshot(differs, newest)
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to fetch Steam cloud conflict snapshot for appId=$appId")
+                    null
+                }
+            }
+
         suspend fun forceSyncUserFiles(
             appId: Int,
             prefixToPath: (String) -> String,

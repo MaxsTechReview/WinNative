@@ -97,12 +97,7 @@ object SteamCloudSyncHelper {
         val prefixToPath = steamPrefixResolver(context, appId)
 
         val userDataPath = Paths.get(prefixToPath(PathType.SteamUserData.name))
-        val userDataStream = FileUtils.findFilesRecursive(userDataPath, "*", maxDepth = 5)
-        try {
-            if (userDataStream.findAny().isPresent) return true
-        } finally {
-            userDataStream.close()
-        }
+        if (FileUtils.anyFileMatches(userDataPath, "*", maxDepth = 5)) return true
 
         val savePatterns =
             appInfo.ufs.saveFilePatterns
@@ -110,17 +105,11 @@ object SteamCloudSyncHelper {
 
         return savePatterns.any { pattern ->
             val basePath = Paths.get(prefixToPath(pattern.root.name), pattern.substitutedPath)
-            val stream =
-                FileUtils.findFilesRecursive(
-                    rootPath = basePath,
-                    pattern = pattern.pattern,
-                    maxDepth = if (pattern.recursive != 0) -1 else 0,
-                )
-            try {
-                stream.findAny().isPresent
-            } finally {
-                stream.close()
-            }
+            FileUtils.anyFileMatches(
+                rootPath = basePath,
+                pattern = pattern.pattern,
+                maxDepth = if (pattern.recursive != 0) -1 else 0,
+            )
         }
     }
 
@@ -193,11 +182,57 @@ object SteamCloudSyncHelper {
         }
     }
 
+    /**
+     * Holds both the diff result and the newest remote timestamp from a single
+     * `getAppFileListChange` call so the launch-time prompt doesn't need to
+     * round-trip Steam separately for each.
+     */
+    data class CloudConflictProbe(
+        val differs: Boolean,
+        val timestamps: SteamCloudConflictTimestamps,
+    )
+
+    @JvmStatic
+    fun probeCloudConflict(
+        context: Context,
+        shortcut: Shortcut,
+    ): CloudConflictProbe {
+        val appId = shortcut.getExtra("app_id").toIntOrNull()
+        if (appId == null || !hasLocalCloudSaves(context, shortcut)) {
+            return CloudConflictProbe(
+                differs = false,
+                timestamps = SteamCloudConflictTimestamps("Unknown", "Unknown"),
+            )
+        }
+        return runBlocking {
+            try {
+                val snapshot = SteamService.fetchCloudConflictSnapshot(appId)
+                val localActual = getNewestActualLocalCloudSaveTimestamp(context, appId)
+                val localTracked =
+                    SteamService.getTrackedCloudSaveFiles(appId)?.maxOfOrNull { it.timestamp }
+                CloudConflictProbe(
+                    differs = snapshot?.differs ?: true,
+                    timestamps =
+                        SteamCloudConflictTimestamps(
+                            localTimestampLabel = formatTimestamp(localActual ?: localTracked),
+                            cloudTimestampLabel = formatTimestamp(snapshot?.newestRemoteTimestamp),
+                        ),
+                )
+            } catch (e: Exception) {
+                Timber.e(e, "Steam cloud conflict probe failed for %s", shortcut.name)
+                CloudConflictProbe(
+                    differs = true,
+                    timestamps = SteamCloudConflictTimestamps("Unknown", "Unknown"),
+                )
+            }
+        }
+    }
+
     @JvmStatic
     fun getConflictTimestamps(
         context: Context,
         shortcut: Shortcut,
-    ): CloudSyncConflictTimestamps {
+    ): SteamCloudConflictTimestamps {
         val appId = shortcut.getExtra("app_id").toIntOrNull()
         return runBlocking {
             try {
@@ -209,13 +244,13 @@ object SteamCloudSyncHelper {
                 val remoteNewest =
                     appId
                         ?.let { SteamService.getNewestRemoteCloudSaveTimestamp(it) }
-                CloudSyncConflictTimestamps(
+                SteamCloudConflictTimestamps(
                     localTimestampLabel = formatTimestamp(localActual ?: localTracked),
                     cloudTimestampLabel = formatTimestamp(remoteNewest),
                 )
             } catch (e: Exception) {
                 Timber.e(e, "Failed to build Steam cloud conflict timestamps for %s", shortcut.name)
-                CloudSyncConflictTimestamps("Unknown", "Unknown")
+                SteamCloudConflictTimestamps("Unknown", "Unknown")
             }
         }
     }
