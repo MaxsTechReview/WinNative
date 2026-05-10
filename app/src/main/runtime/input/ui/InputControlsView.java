@@ -147,6 +147,7 @@ public class InputControlsView extends View {
 
   public void setEditMode(boolean editMode) {
     this.editMode = editMode;
+    invalidate();
   }
 
   public boolean isEditMode() {
@@ -155,6 +156,7 @@ public class InputControlsView extends View {
 
   public void setOverlayOpacity(float overlayOpacity) {
     this.overlayOpacity = overlayOpacity;
+    invalidate();
   }
 
   public float getOverlayOpacity() {
@@ -344,6 +346,7 @@ public class InputControlsView extends View {
       deselectAllElements();
     } else this.profile = null;
     activeTouchElements.clear();
+    invalidate();
   }
 
   public boolean isShowTouchscreenControls() {

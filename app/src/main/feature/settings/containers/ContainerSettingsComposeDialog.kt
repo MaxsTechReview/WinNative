@@ -480,6 +480,10 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             state.selectedDxWrapper
         )
 
+        val surfaceEffectArr = context.resources.getStringArray(R.array.surface_effect_entries).toList()
+        state.surfaceEffectEntries.value = surfaceEffectArr
+        state.selectedSurfaceEffect.intValue = if (c?.getExtra("swapRB", "0") == "1") 1 else 0
+
         val audioDriverArr = context.resources.getStringArray(R.array.audio_driver_entries).toList()
         state.audioDriverEntries.value = audioDriverArr
         selectByIdentifier(
@@ -747,6 +751,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.setGraphicsDriverConfig(graphicsDriverConfig)
             c.setDXWrapper(dxwrapper)
             c.setDXWrapperConfig(dxwrapperConfig)
+            c.putExtra("swapRB", if (state.selectedSurfaceEffect.intValue == 1) "1" else "0")
             c.setAudioDriver(audioDriver)
             c.setEmulator(emulator)
             c.setEmulator64(emulator64)
@@ -794,6 +799,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 data.put("fexcoreVersion", fexcoreVersion)
                 data.put("fexcorePreset", fexcorePreset)
                 data.put("desktopTheme", desktopTheme)
+                data.put("swapRB", if (state.selectedSurfaceEffect.intValue == 1) "1" else "0")
                 data.put("wineVersion", selectedWineStr)
                 data.put("midiSoundFont", midiSoundFont)
                 data.put("lc_all", state.lcAll.value)
