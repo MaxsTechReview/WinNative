@@ -1,5 +1,10 @@
 package com.winlator.cmod.app.shell
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.os.Build
+import android.view.WindowManager
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
@@ -47,6 +52,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -108,6 +114,8 @@ internal fun LibraryGameLaunchScreen(
 ) {
     val context = LocalContext.current
     var uninstallMenuOpen by remember { mutableStateOf(false) }
+
+    LaunchScreenCutoutMode()
 
     Box(Modifier.fillMaxSize()) {
         val edgePadding = 22.dp
@@ -390,6 +398,42 @@ internal fun LibraryGameLaunchScreen(
         }
     }
 }
+
+@Composable
+private fun LaunchScreenCutoutMode() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+        return
+    }
+
+    val context = LocalContext.current
+    DisposableEffect(context) {
+        val window = context.findActivity()?.window
+        if (window == null) {
+            onDispose { }
+        } else {
+            val originalMode = window.attributes.layoutInDisplayCutoutMode
+            window.attributes =
+                window.attributes.apply {
+                    layoutInDisplayCutoutMode =
+                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+
+            onDispose {
+                window.attributes =
+                    window.attributes.apply {
+                        layoutInDisplayCutoutMode = originalMode
+                    }
+            }
+        }
+    }
+}
+
+private tailrec fun Context.findActivity(): Activity? =
+    when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findActivity()
+        else -> null
+    }
 
 @Composable
 private fun LaunchUninstallMenu(
