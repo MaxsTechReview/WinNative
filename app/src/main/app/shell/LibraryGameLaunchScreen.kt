@@ -1,8 +1,5 @@
 package com.winlator.cmod.app.shell
 
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
 import android.os.Build
 import android.view.WindowManager
 import androidx.compose.animation.core.animateFloatAsState
@@ -399,59 +396,41 @@ internal fun LibraryGameLaunchScreen(
 
 @Composable
 private fun LaunchScreenCutoutMode() {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-        return
-    }
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
 
-    val context = LocalContext.current
     val view = LocalView.current
-    DisposableEffect(context, view) {
-        val dialogWindow = (view.parent as? DialogWindowProvider)?.window
-        val window = dialogWindow ?: context.findActivity()?.window
-        if (window == null) {
-            onDispose { }
-        } else {
-            val originalMode = window.attributes.layoutInDisplayCutoutMode
-            val originalWidth = window.attributes.width
-            val originalHeight = window.attributes.height
-            WindowCompat.setDecorFitsSystemWindows(window, false)
-            if (dialogWindow != null) {
-                window.setLayout(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                )
-            }
-            window.attributes =
-                window.attributes.apply {
-                    layoutInDisplayCutoutMode = launchScreenCutoutMode()
-                }
+    DisposableEffect(view) {
+        val window = (view.parent as? DialogWindowProvider)?.window
+            ?: return@DisposableEffect onDispose { }
 
-            onDispose {
-                window.attributes =
-                    window.attributes.apply {
-                        layoutInDisplayCutoutMode = originalMode
-                    }
-                if (dialogWindow != null) {
-                    WindowCompat.setDecorFitsSystemWindows(window, true)
-                    window.setLayout(originalWidth, originalHeight)
-                }
+        val originalCutoutMode = window.attributes.layoutInDisplayCutoutMode
+        val originalWidth = window.attributes.width
+        val originalHeight = window.attributes.height
+
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.setLayout(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+        )
+        window.attributes = window.attributes.apply {
+            layoutInDisplayCutoutMode = launchScreenCutoutMode()
+        }
+
+        onDispose {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode = originalCutoutMode
             }
+            WindowCompat.setDecorFitsSystemWindows(window, true)
+            window.setLayout(originalWidth, originalHeight)
         }
     }
 }
 
 private fun launchScreenCutoutMode(): Int =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
         WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
     } else {
         WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-    }
-
-private tailrec fun Context.findActivity(): Activity? =
-    when (this) {
-        is Activity -> this
-        is ContextWrapper -> baseContext.findActivity()
-        else -> null
     }
 
 @Composable
