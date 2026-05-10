@@ -56,6 +56,7 @@ public class GLRenderer
   private static final float MAGNIFIER_DEADZONE_FRACTION = 0.6f;
   public int surfaceWidth;
   public int surfaceHeight;
+  public boolean swapRB = false;
   private boolean cpuSaverMode = false;
   private static final int MAX_FPS_LIMIT = 1000;
   public static final long FPS_LIMIT_SPIN_THRESHOLD_NS = 2_000_000L;
@@ -279,6 +280,7 @@ public class GLRenderer
         windowMaterial.getUniformLocation("viewSize"),
         xServer.screenInfo.width,
         xServer.screenInfo.height);
+    windowMaterial.setUniformInt("swapRB", swapRB ? 1 : 0);
     quadVertices.bind(windowMaterial.programId);
 
     try (XLock lock = xServer.lock(XServer.Lockable.DRAWABLE_MANAGER)) {
@@ -640,6 +642,7 @@ public class GLRenderer
           windowMaterial.getUniformLocation("viewSize"),
           xServer.screenInfo.width,
           xServer.screenInfo.height);
+      windowMaterial.setUniformInt("swapRB", swapRB ? 1 : 0);
       quadVertices.bind(windowMaterial.programId);
       renderDrawable(
           directCandidate.content, directCandidate.rootX, directCandidate.rootY, windowMaterial);

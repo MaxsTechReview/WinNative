@@ -61,6 +61,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -94,7 +95,9 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.scale
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import com.winlator.cmod.shared.ui.widget.EnvVarsView
 import com.winlator.cmod.shared.ui.widget.chasingBorder
 import kotlin.math.roundToInt
@@ -216,6 +219,8 @@ class GameSettingsStateHolder {
     val graphicsDriverVersion = mutableStateOf("")
     val dxWrapperEntries = mutableStateOf<List<String>>(emptyList())
     val selectedDxWrapper = mutableIntStateOf(0)
+    val surfaceEffectEntries = mutableStateOf<List<String>>(emptyList())
+    val selectedSurfaceEffect = mutableIntStateOf(0)
 
     // Graphics Driver Configuration (inline card)
     val gfxConfigExpanded = mutableStateOf(false)
@@ -1156,6 +1161,15 @@ private fun DisplaySection(
             entries = state.graphicsDriverEntries.value,
             selectedIndex = state.selectedGraphicsDriver.intValue,
             onSelected = { state.selectedGraphicsDriver.intValue = it }
+        )
+
+        Spacer(Modifier.height(SettingSectionGap))
+
+        SettingDropdown(
+            label = stringResource(R.string.container_surface_effect),
+            entries = state.surfaceEffectEntries.value,
+            selectedIndex = state.selectedSurfaceEffect.intValue,
+            onSelected = { state.selectedSurfaceEffect.intValue = it }
         )
 
         Spacer(Modifier.height(SettingSectionGap))
@@ -2161,6 +2175,47 @@ private fun ComponentsSection(
 private fun findKnownEnvVar(name: String): Array<String>? =
     EnvVarsView.knownEnvVars.firstOrNull { it[0] == name }
 
+// WINEESYNC and WINENTSYNC cannot both be enabled. When the user turns one on,
+// flip the other off if it is currently on. If both are set to off (0),
+// default WINEESYNC to on (1) as the fallback.
+private fun applyExclusiveSync(
+    list: MutableList<EnvVarItem>,
+    changedKey: String,
+    newValue: String
+) {
+    if (changedKey != "WINEESYNC" && changedKey != "WINENTSYNC") return
+
+    val isOnNow = newValue == "1" || newValue.equals("true", ignoreCase = true)
+    val sibling = if (changedKey == "WINEESYNC") "WINENTSYNC" else "WINEESYNC"
+    val sIdx = list.indexOfFirst { it.key == sibling }
+
+    if (isOnNow) {
+        // If turning ON, turn OFF the sibling
+        if (sIdx >= 0) {
+            list[sIdx] = EnvVarItem(sibling, "0")
+        }
+    } else {
+        // If turning OFF, check if both are now OFF
+        val siblingIsOn = if (sIdx >= 0) {
+            val sValue = list[sIdx].value
+            sValue == "1" || sValue.equals("true", ignoreCase = true)
+        } else false
+
+        if (!siblingIsOn) {
+            // Both are OFF -> default ESYNC to ON
+            val eIdx = list.indexOfFirst { it.key == "WINEESYNC" }
+            if (eIdx >= 0) {
+                list[eIdx] = EnvVarItem("WINEESYNC", "1")
+            } else {
+                list.add(EnvVarItem("WINEESYNC", "1"))
+            }
+            // If the sibling was NTSYNC and we just added/updated ESYNC, ensure NTSYNC is definitely OFF
+            val nIdx = list.indexOfFirst { it.key == "WINENTSYNC" }
+            if (nIdx >= 0) list[nIdx] = EnvVarItem("WINENTSYNC", "0")
+        }
+    }
+}
+
 @Composable
 private fun VariablesSection(
     state: GameSettingsStateHolder,
@@ -2168,6 +2223,26 @@ private fun VariablesSection(
 ) {
     val isContainer = state.isContainerEditMode.value
     val hasDraftEnvVar = state.envVars.value.any { it.key.isBlank() }
+
+    // Ensure the required toggles exist upon entering the variables section
+    LaunchedEffect(Unit) {
+        val current = state.envVars.value.toMutableList()
+        var changed = false
+        if (current.none { it.key == "WINEESYNC" }) {
+            current.add(EnvVarItem("WINEESYNC", "1"))
+            changed = true
+        }
+        if (current.none { it.key == "WINENTSYNC" }) {
+            current.add(EnvVarItem("WINENTSYNC", "0"))
+            changed = true
+        }
+        if (changed) {
+            // Run exclusivity check to handle cases where both might have been added at once
+            val esyncValue = current.find { it.key == "WINEESYNC" }?.value ?: "1"
+            applyExclusiveSync(current, "WINEESYNC", esyncValue)
+            state.envVars.value = current
+        }
+    }
 
     if (isContainer) {
         SubsectionLabel(stringResource(R.string.container_config_variables))
@@ -2208,12 +2283,14 @@ private fun VariablesSection(
                             state.envVars.value.none { it.key == normalizedKey }
                         if (index in list.indices && isUnique) {
                             list[index] = EnvVarItem(normalizedKey, envVar.value)
+                            applyExclusiveSync(list, normalizedKey, envVar.value)
                             state.envVars.value = list
                         }
                     },
                     onValueChange = { v ->
                         val list = state.envVars.value.toMutableList()
                         list[index] = EnvVarItem(envVar.key, v)
+                        applyExclusiveSync(list, envVar.key, v)
                         state.envVars.value = list
                     },
                     onRemove = { callbacks.onRemoveEnvVar(index) }
@@ -2638,12 +2715,21 @@ private fun EnvVarValueEditor(
         "CHECKBOX" -> {
             val off = known!![2]
             val on = known[3]
-            val isOn = value == on || value == "1" || value == "true"
-            EnvValueDropdown(
-                current = if (isOn) on else off,
-                options = listOf(off, on),
-                onSelected = onValueChange
-            )
+            val isOn = value == on || value == "1" || value.equals("true", ignoreCase = true)
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Switch(
+                    checked = isOn,
+                    onCheckedChange = { onValueChange(if (it) on else off) },
+                    modifier = Modifier.scale(0.78f),
+                    colors = outlinedSwitchColors(
+                        accentColor = AccentBlue,
+                        textSecondaryColor = TextSecondary
+                    )
+                )
+            }
         }
         "SELECT" -> {
             val options = known!!.drop(2)
