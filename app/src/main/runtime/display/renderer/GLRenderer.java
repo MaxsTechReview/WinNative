@@ -67,6 +67,54 @@ public class GLRenderer
 
   private final EffectComposer effectComposer;
 
+  /**
+   * Phase 2.3: when non-null and the current frame qualifies as a fullscreen
+   * direct-scanout candidate, the AHardwareBuffer backing that drawable is
+   * pushed to this layer in addition to (Phase 2.3) or instead of (Phase
+   * 2.5+) the GL composition. Set/cleared by the activity from the UI thread
+   * via {@link #setDirectCompositionTarget(com.winlator.cmod.runtime.display.composition.DirectCompositionLayer)};
+   * read here on the GLThread, hence volatile.
+   *
+   * <p><b>Cross-thread safety</b> doesn't come from the volatile alone — the
+   * volatile only suppresses NEW frames from entering the SC push after the
+   * UI thread writes null. In-flight frames already past that read are
+   * protected by the layer's own {@code synchronized} methods: when the UI
+   * thread's {@code release()} executes, it serializes on the same monitor
+   * as {@code pushBuffer}, then zeroes the native pointer. A
+   * {@code pushBuffer} that won the race sees the live SC; a later one sees
+   * {@code nativeSc == 0} and short-circuits in JNI.
+   */
+  private volatile com.winlator.cmod.runtime.display.composition.DirectCompositionLayer
+          directCompositionTarget;
+
+  /**
+   * Last AHardwareBuffer pointer + geometry pushed to {@code directCompositionTarget}.
+   * Per-frame `pushBuffer` calls allocate a SurfaceFlinger transaction, which
+   * is wasted work when neither the buffer pointer nor the destination geometry
+   * has changed since the previous frame. DRI3 in this project allocates a
+   * fresh GPUImage per Present cycle, so AHB-pointer identity is a sufficient
+   * "dirty" check; if a future codepath recycles AHBs in place this cache
+   * misses harmlessly (correctness preserved, just reverts to per-frame push).
+   * GLThread-only — no synchronization needed.
+   */
+  private long dcLastPushedAhb = 0L;
+  private int dcLastPushedW = 0;
+  private int dcLastPushedH = 0;
+
+  /** Consecutive {@code pushBuffer == false} returns. After enough failures
+   *  the renderer detaches itself from the SC layer to avoid wasting JNI
+   *  calls every frame on a permanent failure (e.g. SC was reparented away).
+   *  GLThread-only. */
+  private int dcConsecutiveFailures = 0;
+  private static final int DC_FAIL_LIMIT = 8;
+
+  /** Phase 2.5 — true when the most recent frame successfully pushed an AHB
+   *  to the SurfaceControl, so the SC layer is currently visible and showing
+   *  game content. Used to (a) skip the GL render of the direct candidate
+   *  for the perf win, (b) detect transitions to the windowed/multi-drawable
+   *  case so we can hide the SC layer cleanly. GLThread-only. */
+  private boolean dcLayerActive = false;
+
   public GLRenderer(XServerView xServerView, XServer xServer) {
     this.xServerView = xServerView;
     this.xServer = xServer;
@@ -595,6 +643,23 @@ public class GLRenderer
     }
 
     if (isDirect) {
+      // Phase 2.3/2.5 — Direct Composition push + GL skip.
+      //
+      // When the activity has wired up a SurfaceControl target AND the
+      // candidate's scanoutSource is a GPUImage (AHardwareBuffer-backed),
+      // hand the buffer directly to the SC layer. If the push succeeded
+      // (or the cache hit), the SC layer at z=1 covers the SurfaceView's
+      // primary BufferQueue at z=0, so we can SKIP the GL render of the
+      // direct candidate entirely — that's the actual perf win this whole
+      // path is for. The GL clear + cursor render still run so the
+      // fallback for the next non-eligible frame is a clean state.
+      //
+      // If the push failed (returned false), we keep the GL render as
+      // defence in depth — the SC layer was hidden by maybePushDirectComposition's
+      // fail-out path, so the GL composition is what the user sees.
+      boolean dcOwnsFrame = maybePushDirectComposition(directCandidate);
+      dcLayerActive = dcOwnsFrame;
+
       if (viewportNeedsUpdate) {
         if (fullscreen) {
           GLES20.glViewport(0, 0, surfaceWidth, surfaceHeight);
@@ -644,6 +709,29 @@ public class GLRenderer
           xServer.screenInfo.height);
       windowMaterial.setUniformInt("swapRB", swapRB ? 1 : 0);
       quadVertices.bind(windowMaterial.programId);
+      // Phase 3.3 (replaces 2.5's GL-skip): always render the GL
+      // composition, even when the SurfaceControl layer is showing the
+      // same content. Reasoning:
+      //
+      //  * The actual Direct Composition perf win is HWC promoting the SC
+      //    layer to a DPU overlay plane (zero GPU compositing cost) —
+      //    NOT the GLThread skipping its draw. The GL work was already
+      //    happening pre-DC and the GPU handles it without measurable
+      //    impact on frame time.
+      //  * Skipping the GL render produced a black GLSurfaceView backing
+      //    buffer underneath the SC layer. On any direct→fallback
+      //    transition where SF applied the SC-hide before the next GL
+      //    composition (one-frame async race), the user briefly saw the
+      //    black backbuffer — visible flicker.
+      //  * Always-render keeps the GL backbuffer in lockstep with the SC
+      //    content, so a stale-frame reveal is never possible: whatever
+      //    SF reveals when SC hides is the same frame the user is
+      //    already seeing through SC.
+      //
+      // Cost: one extra SF transaction per frame plus the GL composition
+      // (which was already paid pre-DC). The transaction is microseconds;
+      // the GL composition is offloaded to Adreno and runs concurrently
+      // with HWC's DPU plane composition.
       renderDrawable(
           directCandidate.content, directCandidate.rootX, directCandidate.rootY, windowMaterial);
 
@@ -659,7 +747,11 @@ public class GLRenderer
       GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
       quadVertices.disable();
     } else {
-      // No fullscreen candidate — fall back to normal rendering
+      // No fullscreen direct-scanout candidate — fall back to normal GL
+      // composition AND hide the SC layer (it might still be showing a
+      // stale frame from when we WERE in direct mode). maybeHideDirectComposition
+      // is idempotent, so this is cheap on subsequent fallback frames.
+      maybeHideDirectComposition();
       drawFrame();
     }
   }
@@ -669,8 +761,169 @@ public class GLRenderer
     return scanoutSource != null && scanoutSource.isDirectScanout();
   }
 
+  /**
+   * Phase 2.3 hot path: extract the AHardwareBuffer for the candidate's
+   * scanoutSource and hand it to the per-activity {@code DirectCompositionLayer}.
+   *
+   * <p>Holds {@code candidate.content.renderLock} for the lookup so we can't
+   * race against {@code DRI3Extension.tryPixmapFromHardwareBuffer} replacing
+   * the texture or {@code GPUImage.destroy()} releasing the underlying AHB
+   * mid-read. The JNI {@code pushBuffer} runs INSIDE the lock too — short
+   * call, SurfaceFlinger takes its own ref on the AHB inside
+   * {@code ASurfaceTransaction_setBuffer apply}, so the buffer is safe to
+   * release on the X-server thread the moment we exit the lock.
+   *
+   * <p>Per-frame waste suppression: caches the last successfully-pushed
+   * (ahbPtr, dstW, dstH) and skips the JNI call when nothing has changed.
+   * DRI3 allocates a fresh GPUImage each Present, so AHB-pointer identity
+   * is a sufficient "buffer changed" signal.
+   *
+   * <p>Failure counter: after {@code DC_FAIL_LIMIT} consecutive {@code false}
+   * returns from pushBuffer (e.g. SurfaceFlinger reparented the layer for
+   * us, or libandroid is mis-resolved on this build), nulls
+   * {@code directCompositionTarget} so subsequent frames don't keep paying
+   * the JNI cost for a permanent failure.
+   */
+  /**
+   * @return true if a fresh AHB was pushed to the SC layer this frame OR if
+   *         the cache hit (SC is still showing a valid prior frame). Used by
+   *         the caller to skip the redundant GL composition of the direct
+   *         candidate (Phase 2.5 perf win).
+   */
+  private boolean maybePushDirectComposition(RenderableWindow directCandidate) {
+    final com.winlator.cmod.runtime.display.composition.DirectCompositionLayer dcTarget =
+            directCompositionTarget;
+    if (dcTarget == null) return false;
+    if (surfaceWidth <= 0 || surfaceHeight <= 0) return false;
+    // Force fallback to GL composition when an in-process overlay needs to be
+    // visible on top of the game frame. The SC layer at z=1 covers the
+    // GLSurfaceView's primary BQ at z=0, so anything we render via GL
+    // (magnifier UI, debug HUDs, picker dialogs that draw into the GL
+    // surface) would otherwise be invisible. Hide the SC NOW (not later)
+    // so the next vsync shows the GL overlay instead of the stale buffer.
+    if (magnifierUIActive) {
+      if (dcLayerActive) {
+        dcTarget.hide();
+        dcLayerActive = false;
+        dcLastPushedAhb = 0L;
+        dcLastPushedW = 0;
+        dcLastPushedH = 0;
+      }
+      return false;
+    }
+
+    final Drawable content = directCandidate.content;
+    synchronized (content.renderLock) {
+      Drawable scanoutSource = content.getScanoutSource();
+      if (scanoutSource == null) return false;
+      com.winlator.cmod.runtime.display.renderer.Texture tex = scanoutSource.getTexture();
+      if (!(tex instanceof GPUImage)) return false;
+      long ahbPtr = ((GPUImage) tex).getHardwareBufferPtr();
+      if (ahbPtr == 0L) return false;
+      // Skip JNI when nothing has changed since the last push. SurfaceFlinger
+      // is still showing the layer; no point queueing a no-op transaction.
+      if (ahbPtr == dcLastPushedAhb
+              && surfaceWidth == dcLastPushedW
+              && surfaceHeight == dcLastPushedH) {
+        return true;
+      }
+      // Producer-acquire fence: TAKE the FD from the scanout source under
+      // the renderLock, atomically clearing it on the Drawable. We are now
+      // the single owner; if pushBuffer succeeds, the framework closes
+      // the FD via setBuffer; if pushBuffer fails, the JNI layer closes
+      // the FD on its own error paths.
+      //
+      // Today this is always -1 because the X server's PRESENT/DRI3 parser
+      // doesn't yet extract a `wait_fence` from the wire request. We
+      // empirically observe no tearing without it: the in-process Java
+      // X server processes PIXMAP_FROM_BUFFERS only after the Wine client
+      // has already submitted its Vulkan commands, and that CPU-side
+      // handoff latency exceeds GPU-write completion time on the SoCs
+      // we've tested. This is an observation about this specific pipeline,
+      // not a Vulkan or Mesa contract — when the parser gains real
+      // wait_fence support, it'll call Drawable.setAcquireFenceFd and the
+      // following takeAcquireFenceFd() will return a real FD.
+      int fenceFd = scanoutSource.takeAcquireFenceFd();
+      // Game swap-chain frames from DXVK / vkd3d-proton are RGBA8888 with
+      // alpha=1.0 throughout — declaring OPAQUE lets HWC skip the alpha-blend
+      // stage that engages the SDR-on-HDR-panel routing on Snapdragon DPUs
+      // (the visible-brightness mismatch vs the GL composition path).
+      boolean ok = dcTarget.pushBuffer(ahbPtr, 0, 0, surfaceWidth, surfaceHeight, fenceFd,
+              /* opaque */ true);
+      if (ok) {
+        dcLastPushedAhb = ahbPtr;
+        dcLastPushedW = surfaceWidth;
+        dcLastPushedH = surfaceHeight;
+        dcConsecutiveFailures = 0;
+        return true;
+      } else {
+        dcConsecutiveFailures++;
+        if (dcConsecutiveFailures >= DC_FAIL_LIMIT) {
+          android.util.Log.w(
+                  "GLRenderer",
+                  "DirectComposition push failed " + dcConsecutiveFailures
+                          + " frames in a row — disabling target for this session");
+          // Hide the SC layer BEFORE nulling the field — once the field is
+          // null, maybeHideDirectComposition has nothing to call hide() on,
+          // and SurfaceFlinger would keep showing the last successfully-pushed
+          // buffer over the GL output forever (until activity teardown
+          // released the SC). Use the local dcTarget — still live in this
+          // scope even after we null the field.
+          dcTarget.hide();
+          dcLayerActive = false;
+          directCompositionTarget = null;
+          dcLastPushedAhb = 0L;
+          dcLastPushedW = 0;
+          dcLastPushedH = 0;
+          dcConsecutiveFailures = 0;
+        }
+        return false;
+      }
+    }
+  }
+
+  /**
+   * Phase 2.5 — hide the Direct Composition layer when the current frame
+   * doesn't qualify for the SC fast path (windowed app, multi-drawable,
+   * cursor visible over a non-fullscreen scene, etc.). Idempotent and cheap
+   * after the first call: tracks {@link #dcLayerActive} so we only queue
+   * a hide-transaction once per direct→fallback transition.
+   */
+  private void maybeHideDirectComposition() {
+    if (!dcLayerActive) return;
+    com.winlator.cmod.runtime.display.composition.DirectCompositionLayer dcTarget =
+            directCompositionTarget;
+    if (dcTarget != null) {
+      dcTarget.hide();
+    }
+    dcLayerActive = false;
+    // Invalidate the cache so the next pushBuffer re-shows with a fresh
+    // setBuffer + setVisibility(SHOW) transaction, even if the same AHB
+    // pointer happens to be active.
+    dcLastPushedAhb = 0L;
+    dcLastPushedW = 0;
+    dcLastPushedH = 0;
+  }
+
   public void setUnviewableWMClasses(String... unviewableWMNames) {
     this.unviewableWMClasses = unviewableWMNames;
+  }
+
+  /**
+   * Hand the renderer the per-activity Direct Composition layer (or null to
+   * detach). Safe to call from the UI thread; the GLThread reads the field
+   * volatile-ly each frame inside {@link #drawFrameOptimized()}.
+   *
+   * <p>When the layer is set AND the frame is a fullscreen direct-scanout
+   * candidate, the drawable's underlying AHardwareBuffer is also pushed to
+   * the SurfaceControl. The GLRenderer keeps drawing the same frame for
+   * Phase 2.3 (defence-in-depth: if the SurfaceControl path fails for any
+   * reason, the GL output is still visible underneath the SC layer).
+   * Phase 2.5 will skip the GL render to capture the actual perf win.
+   */
+  public void setDirectCompositionTarget(
+          com.winlator.cmod.runtime.display.composition.DirectCompositionLayer layer) {
+    this.directCompositionTarget = layer;
   }
 
   @Override

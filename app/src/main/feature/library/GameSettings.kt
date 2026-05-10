@@ -222,6 +222,14 @@ class GameSettingsStateHolder {
     val surfaceEffectEntries = mutableStateOf<List<String>>(emptyList())
     val selectedSurfaceEffect = mutableIntStateOf(0)
 
+    // Per-container "Direct Composition" toggle. When true and the device exposes
+    // SurfaceControl (API 29+, see SurfaceCompositor.isAvailable()), fullscreen
+    // direct-scanout drawables are routed to a sibling Android SurfaceControl
+    // layer (HWC/DPU overlay plane) instead of being composited by the in-process
+    // GLRenderer. The toggle is sampled at activity startup and held for the
+    // session — only takes effect on the next launch of the container.
+    val directComposition = mutableStateOf(false)
+
     // Graphics Driver Configuration (inline card)
     val gfxConfigExpanded = mutableStateOf(false)
     val gfxVulkanVersionEntries = mutableStateOf<List<String>>(emptyList())
@@ -3305,6 +3313,18 @@ private fun AdvancedSection(
             checked = state.fullscreenStretched.value,
             onCheckedChange = { state.fullscreenStretched.value = it }
         )
+
+        // Direct Composition is currently a container-level toggle (sampled at
+        // activity startup, held for the session). Hide from shortcut-edit
+        // sheets to avoid suggesting it can be flipped per-launch.
+        if (state.isContainerEditMode.value) {
+            Spacer(Modifier.height(SettingItemGap))
+            SettingCheckbox(
+                label = stringResource(R.string.session_display_direct_composition),
+                checked = state.directComposition.value,
+                onCheckedChange = { state.directComposition.value = it }
+            )
+        }
     }
 
     Spacer(Modifier.height(SettingSectionGap))

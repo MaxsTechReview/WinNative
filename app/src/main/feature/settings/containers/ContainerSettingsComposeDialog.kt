@@ -378,6 +378,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         }
 
         state.fullscreenStretched.value = c?.isFullscreenStretched() ?: false
+        state.directComposition.value = c?.isDirectCompositionEnabled() ?: false
 
         // Steam fields are shortcut-only in the UI; leave any existing steam
         // state on the container untouched — saveSettings() skips them.
@@ -758,6 +759,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.setWinComponents(wincomponents)
             c.setDrives(drivesString)
             c.setFullscreenStretched(state.fullscreenStretched.value)
+            c.setDirectCompositionEnabled(state.directComposition.value)
             c.setInputType(finalInputType)
             c.setStartupSelection(startupSelection)
             c.setBox64Version(box64Version)
@@ -811,6 +813,13 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 manager.createContainerAsync(data, contentsManager) { newContainer ->
                     if (newContainer != null) {
                         saveMouseWarpOverride(newContainer)
+                        // Persist Direct Composition on the new container — it's stored as
+                        // an extraData entry, not a top-level JSON field, so it doesn't
+                        // ride along in the `data` map handed to createContainerAsync.
+                        if (state.directComposition.value) {
+                            newContainer.setDirectCompositionEnabled(true)
+                            newContainer.saveData()
+                        }
                     } else {
                         WinToast.show(context, R.string.setup_wizard_unable_to_install_system_files)
                     }

@@ -14,8 +14,46 @@ public class Drawable extends XResource {
   public final Visual visual;
   private Texture texture = new Texture();
   private ByteBuffer data;
-  private boolean directScanout = false;
-  private Drawable scanoutSource;
+  // volatile because the GLThread reads these in `isDirectScanoutContent`
+  // (called outside renderLock for the candidate-search pass) while the
+  // X-server worker thread mutates them via setDirectScanout/setScanoutSource
+  // from PresentExtension and DRI3Extension. Without volatile, the GLThread
+  // can observe stale values across frames. Long-form mutations of texture
+  // / scanoutSource still serialize on `renderLock` for atomicity with reads
+  // that take the lock (see `renderDrawable`, the Direct-Composition path).
+  private volatile boolean directScanout = false;
+  private volatile Drawable scanoutSource;
+  /**
+   * Producer-side acquire fence FD. -1 means "no fence; buffer is ready for
+   * immediate read."
+   *
+   * <p>Today in this fork the value is always -1: the in-process Java X server
+   * receives the {@code AHardwareBuffer} from the Wine client over the DRI3
+   * {@code PIXMAP_FROM_BUFFERS} unix-socket path, which the X-server worker
+   * thread processes only after the client has already submitted its Vulkan
+   * command buffer. Empirically this CPU-side handoff latency exceeds the
+   * GPU-write completion time, so we observe no tearing without an explicit
+   * fence — but this is an observation about THIS pipeline, not a Vulkan or
+   * Mesa contract. If a future codepath drives presents at a higher rate or
+   * skips that handoff cost, an explicit acquire fence will become necessary.
+   *
+   * <p>Forward-compatible plumbing: when the X-server PRESENT/DRI3 parsing
+   * gains real {@code wait_fence} support, that code calls
+   * {@link #setAcquireFenceFd}. The Direct Composition push at
+   * {@code GLRenderer.maybePushDirectComposition} consumes the value under
+   * {@link #renderLock} via {@link #takeAcquireFenceFd} (atomic
+   * read-and-clear), and forwards it to
+   * {@code DirectCompositionLayer.pushBuffer} which transfers ownership to
+   * the framework via {@code ASurfaceTransaction_setBuffer}.
+   *
+   * <p>Stored as {@link java.util.concurrent.atomic.AtomicInteger} so the
+   * "consume" semantic is atomic with respect to concurrent
+   * setAcquireFenceFd writes — without it, a producer could overwrite a
+   * still-pending FD between the consumer's read and clear, leaking the
+   * old FD.
+   */
+  private final java.util.concurrent.atomic.AtomicInteger acquireFenceFd =
+      new java.util.concurrent.atomic.AtomicInteger(-1);
   private Runnable onDrawListener;
   private Callback<Drawable> onDestroyListener;
   public final Object renderLock = new Object();
@@ -67,6 +105,44 @@ public class Drawable extends XResource {
     if (scanoutSource == null) return;
     scanoutSource = null;
     if (texture != null) texture.setNeedsUpdate(true);
+  }
+
+  /**
+   * Atomic read-and-clear of the acquire fence FD: returns the current value
+   * (or -1 if none) AND resets the field to -1 in a single CAS.
+   *
+   * <p>This is single-consumer "take" semantics: the caller now owns the FD
+   * and is responsible for either closing it or transferring ownership
+   * elsewhere (e.g. by passing it to {@code ASurfaceTransaction_setBuffer},
+   * which closes it via the framework). A second concurrent caller of
+   * {@code takeAcquireFenceFd} will get -1 — they did not own the original
+   * fence.
+   *
+   * <p>Returns -1 today because no producer code currently calls
+   * {@link #setAcquireFenceFd}.
+   */
+  public int takeAcquireFenceFd() {
+    return acquireFenceFd.getAndSet(-1);
+  }
+
+  /**
+   * Sets the producer acquire fence FD. Should be called by Present/DRI3
+   * extension code immediately before the buffer is published to the GLRenderer
+   * (i.e. before {@link #setScanoutSource}). Ownership transfers to the
+   * Drawable; the next consumer of {@link #takeAcquireFenceFd} takes
+   * ownership in turn. If the previous fence is still set (consumer hasn't
+   * taken it yet), this method closes the previous fence to avoid a leak.
+   * Pass {@code -1} to clear without setting a new fence.
+   */
+  public void setAcquireFenceFd(int fd) {
+    int prior = acquireFenceFd.getAndSet(fd);
+    if (prior >= 0 && prior != fd) {
+      try {
+        android.os.ParcelFileDescriptor.adoptFd(prior).close();
+      } catch (java.io.IOException ignored) {
+        // best-effort close; the FD is still leaked but we did our part
+      }
+    }
   }
 
   public ByteBuffer getData() {

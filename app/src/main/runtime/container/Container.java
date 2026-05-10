@@ -82,6 +82,16 @@ public class Container {
     public static final String STEAM_TYPE_LIGHT = "light";
     public static final String STEAM_TYPE_ULTRALIGHT = "ultralight";
 
+    /**
+     * extraData JSON key for the per-container "Direct Composition" toggle.
+     * Stored as a string ("1"/"0") for symmetry with the rest of extraData. The
+     * setting is read at activity startup and applies for the whole session — it
+     * controls whether fullscreen drawables are pushed to a sibling Android
+     * SurfaceControl layer (zero-copy DPU scanout) instead of being composited
+     * by the in-process GLRenderer. Changing it mid-game is not supported.
+     */
+    public static final String EXTRA_DIRECT_COMPOSITION = "directComposition";
+
     private ContainerManager containerManager;
 
 
@@ -326,6 +336,22 @@ public class Container {
             else extraData.remove(name);
         }
         catch (JSONException e) {}
+    }
+
+    /**
+     * Whether this container should route fullscreen direct-scanout drawables to a
+     * sibling Android `SurfaceControl` layer (HWC overlay plane / DPU scanout)
+     * instead of having `GLRenderer` composite them on the EGL surface. Default off.
+     *
+     * The setting is sampled once at activity startup and held for the session. Toggling
+     * it has no effect on a running game; the user must relaunch the container.
+     */
+    public boolean isDirectCompositionEnabled() {
+        return "1".equals(getExtra(EXTRA_DIRECT_COMPOSITION, "0"));
+    }
+
+    public void setDirectCompositionEnabled(boolean enabled) {
+        putExtra(EXTRA_DIRECT_COMPOSITION, enabled ? "1" : "0");
     }
 
     public String getWineVersion() {

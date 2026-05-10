@@ -97,6 +97,23 @@ public class GPUImage extends Texture {
     return hardwareBufferPtr != 0 && (!cpuAccessible || (virtualData != null && stride > 0));
   }
 
+  /**
+   * Raw {@code AHardwareBuffer*} pointer (a JNI-returned {@code long}). Used by
+   * the Direct Composition path to hand this image directly to a child
+   * {@code ASurfaceControl} via {@code ASurfaceTransaction_setBuffer}, bypassing
+   * the in-process GLRenderer composition. Returns {@code 0} if the buffer
+   * was never imported / has been destroyed — callers MUST treat 0 as
+   * "no buffer available, fall back to GL path".
+   *
+   * <p>The pointer remains valid only for the lifetime of this {@code GPUImage}.
+   * SurfaceFlinger takes its own reference when the AHB is set on a layer, so
+   * holding the pointer past {@link #destroy()} is illegal — release any
+   * SurfaceControl reference first.
+   */
+  public long getHardwareBufferPtr() {
+    return hardwareBufferPtr;
+  }
+
   public boolean hasSamplingFailed() {
     return samplingFailed;
   }

@@ -31,6 +31,8 @@ import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.PointerIcon;
+import android.view.Surface;
+import android.view.SurfaceHolder;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -242,6 +244,28 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             "cmd"
     ));
     private XServerView xServerView;
+    /** Per-activity Direct Composition layer (Phase 2.1 — lifecycle only).
+     *  Allocated when the host SurfaceView reports surfaceCreated AND the per-container
+     *  toggle + NDK availability check both pass. Released in surfaceDestroyed.
+     *  <p>volatile because Phase 2.2+ will read this from the GLRenderer / GLThread
+     *  while the SurfaceHolder.Callback writes it from the UI thread. The field's
+     *  only writer remains the UI thread; volatile establishes the happens-before
+     *  relationship for cross-thread reads. */
+    private volatile com.winlator.cmod.runtime.display.composition.DirectCompositionLayer directCompositionLayer;
+    /** Anonymous {@link SurfaceHolder.Callback} retained so it can be removed in
+     *  {@code onDestroy} — otherwise the SurfaceHolder retains the activity through
+     *  the implicit outer-class reference held by the inner class. */
+    private SurfaceHolder.Callback directCompositionCallback;
+    /** Phase 2.2 smoke-test AHardwareBuffer pointer. Allocated once after
+     *  successful attach so we can verify the SurfaceControl path is alive
+     *  end-to-end (visible magenta swatch in the bottom-right corner). Phase
+     *  2.3 replaces the test buffer with real Wine frames; this field and its
+     *  lifecycle plumbing should be removed when the real path is wired up. */
+    private long directCompositionTestBufferPtr = 0L;
+    /** Mirrors {@link Container#isDirectCompositionEnabled()} sampled once at activity setup. */
+    private boolean directCompositionRequested;
+    /** Set by {@link com.winlator.cmod.runtime.display.composition.SurfaceCompositor#isAvailable()}. */
+    private boolean directCompositionSupported;
     private InputControlsView inputControlsView;
     private TouchpadView touchpadView;
     private XEnvironment environment;
@@ -2928,6 +2952,36 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (preloaderDialog != null) {
             preloaderDialog.close();
         }
+        // Tear down the Direct Composition layer before super.onDestroy() — this
+        // path covers process-death-style activity teardown where the SurfaceView's
+        // surfaceDestroyed callback may not fire (or fired already). Removing the
+        // SurfaceHolder.Callback also drops the implicit outer-class reference
+        // the anonymous callback holds on this activity.
+        if (xServerView != null && directCompositionCallback != null) {
+            SurfaceHolder holder = xServerView.getHolder();
+            if (holder != null) {
+                holder.removeCallback(directCompositionCallback);
+            }
+            directCompositionCallback = null;
+        }
+        // Clear the renderer's pointer first — same reason as in
+        // surfaceDestroyed: the GLThread must see null before the layer is
+        // released, otherwise a frame in flight could dereference a freed SC.
+        if (xServerView != null && xServerView.getRenderer() != null) {
+            xServerView.getRenderer().setDirectCompositionTarget(null);
+        }
+        com.winlator.cmod.runtime.display.composition.DirectCompositionLayer dcLayer =
+                directCompositionLayer;
+        directCompositionLayer = null;
+        if (dcLayer != null) {
+            dcLayer.release();
+        }
+        // Phase 2.2 smoke-test buffer cleanup.
+        if (directCompositionTestBufferPtr != 0L) {
+            com.winlator.cmod.runtime.display.composition
+                    .DirectCompositionLayer.releaseBuffer(directCompositionTestBufferPtr);
+            directCompositionTestBufferPtr = 0L;
+        }
         super.onDestroy();
         // Schedule a deferred update check 10 s after game exit
         if (!switchLaunchInProgress.get()) {
@@ -4521,6 +4575,23 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                          : (container != null && container.getExtra("swapRB", "0").equals("1"));
         renderer.swapRB = swapRB;
 
+        // Sample the per-container "Direct Composition" toggle once at UI setup
+        // and stash the result on `this` so the SurfaceHolder.Callback below
+        // (and Phase 2.3+ render hooks) can read it without re-querying.
+        directCompositionRequested = container != null && container.isDirectCompositionEnabled();
+        directCompositionSupported =
+                com.winlator.cmod.runtime.display.composition.SurfaceCompositor.isAvailable();
+        if (directCompositionRequested && !directCompositionSupported) {
+            Log.w("XServerDisplayActivity",
+                    "Direct Composition requested but SurfaceControl NDK is unavailable on this device — "
+                            + "falling back to GLRenderer composition");
+        } else {
+            Log.i("XServerDisplayActivity",
+                    "Direct Composition mode: requested=" + directCompositionRequested
+                            + " available=" + directCompositionSupported
+                            + " active=" + (directCompositionRequested && directCompositionSupported));
+        }
+
         if (shortcut != null) {
             renderer.setUnviewableWMClasses("explorer.exe");
             String savedFpsLimit = shortcut.getExtra("fpsLimit", "0");
@@ -4535,6 +4606,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         applyScreenEffects();
         xServer.setRenderer(renderer);
         rootView.addView(xServerView);
+
+        installDirectCompositionLifecycle();
 
         globalCursorSpeed = preferences.getFloat("cursor_speed", 1.0f);
         touchpadView = new TouchpadView(this, xServer, timeoutHandler, hideControlsRunnable);
@@ -4595,7 +4668,201 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         AppUtils.observeSoftKeyboardVisibility(displayHostComposeView, renderer::setScreenOffsetYRelativeToCursor);
     }
 
+    /**
+     * Phase 2.1 lifecycle wiring for the per-container Direct Composition path.
+     *
+     * No-op when the toggle is off OR the device's libandroid.so doesn't expose
+     * the API-29 SurfaceControl symbols. Otherwise registers a SurfaceHolder
+     * callback against the XServerView's surface so the {@link
+     * com.winlator.cmod.runtime.display.composition.DirectCompositionLayer}
+     * is created the moment the host Surface becomes valid and torn down
+     * cleanly when the Surface is destroyed (e.g. activity backgrounded).
+     *
+     * The lifecycle has to be tied to the SurfaceHolder rather than to
+     * onCreate/onDestroy because {@code ANativeWindow_fromSurface} returns
+     * null until the SurfaceView's surface is realised — which is async on
+     * GLSurfaceView.
+     */
+    private void installDirectCompositionLifecycle() {
+        if (!directCompositionRequested || !directCompositionSupported) return;
+        if (xServerView == null) return;
 
+        final SurfaceHolder holder = xServerView.getHolder();
+        if (holder == null) {
+            Log.w("XServerDisplayActivity",
+                    "installDirectCompositionLifecycle: XServerView has no SurfaceHolder; skipping");
+            return;
+        }
+        Log.i("XServerDisplayActivity",
+                "installDirectCompositionLifecycle: registering SurfaceHolder.Callback for Direct Composition");
+
+        directCompositionCallback = new SurfaceHolder.Callback() {
+            @Override
+            public void surfaceCreated(SurfaceHolder h) {
+                // Always release any prior layer AND any prior smoke-test
+                // buffer first — on activity recreation (or in the rare path
+                // where surfaceCreated fires twice without an intervening
+                // surfaceDestroyed) the old resources are bound to the
+                // destroyed parent. Failure to clean up here leaks both the
+                // SurfaceControl AND the AHardwareBuffer.
+                com.winlator.cmod.runtime.display.composition.DirectCompositionLayer prior =
+                        directCompositionLayer;
+                if (prior != null) {
+                    prior.release();
+                    directCompositionLayer = null;
+                }
+                if (directCompositionTestBufferPtr != 0L) {
+                    com.winlator.cmod.runtime.display.composition
+                            .DirectCompositionLayer.releaseBuffer(directCompositionTestBufferPtr);
+                    directCompositionTestBufferPtr = 0L;
+                }
+                directCompositionLayer =
+                        com.winlator.cmod.runtime.display.composition
+                                .DirectCompositionLayer.attach(xServerView);
+                if (directCompositionLayer == null) {
+                    Log.w("XServerDisplayActivity",
+                            "DirectCompositionLayer.attach returned null — falling back to GL path for this session");
+                    return;
+                }
+
+                // Phase 2.3: hand the layer to the GLRenderer so per-frame
+                // push happens automatically when a fullscreen direct-scanout
+                // drawable is active. xServerView may not have its renderer
+                // exposed via a getter pre-this-phase; getRenderer() exists
+                // on XServerView (returns the GLRenderer constructed in its
+                // ctor).
+                if (xServerView != null && xServerView.getRenderer() != null) {
+                    xServerView.getRenderer().setDirectCompositionTarget(directCompositionLayer);
+                }
+
+                // Defer the smoke test until after the SurfaceView has been
+                // laid out. surfaceCreated can fire before the View tree's
+                // onLayout — running pushDirectCompositionSmokeTest now would
+                // see width=0/height=0 and place the swatch in the top-left
+                // corner over the X-server menu instead of the bottom-right.
+                //
+                // The smoke test stays in Phase 2.3 too: it provides
+                // visible confirmation that the SC path is alive even when
+                // no AHardwareBuffer-backed game frame is yet flowing
+                // (e.g. before Wine starts rendering, or while a non-DXVK
+                // app is up). Once a real fullscreen frame is pushed by the
+                // renderer, the magenta swatch is replaced — same SC, new
+                // setBuffer.
+                if (xServerView != null) {
+                    xServerView.post(XServerDisplayActivity.this::pushDirectCompositionSmokeTest);
+                } else {
+                    pushDirectCompositionSmokeTest();
+                }
+            }
+
+            @Override
+            public void surfaceChanged(SurfaceHolder h, int format, int width, int height) {
+                // Phase 2.1: nothing to do — geometry handling lives in Phase 2.2's
+                // setBuffer transaction. We re-evaluate position/size when a buffer
+                // is pushed.
+            }
+
+            @Override
+            public void surfaceDestroyed(SurfaceHolder h) {
+                // Clear the renderer's pointer FIRST so the GLThread doesn't
+                // dereference a layer that's about to be released. The
+                // setter is volatile-write; the GLThread's per-frame read
+                // happens-before the next frame and will see null.
+                if (xServerView != null && xServerView.getRenderer() != null) {
+                    xServerView.getRenderer().setDirectCompositionTarget(null);
+                }
+                com.winlator.cmod.runtime.display.composition.DirectCompositionLayer layer =
+                        directCompositionLayer;
+                directCompositionLayer = null;
+                if (layer != null) {
+                    layer.release();
+                }
+                // Also drop the smoke-test AHB here — we'll allocate a fresh
+                // one if surfaceCreated fires again. SurfaceFlinger may still
+                // hold its own ref to the buffer (released by the layer's
+                // reparent-to-null transaction above), so this is safe per
+                // the AHardwareBuffer ref semantics.
+                if (directCompositionTestBufferPtr != 0L) {
+                    com.winlator.cmod.runtime.display.composition
+                            .DirectCompositionLayer.releaseBuffer(directCompositionTestBufferPtr);
+                    directCompositionTestBufferPtr = 0L;
+                }
+            }
+        };
+        holder.addCallback(directCompositionCallback);
+
+        // SurfaceHolder.addCallback only delivers FUTURE lifecycle callbacks. If
+        // the SurfaceView's surface is *already* valid by the time we register
+        // (common: GLSurfaceView's GLThread fires surfaceCreated before
+        // setupUI returns), the callback would silently miss the initial
+        // create and Direct Composition would never attach for this session.
+        // Synthesize the first surfaceCreated when the surface is already live.
+        Surface existing = holder.getSurface();
+        if (existing != null && existing.isValid()) {
+            Log.i("XServerDisplayActivity",
+                    "installDirectCompositionLifecycle: surface already valid — dispatching synthetic surfaceCreated");
+            directCompositionCallback.surfaceCreated(holder);
+        }
+    }
+
+    /**
+     * Phase 2.2 smoke-test: push a small magenta AHardwareBuffer to the
+     * bottom-right corner of the SurfaceControl layer to visually confirm
+     * the Direct Composition path is alive and stacked on top of the
+     * GLRenderer's output.
+     *
+     * <p>Phase 2.3 will replace this with real Wine-frame routing. When that
+     * happens, this method, the {@code directCompositionTestBufferPtr} field,
+     * and the corresponding {@code releaseBuffer} call in {@code onDestroy}
+     * should all be removed.
+     */
+    private void pushDirectCompositionSmokeTest() {
+        if (directCompositionLayer == null) return;
+        // Defensive: if we somehow re-enter (shouldn't, but guard against
+        // any future caller), release the prior test buffer before
+        // overwriting the field — otherwise the previous AHB leaks.
+        if (directCompositionTestBufferPtr != 0L) {
+            com.winlator.cmod.runtime.display.composition
+                    .DirectCompositionLayer.releaseBuffer(directCompositionTestBufferPtr);
+            directCompositionTestBufferPtr = 0L;
+        }
+        // 0xFFFF00FF = opaque magenta. 128x128 swatch — small visual
+        // confirmation that the SC layer is alive without obscuring useful
+        // game UI. (Was 256x256; user wanted ~50% smaller.) Still well
+        // above any plausible HWC overlay-plane minimum-size threshold.
+        // Phase 2.3 replaces this with real Wine frames once a fullscreen
+        // direct-scanout candidate is detected.
+        final int testWidth = 128;
+        final int testHeight = 128;
+        final int testColorArgb = 0xFFFF00FF;
+
+        directCompositionTestBufferPtr =
+                com.winlator.cmod.runtime.display.composition
+                        .DirectCompositionLayer.allocateTestBuffer(testWidth, testHeight, testColorArgb);
+        if (directCompositionTestBufferPtr == 0L) {
+            Log.w("XServerDisplayActivity",
+                    "Direct Composition smoke test: allocateTestBuffer returned 0 — skipping smoke test");
+            return;
+        }
+
+        // Position the swatch in the bottom-right of the SurfaceView. We're
+        // posted via xServerView.post(), so the View tree's onLayout has
+        // already run and getWidth/getHeight return real pixel values.
+        int viewW = xServerView != null ? xServerView.getWidth() : 0;
+        int viewH = xServerView != null ? xServerView.getHeight() : 0;
+        int dstX = viewW > testWidth ? viewW - testWidth - 16 : 16;
+        int dstY = viewH > testHeight ? viewH - testHeight - 16 : 16;
+
+        boolean ok = directCompositionLayer.pushBuffer(
+                directCompositionTestBufferPtr,
+                dstX, dstY, testWidth, testHeight,
+                /* fenceFd */ -1,
+                /* opaque  */ true /* magenta swatch is fully opaque */);
+        Log.i("XServerDisplayActivity",
+                "Direct Composition smoke test pushBuffer returned " + ok
+                        + " (dst=" + dstX + "," + dstY + " " + testWidth + "x" + testHeight
+                        + " viewW=" + viewW + " viewH=" + viewH + ")");
+    }
 
     private ActivityResultLauncher<Intent> controlsEditorActivityResultLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),

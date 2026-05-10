@@ -725,6 +725,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_display_frame_rate">Frame Rate</string>
     <string name="session_display_title">Display</string>
     <string name="session_display_fullscreen_stretched">Enable Fullscreen (Stretched)</string>
+    <string name="session_display_direct_composition">Direct Composition (experimental)</string>
+    <string name="session_display_direct_composition_summary">Route fullscreen game frames straight to an Android SurfaceControl layer (HWC/DPU overlay) instead of compositing them in-process. Lower latency and battery use when supported. Applies on next launch.</string>
     <string name="session_display_fps_label">FPS:</string>
     <string name="session_display_renderer_label">Renderer:</string>
     <string name="session_display_gpu_label">GPU:</string>
