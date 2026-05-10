@@ -396,7 +396,7 @@ private fun LaunchUninstallMenu(
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
-        offset = DpOffset(x = 0.dp, y = (-72).dp),
+        offset = DpOffset(x = 0.dp, y = (-56).dp),
         modifier = Modifier.width(286.dp),
         shape = RoundedCornerShape(12.dp),
         containerColor = LaunchCard,
