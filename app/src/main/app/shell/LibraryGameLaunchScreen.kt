@@ -24,9 +24,9 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -66,6 +66,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -73,6 +74,8 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
@@ -125,9 +128,7 @@ internal fun LibraryGameLaunchScreen(
         val actionWidth = actionIconSize * 5 + actionIconSpacing * 4
         val playHeight = 56.dp
         val contentGap = 18.dp
-        val topSafeInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
-        val horizontalSafeInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
-        val bottomSafeInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
+        val horizontalNavInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
 
         if (heroImageUrl != null) {
             val heroRequest =
@@ -208,8 +209,7 @@ internal fun LibraryGameLaunchScreen(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .windowInsetsPadding(horizontalSafeInsets)
-                    .windowInsetsPadding(topSafeInsets)
+                    .windowInsetsPadding(horizontalNavInsets)
                     .padding(start = edgePadding, top = 12.dp, end = edgePadding),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -237,9 +237,7 @@ internal fun LibraryGameLaunchScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .windowInsetsPadding(horizontalSafeInsets)
-                    .windowInsetsPadding(topSafeInsets)
-                    .windowInsetsPadding(bottomSafeInsets)
+                    .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(start = edgePadding, top = 68.dp, end = edgePadding, bottom = bottomPadding),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -406,16 +404,26 @@ private fun LaunchScreenCutoutMode() {
     }
 
     val context = LocalContext.current
-    DisposableEffect(context) {
-        val window = context.findActivity()?.window
+    val view = LocalView.current
+    DisposableEffect(context, view) {
+        val dialogWindow = (view.parent as? DialogWindowProvider)?.window
+        val window = dialogWindow ?: context.findActivity()?.window
         if (window == null) {
             onDispose { }
         } else {
             val originalMode = window.attributes.layoutInDisplayCutoutMode
+            val originalWidth = window.attributes.width
+            val originalHeight = window.attributes.height
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            if (dialogWindow != null) {
+                window.setLayout(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                )
+            }
             window.attributes =
                 window.attributes.apply {
-                    layoutInDisplayCutoutMode =
-                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                    layoutInDisplayCutoutMode = launchScreenCutoutMode()
                 }
 
             onDispose {
@@ -423,10 +431,21 @@ private fun LaunchScreenCutoutMode() {
                     window.attributes.apply {
                         layoutInDisplayCutoutMode = originalMode
                     }
+                if (dialogWindow != null) {
+                    WindowCompat.setDecorFitsSystemWindows(window, true)
+                    window.setLayout(originalWidth, originalHeight)
+                }
             }
         }
     }
 }
+
+private fun launchScreenCutoutMode(): Int =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+    } else {
+        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+    }
 
 private tailrec fun Context.findActivity(): Activity? =
     when (this) {
