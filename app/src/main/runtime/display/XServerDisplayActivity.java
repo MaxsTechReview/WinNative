@@ -3264,7 +3264,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onInputControlsShowOverlayChanged(boolean enabled) {
                         if (inputControlsView != null) inputControlsView.setShowTouchscreenControls(enabled);
-                        preferences.edit().putBoolean("show_touchscreen_controls_enabled", enabled).apply();
+                        preferences.edit().putBoolean("show_touchscreen_controls_enabled", enabled).commit();
                         renderDrawerMenu();
                     }
 
@@ -3272,25 +3272,26 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onInputControlsTapToClickChanged(boolean enabled) {
                         isTapToClickEnabled = enabled;
                         if (touchpadView != null) touchpadView.setTapToClickEnabled(enabled);
+                        preferences.edit().putBoolean("tap_to_click_enabled", enabled).commit();
                         renderDrawerMenu();
                     }
 
                     @Override
                     public void onInputControlsOverlayOpacityChanged(float opacity) {
                         if (inputControlsView != null) inputControlsView.setOverlayOpacity(opacity);
-                        preferences.edit().putFloat("overlay_opacity", opacity).apply();
+                        preferences.edit().putFloat("overlay_opacity", opacity).commit();
                         renderDrawerMenu();
                     }
 
                     @Override
                     public void onInputControlsTouchscreenHapticsChanged(boolean enabled) {
-                        preferences.edit().putBoolean("touchscreen_haptics_enabled", enabled).apply();
+                        preferences.edit().putBoolean("touchscreen_haptics_enabled", enabled).commit();
                         renderDrawerMenu();
                     }
 
                     @Override
                     public void onInputControlsGamepadVibrationChanged(boolean enabled) {
-                        preferences.edit().putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled).apply();
+                        preferences.edit().putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled).commit();
                         if (winHandler != null) winHandler.setGlobalVibrationEnabled(enabled);
                         renderDrawerMenu();
                     }
