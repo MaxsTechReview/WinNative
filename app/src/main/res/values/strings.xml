@@ -19,6 +19,7 @@
     <string name="common_ui_select_valid_exe_file">Please select a valid .exe file</string>
     <string name="common_ui_select_valid_icon_file">Please select a valid .ico or .png file.</string>
     <string name="common_ui_exit">Exit</string>
+    <string name="common_ui_exit_app">Exit App</string>
     <string name="common_ui_profile">Profile</string>
     <string name="common_ui_name">Name</string>
     <string name="common_ui_ok">OK</string>
@@ -111,7 +112,6 @@
     <string name="common_ui_grant_all_files_access_browse">Grant all file access to browse folders directly.</string>
     <string name="common_ui_not_configured">Not configured</string>
     <string name="common_ui_reinstall">Reinstall</string>
-    <string name="common_ui_exit_app_confirm">Exit WinNative?</string>
     <string name="common_ui_elements_count">%1$d elements</string>
     <string name="common_ui_disabled_placeholder">-- Disabled --</string>
     <string name="common_ui_enabled">Enabled</string>
@@ -1064,6 +1064,11 @@ Installed path:
     <string name="google_cloud_working">Working\u2026</string>
     <string name="google_cloud_sign_in">Sign In</string>
     <string name="google_cloud_disable_sync">Disable Sync</string>
+    <string name="google_cloud_connect_drive">Connect Drive</string>
+    <string name="google_cloud_connect_drive_first">Connect Google Drive first.</string>
+    <string name="google_cloud_drive_connected_short">Drive Connected</string>
+    <string name="google_cloud_drive_connected">Google Drive is connected.</string>
+    <string name="google_cloud_drive_authorization_started">Google Drive authorization started.</string>
     <string name="google_cloud_store_logins">Store Logins</string>
     <string name="google_cloud_store_login_sync_busy">Working on your store login sync\u2026</string>
     <string name="google_cloud_saved_games_unavailable">Google Saved Games unavailable</string>

@@ -53,7 +53,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -78,6 +80,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -846,12 +849,17 @@ class UnifiedActivity :
             consumeSettingsIntent(intent)
         }
 
-        // Exclude left edge from system back gesture so the drawer can capture swipes
+        // Exclude the drawer edge from system back gesture where Android allows it.
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            window.decorView.post {
-                val leftEdgeWidth = (40 * resources.displayMetrics.density).toInt()
-                val exclusionRect = android.graphics.Rect(0, 0, leftEdgeWidth, window.decorView.height)
-                window.decorView.systemGestureExclusionRects = listOf(exclusionRect)
+            val decorView = window.decorView
+            val updateDrawerGestureExclusion = {
+                val leftEdgeWidth = (32 * resources.displayMetrics.density).toInt()
+                val exclusionRect = android.graphics.Rect(0, 0, leftEdgeWidth, decorView.height)
+                decorView.systemGestureExclusionRects = listOf(exclusionRect)
+            }
+            decorView.post(updateDrawerGestureExclusion)
+            decorView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                updateDrawerGestureExclusion()
             }
         }
 
@@ -1153,7 +1161,6 @@ class UnifiedActivity :
 
         val storeVisible = remember { mutableStateMapOf(*initialStoreVisible.entries.map { it.key to it.value }.toTypedArray()) }
         var showAddCustomGame by remember { mutableStateOf(false) }
-        var showExitDialog by remember { mutableStateOf(false) }
         var searchQueryTfv by remember { mutableStateOf(TextFieldValue("")) }
         val searchQuery = searchQueryTfv.text
         var localLibraryRefreshKey by remember { mutableIntStateOf(0) }
@@ -1338,7 +1345,7 @@ class UnifiedActivity :
                     }
 
                     android.view.KeyEvent.KEYCODE_BUTTON_B -> {
-                        // Close menus in order, or show exit confirmation if none are open
+                        // Close menus in order. App exit lives in the drawer action.
                         if (drawerState.isOpen) {
                             drawerState.close()
                         } else if (globalSettingsApp != null) {
@@ -1347,8 +1354,6 @@ class UnifiedActivity :
                             globalSettingsGogGame = null
                         } else if (showAddCustomGame) {
                             showAddCustomGame = false
-                        } else {
-                            showExitDialog = true
                         }
                     }
 
@@ -1437,11 +1442,13 @@ class UnifiedActivity :
                         contentFilters[key] = value
                         PrefManager.libraryContentFilters = contentFilters.entries.filter { it.value }.joinToString(",") { it.key }
                     },
-                    onClose = { scope.launch { drawerState.close() } },
+                    onExitApp = {
+                        AppTerminationHelper.exitApplication(this@UnifiedActivity, "hub_drawer_exit")
+                    },
                 )
             },
             scrimColor = Color.Black.copy(alpha = 0.5f),
-            gesturesEnabled = true,
+            gesturesEnabled = drawerState.isOpen,
         ) {
             Box(
                 Modifier
@@ -1597,6 +1604,13 @@ class UnifiedActivity :
                                 )
                             }
                         }
+
+                        if (drawerState.isClosed) {
+                            DrawerSwipeHotZone(
+                                modifier = Modifier.align(Alignment.CenterStart),
+                                onOpenDrawer = { scope.launch { drawerState.open() } },
+                            )
+                        }
                     }
                 }
             }
@@ -1622,9 +1636,8 @@ class UnifiedActivity :
             })
         }
 
-        // Back button exit confirmation
+        // Back closes transient hub surfaces. App exit lives in the drawer action.
         BackHandler(enabled = true) {
-            // Consistent behavior: close overlays first, then show exit confirmation
             if (drawerState.isOpen) {
                 scope.launch { drawerState.close() }
             } else if (globalSettingsApp != null) {
@@ -1633,63 +1646,46 @@ class UnifiedActivity :
                 globalSettingsGogGame = null
             } else if (showAddCustomGame) {
                 showAddCustomGame = false
-            } else {
-                showExitDialog = true
             }
         }
+    }
 
-        if (showExitDialog) {
-            Dialog(
-                onDismissRequest = { showExitDialog = false },
-                properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true),
-            ) {
-                Box(
-                    modifier =
-                        Modifier
-                            .width(320.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(SurfaceDark)
-                            .border(1.dp, Accent.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
-                            .padding(28.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = stringResource(R.string.common_ui_exit_app_confirm),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold,
+    @Composable
+    private fun DrawerSwipeHotZone(
+        modifier: Modifier = Modifier,
+        onOpenDrawer: () -> Unit,
+    ) {
+        val density = LocalDensity.current
+        val openThresholdPx = with(density) { 36.dp.toPx() }
+
+        Box(
+            modifier =
+                modifier
+                    .fillMaxHeight()
+                    .width(40.dp)
+                    .pointerInput(openThresholdPx) {
+                        var accumulatedDrag = 0f
+                        var opened = false
+
+                        detectHorizontalDragGestures(
+                            onDragStart = {
+                                accumulatedDrag = 0f
+                                opened = false
+                            },
+                            onHorizontalDrag = { change, dragAmount ->
+                                if (dragAmount <= 0f || opened) return@detectHorizontalDragGestures
+
+                                accumulatedDrag += dragAmount
+                                change.consume()
+
+                                if (accumulatedDrag >= openThresholdPx) {
+                                    opened = true
+                                    onOpenDrawer()
+                                }
+                            },
                         )
-                        Spacer(Modifier.height(24.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            // Cancel button
-                            OutlinedButton(
-                                onClick = { showExitDialog = false },
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, TextSecondary.copy(alpha = 0.5f)),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text(stringResource(R.string.common_ui_cancel), fontWeight = FontWeight.Medium)
-                            }
-                            // Exit button
-                            Button(
-                                onClick = {
-                                    AppTerminationHelper.exitApplication(this@UnifiedActivity, "hub_exit_menu")
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text(stringResource(R.string.common_ui_exit), color = Color.White, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            }
-        }
+                    },
+        )
     }
 
     // Top bar
@@ -2741,6 +2737,100 @@ class UnifiedActivity :
     )
 
     @Composable
+    private fun LibraryDetailPopupFrame(
+        title: String,
+        onDismissRequest: () -> Unit,
+        wide: Boolean = false,
+        content: @Composable ColumnScope.() -> Unit,
+    ) {
+        val dismissInteractionSource = remember { MutableInteractionSource() }
+        val panelInteractionSource = remember { MutableInteractionSource() }
+
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.58f))
+                    .clickable(
+                        interactionSource = dismissInteractionSource,
+                        indication = null,
+                        onClick = onDismissRequest,
+                    ),
+        ) {
+            BoxWithConstraints(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .windowInsetsPadding(WindowInsets.navigationBars)
+                        .padding(16.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                val panelMaxWidth = if (wide) 440.dp else 360.dp
+                val panelWidthFraction = if (wide) 0.72f else 0.58f
+                val panelMaxHeight = (maxHeight - 16.dp).coerceAtLeast(240.dp)
+
+                Surface(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth(panelWidthFraction)
+                            .widthIn(max = panelMaxWidth)
+                            .heightIn(max = panelMaxHeight)
+                            .clickable(
+                                interactionSource = panelInteractionSource,
+                                indication = null,
+                                onClick = {},
+                            ),
+                    shape = RoundedCornerShape(16.dp),
+                    color = CardDark,
+                    border = BorderStroke(1.dp, CardBorder),
+                    tonalElevation = 8.dp,
+                    shadowElevation = 12.dp,
+                ) {
+                    Column {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 16.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            IconButton(
+                                onClick = onDismissRequest,
+                                modifier = Modifier.size(34.dp),
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Close,
+                                    contentDescription = stringResource(R.string.common_ui_close),
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+                        HorizontalDivider(color = CardBorder, thickness = 0.5.dp)
+                        Column(
+                            modifier =
+                                Modifier
+                                    .weight(1f, fill = false)
+                                    .verticalScroll(rememberScrollState()),
+                        ) {
+                            content()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
     private fun GameSettingsDialogFrame(
         title: String,
         onDismissRequest: () -> Unit,
@@ -3403,13 +3493,21 @@ class UnifiedActivity :
                     val gameSource =
                         when {
                             isEpic -> GameSaveBackupManager.GameSource.EPIC
+                            isCustom -> GameSaveBackupManager.GameSource.CUSTOM
                             else -> GameSaveBackupManager.GameSource.STEAM
                         }
-                    val gameIdStr = if (isEpic) epicId.toString() else app.id.toString()
+                    val gameIdStr =
+                        when {
+                            isEpic -> epicId.toString()
+                            isCustom -> app.name
+                            else -> app.id.toString()
+                        }
                     val providerLabel =
                         when (gameSource) {
                             GameSaveBackupManager.GameSource.EPIC ->
                                 stringResource(R.string.preloader_platform_epic)
+                            GameSaveBackupManager.GameSource.CUSTOM ->
+                                stringResource(R.string.preloader_platform_custom)
                             else ->
                                 stringResource(R.string.preloader_platform_steam)
                         }
@@ -3932,6 +4030,8 @@ class UnifiedActivity :
 
     private enum class LibraryDetailScreen { Main, Shortcut, Saves, CloudSaves, Uninstall }
 
+    private enum class LibraryDetailPopup { Saves, CloudSaves }
+
     @Composable
     private fun LibraryGameDetailDialog(
         app: SteamApp,
@@ -3941,6 +4041,7 @@ class UnifiedActivity :
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
         var currentScreen by remember { mutableStateOf(LibraryDetailScreen.Main) }
+        var activePopup by remember { mutableStateOf<LibraryDetailPopup?>(null) }
         var shortcutRefreshKey by remember(app.id, gogGame?.id) { mutableStateOf(0) }
         var pinnedShortcutOverride by remember(app.id, gogGame?.id) { mutableStateOf<Boolean?>(null) }
 
@@ -4012,6 +4113,10 @@ class UnifiedActivity :
         }
         val hasPinnedShortcut = pinnedShortcutOverride ?: homeShortcutState.isPinned
 
+        BackHandler(enabled = activePopup != null) {
+            activePopup = null
+        }
+
         // Hero image
         val customHeroImageFile =
             homeShortcutState.shortcut
@@ -4070,7 +4175,7 @@ class UnifiedActivity :
                     listOfNotNull(
                         app.developer.takeIf { it.isNotBlank() },
                         app.publisher.takeIf { it.isNotBlank() },
-                    ).joinToString(" • ")
+                    ).distinctBy { it.trim().lowercase() }.joinToString(" • ")
                 }
             }
 
@@ -4268,22 +4373,118 @@ class UnifiedActivity :
                 }
             }
 
+        val uninstallGame: () -> Unit = {
+            if (isGog) {
+                scope.launch(Dispatchers.IO) {
+                    val result = GOGService.deleteGame(
+                        context,
+                        LibraryItem(
+                            "GOG_${gogGame!!.id}",
+                            gogGame.title,
+                            com.winlator.cmod.feature.stores.steam.enums.GameSource.GOG,
+                        ),
+                    )
+                    withContext(Dispatchers.Main) {
+                        if (result.isSuccess) {
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                context,
+                                getString(R.string.library_games_game_uninstalled, app.name),
+                                android.widget.Toast.LENGTH_SHORT,
+                            )
+                        } else {
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                context,
+                                getString(
+                                    R.string.library_games_failed_to_uninstall_reason,
+                                    result.exceptionOrNull()?.message ?: getString(R.string.common_ui_unknown_error),
+                                ),
+                                android.widget.Toast.LENGTH_LONG,
+                            )
+                        }
+                        onDismissRequest()
+                    }
+                }
+            } else if (isCustom) {
+                scope.launch(Dispatchers.IO) {
+                    val cm = ContainerManager(context)
+                    val sc = findLibraryShortcutForGame(cm, app, isCustom, isEpic, epicId)
+                    sc?.let { LibraryShortcutUtils.deleteShortcutArtifacts(context, it) }
+                    java.io
+                        .File(
+                            context.filesDir,
+                            "custom_icons/${app.name.replace("/", "_")}.png",
+                        ).delete()
+                    PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(app.id))
+                    withContext(Dispatchers.Main) {
+                        com.winlator.cmod.shared.ui.toast.WinToast.show(
+                            context,
+                            getString(R.string.library_games_game_removed, app.name),
+                            android.widget.Toast.LENGTH_SHORT,
+                        )
+                        onDismissRequest()
+                    }
+                }
+            } else if (isEpic) {
+                scope.launch(Dispatchers.IO) {
+                    val result = EpicService.deleteGame(context, epicId)
+                    withContext(Dispatchers.Main) {
+                        if (result.isSuccess) {
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                context,
+                                getString(R.string.library_games_game_uninstalled, app.name),
+                                android.widget.Toast.LENGTH_SHORT,
+                            )
+                        } else {
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                context,
+                                getString(
+                                    R.string.library_games_failed_to_uninstall_reason,
+                                    result.exceptionOrNull()?.message ?: "",
+                                ),
+                                android.widget.Toast.LENGTH_LONG,
+                            )
+                        }
+                        onDismissRequest()
+                    }
+                }
+            } else {
+                SteamService.uninstallApp(app.id) { success ->
+                    if (success) {
+                        com.winlator.cmod.shared.ui.toast.WinToast.show(
+                            context,
+                            getString(R.string.library_games_game_uninstalled, app.name),
+                            android.widget.Toast.LENGTH_SHORT,
+                        )
+                    } else {
+                        com.winlator.cmod.shared.ui.toast.WinToast.show(
+                            context,
+                            getString(R.string.library_games_failed_to_uninstall),
+                            android.widget.Toast.LENGTH_SHORT,
+                        )
+                    }
+                    onDismissRequest()
+                }
+            }
+        }
+
         Dialog(
             onDismissRequest = onDismissRequest,
-            properties = DialogProperties(usePlatformDefaultWidth = false),
+            properties =
+                DialogProperties(
+                    usePlatformDefaultWidth = false,
+                    decorFitsSystemWindows = false,
+                ),
         ) {
             Surface(
-                modifier = Modifier.fillMaxWidth(0.864f).fillMaxHeight(0.96f),
-                shape = RoundedCornerShape(20.dp),
-                color = CardDark,
+                modifier = Modifier.fillMaxSize(),
+                shape = RectangleShape,
+                color = Color.Black,
             ) {
                 Box(Modifier.fillMaxSize()) {
                     Column(Modifier.fillMaxSize()) {
                         val showHero = currentScreen == LibraryDetailScreen.Main
                         val subScreenTitle =
                             when (currentScreen) {
-                                LibraryDetailScreen.CloudSaves -> stringResource(R.string.cloud_saves_title)
-                                LibraryDetailScreen.Saves -> stringResource(R.string.saves_import_export_title)
                                 LibraryDetailScreen.Shortcut -> stringResource(R.string.common_ui_shortcut)
                                 LibraryDetailScreen.Uninstall ->
                                     stringResource(
@@ -4291,84 +4492,9 @@ class UnifiedActivity :
                                     )
                                 else -> ""
                             }
-                        // Hero image section — only on the main screen. Sub-screens get a compact
-                        // title bar so buttons/content can take the full dialog height.
-                        if (showHero) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().fillMaxHeight(0.38f),
-                            ) {
-                                if (heroImageUrl != null) {
-                                    AsyncImage(
-                                        model =
-                                            ImageRequest
-                                                .Builder(context)
-                                                .data(heroImageUrl)
-                                                .apply {
-                                                    if (customHeroImageCacheKey != null) {
-                                                        memoryCacheKey(customHeroImageCacheKey)
-                                                        diskCacheKey(customHeroImageCacheKey)
-                                                    }
-                                                }.crossfade(150)
-                                                .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
-                                                .diskCachePolicy(coil.request.CachePolicy.ENABLED)
-                                                .build(),
-                                        contentDescription = "${app.name} artwork",
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.FillWidth,
-                                        alignment = Alignment.TopCenter,
-                                    )
-                                } else {
-                                    Box(
-                                        Modifier.fillMaxSize().background(SurfaceDark),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Icon(
-                                            Icons.Outlined.SportsEsports,
-                                            contentDescription = null,
-                                            tint = Accent.copy(alpha = 0.4f),
-                                            modifier = Modifier.size(72.dp),
-                                        )
-                                    }
-                                }
-                                Box(
-                                    modifier =
-                                        Modifier.fillMaxSize().background(
-                                            Brush.verticalGradient(
-                                                colorStops =
-                                                    arrayOf(
-                                                        0.0f to Color.Transparent,
-                                                        0.45f to Color.Transparent,
-                                                        0.72f to CardDark.copy(alpha = 0.72f),
-                                                        1.0f to CardDark,
-                                                    ),
-                                            ),
-                                        ),
-                                )
-                                Column(
-                                    modifier =
-                                        Modifier
-                                            .align(Alignment.BottomStart)
-                                            .padding(start = 24.dp, end = 80.dp, bottom = 36.dp),
-                                ) {
-                                    Text(
-                                        app.name,
-                                        style = MaterialTheme.typography.headlineMedium,
-                                        color = TextPrimary,
-                                        fontWeight = FontWeight.Bold,
-                                    )
-                                    if (subtitle.isNotBlank()) {
-                                        Spacer(Modifier.height(8.dp))
-                                        Text(
-                                            subtitle,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = TextSecondary,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    }
-                                }
-                            }
-                        } else {
+                        // Sub-screens get a compact title bar. The main launch view owns the full
+                        // screen and draws artwork edge-to-edge in its content branch.
+                        if (!showHero) {
                             Row(
                                 modifier =
                                     Modifier
@@ -4408,233 +4534,114 @@ class UnifiedActivity :
                         // Bottom content
                         when (currentScreen) {
                             LibraryDetailScreen.Main -> {
-                                Row(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxSize()
-                                            .padding(horizontal = 24.dp, vertical = 10.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                                ) {
-                                    // Left: Game details as individual cards
-                                    Column(
-                                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                                        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.Bottom),
-                                    ) {
-                                        // Source badge row
-                                        Surface(
-                                            color = Accent.copy(alpha = 0.15f),
-                                            shape = RoundedCornerShape(8.dp),
-                                        ) {
-                                            Text(
-                                                sourceLabel,
-                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                                color = Accent,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold,
-                                            )
+                                LibraryGameLaunchScreen(
+                                    appName = app.name,
+                                    subtitle = subtitle,
+                                    sourceLabel = sourceLabel,
+                                    heroImageUrl = heroImageUrl,
+                                    customHeroImageCacheKey = customHeroImageCacheKey,
+                                    releaseDateEpochSeconds = app.releaseDate,
+                                    totalPlaytimeMillis = totalPlaytime,
+                                    playCount = playCount,
+                                    lastPlayedMillis = lastPlayed,
+                                    installSizeText = installSizeText,
+                                    isCustom = isCustom,
+                                    hasPinnedShortcut = hasPinnedShortcut,
+                                    showSavesAction = isCustom || isEpic || isGog,
+                                    onBack = onDismissRequest,
+                                    onPlay = {
+                                        val containerManager = ContainerManager(context)
+                                        if (isCustom) {
+                                            launchCustomGame(context, containerManager, app.name)
+                                        } else if (isGog) {
+                                            launchGogGame(context, containerManager, gogGame!!)
+                                        } else if (isEpic) {
+                                            epicGame?.let { launchEpicGame(context, containerManager, it) }
+                                        } else {
+                                            launchSteamGame(context, containerManager, app)
                                         }
-
-                                        if (installPath.isNotBlank() || installSizeText != null) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                            ) {
-                                                if (installPath.isNotBlank()) {
-                                                    DetailCard(
-                                                        label = stringResource(R.string.library_games_install_path),
-                                                        value = installPath,
-                                                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                                        onDismissRequest()
+                                    },
+                                    onSettings = {
+                                        val containerManager = ContainerManager(context)
+                                        val shortcut: com.winlator.cmod.runtime.container.Shortcut? =
+                                            when {
+                                                isGog -> {
+                                                    containerManager.loadShortcuts().find {
+                                                        it.getExtra("game_source") == "GOG" &&
+                                                            it.getExtra("gog_id") == gogGame!!.id
+                                                    } ?: ShortcutSettingsComposeDialog.createLibraryShortcut(
+                                                        context = context,
+                                                        containerManager = containerManager,
+                                                        source = "GOG",
+                                                        appId = gogPseudoId(gogGame!!.id),
+                                                        gogId = gogGame.id,
+                                                        appName = app.name,
                                                     )
                                                 }
-                                                if (installSizeText != null) {
-                                                    DetailCard(
-                                                        stringResource(R.string.common_ui_size),
-                                                        installSizeText!!,
-                                                        modifier = Modifier.fillMaxHeight(),
-                                                    )
+
+                                                isCustom -> {
+                                                    findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
                                                 }
-                                            }
-                                        }
 
-                                        // Release date card
-                                        if (app.releaseDate > 0L) {
-                                            val releaseDateText =
-                                                remember(app.releaseDate) {
-                                                    java.text
-                                                        .SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault())
-                                                        .format(java.util.Date(app.releaseDate * 1000L))
-                                                }
-                                            DetailCard(stringResource(R.string.common_ui_release_date), releaseDateText)
-                                        }
-                                    }
-
-                                    // Right: Compact action buttons
-                                    Column(
-                                        modifier =
-                                            Modifier
-                                                .widthIn(min = 200.dp, max = 260.dp)
-                                                .fillMaxHeight(),
-                                        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.Bottom),
-                                    ) {
-                                        // Play button — animated gradient
-                                        PlayButton(onClick = {
-                                            val containerManager = ContainerManager(context)
-                                            if (isCustom) {
-                                                launchCustomGame(context, containerManager, app.name)
-                                            } else if (isGog) {
-                                                launchGogGame(context, containerManager, gogGame!!)
-                                            } else if (isEpic) {
-                                                epicGame?.let { launchEpicGame(context, containerManager, it) }
-                                            } else {
-                                                launchSteamGame(context, containerManager, app)
-                                            }
-                                            onDismissRequest()
-                                        })
-
-                                        // Settings + Shortcut — half width each
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        ) {
-                                            CompactActionButton(
-                                                icon = Icons.Outlined.Settings,
-                                                label = stringResource(R.string.common_ui_settings),
-                                                modifier = Modifier.weight(1f),
-                                                onClick = {
-                                                    val containerManager = ContainerManager(context)
-                                                    val shortcut: com.winlator.cmod.runtime.container.Shortcut? =
-                                                        when {
-                                                            isGog -> {
-                                                                containerManager.loadShortcuts().find {
-                                                                    it.getExtra("game_source") == "GOG" &&
-                                                                        it.getExtra("gog_id") == gogGame!!.id
-                                                                } ?: ShortcutSettingsComposeDialog.createLibraryShortcut(
-                                                                    context = context,
-                                                                    containerManager = containerManager,
-                                                                    source = "GOG",
-                                                                    appId = gogPseudoId(gogGame!!.id),
-                                                                    gogId = gogGame.id,
-                                                                    appName = app.name,
-                                                                )
-                                                            }
-
-                                                            isCustom -> {
-                                                                findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
-                                                            }
-
-                                                            else -> {
-                                                                findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
-                                                                    ?: ShortcutSettingsComposeDialog.createLibraryShortcut(
-                                                                        context = context,
-                                                                        containerManager = containerManager,
-                                                                        source = if (isEpic) "EPIC" else "STEAM",
-                                                                        appId = if (isEpic) epicId else app.id,
-                                                                        gogId = null,
-                                                                        appName = app.name,
-                                                                    )
-                                                            }
-                                                        }
-                                                    if (shortcut != null) {
-                                                        // Layer the settings dialog on top; keep the detail dialog open underneath.
-                                                        ShortcutSettingsComposeDialog(this@UnifiedActivity, shortcut).show()
-                                                    }
-                                                },
-                                            )
-
-                                            CompactActionButton(
-                                                icon = Icons.Outlined.Home,
-                                                label =
-                                                    stringResource(
-                                                        if (hasPinnedShortcut) {
-                                                            R.string.common_ui_remove
-                                                        } else {
-                                                            R.string.common_ui_shortcut
-                                                        },
-                                                    ),
-                                                tint = if (hasPinnedShortcut) DangerRed else TextPrimary,
-                                                bgColor = if (hasPinnedShortcut) DangerRed.copy(alpha = 0.12f) else SurfaceDark,
-                                                modifier = Modifier.weight(1f),
-                                                onClick = {
-                                                    if (hasPinnedShortcut) {
-                                                        currentScreen = LibraryDetailScreen.Shortcut
-                                                    } else {
-                                                        scope.launch {
-                                                            val created =
-                                                                withContext(Dispatchers.IO) {
-                                                                    if (isGog) {
-                                                                        val artworkUrl = gogGame!!.imageUrl.ifEmpty { gogGame.iconUrl }
-                                                                        addGogShortcutToHomeScreen(context, gogGame, artworkUrl)
-                                                                    } else {
-                                                                        addLibraryShortcutToHomeScreen(
-                                                                            context,
-                                                                            app,
-                                                                            isCustom,
-                                                                            isEpic,
-                                                                            epicId,
-                                                                            epicArtworkUrl,
-                                                                        )
-                                                                    }
-                                                                }
-                                                            if (created) {
-                                                                pinnedShortcutOverride = true
-                                                                shortcutRefreshKey++
-                                                            }
-                                                            if (!created) {
-                                                                com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                                    context,
-                                                                    context.getString(
-                                                                        R.string.library_games_failed_to_create_shortcut,
-                                                                        app.name,
-                                                                    ),
-                                                                )
-                                                            }
-                                                        }
-                                                    }
-                                                },
-                                            )
-                                        }
-
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        ) {
-                                            CompactActionButton(
-                                                icon = Icons.Outlined.Save,
-                                                label = stringResource(R.string.saves_import_export_title),
-                                                modifier = Modifier.weight(1f),
-                                                onClick = { currentScreen = LibraryDetailScreen.Saves },
-                                            )
-
-                                            CompactActionButton(
-                                                icon = Icons.Outlined.CloudSync,
-                                                label = stringResource(R.string.cloud_saves_title),
-                                                modifier = Modifier.weight(1f),
-                                                onClick = { currentScreen = LibraryDetailScreen.CloudSaves },
-                                            )
-                                        }
-
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        ) {
-                                            CompactActionButton(
-                                                icon = Icons.Outlined.Delete,
-                                                label =
-                                                    if (isCustom) {
-                                                        stringResource(
-                                                            R.string.common_ui_remove,
+                                                else -> {
+                                                    findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
+                                                        ?: ShortcutSettingsComposeDialog.createLibraryShortcut(
+                                                            context = context,
+                                                            containerManager = containerManager,
+                                                            source = if (isEpic) "EPIC" else "STEAM",
+                                                            appId = if (isEpic) epicId else app.id,
+                                                            gogId = null,
+                                                            appName = app.name,
                                                         )
-                                                    } else {
-                                                        stringResource(R.string.common_ui_uninstall)
-                                                    },
-                                                tint = DangerRed,
-                                                bgColor = DangerRed.copy(alpha = 0.12f),
-                                                modifier = Modifier.weight(1f),
-                                                onClick = { currentScreen = LibraryDetailScreen.Uninstall },
-                                            )
+                                                }
+                                            }
+                                        if (shortcut != null) {
+                                            // Layer the settings dialog on top; keep the detail dialog open underneath.
+                                            ShortcutSettingsComposeDialog(this@UnifiedActivity, shortcut).show()
                                         }
-                                    }
-                                }
+                                    },
+                                    onShortcut = {
+                                        if (hasPinnedShortcut) {
+                                            currentScreen = LibraryDetailScreen.Shortcut
+                                        } else {
+                                            scope.launch {
+                                                val created =
+                                                    withContext(Dispatchers.IO) {
+                                                        if (isGog) {
+                                                            val artworkUrl = gogGame!!.imageUrl.ifEmpty { gogGame.iconUrl }
+                                                            addGogShortcutToHomeScreen(context, gogGame, artworkUrl)
+                                                        } else {
+                                                            addLibraryShortcutToHomeScreen(
+                                                                context,
+                                                                app,
+                                                                isCustom,
+                                                                isEpic,
+                                                                epicId,
+                                                                epicArtworkUrl,
+                                                            )
+                                                        }
+                                                    }
+                                                if (created) {
+                                                    pinnedShortcutOverride = true
+                                                    shortcutRefreshKey++
+                                                }
+                                                if (!created) {
+                                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                                        context,
+                                                        context.getString(
+                                                            R.string.library_games_failed_to_create_shortcut,
+                                                            app.name,
+                                                        ),
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    },
+                                    onSaves = { activePopup = LibraryDetailPopup.Saves },
+                                    onCloudSaves = { activePopup = LibraryDetailPopup.CloudSaves },
+                                    onUninstall = uninstallGame,
+                                )
                             }
 
                             LibraryDetailScreen.Shortcut -> {
@@ -4758,18 +4765,6 @@ class UnifiedActivity :
                                                 ),
                                         )
                                     }
-
-                                    Spacer(Modifier.weight(1f))
-                                    TextButton(onClick = { currentScreen = LibraryDetailScreen.Main }) {
-                                        Icon(
-                                            Icons.AutoMirrored.Outlined.ArrowBack,
-                                            contentDescription = null,
-                                            tint = TextSecondary,
-                                            modifier = Modifier.size(18.dp),
-                                        )
-                                        Spacer(Modifier.width(6.dp))
-                                        Text(stringResource(R.string.common_ui_back), color = TextSecondary)
-                                    }
                                 }
                             }
 
@@ -4822,6 +4817,8 @@ class UnifiedActivity :
                                             stringResource(R.string.preloader_platform_gog)
                                         GameSaveBackupManager.GameSource.EPIC ->
                                             stringResource(R.string.preloader_platform_epic)
+                                        GameSaveBackupManager.GameSource.CUSTOM ->
+                                            stringResource(R.string.preloader_platform_custom)
                                         GameSaveBackupManager.GameSource.STEAM ->
                                             stringResource(R.string.preloader_platform_steam)
                                     }
@@ -4922,6 +4919,7 @@ class UnifiedActivity :
                                             }
                                         }
                                     },
+                                    showBottomBack = false,
                                     onBack = { currentScreen = LibraryDetailScreen.Main },
                                 )
                                 }
@@ -4958,100 +4956,7 @@ class UnifiedActivity :
                                             stringResource(
                                                 if (isCustom) R.string.common_ui_remove else R.string.common_ui_uninstall,
                                             ),
-                                        onConfirm = {
-                                            if (isGog) {
-                                                scope.launch(Dispatchers.IO) {
-                                                    val result = GOGService.deleteGame(
-                                                        context,
-                                                        LibraryItem(
-                                                            "GOG_${gogGame!!.id}",
-                                                            gogGame.title,
-                                                            com.winlator.cmod.feature.stores.steam.enums.GameSource.GOG,
-                                                        ),
-                                                    )
-                                                    withContext(Dispatchers.Main) {
-                                                        if (result.isSuccess) {
-                                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                                context,
-                                                                getString(R.string.library_games_game_uninstalled, app.name),
-                                                                android.widget.Toast.LENGTH_SHORT,
-                                                            )
-                                                        } else {
-                                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                                context,
-                                                                getString(
-                                                                    R.string.library_games_failed_to_uninstall_reason,
-                                                                    result.exceptionOrNull()?.message
-                                                                        ?: getString(R.string.common_ui_unknown_error),
-                                                                ),
-                                                                android.widget.Toast.LENGTH_LONG,
-                                                            )
-                                                        }
-                                                        onDismissRequest()
-                                                    }
-                                                }
-                                            } else if (isCustom) {
-                                                scope.launch(Dispatchers.IO) {
-                                                    val cm = ContainerManager(context)
-                                                    val sc = findLibraryShortcutForGame(cm, app, isCustom, isEpic, epicId)
-                                                    sc?.let { LibraryShortcutUtils.deleteShortcutArtifacts(context, it) }
-                                                    java.io
-                                                        .File(
-                                                            context.filesDir,
-                                                            "custom_icons/${app.name.replace("/", "_")}.png",
-                                                        ).delete()
-                                                    PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(app.id))
-                                                    withContext(Dispatchers.Main) {
-                                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                            context,
-                                                            getString(R.string.library_games_game_removed, app.name),
-                                                            android.widget.Toast.LENGTH_SHORT,
-                                                        )
-                                                        onDismissRequest()
-                                                    }
-                                                }
-                                            } else if (isEpic) {
-                                                scope.launch(Dispatchers.IO) {
-                                                    val result = EpicService.deleteGame(context, epicId)
-                                                    withContext(Dispatchers.Main) {
-                                                        if (result.isSuccess) {
-                                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                                context,
-                                                                getString(R.string.library_games_game_uninstalled, app.name),
-                                                                android.widget.Toast.LENGTH_SHORT,
-                                                            )
-                                                        } else {
-                                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                                context,
-                                                                getString(
-                                                                    R.string.library_games_failed_to_uninstall_reason,
-                                                                    result.exceptionOrNull()?.message ?: "",
-                                                                ),
-                                                                android.widget.Toast.LENGTH_LONG,
-                                                            )
-                                                        }
-                                                        onDismissRequest()
-                                                    }
-                                                }
-                                            } else {
-                                                SteamService.uninstallApp(app.id) { success ->
-                                                    if (success) {
-                                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                            context,
-                                                            getString(R.string.library_games_game_uninstalled, app.name),
-                                                            android.widget.Toast.LENGTH_SHORT,
-                                                        )
-                                                    } else {
-                                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                            context,
-                                                            getString(R.string.library_games_failed_to_uninstall),
-                                                            android.widget.Toast.LENGTH_SHORT,
-                                                        )
-                                                    }
-                                                    onDismissRequest()
-                                                }
-                                            }
-                                        },
+                                        onConfirm = uninstallGame,
                                         onCancel = { currentScreen = LibraryDetailScreen.Main },
                                     )
                                 }
@@ -5059,19 +4964,236 @@ class UnifiedActivity :
                         }
                     }
 
-                    // Close button overlay
-                    IconButton(
-                        onClick = onDismissRequest,
-                        modifier =
-                            Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(16.dp)
-                                .size(42.dp)
-                                .shadow(8.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.35f))
-                                .clip(CircleShape)
-                                .background(BgDark.copy(alpha = 0.7f)),
+                    activePopup?.let { popup ->
+                        LibraryDetailPopupFrame(
+                            title =
+                                when (popup) {
+                                    LibraryDetailPopup.Saves -> stringResource(R.string.saves_import_export_title)
+                                    LibraryDetailPopup.CloudSaves -> stringResource(R.string.cloud_saves_title)
+                                },
+                            wide = popup == LibraryDetailPopup.CloudSaves,
+                            onDismissRequest = { activePopup = null },
+                        ) {
+                            when (popup) {
+                                LibraryDetailPopup.Saves -> {
+                                    GameSettingsActionGrid(
+                                        actions =
+                                            buildList {
+                                                if (isGog) {
+                                                    add(
+                                                        GameSettingsActionItem(
+                                                            title = stringResource(R.string.common_ui_sync),
+                                                            icon = Icons.Outlined.Cloud,
+                                                            onClick = {
+                                                                scope.launch(Dispatchers.IO) {
+                                                                    GOGService.syncCloudSaves(context, "GOG_${gogGame!!.id}", "auto")
+                                                                }
+                                                                com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                                                    context,
+                                                                    getString(R.string.google_cloud_sync_started),
+                                                                    android.widget.Toast.LENGTH_SHORT,
+                                                                )
+                                                            },
+                                                        ),
+                                                    )
+                                                }
+                                                add(
+                                                    GameSettingsActionItem(
+                                                        title = stringResource(R.string.common_ui_export),
+                                                        icon = Icons.Outlined.Upload,
+                                                        onClick = {
+                                                            exportLauncher.launch(
+                                                                "${app.name.replace(" ", "_").replace(":", "")}_Saves.zip",
+                                                            )
+                                                        },
+                                                    ),
+                                                )
+                                                add(
+                                                    GameSettingsActionItem(
+                                                        title = stringResource(R.string.common_ui_import),
+                                                        icon = Icons.Outlined.Download,
+                                                        onClick = { importLauncher.launch(arrayOf("application/zip")) },
+                                                    ),
+                                                )
+                                            },
+                                    )
+                                }
+
+                                LibraryDetailPopup.CloudSaves -> {
+                                    var isWorking by remember { mutableStateOf(false) }
+
+                                    val detailGameSource =
+                                        when {
+                                            isGog -> GameSaveBackupManager.GameSource.GOG
+                                            isEpic -> GameSaveBackupManager.GameSource.EPIC
+                                            isCustom -> GameSaveBackupManager.GameSource.CUSTOM
+                                            else -> GameSaveBackupManager.GameSource.STEAM
+                                        }
+                                    val detailGameId =
+                                        when {
+                                            isGog -> gogGame!!.id
+                                            isEpic -> epicId.toString()
+                                            isCustom -> app.name
+                                            else -> app.id.toString()
+                                        }
+                                    val detailShortcut =
+                                        remember(app.id, gogGame?.id, epicId, isGog, isEpic, isCustom) {
+                                            val containerManager = ContainerManager(context)
+                                            when {
+                                                isGog -> {
+                                                    containerManager.loadShortcuts().find {
+                                                        it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == gogGame!!.id
+                                                    }
+                                                }
+
+                                                else -> {
+                                                    findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
+                                                }
+                                            }
+                                        }
+                                    var cloudSyncEnabled by remember(detailShortcut?.file?.absolutePath) {
+                                        mutableStateOf(isShortcutCloudSyncEnabled(detailShortcut))
+                                    }
+                                    var offlineModeEnabled by remember(detailShortcut?.file?.absolutePath) {
+                                        mutableStateOf(isShortcutOfflineMode(detailShortcut))
+                                    }
+
+                                    val detailProviderLabel =
+                                        when (detailGameSource) {
+                                            GameSaveBackupManager.GameSource.GOG ->
+                                                stringResource(R.string.preloader_platform_gog)
+                                            GameSaveBackupManager.GameSource.EPIC ->
+                                                stringResource(R.string.preloader_platform_epic)
+                                            GameSaveBackupManager.GameSource.CUSTOM ->
+                                                stringResource(R.string.preloader_platform_custom)
+                                            GameSaveBackupManager.GameSource.STEAM ->
+                                                stringResource(R.string.preloader_platform_steam)
+                                        }
+
+                                    CloudSavesContent(
+                                        isWorking = isWorking,
+                                        cloudSyncEnabled = cloudSyncEnabled,
+                                        offlineModeEnabled = offlineModeEnabled,
+                                        gameSource = detailGameSource,
+                                        gameId = detailGameId,
+                                        gameName = app.name,
+                                        shortcut = detailShortcut,
+                                        onCloudSyncToggle = { enabled ->
+                                            cloudSyncEnabled = enabled
+                                            setShortcutCloudSyncEnabled(detailShortcut, enabled)
+                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                                context,
+                                                if (enabled) {
+                                                    context.getString(R.string.cloud_sync_enabled_summary)
+                                                } else {
+                                                    context.getString(R.string.cloud_sync_disabled_summary)
+                                                },
+                                                android.widget.Toast.LENGTH_SHORT,
+                                            )
+                                        },
+                                        onOfflineModeToggle = { enabled ->
+                                            offlineModeEnabled = enabled
+                                            setShortcutOfflineMode(detailShortcut, enabled)
+                                        },
+                                        onBackup = {
+                                            if (!isWorking) {
+                                                isWorking = true
+                                                scope.launch {
+                                                    val result =
+                                                        GameSaveBackupManager.backupToGoogle(
+                                                            this@UnifiedActivity,
+                                                            detailGameSource,
+                                                            detailGameId,
+                                                            app.name,
+                                                        )
+                                                    isWorking = false
+                                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                                        context,
+                                                        result.message,
+                                                        android.widget.Toast.LENGTH_SHORT,
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        onRestore = {
+                                            if (!isWorking) {
+                                                isWorking = true
+                                                scope.launch {
+                                                    val result =
+                                                        GameSaveBackupManager.restoreFromGoogle(
+                                                            this@UnifiedActivity,
+                                                            detailGameSource,
+                                                            detailGameId,
+                                                            app.name,
+                                                        )
+                                                    isWorking = false
+                                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                                        context,
+                                                        result.message,
+                                                        android.widget.Toast.LENGTH_SHORT,
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        onSyncFromCloud = {
+                                            if (!isWorking) {
+                                                isWorking = true
+                                                scope.launch(Dispatchers.IO) {
+                                                    val ok =
+                                                        CloudSyncHelper.downloadCloudSaves(
+                                                            context,
+                                                            detailGameSource,
+                                                            detailGameId,
+                                                        )
+                                                    withContext(Dispatchers.Main) {
+                                                        isWorking = false
+                                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                                            context,
+                                                            if (ok) {
+                                                                context.getString(
+                                                                    R.string.cloud_saves_sync_from_provider_success,
+                                                                    detailProviderLabel,
+                                                                )
+                                                            } else {
+                                                                context.getString(
+                                                                    R.string.cloud_saves_sync_from_provider_failed,
+                                                                    detailProviderLabel,
+                                                                )
+                                                            },
+                                                            android.widget.Toast.LENGTH_SHORT,
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        showTitle = false,
+                                        showBottomBack = false,
+                                        onBack = { activePopup = null },
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (
+                        currentScreen != LibraryDetailScreen.Main &&
+                        currentScreen != LibraryDetailScreen.Saves &&
+                        currentScreen != LibraryDetailScreen.CloudSaves
                     ) {
-                        Icon(Icons.Outlined.Close, contentDescription = "Close", tint = TextPrimary)
+                        // Close button overlay
+                        IconButton(
+                            onClick = onDismissRequest,
+                            modifier =
+                                Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(16.dp)
+                                    .size(42.dp)
+                                    .shadow(8.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.35f))
+                                    .clip(CircleShape)
+                                    .background(BgDark.copy(alpha = 0.7f)),
+                        ) {
+                            Icon(Icons.Outlined.Close, contentDescription = "Close", tint = TextPrimary)
+                        }
                     }
                 }
             }
@@ -5128,7 +5250,10 @@ class UnifiedActivity :
     }
 
     @Composable
-    private fun PlayButton(onClick: () -> Unit) {
+    private fun PlayButton(
+        height: Dp = 44.dp,
+        onClick: () -> Unit,
+    ) {
         val interactionSource = remember { MutableInteractionSource() }
         val isPressed by interactionSource.collectIsPressedAsState()
         val scale by animateFloatAsState(
@@ -5164,7 +5289,7 @@ class UnifiedActivity :
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(44.dp)
+                    .height(height)
                     .graphicsLayer {
                         scaleX = scale
                         scaleY = scale
@@ -5336,7 +5461,14 @@ class UnifiedActivity :
             ) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = tint)
                 Spacer(Modifier.width(6.dp))
-                Text(label, color = tint, fontSize = fontSize, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text(
+                    label,
+                    color = tint,
+                    fontSize = fontSize,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
@@ -8042,12 +8174,15 @@ class UnifiedActivity :
         onBackup: () -> Unit,
         onRestore: () -> Unit,
         onSyncFromCloud: () -> Unit,
+        showTitle: Boolean = true,
+        showBottomBack: Boolean = true,
         onBack: () -> Unit,
     ) {
         val scope = rememberCoroutineScope()
         val context = LocalContext.current
         var historyRefreshKey by remember { mutableStateOf(0) }
-        var historyLoading by remember { mutableStateOf(true) }
+        var historyRequested by remember { mutableStateOf(false) }
+        var historyLoading by remember { mutableStateOf(false) }
         var historyEntries by remember { mutableStateOf<List<GameSaveBackupManager.BackupHistoryEntry>>(emptyList()) }
         var entryPendingRestore by remember {
             mutableStateOf<GameSaveBackupManager.BackupHistoryEntry?>(null)
@@ -8058,8 +8193,10 @@ class UnifiedActivity :
         var entryPendingDelete by remember {
             mutableStateOf<GameSaveBackupManager.BackupHistoryEntry?>(null)
         }
+        val steamManagedCloud = gameSource == GameSaveBackupManager.GameSource.STEAM
 
         LaunchedEffect(gameSource, gameId, historyRefreshKey) {
+            if (!historyRequested) return@LaunchedEffect
             historyLoading = true
             historyEntries =
                 GameSaveBackupManager.listBackupHistory(
@@ -8074,7 +8211,7 @@ class UnifiedActivity :
         // Auto-refresh the history list whenever a backup/restore finishes.
         var wasWorking by remember { mutableStateOf(false) }
         LaunchedEffect(isWorking) {
-            if (wasWorking && !isWorking) historyRefreshKey++
+            if (wasWorking && !isWorking && historyRequested) historyRefreshKey++
             wasWorking = isWorking
         }
 
@@ -8085,22 +8222,25 @@ class UnifiedActivity :
                     .padding(horizontal = 24.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                stringResource(R.string.cloud_saves_title),
-                style = MaterialTheme.typography.labelMedium,
-                color = TextSecondary,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.1.sp,
-            )
+            if (showTitle) {
+                Text(
+                    stringResource(R.string.cloud_saves_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TextSecondary,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.1.sp,
+                )
+            }
 
             TogglePairCard(
                 cloudSyncEnabled = cloudSyncEnabled,
                 offlineModeEnabled = offlineModeEnabled,
+                showCloudSync = !steamManagedCloud,
                 onCloudSyncToggle = onCloudSyncToggle,
                 onOfflineModeToggle = onOfflineModeToggle,
             )
 
-            if (isWorking) {
+            if (!steamManagedCloud && isWorking) {
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth(),
                     color = Accent,
@@ -8113,53 +8253,61 @@ class UnifiedActivity :
                     GameSaveBackupManager.GameSource.STEAM -> stringResource(R.string.preloader_platform_steam)
                     GameSaveBackupManager.GameSource.EPIC -> stringResource(R.string.preloader_platform_epic)
                     GameSaveBackupManager.GameSource.GOG -> stringResource(R.string.preloader_platform_gog)
+                    GameSaveBackupManager.GameSource.CUSTOM -> stringResource(R.string.preloader_platform_custom)
                 }
 
-            ActionWithHelper(
-                icon = Icons.Outlined.CloudSync,
-                label = stringResource(R.string.cloud_saves_sync_from_provider, providerLabel),
-                helper = stringResource(R.string.cloud_saves_sync_summary, providerLabel),
-                onClick = { if (!isWorking) onSyncFromCloud() },
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
+            if (!steamManagedCloud) {
                 ActionWithHelper(
-                    icon = Icons.Outlined.CloudUpload,
-                    label = stringResource(R.string.cloud_saves_backup),
-                    helper = stringResource(R.string.cloud_saves_backup_summary),
-                    modifier = Modifier.weight(1f),
-                    onClick = onBackup,
+                    icon = Icons.Outlined.CloudSync,
+                    label = stringResource(R.string.cloud_saves_sync_from_provider, providerLabel),
+                    helper = stringResource(R.string.cloud_saves_sync_summary, providerLabel),
+                    onClick = { if (!isWorking) onSyncFromCloud() },
                 )
-                ActionWithHelper(
-                    icon = Icons.Outlined.CloudDownload,
-                    label = stringResource(R.string.cloud_saves_restore),
-                    helper = stringResource(R.string.cloud_saves_restore_summary),
-                    modifier = Modifier.weight(1f),
-                    onClick = onRestore,
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    ActionWithHelper(
+                        icon = Icons.Outlined.CloudUpload,
+                        label = stringResource(R.string.cloud_saves_backup),
+                        helper = stringResource(R.string.cloud_saves_backup_summary),
+                        modifier = Modifier.weight(1f),
+                        onClick = onBackup,
+                    )
+                    ActionWithHelper(
+                        icon = Icons.Outlined.CloudDownload,
+                        label = stringResource(R.string.cloud_saves_restore),
+                        helper = stringResource(R.string.cloud_saves_restore_summary),
+                        modifier = Modifier.weight(1f),
+                        onClick = onRestore,
+                    )
+                }
+
+                SaveHistorySection(
+                    loading = historyLoading,
+                    entries = historyEntries,
+                    onRefresh = {
+                        historyRequested = true
+                        historyRefreshKey++
+                    },
+                    onRestore = { entry -> entryPendingRestore = entry },
+                    onRename = { entry -> entryPendingRename = entry },
+                    onDelete = { entry -> entryPendingDelete = entry },
                 )
             }
 
-            SaveHistorySection(
-                loading = historyLoading,
-                entries = historyEntries,
-                onRefresh = { historyRefreshKey++ },
-                onRestore = { entry -> entryPendingRestore = entry },
-                onRename = { entry -> entryPendingRename = entry },
-                onDelete = { entry -> entryPendingDelete = entry },
-            )
-
-            Spacer(Modifier.height(4.dp))
-            TextButton(onClick = onBack) {
-                Icon(
-                    Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = null,
-                    tint = TextSecondary,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.common_ui_back), color = TextSecondary)
+            if (showBottomBack) {
+                Spacer(Modifier.height(4.dp))
+                TextButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.common_ui_back), color = TextSecondary)
+                }
             }
         }
 
@@ -8542,6 +8690,7 @@ class UnifiedActivity :
     private fun TogglePairCard(
         cloudSyncEnabled: Boolean,
         offlineModeEnabled: Boolean,
+        showCloudSync: Boolean = true,
         onCloudSyncToggle: (Boolean) -> Unit,
         onOfflineModeToggle: (Boolean) -> Unit,
     ) {
@@ -8571,6 +8720,10 @@ class UnifiedActivity :
                     enabled = true,
                     onCheckedChange = onOfflineModeToggle,
                 )
+            }
+            if (!showCloudSync) {
+                offlineCell(Modifier.fillMaxWidth())
+                return@BoxWithConstraints
             }
             if (stacked) {
                 Column(
@@ -9683,7 +9836,7 @@ class UnifiedActivity :
         onLibraryLayoutSelected: (LibraryLayoutMode) -> Unit,
         onStoreVisibleChanged: (String, Boolean) -> Unit,
         onContentFiltersChanged: (String, Boolean) -> Unit,
-        onClose: () -> Unit,
+        onExitApp: () -> Unit,
     ) {
         val currentState = persona?.state ?: EPersonaState.Online
         var statusExpanded by remember { mutableStateOf(false) }
@@ -9947,7 +10100,69 @@ class UnifiedActivity :
                     DrawerFilterButton("Applications", contentFilters["applications"] == true, Modifier.weight(1f)) { onContentFiltersChanged("applications", it) }
                     DrawerFilterButton("Tools", contentFilters["tools"] == true, Modifier.weight(1f)) { onContentFiltersChanged("tools", it) }
                 }
+
+                Spacer(Modifier.height(20.dp))
+                HorizontalDivider(color = TextSecondary.copy(alpha = 0.15f))
+                Spacer(Modifier.height(16.dp))
+
+                DrawerExitAppCard(onClick = onExitApp)
             }
+        }
+    }
+
+    @Composable
+    private fun DrawerExitAppCard(onClick: () -> Unit) {
+        val interactionSource = remember { MutableInteractionSource() }
+        val isPressed by interactionSource.collectIsPressedAsState()
+        val scale by animateFloatAsState(
+            targetValue = if (isPressed) 0.97f else 1f,
+            animationSpec = tween(100),
+            label = "exitAppCardScale",
+        )
+
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(DangerRed.copy(alpha = 0.16f))
+                    .border(1.dp, DangerRed.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = onClick,
+                    )
+                    .padding(horizontal = 14.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(DangerRed.copy(alpha = 0.22f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.ExitToApp,
+                    contentDescription = null,
+                    tint = Color(0xFFFFB4B4),
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = stringResource(R.string.common_ui_exit_app),
+                color = Color(0xFFFFD6D6),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 

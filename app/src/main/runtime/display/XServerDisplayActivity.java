@@ -75,9 +75,11 @@ import com.winlator.cmod.runtime.container.Shortcut;
 import com.winlator.cmod.feature.settings.DXVKConfigUtils;
 import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils;
 import com.winlator.cmod.feature.shortcuts.ShortcutsFragment;
-import com.winlator.cmod.feature.sync.CloudSyncConflictDialog;
-import com.winlator.cmod.feature.sync.CloudSyncConflictTimestamps;
 import com.winlator.cmod.feature.sync.CloudSyncHelper;
+import com.winlator.cmod.feature.sync.EpicLaunchCloudSync;
+import com.winlator.cmod.feature.sync.GogLaunchCloudSync;
+import com.winlator.cmod.feature.steamcloudsync.SteamExitCloudSync;
+import com.winlator.cmod.feature.steamcloudsync.SteamLaunchCloudSync;
 import com.winlator.cmod.feature.stores.steam.ui.SteamClientDownloadFailureDialog;
 import com.winlator.cmod.feature.settings.WineD3DConfigUtils;
 import com.winlator.cmod.runtime.compat.SteamBridge;
@@ -288,6 +290,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private int taskAffinityMask = 0;
     private int taskAffinityMaskWoW64 = 0;
     private int frameRatingWindowId = -1;
+    private android.net.wifi.WifiManager.MulticastLock multicastLock;
     private final float[] xform = XForm.getInstance();
     private ContentsManager contentsManager;
     private boolean navigationFocused = false;
@@ -609,6 +612,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         ControllerManager.getInstance().init(this);
 
         preloaderDialog = new PreloaderDialog(this);
+
+        try {
+            android.net.wifi.WifiManager wifiManager = (android.net.wifi.WifiManager)
+                    getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            if (wifiManager != null) {
+                multicastLock = wifiManager.createMulticastLock("winnative-xserver");
+                multicastLock.setReferenceCounted(false);
+                multicastLock.acquire();
+            }
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Failed to acquire MulticastLock", e);
+        }
 
         dualSeriesBattery = preferences.getBoolean(FrameRating.PREF_HUD_DUAL_SERIES_BATTERY, false);
 
@@ -1271,63 +1286,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 // Cancel any pending post-game update check since we're launching a new game
                 UpdateChecker.INSTANCE.cancelPostGameCheck();
 
-                if (shortcut != null) {
-                    if (isCloudSyncEnabledForShortcut() && !CloudSyncHelper.isOfflineMode(shortcut)) {
-                        CloudSyncHelper.forceDownloadOnContainerSwap(this, shortcut);
-
-                        // Cloud save sync on every store-game launch
-                        if (CloudSyncHelper.isStoreGame(shortcut)) {
-                            if (!CloudSyncHelper.hasLocalCloudSaves(this, shortcut)) {
-                                // First launch — download silently
-                                showLaunchPreloader(getString(R.string.preloader_downloading_cloud));
-                                CloudSyncHelper.downloadCloudSaves(this, shortcut);
-                                showLaunchPreloader(getString(R.string.preloader_initializing));
-                            } else if (CloudSyncHelper.cloudSavesDiffer(this, shortcut)) {
-                                // Cloud differs from local — ask the user what to do
-                                final CountDownLatch dialogLatch = new CountDownLatch(1);
-                                final boolean[] useCloud = {false};
-                                final boolean[] keepBackup = {false};
-                                final CloudSyncConflictTimestamps timestamps = CloudSyncHelper.getConflictTimestamps(this, shortcut);
-                                runOnUiThread(() -> {
-                                    CloudSyncConflictDialog.show(
-                                        XServerDisplayActivity.this,
-                                        timestamps,
-                                        (boolean keep) -> {
-                                            useCloud[0] = true;
-                                            keepBackup[0] = keep;
-                                            dialogLatch.countDown();
-                                        },
-                                        (boolean keep) -> {
-                                            useCloud[0] = false;
-                                            keepBackup[0] = keep;
-                                            dialogLatch.countDown();
-                                        }
-                                    );
-                                });
-                                try {
-                                    dialogLatch.await();
-                                } catch (InterruptedException ignored) {}
-
-                                if (useCloud[0]) {
-                                    // Archive the local save that's about to be overwritten
-                                    if (keepBackup[0]) {
-                                        try {
-                                            backupDiscardedSaveForShortcut(shortcut,
-                                                com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupOrigin.LOCAL);
-                                        } catch (Throwable t) {
-                                            android.util.Log.w("CloudSync", "Pre-overwrite local backup failed", t);
-                                        }
-                                    }
-                                    showLaunchPreloader(getString(R.string.preloader_syncing_cloud));
-                                    CloudSyncHelper.downloadCloudSaves(this, shortcut);
-                                    showLaunchPreloader(getString(R.string.preloader_initializing));
-                                }
-                                // Keep Local: cloud version is about to be overwritten on next exit.
-                                // Capturing it would require a separate provider download — deferred for now.
-                            }
-                        }
-                    }
-                }
+                SteamLaunchCloudSync.syncBeforeLaunch(
+                        this,
+                        shortcut,
+                        isCloudSyncEnabledForShortcut(),
+                        this::showLaunchPreloader);
+                EpicLaunchCloudSync.syncBeforeLaunch(
+                        this,
+                        shortcut,
+                        isCloudSyncEnabledForShortcut(),
+                        this::showLaunchPreloader);
+                GogLaunchCloudSync.syncBeforeLaunch(
+                        this,
+                        shortcut,
+                        isCloudSyncEnabledForShortcut(),
+                        this::showLaunchPreloader);
                 setupWineSystemFiles();
                 extractGraphicsDriverFiles();
                 changeWineAudioDriver();
@@ -2608,14 +2581,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }, workerName).start();
     }
 
-    private boolean isRetryableSteamExitSyncMessage(@Nullable String message) {
-        if (message == null || message.isEmpty()) {
-            return true;
-        }
-        String normalized = message.toLowerCase(java.util.Locale.US);
-        return !normalized.contains("offline");
-    }
-
     private boolean isRetryableGoogleDriveBackupMessage(@Nullable String message) {
         if (message == null || message.isEmpty()) {
             return true;
@@ -2708,100 +2673,32 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     /**
-     * Synchronously zip the current local save and upload it to the game's Save History folder.
-     * Called when the user is about to overwrite local with a cloud version and opted in to
-     * keeping a backup of the replaced side.
-     */
-    private void backupDiscardedSaveForShortcut(
-        com.winlator.cmod.runtime.container.Shortcut shortcut,
-        com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupOrigin origin
-    ) {
-        if (shortcut == null) return;
-        String gameSource = shortcut.getExtra("game_source");
-        String gameId;
-        com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource source;
-        if ("STEAM".equals(gameSource)) {
-            gameId = shortcut.getExtra("app_id");
-            source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.STEAM;
-        } else if ("EPIC".equals(gameSource)) {
-            gameId = shortcut.getExtra("app_id");
-            source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.EPIC;
-        } else if ("GOG".equals(gameSource)) {
-            gameId = shortcut.getExtra("gog_id");
-            source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.GOG;
-        } else {
-            return;
-        }
-        if (gameId == null || gameId.isEmpty()) return;
-
-        String gameName = shortcut.name != null ? shortcut.name : "Unknown";
-        final String gameIdFinal = gameId;
-        final com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource sourceFinal = source;
-        final String gameNameFinal = gameName;
-
-        try {
-            com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupResult result =
-                (com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupResult) kotlinx.coroutines.BuildersKt.runBlocking(
-                    kotlinx.coroutines.Dispatchers.getIO(),
-                    (scope, continuation) ->
-                        com.winlator.cmod.feature.sync.google.GameSaveBackupManager.INSTANCE.backupDiscardedSave(
-                            this, sourceFinal, gameIdFinal, gameNameFinal, origin, continuation
-                        )
-                );
-            android.util.Log.i("CloudSync", "Discarded save backup: " + result.getMessage());
-        } catch (Exception e) {
-            android.util.Log.w("CloudSync", "Failed to back up discarded save", e);
-        }
-    }
-
-    /**
      * Syncs Steam cloud saves when exiting a Steam game.
      * Calls SteamService.closeApp() which runs SteamAutoCloud.syncUserFiles()
      * to upload modified save files to Steam Cloud.
      */
     private void syncSteamCloudOnExit(Runnable onComplete) {
-        boolean isSteamGame = "STEAM".equals(shortcut.getExtra("game_source"));
-        if (!isSteamGame) {
+        String appId = shortcut.getExtra("app_id");
+        if (appId == null || appId.isEmpty()) {
             onComplete.run();
             return;
         }
-        
-        try {
-            int appId = Integer.parseInt(shortcut.getExtra("app_id"));
-            Log.d("XServerDisplayActivity", "Syncing Steam cloud saves for appId=" + appId);
-            
-            preloaderDialog.showOnUiThread("Cloud Sync Uploading...");
 
-            runExitUploadWithRetries(
-                    "Steam cloud sync for appId=" + appId,
-                    "Cloud Sync Uploading...",
-                    callback ->
-                            com.winlator.cmod.feature.stores.steam.service.SteamService.syncCloudOnExit(
-                                    this,
-                                    appId,
-                                    new com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.CloudSyncCallback() {
-                                        @Override
-                                        public void onProgress(String message, float progress) {
-                                            runOnUiThread(() -> {
-                                                int pct = (int) (progress * 100);
-                                                preloaderDialog.showOnUiThread(message + " (" + pct + "%)");
-                                            });
-                                        }
-
-                                        @Override
-                                        public void onComplete(boolean success, String message) {
-                                            callback.onComplete(
-                                                    new ExitUploadResult(
-                                                            success,
-                                                            message,
-                                                            isRetryableSteamExitSyncMessage(message)));
-                                        }
-                                    }),
-                    onComplete);
-        } catch (Exception e) {
-            Log.w("XServerDisplayActivity", "Failed to initiate Steam cloud sync", e);
-            onComplete.run();
-        }
+        runExitUploadWithRetries(
+                "Steam cloud sync for appId=" + appId,
+                "Cloud Sync Uploading...",
+                callback ->
+                        SteamExitCloudSync.syncOnExit(
+                                this,
+                                shortcut,
+                                text -> preloaderDialog.showOnUiThread(text),
+                                result ->
+                                        callback.onComplete(
+                                                new ExitUploadResult(
+                                                        result.getSuccess(),
+                                                        result.getMessage(),
+                                                        result.getRetryable()))),
+                onComplete);
     }
 
     private void syncEpicCloudOnExit(Runnable onComplete) {
@@ -2927,6 +2824,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         activityDestroyed.set(true);
         if (preloaderDialog != null) {
             preloaderDialog.close();
+        }
+        if (multicastLock != null && multicastLock.isHeld()) {
+            try {
+                multicastLock.release();
+            } catch (Exception ignored) {}
         }
         super.onDestroy();
         // Schedule a deferred update check 10 s after game exit
@@ -3308,7 +3210,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onInputControlsShowOverlayChanged(boolean enabled) {
                         if (inputControlsView != null) inputControlsView.setShowTouchscreenControls(enabled);
-                        preferences.edit().putBoolean("show_touchscreen_controls_enabled", enabled).apply();
+                        preferences.edit().putBoolean("show_touchscreen_controls_enabled", enabled).commit();
                         renderDrawerMenu();
                     }
 
@@ -3316,25 +3218,26 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onInputControlsTapToClickChanged(boolean enabled) {
                         isTapToClickEnabled = enabled;
                         if (touchpadView != null) touchpadView.setTapToClickEnabled(enabled);
+                        preferences.edit().putBoolean("tap_to_click_enabled", enabled).commit();
                         renderDrawerMenu();
                     }
 
                     @Override
                     public void onInputControlsOverlayOpacityChanged(float opacity) {
                         if (inputControlsView != null) inputControlsView.setOverlayOpacity(opacity);
-                        preferences.edit().putFloat("overlay_opacity", opacity).apply();
+                        preferences.edit().putFloat("overlay_opacity", opacity).commit();
                         renderDrawerMenu();
                     }
 
                     @Override
                     public void onInputControlsTouchscreenHapticsChanged(boolean enabled) {
-                        preferences.edit().putBoolean("touchscreen_haptics_enabled", enabled).apply();
+                        preferences.edit().putBoolean("touchscreen_haptics_enabled", enabled).commit();
                         renderDrawerMenu();
                     }
 
                     @Override
                     public void onInputControlsGamepadVibrationChanged(boolean enabled) {
-                        preferences.edit().putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled).apply();
+                        preferences.edit().putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled).commit();
                         if (winHandler != null) winHandler.setGlobalVibrationEnabled(enabled);
                         renderDrawerMenu();
                     }
@@ -7734,7 +7637,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     ? parseBoolean(getShortcutSetting("launchRealSteam", container.isLaunchRealSteam() ? "1" : "0"))
                     : container.isLaunchRealSteam();
 
-            if (launchRealSteamMode) {
+            boolean steamCloudSyncAllowed =
+                    isCloudSyncEnabledForShortcut()
+                            && !com.winlator.cmod.feature.sync.CloudSyncHelper.isOfflineMode(shortcut);
+            if (launchRealSteamMode && steamCloudSyncAllowed) {
                 // Seed or heal the shared Steam client store before launch.
                 // isSteamInstalled() only verifies file existence; isSharedSteamStorePristine()
                 // adds a size check that catches a Goldberg-stub overwrite (the #1 cause of
@@ -7886,7 +7792,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             // Local metadata cleanup — after javasteam has synced, Steam may still have
             // stale local state from previous sessions. Wipe both the metadata cache and
             // the remote/ save directory so Steam re-reads cleanly from the sync results.
-            if (launchRealSteamMode && steamAccountId > 0) {
+            if (launchRealSteamMode && steamCloudSyncAllowed && steamAccountId > 0) {
                 File userAppDir = new File(steamDir,
                         "userdata/" + steamAccountId + "/" + appId);
                 File remoteCache = new File(userAppDir, "remotecache.vdf");

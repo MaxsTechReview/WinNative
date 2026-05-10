@@ -376,9 +376,6 @@ object EpicAuthManager {
             // Ensure the periodic refresh worker is running whenever creds exist on disk.
             // Uses KEEP policy so this is a no-op when already scheduled.
             EpicTokenRefreshWorker.schedule(context)
-            // Push the fresh token to Google Play Games so the cloud backup never holds a stale
-            // refresh token. Fires silently; no-op when sync is disabled or debounced.
-            com.winlator.cmod.feature.sync.google.CloudSyncManager.scheduleAutoBackup(context)
             Timber.d("Credentials saved to ${authFile.absolutePath}")
         } catch (e: Exception) {
             Timber.e(e, "Failed to save Epic credentials")
