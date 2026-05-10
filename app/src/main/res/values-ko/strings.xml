@@ -17,6 +17,7 @@
     <string name="common_ui_select_valid_exe_file">올바른 .exe 파일을 선택하세요</string>
     <string name="common_ui_select_valid_icon_file">올바른 .ico 또는 .png 파일을 선택하세요.</string>
     <string name="common_ui_exit">종료</string>
+    <string name="common_ui_exit_app">앱 종료</string>
     <string name="common_ui_profile">프로필</string>
     <string name="common_ui_name">이름</string>
     <string name="common_ui_ok">확인</string>
@@ -110,7 +111,6 @@
     <string name="common_ui_grant_all_files_access_browse">로컬 폴더를 바로 탐색하려면 모든 파일 접근 권한을 허용하세요.</string>
     <string name="common_ui_not_configured">구성되지 않음</string>
     <string name="common_ui_reinstall">재설치</string>
-    <string name="common_ui_exit_app_confirm">WinNative를 종료하시겠습니까?</string>
     <string name="common_ui_elements_count">%1$d개 항목</string>
     <string name="common_ui_disabled_placeholder">-- 비활성화됨 --</string>
     <string name="common_ui_enabled">활성화됨</string>

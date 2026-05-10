@@ -17,6 +17,7 @@
     <string name="common_ui_select_valid_exe_file">Vælg venligst en gyldig .exe-fil</string>
     <string name="common_ui_select_valid_icon_file">Vælg venligst en gyldig .ico- eller .png-fil.</string>
     <string name="common_ui_exit">Afslut</string>
+    <string name="common_ui_exit_app">Afslut app</string>
     <string name="common_ui_profile">Profil</string>
     <string name="common_ui_name">Navn</string>
     <string name="common_ui_ok">OK</string>
@@ -110,7 +111,6 @@
     <string name="common_ui_grant_all_files_access_browse">Giv fuld filadgang for at gennemse lokale mapper direkte.</string>
     <string name="common_ui_not_configured">Ikke konfigureret</string>
     <string name="common_ui_reinstall">Geninstaller</string>
-    <string name="common_ui_exit_app_confirm">Afslut WinNative?</string>
     <string name="common_ui_elements_count">%1$d elementer</string>
     <string name="common_ui_disabled_placeholder">-- Deaktiveret --</string>
     <string name="common_ui_enabled">Aktiveret</string>

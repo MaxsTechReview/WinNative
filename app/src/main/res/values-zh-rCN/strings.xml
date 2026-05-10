@@ -17,6 +17,7 @@
     <string name="common_ui_select_valid_exe_file">请选择一个有效的 .exe 文件</string>
     <string name="common_ui_select_valid_icon_file">请选择一个有效的 .ico 或 .png 文件。</string>
     <string name="common_ui_exit">退出</string>
+    <string name="common_ui_exit_app">退出应用</string>
     <string name="common_ui_profile">配置文件</string>
     <string name="common_ui_name">名称</string>
     <string name="common_ui_ok">确定</string>
@@ -110,7 +111,6 @@
     <string name="common_ui_grant_all_files_access_browse">请授予所有文件访问权限以直接浏览本地文件夹。</string>
     <string name="common_ui_not_configured">未配置</string>
     <string name="common_ui_reinstall">重新安装</string>
-    <string name="common_ui_exit_app_confirm">退出 WinNative？</string>
     <string name="common_ui_elements_count">%1$d 个元素</string>
     <string name="common_ui_disabled_placeholder">-- 已禁用 --</string>
     <string name="common_ui_enabled">已启用</string>
