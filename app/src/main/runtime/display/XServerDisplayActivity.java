@@ -34,6 +34,7 @@ import android.view.MotionEvent;
 import android.view.PointerIcon;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
@@ -128,6 +129,7 @@ import com.winlator.cmod.runtime.display.ui.MagnifierView;
 import com.winlator.cmod.runtime.display.ui.XServerView;
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity;
 import com.winlator.cmod.runtime.input.ui.InputControlsView;
+import com.winlator.cmod.runtime.input.ui.TouchGestureConfig;
 import com.winlator.cmod.runtime.input.ui.TouchpadView;
 import com.winlator.cmod.runtime.system.LogFileUtils;
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
@@ -296,6 +298,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private Runnable configChangedCallback = null;
     private boolean isPaused = false;
     private boolean isRelativeMouseMovement = false;
+    private boolean showTouchGestureSettingsDialog = false;
+    private TouchGestureConfig touchGestureConfig;
     private boolean isNativeRenderingEnabled = true;
 
     private float hudTransparency = 1.0f;
@@ -3006,6 +3010,23 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             inputProfileNames.add(profile.getName());
         }
 
+        if (touchGestureConfig == null) {
+            if (shortcut != null) {
+                touchGestureConfig = shortcut.getTouchGestureConfig();
+            } else {
+                String configStr = preferences.getString("touch_gesture_config", "");
+                if (!configStr.isEmpty()) {
+                    try {
+                        touchGestureConfig = TouchGestureConfig.Companion.fromJSONObject(new JSONObject(configStr));
+                    } catch (JSONException e) {
+                        touchGestureConfig = new TouchGestureConfig();
+                    }
+                } else {
+                    touchGestureConfig = new TouchGestureConfig();
+                }
+            }
+        }
+
         XServerDrawerState state = XServerDrawerMenuKt.buildXServerDrawerState(
                 this,
                 isRelativeMouseMovement,
@@ -3042,6 +3063,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 fsrMode,
                 fsrSharpness,
                 colorProfile,
+                touchGestureConfig.getEnabled(),
                 inputProfileNames,
                 inputSelectedIndex,
                 preferences.getBoolean("show_touchscreen_controls_enabled", false),
@@ -3049,7 +3071,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY),
                 preferences.getBoolean("touchscreen_haptics_enabled", false),
                 preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true),
-                xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen()
+                xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen(),
+                drawerStateHolder != null ? drawerStateHolder.getState().getShowTouchGestureSettingsDialog() : false,
+                touchGestureConfig
         );
 
         if (drawerActionListener == null) {
@@ -3175,10 +3199,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onGyroscopeCardExpandedChanged(boolean expanded) {
                         gyroscopeCardExpanded = expanded;
                         renderDrawerMenu();
-                    }
+                        }
 
-                    @Override
-                    public void onFPSLimitChanged(int limit) {
+                        @Override
+                        public void onFPSLimitChanged(int limit) {
                         runtimeFpsLimit = Math.max(0, limit);
                         if (xServerView != null) {
                             xServerView.getRenderer().setFpsLimit(runtimeFpsLimit);
@@ -3189,13 +3213,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             shortcut.saveData();
                         }
                         renderDrawerMenu();
-                    }
+                        }
 
-                    @Override
-                    public void onScreenEffectsCardExpandedChanged(boolean expanded) {
+                        @Override
+                        public void onScreenEffectsCardExpandedChanged(boolean expanded) {
                         screenEffectsCardExpanded = expanded;
                         renderDrawerMenu();
-                    }
+                        }
 
                     @Override
                     public void onFSREnabledChanged(boolean enabled) {
@@ -3346,6 +3370,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         if (drawerStateHolder == null) {
             drawerStateHolder = new XServerDrawerStateHolder(state);
+            drawerStateHolder.setOnTouchGestureConfigChanged(config -> {
+                touchGestureConfig = config;
+                if (shortcut != null) {
+                    shortcut.setTouchGestureConfig(config);
+                    shortcut.saveData();
+                } else {
+                    preferences.edit().putString("touch_gesture_config", config.toJSONObject().toString()).apply();
+                }
+                if (touchpadView != null) touchpadView.setGestureConfig(config);
+                return kotlin.Unit.INSTANCE;
+            });
             XServerDisplayHostKt.setupXServerDisplayHost(
                     displayHostComposeView,
                     xServerDisplayFrame,
@@ -4458,6 +4493,22 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         globalCursorSpeed = preferences.getFloat("cursor_speed", 1.0f);
         touchpadView = new TouchpadView(this, xServer, timeoutHandler, hideControlsRunnable);
+        
+        if (touchGestureConfig == null) {
+            if (shortcut != null) touchGestureConfig = shortcut.getTouchGestureConfig();
+            else {
+                String configStr = preferences.getString("touch_gesture_config", "");
+                if (!configStr.isEmpty()) {
+                    try {
+                        touchGestureConfig = TouchGestureConfig.Companion.fromJSONObject(new JSONObject(configStr));
+                    } catch (JSONException e) {
+                        touchGestureConfig = new TouchGestureConfig();
+                    }
+                } else touchGestureConfig = new TouchGestureConfig();
+            }
+        }
+        touchpadView.setGestureConfig(touchGestureConfig);
+        
         touchpadView.setTapToClickEnabled(isTapToClickEnabled);
         touchpadView.setSensitivity(globalCursorSpeed);
         touchpadView.setMouseEnabled(!isMouseDisabled);

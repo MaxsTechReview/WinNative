@@ -155,6 +155,8 @@ data class InputControlsScreenState(
     val triggerTypeIndex: Int = 1,
     val triggerCardExpanded: Boolean = false,
     val triggerDescription: String = "",
+    val rtsTouchEnabled: Boolean = false,
+    val touchGestureConfig: com.winlator.cmod.runtime.input.ui.TouchGestureConfig? = null,
     val controllerCards: List<InputControllerCardState> = emptyList(),
     val dialog: InputControlsDialogUiState = InputControlsDialogUiState.None,
 )
@@ -250,6 +252,8 @@ data class InputControlsScreenActions(
     val onBindingTypeClick: (String, Int) -> Unit,
     val onBindingValueClick: (String, Int) -> Unit,
     val onRemoveBinding: (String, Int) -> Unit,
+    val onRTSTouchEnabledChanged: (Boolean) -> Unit,
+    val onRTSTouchConfigChanged: (com.winlator.cmod.runtime.input.ui.TouchGestureConfig) -> Unit,
 )
 
 @Composable

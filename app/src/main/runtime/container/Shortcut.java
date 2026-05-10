@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.Log;
 import com.winlator.cmod.runtime.display.environment.ImageFs;
+import com.winlator.cmod.runtime.input.ui.TouchGestureConfig;
 import com.winlator.cmod.runtime.wine.PeIconExtractor;
 import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.shared.util.StringUtils;
@@ -440,6 +441,22 @@ public class Shortcut {
 
   public JSONObject getExtraData() {
     return extraData;
+  }
+
+  public TouchGestureConfig getTouchGestureConfig() {
+    String configStr = getExtra("touchGestureConfig", "");
+    if (!configStr.isEmpty()) {
+      try {
+        return TouchGestureConfig.Companion.fromJSONObject(new JSONObject(configStr));
+      } catch (JSONException e) {
+        e.printStackTrace();
+      }
+    }
+    return new TouchGestureConfig();
+  }
+
+  public void setTouchGestureConfig(TouchGestureConfig config) {
+    putExtra("touchGestureConfig", config.toJSONObject().toString());
   }
 
   public String getExecutable() {

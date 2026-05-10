@@ -285,6 +285,7 @@ private fun XServerDisplayHost(
             ) {
                 if (drawerSheetVisible) {
                     XServerDrawerContent(
+                        stateHolder = stateHolder,
                         state = stateHolder.state,
                         taskManagerState = stateHolder.taskManagerState,
                         logsState = stateHolder.logsState,

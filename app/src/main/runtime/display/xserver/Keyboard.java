@@ -27,6 +27,10 @@ public class Keyboard {
     this.xServer = xServer;
   }
 
+  public XKeycode getXKeycode(int keyCode) {
+    return keyCode >= 0 && keyCode < keycodeMap.length ? keycodeMap[keyCode] : null;
+  }
+
   public Bitmask getModifiersMask() {
     return modifiersMask;
   }

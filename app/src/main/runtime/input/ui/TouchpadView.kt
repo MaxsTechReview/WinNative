@@ -11,6 +11,7 @@ import android.util.Log
 import android.view.InputDevice
 import android.view.MotionEvent
 import android.view.PointerIcon
+import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -20,7 +21,9 @@ import com.winlator.cmod.runtime.display.renderer.ViewTransformation
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags
 import com.winlator.cmod.runtime.display.winhandler.WinHandler
 import com.winlator.cmod.runtime.display.xserver.Pointer
+import com.winlator.cmod.runtime.display.xserver.XKeycode
 import com.winlator.cmod.runtime.display.xserver.XServer
+import com.winlator.cmod.runtime.input.controls.Binding
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.math.Mathf
 import com.winlator.cmod.shared.math.XForm
@@ -34,11 +37,10 @@ class TouchpadView(
     companion object {
         private const val MAX_FINGERS: Byte = 4
         private const val MAX_TWO_FINGERS_SCROLL_DISTANCE: Short = 350
-        const val MAX_TAP_TRAVEL_DISTANCE: Byte = 10
-        const val MAX_TAP_MILLISECONDS: Short = 200
+        const val MAX_TAP_TRAVEL_DISTANCE: Byte = 40
+        const val MAX_TAP_MILLISECONDS: Short = 300
         const val CURSOR_ACCELERATION = 1.25f
         const val CURSOR_ACCELERATION_THRESHOLD: Byte = 6
-        private const val MIN_SENSITIVITY = 0.1f
         private const val CLICK_DELAYED_TIME: Byte = 50
         private const val EFFECTIVE_TOUCH_DISTANCE: Byte = 20
         private const val UPDATE_FORM_DELAYED_TIME = 50
@@ -46,7 +48,7 @@ class TouchpadView(
     }
 
     private val fingers = arrayOfNulls<Finger>(MAX_FINGERS.toInt())
-    private var numFingers: Byte = 0
+    private var numFingers = 0
     private var sensitivity = 1.0f
     private var pointerButtonLeftEnabled = true
     private var pointerButtonRightEnabled = true
@@ -63,19 +65,72 @@ class TouchpadView(
     private var mouseEnabled = true
     var tapToClickEnabled = true
     private var fourFingersTapCallback: Runnable? = null
+    private var gestureConfig = TouchGestureConfig()
+    private var scaleDetector: ScaleGestureDetector? = null
+    
+    // GameNative Advanced State Machine
+    private var isPinching = false
+    private var isDragging = false
+    private var dragButtonPressed = false
+    private var delayedPress: Runnable? = null
+    private var movedBeyondTapThreshold = false
+    private var gestureConsumed = false
+    private var swipeHandled = false
+    private var lastTapTime: Long = 0
+    private var lastTapX = 0
+    private var lastTapY = 0
+    private var activeLongPressAction: Binding = Binding.NONE
+    private var longPressActive = false
+    private var longPressTriggered = false
+    private var doubleTapDetected = false
+    private var suppressNextLeftTap = false
+    private var twoFingerHoldTriggered = false
+    private var threeFingerHoldTriggered = false
+    private var twoFingerTapFired = false
+    private var threeFingerTapFired = false
+
+    // Settle Windows & Pointer Tracking
+    private val gestureOwnedPointerIds = mutableListOf<Int>()
+    private var twoFingerDownTime: Long = 0
+    private var pinchLastDistance = 0f
+    private var twoFingerLastX0 = 0f
+    private var twoFingerLastY0 = 0f
+    private var twoFingerLastX1 = 0f
+    private var twoFingerLastY1 = 0f
+    private val TWO_FINGER_SETTLE_MS = 40L
+    private val THREE_FINGER_SETTLE_MS = 50L
+
     private val preferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
     private val longPressHandler = Handler(Looper.getMainLooper())
-    private var longPressActive = false
     private val longPressRunnable =
         Runnable {
-            if (tapToClickEnabled && numFingers.toInt() == 1 && fingers[0] != null && fingers[0]!!.travelDistance() < MAX_TAP_TRAVEL_DISTANCE) {
-                longPressActive = true
-                if (xServer.isRelativeMouseMovement) {
-                    xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTDOWN, 0, 0, 0)
-                    xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTUP, 0, 0, 0)
-                } else {
-                    xServer.injectPointerButtonPress(Pointer.Button.BUTTON_RIGHT)
-                    xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
+            if (tapToClickEnabled && numFingers >= 1) {
+                // GameNative: Hold action doesn't require movedBeyondTapThreshold to be false,
+                // but we should ensure we haven't CONSUMED a swipe yet.
+                if (!swipeHandled) {
+                    if (gestureConfig.enabled) {
+                        val action = when (numFingers) {
+                            1 -> gestureConfig.oneFingerLongPressAction
+                            2 -> gestureConfig.twoFingerLongPressAction
+                            3 -> gestureConfig.threeFingerLongPressAction
+                            4 -> gestureConfig.fourFingerLongPressAction
+                            else -> Binding.NONE
+                        }
+                        if (action != Binding.NONE) {
+                            longPressTriggered = true
+                            activeLongPressAction = action
+                            injectBindingAction(action)
+                        }
+                    } else if (numFingers == 1) {
+                        longPressTriggered = true
+                        if (xServer.isRelativeMouseMovement) {
+                            xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTDOWN, 0, 0, 0)
+                            xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTUP, 0, 0, 0)
+                        } else {
+                            xServer.injectPointerButtonPress(Pointer.Button.BUTTON_RIGHT)
+                            xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
+                        }
+                    }
                 }
             }
         }
@@ -87,6 +142,29 @@ class TouchpadView(
         isFocusable = true
         isFocusableInTouchMode = false
         pointerIcon = PointerIcon.load(resources, R.drawable.hidden_pointer_arrow)
+
+        scaleDetector = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+                if (gestureConfig.enabled && gestureConfig.pinchEnabled) {
+                    isPinching = true
+                    return true
+                }
+                return false
+            }
+
+            override fun onScale(detector: ScaleGestureDetector): Boolean {
+                if (gestureConfig.enabled && gestureConfig.pinchEnabled) {
+                    handlePinch(detector.scaleFactor)
+                    return true
+                }
+                return false
+            }
+
+            override fun onScaleEnd(detector: ScaleGestureDetector) {
+                isPinching = false
+            }
+        })
+
         updateXform(
             AppUtils.getScreenWidth(),
             AppUtils.getScreenHeight(),
@@ -182,9 +260,12 @@ class TouchpadView(
         val isTouchscreenMode = preferences.getBoolean("touchscreen_toggle", false)
         resetMousePointerTimeout()
 
+        scaleDetector?.onTouchEvent(event)
+        if (isPinching) return true
+
         return when (event.getToolType(0)) {
             MotionEvent.TOOL_TYPE_STYLUS -> handleStylusEvent(event)
-            else -> if (isTouchscreenMode) handleTouchscreenEvent(event) else handleTouchpadEvent(event)
+            else -> if (isTouchscreenMode || gestureConfig.enabled) handleTouchscreenEvent(event) else handleTouchpadEvent(event)
         }
     }
 
@@ -288,9 +369,13 @@ class TouchpadView(
                 if (simTouchScreen) {
                     val clickDelay =
                         Runnable {
-                            if (continueClick) {
+                            if (continueClick && gestureConfig.oneFingerTapAction != Binding.NONE) {
                                 xServer.injectPointerMove(lastTouchedPosX, lastTouchedPosY)
-                                xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+                                if (xServer.isRelativeMouseMovement) {
+                                    xServer.winHandler.mouseEvent(MouseEventFlags.LEFTDOWN, 0, 0, 0)
+                                } else {
+                                    xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+                                }
                             }
                         }
                     if (pointerId == 0) {
@@ -321,11 +406,10 @@ class TouchpadView(
 
             MotionEvent.ACTION_MOVE -> {
                 if (event.isFromSource(InputDevice.SOURCE_MOUSE)) {
+                    val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
                     if (xServer.isRelativeMouseMovement) {
-                        val delta = getExternalMouseDelta(event)
-                        xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, delta[0], delta[1], 0)
+                        xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
                     } else {
-                        val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
                         xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
                     }
                 } else {
@@ -371,73 +455,315 @@ class TouchpadView(
         if (pointerId >= MAX_FINGERS) return true
 
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
+            MotionEvent.ACTION_DOWN -> {
+                gestureOwnedPointerIds.clear()
+                gestureOwnedPointerIds.add(pointerId)
+                numFingers = 1
+                
+                for (i in 0 until MAX_FINGERS.toInt()) fingers[i] = null
+                
+                // Cancel pending taps/holds
+                longPressHandler.removeCallbacks(longPressRunnable)
+                if (delayedPress != null) {
+                    removeCallbacks(delayedPress)
+                    delayedPress = null
+                    handleTouchUp() // Flush previous tap
+                }
+                
+                longPressTriggered = false
+                isDragging = false
+                dragButtonPressed = false
+                movedBeyondTapThreshold = false
+                suppressNextLeftTap = false
+                doubleTapDetected = false
+                twoFingerHoldTriggered = false
+                threeFingerHoldTriggered = false
+                twoFingerTapFired = false
+                threeFingerTapFired = false
+                swipeHandled = false
+                gestureConsumed = false
+                activeLongPressAction = Binding.NONE
+
                 fingers[pointerId] = Finger(event.getX(actionIndex), event.getY(actionIndex))
-                numFingers++
                 handleTouchDown(event)
+                
+                // Start double-tap check
+                val currentTime = System.currentTimeMillis()
+                val dx = Math.abs(fingers[pointerId]!!.x - lastTapX)
+                val dy = Math.abs(fingers[pointerId]!!.y - lastTapY)
+                if (currentTime - lastTapTime < MAX_TAP_MILLISECONDS && dx < 50 && dy < 50) {
+                    doubleTapDetected = true
+                    if (gestureConfig.enabled && gestureConfig.oneFingerDoubleTapAction != Binding.NONE) {
+                        injectTapAction(gestureConfig.oneFingerDoubleTapAction)
+                    }
+                } else {
+                    longPressHandler.postDelayed(longPressRunnable, gestureConfig.oneFingerLongPressDuration.toLong())
+                }
+            }
+
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                val oldNumFingers = numFingers
+                if (!gestureOwnedPointerIds.contains(pointerId)) {
+                    gestureOwnedPointerIds.add(pointerId)
+                    numFingers++
+                }
+                
+                fingers[pointerId] = Finger(event.getX(actionIndex), event.getY(actionIndex))
+
+                // Only restart long-press timer if we actually added a finger
+                if (numFingers > oldNumFingers) {
+                    if (longPressTriggered && activeLongPressAction != Binding.NONE) {
+                        injectReleaseAction(activeLongPressAction)
+                        activeLongPressAction = Binding.NONE
+                    }
+                    longPressTriggered = false
+                    gestureConsumed = false
+                    longPressHandler.removeCallbacks(longPressRunnable)
+                    if (delayedPress != null) {
+                        removeCallbacks(delayedPress)
+                        delayedPress = null
+                        handleTouchUp()
+                    }
+                    
+                    if (isDragging && dragButtonPressed) {
+                        handleTouchUp()
+                        dragButtonPressed = false
+                        isDragging = false
+                    }
+                    
+                    if (numFingers == 2) {
+                        twoFingerDownTime = System.currentTimeMillis()
+                        val idx0 = event.findPointerIndex(gestureOwnedPointerIds[0])
+                        val idx1 = event.findPointerIndex(gestureOwnedPointerIds[1])
+                        if (idx0 >= 0 && idx1 >= 0) {
+                            twoFingerLastX0 = event.getX(idx0)
+                            twoFingerLastY0 = event.getY(idx0)
+                            twoFingerLastX1 = event.getX(idx1)
+                            twoFingerLastY1 = event.getY(idx1)
+                            pinchLastDistance = Math.hypot((event.getX(idx0) - event.getX(idx1)).toDouble(), (event.getY(idx0) - event.getY(idx1)).toDouble()).toFloat()
+                        }
+                    }
+
+                    val duration = when (numFingers) {
+                        2 -> gestureConfig.twoFingerLongPressDuration
+                        3 -> gestureConfig.threeFingerLongPressDuration
+                        else -> gestureConfig.fourFingerLongPressDuration
+                    }
+                    longPressHandler.postDelayed(longPressRunnable, duration.toLong())
+                }
             }
 
             MotionEvent.ACTION_MOVE -> {
-                for (i in 0 until MAX_FINGERS.toInt()) {
-                    val finger = fingers[i] ?: continue
-                    val pIdx = event.findPointerIndex(i)
-                    if (pIdx >= 0) finger.update(event.getX(pIdx), event.getY(pIdx))
+                for (id in gestureOwnedPointerIds) {
+                    val pIdx = event.findPointerIndex(id)
+                    if (pIdx >= 0) fingers[id]?.update(event.getX(pIdx), event.getY(pIdx))
                 }
-                if (numFingers.toInt() == 2) {
+
+                // Settle Window: Ignore movement during first X ms of multi-finger touch
+                val now = System.currentTimeMillis()
+                if (numFingers == 2 && (now - twoFingerDownTime) < TWO_FINGER_SETTLE_MS) return true
+                if (numFingers == 3 && (now - twoFingerDownTime) < THREE_FINGER_SETTLE_MS) return true
+                
+                if (numFingers == 1 && !longPressTriggered && !doubleTapDetected) {
+                    val finger = fingers[gestureOwnedPointerIds[0]]
+                    if (finger != null && finger.travelDistance() > MAX_TAP_TRAVEL_DISTANCE) {
+                        movedBeyondTapThreshold = true
+                        longPressHandler.removeCallbacks(longPressRunnable)
+                        if (!isDragging) {
+                            isDragging = true
+                            if (gestureConfig.enabled && gestureConfig.oneFingerDragAction == TouchGestureConfig.DragAction.LEFT_CLICK) {
+                                dragButtonPressed = true
+                                if (xServer.isRelativeMouseMovement) {
+                                    xServer.winHandler.mouseEvent(MouseEventFlags.LEFTDOWN, 0, 0, 0)
+                                } else {
+                                    xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+                                }
+                            }
+                        }
+                        handleTouchMove(event)
+                    }
+                } else if (gestureConfig.enabled) {
+                    when (numFingers) {
+                        1 -> handleTouchMove(event)
+                        2 -> if (!isPinching) {
+                            val activeFingers = gestureOwnedPointerIds.mapNotNull { fingers[it] }
+                            if (activeFingers.size == 2 && (activeFingers[0].travelDistance() > 30 || activeFingers[1].travelDistance() > 30)) {
+                                movedBeyondTapThreshold = true
+                                longPressHandler.removeCallbacks(longPressRunnable)
+                                handleRTSTwoFingerSwipe()
+                            }
+                        }
+                        3, 4 -> {
+                            val activeFingers = gestureOwnedPointerIds.mapNotNull { fingers[it] }
+                            if (activeFingers.isNotEmpty() && activeFingers.first().travelDistance() > 30) {
+                                movedBeyondTapThreshold = true
+                                longPressHandler.removeCallbacks(longPressRunnable)
+                                handleSwipeDetection()
+                            }
+                        }
+                        else -> handleTouchMove(event)
+                    }
+                } else if (numFingers == 2) {
                     handleTwoFingerScroll(event)
                 } else {
                     handleTouchMove(event)
                 }
             }
 
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
-                val finger = fingers[pointerId]
-                if (numFingers.toInt() == 2 && finger?.isTap() == true) {
-                    handleTwoFingerTap()
-                } else {
-                    handleTouchUp()
+            MotionEvent.ACTION_POINTER_UP -> {
+                if (gestureOwnedPointerIds.contains(pointerId)) {
+                    val finger = fingers[pointerId]
+                    longPressHandler.removeCallbacks(longPressRunnable)
+
+                    if (longPressTriggered && activeLongPressAction != Binding.NONE) {
+                        injectReleaseAction(activeLongPressAction)
+                        activeLongPressAction = Binding.NONE
+                        longPressTriggered = false
+                        gestureConsumed = true // Prevent tap action on lift if we just released a hold
+                    }
+                    
+                    // Fire multi-finger tap actions on FIRST lift (GameNative logic)
+                    if (gestureConfig.enabled && !longPressTriggered && !gestureConsumed && finger?.isTap() == true && !movedBeyondTapThreshold) {
+                        val action = when (numFingers) {
+                            2 -> { stopRTSTwoFingerSwipe(); gestureConfig.twoFingerTapAction }
+                            3 -> { gestureConfig.threeFingerTapAction }
+                            4 -> { gestureConfig.fourFingerTapAction }
+                            else -> Binding.NONE
+                        }
+                        if (action != Binding.NONE) {
+                            injectBindingAction(action)
+                            injectReleaseAction(action)
+                        }
+                        gestureConsumed = true
+                    }
+                    
+                    fingers[pointerId] = null
+                    gestureOwnedPointerIds.remove(Integer.valueOf(pointerId))
+                    numFingers--
                 }
+            }
+
+            MotionEvent.ACTION_UP -> {
+                val finger = fingers[pointerId]
+                longPressHandler.removeCallbacks(longPressRunnable)
+
+                if (longPressTriggered) {
+                    if (activeLongPressAction != Binding.NONE) {
+                        injectReleaseAction(activeLongPressAction)
+                        activeLongPressAction = Binding.NONE
+                    }
+                    longPressTriggered = false
+                } else if (gestureConfig.enabled && !gestureConsumed && numFingers == 1) {
+                    if (isDragging) {
+                        if (dragButtonPressed) handleTouchUp()
+                        dragButtonPressed = false
+                        isDragging = false
+                    } else if (!movedBeyondTapThreshold) {
+                        // Double Tap check
+                        val currentTime = System.currentTimeMillis()
+                        val dx = Math.abs(finger!!.x - lastTapX)
+                        val dy = Math.abs(finger.y - lastTapY)
+                        
+                        if (currentTime - lastTapTime < 300 && dx < 50 && dy < 50) {
+                            injectTapAction(gestureConfig.oneFingerDoubleTapAction)
+                            lastTapTime = 0
+                        } else {
+                            injectTapAction(gestureConfig.oneFingerTapAction)
+                            lastTapTime = currentTime
+                            lastTapX = finger.x
+                            lastTapY = finger.y
+                        }
+                    }
+                } else if (!gestureConfig.enabled && numFingers == 2 && finger?.isTap() == true) {
+                    handleTwoFingerTap()
+                } else if (numFingers == 1 && isDragging && dragButtonPressed) {
+                    handleTouchUp()
+                    dragButtonPressed = false
+                    isDragging = false
+                }
+                
                 fingers[pointerId] = null
-                numFingers--
+                gestureOwnedPointerIds.clear()
+                numFingers = 0
+                gestureConsumed = false
             }
 
             MotionEvent.ACTION_CANCEL -> {
+                longPressHandler.removeCallbacks(longPressRunnable)
+                if (delayedPress != null) {
+                    removeCallbacks(delayedPress)
+                    delayedPress = null
+                    handleTouchUp()
+                }
+                if (dragButtonPressed) {
+                    handleTouchUp()
+                    dragButtonPressed = false
+                }
+                if (longPressTriggered) {
+                    if (activeLongPressAction != Binding.NONE) {
+                        injectReleaseAction(activeLongPressAction)
+                        activeLongPressAction = Binding.NONE
+                    }
+                    longPressTriggered = false
+                }
+                isDragging = false
                 for (i in 0 until MAX_FINGERS.toInt()) fingers[i] = null
                 numFingers = 0
                 handleAllUp()
+                stopRTSTwoFingerSwipe()
             }
         }
         return true
     }
 
-    private fun handleTouchDown(event: MotionEvent) {
-        val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
-        if (xServer.isRelativeMouseMovement) {
-            xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
-        } else {
-            xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
-        }
-
-        if (tapToClickEnabled && numFingers.toInt() == 1) {
-            if (xServer.isRelativeMouseMovement) {
-                xServer.winHandler.mouseEvent(MouseEventFlags.LEFTDOWN, 0, 0, 0)
-            } else {
-                xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+    private fun injectReleaseAction(binding: Binding) {
+        if (binding == Binding.NONE) return
+        if (binding.isMouse) {
+            val button = binding.pointerButton
+            if (button != null) {
+                if (xServer.isRelativeMouseMovement) {
+                    xServer.winHandler.mouseEvent(MouseEventFlags.getFlagFor(button, false), 0, 0, 0)
+                } else {
+                    xServer.injectPointerButtonRelease(button)
+                }
+            }
+        } else if (binding.isKeyboard) {
+            val xKeycodeValue = binding.keycode
+            if (xKeycodeValue != null && xKeycodeValue != com.winlator.cmod.runtime.display.xserver.XKeycode.KEY_NONE) {
+                xServer.injectKeyRelease(xKeycodeValue)
             }
         }
     }
 
-    private fun handleTouchMove(event: MotionEvent) {
+    private fun handleTouchDown(event: MotionEvent) {
         val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
-        if (xServer.isRelativeMouseMovement) {
-            xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
-        } else {
+        if (!xServer.isRelativeMouseMovement) {
             xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
         }
     }
 
+    private fun handleTouchMove(event: MotionEvent) {
+        if (numFingers == 1) {
+            val finger = fingers.firstOrNull { it != null }
+            if (finger != null) {
+                if (simTouchScreen) {
+                    if (System.currentTimeMillis() - finger.touchTime > CLICK_DELAYED_TIME) xServer.injectPointerMove(finger.x, finger.y)
+                } else if (xServer.isRelativeMouseMovement) {
+                    xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, finger.deltaX(), finger.deltaY(), 0)
+                } else {
+                    xServer.injectPointerMove(finger.x, finger.y)
+                }
+            }
+        } else {
+            val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
+            if (!xServer.isRelativeMouseMovement) {
+                xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
+            }
+        }
+    }
+
     private fun handleTouchUp() {
-        if (tapToClickEnabled) {
+        if (tapToClickEnabled && xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) {
             if (xServer.isRelativeMouseMovement) {
                 xServer.winHandler.mouseEvent(MouseEventFlags.LEFTUP, 0, 0, 0)
             } else {
@@ -445,7 +771,6 @@ class TouchpadView(
             }
         }
     }
-
     private fun handleTwoFingerScroll(event: MotionEvent) {
         val activeFingers = fingers.filterNotNull()
         if (activeFingers.size < 2) return
@@ -454,8 +779,12 @@ class TouchpadView(
         val scrollDistance = finger1.y - finger2.y
         if (Math.abs(scrollDistance) > 10) {
             val button = if (scrollDistance > 0) Pointer.Button.BUTTON_SCROLL_UP else Pointer.Button.BUTTON_SCROLL_DOWN
-            xServer.injectPointerButtonPress(button)
-            xServer.injectPointerButtonRelease(button)
+            if (xServer.isRelativeMouseMovement) {
+                xServer.winHandler.mouseEvent(MouseEventFlags.WHEEL, 0, 0, if (scrollDistance > 0) 1 else -1)
+            } else {
+                xServer.injectPointerButtonPress(button)
+                xServer.injectPointerButtonRelease(button)
+            }
         }
     }
 
@@ -489,34 +818,237 @@ class TouchpadView(
         }
     }
 
+    private var rtsSwipeActiveKeys = mutableSetOf<Int>()
+
+    private fun handleRTSTwoFingerSwipe() {
+        val activeFingers = fingers.filterNotNull()
+        if (activeFingers.size < 2) return
+        val finger1 = activeFingers[0]
+        val finger2 = activeFingers[1]
+
+        val dx = ((finger1.x + finger2.x) * 0.5f) - ((finger1.lastX + finger2.lastX) * 0.5f)
+        val dy = ((finger1.y + finger2.y) * 0.5f) - ((finger1.lastY + finger2.lastY) * 0.5f)
+
+        when (gestureConfig.twoFingerSwipeAction) {
+            TouchGestureConfig.PanAction.MIDDLE_CLICK -> {
+                if (!xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_MIDDLE)) {
+                    xServer.injectPointerButtonPress(Pointer.Button.BUTTON_MIDDLE)
+                }
+                xServer.injectPointerMoveDelta(dx.toInt(), dy.toInt())
+            }
+            TouchGestureConfig.PanAction.WASD -> handleKeySwipe(dx, dy, intArrayOf(
+                android.view.KeyEvent.KEYCODE_A, android.view.KeyEvent.KEYCODE_D,
+                android.view.KeyEvent.KEYCODE_W, android.view.KeyEvent.KEYCODE_S
+            ))
+            TouchGestureConfig.PanAction.ARROW_KEYS -> handleKeySwipe(dx, dy, intArrayOf(
+                android.view.KeyEvent.KEYCODE_DPAD_LEFT, android.view.KeyEvent.KEYCODE_DPAD_RIGHT,
+                android.view.KeyEvent.KEYCODE_DPAD_UP, android.view.KeyEvent.KEYCODE_DPAD_DOWN
+            ))
+            TouchGestureConfig.PanAction.SCROLL -> {
+                scrollAccumY += dy
+                if (Math.abs(scrollAccumY) > 50) {
+                    val button = if (scrollAccumY < 0) Pointer.Button.BUTTON_SCROLL_DOWN else Pointer.Button.BUTTON_SCROLL_UP
+                    if (xServer.isRelativeMouseMovement) {
+                        xServer.winHandler.mouseEvent(MouseEventFlags.WHEEL, 0, 0, if (scrollAccumY < 0) -1 else 1)
+                    } else {
+                        xServer.injectPointerButtonPress(button)
+                        xServer.injectPointerButtonRelease(button)
+                    }
+                    scrollAccumY = 0f
+                }
+            }
+            else -> {}
+        }
+    }
+
+    private fun handleKeySwipe(dx: Float, dy: Float, keys: IntArray) {
+        val threshold = 5f
+        val newKeys = mutableSetOf<Int>()
+
+        if (dx < -threshold) newKeys.add(keys[0]) else if (dx > threshold) newKeys.add(keys[1])
+        if (dy < -threshold) newKeys.add(keys[2]) else if (dy > threshold) newKeys.add(keys[3])
+
+        for (key in rtsSwipeActiveKeys) {
+            if (key !in newKeys) {
+                val xKeycode = xServer.keyboard.getXKeycode(key)
+                if (xKeycode != null) xServer.injectKeyRelease(xKeycode)
+            }
+        }
+        for (key in newKeys) {
+            if (key !in rtsSwipeActiveKeys) {
+                val xKeycode = xServer.keyboard.getXKeycode(key)
+                if (xKeycode != null) xServer.injectKeyPress(xKeycode)
+            }
+        }
+        rtsSwipeActiveKeys = newKeys
+    }
+
+    private fun stopRTSTwoFingerSwipe() {
+        if (xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_MIDDLE)) {
+            xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_MIDDLE)
+        }
+        for (key in rtsSwipeActiveKeys) {
+            val xKeycode = xServer.keyboard.getXKeycode(key)
+            if (xKeycode != null) xServer.injectKeyRelease(xKeycode)
+        }
+        rtsSwipeActiveKeys.clear()
+    }
+
+    private fun handleSwipeDetection() {
+        if (swipeHandled || gestureConsumed) return
+        val activeFingers = fingers.filterNotNull()
+        if (activeFingers.isEmpty() || activeFingers.size == 2) return
+
+        val threshold = 100f
+        var totalDx = 0f
+        var totalDy = 0f
+        
+        for (finger in activeFingers) {
+            totalDx += (finger.x - finger.startX)
+            totalDy += (finger.y - finger.startY)
+        }
+        
+        val avgDx = totalDx / activeFingers.size
+        val avgDy = totalDy / activeFingers.size
+        
+        if (Math.abs(avgDx) > threshold || Math.abs(avgDy) > threshold) {
+            swipeHandled = true
+            gestureConsumed = true
+
+            // Release auto-left click if we're swiping with one finger
+            if (activeFingers.size == 1 && xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) {
+                handleTouchUp()
+            }
+
+            val binding = if (Math.abs(avgDx) > Math.abs(avgDy)) {
+                if (avgDx > 0) {
+                    when (activeFingers.size) {
+                        1 -> gestureConfig.oneFingerSwipeRightAction
+                        3 -> gestureConfig.threeFingerSwipeRightAction
+                        else -> gestureConfig.fourFingerSwipeRightAction
+                    }
+                } else {
+                    when (activeFingers.size) {
+                        1 -> gestureConfig.oneFingerSwipeLeftAction
+                        3 -> gestureConfig.threeFingerSwipeLeftAction
+                        else -> gestureConfig.fourFingerSwipeLeftAction
+                    }
+                }
+            } else {
+                if (avgDy > 0) {
+                    when (activeFingers.size) {
+                        1 -> gestureConfig.oneFingerSwipeDownAction
+                        3 -> gestureConfig.threeFingerSwipeDownAction
+                        else -> gestureConfig.fourFingerSwipeDownAction
+                    }
+                } else {
+                    when (activeFingers.size) {
+                        1 -> gestureConfig.oneFingerSwipeUpAction
+                        3 -> gestureConfig.threeFingerSwipeUpAction
+                        else -> gestureConfig.fourFingerSwipeUpAction
+                    }
+                }
+            }
+            injectTapAction(binding)
+        }
+    }
+
     private fun handleFingerUp(finger1: Finger) {
         if (tapToClickEnabled) {
             when (numFingers.toInt()) {
                 1 -> {
                     if (simTouchScreen) {
                         postDelayed(
-                            { if (continueClick) xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT) },
+                            {
+                                if (continueClick && gestureConfig.oneFingerTapAction != Binding.NONE) {
+                                    if (xServer.isRelativeMouseMovement) {
+                                        xServer.winHandler.mouseEvent(MouseEventFlags.LEFTUP, 0, 0, 0)
+                                    } else {
+                                        xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+                                    }
+                                }
+                            },
                             CLICK_DELAYED_TIME.toLong(),
                         )
                     } else if (finger1.isTap()) {
-                        pressPointerButtonLeft(finger1)
+                        if (gestureConfig.enabled || gestureConfig.oneFingerTapAction != Binding.MOUSE_LEFT_BUTTON) {
+                            injectTapAction(gestureConfig.oneFingerTapAction)
+                        } else {
+                            pressPointerButtonLeft(finger1)
+                        }
                     }
                 }
 
                 2 -> {
                     val finger2 = findSecondFinger(finger1)
-                    if (finger2 != null && finger1.isTap()) pressPointerButtonRight(finger1)
+                    if (finger2 != null && finger1.isTap()) {
+                        val action = if (gestureConfig.enabled || gestureConfig.twoFingerTapAction != Binding.MOUSE_RIGHT_BUTTON) {
+                            gestureConfig.twoFingerTapAction
+                        } else {
+                            Binding.MOUSE_RIGHT_BUTTON
+                        }
+
+                        if (action != Binding.NONE) {
+                            if (action == Binding.MOUSE_RIGHT_BUTTON && !gestureConfig.enabled) {
+                                pressPointerButtonRight(finger1)
+                            } else {
+                                injectBindingAction(action)
+                                injectReleaseAction(action)
+                            }
+                        }
+                    }
+                }
+
+                3 -> {
+                    if (fingers.filterNotNull().all { it.isTap() }) {
+                        val action = gestureConfig.threeFingerTapAction
+                        if (action != Binding.NONE) {
+                            injectBindingAction(action)
+                            injectReleaseAction(action)
+                        }
+                    }
                 }
 
                 4 -> {
-                    fourFingersTapCallback?.let {
-                        if (fingers.filterNotNull().all { it.isTap() }) it.run()
+                    if (fingers.filterNotNull().all { it.isTap() }) {
+                        val action = gestureConfig.fourFingerTapAction
+                        if (action != Binding.NONE) {
+                            injectBindingAction(action)
+                            injectReleaseAction(action)
+                        } else {
+                            fourFingersTapCallback?.run()
+                        }
                     }
                 }
             }
         }
         releasePointerButtonLeft(finger1)
         releasePointerButtonRight(finger1)
+    }
+
+    private fun injectBindingAction(binding: Binding) {
+        if (binding == Binding.NONE) return
+        if (binding.isMouse) {
+            val button = binding.pointerButton
+            if (button != null) {
+                if (xServer.isRelativeMouseMovement) {
+                    xServer.winHandler.mouseEvent(MouseEventFlags.getFlagFor(button, true), 0, 0, 0)
+                } else {
+                    xServer.injectPointerButtonPress(button)
+                }
+            }
+        } else if (binding.isKeyboard) {
+            val xKeycodeValue = binding.keycode
+            if (xKeycodeValue != null && xKeycodeValue != com.winlator.cmod.runtime.display.xserver.XKeycode.KEY_NONE) {
+                xServer.injectKeyPress(xKeycodeValue)
+            }
+        }
+    }
+
+    private fun injectTapAction(binding: Binding) {
+        if (binding == Binding.NONE) return
+        injectBindingAction(binding)
+        longPressHandler.postDelayed({ injectReleaseAction(binding) }, 50)
     }
 
     private fun handleFingerMove(finger1: Finger) {
@@ -595,8 +1127,35 @@ class TouchpadView(
         }
     }
 
+    fun setGestureConfig(config: TouchGestureConfig) {
+        this.gestureConfig = config
+    }
+
+    fun getGestureConfig(): TouchGestureConfig = gestureConfig
+
+    private fun handlePinch(scaleFactor: Float) {
+        if (gestureConfig.pinchAction == TouchGestureConfig.PinchAction.SCROLL_WHEEL) {
+            val button = if (scaleFactor > 1.0f) Pointer.Button.BUTTON_SCROLL_UP else Pointer.Button.BUTTON_SCROLL_DOWN
+            if (xServer.isRelativeMouseMovement) {
+                xServer.winHandler.mouseEvent(MouseEventFlags.WHEEL, 0, 0, if (scaleFactor > 1.0f) 1 else -1)
+            } else {
+                xServer.injectPointerButtonPress(button)
+                xServer.injectPointerButtonRelease(button)
+            }
+        } else if (gestureConfig.pinchAction == TouchGestureConfig.PinchAction.ZOOM_KEYS) {
+            val keycodePlus = android.view.KeyEvent.KEYCODE_PLUS
+            val keycodeMinus = android.view.KeyEvent.KEYCODE_MINUS
+            val keycode = if (scaleFactor > 1.0f) keycodePlus else keycodeMinus
+            val xKeycode = xServer.keyboard.getXKeycode(keycode)
+            if (xKeycode != null) {
+                xServer.injectKeyPress(xKeycode)
+                xServer.injectKeyRelease(xKeycode)
+            }
+        }
+    }
+
     fun setSensitivity(sensitivity: Float) {
-        this.sensitivity = sensitivity.coerceAtLeast(MIN_SENSITIVITY)
+        this.sensitivity = sensitivity
     }
 
     fun setPointerButtonLeftEnabled(enabled: Boolean) {
@@ -678,11 +1237,10 @@ class TouchpadView(
             }
 
             MotionEvent.ACTION_MOVE, MotionEvent.ACTION_HOVER_MOVE -> {
+                val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
                 if (xServer.isRelativeMouseMovement) {
-                    val delta = getExternalMouseDelta(event)
-                    xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, delta[0], delta[1], 0)
+                    xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
                 } else {
-                    val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
                     xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
                 }
                 true
@@ -706,22 +1264,6 @@ class TouchpadView(
                 false
             }
         }
-    }
-
-    private fun getExternalMouseDelta(event: MotionEvent): IntArray {
-        var dx = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X)
-        var dy = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y)
-        if (dx == 0f && dy == 0f) {
-            val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
-            return intArrayOf(
-                (transformedPoint[0] - xServer.pointer.x).toInt(),
-                (transformedPoint[1] - xServer.pointer.y).toInt(),
-            )
-        }
-        return intArrayOf(
-            (xform[0] * dx + xform[2] * dy).toInt(),
-            (xform[1] * dx + xform[3] * dy).toInt(),
-        )
     }
 
     fun computeDeltaPoint(
