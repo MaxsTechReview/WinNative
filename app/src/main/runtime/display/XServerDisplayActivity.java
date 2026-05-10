@@ -288,6 +288,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private int taskAffinityMask = 0;
     private int taskAffinityMaskWoW64 = 0;
     private int frameRatingWindowId = -1;
+    private android.net.wifi.WifiManager.MulticastLock multicastLock;
     private final float[] xform = XForm.getInstance();
     private ContentsManager contentsManager;
     private boolean navigationFocused = false;
@@ -609,6 +610,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         ControllerManager.getInstance().init(this);
 
         preloaderDialog = new PreloaderDialog(this);
+
+        try {
+            android.net.wifi.WifiManager wifiManager = (android.net.wifi.WifiManager)
+                    getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            if (wifiManager != null) {
+                multicastLock = wifiManager.createMulticastLock("winnative-xserver");
+                multicastLock.setReferenceCounted(false);
+                multicastLock.acquire();
+            }
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Failed to acquire MulticastLock", e);
+        }
 
         dualSeriesBattery = preferences.getBoolean(FrameRating.PREF_HUD_DUAL_SERIES_BATTERY, false);
 
@@ -2927,6 +2940,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         activityDestroyed.set(true);
         if (preloaderDialog != null) {
             preloaderDialog.close();
+        }
+        if (multicastLock != null && multicastLock.isHeld()) {
+            try {
+                multicastLock.release();
+            } catch (Exception ignored) {}
         }
         super.onDestroy();
         // Schedule a deferred update check 10 s after game exit
