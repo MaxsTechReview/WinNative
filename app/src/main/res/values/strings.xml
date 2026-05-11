@@ -112,6 +112,7 @@
     <string name="common_ui_grant_all_files_access_browse">Grant all file access to browse folders directly.</string>
     <string name="common_ui_not_configured">Not configured</string>
     <string name="common_ui_reinstall">Reinstall</string>
+    <string name="common_ui_exit_app_confirm">Exit WinNative?</string>
     <string name="common_ui_elements_count">%1$d elements</string>
     <string name="common_ui_disabled_placeholder">-- Disabled --</string>
     <string name="common_ui_enabled">Enabled</string>
