@@ -2595,8 +2595,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     /**
-     * If Cloud Sync Auto Backup is enabled, zips the local save and uploads to Google Drive.
-     * Reuses GameSaveBackupManager but skips downloading from the store provider.
+     * If Cloud Sync Auto Backup is enabled, zips the local save and uploads to Google Saves
+     * (Play Games Snapshots API). Steam saves are intentionally excluded — Steam Cloud
+     * handles them via SteamCloudSyncHelper / SteamService.syncCloudOnExit.
      */
     private void runAutoBackupIfEnabled(Runnable onComplete) {
         if (shortcut == null) {
@@ -2619,14 +2620,27 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource source;
 
         if ("STEAM".equals(gameSource)) {
-            gameId = shortcut.getExtra("app_id");
-            source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.STEAM;
+            // Steam saves use Steam Cloud (handled by syncSteamCloudOnExit). Google Saves is intentionally not used.
+            onComplete.run();
+            return;
         } else if ("EPIC".equals(gameSource)) {
             gameId = shortcut.getExtra("app_id");
             source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.EPIC;
         } else if ("GOG".equals(gameSource)) {
             gameId = shortcut.getExtra("gog_id");
             source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.GOG;
+        } else if ("CUSTOM".equals(gameSource)) {
+            // Custom shortcuts opt in by either picking a folder via "Select Save Folder"
+            // (sets customSaveWindowsPath) or by having the legacy custom_game_folder extra.
+            String winPath = shortcut.getExtra(
+                    com.winlator.cmod.feature.sync.google.GameSaveBackupManager.CUSTOM_SAVE_WINDOWS_PATH_KEY);
+            String legacyFolder = shortcut.getExtra("custom_game_folder");
+            if ((winPath == null || winPath.isEmpty()) && (legacyFolder == null || legacyFolder.isEmpty())) {
+                onComplete.run();
+                return;
+            }
+            gameId = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.INSTANCE.customGameId(shortcut);
+            source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.CUSTOM;
         } else {
             onComplete.run();
             return;
@@ -2639,12 +2653,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         String gameName = shortcutName != null && !shortcutName.isEmpty() ? shortcutName : (shortcut.name != null ? shortcut.name : "Unknown");
 
-        Log.d("XServerDisplayActivity", "Starting auto backup to Google Drive for " + gameSource + "/" + gameId);
-        preloaderDialog.showOnUiThread("Backing up save to Google Drive...");
+        Log.d("XServerDisplayActivity", "Starting auto backup to Google Saves for " + gameSource + "/" + gameId);
+        preloaderDialog.showOnUiThread("Backing up save to Google Saves...");
 
         runExitUploadWithRetries(
-                "Google Drive auto backup",
-                "Backing up save to Google Drive...",
+                "Google Saves auto backup",
+                "Backing up save to Google Saves...",
                 callback -> runBlockingExitUpload(
                         "GoogleDriveExitBackup",
                         () -> {

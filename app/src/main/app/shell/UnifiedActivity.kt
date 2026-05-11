@@ -8315,12 +8315,80 @@ class UnifiedActivity :
                     GameSaveBackupManager.GameSource.CUSTOM -> stringResource(R.string.preloader_platform_custom)
                 }
 
-            ActionWithHelper(
-                icon = Icons.Outlined.CloudSync,
-                label = stringResource(R.string.cloud_saves_sync_from_provider, providerLabel),
-                helper = stringResource(R.string.cloud_saves_sync_summary, providerLabel),
-                onClick = { if (!isWorking) onSyncFromCloud() },
-            )
+            // For CUSTOM games, the Sync-from-Cloud button is replaced with a folder picker
+            // so the user can point us at the in-container save directory. Upstream's
+            // (#399) unconditional Sync button below still renders for STEAM/EPIC/GOG.
+            if (gameSource == GameSaveBackupManager.GameSource.CUSTOM) {
+                var customSavePath by remember(shortcut?.file?.absolutePath, historyRefreshKey) {
+                    mutableStateOf(shortcut?.let { GameSaveBackupManager.getCustomGameSaveWindowsPath(it) })
+                }
+                val pickerLabel =
+                    if (customSavePath.isNullOrEmpty()) "Select Save Folder"
+                    else "Save Folder: ${customSavePath}"
+                val pickerHelper =
+                    if (customSavePath.isNullOrEmpty()) {
+                        "Choose the folder inside this game's container that holds save files."
+                    } else {
+                        "Tap to pick a different save folder."
+                    }
+                ActionWithHelper(
+                    icon = Icons.Outlined.CloudSync,
+                    label = pickerLabel,
+                    helper = pickerHelper,
+                    onClick = {
+                        val sc = shortcut
+                        val container = sc?.container
+                        if (sc == null || container == null) {
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                context,
+                                "Container not available for this shortcut.",
+                                android.widget.Toast.LENGTH_SHORT,
+                            )
+                            return@ActionWithHelper
+                        }
+                        val driveC = com.winlator.cmod.feature.sync.google.WinePathUtils.driveCRoot(container)
+                        com.winlator.cmod.shared.android.DirectoryPickerDialog.show(
+                            this@UnifiedActivity,
+                            initialPath = driveC.absolutePath,
+                            title = "Select save folder",
+                        ) { picked ->
+                            val pickedFile = java.io.File(picked)
+                            if (!com.winlator.cmod.feature.sync.google.WinePathUtils.isInsideDriveC(pickedFile, container)) {
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                    context,
+                                    "Selected folder must be inside the container's C: drive.",
+                                    android.widget.Toast.LENGTH_LONG,
+                                )
+                                return@show
+                            }
+                            val winPath = com.winlator.cmod.feature.sync.google.WinePathUtils.androidToWindowsPath(picked, container)
+                            if (winPath == null) {
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                    context,
+                                    "Could not map the selected folder to a Windows path.",
+                                    android.widget.Toast.LENGTH_LONG,
+                                )
+                                return@show
+                            }
+                            GameSaveBackupManager.setCustomGameSavePath(sc, container, winPath)
+                            customSavePath = winPath
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                context,
+                                "Save folder set to $winPath",
+                                android.widget.Toast.LENGTH_SHORT,
+                            )
+                        }
+                    },
+                )
+            } else {
+                // Upstream #399 — Sync button visible for ALL store sources (Steam included).
+                ActionWithHelper(
+                    icon = Icons.Outlined.CloudSync,
+                    label = stringResource(R.string.cloud_saves_sync_from_provider, providerLabel),
+                    helper = stringResource(R.string.cloud_saves_sync_summary, providerLabel),
+                    onClick = { if (!isWorking) onSyncFromCloud() },
+                )
+            }
 
             if (!steamManagedCloud) {
                 Row(
