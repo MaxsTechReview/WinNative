@@ -10373,23 +10373,16 @@ class UnifiedActivity :
                                 Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(8.dp))
                                 Text(
-                                    if (selectedExePath == null) "Select Executable (.exe)" else java.io.File(selectedExePath!!).name,
+                                    selectedExePath ?: "Select Executable (.exe)",
                                     color = if (selectedExePath == null) TextSecondary else TextPrimary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    fontSize = 12.sp,
+                                    maxLines = if (selectedExePath == null) 1 else Int.MAX_VALUE,
+                                    overflow = if (selectedExePath == null) TextOverflow.Ellipsis else TextOverflow.Visible,
+                                    fontSize = if (selectedExePath == null) 12.sp else 10.sp,
+                                    modifier = Modifier.weight(1f),
                                 )
                             }
 
                             if (selectedExePath != null) {
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    selectedExePath!!,
-                                    color = TextSecondary.copy(alpha = 0.6f),
-                                    fontSize = 9.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
 
                                 Spacer(Modifier.height(8.dp))
 

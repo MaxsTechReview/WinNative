@@ -195,6 +195,7 @@ class GameSettingsStateHolder {
     // General
     val name = mutableStateOf("")
     val launchExePath = mutableStateOf("")
+    val launchExeDisplayPath = mutableStateOf("")
     val containerEntries = mutableStateOf<List<String>>(emptyList())
     val selectedContainer = mutableIntStateOf(0)
     val screenSizeEntries = mutableStateOf<List<String>>(emptyList())
@@ -864,6 +865,8 @@ private fun GeneralSection(
         )
 
         if (!isContainer) {
+            val launchExeDisplayText = state.launchExeDisplayPath.value.ifBlank { state.launchExePath.value }
+            val hasLaunchExePath = launchExeDisplayText.isNotEmpty()
             Spacer(Modifier.height(SettingItemGap))
             Text(
                 stringResource(R.string.common_ui_select_exe),
@@ -882,10 +885,11 @@ private fun GeneralSection(
                     .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding)
             ) {
                 Text(
-                    text = state.launchExePath.value.ifEmpty { stringResource(R.string.common_ui_select_exe) },
-                    color = if (state.launchExePath.value.isEmpty()) TextDim else TextPrimary,
-                    fontSize = SettingValueSize,
-                    maxLines = 1
+                    text = launchExeDisplayText.ifEmpty { stringResource(R.string.common_ui_select_exe) },
+                    color = if (hasLaunchExePath) TextPrimary else TextDim,
+                    fontSize = if (hasLaunchExePath) 10.sp else SettingValueSize,
+                    maxLines = if (hasLaunchExePath) Int.MAX_VALUE else 1,
+                    overflow = if (hasLaunchExePath) TextOverflow.Visible else TextOverflow.Ellipsis
                 )
             }
         }

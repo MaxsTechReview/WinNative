@@ -346,6 +346,7 @@ class ShortcutSettingsComposeDialog private constructor(
         // General
         state.name.value = shortcut.name
         state.launchExePath.value = resolveInitialLaunchExePath()
+        state.launchExeDisplayPath.value = resolveLaunchExeDisplayPath(state.launchExePath.value)
         syncLibraryArtworkState()
 
         // Input
@@ -1363,20 +1364,27 @@ class ShortcutSettingsComposeDialog private constructor(
     }
 
     private fun resolveInitialLaunchExePath(): String {
-        val storedPath = shortcut.getExtra("launch_exe_path")
-        if (storedPath.isNotEmpty()) return storedPath
-
         val gameSource = shortcut.getExtra("game_source", "")
         if (gameSource == "CUSTOM") {
             val customExe = shortcut.getExtra("custom_exe")
             if (customExe.isNotEmpty()) return customExe
         }
 
+        val storedPath = shortcut.getExtra("launch_exe_path")
+        if (storedPath.isNotEmpty()) return storedPath
+
         return ""
     }
 
     private fun resolveExePickerInitialPath(): String? {
-        val currentPath = state.launchExePath.value.ifBlank { shortcut.getExtra("launch_exe_path") }
+        val currentPath =
+            state.launchExePath.value.ifBlank {
+                if (shortcut.getExtra("game_source", "") == "CUSTOM") {
+                    shortcut.getExtra("custom_exe").ifBlank { shortcut.getExtra("launch_exe_path") }
+                } else {
+                    shortcut.getExtra("launch_exe_path")
+                }
+            }
         if (currentPath.isBlank()) {
             return shortcut.getExtra("game_install_path")
                 .takeIf { it.isNotBlank() && File(it).isDirectory }
@@ -1404,6 +1412,7 @@ class ShortcutSettingsComposeDialog private constructor(
             } else {
                 exeFile.absolutePath
             }
+        state.launchExeDisplayPath.value = exeFile.absolutePath
     }
 
     private fun normalizeLaunchExeForShortcut(path: String): String {
@@ -1433,6 +1442,20 @@ class ShortcutSettingsComposeDialog private constructor(
         }
 
         return directFile
+    }
+
+    private fun resolveLaunchExeDisplayPath(path: String): String {
+        if (path.isBlank()) return ""
+
+        val directFile = File(path)
+        if (directFile.isAbsolute) return directFile.absolutePath
+
+        val installPath = shortcut.getExtra("game_install_path")
+        if (installPath.isNotBlank()) {
+            return File(installPath, path.replace("\\", File.separator)).absolutePath
+        }
+
+        return path
     }
 
     private fun relativePathWithinGameInstall(file: File): String? {
