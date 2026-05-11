@@ -116,6 +116,24 @@ object GameSaveBackupManager {
         CUSTOM('c'),
     }
 
+    /**
+     * Backend storage for a [BackupHistoryEntry]. Used by `UnifiedActivity.CloudSavesContent`
+     * to route Restore/Rename/Delete actions to the right manager and to hide actions that
+     * don't apply (e.g. Delete is hidden for STEAM_LOCAL since Steam manages cloud retention).
+     */
+    enum class BackupStorage {
+        GOOGLE_SNAPSHOTS,
+        /** Local rolling-snapshot capture (zipped to filesDir/save_history/steam/...). */
+        STEAM_LOCAL,
+        /**
+         * Steam Cloud's CURRENT file listing, grouped into save sets by timestamp clusters.
+         * Backed by `SteamCloudHistoryProvider`. Restore downloads the group's files via
+         * `clientFileDownload` and writes to the resolved local paths. Steam Cloud has no
+         * server-side version history — each "group" is files written within ~120s of each other.
+         */
+        STEAM_CLOUD,
+    }
+
     /** Origin of a history backup — identifies which side of a conflict it came from. */
     enum class BackupOrigin(val tag: String) {
         /** Local save that was replaced by a cloud version. */
@@ -152,6 +170,8 @@ object GameSaveBackupManager {
         val sizeBytes: Long,
         /** Optional user label. Persisted on the manifest snapshot's description field. */
         val label: String? = null,
+        /** Which backend produced this entry. Defaults to GOOGLE_SNAPSHOTS for legacy callers. */
+        val storage: BackupStorage = BackupStorage.GOOGLE_SNAPSHOTS,
     )
 
     /** Max length of a user-provided history-entry label, after sanitization. */
@@ -272,7 +292,10 @@ object GameSaveBackupManager {
             gameId,
             gameName,
             BackupOrigin.AUTO,
-            GoogleAuthMode.SILENT,
+            // RESUME (not SILENT) so the SDK's cold-start silent re-auth has time to land —
+            // exit-time backups often run shortly after a process restart and would otherwise
+            // race the bootstrap, silently failing for users who were previously connected.
+            GoogleAuthMode.RESUME,
             customSaveDir,
         )
     }
@@ -369,7 +392,19 @@ object GameSaveBackupManager {
         withContext(Dispatchers.IO) {
             try {
                 if (gameSource == GameSource.STEAM) {
-                    return@withContext BackupResult(true, "Steam saves use Steam Cloud (skipped).")
+                    // Steam saves don't go to Google. Delegate to the local snapshot manager so
+                    // callers like SteamLaunchCloudSync's "keep backup" flow get a real history
+                    // entry written instead of a silent no-op.
+                    val appId = gameId.toIntOrNull()
+                    if (appId != null) {
+                        val ok = com.winlator.cmod.feature.steamcloudsync.SteamSaveSnapshotManager
+                            .recordSnapshot(activity.applicationContext, appId, origin)
+                        return@withContext BackupResult(
+                            ok || origin == BackupOrigin.LOCAL,
+                            if (ok) "Local snapshot captured." else "No local save files found to snapshot.",
+                        )
+                    }
+                    return@withContext BackupResult(false, "Invalid Steam appId for snapshot.")
                 }
                 val context = activity.applicationContext
                 if (!isDriveConnected(context) && authMode == GoogleAuthMode.SILENT) {
@@ -462,6 +497,10 @@ object GameSaveBackupManager {
                     runCatching { pruneHistory(activity, gameSource, gameId, gameName) }
                         .onFailure { Timber.tag(TAG).w(it, "History prune failed") }
 
+                    // Keep the `google_drive_connected` pref in sync with reality so subsequent
+                    // listBackupHistory / autoBackupToGoogle calls don't short-circuit.
+                    setDriveConnected(activity.applicationContext, true)
+
                     BackupResult(true, "Save backed up.")
                 } finally {
                     runCatching { cacheFile.delete() }
@@ -481,9 +520,11 @@ object GameSaveBackupManager {
         withContext(Dispatchers.IO) {
             try {
                 if (gameSource == GameSource.STEAM) return@withContext emptyList()
-                val context = activity.applicationContext
-                if (!isDriveConnected(context)) return@withContext emptyList()
-                if (!ensureAuthenticated(activity, GoogleAuthMode.SILENT)) return@withContext emptyList()
+                // RESUME mode: silent check with brief retries so the SDK's cold-start
+                // silent re-auth has time to land. Without this, opening Cloud Saves shortly
+                // after launching the app would race the SDK and show an empty list even when
+                // the user was previously authorized. Never calls signIn(); never shows UI.
+                if (!ensureAuthenticated(activity, GoogleAuthMode.RESUME)) return@withContext emptyList()
 
                 val client = freshSnapshotsClient(activity) ?: return@withContext emptyList()
                 val gameKey = buildGameKeyHash(gameSource, gameId)
@@ -1426,14 +1467,38 @@ object GameSaveBackupManager {
     }
 
     /**
-     * Honors the GoogleAuthMode contract: SILENT only inspects existing credentials,
-     * INTERACTIVE may launch the Play Games sign-in sheet.
+     * Honors the GoogleAuthMode contract:
+     *   - SILENT       single shot, no UI, no retry.
+     *   - RESUME       silent retries to settle the SDK's background bootstrap. No UI.
+     *   - INTERACTIVE  may launch the Play Games sign-in sheet.
+     *
+     * RESUME exists because on cold start `PlayGamesSdk.initialize` kicks off the silent
+     * re-auth asynchronously, and `isAuthenticated.await()` can resolve `false` before
+     * that background work lands. A short retry gives the SDK time to settle without
+     * popping any UI. We only spend the retries when the user has previously connected
+     * (per the on-disk pref) — a strong prior that silent auth SHOULD succeed.
      */
     private suspend fun ensureAuthenticated(activity: Activity, mode: GoogleAuthMode): Boolean {
         return when (mode) {
             GoogleAuthMode.SILENT -> isAuthenticatedBlocking(activity)
+            GoogleAuthMode.RESUME -> awaitResumeAuth(activity)
             GoogleAuthMode.INTERACTIVE -> awaitAuthenticatedSession(activity)
         }
+    }
+
+    /** RESUME-mode auth: retry the silent check a few times to let the SDK settle. No signIn. */
+    private suspend fun awaitResumeAuth(activity: Activity): Boolean {
+        // No prior connection → don't pay retry cost; the user must explicitly Connect first.
+        if (!isDriveConnected(activity.applicationContext)) {
+            return isAuthenticatedBlocking(activity)
+        }
+        // Up to ~2.25s total (3 attempts × 750ms) — bounded enough to not feel like a hang
+        // on a screen open, generous enough to cover slow-device cold starts.
+        repeat(3) { attempt ->
+            if (isAuthenticatedBlocking(activity)) return true
+            if (attempt < 2) delay(AUTH_SESSION_RETRY_DELAY_MS)
+        }
+        return false
     }
 
     private suspend fun freshSnapshotsClient(activity: Activity): SnapshotsClient? {

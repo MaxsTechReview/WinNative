@@ -7,7 +7,11 @@ import com.winlator.cmod.feature.stores.steam.enums.SyncResult
 import com.winlator.cmod.feature.stores.steam.service.SteamService
 import com.winlator.cmod.feature.stores.steam.utils.FileUtils
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
+import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
 import com.winlator.cmod.runtime.container.Shortcut
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import timber.log.Timber
 import java.nio.file.Files
@@ -68,6 +72,10 @@ object SteamCloudSyncHelper {
                         overrideLocalChangeNumber = -1,
                     ).await()
 
+            // Intentionally no snapshot capture here. The user-facing "Sync from Steam Cloud"
+            // button and launch-time auto-downloads should just place files locally; an
+            // automatic rollback snapshot on every download bloats local storage and isn't
+            // what the user asked for. Exit-sync still snapshots via SteamExitCloudSync.
             syncInfo?.syncResult == SyncResult.Success || syncInfo?.syncResult == SyncResult.UpToDate
         } catch (e: Exception) {
             Timber.e(e, "Failed to force Steam cloud download for appId=%d", appId)
@@ -206,7 +214,9 @@ object SteamCloudSyncHelper {
         }
         return runBlocking {
             try {
-                val snapshot = SteamService.fetchCloudConflictSnapshot(appId)
+                // Pass context so the snapshot can do a SHA-aware content check (not CN-only)
+                // and avoid spurious conflict dialogs when local matches cloud after a pull.
+                val snapshot = SteamService.fetchCloudConflictSnapshot(appId, context)
                 val localActual = getNewestActualLocalCloudSaveTimestamp(context, appId)
                 val localTracked =
                     SteamService.getTrackedCloudSaveFiles(appId)?.maxOfOrNull { it.timestamp }
@@ -265,6 +275,58 @@ object SteamCloudSyncHelper {
         if (result) markCloudSaveSynced(context, shortcut.getExtra("app_id"))
         Timber.i("Steam cloud save download for %s: %s", shortcut.name, result)
         return result
+    }
+
+    /**
+     * Force-upload the on-disk Steam save files for [appId] to overwrite Steam Cloud.
+     *
+     * Used after the launch-time conflict dialog when the user picks "Use Local" — without
+     * a push here, the conflict recurs on every subsequent sync because Steam's
+     * `changeNumber` for the local side never bumps past the cloud side's. Per Steam
+     * protocol (`ClientConflictResolution_Notification.chose_local_files=true`), the
+     * canonical "my local wins" resolution is an explicit upload batch.
+     */
+    suspend fun uploadLocalSaves(
+        context: Context,
+        appId: Int,
+    ): Boolean =
+        try {
+            val prefixToPath = steamPrefixResolver(context, appId)
+            val syncInfo =
+                SteamService
+                    .forceSyncUserFiles(
+                        appId = appId,
+                        prefixToPath = prefixToPath,
+                        preferredSave = SaveLocation.Local,
+                        overrideLocalChangeNumber = -1,
+                    ).await()
+            val ok = syncInfo?.syncResult == SyncResult.Success || syncInfo?.syncResult == SyncResult.UpToDate
+            if (ok) {
+                // Detached snapshot capture so the upload caller isn't held waiting on disk I/O.
+                CoroutineScope(Dispatchers.IO).launch {
+                    runCatching {
+                        SteamSaveSnapshotManager.recordSnapshot(
+                            context,
+                            appId,
+                            GameSaveBackupManager.BackupOrigin.LOCAL,
+                        )
+                    }.onFailure { Timber.w(it, "Snapshot after Use-Local upload failed for appId=%d", appId) }
+                }
+            }
+            ok
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to upload local Steam saves for appId=%d", appId)
+            false
+        }
+
+    @JvmStatic
+    fun uploadLocalSavesBlocking(
+        context: Context,
+        shortcut: Shortcut,
+    ): Boolean {
+        if (shortcut.getExtra("game_source") != "STEAM") return false
+        val appId = shortcut.getExtra("app_id").toIntOrNull() ?: return false
+        return runBlocking { uploadLocalSaves(context, appId) }
     }
 
     @JvmStatic

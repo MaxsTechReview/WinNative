@@ -53,6 +53,113 @@ object SteamAutoCloud {
     private const val MAX_CLOUD_FILE_SIZE_BYTES = 100L * 1024L * 1024L
     private const val DOWNLOAD_TMP_SUFFIX = ".steamtmp"
 
+    /**
+     * Per-Steam-protocol content-divergence check used by the launch-time conflict probe.
+     *
+     * Returns `true` if ANY persisted cloud file is missing locally OR has a differing
+     * size/SHA-1. Returns `false` only when every cloud file is present locally with
+     * matching size and SHA — which is the canonical "no conflict" condition per the
+     * `steammessages_cloud.steamclient.proto` spec.
+     *
+     * Optimizations:
+     *  - Size comparison is a free pre-filter (no SHA on obvious size delta).
+     *  - `Sequence.any { … }` short-circuits on the first divergence — at most O(diverged-file-size).
+     *  - We compute the local SHA only on files whose size already matches, so identical
+     *    files cost two `Files.size` calls + a streamed SHA each.
+     */
+    fun cloudContentDiffersFromLocal(
+        response: AppFileChangeList,
+        prefixToPath: (String) -> String,
+    ): Boolean {
+        return response.files
+            .asSequence()
+            .filter { it.persistState == ECloudStoragePersistState.k_ECloudStoragePersistStatePersisted }
+            .any { cloudFile ->
+                val localPath = resolveLocalPathForCloudFile(cloudFile, response, prefixToPath)
+                if (localPath == null) {
+                    Timber.d("ConflictProbe: cloud file %s has no local path → diverges", cloudFile.filename)
+                    return@any true
+                }
+                if (!Files.exists(localPath)) {
+                    Timber.d("ConflictProbe: cloud file %s missing locally → diverges", cloudFile.filename)
+                    return@any true
+                }
+                val localSize =
+                    try {
+                        Files.size(localPath)
+                    } catch (_: Exception) {
+                        return@any true
+                    }
+                if (localSize != cloudFile.rawFileSize.toLong()) {
+                    Timber.d(
+                        "ConflictProbe: %s size mismatch (cloud=%d, local=%d) → diverges",
+                        cloudFile.filename,
+                        cloudFile.rawFileSize,
+                        localSize,
+                    )
+                    return@any true
+                }
+                val localSha = runCatching { streamingSha(localPath) }.getOrNull()
+                if (localSha == null) {
+                    return@any true
+                }
+                val mismatched = !localSha.contentEquals(cloudFile.shaFile)
+                if (mismatched) {
+                    Timber.d("ConflictProbe: %s SHA mismatch → diverges", cloudFile.filename)
+                }
+                mismatched
+            }
+    }
+
+    /**
+     * Best-effort cloud-file → local-Path resolution for the content-divergence check.
+     * Mirrors the simpler half of [getFullFilePath] (defined as a closure inside
+     * [syncUserFiles]) without needing the full closure context. Handles the common
+     * cases — SteamUserData-rooted files and `%GameInstall%`-prefixed filenames — and
+     * falls back to `SteamUserData/<filename>` for unrecognized prefixes (matching the
+     * download path's fallback behavior).
+     */
+    private fun resolveLocalPathForCloudFile(
+        cloudFile: AppFileInfo,
+        response: AppFileChangeList,
+        prefixToPath: (String) -> String,
+    ): Path? {
+        val prefix =
+            if (cloudFile.pathPrefixIndex >= 0 && cloudFile.pathPrefixIndex < response.pathPrefixes.size) {
+                response.pathPrefixes[cloudFile.pathPrefixIndex]
+            } else {
+                ""
+            }
+
+        val gameInstallToken = "%${PathType.GameInstall.name}%"
+        if (cloudFile.filename.startsWith(gameInstallToken)) {
+            val stripped = cloudFile.filename.removePrefix(gameInstallToken).trimStart('/', '\\')
+            return runCatching { Paths.get(prefixToPath(PathType.GameInstall.name), stripped) }.getOrNull()
+        }
+
+        val tokenMatch = findPlaceholderWithin(prefix).firstOrNull()?.value
+        val rootName =
+            if (tokenMatch != null) {
+                tokenMatch.removePrefix("%").removeSuffix("%")
+            } else {
+                PathType.DEFAULT.name
+            }
+        val pathAfterRoot =
+            if (tokenMatch != null) {
+                prefix.removePrefix(tokenMatch).trimStart('/', '\\')
+            } else {
+                prefix
+            }
+        return runCatching {
+            val baseDir = prefixToPath(rootName)
+            if (pathAfterRoot.isEmpty()) {
+                Paths.get(baseDir, cloudFile.filename)
+            } else {
+                Paths.get(baseDir, pathAfterRoot, cloudFile.filename)
+            }
+        }.getOrNull()
+    }
+
     private data class FileChanges(
         val filesDeleted: List<UserFileInfo>,
         val filesModified: List<UserFileInfo>,
@@ -295,15 +402,24 @@ object SteamAutoCloud {
                         matchResults + bare
                     }.flatten()
                     .distinct()
-                    .mapNotNull { placeholder ->
+                    .map { placeholder ->
                         val localRootName = cloudRouting.localRootByCloudToken[placeholder] ?: placeholder
                         val root = PathType.from(localRootName)
+                        // Don't silently drop unrecognized cloud-root tokens — if we did, the
+                        // download path would skip files written to that prefix (silent
+                        // "Use Cloud" failure) and the upload path would lose baseline entries.
+                        // Fall back to PathType.DEFAULT (SteamUserData) so paths resolve to
+                        // something writable; Steam Cloud platform filtering already guarantees
+                        // we're only being handed Windows-applicable files.
+                        val effectiveLocalRoot = if (root.isSupportedSteamCloudRoot) localRootName else PathType.DEFAULT.name
                         if (!root.isSupportedSteamCloudRoot) {
-                            Timber.w("Skipping unsupported Steam cloud root in prefix mapping: $placeholder")
-                            null
-                        } else {
-                            placeholder to prefixToPath(localRootName)
+                            Timber.w(
+                                "Unrecognized Steam cloud root '%s' in prefix mapping — defaulting to %s so files still resolve",
+                                placeholder,
+                                PathType.DEFAULT.name,
+                            )
                         }
+                        placeholder to prefixToPath(effectiveLocalRoot)
                     }
             }
 
@@ -374,11 +490,16 @@ object SteamAutoCloud {
 
             val getFullFilePath: (AppFileInfo, AppFileChangeList) -> Path? = getFullFilePath@{ file, fileList ->
                 val remotePath = getFileRemotePath(file, fileList)
+                // Don't silently drop files whose root isn't in our known-Windows set —
+                // that turned "Use Cloud" into a no-op (filesDownloaded=0 reported as Success).
+                // For unrecognized roots, log loudly and let the download attempt resolve via
+                // convertPrefixes (which now falls back to SteamUserData for unknown tokens).
                 if (!remotePath.root.isSupportedSteamCloudRoot) {
                     Timber.w(
-                        "Skipping unsupported Steam cloud file root ${remotePath.root}: ${getFilePrefixPath(file, fileList)}",
+                        "Unrecognized Steam cloud file root %s: %s — attempting download via fallback path",
+                        remotePath.root,
+                        getFilePrefixPath(file, fileList),
                     )
-                    return@getFullFilePath null
                 }
 
                 val gameInstallPrefix = "%${PathType.GameInstall.name}%"
@@ -435,9 +556,15 @@ object SteamAutoCloud {
 
                     fileList.files.any { file ->
                         val remotePath = getFileRemotePath(file, fileList)
+                        // Don't silently say "no conflict" for unsupported roots — that lets a
+                        // post-download verify slip through even when the file truly didn't land.
+                        // Log loudly and fall through to the normal SHA compare with the local map.
                         if (!remotePath.root.isSupportedSteamCloudRoot) {
-                            Timber.w("Skipping hash validation for unsupported Steam cloud root ${remotePath.root}: ${file.filename}")
-                            return@any false
+                            Timber.w(
+                                "Hash-validating cloud file with unrecognized root %s: %s",
+                                remotePath.root,
+                                file.filename,
+                            )
                         }
                         val gameInstallPrefix = "%${PathType.GameInstall.name}%"
                         val remoteFilename =
@@ -487,9 +614,16 @@ object SteamAutoCloud {
                         }
                     }.mapNotNull {
                         val remotePath = getFileRemotePath(it, appFileListChange)
+                        // Don't drop unrecognized-root files from the baseline — that broke the
+                        // exit-time diff (allLocalUserFiles vs baseline) and caused real changes
+                        // to be missed → silent upload no-op. Log loudly and keep the entry; the
+                        // root falls through to whatever PathType.from(...) returned.
                         if (!remotePath.root.isSupportedSteamCloudRoot) {
-                            Timber.w("Ignoring unsupported Steam cloud file root ${remotePath.root}: ${it.filename}")
-                            return@mapNotNull null
+                            Timber.w(
+                                "Including baseline cloud file with unrecognized root %s: %s",
+                                remotePath.root,
+                                it.filename,
+                            )
                         }
                         val gameInstallPrefix = "%${PathType.GameInstall.name}%"
                         val filename =

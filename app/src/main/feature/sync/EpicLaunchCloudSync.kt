@@ -123,7 +123,7 @@ object EpicLaunchCloudSync {
                         gameId = gameId,
                         gameName = gameName,
                         origin = origin,
-                        authMode = GoogleAuthMode.SILENT,
+                        authMode = GoogleAuthMode.RESUME,
                     )
                 }
             Timber.tag("EpicLaunchCloudSync").i("Discarded Epic save backup: %s", result.message)

@@ -3558,7 +3558,7 @@ class UnifiedActivity :
                     val gameIdStr =
                         when {
                             isEpic -> epicId.toString()
-                            isCustom -> app.name
+                            isCustom -> shortcut?.let { GameSaveBackupManager.customGameId(it) } ?: app.name
                             else -> app.id.toString()
                         }
                     val providerLabel =
@@ -5088,13 +5088,6 @@ class UnifiedActivity :
                                             isCustom -> GameSaveBackupManager.GameSource.CUSTOM
                                             else -> GameSaveBackupManager.GameSource.STEAM
                                         }
-                                    val detailGameId =
-                                        when {
-                                            isGog -> gogGame!!.id
-                                            isEpic -> epicId.toString()
-                                            isCustom -> app.name
-                                            else -> app.id.toString()
-                                        }
                                     val detailShortcut =
                                         remember(app.id, gogGame?.id, epicId, isGog, isEpic, isCustom) {
                                             val containerManager = ContainerManager(context)
@@ -5109,6 +5102,15 @@ class UnifiedActivity :
                                                     findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
                                                 }
                                             }
+                                        }
+                                    val detailGameId =
+                                        when {
+                                            isGog -> gogGame!!.id
+                                            isEpic -> epicId.toString()
+                                            isCustom ->
+                                                detailShortcut?.let { GameSaveBackupManager.customGameId(it) }
+                                                    ?: app.name
+                                            else -> app.id.toString()
                                         }
                                     var cloudSyncEnabled by remember(detailShortcut?.file?.absolutePath) {
                                         mutableStateOf(isShortcutCloudSyncEnabled(detailShortcut))
@@ -8240,7 +8242,8 @@ class UnifiedActivity :
         val scope = rememberCoroutineScope()
         val context = LocalContext.current
         var historyRefreshKey by remember { mutableStateOf(0) }
-        var historyRequested by remember { mutableStateOf(false) }
+        // Auto-load history when the Cloud Saves screen opens; auto-refresh after every backup/restore.
+        var historyRequested by remember { mutableStateOf(true) }
         var historyLoading by remember { mutableStateOf(false) }
         var historyEntries by remember { mutableStateOf<List<GameSaveBackupManager.BackupHistoryEntry>>(emptyList()) }
         var entryPendingRestore by remember {
@@ -8258,12 +8261,32 @@ class UnifiedActivity :
             if (!historyRequested) return@LaunchedEffect
             historyLoading = true
             historyEntries =
-                GameSaveBackupManager.listBackupHistory(
-                    this@UnifiedActivity,
-                    gameSource,
-                    gameId,
-                    gameName,
-                )
+                if (gameSource == GameSaveBackupManager.GameSource.STEAM) {
+                    // Steam history merges TWO sources:
+                    //   1. Steam Cloud's current file listing (grouped by timestamp clusters)
+                    //      — matches what the user sees on store.steampowered.com/.../remotestorageapp.
+                    //   2. Local rolling snapshots from imports / launch-time keep-backup.
+                    // Without (2) the "Import Save Files" button would be a write-only hole.
+                    val appId = gameId.toIntOrNull()
+                    if (appId != null) {
+                        val cloud =
+                            com.winlator.cmod.feature.steamcloudsync.SteamCloudHistoryProvider
+                                .listCloudSaveGroups(context, appId)
+                        val local =
+                            com.winlator.cmod.feature.steamcloudsync.SteamSaveSnapshotManager
+                                .listHistory(this@UnifiedActivity, appId)
+                        (cloud + local).sortedByDescending { it.timestampMs }
+                    } else {
+                        emptyList()
+                    }
+                } else {
+                    GameSaveBackupManager.listBackupHistory(
+                        this@UnifiedActivity,
+                        gameSource,
+                        gameId,
+                        gameName,
+                    )
+                }
             historyLoading = false
         }
 
@@ -8411,18 +8434,163 @@ class UnifiedActivity :
                     )
                 }
 
-                SaveHistorySection(
-                    loading = historyLoading,
-                    entries = historyEntries,
-                    onRefresh = {
-                        historyRequested = true
-                        historyRefreshKey++
-                    },
-                    onRestore = { entry -> entryPendingRestore = entry },
-                    onRename = { entry -> entryPendingRename = entry },
-                    onDelete = { entry -> entryPendingDelete = entry },
+            }
+
+            // Show progress for Steam as well (since Steam history restore can take time).
+            if (steamManagedCloud && isWorking) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Accent,
+                    trackColor = CardBorder,
                 )
             }
+
+            // Steam users see the History section but no Backup / Restore-from-Cloud actions —
+            // Steam Cloud handles those automatically on launch/exit. Surface a one-line subtitle
+            // so users understand these snapshots are local rollback points, not server history.
+            if (steamManagedCloud) {
+                Text(
+                    text = "Local snapshots taken at sync time. Steam Cloud stores the canonical save.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary,
+                )
+
+                // Steam Cloud doesn't expose a server-side history endpoint, so we offer three
+                // user-driven actions (no automatic snapshot — that was intentionally removed
+                // from SteamCloudSyncHelper.forceDownloadById so a Sync just downloads/extracts):
+                //   1. "Sync from Steam Cloud" — pure download/extract, no auto-backup. The
+                //      Steam-history list is sourced from Steam Cloud's current file listing
+                //      via SteamCloudHistoryProvider, plus any local snapshots from Import.
+                //   2. "Browse on Steam Website" — opens store.steampowered.com/account/remotestorage
+                //      so users can fetch individual files Steam already manages.
+                //   3. "Import from File" — extract a user-supplied zip into the live save dir
+                //      and record a snapshot. Useful for restoring saves manually downloaded
+                //      from the website.
+                val steamAppIdInt = gameId.toIntOrNull()
+                // CloudSavesContent's `isWorking` is a parameter, not assignable — track the
+                // Steam-managed sync/import state in a local var so we can show the progress
+                // bar and gate against double-taps without rewiring the callback signature.
+                var steamBusy by remember { mutableStateOf(false) }
+                // OpenMultipleDocuments: Steam's remotestorage website serves individual files
+                // (.dat/.json/.sav/.cfg/etc.) with the relative path stripped by Content-Disposition.
+                // We accept multiple files and reconstruct each canonical path by matching the
+                // basename against Steam's current cloud file list (preserves subdirs needed by
+                // multi-file games like Stardew Valley or RimWorld).
+                val importLauncher =
+                    rememberLauncherForActivityResult(
+                        contract = ActivityResultContracts.OpenMultipleDocuments(),
+                    ) { uris: List<android.net.Uri> ->
+                        if (uris.isEmpty() || steamAppIdInt == null) return@rememberLauncherForActivityResult
+                        scope.launch {
+                            steamBusy = true
+                            try {
+                                val result =
+                                    com.winlator.cmod.feature.steamcloudsync.SteamSaveSnapshotManager
+                                        .importSnapshotFromFiles(this@UnifiedActivity, steamAppIdInt, uris)
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                    context,
+                                    result.message,
+                                    android.widget.Toast.LENGTH_LONG,
+                                )
+                            } finally {
+                                steamBusy = false
+                                historyRefreshKey++
+                            }
+                        }
+                    }
+
+                if (steamBusy) {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = Accent,
+                        trackColor = CardBorder,
+                    )
+                }
+
+                ActionWithHelper(
+                    icon = Icons.Outlined.CloudSync,
+                    label = "Sync from Steam Cloud",
+                    helper = "Download the latest cloud save and add it to history.",
+                    onClick = {
+                        val appId = steamAppIdInt ?: return@ActionWithHelper
+                        if (steamBusy) return@ActionWithHelper
+                        scope.launch {
+                            steamBusy = true
+                            try {
+                                // Pure download/extract — no automatic local snapshot. The user
+                                // is explicitly asking to refresh local from cloud; auto-backing
+                                // up the result would just clutter the history.
+                                val ok =
+                                    com.winlator.cmod.feature.steamcloudsync.SteamCloudSyncHelper
+                                        .forceDownloadById(this@UnifiedActivity, appId)
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                    context,
+                                    if (ok) "Synced from Steam Cloud." else "Steam Cloud sync failed.",
+                                    android.widget.Toast.LENGTH_SHORT,
+                                )
+                            } finally {
+                                steamBusy = false
+                                historyRefreshKey++
+                            }
+                        }
+                    },
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    ActionWithHelper(
+                        icon = Icons.Outlined.OpenInNew,
+                        label = "Browse on Steam Website",
+                        helper = "Open the cloud storage page in a browser.",
+                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            val appId = steamAppIdInt ?: return@ActionWithHelper
+                            val url = "https://store.steampowered.com/account/remotestorageapp/?appid=$appId"
+                            runCatching {
+                                startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+                            }.onFailure {
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                    context,
+                                    "No browser available to open the Steam page.",
+                                    android.widget.Toast.LENGTH_SHORT,
+                                )
+                            }
+                        },
+                    )
+                    ActionWithHelper(
+                        icon = Icons.Outlined.UploadFile,
+                        label = "Import Save Files",
+                        helper = "Pick files downloaded from Steam; paths auto-restored.",
+                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            // Steam saves can be any format (.dat/.json/.sav/.cfg/binary) so
+                            // accept any MIME — the basename → cloud-listing match handles the rest.
+                            runCatching {
+                                importLauncher.launch(arrayOf("*/*"))
+                            }.onFailure {
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                    context,
+                                    "File picker unavailable.",
+                                    android.widget.Toast.LENGTH_SHORT,
+                                )
+                            }
+                        },
+                    )
+                }
+            }
+
+            SaveHistorySection(
+                loading = historyLoading,
+                entries = historyEntries,
+                onRefresh = {
+                    historyRequested = true
+                    historyRefreshKey++
+                },
+                onRestore = { entry -> entryPendingRestore = entry },
+                onRename = { entry -> entryPendingRename = entry },
+                onDelete = { entry -> entryPendingDelete = entry },
+            )
 
             if (showBottomBack) {
                 Spacer(Modifier.height(4.dp))
@@ -8458,10 +8626,18 @@ class UnifiedActivity :
                     )
                 },
                 text = {
-                    Text(
-                        stringResource(R.string.cloud_saves_history_restore_confirm_body, whenLabel),
-                        color = TextSecondary,
-                    )
+                    // Steam Cloud doesn't keep version history — older "groups" point at the
+                    // same current cloud state, so Restore always syncs the latest. Be honest
+                    // in the dialog body for STEAM_CLOUD entries instead of implying rollback.
+                    val bodyText =
+                        if (entry.storage == GameSaveBackupManager.BackupStorage.STEAM_CLOUD) {
+                            "This will download Steam Cloud's current save files and overwrite local. " +
+                                "Steam doesn't keep prior versions, so older entries in this list show " +
+                                "the same current cloud state."
+                        } else {
+                            stringResource(R.string.cloud_saves_history_restore_confirm_body, whenLabel)
+                        }
+                    Text(bodyText, color = TextSecondary)
                 },
                 confirmButton = {
                     TextButton(onClick = {
@@ -8469,12 +8645,33 @@ class UnifiedActivity :
                         entryPendingRestore = null
                         scope.launch {
                             val result =
-                                GameSaveBackupManager.restoreFromHistoryEntry(
-                                    this@UnifiedActivity,
-                                    gameSource,
-                                    gameId,
-                                    target,
-                                )
+                                when (target.storage) {
+                                    GameSaveBackupManager.BackupStorage.STEAM_CLOUD -> {
+                                        val appId = gameId.toIntOrNull()
+                                        if (appId != null) {
+                                            com.winlator.cmod.feature.steamcloudsync.SteamCloudHistoryProvider
+                                                .restoreSaveGroup(this@UnifiedActivity, appId, target.fileId)
+                                        } else {
+                                            GameSaveBackupManager.BackupResult(false, "Invalid appId.")
+                                        }
+                                    }
+                                    GameSaveBackupManager.BackupStorage.STEAM_LOCAL -> {
+                                        val appId = gameId.toIntOrNull()
+                                        if (appId != null) {
+                                            com.winlator.cmod.feature.steamcloudsync.SteamSaveSnapshotManager
+                                                .restoreFromEntry(this@UnifiedActivity, appId, target.fileId)
+                                        } else {
+                                            GameSaveBackupManager.BackupResult(false, "Invalid appId.")
+                                        }
+                                    }
+                                    GameSaveBackupManager.BackupStorage.GOOGLE_SNAPSHOTS ->
+                                        GameSaveBackupManager.restoreFromHistoryEntry(
+                                            this@UnifiedActivity,
+                                            gameSource,
+                                            gameId,
+                                            target,
+                                        )
+                                }
                             com.winlator.cmod.shared.ui.toast.WinToast.show(
                                 context,
                                 if (result.success) {
@@ -8539,11 +8736,29 @@ class UnifiedActivity :
                         entryPendingRename = null
                         scope.launch {
                             val result =
-                                GameSaveBackupManager.renameBackupHistoryEntry(
-                                    this@UnifiedActivity,
-                                    target,
-                                    newLabel,
-                                )
+                                when (target.storage) {
+                                    GameSaveBackupManager.BackupStorage.STEAM_CLOUD -> {
+                                        // Steam Cloud has no native label storage; persist locally.
+                                        com.winlator.cmod.feature.steamcloudsync.SteamCloudHistoryProvider
+                                            .setLabel(context, target.fileId, newLabel)
+                                        GameSaveBackupManager.BackupResult(true, "Label saved.")
+                                    }
+                                    GameSaveBackupManager.BackupStorage.STEAM_LOCAL -> {
+                                        val appId = gameId.toIntOrNull()
+                                        if (appId != null) {
+                                            com.winlator.cmod.feature.steamcloudsync.SteamSaveSnapshotManager
+                                                .renameEntry(this@UnifiedActivity, appId, target.fileId, newLabel)
+                                        } else {
+                                            GameSaveBackupManager.BackupResult(false, "Invalid appId.")
+                                        }
+                                    }
+                                    GameSaveBackupManager.BackupStorage.GOOGLE_SNAPSHOTS ->
+                                        GameSaveBackupManager.renameBackupHistoryEntry(
+                                            this@UnifiedActivity,
+                                            target,
+                                            newLabel,
+                                        )
+                                }
                             com.winlator.cmod.shared.ui.toast.WinToast.show(
                                 context,
                                 if (result.success) {
@@ -8566,11 +8781,25 @@ class UnifiedActivity :
                                 val target = entryPendingRename ?: return@TextButton
                                 entryPendingRename = null
                                 scope.launch {
-                                    GameSaveBackupManager.renameBackupHistoryEntry(
-                                        this@UnifiedActivity,
-                                        target,
-                                        null,
-                                    )
+                                    when (target.storage) {
+                                        GameSaveBackupManager.BackupStorage.STEAM_CLOUD -> {
+                                            com.winlator.cmod.feature.steamcloudsync.SteamCloudHistoryProvider
+                                                .setLabel(context, target.fileId, null)
+                                        }
+                                        GameSaveBackupManager.BackupStorage.STEAM_LOCAL -> {
+                                            val appId = gameId.toIntOrNull()
+                                            if (appId != null) {
+                                                com.winlator.cmod.feature.steamcloudsync.SteamSaveSnapshotManager
+                                                    .renameEntry(this@UnifiedActivity, appId, target.fileId, null)
+                                            }
+                                        }
+                                        GameSaveBackupManager.BackupStorage.GOOGLE_SNAPSHOTS ->
+                                            GameSaveBackupManager.renameBackupHistoryEntry(
+                                                this@UnifiedActivity,
+                                                target,
+                                                null,
+                                            )
+                                    }
                                     historyRefreshKey++
                                 }
                             }) {
@@ -8605,6 +8834,15 @@ class UnifiedActivity :
                     TextButton(onClick = {
                         val target = entryPendingDelete ?: return@TextButton
                         entryPendingDelete = null
+                        // Defensive: Steam entries (both local snapshots and cloud groups) don't
+                        // belong on the PGS delete path. The UI hides Delete for these storages,
+                        // but guard here so a future caller can't accidentally route a Steam
+                        // entryId/groupId into GameSaveBackupManager.deleteBackupHistoryEntry.
+                        if (target.storage == GameSaveBackupManager.BackupStorage.STEAM_LOCAL ||
+                            target.storage == GameSaveBackupManager.BackupStorage.STEAM_CLOUD
+                        ) {
+                            return@TextButton
+                        }
                         scope.launch {
                             val result =
                                 GameSaveBackupManager.deleteBackupHistoryEntry(
@@ -8790,11 +9028,18 @@ class UnifiedActivity :
             ) {
                 Text(stringResource(R.string.cloud_saves_history_rename), color = TextSecondary, fontSize = 12.sp)
             }
-            TextButton(
-                onClick = onDelete,
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+            // Steam entries (local snapshots OR cloud groups) aren't on a Google backend —
+            // Steam Cloud retains them server-side, and local snapshots use rolling-buffer
+            // pruning. Hide Delete for both.
+            if (entry.storage != GameSaveBackupManager.BackupStorage.STEAM_LOCAL &&
+                entry.storage != GameSaveBackupManager.BackupStorage.STEAM_CLOUD
             ) {
-                Text(stringResource(R.string.cloud_saves_history_delete), color = DangerRed, fontSize = 12.sp)
+                TextButton(
+                    onClick = onDelete,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                ) {
+                    Text(stringResource(R.string.cloud_saves_history_delete), color = DangerRed, fontSize = 12.sp)
+                }
             }
             TextButton(
                 onClick = onRestore,
