@@ -1161,6 +1161,7 @@ class UnifiedActivity :
 
         val storeVisible = remember { mutableStateMapOf(*initialStoreVisible.entries.map { it.key to it.value }.toTypedArray()) }
         var showAddCustomGame by remember { mutableStateOf(false) }
+        var showExitDialog by remember { mutableStateOf(false) }
         var searchQueryTfv by remember { mutableStateOf(TextFieldValue("")) }
         val searchQuery = searchQueryTfv.text
         var localLibraryRefreshKey by remember { mutableIntStateOf(0) }
@@ -1345,7 +1346,7 @@ class UnifiedActivity :
                     }
 
                     android.view.KeyEvent.KEYCODE_BUTTON_B -> {
-                        // Close menus in order. App exit lives in the drawer action.
+                        // Close menus in order, or show exit confirmation if none are open
                         if (drawerState.isOpen) {
                             drawerState.close()
                         } else if (globalSettingsApp != null) {
@@ -1354,6 +1355,8 @@ class UnifiedActivity :
                             globalSettingsGogGame = null
                         } else if (showAddCustomGame) {
                             showAddCustomGame = false
+                        } else {
+                            showExitDialog = true
                         }
                     }
 
@@ -1636,8 +1639,9 @@ class UnifiedActivity :
             })
         }
 
-        // Back closes transient hub surfaces. App exit lives in the drawer action.
+        // Back button exit confirmation
         BackHandler(enabled = true) {
+            // Consistent behavior: close overlays first, then show exit confirmation
             if (drawerState.isOpen) {
                 scope.launch { drawerState.close() }
             } else if (globalSettingsApp != null) {
@@ -1646,6 +1650,61 @@ class UnifiedActivity :
                 globalSettingsGogGame = null
             } else if (showAddCustomGame) {
                 showAddCustomGame = false
+            } else {
+                showExitDialog = true
+            }
+        }
+
+        if (showExitDialog) {
+            Dialog(
+                onDismissRequest = { showExitDialog = false },
+                properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true),
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .width(320.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(SurfaceDark)
+                            .border(1.dp, Accent.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                            .padding(28.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = stringResource(R.string.common_ui_exit_app_confirm),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.height(24.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            // Cancel button
+                            OutlinedButton(
+                                onClick = { showExitDialog = false },
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, TextSecondary.copy(alpha = 0.5f)),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(stringResource(R.string.common_ui_cancel), fontWeight = FontWeight.Medium)
+                            }
+                            // Exit button
+                            Button(
+                                onClick = {
+                                    AppTerminationHelper.exitApplication(this@UnifiedActivity, "hub_exit_menu")
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(stringResource(R.string.common_ui_exit), color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
