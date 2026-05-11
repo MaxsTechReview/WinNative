@@ -8299,7 +8299,7 @@ class UnifiedActivity :
                 onOfflineModeToggle = onOfflineModeToggle,
             )
 
-            if (!steamManagedCloud && isWorking) {
+            if (isWorking) {
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth(),
                     color = Accent,
@@ -8315,13 +8315,14 @@ class UnifiedActivity :
                     GameSaveBackupManager.GameSource.CUSTOM -> stringResource(R.string.preloader_platform_custom)
                 }
 
+            ActionWithHelper(
+                icon = Icons.Outlined.CloudSync,
+                label = stringResource(R.string.cloud_saves_sync_from_provider, providerLabel),
+                helper = stringResource(R.string.cloud_saves_sync_summary, providerLabel),
+                onClick = { if (!isWorking) onSyncFromCloud() },
+            )
+
             if (!steamManagedCloud) {
-                ActionWithHelper(
-                    icon = Icons.Outlined.CloudSync,
-                    label = stringResource(R.string.cloud_saves_sync_from_provider, providerLabel),
-                    helper = stringResource(R.string.cloud_saves_sync_summary, providerLabel),
-                    onClick = { if (!isWorking) onSyncFromCloud() },
-                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
