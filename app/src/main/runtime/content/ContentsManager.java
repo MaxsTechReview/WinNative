@@ -27,6 +27,7 @@ public class ContentsManager {
   public static final String REMOTE_PROFILES =
       "https://raw.githubusercontent.com/Xnick417x/winlator-nightly-wcp/refs/heads/main/contents.json";
   private static final long EXTRACTION_PROGRESS_INTERVAL_MS = 120L;
+  private static final String REMOTE_ALIAS_PREFERENCE_PREFIX = "remote_profile_alias_";
   public static final String[] DXVK_TRUST_FILES = {
     "${system32}/d3d8.dll",
     "${system32}/d3d9.dll",
@@ -310,12 +311,13 @@ public class ContentsManager {
   }
 
   public void finishInstallContent(ContentProfile profile, OnInstallFinishedCallback callback) {
-    File installPath = getInstallDir(context, profile);
-    if (installPath.exists()) {
+    File conflictingInstallPath = getConflictingInstallDir(context, profile);
+    if (conflictingInstallPath != null) {
       callback.onFailed(InstallFailedReason.ERROR_EXIST, null);
       return;
     }
 
+    File installPath = getInstallDir(context, profile);
     if (!installPath.mkdirs()) {
       callback.onFailed(InstallFailedReason.ERROR_UNKNOWN, null);
       return;
@@ -418,6 +420,62 @@ public class ContentsManager {
   public static File getInstallDir(Context context, ContentProfile profile) {
     return new File(
         getContentTypeDir(context, profile.type), profile.verName + "-" + profile.verCode);
+  }
+
+  public static File getConflictingInstallDir(Context context, ContentProfile profile) {
+    if (context == null || profile == null || profile.type == null || profile.verName == null) {
+      return null;
+    }
+
+    File installDir = getInstallDir(context, profile);
+    if (installDir.exists()) {
+      return installDir;
+    }
+
+    File typeDir = getContentTypeDir(context, profile.type);
+    File[] installedDirs = typeDir.listFiles();
+    if (installedDirs == null) {
+      return null;
+    }
+
+    for (File installedDir : installedDirs) {
+      if (!installedDir.isDirectory()) {
+        continue;
+      }
+
+      String directoryName = installedDir.getName();
+      int splitIndex = directoryName.lastIndexOf('-');
+      if (splitIndex <= 0 || splitIndex >= directoryName.length() - 1) {
+        continue;
+      }
+
+      String installedVersionName = directoryName.substring(0, splitIndex);
+      if (installedVersionName.equalsIgnoreCase(profile.verName)) {
+        return installedDir;
+      }
+    }
+
+    return null;
+  }
+
+  public ContentProfile getConflictingInstalledProfile(ContentProfile profile) {
+    File installDir = getConflictingInstallDir(context, profile);
+    if (installDir == null) {
+      return null;
+    }
+
+    ContentProfile installedProfile = null;
+    File profileFile = new File(installDir, PROFILE_NAME);
+    if (profileFile.exists() && profileFile.isFile()) {
+      installedProfile = readProfile(profileFile);
+    }
+    if (installedProfile == null) {
+      installedProfile = createInstalledFallbackProfile(profile.type, installDir);
+    }
+    if (installedProfile != null) {
+      installedProfile.isInstalled = true;
+    }
+    return installedProfile;
   }
 
   public static boolean isInstalled(Context context, ContentProfile profile) {
@@ -590,6 +648,7 @@ public class ContentsManager {
 
   public void removeContent(ContentProfile profile) {
     FileUtils.delete(getInstallDir(context, profile));
+    clearRemoteProfileAliases(profile);
     syncContents();
   }
 
@@ -624,7 +683,54 @@ public class ContentsManager {
   }
 
   public boolean isRemoteUrlInstalled(String remoteUrl) {
-    return getRemoteProfileAlias(remoteUrl) != null;
+    String aliasProfileKey = getRemoteProfileAlias(remoteUrl);
+    if (aliasProfileKey == null) {
+      return false;
+    }
+
+    if (profilesMap == null) {
+      syncContents();
+    }
+
+    if (profilesMap != null) {
+      for (List<ContentProfile> profiles : profilesMap.values()) {
+        for (ContentProfile profile : profiles) {
+          if (profile != null
+              && profile.isInstalled
+              && profile.type != null
+              && profile.verName != null
+              && aliasProfileKey.equals(getProfileKey(profile))) {
+            return true;
+          }
+        }
+      }
+    }
+
+    preferences.edit().remove(getRemoteAliasPreferenceKey(remoteUrl)).apply();
+    return false;
+  }
+
+  private void clearRemoteProfileAliases(ContentProfile profile) {
+    if (profile == null || profile.type == null || profile.verName == null) {
+      return;
+    }
+
+    String profileKey = getProfileKey(profile);
+    SharedPreferences.Editor editor = null;
+    for (Map.Entry<String, ?> entry : preferences.getAll().entrySet()) {
+      String key = entry.getKey();
+      if (key != null
+          && key.startsWith(REMOTE_ALIAS_PREFERENCE_PREFIX)
+          && profileKey.equals(entry.getValue())) {
+        if (editor == null) {
+          editor = preferences.edit();
+        }
+        editor.remove(key);
+      }
+    }
+    if (editor != null) {
+      editor.apply();
+    }
   }
 
   private String getRemoteProfileAlias(String remoteUrl) {
@@ -635,7 +741,7 @@ public class ContentsManager {
   }
 
   private String getRemoteAliasPreferenceKey(String remoteUrl) {
-    return "remote_profile_alias_" + remoteUrl;
+    return REMOTE_ALIAS_PREFERENCE_PREFIX + remoteUrl;
   }
 
   private ContentProfile createInstalledFallbackProfile(

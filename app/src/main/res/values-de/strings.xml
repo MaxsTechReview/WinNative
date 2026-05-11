@@ -813,6 +813,7 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="settings_content_preparing_package">Paket wird vorbereitet…</string>
     <string name="settings_content_download_complete">Download abgeschlossen</string>
     <string name="settings_content_conflicting_title">Widersprüchlicher Inhalt installiert</string>
+    <string name="settings_content_conflicting_body">Bitte deinstalliere den widersprüchlichen Inhalt, bevor du dieses Paket herunterlädst.</string>
     <string name="settings_content_conflicting_message">Bitte deinstalliere den widersprüchlichen Inhalt, bevor du dieses Paket herunterlädst.
 
 Installierter Pfad:

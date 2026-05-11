@@ -813,6 +813,7 @@
     <string name="settings_content_preparing_package">正在准备包…</string>
     <string name="settings_content_download_complete">下载完成</string>
     <string name="settings_content_conflicting_title">存在冲突的已安装内容</string>
+    <string name="settings_content_conflicting_body">请在下载此包之前卸载冲突的内容。</string>
     <string name="settings_content_conflicting_message">请在下载此包之前卸载冲突的内容。
 
 已安装路径：

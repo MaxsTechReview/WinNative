@@ -813,6 +813,7 @@ Ad es. <b>META</b> per il <i>tasto META</i>, \n
     <string name="settings_content_preparing_package">Preparazione pacchetto…</string>
     <string name="settings_content_download_complete">Download completato</string>
     <string name="settings_content_conflicting_title">Contenuto in conflitto installato</string>
+    <string name="settings_content_conflicting_body">Disinstalla il contenuto in conflitto prima di scaricare questo pacchetto.</string>
     <string name="settings_content_conflicting_message">Disinstalla il contenuto in conflitto prima di scaricare questo pacchetto.
 
 Percorso installato:

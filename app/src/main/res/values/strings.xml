@@ -956,6 +956,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_content_preparing_package">Preparing package…</string>
     <string name="settings_content_download_complete">Download complete</string>
     <string name="settings_content_conflicting_title">Conflicting Content Installed</string>
+    <string name="settings_content_conflicting_body">Please uninstall the conflicting content before downloading this package.</string>
     <string name="settings_content_conflicting_message">Please uninstall the conflicting content before downloading this package.
 
 Installed path:

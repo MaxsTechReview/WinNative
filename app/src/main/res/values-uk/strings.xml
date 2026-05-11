@@ -819,6 +819,7 @@
     <string name="settings_content_preparing_package">Підготовка пакета…</string>
     <string name="settings_content_download_complete">Завантаження завершено</string>
     <string name="settings_content_conflicting_title">Встановлено конфліктуючий контент</string>
+    <string name="settings_content_conflicting_body">Будь ласка, видаліть конфліктуючий контент перед завантаженням цього пакета.</string>
     <string name="settings_content_conflicting_message">Будь ласка, видаліть конфліктуючий контент перед завантаженням цього пакета.
 
 Встановлений шлях:

@@ -813,6 +813,7 @@ Par ex. <b>META</b> pour la <i>touche META</i>, \n
     <string name="settings_content_preparing_package">Préparation du paquet…</string>
     <string name="settings_content_download_complete">Téléchargement terminé</string>
     <string name="settings_content_conflicting_title">Contenu en conflit installé</string>
+    <string name="settings_content_conflicting_body">Veuillez désinstaller le contenu en conflit avant de télécharger ce paquet.</string>
     <string name="settings_content_conflicting_message">Veuillez désinstaller le contenu en conflit avant de télécharger ce paquet.
 
 Chemin installé :

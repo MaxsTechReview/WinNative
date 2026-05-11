@@ -813,6 +813,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_content_preparing_package">Forbereder pakke…</string>
     <string name="settings_content_download_complete">Download fuldført</string>
     <string name="settings_content_conflicting_title">Modstridende indhold installeret</string>
+    <string name="settings_content_conflicting_body">Afinstaller venligst det modstridende indhold før du downloader denne pakke.</string>
     <string name="settings_content_conflicting_message">Afinstaller venligst det modstridende indhold før du downloader denne pakke.
 
 Installeret sti:

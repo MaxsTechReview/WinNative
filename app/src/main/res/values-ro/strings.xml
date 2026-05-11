@@ -813,6 +813,7 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_content_preparing_package">Se pregateste pachetul…</string>
     <string name="settings_content_download_complete">Descarcare completa</string>
     <string name="settings_content_conflicting_title">Continut conflictual instalat</string>
+    <string name="settings_content_conflicting_body">Dezinstaleaza continutul conflictual inainte de a descarca acest pachet.</string>
     <string name="settings_content_conflicting_message">Dezinstaleaza continutul conflictual inainte de a descarca acest pachet.
 
 Cale instalata:

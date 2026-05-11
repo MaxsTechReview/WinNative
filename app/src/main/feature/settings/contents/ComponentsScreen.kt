@@ -120,11 +120,18 @@ data class ComponentsDownloadProgress(
     val indeterminate: Boolean = false,
 )
 
+data class ComponentsConflictDialog(
+    val title: String,
+    val message: String,
+    val installedPath: String,
+)
+
 data class ComponentsState(
     val currentType: ContentProfile.ContentType = ContentProfile.ContentType.CONTENT_TYPE_WINE,
     val installed: List<ComponentItem> = emptyList(),
     val available: List<ComponentItem> = emptyList(),
     val downloadProgress: ComponentsDownloadProgress? = null,
+    val conflictDialog: ComponentsConflictDialog? = null,
     val autoCreateContainer: Boolean = true,
 )
 
@@ -140,6 +147,7 @@ fun ComponentsScreen(
     onDownloadItem: (ComponentItem) -> Unit,
     onRemoveItem: (ComponentItem) -> Unit,
     onToggleAutoCreateContainer: (Boolean) -> Unit,
+    onDismissConflictDialog: () -> Unit,
 ) {
     var itemPendingRemoval by remember { mutableStateOf<ComponentItem?>(null) }
     val layoutDirection = LocalLayoutDirection.current
@@ -164,6 +172,13 @@ fun ComponentsScreen(
 
     state.downloadProgress?.let { progress ->
         DownloadProgressDialog(progress = progress)
+    }
+
+    state.conflictDialog?.let { dialog ->
+        ConflictingContentDialog(
+            dialog = dialog,
+            onDismiss = onDismissConflictDialog,
+        )
     }
 
     LazyColumn(
@@ -800,6 +815,87 @@ private fun DownloadProgressDialog(progress: ComponentsDownloadProgress) {
                         color = TextSecondary,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConflictingContentDialog(
+    dialog: ComponentsConflictDialog,
+    onDismiss: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties =
+            DialogProperties(
+                usePlatformDefaultWidth = false,
+            ),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .widthIn(max = 340.dp)
+                    .fillMaxWidth(0.84f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(CardDark)
+                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                    .padding(horizontal = 16.dp, vertical = 15.dp),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = dialog.title,
+                    color = TextPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(7.dp))
+                Text(
+                    text = dialog.message,
+                    color = TextSecondary,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(12.dp))
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(CardDarker)
+                            .border(1.dp, CardBorder, RoundedCornerShape(10.dp))
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = dialog.installedPath,
+                        color = TextPrimary,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                Spacer(Modifier.height(13.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    DialogActionButton(
+                        label = stringResource(R.string.common_ui_ok),
+                        textColor = Accent,
+                        onClick = onDismiss,
                     )
                 }
             }

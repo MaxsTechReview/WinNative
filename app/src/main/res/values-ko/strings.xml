@@ -813,6 +813,7 @@
     <string name="settings_content_preparing_package">패키지 준비 중…</string>
     <string name="settings_content_download_complete">다운로드 완료</string>
     <string name="settings_content_conflicting_title">충돌하는 콘텐츠가 설치되어 있음</string>
+    <string name="settings_content_conflicting_body">이 패키지를 다운로드하기 전에 충돌하는 콘텐츠를 제거하세요.</string>
     <string name="settings_content_conflicting_message">이 패키지를 다운로드하기 전에 충돌하는 콘텐츠를 제거하세요.
 
 설치 경로:

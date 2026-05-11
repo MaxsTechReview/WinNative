@@ -521,6 +521,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     private val defaultArmContainerName = mutableStateOf("")
     private val wizardError = mutableStateOf<String?>(null)
     private val transferState = mutableStateOf<TransferState?>(null)
+    private val installedContentRefreshVersion = mutableIntStateOf(0)
     private var lastInstallFailureMessage: String? = null
     private val creatingContainer = mutableStateOf(false)
     private val advancedProfiles = mutableStateListOf<RemotePackageSpec>()
@@ -603,6 +604,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         val notificationsEnabled = hasNotificationPermissionSilently()
         notifGranted.value = notificationsEnabled
         if (notificationsEnabled) notifDenied.value = false
+        loadAdvancedProfiles()
         refreshWizardState()
         refreshRecommendedPackageCache()
     }
@@ -809,6 +811,12 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         index: Int,
         total: Int,
     ): ContentProfile? {
+        val existingProfile = findInstalledPackage(spec.type, spec.nameHint)
+        if (existingProfile != null) {
+            markInstalledPackage(spec.url, existingProfile)
+            return existingProfile
+        }
+
         transferState.value =
             TransferState(
                 title = getString(R.string.setup_wizard_recommended_components),
@@ -903,11 +911,12 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     e: Exception?,
                 ) {
                     if (reason == ContentsManager.InstallFailedReason.ERROR_EXIST && extractedProfile != null) {
-                        manager.registerRemoteProfileAlias(sourceUrl, extractedProfile)
-                        manager.syncContents()
-                        installedProfile = manager.getProfileByEntryName(
-                            ContentsManager.getEntryName(extractedProfile),
-                        ) ?: extractedProfile?.apply { isInstalled = true }
+                        val requestedProfile = extractedProfile ?: return
+                        val existingProfile =
+                            manager.getConflictingInstalledProfile(requestedProfile)
+                                ?: requestedProfile.apply { isInstalled = true }
+                        markInstalledPackage(sourceUrl, existingProfile)
+                        installedProfile = existingProfile
                         return
                     }
                     failed = true
@@ -942,6 +951,33 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         }
         return if (failed) null else installedProfile
     }
+
+    private fun markInstalledPackage(
+        sourceUrl: String,
+        profile: ContentProfile,
+    ) {
+        val manager = ContentsManager(this)
+        manager.registerRemoteProfileAlias(sourceUrl, profile)
+        manager.syncContents()
+        recordInstalledContent(this, profile)
+    }
+
+    private fun findInstalledPackage(
+        type: ContentProfile.ContentType,
+        versionName: String,
+    ): ContentProfile? {
+        val manager = ContentsManager(this)
+        manager.syncContents()
+        val requestedProfile =
+            ContentProfile().apply {
+                this.type = type
+                this.verName = versionName
+            }
+        return manager.getConflictingInstalledProfile(requestedProfile)
+    }
+
+    private fun findInstalledPackage(spec: RemotePackageSpec): ContentProfile? =
+        findInstalledPackage(spec.type, spec.verName)
 
     private fun resolveRecommendedComponentSpecs(): List<PackageSpec> {
         val componentTypes =
@@ -1021,6 +1057,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 }
             } finally {
                 recommendedPackageRefreshInFlight = false
+                refreshAdvancedInstalledSet()
                 refreshWizardState()
             }
         }
@@ -1245,10 +1282,14 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     private fun isPackageInstalled(
         manager: ContentsManager,
         spec: PackageSpec,
-    ): Boolean =
-        manager.getProfiles(spec.type).orEmpty().any { profile ->
-            profile.isInstalled && profile.verName.contains(spec.nameHint, ignoreCase = true)
-        }
+    ): Boolean {
+        val requestedProfile =
+            ContentProfile().apply {
+                type = spec.type
+                verName = spec.nameHint
+            }
+        return manager.getConflictingInstalledProfile(requestedProfile) != null
+    }
 
     private fun openDrivers() {
         if (supportFragmentManager.findFragmentByTag(SetupWizardDriversDialogFragment.TAG) == null) {
@@ -1260,7 +1301,10 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     }
 
     private fun loadAdvancedProfiles() {
-        if (advancedProfiles.isNotEmpty()) return
+        if (advancedProfiles.isNotEmpty()) {
+            refreshAdvancedInstalledSet()
+            return
+        }
         lifecycleScope.launch {
             val profiles =
                 withContext(Dispatchers.IO) {
@@ -1293,14 +1337,12 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         manager.syncContents()
         advancedInstalledSet.clear()
         advancedProfiles.forEach { spec ->
-            val installedByName =
-                manager.getProfiles(spec.type).orEmpty().any {
-                    it.isInstalled && (
-                        it.verName.equals(spec.verName, ignoreCase = true) ||
-                            it.verName.contains(spec.verName, ignoreCase = true) ||
-                            spec.verName.contains(it.verName, ignoreCase = true)
-                    )
-                }
+            val installedByName = manager.getConflictingInstalledProfile(
+                ContentProfile().apply {
+                    type = spec.type
+                    verName = spec.verName
+                },
+            ) != null
             val installedByUrl = manager.isRemoteUrlInstalled(spec.remoteUrl)
             if (installedByName || installedByUrl) advancedInstalledSet.add(spec.verName)
         }
@@ -1310,6 +1352,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         containerManager.containers.forEach {
             advancedContainerNames.add(it.name)
         }
+        installedContentRefreshVersion.intValue++
     }
 
     private fun installAllRecommended() {
@@ -1325,6 +1368,14 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 val profile =
                     withContext(Dispatchers.IO) {
                         try {
+                            findInstalledPackage(spec)?.let { existingProfile ->
+                                markInstalledPackage(spec.remoteUrl, existingProfile)
+                                if (spec.verName !in advancedInstalledSet) {
+                                    advancedInstalledSet.add(spec.verName)
+                                }
+                                return@withContext existingProfile
+                            }
+
                             transferState.value =
                                 TransferState(
                                     title = getString(R.string.setup_wizard_recommended_components),
@@ -1399,6 +1450,11 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             val profile =
                 withContext(Dispatchers.IO) {
                     try {
+                        findInstalledPackage(spec)?.let { existingProfile ->
+                            markInstalledPackage(spec.remoteUrl, existingProfile)
+                            return@withContext existingProfile
+                        }
+
                         transferState.value =
                             TransferState(
                                 title = spec.verName,
@@ -2669,12 +2725,10 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
 
     @Composable
     private fun PageDefaultSettings() {
-        val contentsManager =
-            remember {
-                ContentsManager(this@SetupWizardActivity).also { it.syncContents() }
-            }
         val installedRuntimes =
-            remember(advancedInstalledSet.toList()) {
+            remember(installedContentRefreshVersion.intValue, advancedInstalledSet.toList()) {
+                val contentsManager =
+                    ContentsManager(this@SetupWizardActivity).also { it.syncContents() }
                 val wineProfiles =
                     contentsManager
                         .getProfiles(ContentProfile.ContentType.CONTENT_TYPE_WINE)

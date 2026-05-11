@@ -813,6 +813,7 @@
     <string name="settings_content_preparing_package">正在準備套件\u2026</string>
     <string name="settings_content_download_complete">下載完成</string>
     <string name="settings_content_conflicting_title">已安裝衝突的內容</string>
+    <string name="settings_content_conflicting_body">請先解除安裝衝突的內容再下載此套件。</string>
     <string name="settings_content_conflicting_message">請先解除安裝衝突的內容再下載此套件。
 
 已安裝路徑：

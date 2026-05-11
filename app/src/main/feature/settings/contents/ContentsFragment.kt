@@ -16,7 +16,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
@@ -50,6 +49,7 @@ class ContentsFragment : Fragment() {
     private val installedSizeFetchesInFlight = mutableSetOf<String>()
 
     private var downloadProgress: ComponentsDownloadProgress? = null
+    private var conflictDialog: ComponentsConflictDialog? = null
 
     private var autoCreateContainer = true
 
@@ -105,6 +105,10 @@ class ContentsFragment : Fragment() {
                                 .edit()
                                 .putBoolean(PREF_AUTO_CREATE_CONTAINER, enabled)
                                 .apply()
+                            publishState()
+                        },
+                        onDismissConflictDialog = {
+                            conflictDialog = null
                             publishState()
                         },
                     )
@@ -186,6 +190,7 @@ class ContentsFragment : Fragment() {
                 installed = installedItems,
                 available = availableItems,
                 downloadProgress = downloadProgress,
+                conflictDialog = conflictDialog,
                 autoCreateContainer = autoCreateContainer,
             )
 
@@ -522,21 +527,27 @@ class ContentsFragment : Fragment() {
     }
 
     private fun showConflictingContentDialog(profile: ContentProfile) {
-        val conflictingPath = ContentsManager.getInstallDir(requireContext(), profile).absolutePath
-        val dialog = ContentDialog(requireContext())
-        dialog.setTitle(R.string.settings_content_conflicting_title)
-        dialog.setMessage(
-            getString(
-                R.string.settings_content_conflicting_message,
-                conflictingPath,
-            ),
-        )
-        dialog.findViewById<View>(R.id.BTCancel).isVisible = false
-        dialog.show()
+        val conflictingPath =
+            (
+                ContentsManager.getConflictingInstallDir(requireContext(), profile)
+                    ?: ContentsManager.getInstallDir(requireContext(), profile)
+            ).absolutePath
+        conflictDialog =
+            ComponentsConflictDialog(
+                title = getString(R.string.settings_content_conflicting_title),
+                message = getString(R.string.settings_content_conflicting_body),
+                installedPath = conflictingPath,
+            )
+        publishState()
     }
 
     private fun downloadRemoteContent(profile: ContentProfile) {
         val remoteUrl = profile.remoteUrl ?: return
+        if (ContentsManager.getConflictingInstallDir(requireContext(), profile) != null) {
+            showConflictingContentDialog(profile)
+            return
+        }
+
         updateDownloadProgress(
             title = getString(R.string.settings_content_downloading_title),
             message = profile.verName,

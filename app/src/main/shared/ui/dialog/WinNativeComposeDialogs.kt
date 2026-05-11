@@ -308,7 +308,7 @@ fun WinNativeDialogButton(
     Box(
         modifier =
             Modifier
-                .widthIn(min = 84.dp)
+                .widthIn(min = 72.dp)
                 .clip(RoundedCornerShape(10.dp))
                 .background(backgroundColor)
                 .border(1.dp, borderColor, RoundedCornerShape(10.dp))
@@ -316,7 +316,7 @@ fun WinNativeDialogButton(
                     interactionSource = MutableInteractionSource(),
                     indication = null,
                     onClick = onClick,
-                ).padding(horizontal = 18.dp, vertical = 11.dp),
+                ).padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
