@@ -40,7 +40,7 @@ class TouchpadView(
         const val MAX_TAP_TRAVEL_DISTANCE: Byte = 40
         const val MAX_TAP_MILLISECONDS: Short = 300
         const val CURSOR_ACCELERATION = 1.25f
-        const val CURSOR_ACCELERATION_THRESHOLD = 2.0f
+        const val CURSOR_ACCELERATION_THRESHOLD: Byte = 6
         private const val CLICK_DELAYED_TIME: Byte = 50
         private const val EFFECTIVE_TOUCH_DISTANCE: Byte = 20
         private const val UPDATE_FORM_DELAYED_TIME = 50
@@ -59,8 +59,8 @@ class TouchpadView(
     private val xform = XForm.getInstance()
     private var simTouchScreen = false
     private var continueClick = true
-    private var lastTouchedPosX = 0f
-    private var lastTouchedPosY = 0f
+    private var lastTouchedPosX = 0
+    private var lastTouchedPosY = 0
     private var resolutionScale = 0f
     private var mouseEnabled = true
     var tapToClickEnabled = true
@@ -77,8 +77,8 @@ class TouchpadView(
     private var gestureConsumed = false
     private var swipeHandled = false
     private var lastTapTime: Long = 0
-    private var lastTapX = 0f
-    private var lastTapY = 0f
+    private var lastTapX = 0
+    private var lastTapY = 0
     private var activeLongPressAction: Binding = Binding.NONE
     private var longPressActive = false
     private var longPressTriggered = false
@@ -213,20 +213,18 @@ class TouchpadView(
         x: Float,
         y: Float,
     ) {
-        var x: Float
-        var y: Float
-        val startX: Float
-        val startY: Float
-        var lastX: Float
-        var lastY: Float
-        private var accumX = 0f
-        private var accumY = 0f
+        var x: Int
+        var y: Int
+        val startX: Int
+        val startY: Int
+        var lastX: Int
+        var lastY: Int
         val touchTime: Long = System.currentTimeMillis()
 
         init {
             val transformedPoint = XForm.transformPoint(xform, x, y)
-            this.x = transformedPoint[0].also { this.lastX = it }.also { this.startX = it }
-            this.y = transformedPoint[1].also { this.lastY = it }.also { this.startY = it }
+            this.x = transformedPoint[0].toInt().also { this.lastX = it }.also { this.startX = it }
+            this.y = transformedPoint[1].toInt().also { this.lastY = it }.also { this.startY = it }
         }
 
         fun update(
@@ -236,30 +234,20 @@ class TouchpadView(
             lastX = this.x
             lastY = this.y
             val transformedPoint = XForm.transformPoint(xform, x, y)
-            this.x = transformedPoint[0]
-            this.y = transformedPoint[1]
+            this.x = transformedPoint[0].toInt()
+            this.y = transformedPoint[1].toInt()
         }
 
         fun deltaX(): Int {
             var dx = (x - lastX) * sensitivity
-            if (gestureConfig.enabled) dx *= gestureConfig.mouseSensitivity
             if (Math.abs(dx) > CURSOR_ACCELERATION_THRESHOLD) dx *= CURSOR_ACCELERATION
-            
-            accumX += dx
-            val move = accumX.toInt()
-            accumX -= move
-            return move
+            return Mathf.roundPoint(dx)
         }
 
         fun deltaY(): Int {
             var dy = (y - lastY) * sensitivity
-            if (gestureConfig.enabled) dy *= gestureConfig.mouseSensitivity
             if (Math.abs(dy) > CURSOR_ACCELERATION_THRESHOLD) dy *= CURSOR_ACCELERATION
-            
-            accumY += dy
-            val move = accumY.toInt()
-            accumY -= move
-            return move
+            return Mathf.roundPoint(dy)
         }
 
         fun isTap(): Boolean = (System.currentTimeMillis() - touchTime) < MAX_TAP_MILLISECONDS && travelDistance() < MAX_TAP_TRAVEL_DISTANCE
@@ -382,7 +370,7 @@ class TouchpadView(
                     val clickDelay =
                         Runnable {
                             if (continueClick && gestureConfig.oneFingerTapAction != Binding.NONE) {
-                                xServer.injectPointerMove(lastTouchedPosX.toInt(), lastTouchedPosY.toInt())
+                                xServer.injectPointerMove(lastTouchedPosX, lastTouchedPosY)
                                 if (xServer.isRelativeMouseMovement) {
                                     xServer.winHandler.mouseEvent(MouseEventFlags.LEFTDOWN, 0, 0, 0)
                                 } else {
@@ -759,11 +747,11 @@ class TouchpadView(
             val finger = fingers.firstOrNull { it != null }
             if (finger != null) {
                 if (simTouchScreen) {
-                    if (System.currentTimeMillis() - finger.touchTime > CLICK_DELAYED_TIME) xServer.injectPointerMove(finger.x.toInt(), finger.y.toInt())
+                    if (System.currentTimeMillis() - finger.touchTime > CLICK_DELAYED_TIME) xServer.injectPointerMove(finger.x, finger.y)
                 } else if (xServer.isRelativeMouseMovement) {
                     xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, finger.deltaX(), finger.deltaY(), 0)
                 } else {
-                    xServer.injectPointerMove(finger.x.toInt(), finger.y.toInt())
+                    xServer.injectPointerMove(finger.x, finger.y)
                 }
             }
         } else {
@@ -838,13 +826,8 @@ class TouchpadView(
         val finger1 = activeFingers[0]
         val finger2 = activeFingers[1]
 
-        var dx = ((finger1.x + finger2.x) * 0.5f) - ((finger1.lastX + finger2.lastX) * 0.5f)
-        var dy = ((finger1.y + finger2.y) * 0.5f) - ((finger1.lastY + finger2.lastY) * 0.5f)
-        
-        if (gestureConfig.enabled) {
-            dx *= gestureConfig.mouseSensitivity
-            dy *= gestureConfig.mouseSensitivity
-        }
+        val dx = ((finger1.x + finger2.x) * 0.5f) - ((finger1.lastX + finger2.lastX) * 0.5f)
+        val dy = ((finger1.y + finger2.y) * 0.5f) - ((finger1.lastY + finger2.lastY) * 0.5f)
 
         when (gestureConfig.twoFingerSwipeAction) {
             TouchGestureConfig.PanAction.MIDDLE_CLICK -> {
@@ -1099,7 +1082,7 @@ class TouchpadView(
             val dx = finger1.deltaX()
             val dy = finger1.deltaY()
             if (simTouchScreen) {
-                if (System.currentTimeMillis() - finger1.touchTime > CLICK_DELAYED_TIME) xServer.injectPointerMove(finger1.x.toInt(), finger1.y.toInt())
+                if (System.currentTimeMillis() - finger1.touchTime > CLICK_DELAYED_TIME) xServer.injectPointerMove(finger1.x, finger1.y)
             } else if (xServer.isRelativeMouseMovement) {
                 xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, dx, dy, 0)
             } else {

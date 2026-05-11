@@ -28,7 +28,6 @@ data class TouchGestureConfig(
     var fourFingerLongPressDuration: Int = 500,
 
     // Swipes & Drag
-    var mouseSensitivity: Float = 1.0f,
     var oneFingerDragAction: DragAction = DragAction.LEFT_CLICK,
     var oneFingerSwipeUpAction: Binding = Binding.NONE,
     var oneFingerSwipeDownAction: Binding = Binding.NONE,
@@ -81,7 +80,6 @@ data class TouchGestureConfig(
         json.put("threeFingerLongPressDuration", threeFingerLongPressDuration)
         json.put("fourFingerLongPressAction", fourFingerLongPressAction.name)
         json.put("fourFingerLongPressDuration", fourFingerLongPressDuration)
-        json.put("mouseSensitivity", mouseSensitivity.toDouble())
         json.put("oneFingerDragAction", oneFingerDragAction.name)
         json.put("oneFingerSwipeUpAction", oneFingerSwipeUpAction.name)
         json.put("oneFingerSwipeDownAction", oneFingerSwipeDownAction.name)
@@ -119,7 +117,6 @@ data class TouchGestureConfig(
             config.threeFingerLongPressDuration = json.optInt("threeFingerLongPressDuration", 500)
             config.fourFingerLongPressAction = Binding.valueOf(json.optString("fourFingerLongPressAction", Binding.NONE.name))
             config.fourFingerLongPressDuration = json.optInt("fourFingerLongPressDuration", 500)
-            config.mouseSensitivity = json.optDouble("mouseSensitivity", 1.0).toFloat()
             config.oneFingerDragAction = DragAction.valueOf(json.optString("oneFingerDragAction", DragAction.LEFT_CLICK.name))
             config.oneFingerSwipeUpAction = Binding.valueOf(json.optString("oneFingerSwipeUpAction", Binding.NONE.name))
             config.oneFingerSwipeDownAction = Binding.valueOf(json.optString("oneFingerSwipeDownAction", Binding.NONE.name))

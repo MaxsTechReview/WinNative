@@ -170,11 +170,6 @@ fun TouchGestureSettingsDialog(
                 GestureSectionLabel("Swipes")
 
                 GestureSubsectionLabel("One-Finger Swipes/Drag")
-                SensitivitySettingRow(
-                    label = "Mouse Sensitivity",
-                    value = currentConfig.mouseSensitivity,
-                    onValueChange = { currentConfig = currentConfig.copy(mouseSensitivity = it) }
-                )
                 GestureSettingRow(
                     label = "One-Finger Drag Action",
                     selectedOption = currentConfig.oneFingerDragAction.name,
@@ -522,32 +517,6 @@ private fun DurationSettingRow(
             onValueChange = { onValueChange(it.toInt()) },
             valueRange = 200f..1000f,
             steps = 8,
-            colors = SliderDefaults.colors(
-                thumbColor = WinNativeAccent,
-                activeTrackColor = WinNativeAccent,
-                inactiveTrackColor = WinNativeAccent.copy(alpha = 0.2f)
-            )
-        )
-    }
-}
-
-@Composable
-private fun SensitivitySettingRow(
-    label: String,
-    value: Float,
-    onValueChange: (Float) -> Unit
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(text = label, color = WinNativeTextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            Text(text = "${(value * 100).toInt()}%", color = WinNativeAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-        }
-        Spacer(Modifier.height(4.dp))
-        Slider(
-            value = value,
-            onValueChange = { onValueChange(it) },
-            valueRange = 0.5f..3.0f,
-            steps = 24,
             colors = SliderDefaults.colors(
                 thumbColor = WinNativeAccent,
                 activeTrackColor = WinNativeAccent,
