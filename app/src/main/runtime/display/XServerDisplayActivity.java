@@ -3015,7 +3015,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 isTapToClickEnabled,
                 preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY),
                 preferences.getBoolean("touchscreen_haptics_enabled", false),
-                preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true),
+                preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, false),
                 xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen()
         );
 

@@ -134,13 +134,13 @@ public class WinHandler {
       String key = "vibration_slot_" + i;
       String legacyKey = "vibrate_slot_" + i;
       if (this.preferences.contains(key)) {
-        this.vibrationEnabledSlots[i] = this.preferences.getBoolean(key, true);
+        this.vibrationEnabledSlots[i] = this.preferences.getBoolean(key, false);
       } else {
-        this.vibrationEnabledSlots[i] = this.preferences.getBoolean(legacyKey, true);
+        this.vibrationEnabledSlots[i] = this.preferences.getBoolean(legacyKey, false);
       }
     }
     this.globalVibrationEnabled =
-        this.preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true);
+        this.preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, false);
   }
 
   public int preAssignConnectedControllers() {

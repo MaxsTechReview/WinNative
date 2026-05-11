@@ -319,7 +319,7 @@ data class XServerDrawerState(
     val inputControlsTapToClick: Boolean = true,
     val inputControlsOverlayOpacity: Float = 0.4f,
     val inputControlsTouchscreenHaptics: Boolean = false,
-    val inputControlsGamepadVibration: Boolean = true,
+    val inputControlsGamepadVibration: Boolean = false,
 )
 
 class XServerDrawerStateHolder(
@@ -562,7 +562,7 @@ fun buildXServerDrawerState(
     inputControlsTapToClick: Boolean = true,
     inputControlsOverlayOpacity: Float = 0.4f,
     inputControlsTouchscreenHaptics: Boolean = false,
-    inputControlsGamepadVibration: Boolean = true,
+    inputControlsGamepadVibration: Boolean = false,
     fullscreenEnabled: Boolean = false,
 ): XServerDrawerState {
     val items =

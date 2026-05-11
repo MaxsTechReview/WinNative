@@ -651,7 +651,7 @@ public class InputControlsView extends View {
   @Override
   public boolean onTouchEvent(MotionEvent event) {
 
-    boolean hapticsEnabled = preferences.getBoolean("touchscreen_haptics_enabled", true);
+    boolean hapticsEnabled = preferences.getBoolean("touchscreen_haptics_enabled", false);
 
     if (editMode && readyToDraw) {
       switch (event.getAction()) {
