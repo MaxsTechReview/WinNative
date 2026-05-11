@@ -8262,20 +8262,13 @@ class UnifiedActivity :
             historyLoading = true
             historyEntries =
                 if (gameSource == GameSaveBackupManager.GameSource.STEAM) {
-                    // Steam history merges TWO sources:
-                    //   1. Steam Cloud's current file listing (grouped by timestamp clusters)
-                    //      — matches what the user sees on store.steampowered.com/.../remotestorageapp.
-                    //   2. Local rolling snapshots from imports / launch-time keep-backup.
-                    // Without (2) the "Import Save Files" button would be a write-only hole.
+                    // Steam history is Steam Cloud ONLY. No Google Play Saved Games entries
+                    // and no local rolling-snapshot entries — Steam Cloud is the canonical store
+                    // for Steam games and showing anything else here is confusing.
                     val appId = gameId.toIntOrNull()
                     if (appId != null) {
-                        val cloud =
-                            com.winlator.cmod.feature.steamcloudsync.SteamCloudHistoryProvider
-                                .listCloudSaveGroups(context, appId)
-                        val local =
-                            com.winlator.cmod.feature.steamcloudsync.SteamSaveSnapshotManager
-                                .listHistory(this@UnifiedActivity, appId)
-                        (cloud + local).sortedByDescending { it.timestampMs }
+                        com.winlator.cmod.feature.steamcloudsync.SteamCloudHistoryProvider
+                            .listCloudSaveGroups(context, appId)
                     } else {
                         emptyList()
                     }
@@ -8436,14 +8429,9 @@ class UnifiedActivity :
 
             }
 
-            // Show progress for Steam as well (since Steam history restore can take time).
-            if (steamManagedCloud && isWorking) {
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = Accent,
-                    trackColor = CardBorder,
-                )
-            }
+            // Progress indicator moved out of `!steamManagedCloud` gate by upstream #399
+            // (it now renders unconditionally on isWorking earlier in this Column), so the
+            // Steam-only duplicate that used to live here is removed.
 
             // Steam users see the History section but no Backup / Restore-from-Cloud actions —
             // Steam Cloud handles those automatically on launch/exit. Surface a one-line subtitle
@@ -8650,7 +8638,12 @@ class UnifiedActivity :
                                         val appId = gameId.toIntOrNull()
                                         if (appId != null) {
                                             com.winlator.cmod.feature.steamcloudsync.SteamCloudHistoryProvider
-                                                .restoreSaveGroup(this@UnifiedActivity, appId, target.fileId)
+                                                .restoreSaveGroup(
+                                                    this@UnifiedActivity,
+                                                    appId,
+                                                    target.fileId,
+                                                    shortcut?.container,
+                                                )
                                         } else {
                                             GameSaveBackupManager.BackupResult(false, "Invalid appId.")
                                         }
@@ -8659,7 +8652,12 @@ class UnifiedActivity :
                                         val appId = gameId.toIntOrNull()
                                         if (appId != null) {
                                             com.winlator.cmod.feature.steamcloudsync.SteamSaveSnapshotManager
-                                                .restoreFromEntry(this@UnifiedActivity, appId, target.fileId)
+                                                .restoreFromEntry(
+                                                    this@UnifiedActivity,
+                                                    appId,
+                                                    target.fileId,
+                                                    shortcut?.container,
+                                                )
                                         } else {
                                             GameSaveBackupManager.BackupResult(false, "Invalid appId.")
                                         }

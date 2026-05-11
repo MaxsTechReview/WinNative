@@ -5,9 +5,12 @@ import com.winlator.cmod.feature.stores.steam.enums.PathType
 import com.winlator.cmod.feature.stores.steam.enums.SaveLocation
 import com.winlator.cmod.feature.stores.steam.enums.SyncResult
 import com.winlator.cmod.feature.stores.steam.service.SteamService
+import com.winlator.cmod.feature.stores.steam.utils.ContainerUtils
 import com.winlator.cmod.feature.stores.steam.utils.FileUtils
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
+import com.winlator.cmod.runtime.container.Container
+import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.container.Shortcut
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -54,15 +57,16 @@ object SteamCloudSyncHelper {
         shortcut: Shortcut,
     ): Boolean {
         val appId = shortcut.getExtra("app_id").toIntOrNull() ?: return false
-        return forceDownloadById(context, appId)
+        return forceDownloadById(context, appId, shortcut.container)
     }
 
     suspend fun forceDownloadById(
         context: Context,
         appId: Int,
+        containerHint: Container? = null,
     ): Boolean =
         try {
-            val prefixToPath = steamPrefixResolver(context, appId)
+            val prefixToPath = steamPrefixResolver(context, appId, containerHint)
             val syncInfo =
                 SteamService
                     .forceSyncUserFiles(
@@ -212,6 +216,12 @@ object SteamCloudSyncHelper {
                 timestamps = SteamCloudConflictTimestamps("Unknown", "Unknown"),
             )
         }
+        // hasLocalCloudSaves can short-circuit on a `synced_STEAM_$appId` pref entry
+        // without going through steamPrefixResolver, so the symlink may still be stale
+        // when fetchCloudConflictSnapshot reads local files for the SHA comparison.
+        // Activate this shortcut's container explicitly so the SHA check sees the
+        // correct per-game wineprefix.
+        activateContainer(context, shortcut.container)
         return runBlocking {
             try {
                 // Pass context so the snapshot can do a SHA-aware content check (not CN-only)
@@ -289,9 +299,10 @@ object SteamCloudSyncHelper {
     suspend fun uploadLocalSaves(
         context: Context,
         appId: Int,
+        containerHint: Container? = null,
     ): Boolean =
         try {
-            val prefixToPath = steamPrefixResolver(context, appId)
+            val prefixToPath = steamPrefixResolver(context, appId, containerHint)
             val syncInfo =
                 SteamService
                     .forceSyncUserFiles(
@@ -326,7 +337,7 @@ object SteamCloudSyncHelper {
     ): Boolean {
         if (shortcut.getExtra("game_source") != "STEAM") return false
         val appId = shortcut.getExtra("app_id").toIntOrNull() ?: return false
-        return runBlocking { uploadLocalSaves(context, appId) }
+        return runBlocking { uploadLocalSaves(context, appId, shortcut.container) }
     }
 
     @JvmStatic
@@ -353,11 +364,49 @@ object SteamCloudSyncHelper {
     private fun steamPrefixResolver(
         context: Context,
         appId: Int,
+        containerHint: Container? = null,
     ): (String) -> String {
+        // PathType.toAbsPath resolves Windows-side prefixes like WinSavedGames against the
+        // GLOBAL `imagefs/home/xuser/.wine` path — `home/xuser` is a symlink that
+        // ContainerManager.activateContainer flips to point at the active container's
+        // per-game home (`home/xuser-N`). If a Steam cloud read/write fires before the
+        // game's container is activated (Save History restore from the launcher, "Sync
+        // from Cloud" button, launch-time pre-flight before XServerDisplayActivity runs),
+        // the symlink still points at whatever container was last active — files land in
+        // the wrong game's wineprefix.
+        //
+        // Prefer the caller-provided container (taken straight from the shortcut), since
+        // ContainerUtils.getUsableContainerOrNull falls through to the global "default
+        // x86 container" preference — that's appId-agnostic and would activate the
+        // wrong container for any Steam game configured with its own non-default
+        // container. The appId-based fallback only runs when no shortcut is available.
+        activateContainerForCloudOp(context, appId, containerHint)
+
         val accountId =
             SteamService.userSteamId?.accountID?.toLong()
                 ?: PrefManager.steamUserAccountId.takeIf { it != 0 }?.toLong()
                 ?: 0L
         return { prefix -> PathType.from(prefix).toAbsPath(context, appId, accountId) }
+    }
+
+    private fun activateContainerForCloudOp(
+        context: Context,
+        appId: Int,
+        containerHint: Container?,
+    ) {
+        val target =
+            containerHint
+                ?: ContainerUtils.getUsableContainerOrNull(context, appId.toString())
+                ?: return
+        activateContainer(context, target)
+    }
+
+    private fun activateContainer(
+        context: Context,
+        container: Container,
+    ) {
+        runCatching {
+            ContainerManager(context).activateContainer(container)
+        }.onFailure { Timber.w(it, "Failed to activate container id=%d", container.id) }
     }
 }
