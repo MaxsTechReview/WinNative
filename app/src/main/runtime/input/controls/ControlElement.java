@@ -912,6 +912,11 @@ return boundingBox;
     }
   }
 
+  private void invalidateControl() {
+    if (type == Type.RADIAL_MENU) inputControlsView.invalidate();
+    else inputControlsView.invalidateControlElement(this);
+  }
+
   public boolean handleTouchDown(int pointerId, float x, float y) {
     if (currentPointerId == -1 && containsPoint(x, y)) {
       if (type != Type.RANGE_BUTTON && type != Type.RADIAL_MENU) {
@@ -931,7 +936,7 @@ return boundingBox;
         if (!toggleSwitch || !selected) {
           dispatchButtonBinding(getBindingAt(0), getBindingAt(1), true);
         }
-        inputControlsView.invalidate();
+        invalidateControl();
         return true;
       } else if (type == Type.RADIAL_MENU) {
         wasExpandedOnDown = radialMenuExpanded;
@@ -962,7 +967,7 @@ return boundingBox;
         return true;
       } else if (type == Type.RANGE_BUTTON) {
         scroller.handleTouchDown(x, y);
-        inputControlsView.invalidate();
+        invalidateControl();
         return true;
       } else {
         if (type == Type.TRACKPAD) {
@@ -1017,7 +1022,7 @@ return boundingBox;
         }
       }
 
-      inputControlsView.invalidate();
+      invalidateControl();
       return true;
     }
 
@@ -1092,7 +1097,7 @@ return boundingBox;
           }
         }
 
-        inputControlsView.invalidate();
+        invalidateControl();
       } else if (type == Type.TRACKPAD) {
         Binding firstBinding = getBindingAt(0);
         if (firstBinding.isGamepad()) {
@@ -1180,7 +1185,7 @@ return boundingBox;
         inputControlsView.postDelayed(
             () -> {
               dispatchButtonBinding(binding, bindingSecondary, false);
-              inputControlsView.invalidate();
+              invalidateControl();
             },
             delay);
         touchTime = null;
@@ -1190,7 +1195,7 @@ return boundingBox;
         }
         if (toggleSwitch) selected = !selected;
       }
-      inputControlsView.invalidate();
+      invalidateControl();
     } else if (type == Type.RADIAL_MENU) {
       if (activeRadialBindingIndex != -1) {
         if (isRadialBindingCurrentlyHeld) {
@@ -1235,7 +1240,7 @@ return boundingBox;
         currentPosition = null;
       }
 
-      inputControlsView.invalidate();
+      invalidateControl();
     }
 
     currentPointerId = -1;
@@ -1301,6 +1306,6 @@ return boundingBox;
       currentPosition = new PointF();
     }
     currentPosition.set(x, y);
-    inputControlsView.invalidate();
+    invalidateControl();
   }
 }

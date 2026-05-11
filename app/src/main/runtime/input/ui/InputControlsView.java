@@ -83,6 +83,7 @@ public class InputControlsView extends View {
   private boolean focusOnStick = false; // A flag to determine if we are focusing on the stick
 
   private boolean batchingUpdates = false;
+  private boolean batchedVirtualGamepadStateChanged = false;
 
   public boolean isBatchingUpdates() {
     return batchingUpdates;
@@ -413,6 +414,13 @@ public class InputControlsView extends View {
 
   public void setTouchpadView(TouchpadView touchpadView) {
     this.touchpadView = touchpadView;
+  }
+
+  private void sendVirtualGamepadStateNow() {
+    WinHandler winHandler = xServer != null ? xServer.getWinHandler() : null;
+    if (winHandler != null) {
+      winHandler.sendGamepadState();
+    }
   }
 
   public XServer getXServer() {
@@ -749,7 +757,7 @@ public class InputControlsView extends View {
         case MotionEvent.ACTION_MOVE:
           {
             batchingUpdates = true;
-            boolean anyControlHandled = false;
+            batchedVirtualGamepadStateChanged = false;
             boolean unhandledPointerExists = false;
 
             for (byte i = 0, count = (byte) event.getPointerCount(); i < count; i++) {
@@ -778,14 +786,12 @@ public class InputControlsView extends View {
                 }
               }
 
-              if (pointerHandled) anyControlHandled = true;
-              else unhandledPointerExists = true;
+              if (!pointerHandled) unhandledPointerExists = true;
             }
 
             batchingUpdates = false;
-            WinHandler winHandler = xServer != null ? xServer.getWinHandler() : null;
-            if (anyControlHandled && winHandler != null) {
-              winHandler.sendGamepadState();
+            if (batchedVirtualGamepadStateChanged) {
+              sendVirtualGamepadStateNow();
             }
 
             if (unhandledPointerExists) dispatchUnhandledTouch(event);
@@ -894,7 +900,6 @@ public class InputControlsView extends View {
     if (profile == null || !firstBinding.isGamepad()) return;
 
     GamepadState state = profile.getGamepadState();
-    WinHandler winHandler = xServer != null ? xServer.getWinHandler() : null;
 
     boolean isLeftStick =
         firstBinding == Binding.GAMEPAD_LEFT_THUMB_UP
@@ -903,15 +908,23 @@ public class InputControlsView extends View {
             || firstBinding == Binding.GAMEPAD_LEFT_THUMB_RIGHT;
 
     if (isLeftStick) {
+      if (Float.compare(state.thumbLX, deltaX) == 0 && Float.compare(state.thumbLY, deltaY) == 0) {
+        return;
+      }
       state.thumbLX = deltaX;
       state.thumbLY = deltaY;
     } else {
+      if (Float.compare(state.thumbRX, deltaX) == 0 && Float.compare(state.thumbRY, deltaY) == 0) {
+        return;
+      }
       state.thumbRX = deltaX;
       state.thumbRY = deltaY;
     }
 
-    if (winHandler != null && sendUpdate) {
-      winHandler.sendGamepadState();
+    if (sendUpdate) {
+      sendVirtualGamepadStateNow();
+    } else {
+      batchedVirtualGamepadStateChanged = true;
     }
   }
 
@@ -986,9 +999,16 @@ public class InputControlsView extends View {
         state.dpad[dpadIndex] = isActionDown;
       }
 
-      if (winHandler != null && sendUpdate && stateChanged) {
-        if (controller != null) winHandler.sendGamepadState(controller);
-        else winHandler.sendGamepadState();
+      if (stateChanged) {
+        if (sendUpdate) {
+          if (controller != null) {
+            if (winHandler != null) winHandler.sendGamepadState(controller);
+          } else {
+            sendVirtualGamepadStateNow();
+          }
+        } else if (controller == null) {
+          batchedVirtualGamepadStateChanged = true;
+        }
       }
     } else {
       if (binding == Binding.MOUSE_MOVE_LEFT || binding == Binding.MOUSE_MOVE_RIGHT) {
