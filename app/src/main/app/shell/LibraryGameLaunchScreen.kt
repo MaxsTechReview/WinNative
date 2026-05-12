@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CloudSync
+import androidx.compose.material.icons.outlined.SettingsSuggest
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
@@ -111,6 +112,7 @@ internal fun LibraryGameLaunchScreen(
     onSaves: () -> Unit,
     onCloudSaves: () -> Unit,
     onUninstall: () -> Unit,
+    onBestConfigs: () -> Unit,
 ) {
     val context = LocalContext.current
     var uninstallMenuOpen by remember { mutableStateOf(false) }
@@ -122,7 +124,10 @@ internal fun LibraryGameLaunchScreen(
         val bottomPadding = 20.dp
         val actionIconSize = 48.dp
         val actionIconSpacing = 8.dp
-        val actionWidth = actionIconSize * 5 + actionIconSpacing * 4
+        // 6 action icons: Settings, Shortcut, (Saves), CloudSync, Leaderboard, Delete.
+        // Saves only renders for stores that expose it; layout width tracks the static
+        // count to keep the play button centered.
+        val actionWidth = actionIconSize * 6 + actionIconSpacing * 5
         val playHeight = 56.dp
         val contentGap = 18.dp
         val horizontalNavInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
@@ -324,11 +329,20 @@ internal fun LibraryGameLaunchScreen(
                         horizontalArrangement = Arrangement.spacedBy(actionIconSpacing),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        // Order (per user spec): Settings → Best Configs → Shortcut → (Saves) → Cloud Saves → Uninstall.
+                        // Saves is conditional but slots between Shortcut and Cloud Saves because the two
+                        // saves-related buttons read better next to each other.
                         LaunchIconActionButton(
                             icon = Icons.Outlined.Settings,
                             contentDescription = stringResource(R.string.common_ui_settings),
                             size = actionIconSize,
                             onClick = onSettings,
+                        )
+                        LaunchIconActionButton(
+                            icon = Icons.Outlined.SettingsSuggest,
+                            contentDescription = stringResource(R.string.best_configs_button_label),
+                            size = actionIconSize,
+                            onClick = onBestConfigs,
                         )
                         LaunchIconActionButton(
                             icon = Icons.Outlined.Home,

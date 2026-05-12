@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Supabase project URL and publishable key for the Best Configs feature.
+
+        The publishable key (sb_publishable_*) is explicitly designed by Supabase to be
+        bundled into mobile clients. It is NOT a secret — security is enforced by Row
+        Level Security policies on the database. See:
+        https://supabase.com/docs/guides/api/api-keys
+
+        Do NOT put the service-role key, the database admin password, or the direct
+        Postgres connection string in this file. Those are server-side / CLI-only.
+    -->
+    <string name="supabase_project_url" translatable="false">https://jhjbnjfqrjyllinsbtdi.supabase.co</string>
+    <string name="supabase_publishable_key" translatable="false">sb_publishable_kFOlMA9qIi6J5B3Mom22-Q_QcPx3gCT</string>
+</resources>

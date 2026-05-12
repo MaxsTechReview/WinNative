@@ -149,6 +149,8 @@ import com.winlator.cmod.app.update.UpdateChecker
 import com.winlator.cmod.feature.settings.InputControlsFragment
 import com.winlator.cmod.feature.settings.SettingsHost
 import com.winlator.cmod.feature.settings.SettingsNavItem
+import com.winlator.cmod.feature.configs.ui.BestConfigsScreen
+import com.winlator.cmod.feature.configs.ui.BestConfigsViewModel
 import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.feature.shortcuts.LibraryShortcutUtils
 import com.winlator.cmod.feature.shortcuts.LibraryShortcutArtwork
@@ -702,6 +704,21 @@ class UnifiedActivity :
     ): String =
         "settings?item=${item.name}&profileId=$profileId&editContainerId=$editContainerId&returnToGameOnBack=$returnToGameOnBack"
 
+    /**
+     * Navigate to the per-game "Best Configs" board (Supabase-backed community config
+     * library). Filters client-side by (gameSource, gameId). Safe to call before the
+     * NavHost is composed — the request is dropped in that edge case rather than
+     * crashing.
+     */
+    fun navigateToBestConfigs(gameSource: String, gameId: String, gameName: String) {
+        val nav = rootNavController ?: return
+        val encodedName = android.net.Uri.encode(gameName)
+        val encodedId = android.net.Uri.encode(gameId)
+        nav.navigate("bestconfigs?gameSource=$gameSource&gameId=$encodedId&gameName=$encodedName") {
+            launchSingleTop = true
+        }
+    }
+
     private fun extractSettingsNavigation(intent: Intent?): PendingNavigation? {
         if (intent == null) return null
 
@@ -1045,6 +1062,25 @@ class UnifiedActivity :
                                 }
                             }
                         }
+                    }
+                    composable(
+                        "bestconfigs?gameSource={gameSource}&gameId={gameId}&gameName={gameName}",
+                        arguments = listOf(
+                            navArgument(BestConfigsViewModel.NAV_ARG_GAME_SOURCE) {
+                                type = NavType.StringType
+                                defaultValue = "CUSTOM_GAME"
+                            },
+                            navArgument(BestConfigsViewModel.NAV_ARG_GAME_ID) {
+                                type = NavType.StringType
+                                defaultValue = ""
+                            },
+                            navArgument(BestConfigsViewModel.NAV_ARG_GAME_NAME) {
+                                type = NavType.StringType
+                                defaultValue = ""
+                            },
+                        ),
+                    ) {
+                        BestConfigsScreen(onBack = { rootNavController?.popBackStack() })
                     }
                 }
             }
@@ -4700,6 +4736,25 @@ class UnifiedActivity :
                                     onSaves = { activePopup = LibraryDetailPopup.Saves },
                                     onCloudSaves = { activePopup = LibraryDetailPopup.CloudSaves },
                                     onUninstall = uninstallGame,
+                                    onBestConfigs = {
+                                        val source = when {
+                                            isGog -> "GOG"
+                                            isEpic -> "EPIC"
+                                            isCustom -> "CUSTOM_GAME"
+                                            else -> "STEAM"
+                                        }
+                                        val rawId = when {
+                                            isGog -> gogGame!!.id
+                                            isEpic -> epicId.toString()
+                                            else -> app.id.toString()
+                                        }
+                                        navigateToBestConfigs(
+                                            gameSource = source,
+                                            gameId = rawId,
+                                            gameName = app.name,
+                                        )
+                                        onDismissRequest()
+                                    },
                                 )
                             }
 
@@ -6417,6 +6472,21 @@ class UnifiedActivity :
                     launchEpicGame(context, ContainerManager(context), app)
                     onDismissRequest()
                 })
+                // Order per user spec: Best Configs → Cloud Saves → Uninstall.
+                // (Epic/GOG popups don't surface Settings/Shortcut; those live on the
+                // LibraryGameLaunchScreen detail page.)
+                CompactActionButton(
+                    icon = Icons.Outlined.SettingsSuggest,
+                    label = stringResource(R.string.best_configs_button_label),
+                    onClick = {
+                        navigateToBestConfigs(
+                            gameSource = "EPIC",
+                            gameId = app.id.toString(),
+                            gameName = app.title,
+                        )
+                        onDismissRequest()
+                    },
+                )
                 if (app.cloudSaveEnabled) {
                     CompactActionButton(
                         icon = Icons.Outlined.CloudSync,
@@ -6805,6 +6875,19 @@ class UnifiedActivity :
                     launchGogGame(context, ContainerManager(context), app)
                     onDismissRequest()
                 })
+                // Order per user spec: Best Configs → Cloud Saves → Uninstall.
+                CompactActionButton(
+                    icon = Icons.Outlined.SettingsSuggest,
+                    label = stringResource(R.string.best_configs_button_label),
+                    onClick = {
+                        navigateToBestConfigs(
+                            gameSource = "GOG",
+                            gameId = app.id.toString(),
+                            gameName = app.title,
+                        )
+                        onDismissRequest()
+                    },
+                )
                 CompactActionButton(
                     icon = Icons.Outlined.CloudSync,
                     label = stringResource(R.string.google_cloud_title),
