@@ -227,7 +227,9 @@ dependencies {
     implementation(libs.javaSteam) {
         exclude group: 'com.squareup.okhttp3', module: 'okhttp-jvm'
     }
-    implementation libs.javaSteamDepotDownloader
+    implementation(libs.javaSteamDepotDownloader) {
+        exclude group: 'com.squareup.okhttp3', module: 'okhttp-jvm'
+    }
 
     implementation libs.playServicesGamesV2
     implementation libs.playServicesAuth
