@@ -114,6 +114,7 @@
     <string name="store_game_update_available">Update available</string>
     <string name="store_game_update_check_failed">Update check failed</string>
     <string name="store_game_update">Update</string>
+    <string name="store_game_download_already_active">This game is already downloading. Cancel the current download before adding DLC.</string>
     <string name="common_ui_select">Select</string>
     <string name="common_ui_storage_roots">Storage Roots</string>
     <string name="common_ui_browse_local_folders_directly">Browse local folders directly</string>

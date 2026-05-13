@@ -116,6 +116,7 @@ internal fun StoreGameDetailScreen(
     installSize: Long,
     availableBytes: Long,
     isInstallEnabled: Boolean,
+    isDownloadActionEnabled: Boolean = isInstallEnabled,
     customPathLabel: String,
     showCustomPath: Boolean = true,
     showCloudSync: Boolean = false,
@@ -129,6 +130,7 @@ internal fun StoreGameDetailScreen(
     isUpdateCheckCoolingDown: Boolean = false,
     dlcs: List<StoreDlcItem> = emptyList(),
     selectedDlcIds: Set<Int> = emptySet(),
+    isDlcSelectionEnabled: Boolean = true,
     onBack: () -> Unit,
     onInstall: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
@@ -371,7 +373,7 @@ internal fun StoreGameDetailScreen(
                                     height = ctaHeight,
                                     icon = Icons.Outlined.Download,
                                     label = stringResource(R.string.common_ui_download),
-                                    enabled = !isLoading && isInstallEnabled,
+                                    enabled = !isLoading && isDownloadActionEnabled,
                                     loading = isLoading,
                                     onClick = onInstall,
                                 )
@@ -482,6 +484,7 @@ internal fun StoreGameDetailScreen(
                 StoreDlcCard(
                     dlcs = dlcs,
                     selectedDlcIds = selectedDlcIds,
+                    selectionEnabled = isDlcSelectionEnabled,
                     expanded = dlcExpanded,
                     onToggleExpanded = { dlcExpanded = !dlcExpanded },
                     onToggleDlc = onToggleDlc,
@@ -496,6 +499,7 @@ internal fun StoreGameDetailScreen(
 private fun StoreDlcCard(
     dlcs: List<StoreDlcItem>,
     selectedDlcIds: Set<Int>,
+    selectionEnabled: Boolean,
     expanded: Boolean,
     onToggleExpanded: () -> Unit,
     onToggleDlc: (Int) -> Unit,
@@ -578,13 +582,14 @@ private fun StoreDlcCard(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .clickable(onClick = onToggleSelectAll)
+                                    .clickable(enabled = selectionEnabled, onClick = onToggleSelectAll)
                                     .padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Checkbox(
                                 checked = allSelected,
                                 onCheckedChange = { onToggleSelectAll() },
+                                enabled = selectionEnabled,
                                 colors =
                                     CheckboxDefaults.colors(
                                         checkedColor = StoreAccent,
@@ -626,6 +631,8 @@ private fun StoreDlcCard(
                                         .then(
                                             if (dlc.isInstalled) {
                                                 Modifier
+                                            } else if (!selectionEnabled) {
+                                                Modifier
                                             } else {
                                                 Modifier.clickable { onToggleDlc(dlc.id) }
                                             },
@@ -650,6 +657,7 @@ private fun StoreDlcCard(
                                     Checkbox(
                                         checked = dlc.id in selectedDlcIds,
                                         onCheckedChange = { onToggleDlc(dlc.id) },
+                                        enabled = selectionEnabled,
                                         colors =
                                             CheckboxDefaults.colors(
                                                 checkedColor = StoreAccent,

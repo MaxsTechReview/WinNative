@@ -111,6 +111,7 @@
     <string name="store_game_update_available">Opdatering tilgængelig</string>
     <string name="store_game_update_check_failed">Kunne ikke tjekke for opdatering</string>
     <string name="store_game_update">Opdater</string>
+    <string name="store_game_download_already_active">Dette spil downloades allerede. Annuller den aktuelle download, før du tilføjer DLC.</string>
     <string name="common_ui_select">Vælg</string>
     <string name="common_ui_select_folder">Vælg mappe</string>
     <string name="common_ui_current_folder">Nuværende mappe</string>

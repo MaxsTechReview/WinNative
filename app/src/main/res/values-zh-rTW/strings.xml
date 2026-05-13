@@ -111,6 +111,7 @@
     <string name="store_game_update_available">有可用更新</string>
     <string name="store_game_update_check_failed">更新檢查失敗</string>
     <string name="store_game_update">更新</string>
+    <string name="store_game_download_already_active">此遊戲已在下載。請先取消目前的下載，然後再新增 DLC。</string>
     <string name="common_ui_select">選擇</string>
     <string name="common_ui_select_folder">選擇資料夾</string>
     <string name="common_ui_current_folder">目前資料夾</string>

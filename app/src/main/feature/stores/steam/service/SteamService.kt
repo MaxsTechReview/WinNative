@@ -2395,6 +2395,46 @@ class SteamService :
             return dlcAppIds.distinct()
         }
 
+        private fun parseDownloadScopeIds(scope: String): Set<Int> =
+            scope
+                .split(',')
+                .mapNotNull { it.trim().toIntOrNull() }
+                .toSet()
+
+        private fun activeDownloadRecordFor(appId: Int): DownloadRecord? =
+            runCatching {
+                runBlocking(Dispatchers.IO) {
+                    DownloadCoordinator.findRecord(
+                        DownloadRecord.STORE_STEAM,
+                        appId.toString(),
+                    )
+                }
+            }.getOrNull()
+                ?.takeIf {
+                    it.status in setOf(
+                        DownloadRecord.STATUS_QUEUED,
+                        DownloadRecord.STATUS_DOWNLOADING,
+                        DownloadRecord.STATUS_PAUSED,
+                    )
+                }
+
+        private fun rejectConflictingDownloadRequest(appId: Int, record: DownloadRecord): DownloadInfo? {
+            Timber.i(
+                "Refusing Steam download request for appId=$appId because an active record already exists " +
+                    "status=${record.status} taskType=${record.taskType} selectedDlcs=${record.selectedDlcs}",
+            )
+            instance?.let { service ->
+                service.scope.launch(Dispatchers.Main) {
+                    WinToast.show(
+                        service.applicationContext,
+                        service.getString(R.string.store_game_download_already_active),
+                        Toast.LENGTH_SHORT,
+                    )
+                }
+            }
+            return downloadJobs[appId]
+        }
+
         fun downloadApp(
             appId: Int,
             dlcAppIds: List<Int>,
@@ -2835,6 +2875,22 @@ class SteamService :
                     "includeInstalledDepots=$includeInstalledDepots verify=$enableVerify allowResume=$allowPersistedProgress " +
                     "targetDepotIds=${targetDepotIds?.sorted().orEmpty()}",
             )
+
+            activeDownloadRecordFor(appId)?.let { activeRecord ->
+                val requestedScopeIds =
+                    if (downloadTaskType == DownloadRecord.TASK_UPDATE && targetDepotIds != null) {
+                        targetDepotIds
+                    } else {
+                        userSelectedDlcAppIds.toSet()
+                    }
+                val isSameCoordinatorDispatch =
+                    customInstallPath == null &&
+                        activeRecord.taskType == downloadTaskType &&
+                        parseDownloadScopeIds(activeRecord.selectedDlcs) == requestedScopeIds
+                if (!isSameCoordinatorDispatch) {
+                    return rejectConflictingDownloadRequest(appId, activeRecord)
+                }
+            }
 
             if (customInstallPath != null) {
                 // Determine if customInstallPath is the game folder itself or the parent

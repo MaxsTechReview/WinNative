@@ -111,6 +111,7 @@
     <string name="store_game_update_available">Mise à jour disponible</string>
     <string name="store_game_update_check_failed">Échec de la vérification des mises à jour</string>
     <string name="store_game_update">Mettre à jour</string>
+    <string name="store_game_download_already_active">Ce jeu est déjà en cours de téléchargement. Annulez le téléchargement actuel avant d\'ajouter du DLC.</string>
     <string name="common_ui_select">Sélectionner</string>
     <string name="common_ui_select_folder">Sélectionner un dossier</string>
     <string name="common_ui_current_folder">Dossier actuel</string>

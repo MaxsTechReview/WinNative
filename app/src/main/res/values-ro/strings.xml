@@ -111,6 +111,7 @@
     <string name="store_game_update_available">Actualizare disponibilă</string>
     <string name="store_game_update_check_failed">Verificarea actualizărilor a eșuat</string>
     <string name="store_game_update">Actualizează</string>
+    <string name="store_game_download_already_active">Acest joc se descarcă deja. Anulează descărcarea curentă înainte de a adăuga DLC.</string>
     <string name="common_ui_select">Selectează</string>
     <string name="common_ui_select_folder">Selectează folder</string>
     <string name="common_ui_current_folder">Folder curent</string>

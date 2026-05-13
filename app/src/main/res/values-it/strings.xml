@@ -111,6 +111,7 @@
     <string name="store_game_update_available">Aggiornamento disponibile</string>
     <string name="store_game_update_check_failed">Controllo aggiornamenti non riuscito</string>
     <string name="store_game_update">Aggiorna</string>
+    <string name="store_game_download_already_active">Questo gioco è già in download. Annulla il download corrente prima di aggiungere DLC.</string>
     <string name="common_ui_select">Seleziona</string>
     <string name="common_ui_select_folder">Seleziona cartella</string>
     <string name="common_ui_current_folder">Cartella corrente</string>

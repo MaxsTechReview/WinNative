@@ -111,6 +111,7 @@
     <string name="store_game_update_available">Доступне оновлення</string>
     <string name="store_game_update_check_failed">Не вдалося перевірити оновлення</string>
     <string name="store_game_update">Оновити</string>
+    <string name="store_game_download_already_active">Ця гра вже завантажується. Скасуйте поточне завантаження, перш ніж додавати DLC.</string>
     <string name="common_ui_select">Вибрати</string>
     <string name="common_ui_select_folder">Вибрати теку</string>
     <string name="common_ui_current_folder">Поточна тека</string>

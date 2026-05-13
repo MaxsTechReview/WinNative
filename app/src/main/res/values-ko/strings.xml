@@ -111,6 +111,7 @@
     <string name="store_game_update_available">업데이트 가능</string>
     <string name="store_game_update_check_failed">업데이트 확인 실패</string>
     <string name="store_game_update">업데이트</string>
+    <string name="store_game_download_already_active">이 게임은 이미 다운로드 중입니다. DLC를 추가하기 전에 현재 다운로드를 취소하세요.</string>
     <string name="common_ui_select">선택</string>
     <string name="common_ui_select_folder">폴더 선택</string>
     <string name="common_ui_current_folder">현재 폴더</string>

@@ -7648,6 +7648,8 @@ class UnifiedActivity :
                     )
         }
         val updateActionEnabled = steamDownloadRecord == null
+        val installActionEnabled = isInstallEnabled && steamDownloadRecord == null
+        val activeSteamDownloadText = stringResource(R.string.store_game_download_already_active)
         val noUpdateAvailableText = stringResource(R.string.store_game_no_update_available)
         val updateAvailableText = stringResource(R.string.store_game_update_available)
         val updateFailedText = stringResource(R.string.store_game_update_check_failed)
@@ -7681,6 +7683,7 @@ class UnifiedActivity :
                     installSize = totalInstallSize,
                     availableBytes = availableBytes,
                     isInstallEnabled = isInstallEnabled,
+                    isDownloadActionEnabled = installActionEnabled,
                     customPathLabel = customPathLabel,
                     showCustomPath = true,
                     showCloudSync = false,
@@ -7694,8 +7697,17 @@ class UnifiedActivity :
                     isUpdateCheckCoolingDown = isUpdateCheckCoolingDown,
                     dlcs = dlcItems,
                     selectedDlcIds = selectedDlcIds.toSet(),
+                    isDlcSelectionEnabled = steamDownloadRecord == null,
                     onBack = onDismissRequest,
                     onInstall = {
+                        if (steamDownloadRecord != null) {
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                context,
+                                activeSteamDownloadText,
+                                android.widget.Toast.LENGTH_SHORT,
+                            )
+                            return@StoreGameDetailScreen
+                        }
                         scope.launch(Dispatchers.IO) {
                             val installableDlcIds = dlcItems
                                 .filter { !it.isInstalled && it.id in selectedDlcIds }
@@ -7787,6 +7799,9 @@ class UnifiedActivity :
                         }
                     },
                     onToggleDlc = { id ->
+                        if (steamDownloadRecord != null) {
+                            return@StoreGameDetailScreen
+                        }
                         if (dlcItems.any { it.id == id && it.isInstalled }) {
                             return@StoreGameDetailScreen
                         }
@@ -7797,6 +7812,9 @@ class UnifiedActivity :
                         }
                     },
                     onToggleSelectAllDlcs = {
+                        if (steamDownloadRecord != null) {
+                            return@StoreGameDetailScreen
+                        }
                         val selectableDlcItems = dlcItems.filterNot { it.isInstalled }
                         val all = selectableDlcItems.isNotEmpty() && selectableDlcItems.all { it.id in selectedDlcIds }
                         if (all) {
