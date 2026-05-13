@@ -36,6 +36,7 @@ class DownloadInfo(
     private var weightSum = jobCount.toFloat()
 
     private var totalExpectedBytes = AtomicLong(0L)
+    private var displayTotalExpectedBytes = AtomicLong(0L)
     private var bytesDownloaded = AtomicLong(0L)
 
     @Volatile private var persistencePath: String? = null
@@ -131,6 +132,10 @@ class DownloadInfo(
 
     fun setTotalExpectedBytes(bytes: Long) {
         totalExpectedBytes.set(if (bytes < 0L) 0L else bytes)
+    }
+
+    fun setDisplayTotalExpectedBytes(bytes: Long) {
+        displayTotalExpectedBytes.set(if (bytes < 0L) 0L else bytes)
     }
 
     fun initializeBytesDownloaded(value: Long) {
@@ -334,6 +339,14 @@ class DownloadInfo(
         } else {
             0L to 0L
         }
+    }
+
+    fun getDisplayBytesProgress(): Pair<Long, Long> {
+        val displayTotal = displayTotalExpectedBytes.get()
+        if (displayTotal <= 0L) return getBytesProgress()
+
+        val displayDownloaded = (getProgress().coerceIn(0f, 1f) * displayTotal.toFloat()).toLong()
+        return displayDownloaded.coerceIn(0L, displayTotal) to displayTotal
     }
 
     private fun getSpeedOverWindow(windowMs: Long): Double? {

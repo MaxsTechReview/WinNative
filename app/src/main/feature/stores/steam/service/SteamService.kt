@@ -40,7 +40,6 @@ import com.winlator.cmod.feature.stores.steam.db.dao.EncryptedAppTicketDao
 import com.winlator.cmod.feature.stores.steam.db.dao.FileChangeListsDao
 import com.winlator.cmod.feature.stores.steam.db.dao.SteamAppDao
 import com.winlator.cmod.feature.stores.steam.db.dao.SteamLicenseDao
-import com.winlator.cmod.feature.stores.steam.enums.AppType
 import com.winlator.cmod.feature.stores.steam.enums.ControllerSupport
 import com.winlator.cmod.feature.stores.steam.enums.DownloadPhase
 import com.winlator.cmod.feature.stores.steam.enums.GameSource
@@ -312,6 +311,13 @@ class SteamService :
     data class ManifestSizes(
         val installSize: Long = 0L,
         val downloadSize: Long = 0L,
+    )
+
+    data class SteamUpdateInfo(
+        val hasUpdate: Boolean = false,
+        val downloadSize: Long = 0L,
+        val depotIds: List<Int> = emptyList(),
+        val message: String? = null,
     )
 
     companion object {
@@ -990,13 +996,89 @@ class SteamService :
         fun getDownloadableDlcAppsOf(appId: Int): List<SteamApp>? =
             runBlocking(Dispatchers.IO) { instance?.appDao?.findDownloadableDLCApps(appId) }
 
+        fun getSelectableDlcAppsOf(appId: Int): List<SteamApp> =
+            runBlocking(Dispatchers.IO) {
+                val service = instance ?: return@runBlocking emptyList()
+                val appInfo = service.appDao.findApp(appId) ?: return@runBlocking emptyList()
+                val preferredLanguage = PrefManager.containerLanguage
+                val has64Bit =
+                    appInfo.depots.values.any {
+                        it.osArch == OSArch.Arch64 &&
+                            (it.osList.contains(OS.windows) || (it.osList.isEmpty() || it.osList.contains(OS.none)))
+                    }
+
+                val mainAppDlcIds =
+                    appInfo.depots.values
+                        .asSequence()
+                        .filter { depot ->
+                            depot.dlcAppId != INVALID_APP_ID &&
+                                filterForDownloadableDepots(depot, has64Bit, preferredLanguage, ownedDlc = null)
+                        }.map { it.dlcAppId }
+
+                val indirectDlcApps = service.appDao.findDownloadableDLCApps(appId).orEmpty()
+                val hiddenDlcApps = service.appDao.findHiddenDLCApps(appId).orEmpty()
+                val dlcAppsById = (indirectDlcApps + hiddenDlcApps).associateBy { it.id }
+                val indirectDlcIds = indirectDlcApps.map { it.id }.asSequence()
+                val hiddenDlcIds = hiddenDlcApps.map { it.id }.asSequence()
+                val groupedBaseDlcIds =
+                    getGroupedBaseAppDlcIds(
+                        appInfo = appInfo,
+                        preferredLanguage = preferredLanguage,
+                        has64Bit = has64Bit,
+                    ).asSequence()
+
+                val declaredDlcIds = appInfo.dlcAppIds.asSequence()
+
+                val selectableDlcIds = (mainAppDlcIds + groupedBaseDlcIds + indirectDlcIds + hiddenDlcIds + declaredDlcIds).distinct().toList()
+
+                if (selectableDlcIds.isEmpty()) return@runBlocking emptyList()
+
+                selectableDlcIds
+                    .mapNotNull { dlcAppId ->
+                        val dlcApp = service.appDao.findApp(dlcAppId) ?: dlcAppsById[dlcAppId]
+                        dlcApp?.takeIf { it.name.isNotBlank() }
+                    }
+                    .sortedBy { it.name.lowercase() }
+            }
+
         fun getHiddenDlcAppsOf(appId: Int): List<SteamApp>? = runBlocking(Dispatchers.IO) { instance?.appDao?.findHiddenDLCApps(appId) }
 
         fun getInstalledApp(appId: Int): AppInfo? = runBlocking(Dispatchers.IO) { instance?.appInfoDao?.getInstalledApp(appId) }
 
-        fun getInstalledDepotsOf(appId: Int): List<Int>? = getInstalledApp(appId)?.downloadedDepots
+        fun getInstalledDepotsOf(appId: Int): List<Int>? = getTrustedInstalledAppInfo(appId)?.downloadedDepots
 
-        fun getInstalledDlcDepotsOf(appId: Int): List<Int>? = getInstalledApp(appId)?.dlcDepots
+        fun getInstalledDlcDepotsOf(appId: Int): List<Int>? {
+            val installedApp = getTrustedInstalledAppInfo(appId)
+            val installedDlcAppIds = installedApp?.dlcDepots.orEmpty().toMutableSet()
+            installedDlcAppIds.addAll(getInstalledSelectableDlcAppIds(appId))
+
+            if (installedApp != null && installedDlcAppIds != installedApp.dlcDepots.toSet()) {
+                runBlocking(Dispatchers.IO) {
+                    instance?.appInfoDao?.update(installedApp.copy(dlcDepots = installedDlcAppIds.sorted()))
+                }
+            }
+
+            return installedDlcAppIds.sorted()
+        }
+
+        private fun getInstalledSelectableDlcAppIds(appId: Int): Set<Int> =
+            getSelectableDlcAppsOf(appId)
+                .mapNotNull { dlcApp ->
+                    val dlcInfo = getInstalledApp(dlcApp.id)
+                    if (dlcInfo?.isDownloaded == true) dlcApp.id else null
+                }.toSet()
+
+        private fun getTrustedInstalledAppInfo(appId: Int): AppInfo? {
+            val appInfo = getInstalledApp(appId) ?: tryRecoverInstalledAppInfo(appId)
+            if (appInfo?.isDownloaded != true) return null
+
+            val dirPath = getAppDirPath(appId)
+            val dir = File(dirPath)
+            if (!dir.isDirectory) return null
+            if (!MarkerUtils.hasMarker(dirPath, Marker.DOWNLOAD_COMPLETE_MARKER)) return null
+
+            return appInfo
+        }
 
         private fun tryRecoverInstalledAppInfo(appId: Int): AppInfo? {
             val dirPath = getAppDirPath(appId)
@@ -1008,12 +1090,13 @@ class SteamService :
             if (!dir.exists() || !dir.isDirectory) return null
 
             val downloadedDepotIds = runCatching { getMainAppDepots(appId).keys.sorted() }.getOrDefault(emptyList())
+            val installedDlcAppIds = getInstalledSelectableDlcAppIds(appId)
             val recovered =
                 AppInfo(
                     id = appId,
                     isDownloaded = true,
                     downloadedDepots = downloadedDepotIds,
-                    dlcDepots = emptyList(),
+                    dlcDepots = installedDlcAppIds.sorted(),
                 )
 
             runBlocking(Dispatchers.IO) {
@@ -1114,10 +1197,7 @@ class SteamService :
         fun getAppDownloadInfo(appId: Int): DownloadInfo? = downloadJobs[appId]
 
         fun isAppInstalled(appId: Int): Boolean {
-            val appInfo = getInstalledApp(appId) ?: tryRecoverInstalledAppInfo(appId)
-            if (appInfo?.isDownloaded != true) return false
-            val dirPath = getAppDirPath(appId)
-            return MarkerUtils.hasMarker(dirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
+            return getTrustedInstalledAppInfo(appId) != null
         }
 
         fun uninstallApp(
@@ -1179,9 +1259,11 @@ class SteamService :
                 }.orEmpty()
 
         suspend fun getOwnedAppDlc(appId: Int): Map<Int, DepotInfo> {
-            val client = instance?.steamClient ?: return emptyMap()
-            val accountId = client.steamID?.accountID?.toInt() ?: return emptyMap()
-            val ownedGameIds = getOwnedGames(userSteamId!!.convertToUInt64()).map { it.appId }.toHashSet()
+            val ownedGameIds =
+                runCatching {
+                    val steamId = userSteamId ?: return@runCatching emptySet<Int>()
+                    getOwnedGames(steamId.convertToUInt64()).map { it.appId }.toHashSet()
+                }.getOrDefault(emptySet())
 
             return getAppDlc(appId)
                 .filter { (_, depot) ->
@@ -1189,8 +1271,11 @@ class SteamService :
                         // Base-game depots always download
                         depot.dlcAppId == INVALID_APP_ID -> true
 
-                        // ① licence cache
-                        instance?.licenseDao?.findLicense(depot.dlcAppId) != null -> true
+                        // ① licence cache. DLC app IDs are stored inside package rows,
+                        // not as package IDs themselves.
+                        runBlocking(Dispatchers.IO) {
+                            instance?.licenseDao?.countLicensesForApp(depot.dlcAppId) ?: 0
+                        } > 0 -> true
 
                         // ② PICS row
                         instance?.appDao?.findApp(depot.dlcAppId) != null -> true
@@ -1422,6 +1507,7 @@ class SteamService :
             appId: Int,
             userSelectedDlcAppIds: Collection<Int>,
             preferredLanguage: String = PrefManager.containerLanguage,
+            branch: String = "public",
         ): Map<Int, DepotInfo> {
             val downloadableDepots = getDownloadableDepots(appId, preferredLanguage)
             if (downloadableDepots.isEmpty()) return emptyMap()
@@ -1429,22 +1515,146 @@ class SteamService :
             val selectedDlcIds = userSelectedDlcAppIds.toSet()
             val indirectDlcAppIds = getDownloadableDlcAppsOf(appId).orEmpty().map { it.id }.toSet()
             val mainDepots = getMainAppDepots(appId)
+            val groupedBaseDlcDepotIds =
+                getAppInfoOf(appId)
+                    ?.let { getGroupedBaseAppDlcContentDepotIds(it) }
+                    .orEmpty()
 
             val selectedMainDepots =
-                mainDepots.filter { (_, depot) ->
-                    depot.dlcAppId == INVALID_APP_ID ||
-                        (depot.dlcAppId in selectedDlcIds && depot.manifests.isNotEmpty())
-                }
+                mainDepots.filter { (depotId, depot) ->
+                    (depot.dlcAppId == INVALID_APP_ID && depotId !in groupedBaseDlcDepotIds) ||
+                        (depot.dlcAppId in selectedDlcIds && resolveDepotManifestInfo(depot, branch) != null)
+                } + getSelectedBaseAppDlcContentDepots(appId, selectedDlcIds, preferredLanguage, branch)
 
             val selectedDlcDepots =
                 downloadableDepots.filter { (depotId, depot) ->
                     depotId !in selectedMainDepots &&
                         depot.dlcAppId in selectedDlcIds &&
                         depot.dlcAppId in indirectDlcAppIds &&
-                        depot.manifests.isNotEmpty()
+                        resolveDepotManifestInfo(depot, branch) != null
                 }
 
             return selectedMainDepots + selectedDlcDepots
+        }
+
+        private fun getGroupedBaseAppDlcContentDepotIds(appInfo: SteamApp): Set<Int> {
+            return getGroupedBaseAppDlcDepots(appInfo).map { it.depotId }.toSet()
+        }
+
+        private fun getGroupedBaseAppDlcIds(
+            appInfo: SteamApp,
+            preferredLanguage: String = PrefManager.containerLanguage,
+            has64Bit: Boolean =
+                appInfo.depots.values.any {
+                    it.osArch == OSArch.Arch64 &&
+                        (it.osList.contains(OS.windows) || it.osList.isEmpty() || it.osList.contains(OS.none))
+                },
+        ): Set<Int> {
+            return getGroupedBaseAppDlcDepots(appInfo)
+                .filter { groupedDepot ->
+                    filterForDownloadableDepots(groupedDepot.depot, has64Bit, preferredLanguage, ownedDlc = null)
+                }.map { it.dlcAppId }
+                .toSet()
+        }
+
+        private data class GroupedBaseAppDlcDepot(
+            val depotId: Int,
+            val dlcAppId: Int,
+            val depot: DepotInfo,
+        )
+
+        private fun getGroupedBaseAppDlcDepots(appInfo: SteamApp): List<GroupedBaseAppDlcDepot> {
+            val declaredDlcIds =
+                (
+                    appInfo.dlcAppIds.asSequence() +
+                        appInfo.depots.values.asSequence()
+                            .map { it.dlcAppId }
+                            .filter { it != INVALID_APP_ID }
+                ).toSet()
+            if (declaredDlcIds.isEmpty()) return emptyList()
+
+            val depotIds = mutableListOf<GroupedBaseAppDlcDepot>()
+            var activeDlcAppId: Int? = null
+            for ((depotId, depot) in appInfo.depots) {
+                val isDlcMarkerDepot =
+                    depotId in declaredDlcIds &&
+                        depot.manifests.isEmpty()
+                if (isDlcMarkerDepot) {
+                    activeDlcAppId = depotId
+                    continue
+                }
+
+                val dlcAppId = activeDlcAppId
+                if (dlcAppId != null && depot.dlcAppId == INVALID_APP_ID) {
+                    depotIds += GroupedBaseAppDlcDepot(depotId, dlcAppId, depot)
+                }
+            }
+
+            return depotIds
+        }
+
+        private fun getSelectedBaseAppDlcContentDepots(
+            appId: Int,
+            selectedDlcAppIds: Collection<Int>,
+            preferredLanguage: String = PrefManager.containerLanguage,
+            branch: String = "public",
+        ): Map<Int, DepotInfo> {
+            if (selectedDlcAppIds.isEmpty()) return emptyMap()
+            val appInfo = getAppInfoOf(appId) ?: return emptyMap()
+            val selectedDlcIds = selectedDlcAppIds.toSet()
+            val declaredDlcIds =
+                (
+                    appInfo.dlcAppIds.asSequence() +
+                        appInfo.depots.values.asSequence()
+                            .map { it.dlcAppId }
+                            .filter { it != INVALID_APP_ID }
+                ).toSet()
+            if (declaredDlcIds.isEmpty()) return emptyMap()
+
+            val has64Bit =
+                appInfo.depots.values.any {
+                    it.osArch == OSArch.Arch64 &&
+                        (it.osList.contains(OS.windows) || it.osList.isEmpty() || it.osList.contains(OS.none))
+                }
+
+            val selectedDepots = linkedMapOf<Int, DepotInfo>()
+            var activeDlcAppId: Int? = null
+            for ((depotId, depot) in appInfo.depots) {
+                val isDlcMarkerDepot =
+                    depotId in declaredDlcIds &&
+                        depot.manifests.isEmpty()
+                if (isDlcMarkerDepot) {
+                    activeDlcAppId = depotId.takeIf { it in selectedDlcIds }
+                    continue
+                }
+
+                val selectedDlcAppId =
+                    when {
+                        depot.dlcAppId in selectedDlcIds -> depot.dlcAppId
+                        depot.dlcAppId == INVALID_APP_ID -> activeDlcAppId
+                        else -> null
+                    } ?: continue
+
+                val selectedDepot =
+                    if (depot.dlcAppId == selectedDlcAppId) {
+                        depot
+                    } else {
+                        depot.copy(dlcAppId = selectedDlcAppId)
+                    }
+
+                if (!filterForDownloadableDepots(selectedDepot, has64Bit, preferredLanguage, ownedDlc = null)) continue
+                if (resolveDepotManifestInfo(selectedDepot, branch) == null) continue
+                selectedDepots[depotId] = selectedDepot
+            }
+
+            if (selectedDepots.isNotEmpty()) {
+                Timber.i(
+                    "Recovered base-app DLC content depots for appId=$appId " +
+                        "selectedDlcAppIds=${selectedDlcIds.sorted()} " +
+                        "depotIdsByDlc=${selectedDepots.values.groupBy({ it.dlcAppId }, { it.depotId })}",
+                )
+            }
+            return selectedDepots
         }
 
         private fun resolveDepotManifestInfo(
@@ -1469,28 +1679,133 @@ class SteamService :
             return resolveDepotManifestInfo(sourceDepot, branch, visitedApps)
         }
 
-        fun getSelectedManifestSizes(
-            appId: Int,
-            userSelectedDlcAppIds: Collection<Int> = emptyList(),
-            preferredLanguage: String = PrefManager.containerLanguage,
-            branch: String = "public",
-        ): ManifestSizes {
-            val selectedDepots = getSelectedDownloadDepots(appId, userSelectedDlcAppIds, preferredLanguage)
-            if (selectedDepots.isEmpty()) return ManifestSizes()
+        private fun manifestDownloadBytes(manifest: ManifestInfo?): Long {
+            if (manifest == null) return 0L
+            return manifest.download.takeIf { it > 0L } ?: manifest.size.coerceAtLeast(0L)
+        }
 
+        private fun calculateManifestSizes(
+            depots: Collection<DepotInfo>,
+            branch: String,
+        ): ManifestSizes {
             var totalInstallSize = 0L
             var totalDownloadSize = 0L
 
-            selectedDepots.values.forEach { depot ->
+            depots.forEach { depot ->
                 val manifest = resolveDepotManifestInfo(depot, branch)
                 totalInstallSize += manifest?.size ?: 0L
-                totalDownloadSize += manifest?.download ?: 0L
+                totalDownloadSize += manifestDownloadBytes(manifest)
             }
 
             return ManifestSizes(
                 installSize = totalInstallSize,
                 downloadSize = totalDownloadSize,
             )
+        }
+
+        private fun filterAlreadyInstalledDepots(
+            appId: Int,
+            depots: Map<Int, DepotInfo>,
+            includeInstalledDepots: Boolean,
+        ): Map<Int, DepotInfo> {
+            if (includeInstalledDepots || depots.isEmpty()) return depots
+
+            val installedApp = getTrustedInstalledAppInfo(appId) ?: return depots
+            val installedDlcAppIds = getInstalledDlcDepotsOf(appId).orEmpty().toSet()
+
+            return depots.filter { (depotId, depot) ->
+                val isInstalledBaseDepot =
+                    depot.dlcAppId == INVALID_APP_ID ||
+                        depotId in installedApp.downloadedDepots
+                val isInstalledDlcDepot =
+                    depot.dlcAppId != INVALID_APP_ID &&
+                        depot.dlcAppId in installedDlcAppIds
+
+                !isInstalledBaseDepot && !isInstalledDlcDepot
+            }
+        }
+
+        private fun filterAlreadyInstalledDlcSelection(
+            appId: Int,
+            dlcAppIds: List<Int>,
+            includeInstalledDepots: Boolean,
+            customInstallPath: String?,
+        ): List<Int> {
+            val selected = dlcAppIds.distinct()
+            if (selected.isEmpty() || includeInstalledDepots || customInstallPath != null) return selected
+
+            val installedDlcAppIds = getInstalledDlcDepotsOf(appId).orEmpty().toSet()
+            if (installedDlcAppIds.isEmpty()) return selected
+
+            val filtered = selected.filterNot { it in installedDlcAppIds }
+            val skipped = selected - filtered.toSet()
+            if (skipped.isNotEmpty()) {
+                Timber.i(
+                    "Skipping already-installed Steam DLC selection for appId=$appId " +
+                        "dlcAppIds=${skipped.sorted()}",
+                )
+            }
+            return filtered
+        }
+
+        fun getSelectedManifestSizes(
+            appId: Int,
+            userSelectedDlcAppIds: Collection<Int> = emptyList(),
+            preferredLanguage: String = PrefManager.containerLanguage,
+            branch: String = "public",
+        ): ManifestSizes {
+            val selectedDepots = getSelectedDownloadDepots(appId, userSelectedDlcAppIds, preferredLanguage, branch)
+            if (selectedDepots.isEmpty()) return ManifestSizes()
+
+            return calculateManifestSizes(selectedDepots.values, branch)
+        }
+
+        fun getInstallableSelectedManifestSizes(
+            appId: Int,
+            userSelectedDlcAppIds: Collection<Int> = emptyList(),
+            preferredLanguage: String = PrefManager.containerLanguage,
+            branch: String = "public",
+        ): ManifestSizes {
+            val selectedDepots = getSelectedDownloadDepots(appId, userSelectedDlcAppIds, preferredLanguage, branch)
+            val installableDepots =
+                filterAlreadyInstalledDepots(
+                    appId = appId,
+                    depots = selectedDepots,
+                    includeInstalledDepots = false,
+                )
+            if (installableDepots.isEmpty()) return ManifestSizes()
+
+            return calculateManifestSizes(installableDepots.values, branch)
+        }
+
+        fun getDlcOnlyManifestSizes(
+            appId: Int,
+            dlcAppId: Int,
+            preferredLanguage: String = PrefManager.containerLanguage,
+            branch: String = "public",
+        ): ManifestSizes {
+            val service = instance ?: return ManifestSizes()
+            val mainAppInfo =
+                runBlocking(Dispatchers.IO) { service.appDao.findApp(appId) } ?: return ManifestSizes()
+            val has64Bit =
+                mainAppInfo.depots.values.any {
+                    it.osArch == OSArch.Arch64 &&
+                        (it.osList.contains(OS.windows) || (it.osList.isEmpty() || it.osList.contains(OS.none)))
+                }
+
+            val mainAppDlcDepots =
+                getSelectedBaseAppDlcContentDepots(appId, listOf(dlcAppId), preferredLanguage, branch).values
+
+            val dlcAppInfo = runBlocking(Dispatchers.IO) { service.appDao.findApp(dlcAppId) }
+            val dlcAppDepots =
+                dlcAppInfo?.depots?.values?.filter { depot ->
+                    filterForDownloadableDepots(depot, has64Bit, preferredLanguage, ownedDlc = null)
+                }.orEmpty()
+
+            val combined = (mainAppDlcDepots + dlcAppDepots).associateBy { it.depotId }.values
+            if (combined.isEmpty()) return ManifestSizes()
+
+            return calculateManifestSizes(combined, branch)
         }
 
         fun getAppDirName(app: SteamApp?): String {
@@ -2043,13 +2358,18 @@ class SteamService :
             )
         }
 
-        fun downloadAppForUpdate(appId: Int): DownloadInfo? =
+        fun downloadAppForUpdate(
+            appId: Int,
+            targetDepotIds: Collection<Int> = emptyList(),
+        ): DownloadInfo? =
             downloadApp(
                 appId,
                 resolveInstalledDlcIdsForUpdateOrVerify(appId),
                 includeInstalledDepots = true,
                 enableVerify = false,
                 allowPersistedProgress = false,
+                downloadTaskType = DownloadRecord.TASK_UPDATE,
+                targetDepotIds = targetDepotIds.toSet().takeIf { it.isNotEmpty() },
             )
 
         fun downloadAppForVerify(appId: Int): DownloadInfo? =
@@ -2059,6 +2379,7 @@ class SteamService :
                 includeInstalledDepots = true,
                 enableVerify = true,
                 allowPersistedProgress = false,
+                downloadTaskType = DownloadRecord.TASK_VERIFY,
             )
 
         private fun resolveInstalledDlcIdsForUpdateOrVerify(appId: Int): List<Int> {
@@ -2072,6 +2393,46 @@ class SteamService :
             }
 
             return dlcAppIds.distinct()
+        }
+
+        private fun parseDownloadScopeIds(scope: String): Set<Int> =
+            scope
+                .split(',')
+                .mapNotNull { it.trim().toIntOrNull() }
+                .toSet()
+
+        private fun activeDownloadRecordFor(appId: Int): DownloadRecord? =
+            runCatching {
+                runBlocking(Dispatchers.IO) {
+                    DownloadCoordinator.findRecord(
+                        DownloadRecord.STORE_STEAM,
+                        appId.toString(),
+                    )
+                }
+            }.getOrNull()
+                ?.takeIf {
+                    it.status in setOf(
+                        DownloadRecord.STATUS_QUEUED,
+                        DownloadRecord.STATUS_DOWNLOADING,
+                        DownloadRecord.STATUS_PAUSED,
+                    )
+                }
+
+        private fun rejectConflictingDownloadRequest(appId: Int, record: DownloadRecord): DownloadInfo? {
+            Timber.i(
+                "Refusing Steam download request for appId=$appId because an active record already exists " +
+                    "status=${record.status} taskType=${record.taskType} selectedDlcs=${record.selectedDlcs}",
+            )
+            instance?.let { service ->
+                service.scope.launch(Dispatchers.Main) {
+                    WinToast.show(
+                        service.applicationContext,
+                        service.getString(R.string.store_game_download_already_active),
+                        Toast.LENGTH_SHORT,
+                    )
+                }
+            }
+            return downloadJobs[appId]
         }
 
         fun downloadApp(
@@ -2100,12 +2461,22 @@ class SteamService :
             allowPersistedProgress: Boolean = false,
             hasPersistedResumeRow: Boolean = false,
             customInstallPath: String? = null,
+            downloadTaskType: String = DownloadRecord.TASK_INSTALL,
+            targetDepotIds: Set<Int>? = null,
         ): DownloadInfo? {
             val appInfo = getAppInfoOf(appId)
             if (appInfo == null) {
                 Timber.e("Download aborted: Could not find AppInfo for appId: $appId")
                 return null
             }
+
+            val effectiveDlcAppIds =
+                filterAlreadyInstalledDlcSelection(
+                    appId = appId,
+                    dlcAppIds = dlcAppIds,
+                    includeInstalledDepots = includeInstalledDepots,
+                    customInstallPath = customInstallPath,
+                )
 
             val downloadableDepots = getDownloadableDepots(appId)
             if (downloadableDepots.isEmpty()) {
@@ -2122,13 +2493,15 @@ class SteamService :
             return downloadApp(
                 appId = appId,
                 downloadableDepots = downloadableDepots,
-                userSelectedDlcAppIds = dlcAppIds,
+                userSelectedDlcAppIds = effectiveDlcAppIds,
                 branch = "public",
                 includeInstalledDepots = includeInstalledDepots,
                 enableVerify = enableVerify,
                 allowPersistedProgress = allowPersistedProgress,
                 hasPersistedResumeRow = hasPersistedResumeRow,
                 customInstallPath = customInstallPath,
+                downloadTaskType = downloadTaskType,
+                targetDepotIds = targetDepotIds,
             )
         }
 
@@ -2492,9 +2865,32 @@ class SteamService :
             allowPersistedProgress: Boolean = false,
             hasPersistedResumeRow: Boolean = false,
             customInstallPath: String? = null,
+            downloadTaskType: String = DownloadRecord.TASK_INSTALL,
+            targetDepotIds: Set<Int>? = null,
         ): DownloadInfo? {
             var appDirPath = getAppDirPath(appId)
             Timber.i("downloadApp called for appId: $appId, customInstallPath: $customInstallPath")
+            Timber.i(
+                "Steam DLC selection: appId=$appId selectedDlcAppIds=${userSelectedDlcAppIds.sorted()} " +
+                    "includeInstalledDepots=$includeInstalledDepots verify=$enableVerify allowResume=$allowPersistedProgress " +
+                    "targetDepotIds=${targetDepotIds?.sorted().orEmpty()}",
+            )
+
+            activeDownloadRecordFor(appId)?.let { activeRecord ->
+                val requestedScopeIds =
+                    if (downloadTaskType == DownloadRecord.TASK_UPDATE && targetDepotIds != null) {
+                        targetDepotIds
+                    } else {
+                        userSelectedDlcAppIds.toSet()
+                    }
+                val isSameCoordinatorDispatch =
+                    customInstallPath == null &&
+                        activeRecord.taskType == downloadTaskType &&
+                        parseDownloadScopeIds(activeRecord.selectedDlcs) == requestedScopeIds
+                if (!isSameCoordinatorDispatch) {
+                    return rejectConflictingDownloadRequest(appId, activeRecord)
+                }
+            }
 
             if (customInstallPath != null) {
                 // Determine if customInstallPath is the game folder itself or the parent
@@ -2525,6 +2921,14 @@ class SteamService :
                 }
             }
 
+            val hasTrustedInstallAtStart =
+                customInstallPath == null &&
+                    getTrustedInstalledAppInfo(appId) != null
+            val isAddingDlcToTrustedInstall =
+                hasTrustedInstallAtStart &&
+                    !includeInstalledDepots &&
+                    userSelectedDlcAppIds.isNotEmpty()
+
             // Ensure the download directory exists
             try {
                 val dir = File(appDirPath)
@@ -2551,8 +2955,12 @@ class SteamService :
                     Timber.e("Failed to add DOWNLOAD_IN_PROGRESS_MARKER at $appDirPath")
                 }
 
-                // If this is not an update/verify, remove the complete marker to reset state
-                if (!includeInstalledDepots) {
+                // Fresh installs should reset completion state. When the base game is already
+                // trusted, keep the marker while adding DLC so a cancelled DLC download does
+                // not make the whole base install look missing.
+                if (downloadTaskType == DownloadRecord.TASK_UPDATE) {
+                    MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
+                } else if (!includeInstalledDepots && !hasTrustedInstallAtStart) {
                     MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
                 }
             } catch (e: Exception) {
@@ -2584,25 +2992,111 @@ class SteamService :
 
             // Depots from Main game
             val mainDepots = getMainAppDepots(appId)
+            val groupedBaseDlcDepotIds =
+                getAppInfoOf(appId)
+                    ?.let { getGroupedBaseAppDlcContentDepotIds(it) }
+                    .orEmpty()
             Timber.d("Main app depots count: ${mainDepots.size}")
-            val originalMainAppDepots =
-                mainDepots.filter { (_, depot) ->
-                    depot.dlcAppId == INVALID_APP_ID
-                } +
-                    mainDepots.filter { (_, depot) ->
-                        userSelectedDlcAppIds.contains(depot.dlcAppId) && depot.manifests.isNotEmpty()
+            val baseMainAppDepots =
+                if (isAddingDlcToTrustedInstall) {
+                    Timber.i(
+                        "Building DLC-only Steam download scope for installed appId=$appId " +
+                            "selectedDlcAppIds=${userSelectedDlcAppIds.sorted()}",
+                    )
+                    emptyMap()
+                } else {
+                    mainDepots.filter { (depotId, depot) ->
+                        depot.dlcAppId == INVALID_APP_ID && depotId !in groupedBaseDlcDepotIds
                     }
+                }
+            val targetDepotIdSet = targetDepotIds?.takeIf { it.isNotEmpty() }
+            var originalMainAppDepots =
+                baseMainAppDepots +
+                    mainDepots.filter { (_, depot) ->
+                        userSelectedDlcAppIds.contains(depot.dlcAppId) &&
+                            resolveDepotManifestInfo(depot, branch) != null
+                    } +
+                    getSelectedBaseAppDlcContentDepots(
+                        appId = appId,
+                        selectedDlcAppIds = userSelectedDlcAppIds,
+                        preferredLanguage = PrefManager.containerLanguage,
+                        branch = branch,
+                    )
+            if (targetDepotIdSet != null) {
+                originalMainAppDepots = originalMainAppDepots.filterKeys { it in targetDepotIdSet }
+            }
             var mainAppDepots = originalMainAppDepots
             Timber.d("Filtered main app depots count: ${mainAppDepots.size}")
 
-            // Depots from DLC App
-            val dlcAppDepots =
+            // Depots from indirect DLC apps (those reachable via findDownloadableDLCApps, which
+            // requires a cached license row).
+            val indirectDlcAppDepots =
                 downloadableDepots.filter { (_, depot) ->
                     !mainAppDepots.map { it.key }.contains(depot.depotId) &&
-                        userSelectedDlcAppIds.contains(depot.dlcAppId) && indirectDlcAppIds.contains(depot.dlcAppId) &&
-                        depot.manifests.isNotEmpty()
+                        userSelectedDlcAppIds.contains(depot.dlcAppId) &&
+                        indirectDlcAppIds.contains(depot.dlcAppId) &&
+                        resolveDepotManifestInfo(depot, branch) != null
                 }
-            Timber.d("Filtered DLC app depots count: ${dlcAppDepots.size}")
+            Timber.d("Filtered indirect DLC app depots count: ${indirectDlcAppDepots.size}")
+
+            // Selected DLCs whose depots aren't reachable through `indirectDlcAppIds` (e.g. the
+            // license row is stale or the DLC is declared on the base game only). Look them up
+            // by appId so the download includes the same depots `getDlcOnlyManifestSizes` uses
+            // on the store screen — keeping the pre-download estimate and the downloads-tab
+            // total in sync.
+            val coveredDlcAppIds =
+                (originalMainAppDepots.values.asSequence() + indirectDlcAppDepots.values.asSequence())
+                    .mapNotNull { d -> d.dlcAppId.takeIf { it != INVALID_APP_ID } }
+                    .toSet()
+            val missingDlcAppIds = userSelectedDlcAppIds.filter { it !in coveredDlcAppIds }
+            val extraDlcAppDepots: Map<Int, DepotInfo> =
+                if (missingDlcAppIds.isEmpty()) {
+                    emptyMap()
+                } else {
+                    val appInfoForArch = getAppInfoOf(appId)
+                    val extraHas64Bit =
+                        appInfoForArch?.depots?.values?.any {
+                            it.osArch == OSArch.Arch64 &&
+                                (it.osList.contains(OS.windows) || it.osList.isEmpty() || it.osList.contains(OS.none))
+                        } ?: false
+                    val extraLanguage = PrefManager.containerLanguage
+                    val coveredDepotIds = originalMainAppDepots.keys + indirectDlcAppDepots.keys
+                    val collected = mutableMapOf<Int, DepotInfo>()
+                    for (dlcAppId in missingDlcAppIds) {
+                        val dlcAppInfo =
+                            runBlocking(Dispatchers.IO) { instance?.appDao?.findApp(dlcAppId) }
+                                ?: continue
+                        for ((depotId, depot) in dlcAppInfo.depots) {
+                            if (depotId in coveredDepotIds || depotId in collected) continue
+                            if (!filterForDownloadableDepots(depot, extraHas64Bit, extraLanguage, ownedDlc = null)) continue
+                            if (resolveDepotManifestInfo(depot, branch) == null) continue
+                            collected[depotId] =
+                                DepotInfo(
+                                    depotId = depot.depotId,
+                                    dlcAppId = dlcAppId,
+                                    optionalDlcId = depot.optionalDlcId,
+                                    depotFromApp = depot.depotFromApp,
+                                    sharedInstall = depot.sharedInstall,
+                                    osList = depot.osList,
+                                    osArch = depot.osArch,
+                                    language = depot.language,
+                                    manifests = depot.manifests,
+                                    encryptedManifests = depot.encryptedManifests,
+                                )
+                        }
+                    }
+                    collected
+                }
+            if (extraDlcAppDepots.isNotEmpty()) {
+                Timber.d("Recovered ${extraDlcAppDepots.size} extra DLC depots for selected DLCs ${missingDlcAppIds}")
+            }
+            // Single combined view of DLC depots used by the rest of the function. Downstream
+            // code groups by dlcAppId, computes totals, and persists DownloadingAppInfo from
+            // this map — the extras need to be visible everywhere.
+            val dlcAppDepots =
+                (indirectDlcAppDepots + extraDlcAppDepots).let { depots ->
+                    if (targetDepotIdSet == null) depots else depots.filterKeys { it in targetDepotIdSet }
+                }
 
             // Remove depots that are already downloaded only when install metadata is trusted.
             // But if a custom path is provided, we want to check/download everything at the new location
@@ -2655,10 +3149,13 @@ class SteamService :
             }
 
             val allDepots = originalMainAppDepots + dlcAppDepots
-            // Use install (uncompressed) size for progress tracking
+            // Use install (uncompressed) size for progress tracking.
+            // resolveDepotManifestInfo follows depot.depotFromApp and falls back to the public
+            // branch, so shared/proxied DLC depots (whose real manifest lives on the base app)
+            // contribute their full size to the total instead of the 1L fallback.
             val depotSizeById =
                 allDepots.mapValues { (_, depot) ->
-                    val mInfo = depot.manifests[branch] ?: depot.encryptedManifests[branch]
+                    val mInfo = resolveDepotManifestInfo(depot, branch)
                     (mInfo?.size ?: 1L).coerceAtLeast(1L)
                 }
 
@@ -2847,8 +3344,8 @@ class SteamService :
                 dlcAppDepots.values
                     .groupBy(keySelector = { it.dlcAppId }, valueTransform = { it.depotId })
                     .mapValues { (_, depotIds) -> depotIds.sorted() }
-            val selectedDepotIdsByDlcAppId =
-                selectedDepots.values
+            val selectedDlcDepotIdsByDlcAppId =
+                filteredDlcAppDepots.values
                     .groupBy(keySelector = { it.dlcAppId }, valueTransform = { it.depotId })
                     .mapValues { (_, depotIds) -> depotIds.sorted() }
 
@@ -2864,13 +3361,34 @@ class SteamService :
                 downloadingAppIds.add(appId)
             }
 
-            // There are some apps, the dlc depots does not have dlcAppId in the data, need to set it back
-            val mainAppDlcIds = getMainAppDlcIdsWithoutProperDepotDlcIds(appId)
+            // There are some apps where DLC content lives under the base app without a
+            // dlcAppId on every content depot. Only persist DLC metadata that belongs to
+            // the current selected scope; otherwise marker-only DLCs can be falsely saved
+            // as installed when a sibling DLC is selected.
+            val selectedDlcAppIdSet = userSelectedDlcAppIds.toSet()
+            val mainAppDlcIds =
+                getMainAppDlcIdsWithoutProperDepotDlcIds(appId)
+                    .filterTo(mutableListOf()) { it in selectedDlcAppIdSet }
+            mainAppDlcIds.addAll(
+                mainAppDepots.values
+                    .map { it.dlcAppId }
+                    .filter { it != INVALID_APP_ID && it in selectedDlcAppIdSet }
+                    .distinct(),
+            )
 
             // If there are no DLC depots, download the main app only
             if (dlcAppDepots.isEmpty()) {
                 // Because all dlcIDs are coming from main depots, need to add the dlcID to main app in order to save it to db after finish download
-                mainAppDlcIds.addAll(mainAppDepots.filter { it.value.dlcAppId != INVALID_APP_ID }.map { it.value.dlcAppId }.distinct())
+                mainAppDlcIds.addAll(
+                    mainAppDepots
+                        .filter { it.value.dlcAppId != INVALID_APP_ID && it.value.dlcAppId in selectedDlcAppIdSet }
+                        .map { it.value.dlcAppId }
+                        .distinct(),
+                )
+                // Some Steam DLCs are entitlement/config DLC with no separate downloadable
+                // depot. They still need to be remembered as selected/installed so launch
+                // metadata can expose them later.
+                mainAppDlcIds.addAll(userSelectedDlcAppIds)
 
                 // Refresh id List, so only main app is downloaded
                 calculatedDlcAppIds.clear()
@@ -2889,6 +3407,24 @@ class SteamService :
                     return null
                 }
 
+            val selectedDepotSizes =
+                selectedDepots.mapValues { (depotId, _) ->
+                    depotSizeById[depotId] ?: 1L
+                }
+            val selectedTotalBytes = selectedDepotSizes.values.sum()
+            val totalBytes = selectedTotalBytes.coerceAtLeast(1L)
+            val selectedDisplayDownloadBytes =
+                selectedDepots.values
+                    .sumOf { depot -> manifestDownloadBytes(resolveDepotManifestInfo(depot, branch)) }
+                    .takeIf { it > 0L }
+                    ?: totalBytes
+            Timber.i(
+                "Steam DLC selected download scope: appId=$appId selectedDlcAppIds=${userSelectedDlcAppIds.sorted()} " +
+                    "calculatedDlcAppIds=${calculatedDlcAppIds.sorted()} mainDepotIds=${mainAppDepots.keys.sorted()} " +
+                    "dlcDepotIdsByApp=$selectedDlcDepotIdsByDlcAppId totalBytes=$totalBytes " +
+                    "displayDownloadBytes=$selectedDisplayDownloadBytes metadataDlcAppIds=${mainAppDlcIds.sorted()}",
+            )
+
             // Save downloading app info
             runBlocking {
                 service.downloadingAppInfoDao.insert(
@@ -2899,6 +3435,10 @@ class SteamService :
                 )
                 Unit
             }
+            Timber.i(
+                "Steam DLC selection persisted: appId=$appId selectedDlcAppIds=${userSelectedDlcAppIds.sorted()} " +
+                    "installPath=$appDirPath",
+            )
 
             // Ask the global coordinator whether this download can start now or must be queued
             // behind downloads from other stores too. The coordinator persists the decision in
@@ -2906,19 +3446,38 @@ class SteamService :
             val coordDecision =
                 runBlocking {
                     val title = getAppInfoOf(appId)?.name.orEmpty()
+                    val persistedScope =
+                        if (downloadTaskType == DownloadRecord.TASK_UPDATE && targetDepotIdSet != null) {
+                            targetDepotIdSet.sorted().joinToString(",")
+                        } else {
+                            userSelectedDlcAppIds.joinToString(",")
+                        }
                     DownloadCoordinator.requestSlot(
                         store = DownloadRecord.STORE_STEAM,
                         storeGameId = appId.toString(),
                         title = title,
                         installPath = appDirPath,
-                        selectedDlcs = userSelectedDlcAppIds.joinToString(","),
+                        selectedDlcs = persistedScope,
+                        taskType = downloadTaskType,
+                        bytesTotal = selectedDisplayDownloadBytes,
                     )
                 }
+            Timber.i(
+                "Steam DLC coordinator record: appId=$appId selectedDlcAppIds=${userSelectedDlcAppIds.sorted()} " +
+                    "bytesTotal=$totalBytes displayDownloadBytes=$selectedDisplayDownloadBytes " +
+                    "decision=${coordDecision::class.simpleName}",
+            )
             if (coordDecision is DownloadCoordinator.Decision.Queue) {
                 Timber.i("Coordinator queued appId: $appId")
+                if (downloadTaskType == DownloadRecord.TASK_UPDATE) {
+                    MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                    MarkerUtils.addMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
+                }
                 val info =
                     DownloadInfo(selectedDepots.size, appId, downloadingAppIds).also { di ->
                         di.setPersistencePath(appDirPath)
+                        di.setTotalExpectedBytes(totalBytes)
+                        di.setDisplayTotalExpectedBytes(selectedDisplayDownloadBytes)
                         di.updateStatus(DownloadPhase.QUEUED, "Queued...")
                         di.setActive(false)
                     }
@@ -2932,21 +3491,16 @@ class SteamService :
                     di.setPersistencePath(appDirPath)
 
                     // Set weights for each depot based on manifest sizes
-                    val selectedDepotSizes =
-                        selectedDepots.mapValues { (depotId, _) ->
-                            depotSizeById[depotId] ?: 1L
-                        }
                     selectedDepots.keys.forEachIndexed { index, depotId ->
                         di.setWeight(index, selectedDepotSizes[depotId] ?: 1L)
                     }
 
                     // Track progress only for depots in this active run so excluded/complete depots
                     // (including DLC already marked complete) cannot pre-fill progress at startup.
-                    val selectedTotalBytes = selectedDepotSizes.values.sum()
-                    val totalBytes = selectedTotalBytes.coerceAtLeast(1L)
 
                     // Total expected size (used for ETA based on recent download speed)
                     di.setTotalExpectedBytes(totalBytes)
+                    di.setDisplayTotalExpectedBytes(selectedDisplayDownloadBytes)
 
                     var resumedBytes = 0L
 
@@ -3134,8 +3688,12 @@ class SteamService :
                                         }
 
                                         calculatedDlcAppIds.forEach { dlcAppId ->
-                                            val dlcDepotIds = selectedDepotIdsByDlcAppId[dlcAppId].orEmpty()
+                                            val dlcDepotIds = selectedDlcDepotIdsByDlcAppId[dlcAppId].orEmpty()
                                             if (dlcDepotIds.isEmpty()) return@forEach
+                                            Timber.i(
+                                                "Steam DLC download item queued: baseAppId=$appId dlcAppId=$dlcAppId " +
+                                                    "depotIds=$dlcDepotIds",
+                                            )
 
                                             val dlcAppItem =
                                                 AppItem(
@@ -3298,7 +3856,7 @@ class SteamService :
                                     }
 
                                     calculatedDlcAppIds.forEach { dlcAppId ->
-                                        val dlcDepotIds = allDepotIdsByDlcAppId[dlcAppId].orEmpty()
+                                        val dlcDepotIds = selectedDlcDepotIdsByDlcAppId[dlcAppId].orEmpty()
                                         completeAppDownload(di, dlcAppId, dlcDepotIds, emptyList(), appDirPath)
                                     }
                                     Timber.i("Installation finalized for appId: $appId")
@@ -3331,6 +3889,9 @@ class SteamService :
                                 di.setActive(false)
                                 // Clean up markers
                                 MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                                if (downloadTaskType == DownloadRecord.TASK_UPDATE) {
+                                    MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
+                                }
                                 runBlocking {
                                     DownloadCoordinator.notifyFinished(
                                         DownloadRecord.STORE_STEAM,
@@ -3390,6 +3951,9 @@ class SteamService :
                                 di.setActive(false)
                                 // Clean up markers and DB state
                                 MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                                if (downloadTaskType == DownloadRecord.TASK_UPDATE) {
+                                    MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
+                                }
                                 runBlocking {
                                     instance?.downloadingAppInfoDao?.deleteApp(appId)
                                     Unit
@@ -3478,9 +4042,23 @@ class SteamService :
             downloadJobs[appId] = info
             notifyDownloadStarted(appId)
 
-            val mainAppDlcIds = getMainAppDlcIdsWithoutProperDepotDlcIds(appId)
+            val selectedDlcAppIdSet = userSelectedDlcAppIds.toSet()
+            val mainAppDlcIds =
+                getMainAppDlcIdsWithoutProperDepotDlcIds(appId)
+                    .filterTo(mutableListOf()) { it in selectedDlcAppIdSet }
+            mainAppDlcIds.addAll(
+                mainAppDepots.values
+                    .map { it.dlcAppId }
+                    .filter { it != INVALID_APP_ID && it in selectedDlcAppIdSet }
+                    .distinct(),
+            )
             if (dlcAppDepots.isEmpty()) {
-                mainAppDlcIds.addAll(mainAppDepots.filter { it.value.dlcAppId != INVALID_APP_ID }.map { it.value.dlcAppId }.distinct())
+                mainAppDlcIds.addAll(
+                    mainAppDepots
+                        .filter { it.value.dlcAppId != INVALID_APP_ID && it.value.dlcAppId in selectedDlcAppIdSet }
+                        .map { it.value.dlcAppId }
+                        .distinct(),
+                )
             }
 
             runBlocking(Dispatchers.IO) {
@@ -3527,6 +4105,11 @@ class SteamService :
             appDirPath: String,
         ) {
             Timber.i("Item $downloadingAppId download completed, saving database")
+            Timber.i(
+                "Steam DLC downloaded item: baseAppId=${downloadInfo.gameId} completedAppId=$downloadingAppId " +
+                    "entitledDepotIds=${entitledDepotIds.sorted()} selectedDlcAppIds=${selectedDlcAppIds.sorted()} " +
+                    "remainingAppIds=${downloadInfo.downloadingAppIds.sorted()}",
+            )
 
             // Update database
             val appInfo = instance?.appInfoDao?.getInstalledApp(downloadingAppId)
@@ -3565,6 +4148,10 @@ class SteamService :
             // All downloading appIds are removed
             if (downloadInfo.downloadingAppIds.isEmpty()) {
                 Timber.i("All items for game ${downloadInfo.gameId} completed, running final completion logic.")
+                Timber.i(
+                    "Steam DLC download complete: appId=${downloadInfo.gameId} " +
+                        "downloadedBytes=${downloadInfo.getBytesDownloaded()} totalBytes=${downloadInfo.getTotalExpectedBytes()}",
+                )
                 // Settle the remaining bytes once at the end so the visible progress doesn't
                 // sit slightly under 100% when the game is actually complete (e.g. dedup
                 // skipped chunks that never reported via onChunkCompleted).
@@ -3575,6 +4162,7 @@ class SteamService :
                     if (remainingBytes > 0L) {
                         downloadInfo.updateBytesDownloaded(remainingBytes, System.currentTimeMillis())
                         downloadInfo.emitProgressChange()
+                        updateCoordinatorDownloadProgress(downloadInfo)
                     }
                 }
 
@@ -3593,13 +4181,25 @@ class SteamService :
                     if (service != null) {
                         val mainAppInfo = service.appInfoDao.getInstalledApp(mainAppId)
                         if (mainAppInfo != null) {
-                            if (!mainAppInfo.isDownloaded) {
-                                service.appInfoDao.update(mainAppInfo.copy(isDownloaded = true))
-                                Timber.i("Marked main app $mainAppId as downloaded in DB")
-                            }
+                            val updatedMainDlcDepots = (mainAppInfo.dlcDepots + selectedDlcAppIds).distinct().sorted()
+                            service.appInfoDao.update(
+                                mainAppInfo.copy(
+                                    isDownloaded = true,
+                                    dlcDepots = updatedMainDlcDepots,
+                                ),
+                            )
+                            Timber.i(
+                                "Marked main app $mainAppId as downloaded in DB with dlcDepots=$updatedMainDlcDepots",
+                            )
                         } else {
-                            service.appInfoDao.insert(AppInfo(mainAppId, isDownloaded = true))
-                            Timber.i("Inserted main app $mainAppId as downloaded in DB")
+                            service.appInfoDao.insert(
+                                AppInfo(
+                                    mainAppId,
+                                    isDownloaded = true,
+                                    dlcDepots = selectedDlcAppIds.distinct().sorted(),
+                                ),
+                            )
+                            Timber.i("Inserted main app $mainAppId as downloaded in DB with dlcDepots=${selectedDlcAppIds.distinct().sorted()}")
                         }
                     }
                     Unit
@@ -3630,6 +4230,16 @@ class SteamService :
                 checkQueue()
             }
             Unit
+        }
+
+        private fun updateCoordinatorDownloadProgress(downloadInfo: DownloadInfo) {
+            val (displayDownloadedBytes, displayTotalBytes) = downloadInfo.getDisplayBytesProgress()
+            DownloadCoordinator.updateProgress(
+                DownloadRecord.STORE_STEAM,
+                downloadInfo.gameId.toString(),
+                displayDownloadedBytes,
+                displayTotalBytes,
+            )
         }
 
         // CRITICAL: onChunkCompleted reports PER-DEPOT cumulative bytes, NOT global. The
@@ -3907,6 +4517,7 @@ class SteamService :
 
                     addDeltaToDepotBytes(depotId, deltaBytes)
                     downloadInfo.updateBytesDownloaded(deltaBytes, lastByteProgressAtMs)
+                    updateCoordinatorDownloadProgress(downloadInfo)
                     downloadInfo.markProgressSnapshotDirty()
 
                     // If resume verification/prepare phases already ran and bytes are now moving again,
@@ -3944,6 +4555,7 @@ class SteamService :
                     lastByteProgressAtMs = System.currentTimeMillis()
                     addDeltaToDepotBytes(depotId, sessionDelta)
                     downloadInfo.updateBytesDownloaded(sessionDelta, lastByteProgressAtMs)
+                    updateCoordinatorDownloadProgress(downloadInfo)
                     downloadInfo.markProgressSnapshotDirty()
                 }
 
@@ -5258,41 +5870,180 @@ class SteamService :
         suspend fun isUpdatePending(
             appId: Int,
             branch: String = "public",
-        ): Boolean =
+        ): Boolean = checkForAppUpdate(appId, branch).hasUpdate
+
+        suspend fun checkForAppUpdate(
+            appId: Int,
+            branch: String = "public",
+        ): SteamUpdateInfo =
             withContext(Dispatchers.IO) {
-                // Don't try if there's no internet
-                if (!isConnected) return@withContext false
+                fun SteamUpdateInfo.logged(): SteamUpdateInfo {
+                    Timber.i(
+                        "Steam update check result: appId=$appId branch=$branch " +
+                            "hasUpdate=$hasUpdate downloadSize=$downloadSize depotIds=$depotIds message=$message",
+                    )
+                    return this
+                }
 
-                val steamApps = instance?._steamApps ?: return@withContext false
+                Timber.i("Steam update check started: appId=$appId branch=$branch")
+                if (!isConnected || !isLoggedIn) {
+                    return@withContext SteamUpdateInfo(message = "Steam is not connected").logged()
+                }
+                if (!isAppInstalled(appId)) {
+                    return@withContext SteamUpdateInfo(message = "Game is not installed").logged()
+                }
 
-                // ── 1. Fetch the latest app header from Steam (PICS).
-                val pics =
-                    steamApps
-                        .picsGetProductInfo(
-                            apps = listOf(PICSRequest(id = appId)),
-                            packages = emptyList(),
-                        ).await()
+                val remoteSteamApp = fetchLatestSteamAppInfo(appId)
+                    ?: return@withContext SteamUpdateInfo(message = "Could not fetch Steam metadata").logged()
+                persistLatestSteamAppInfo(appId, remoteSteamApp)
 
-                val remoteAppInfo =
-                    pics.results
-                        .firstOrNull()
-                        ?.apps
-                        ?.values
-                        ?.firstOrNull()
-                        ?: return@withContext false // nothing returned ⇒ treat as up-to-date
+                val appDirPath = getAppDirPath(appId)
+                val selectedDepots =
+                    getSelectedDownloadDepots(
+                        appId = appId,
+                        userSelectedDlcAppIds = resolveInstalledDlcIdsForUpdateOrVerify(appId),
+                        preferredLanguage = PrefManager.containerLanguage,
+                        branch = branch,
+                    )
+                if (selectedDepots.isEmpty()) {
+                    return@withContext SteamUpdateInfo(message = "No installed depots to update").logged()
+                }
 
-                val remoteSteamApp = remoteAppInfo.keyValues.generateSteamApp()
-                val localSteamApp = getAppInfoOf(appId) ?: return@withContext true // not cached yet
+                val installedManifestIds = readInstalledDepotManifestIds(appDirPath)
+                val updateDepots =
+                    selectedDepots.filter { (depotId, depot) ->
+                        val manifest = resolveDepotManifestInfo(depot, branch) ?: return@filter false
+                        val installedManifestId = installedManifestIds[depotId]
+                        if (installedManifestId != null) {
+                            installedManifestId != manifest.gid
+                        } else {
+                            !hasCachedDepotManifest(appDirPath, depotId, manifest.gid)
+                        }
+                    }
 
-                // ── 2. Compare manifest IDs of the depots we actually install.
-                getDownloadableDepots(appId).keys.any { depotId ->
-                    val remoteManifest = remoteSteamApp.depots[depotId]?.manifests?.get(branch)
-                    val localManifest = localSteamApp.depots[depotId]?.manifests?.get(branch)
-                    // If remote manifest is null, skip this depot (hack for Castle Crashers)
-                    if (remoteManifest == null) return@any false
-                    remoteManifest?.gid != localManifest?.gid
+                if (updateDepots.isEmpty()) {
+                    SteamUpdateInfo(hasUpdate = false).logged()
+                } else {
+                    SteamUpdateInfo(
+                        hasUpdate = true,
+                        downloadSize =
+                            updateDepots.values
+                                .sumOf { depot -> manifestDownloadBytes(resolveDepotManifestInfo(depot, branch)) }
+                                .coerceAtLeast(0L),
+                        depotIds = updateDepots.keys.sorted(),
+                    ).logged()
                 }
             }
+
+        private suspend fun fetchLatestSteamAppInfo(appId: Int): SteamApp? {
+            val steamApps = instance?._steamApps ?: return null
+            val pics =
+                steamApps
+                    .picsGetProductInfo(
+                        apps = listOf(PICSRequest(id = appId)),
+                        packages = emptyList(),
+                    ).await()
+
+            val remoteAppInfo =
+                pics.results
+                    .firstOrNull()
+                    ?.apps
+                    ?.values
+                    ?.firstOrNull()
+                    ?: return null
+
+            return remoteAppInfo.keyValues.generateSteamApp().copy(
+                receivedPICS = true,
+                lastChangeNumber = remoteAppInfo.changeNumber,
+            )
+        }
+
+        private suspend fun persistLatestSteamAppInfo(
+            appId: Int,
+            remoteSteamApp: SteamApp,
+        ) {
+            val service = instance ?: return
+            val appFromDb = service.appDao.findApp(appId)
+            val packageId = appFromDb?.packageId ?: remoteSteamApp.packageId
+            val packageFromDb = if (packageId != INVALID_PKG_ID) service.licenseDao.findLicense(packageId) else null
+            val existingInstallDir = appFromDb?.installDir.orEmpty()
+            val preserveInstallDir =
+                existingInstallDir.isNotEmpty() &&
+                    (existingInstallDir.startsWith("/") || existingInstallDir.contains(File.separator))
+
+            service.appDao.insert(
+                remoteSteamApp.copy(
+                    packageId = packageId,
+                    ownerAccountId = packageFromDb?.ownerAccountId ?: appFromDb?.ownerAccountId.orEmpty(),
+                    licenseFlags =
+                        packageFromDb?.licenseFlags
+                            ?: appFromDb?.licenseFlags
+                            ?: EnumSet.noneOf(ELicenseFlags::class.java),
+                    installDir = if (preserveInstallDir) existingInstallDir else remoteSteamApp.installDir,
+                ),
+            )
+        }
+
+        private fun readInstalledDepotManifestIds(appDirPath: String): Map<Int, Long> =
+            runCatching {
+                val configFile = File(File(appDirPath, ".DepotDownloader"), "depot.config")
+                if (!configFile.exists() || !configFile.canRead()) return@runCatching emptyMap()
+                val json = JSONObject(configFile.readText())
+                val manifests = json.optJSONObject("installedManifestIDs") ?: return@runCatching emptyMap()
+                val result = mutableMapOf<Int, Long>()
+                for (key in manifests.keys()) {
+                    val depotId = key.toIntOrNull() ?: continue
+                    result[depotId] = manifests.optLong(key, DepotDownloader.INVALID_MANIFEST_ID)
+                }
+                result
+            }.getOrElse {
+                Timber.w(it, "Failed to read Steam depot.config for $appDirPath")
+                emptyMap()
+            }
+
+        private fun hasCachedDepotManifest(
+            appDirPath: String,
+            depotId: Int,
+            manifestId: Long,
+        ): Boolean = File(File(appDirPath, ".DepotDownloader"), "${depotId}_${manifestId}.manifest").exists()
+
+        private fun cleanupCancelledUpdate(appDirPath: String) {
+            MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+            MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
+            clearPersistedProgressSnapshot(appDirPath)
+
+            val stagingDir = File(File(appDirPath, ".DepotDownloader"), "staging")
+            if (!stagingDir.exists()) return
+
+            stagingDir
+                .walkBottomUp()
+                .forEach { staged ->
+                    if (staged == stagingDir) return@forEach
+                    if (staged.isDirectory) {
+                        if (staged.list().isNullOrEmpty()) staged.delete()
+                        return@forEach
+                    }
+
+                    val relative = staged.relativeTo(stagingDir)
+                    val finalFile = File(appDirPath, relative.path)
+                    runCatching {
+                        finalFile.parentFile?.mkdirs()
+                        if (finalFile.exists()) {
+                            finalFile.delete()
+                        }
+                        if (!staged.renameTo(finalFile)) {
+                            staged.copyTo(finalFile, overwrite = true)
+                            staged.delete()
+                        }
+                    }.onFailure {
+                        Timber.w(it, "Failed to restore staged Steam update file ${staged.absolutePath}")
+                    }
+                }
+
+            if (stagingDir.exists() && stagingDir.list().isNullOrEmpty()) {
+                stagingDir.delete()
+            }
+        }
 
         suspend fun checkDlcOwnershipViaPICSBatch(dlcAppIds: Set<Int>): Set<Int> {
             if (dlcAppIds.isEmpty()) return emptySet()
@@ -5380,17 +6131,20 @@ class SteamService :
                 // checkQueue() and an extra notify event), and only then proceeds to build
                 // a fresh DownloadInfo. Removing here directly avoids that duplicate path.
                 downloadJobs.remove(appId)
-                // CRITICAL: pass record.selectedDlcs as the authoritative DLC list. The
-                // legacy no-arg downloadApp(appId) reconstructs DLCs from a fragile chain
-                // (DownloadingAppInfo -> snapshot inference -> installed). Snapshot inference
-                // only sees DLCs that already had bytes downloaded, so DLCs the user selected
-                // but never started would silently disappear and the game would be marked
-                // COMPLETE after only downloading a partial scope.
-                val dlcAppIdsHint =
+                // For normal installs, selectedDlcs carries the authoritative DLC app IDs.
+                // For update tasks, the same persisted field carries the changed depot IDs
+                // reported by checkForAppUpdate(), so queued updates keep the narrowed scope.
+                val persistedIds =
                     record.selectedDlcs
                         .split(',')
                         .mapNotNull { it.trim().toIntOrNull() }
-                downloadApp(appId, dlcAppIdsHint)
+                if (record.taskType == DownloadRecord.TASK_UPDATE) {
+                    downloadAppForUpdate(appId, persistedIds)
+                } else if (record.taskType == DownloadRecord.TASK_VERIFY) {
+                    downloadAppForVerify(appId)
+                } else {
+                    downloadApp(appId, persistedIds)
+                }
             }
 
             override fun pauseRunning(record: DownloadRecord) {
@@ -5412,13 +6166,38 @@ class SteamService :
             override fun cancelRunning(record: DownloadRecord) {
                 val appId = record.storeGameId.toIntOrNull() ?: return
                 val info = downloadJobs[appId]
+                val statusAtCancel = info?.getStatusFlow()?.value
                 if (info != null) {
                     info.isCancelling = true
                     info.cancel("Cancelled by user")
                 }
                 kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-                    info?.awaitCompletion(timeoutMs = 3000L)
+                    val isUpdateTask = record.taskType == DownloadRecord.TASK_UPDATE
+                    info?.awaitCompletion(timeoutMs = if (isUpdateTask) 10000L else 3000L)
                     val appDirPath = record.installPath.ifEmpty { getAppDirPath(appId) }
+                    if (isUpdateTask) {
+                        val updateNeverStarted =
+                            statusAtCancel == DownloadPhase.QUEUED ||
+                                (
+                                    statusAtCancel == DownloadPhase.PAUSED &&
+                                        MarkerUtils.hasMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER) &&
+                                        !MarkerUtils.hasMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                                )
+                        if (updateNeverStarted) {
+                            MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                            MarkerUtils.addMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
+                        } else {
+                            cleanupCancelledUpdate(appDirPath)
+                        }
+                        try {
+                            instance?.downloadingAppInfoDao?.deleteApp(appId)
+                        } catch (e: Exception) {
+                            Timber.w(e, "Failed to clear cancelled Steam update metadata for appId=$appId")
+                        }
+                        info?.updateStatus(DownloadPhase.CANCELLED)
+                        removeDownloadJob(appId, forceRemove = true)
+                        return@launch
+                    }
                     val dirFile = java.io.File(appDirPath)
                     if (dirFile.exists() && dirFile.isDirectory) {
                         val deleteCheck =

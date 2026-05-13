@@ -32,6 +32,9 @@ data class DownloadRecord(
     val selectedDlcs: String = "",
     @ColumnInfo("language")
     val language: String = "",
+    /** One of: INSTALL, UPDATE, VERIFY. */
+    @ColumnInfo("task_type")
+    val taskType: String = TASK_INSTALL,
     /** One of: QUEUED, DOWNLOADING, PAUSED, COMPLETE, CANCELLED, FAILED. */
     @ColumnInfo("status")
     val status: String = STATUS_QUEUED,
@@ -50,6 +53,10 @@ data class DownloadRecord(
         const val STORE_STEAM = "STEAM"
         const val STORE_EPIC = "EPIC"
         const val STORE_GOG = "GOG"
+
+        const val TASK_INSTALL = "INSTALL"
+        const val TASK_UPDATE = "UPDATE"
+        const val TASK_VERIFY = "VERIFY"
 
         const val STATUS_QUEUED = "QUEUED"
         const val STATUS_DOWNLOADING = "DOWNLOADING"
