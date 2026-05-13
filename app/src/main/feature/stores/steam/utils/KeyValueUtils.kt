@@ -165,8 +165,7 @@ fun KeyValue.generateSteamApp(): SteamApp =
         homepageUrl = this["extended"]["homepage"].value.orEmpty(),
         gameManualUrl = this["common"]["extended"]["gamemanualurl"].value.orEmpty(),
         loadAllBeforeLaunch = this["common"]["extended"]["loadallbeforelaunch"].asBoolean(),
-        // dlcAppIds = (this["common"]["extended"]["listofdlc"].value).Split(",").Select(uint.Parse).ToArray(),
-        dlcAppIds = emptyList(),
+        dlcAppIds = this["common"]["extended"]["listofdlc"].value.parseDlcAppIds(),
         isFreeApp = this["common"]["extended"]["isfreeapp"].asBoolean(),
         dlcForAppId = this["extended"]["dlcforappid"].asInteger(this["common"]["extended"]["dlcforappid"].asInteger()),
         mustOwnAppToPurchase = this["common"]["extended"]["mustownapptopurchase"].asInteger(),
@@ -278,6 +277,14 @@ fun List<KeyValue>.toLangImgMap(): Map<Language, String> =
             .takeIf { it != Language.unknown }
             ?.to(kv.value!!)
     }.toMap()
+
+private fun String?.parseDlcAppIds(): List<Int> =
+    this
+        .orEmpty()
+        .split(',', ';')
+        .mapNotNull { it.trim().toIntOrNull() }
+        .filter { it != INVALID_APP_ID }
+        .distinct()
 
 @Suppress("unused")
 fun KeyValue.printAllKeyValues(depth: Int = 0) {

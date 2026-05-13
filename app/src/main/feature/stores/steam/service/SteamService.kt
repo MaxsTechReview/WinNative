@@ -40,7 +40,6 @@ import com.winlator.cmod.feature.stores.steam.db.dao.EncryptedAppTicketDao
 import com.winlator.cmod.feature.stores.steam.db.dao.FileChangeListsDao
 import com.winlator.cmod.feature.stores.steam.db.dao.SteamAppDao
 import com.winlator.cmod.feature.stores.steam.db.dao.SteamLicenseDao
-import com.winlator.cmod.feature.stores.steam.enums.AppType
 import com.winlator.cmod.feature.stores.steam.enums.ControllerSupport
 import com.winlator.cmod.feature.stores.steam.enums.DownloadPhase
 import com.winlator.cmod.feature.stores.steam.enums.GameSource
@@ -990,6 +989,43 @@ class SteamService :
         fun getDownloadableDlcAppsOf(appId: Int): List<SteamApp>? =
             runBlocking(Dispatchers.IO) { instance?.appDao?.findDownloadableDLCApps(appId) }
 
+        fun getSelectableDlcAppsOf(appId: Int): List<SteamApp> =
+            runBlocking(Dispatchers.IO) {
+                val service = instance ?: return@runBlocking emptyList()
+                val appInfo = service.appDao.findApp(appId) ?: return@runBlocking emptyList()
+                val preferredLanguage = PrefManager.containerLanguage
+                val has64Bit =
+                    appInfo.depots.values.any {
+                        it.osArch == OSArch.Arch64 &&
+                            (it.osList.contains(OS.windows) || (it.osList.isEmpty() || it.osList.contains(OS.none)))
+                    }
+
+                val mainAppDlcIds =
+                    appInfo.depots.values
+                        .asSequence()
+                        .filter { depot ->
+                            depot.dlcAppId != INVALID_APP_ID &&
+                                filterForDownloadableDepots(depot, has64Bit, preferredLanguage, ownedDlc = null)
+                        }.map { it.dlcAppId }
+
+                val indirectDlcApps = service.appDao.findDownloadableDLCApps(appId).orEmpty()
+                val indirectDlcAppsById = indirectDlcApps.associateBy { it.id }
+                val indirectDlcIds = indirectDlcApps.map { it.id }.asSequence()
+
+                val declaredDlcIds = appInfo.dlcAppIds.asSequence()
+
+                val selectableDlcIds = (mainAppDlcIds + indirectDlcIds + declaredDlcIds).distinct().toList()
+
+                if (selectableDlcIds.isEmpty()) return@runBlocking emptyList()
+
+                selectableDlcIds
+                    .mapNotNull { dlcAppId ->
+                        val dlcApp = service.appDao.findApp(dlcAppId) ?: indirectDlcAppsById[dlcAppId]
+                        dlcApp?.takeIf { it.name.isNotBlank() }
+                    }
+                    .sortedBy { it.name.lowercase() }
+            }
+
         fun getHiddenDlcAppsOf(appId: Int): List<SteamApp>? = runBlocking(Dispatchers.IO) { instance?.appDao?.findHiddenDLCApps(appId) }
 
         fun getInstalledApp(appId: Int): AppInfo? = runBlocking(Dispatchers.IO) { instance?.appInfoDao?.getInstalledApp(appId) }
@@ -1179,9 +1215,11 @@ class SteamService :
                 }.orEmpty()
 
         suspend fun getOwnedAppDlc(appId: Int): Map<Int, DepotInfo> {
-            val client = instance?.steamClient ?: return emptyMap()
-            val accountId = client.steamID?.accountID?.toInt() ?: return emptyMap()
-            val ownedGameIds = getOwnedGames(userSteamId!!.convertToUInt64()).map { it.appId }.toHashSet()
+            val ownedGameIds =
+                runCatching {
+                    val steamId = userSteamId ?: return@runCatching emptySet<Int>()
+                    getOwnedGames(steamId.convertToUInt64()).map { it.appId }.toHashSet()
+                }.getOrDefault(emptySet())
 
             return getAppDlc(appId)
                 .filter { (_, depot) ->
@@ -1189,8 +1227,11 @@ class SteamService :
                         // Base-game depots always download
                         depot.dlcAppId == INVALID_APP_ID -> true
 
-                        // ① licence cache
-                        instance?.licenseDao?.findLicense(depot.dlcAppId) != null -> true
+                        // ① licence cache. DLC app IDs are stored inside package rows,
+                        // not as package IDs themselves.
+                        runBlocking(Dispatchers.IO) {
+                            instance?.licenseDao?.countLicensesForApp(depot.dlcAppId) ?: 0
+                        } > 0 -> true
 
                         // ② PICS row
                         instance?.appDao?.findApp(depot.dlcAppId) != null -> true
@@ -1482,6 +1523,36 @@ class SteamService :
             var totalDownloadSize = 0L
 
             selectedDepots.values.forEach { depot ->
+                val manifest = resolveDepotManifestInfo(depot, branch)
+                totalInstallSize += manifest?.size ?: 0L
+                totalDownloadSize += manifest?.download ?: 0L
+            }
+
+            return ManifestSizes(
+                installSize = totalInstallSize,
+                downloadSize = totalDownloadSize,
+            )
+        }
+
+        fun getDlcOnlyManifestSizes(
+            appId: Int,
+            dlcAppId: Int,
+            preferredLanguage: String = PrefManager.containerLanguage,
+            branch: String = "public",
+        ): ManifestSizes {
+            val dlcDepots =
+                getDownloadableDepots(appId, preferredLanguage)
+                    .values
+                    .filter { depot ->
+                        depot.dlcAppId == dlcAppId && depot.manifests.isNotEmpty()
+                    }
+
+            if (dlcDepots.isEmpty()) return ManifestSizes()
+
+            var totalInstallSize = 0L
+            var totalDownloadSize = 0L
+
+            dlcDepots.forEach { depot ->
                 val manifest = resolveDepotManifestInfo(depot, branch)
                 totalInstallSize += manifest?.size ?: 0L
                 totalDownloadSize += manifest?.download ?: 0L

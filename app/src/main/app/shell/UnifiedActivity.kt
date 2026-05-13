@@ -7962,6 +7962,7 @@ class UnifiedActivity :
         var isLoading by remember { mutableStateOf(true) }
         var manifestSizes by remember { mutableStateOf(SteamService.ManifestSizes()) }
         var dlcApps by remember { mutableStateOf<List<SteamApp>>(emptyList()) }
+        var dlcSizes by remember { mutableStateOf<Map<Int, SteamService.ManifestSizes>>(emptyMap()) }
         var installed by remember(app.id) { mutableStateOf<Boolean?>(null) }
         val selectedDlcIds = remember { mutableStateListOf<Int>() }
         var customPath by remember { mutableStateOf<String?>(null) }
@@ -8028,7 +8029,26 @@ class UnifiedActivity :
                                         checkmarkColor = Color.White,
                                     ),
                             )
-                            Text(dlc.name, color = TextPrimary, fontSize = 13.sp)
+                            Text(
+                                dlc.name,
+                                color = TextPrimary,
+                                fontSize = 13.sp,
+                                modifier = Modifier.weight(1f),
+                            )
+                            val dlcManifestSizes = dlcSizes[dlc.id]
+                            val dlcSize =
+                                dlcManifestSizes
+                                    ?.downloadSize
+                                    ?.takeIf { it > 0L }
+                                    ?: dlcManifestSizes?.installSize
+                                    ?: 0L
+                            if (dlcSize > 0L) {
+                                Text(
+                                    StorageUtils.formatBinarySize(dlcSize),
+                                    color = TextSecondary,
+                                    fontSize = 12.sp,
+                                )
+                            }
                         }
                     }
                 }
@@ -8037,18 +8057,32 @@ class UnifiedActivity :
 
         val selectedDlcIdsKey = selectedDlcIds.toList().sorted().joinToString(",")
 
+        data class SteamInstallLoadData(
+            val dlcApps: List<SteamApp>,
+            val dlcSizes: Map<Int, SteamService.ManifestSizes>,
+            val manifestSizes: SteamService.ManifestSizes,
+            val installed: Boolean,
+        )
+
         LaunchedEffect(app.id) {
-            val (downloadableDlcApps, sizes, isInstalled) =
+            val loadData =
                 withContext(Dispatchers.IO) {
-                    Triple(
-                        db.steamAppDao().findDownloadableDLCApps(app.id) ?: emptyList(),
-                        SteamService.getSelectedManifestSizes(app.id),
-                        SteamService.isAppInstalled(app.id),
+                    val selectableDlcApps = SteamService.getSelectableDlcAppsOf(app.id)
+                    val perDlcSizes =
+                        selectableDlcApps.associate { dlc ->
+                            dlc.id to SteamService.getDlcOnlyManifestSizes(app.id, dlc.id)
+                        }
+                    SteamInstallLoadData(
+                        dlcApps = selectableDlcApps,
+                        dlcSizes = perDlcSizes,
+                        manifestSizes = SteamService.getSelectedManifestSizes(app.id),
+                        installed = SteamService.isAppInstalled(app.id),
                     )
                 }
-            dlcApps = downloadableDlcApps
-            manifestSizes = sizes
-            installed = isInstalled
+            dlcApps = loadData.dlcApps
+            dlcSizes = loadData.dlcSizes
+            manifestSizes = loadData.manifestSizes
+            installed = loadData.installed
             isLoading = false
         }
 
