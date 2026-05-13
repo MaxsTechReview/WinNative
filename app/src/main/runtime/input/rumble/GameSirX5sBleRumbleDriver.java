@@ -23,6 +23,7 @@ import android.view.InputDevice;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
@@ -66,6 +67,7 @@ public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
   private ScanCallback scanCallback;
   private byte[] pendingCommand;
   private boolean connecting;
+  private boolean autoConnectPending;
   private boolean scanning;
   private boolean discoveringServices;
   private boolean notificationsEnabled;
@@ -216,7 +218,7 @@ public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
   }
 
   private void ensureConnected() {
-    if (connecting || scanning || discoveringServices || writeCharacteristic != null) {
+    if (connecting || discoveringServices || writeCharacteristic != null) {
       return;
     }
 
@@ -226,6 +228,45 @@ public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
       return;
     }
 
+    if (!autoConnectPending && gatt == null) {
+      tryRegisterAutoConnect(adapter);
+    }
+
+    if (!scanning) {
+      startScan(adapter);
+    }
+  }
+
+  private void tryRegisterAutoConnect(BluetoothAdapter adapter) {
+    Set<BluetoothDevice> bonded;
+    try {
+      bonded = adapter.getBondedDevices();
+    } catch (SecurityException e) {
+      Log.d(TAG, "GameSir X5s BLE bonded list security error: " + e.getMessage());
+      return;
+    }
+    if (bonded == null) {
+      return;
+    }
+    for (BluetoothDevice device : bonded) {
+      if (isCandidate(device)) {
+        Log.d(TAG, "GameSir X5s BLE auto-connecting bonded " + describeDevice(device));
+        try {
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            gatt = device.connectGatt(context, true, gattCallback, BluetoothDevice.TRANSPORT_LE);
+          } else {
+            gatt = device.connectGatt(context, true, gattCallback);
+          }
+          autoConnectPending = true;
+        } catch (SecurityException e) {
+          Log.d(TAG, "GameSir X5s BLE auto-connect security error: " + e.getMessage());
+        }
+        return;
+      }
+    }
+  }
+
+  private void startScan(BluetoothAdapter adapter) {
     scanner = adapter.getBluetoothLeScanner();
     if (scanner == null) {
       Log.d(TAG, "GameSir X5s BLE scanner unavailable");
@@ -275,6 +316,7 @@ public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
     if (device == null || connecting) {
       return;
     }
+    autoConnectPending = false;
     connecting = true;
     closeGatt();
     Log.d(TAG, "GameSir X5s BLE connecting to " + describeDevice(device));
@@ -301,6 +343,7 @@ public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
                   + " newState="
                   + newState);
           if (newState == BluetoothProfile.STATE_CONNECTED) {
+            autoConnectPending = false;
             connecting = false;
             discoveringServices = true;
             try {
@@ -310,6 +353,7 @@ public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
               Log.d(TAG, "GameSir X5s BLE discover security error: " + e.getMessage());
             }
           } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+            autoConnectPending = false;
             connecting = false;
             discoveringServices = false;
             stopHeartbeat();
