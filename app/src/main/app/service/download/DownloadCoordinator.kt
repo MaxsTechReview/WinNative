@@ -118,6 +118,7 @@ object DownloadCoordinator {
         installPath: String = "",
         selectedDlcs: String = "",
         language: String = "",
+        taskType: String = DownloadRecord.TASK_INSTALL,
         bytesTotal: Long = 0L,
     ): Decision {
         val daoRef = dao ?: throw IllegalStateException("DownloadCoordinator not initialised")
@@ -157,6 +158,7 @@ object DownloadCoordinator {
                             installPath = installPath,
                             selectedDlcs = selectedDlcs,
                             language = language,
+                            taskType = taskType,
                             bytesTotal = bytesTotal,
                             status = status,
                             createdAt = now,
@@ -180,6 +182,7 @@ object DownloadCoordinator {
                             installPath = installPath,
                             selectedDlcs = selectedDlcs,
                             language = language,
+                            taskType = taskType,
                             bytesTotal = if (bytesTotal > 0L) bytesTotal else existing.bytesTotal,
                             status = status,
                             errorMessage = null,

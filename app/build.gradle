@@ -224,8 +224,12 @@ dependencies {
     implementation libs.recyclerview
     implementation libs.coreKtx
 
-    implementation libs.javaSteam
-    implementation libs.javaSteamDepotDownloader
+    implementation(libs.javaSteam) {
+        exclude group: 'com.squareup.okhttp3', module: 'okhttp-jvm'
+    }
+    implementation(libs.javaSteamDepotDownloader) {
+        exclude group: 'com.squareup.okhttp3', module: 'okhttp-jvm'
+    }
 
     implementation libs.playServicesGamesV2
     implementation libs.playServicesAuth
