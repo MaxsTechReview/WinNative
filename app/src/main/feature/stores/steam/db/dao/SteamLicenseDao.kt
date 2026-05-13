@@ -36,6 +36,13 @@ interface SteamLicenseDao {
     @Query("SELECT * FROM steam_license WHERE packageId = :packageId")
     suspend fun findLicense(packageId: Int): SteamLicense?
 
+    @Query(
+        "SELECT COUNT(*) FROM steam_license AS license " +
+            "WHERE license.license_type <> 0 AND " +
+            "REPLACE(REPLACE(license.app_ids, '[', ','), ']', ',') LIKE ('%,' || :appId || ',%')",
+    )
+    suspend fun countLicensesForApp(appId: Int): Int
+
     /* ----------------------------------------------------------
        INTERNAL queries that Room generates.  Keep them abstract.
        ---------------------------------------------------------- */
