@@ -6011,10 +6011,6 @@ class UnifiedActivity :
                     dlcs = dlcItems,
                     selectedDlcIds = selectedDlcIds.toSet(),
                     onBack = onDismissRequest,
-                    onPlay = {
-                        launchEpicGame(context, ContainerManager(context), app)
-                        onDismissRequest()
-                    },
                     onInstall = {
                         val installPath =
                             if (customPath != null) {
@@ -6376,10 +6372,6 @@ class UnifiedActivity :
                     dlcs = emptyList(),
                     selectedDlcIds = emptySet(),
                     onBack = onDismissRequest,
-                    onPlay = {
-                        launchGogGame(context, ContainerManager(context), app)
-                        onDismissRequest()
-                    },
                     onInstall = {
                         GOGService.downloadGame(context, app.id, installPathDisplay, PrefManager.containerLanguage)
                         onDismissRequest()
@@ -7518,6 +7510,7 @@ class UnifiedActivity :
         var selectedManifestSizes by remember { mutableStateOf(SteamService.ManifestSizes()) }
         var dlcApps by remember { mutableStateOf<List<SteamApp>>(emptyList()) }
         var dlcSizes by remember { mutableStateOf<Map<Int, SteamService.ManifestSizes>>(emptyMap()) }
+        var installedDlcIds by remember(app.id) { mutableStateOf<Set<Int>>(emptySet()) }
         var installed by remember(app.id) { mutableStateOf<Boolean?>(null) }
         val selectedDlcIds = remember { mutableStateListOf<Int>() }
         var customPath by remember { mutableStateOf<String?>(null) }
@@ -7541,6 +7534,7 @@ class UnifiedActivity :
         data class SteamInstallLoadData(
             val dlcApps: List<SteamApp>,
             val dlcSizes: Map<Int, SteamService.ManifestSizes>,
+            val installedDlcIds: Set<Int>,
             val baseManifestSizes: SteamService.ManifestSizes,
             val installed: Boolean,
         )
@@ -7553,15 +7547,22 @@ class UnifiedActivity :
                         selectableDlcApps.associate { dlc ->
                             dlc.id to SteamService.getDlcOnlyManifestSizes(app.id, dlc.id)
                         }
+                    val installedDlcIds =
+                        SteamService.getInstalledDlcDepotsOf(app.id)
+                            .orEmpty()
+                            .toSet()
                     SteamInstallLoadData(
                         dlcApps = selectableDlcApps,
                         dlcSizes = perDlcSizes,
-                        baseManifestSizes = SteamService.getSelectedManifestSizes(app.id),
+                        installedDlcIds = installedDlcIds,
+                        baseManifestSizes = SteamService.getInstallableSelectedManifestSizes(app.id),
                         installed = SteamService.isAppInstalled(app.id),
                     )
                 }
             dlcApps = loadData.dlcApps
             dlcSizes = loadData.dlcSizes
+            installedDlcIds = loadData.installedDlcIds
+            selectedDlcIds.removeAll(loadData.installedDlcIds)
             selectedManifestSizes = loadData.baseManifestSizes
             installed = loadData.installed
             isLoading = false
@@ -7570,7 +7571,7 @@ class UnifiedActivity :
         LaunchedEffect(app.id, selectedDlcIds.toList()) {
             selectedManifestSizes =
                 withContext(Dispatchers.IO) {
-                    SteamService.getSelectedManifestSizes(app.id, selectedDlcIds.toList())
+                    SteamService.getInstallableSelectedManifestSizes(app.id, selectedDlcIds.toList())
                 }
         }
 
@@ -7594,7 +7595,7 @@ class UnifiedActivity :
         val installPathDisplay = customPath ?: SteamService.defaultAppInstallPath
 
         val dlcItems =
-            remember(dlcApps, dlcSizes) {
+            remember(dlcApps, dlcSizes, installedDlcIds) {
                 dlcApps.map { dlc ->
                     val sizes = dlcSizes[dlc.id]
                     val size =
@@ -7603,7 +7604,12 @@ class UnifiedActivity :
                             ?.takeIf { it > 0L }
                             ?: sizes?.installSize
                             ?: 0L
-                    StoreDlcItem(id = dlc.id, name = dlc.name, downloadSize = size)
+                    StoreDlcItem(
+                        id = dlc.id,
+                        name = dlc.name,
+                        downloadSize = size,
+                        isInstalled = dlc.id in installedDlcIds,
+                    )
                 }
             }
         val customPathLabel =
@@ -7650,13 +7656,12 @@ class UnifiedActivity :
                     dlcs = dlcItems,
                     selectedDlcIds = selectedDlcIds.toSet(),
                     onBack = onDismissRequest,
-                    onPlay = {
-                        launchSteamGame(context, ContainerManager(context), app)
-                        onDismissRequest()
-                    },
                     onInstall = {
                         scope.launch(Dispatchers.IO) {
-                            SteamService.downloadApp(app.id, selectedDlcIds.toList(), false, customPath)
+                            val installableDlcIds = dlcItems
+                                .filter { !it.isInstalled && it.id in selectedDlcIds }
+                                .map { it.id }
+                            SteamService.downloadApp(app.id, installableDlcIds, false, customPath)
                             withContext(Dispatchers.Main) { onDismissRequest() }
                         }
                     },
@@ -7672,6 +7677,9 @@ class UnifiedActivity :
                         }
                     },
                     onToggleDlc = { id ->
+                        if (dlcItems.any { it.id == id && it.isInstalled }) {
+                            return@StoreGameDetailScreen
+                        }
                         if (selectedDlcIds.contains(id)) {
                             selectedDlcIds.remove(id)
                         } else {
@@ -7679,11 +7687,12 @@ class UnifiedActivity :
                         }
                     },
                     onToggleSelectAllDlcs = {
-                        val all = dlcItems.isNotEmpty() && dlcItems.all { it.id in selectedDlcIds }
+                        val selectableDlcItems = dlcItems.filterNot { it.isInstalled }
+                        val all = selectableDlcItems.isNotEmpty() && selectableDlcItems.all { it.id in selectedDlcIds }
                         if (all) {
-                            selectedDlcIds.clear()
+                            selectedDlcIds.removeAll(selectableDlcItems.map { it.id }.toSet())
                         } else {
-                            dlcItems.forEach { if (it.id !in selectedDlcIds) selectedDlcIds.add(it.id) }
+                            selectableDlcItems.forEach { if (it.id !in selectedDlcIds) selectedDlcIds.add(it.id) }
                         }
                     },
                 )

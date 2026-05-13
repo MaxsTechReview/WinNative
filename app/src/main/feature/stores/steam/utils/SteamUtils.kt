@@ -750,6 +750,10 @@ object SteamUtils {
             commonDir.mkdirs()
 
             val gameDir = File(SteamService.getAppDirPath(steamAppId))
+            if (!gameDir.isDirectory || !SteamService.isAppInstalled(steamAppId)) {
+                Timber.w("Skipping ACF manifest for appId=$steamAppId because the install is not trusted on disk")
+                return
+            }
             val gameName = gameDir.name
             val sizeOnDisk = calculateDirectorySize(gameDir)
 
@@ -766,11 +770,21 @@ object SteamUtils {
 
             val buildId = appInfo.branches["public"]?.buildId ?: 0L
             val downloadableDepots = SteamService.getDownloadableDepots(steamAppId)
+            val installedDepotIds = SteamService.getInstalledDepotsOf(steamAppId).orEmpty().toSet()
+            val installedDlcAppIds = SteamService.getInstalledDlcDepotsOf(steamAppId).orEmpty().toSet()
 
             val regularDepots = mutableMapOf<Int, DepotInfo>()
             val sharedDepots = mutableMapOf<Int, DepotInfo>()
 
             downloadableDepots.forEach { (depotId, depotInfo) ->
+                val isInstalledDepot =
+                    depotId in installedDepotIds ||
+                        (
+                            depotInfo.dlcAppId != SteamService.INVALID_APP_ID &&
+                                depotInfo.dlcAppId in installedDlcAppIds
+                        )
+                if (!isInstalledDepot) return@forEach
+
                 val manifest = depotInfo.manifests["public"]
                 if (manifest != null && manifest.gid != 0L) {
                     regularDepots[depotId] = depotInfo

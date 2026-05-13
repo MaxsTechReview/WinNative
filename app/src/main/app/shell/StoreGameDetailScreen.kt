@@ -45,7 +45,6 @@ import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.Checkbox
@@ -91,6 +90,7 @@ internal data class StoreDlcItem(
     val id: Int,
     val name: String,
     val downloadSize: Long,
+    val isInstalled: Boolean = false,
 )
 
 private val StoreBlack = Color.Black
@@ -121,7 +121,6 @@ internal fun StoreGameDetailScreen(
     dlcs: List<StoreDlcItem> = emptyList(),
     selectedDlcIds: Set<Int> = emptySet(),
     onBack: () -> Unit,
-    onPlay: () -> Unit = {},
     onInstall: () -> Unit = {},
     onUninstall: () -> Unit = {},
     onCloudSync: () -> Unit = {},
@@ -143,6 +142,10 @@ internal fun StoreGameDetailScreen(
         val ctaHeight = 56.dp
         val contentGap = 18.dp
         val horizontalNavInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
+        val hasSelectedInstallableDlc = dlcs.any { !it.isInstalled && it.id in selectedDlcIds }
+        val showDownloadCta = !isInstalled || hasSelectedInstallableDlc
+        val showDlcCard = dlcs.isNotEmpty() && (!isInstalled || dlcs.any { !it.isInstalled })
+        val showActionColumn = showDownloadCta || (showCloudSync || showUninstall)
 
         if (heroImageUrl != null) {
             val heroRequest =
@@ -337,83 +340,76 @@ internal fun StoreGameDetailScreen(
                         }
                     }
 
-                    Column(
-                        modifier = Modifier.width(actionWidth),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        if (isInstalled) {
-                            StoreCtaButton(
-                                height = ctaHeight,
-                                icon = Icons.Outlined.PlayArrow,
-                                label = stringResource(R.string.library_games_play),
-                                enabled = true,
-                                loading = false,
-                                onClick = onPlay,
-                            )
-                        } else {
-                            StoreCtaButton(
-                                height = ctaHeight,
-                                icon = Icons.Outlined.Download,
-                                label = stringResource(R.string.common_ui_download),
-                                enabled = !isLoading && isInstallEnabled,
-                                loading = isLoading,
-                                onClick = onInstall,
-                            )
-                        }
-
-                        if (!isInstalled && !isLoading && !isInstallEnabled && installSize > 0L) {
-                            val deficit = (installSize - availableBytes).coerceAtLeast(0L)
-                            if (deficit > 0L) {
-                                Text(
-                                    stringResource(
-                                        R.string.library_games_not_enough_space,
-                                        StorageUtils.formatBinarySize(deficit),
-                                    ),
-                                    color = StoreDanger,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(actionIconSpacing),
-                            verticalAlignment = Alignment.Top,
+                    if (showActionColumn) {
+                        Column(
+                            modifier = Modifier.width(actionWidth),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            if (showCustomPath && !isInstalled) {
-                                StoreIconActionButton(
-                                    icon = Icons.Outlined.Folder,
-                                    contentDescription = customPathLabel,
-                                    size = actionIconSize,
-                                    onClick = onCustomPath,
+                            if (showDownloadCta) {
+                                StoreCtaButton(
+                                    height = ctaHeight,
+                                    icon = Icons.Outlined.Download,
+                                    label = stringResource(R.string.common_ui_download),
+                                    enabled = !isLoading && isInstallEnabled,
+                                    loading = isLoading,
+                                    onClick = onInstall,
                                 )
                             }
-                            if (showCloudSync && isInstalled) {
-                                StoreIconActionButton(
-                                    icon = Icons.Outlined.CloudSync,
-                                    contentDescription = stringResource(R.string.cloud_saves_title),
-                                    size = actionIconSize,
-                                    onClick = onCloudSync,
-                                )
+
+                            if (showDownloadCta && !isLoading && !isInstallEnabled && installSize > 0L) {
+                                val deficit = (installSize - availableBytes).coerceAtLeast(0L)
+                                if (deficit > 0L) {
+                                    Text(
+                                        stringResource(
+                                            R.string.library_games_not_enough_space,
+                                            StorageUtils.formatBinarySize(deficit),
+                                        ),
+                                        color = StoreDanger,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                             }
-                            if (showUninstall && isInstalled) {
-                                StoreIconActionButton(
-                                    icon = Icons.Outlined.Delete,
-                                    contentDescription = stringResource(R.string.common_ui_uninstall),
-                                    size = actionIconSize,
-                                    onClick = onUninstall,
-                                    tint = StoreDanger,
-                                )
+
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(actionIconSpacing),
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                if (showCustomPath && !isInstalled) {
+                                    StoreIconActionButton(
+                                        icon = Icons.Outlined.Folder,
+                                        contentDescription = customPathLabel,
+                                        size = actionIconSize,
+                                        onClick = onCustomPath,
+                                    )
+                                }
+                                if (showCloudSync && isInstalled) {
+                                    StoreIconActionButton(
+                                        icon = Icons.Outlined.CloudSync,
+                                        contentDescription = stringResource(R.string.cloud_saves_title),
+                                        size = actionIconSize,
+                                        onClick = onCloudSync,
+                                    )
+                                }
+                                if (showUninstall && isInstalled) {
+                                    StoreIconActionButton(
+                                        icon = Icons.Outlined.Delete,
+                                        contentDescription = stringResource(R.string.common_ui_uninstall),
+                                        size = actionIconSize,
+                                        onClick = onUninstall,
+                                        tint = StoreDanger,
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
 
-            if (!isInstalled && dlcs.isNotEmpty()) {
+            if (showDlcCard) {
                 Spacer(Modifier.height(12.dp))
                 StoreDlcCard(
                     dlcs = dlcs,
@@ -437,12 +433,14 @@ private fun StoreDlcCard(
     onToggleDlc: (Int) -> Unit,
     onToggleSelectAll: () -> Unit,
 ) {
-    val totalSize = remember(dlcs) { dlcs.sumOf { it.downloadSize.coerceAtLeast(0L) } }
-    val selectedCount = dlcs.count { it.id in selectedDlcIds }
+    val selectableDlcs = remember(dlcs) { dlcs.filterNot { it.isInstalled } }
+    val totalSize = remember(selectableDlcs) { selectableDlcs.sumOf { it.downloadSize.coerceAtLeast(0L) } }
+    val selectedCount = selectableDlcs.count { it.id in selectedDlcIds }
+    val installedCount = dlcs.count { it.isInstalled }
     val selectedSize = remember(dlcs, selectedDlcIds) {
-        dlcs.filter { it.id in selectedDlcIds }.sumOf { it.downloadSize.coerceAtLeast(0L) }
+        dlcs.filter { !it.isInstalled && it.id in selectedDlcIds }.sumOf { it.downloadSize.coerceAtLeast(0L) }
     }
-    val allSelected = dlcs.isNotEmpty() && selectedCount == dlcs.size
+    val allSelected = selectableDlcs.isNotEmpty() && selectedCount == selectableDlcs.size
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -480,7 +478,8 @@ private fun StoreDlcCard(
                     Text(
                         buildDlcSummary(
                             selectedCount = selectedCount,
-                            totalCount = dlcs.size,
+                            totalCount = selectableDlcs.size,
+                            installedCount = installedCount,
                             selectedSize = selectedSize,
                             totalSize = totalSize,
                         ),
@@ -506,35 +505,37 @@ private fun StoreDlcCard(
             ) {
                 Column {
                     HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.5.dp)
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable(onClick = onToggleSelectAll)
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Checkbox(
-                            checked = allSelected,
-                            onCheckedChange = { onToggleSelectAll() },
-                            colors =
-                                CheckboxDefaults.colors(
-                                    checkedColor = StoreAccent,
-                                    uncheckedColor = StoreTextSecondary,
-                                    checkmarkColor = Color.White,
+                    if (selectableDlcs.isNotEmpty()) {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable(onClick = onToggleSelectAll)
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(
+                                checked = allSelected,
+                                onCheckedChange = { onToggleSelectAll() },
+                                colors =
+                                    CheckboxDefaults.colors(
+                                        checkedColor = StoreAccent,
+                                        uncheckedColor = StoreTextSecondary,
+                                        checkmarkColor = Color.White,
+                                    ),
+                            )
+                            Text(
+                                stringResource(
+                                    if (allSelected) R.string.common_ui_deselect_all else R.string.common_ui_select_all,
                                 ),
-                        )
-                        Text(
-                            stringResource(
-                                if (allSelected) R.string.common_ui_deselect_all else R.string.common_ui_select_all,
-                            ),
-                            color = StoreTextPrimary,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.weight(1f),
-                        )
+                                color = StoreTextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.5.dp)
                     }
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.5.dp)
                     Column(
                         modifier =
                             Modifier
@@ -554,23 +555,44 @@ private fun StoreDlcCard(
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .clickable { onToggleDlc(dlc.id) }
+                                        .then(
+                                            if (dlc.isInstalled) {
+                                                Modifier
+                                            } else {
+                                                Modifier.clickable { onToggleDlc(dlc.id) }
+                                            },
+                                        )
                                         .padding(horizontal = 8.dp, vertical = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Checkbox(
-                                    checked = dlc.id in selectedDlcIds,
-                                    onCheckedChange = { onToggleDlc(dlc.id) },
-                                    colors =
-                                        CheckboxDefaults.colors(
-                                            checkedColor = StoreAccent,
-                                            uncheckedColor = StoreTextSecondary,
-                                            checkmarkColor = Color.White,
-                                        ),
-                                )
+                                if (dlc.isInstalled) {
+                                    Box(
+                                        modifier = Modifier.width(76.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Text(
+                                            stringResource(R.string.common_ui_installed),
+                                            color = Color(0xFF38D77A),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1,
+                                        )
+                                    }
+                                } else {
+                                    Checkbox(
+                                        checked = dlc.id in selectedDlcIds,
+                                        onCheckedChange = { onToggleDlc(dlc.id) },
+                                        colors =
+                                            CheckboxDefaults.colors(
+                                                checkedColor = StoreAccent,
+                                                uncheckedColor = StoreTextSecondary,
+                                                checkmarkColor = Color.White,
+                                            ),
+                                    )
+                                }
                                 Text(
                                     dlc.name,
-                                    color = StoreTextPrimary,
+                                    color = if (dlc.isInstalled) Color(0xFFB7F8CE) else StoreTextPrimary,
                                     fontSize = 13.sp,
                                     modifier = Modifier.weight(1f),
                                     maxLines = 2,
@@ -595,17 +617,27 @@ private fun StoreDlcCard(
 private fun buildDlcSummary(
     selectedCount: Int,
     totalCount: Int,
+    installedCount: Int,
     selectedSize: Long,
     totalSize: Long,
 ): String {
     val totalSizeStr = if (totalSize > 0L) StorageUtils.formatBinarySize(totalSize) else null
     val selectedSizeStr = if (selectedSize > 0L) StorageUtils.formatBinarySize(selectedSize) else null
+    val selectionText =
+        when {
+            totalCount == 0 -> null
+            selectedCount == 0 && totalSizeStr != null -> "$totalCount available · $totalSizeStr total"
+            selectedCount == 0 -> "$totalCount available"
+            selectedSizeStr != null && totalSizeStr != null ->
+                "$selectedCount of $totalCount · $selectedSizeStr / $totalSizeStr"
+            else -> "$selectedCount of $totalCount selected"
+        }
+    val installedText = if (installedCount > 0) "$installedCount installed" else null
     return when {
-        selectedCount == 0 && totalSizeStr != null -> "$totalCount available · $totalSizeStr total"
-        selectedCount == 0 -> "$totalCount available"
-        selectedSizeStr != null && totalSizeStr != null ->
-            "$selectedCount of $totalCount · $selectedSizeStr / $totalSizeStr"
-        else -> "$selectedCount of $totalCount selected"
+        selectionText != null && installedText != null -> "$selectionText · $installedText"
+        selectionText != null -> selectionText
+        installedText != null -> installedText
+        else -> ""
     }
 }
 
