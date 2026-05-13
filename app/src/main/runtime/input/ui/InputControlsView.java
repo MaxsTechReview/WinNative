@@ -27,6 +27,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import androidx.preference.PreferenceManager;
 import com.winlator.cmod.R;
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
@@ -79,6 +81,12 @@ public class InputControlsView extends View {
   private ControlElement stickElement;
 
   private boolean focusOnStick = false; // A flag to determine if we are focusing on the stick
+
+  private boolean batchingUpdates = false;
+
+  public boolean isBatchingUpdates() {
+    return batchingUpdates;
+  }
 
   public boolean isFocusedOnStick() {
     return focusOnStick;
@@ -643,7 +651,7 @@ public class InputControlsView extends View {
   @Override
   public boolean onTouchEvent(MotionEvent event) {
 
-    boolean hapticsEnabled = preferences.getBoolean("touchscreen_haptics_enabled", true);
+    boolean hapticsEnabled = preferences.getBoolean("touchscreen_haptics_enabled", false);
 
     if (editMode && readyToDraw) {
       switch (event.getAction()) {
@@ -694,7 +702,7 @@ public class InputControlsView extends View {
       int actionIndex = event.getActionIndex();
       int pointerId = event.getPointerId(actionIndex);
       int actionMasked = event.getActionMasked();
-      boolean handled = false;
+      boolean eventHandled = false;
 
       switch (actionMasked) {
         case MotionEvent.ACTION_DOWN:
@@ -703,54 +711,85 @@ public class InputControlsView extends View {
             float x = event.getX(actionIndex);
             float y = event.getY(actionIndex);
 
-            for (ControlElement element : profile.getElements()) {
-              if (element.handleTouchDown(pointerId, x, y)) {
-                handled = true;
-                activeTouchElements.put(pointerId, element);
+            if (stickElement != null && stickElement.handleTouchDown(pointerId, x, y)) {
+              eventHandled = true;
+              activeTouchElements.put(pointerId, stickElement);
+            }
 
-                // Trigger haptic feedback for input controls
-                if (hapticsEnabled) {
-                  Vibrator vibrator;
-                  if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                    VibratorManager vibratorManager =
-                        getContext().getSystemService(VibratorManager.class);
-                    vibrator =
-                        vibratorManager != null ? vibratorManager.getDefaultVibrator() : null;
-                  } else {
-                    vibrator = getContext().getSystemService(Vibrator.class);
+            if (!eventHandled) {
+              for (ControlElement element : profile.getElements()) {
+                if (element.handleTouchDown(pointerId, x, y)) {
+                  eventHandled = true;
+                  activeTouchElements.put(pointerId, element);
+
+                  // Trigger haptic feedback for input controls
+                  if (hapticsEnabled) {
+                    Vibrator vibrator;
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                      VibratorManager vibratorManager =
+                          getContext().getSystemService(VibratorManager.class);
+                      vibrator =
+                          vibratorManager != null ? vibratorManager.getDefaultVibrator() : null;
+                    } else {
+                      vibrator = getContext().getSystemService(Vibrator.class);
+                    }
+                    if (vibrator != null && vibrator.hasVibrator()) {
+                      vibrator.vibrate(
+                          VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE));
+                    }
                   }
-                  if (vibrator != null && vibrator.hasVibrator()) {
-                    vibrator.vibrate(
-                        VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE));
-                  }
+                  break;
                 }
-                break;
               }
             }
-            if (!handled) dispatchUnhandledTouch(event);
+            if (!eventHandled) dispatchUnhandledTouch(event);
+            syncCapturedPointers();
             break;
           }
         case MotionEvent.ACTION_MOVE:
           {
+            batchingUpdates = true;
+            boolean anyControlHandled = false;
+            boolean unhandledPointerExists = false;
+
             for (byte i = 0, count = (byte) event.getPointerCount(); i < count; i++) {
               int movePointerId = event.getPointerId(i);
               float x = event.getX(i);
               float y = event.getY(i);
 
               ControlElement activeElement = activeTouchElements.get(movePointerId);
-              handled = activeElement != null && activeElement.handleTouchMove(movePointerId, x, y);
+              boolean pointerHandled =
+                  activeElement != null && activeElement.handleTouchMove(movePointerId, x, y);
 
-              if (!handled && activeElement == null) {
-                for (ControlElement element : profile.getElements()) {
-                  if (element.handleTouchMove(movePointerId, x, y)) {
-                    activeTouchElements.put(movePointerId, element);
-                    handled = true;
-                    break;
+              if (!pointerHandled && activeElement == null) {
+                if (stickElement != null && stickElement.handleTouchMove(movePointerId, x, y)) {
+                  activeTouchElements.put(movePointerId, stickElement);
+                  pointerHandled = true;
+                }
+
+                if (!pointerHandled) {
+                  for (ControlElement element : profile.getElements()) {
+                    if (element.handleTouchMove(movePointerId, x, y)) {
+                      activeTouchElements.put(movePointerId, element);
+                      pointerHandled = true;
+                      break;
+                    }
                   }
                 }
               }
-              if (!handled) dispatchUnhandledTouch(event);
+
+              if (pointerHandled) anyControlHandled = true;
+              else unhandledPointerExists = true;
             }
+
+            batchingUpdates = false;
+            WinHandler winHandler = xServer != null ? xServer.getWinHandler() : null;
+            if (anyControlHandled && winHandler != null) {
+              winHandler.sendGamepadState();
+            }
+
+            if (unhandledPointerExists) dispatchUnhandledTouch(event);
+            syncCapturedPointers();
             break;
           }
         case MotionEvent.ACTION_UP:
@@ -760,28 +799,44 @@ public class InputControlsView extends View {
             float x = event.getX(actionIndex);
             float y = event.getY(actionIndex);
             if (activeElement != null) {
-              handled = activeElement.handleTouchUp(pointerId, x, y);
+              eventHandled = activeElement.handleTouchUp(pointerId, x, y);
               activeTouchElements.remove(pointerId);
             } else {
-              for (ControlElement element : profile.getElements()) {
-                if (element.handleTouchUp(pointerId, x, y)) {
-                  handled = true;
-                  break;
+              if (stickElement != null && stickElement.handleTouchUp(pointerId, x, y)) {
+                eventHandled = true;
+              }
+
+              if (!eventHandled) {
+                for (ControlElement element : profile.getElements()) {
+                  if (element.handleTouchUp(pointerId, x, y)) {
+                    eventHandled = true;
+                    break;
+                  }
                 }
               }
             }
-            if (!handled) dispatchUnhandledTouch(event);
+            if (!eventHandled) dispatchUnhandledTouch(event);
+            syncCapturedPointers();
             break;
           }
         case MotionEvent.ACTION_CANCEL:
           {
             releaseActiveTouchElements();
             dispatchUnhandledTouch(event);
+            syncCapturedPointers();
             break;
           }
       }
     }
     return true;
+  }
+
+  private void syncCapturedPointers() {
+    if (touchpadView != null) {
+      Set<Integer> pointerIds = new HashSet<>();
+      for (int i = 0; i < activeTouchElements.size(); i++) pointerIds.add(activeTouchElements.keyAt(i));
+      touchpadView.setPointerIdsToIgnore(pointerIds);
+    }
   }
 
   public void invalidateControlElement(ControlElement element) {
@@ -831,6 +886,11 @@ public class InputControlsView extends View {
    * instead of four competing per-direction writes.
    */
   public void handleStickInput(Binding firstBinding, float deltaX, float deltaY) {
+    handleStickInput(firstBinding, deltaX, deltaY, !batchingUpdates);
+  }
+
+  public void handleStickInput(
+      Binding firstBinding, float deltaX, float deltaY, boolean sendUpdate) {
     if (profile == null || !firstBinding.isGamepad()) return;
 
     GamepadState state = profile.getGamepadState();
@@ -850,7 +910,7 @@ public class InputControlsView extends View {
       state.thumbRY = deltaY;
     }
 
-    if (winHandler != null) {
+    if (winHandler != null && sendUpdate) {
       winHandler.sendGamepadState();
     }
   }
@@ -861,7 +921,7 @@ public class InputControlsView extends View {
 
   public void handleInputEvent(
       ExternalController controller, Binding binding, boolean isActionDown, float offset) {
-    handleInputEvent(controller, binding, isActionDown, offset, true);
+    handleInputEvent(controller, binding, isActionDown, offset, !batchingUpdates);
   }
 
   public void handleInputEvent(
