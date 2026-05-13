@@ -41,6 +41,10 @@ static int64_t now_ns(void) {
     return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
 }
 
+static const int64_t FPS_LIMIT_RESYNC_NS = 100000000LL;
+static const int64_t FPS_LIMIT_SLEEP_THRESHOLD_NS = 500000LL;
+static const int64_t FPS_LIMIT_SPIN_WINDOW_NS = 4000000LL;
+
 // ============================================================
 // Forward decls
 // ============================================================
@@ -1758,21 +1762,28 @@ static bool record_and_submit_frame(VkRenderer* r) {
     r->frame_index = (r->frame_index + 1) % VK_FRAMES_IN_FLIGHT;
     r->graveyard_index = (r->graveyard_index + 1) % (VK_FRAMES_IN_FLIGHT + 1);
 
-    // FPS limiter
+    // FPS limiter. Keep this cadence aligned with XClient.enforceAbsoluteFramerate().
     if (r->target_frame_time_ns > 0) {
         int64_t now = now_ns();
-        if (r->next_frame_time_ns == 0 || now > r->next_frame_time_ns + r->target_frame_time_ns) {
-            r->next_frame_time_ns = now;
+        if (r->next_frame_time_ns == 0 || now > r->next_frame_time_ns + FPS_LIMIT_RESYNC_NS) {
+            r->next_frame_time_ns = now + r->target_frame_time_ns;
         }
+
         int64_t sleep_ns = r->next_frame_time_ns - now;
-        while (sleep_ns > 0) {
-            struct timespec ts;
-            ts.tv_sec = sleep_ns / 1000000000LL;
-            ts.tv_nsec = sleep_ns % 1000000000LL;
-            nanosleep(&ts, NULL);
-            now = now_ns();
-            sleep_ns = r->next_frame_time_ns - now;
+        if (sleep_ns > FPS_LIMIT_SLEEP_THRESHOLD_NS) {
+            if (sleep_ns > FPS_LIMIT_SPIN_WINDOW_NS) {
+                int64_t coarse_sleep_ns = sleep_ns - FPS_LIMIT_SPIN_WINDOW_NS;
+                struct timespec ts;
+                ts.tv_sec = coarse_sleep_ns / 1000000000LL;
+                ts.tv_nsec = coarse_sleep_ns % 1000000000LL;
+                nanosleep(&ts, NULL);
+            }
+
+            while (now_ns() < r->next_frame_time_ns) {
+                // Spin for the final interval to match upstream's precise heartbeat.
+            }
         }
+
         r->next_frame_time_ns += r->target_frame_time_ns;
     } else {
         r->next_frame_time_ns = 0;
