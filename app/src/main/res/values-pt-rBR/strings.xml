@@ -104,6 +104,13 @@
     <string name="common_ui_install">Instalar</string>
     <string name="common_ui_application">Aplicativo</string>
     <string name="common_ui_check">Verificar</string>
+    <string name="store_game_check_for_update">Verificar atualização</string>
+    <string name="store_game_checking_for_update">Verificando...</string>
+    <string name="store_game_download_update">Baixar atualização</string>
+    <string name="store_game_no_update_available">Nenhuma atualização disponível</string>
+    <string name="store_game_update_available">Atualização disponível</string>
+    <string name="store_game_update_check_failed">Falha ao verificar atualização</string>
+    <string name="store_game_update">Atualizar</string>
     <string name="common_ui_select">Selecionar</string>
     <string name="common_ui_select_folder">Selecionar pasta</string>
     <string name="common_ui_current_folder">Pasta atual</string>
@@ -224,6 +231,8 @@
     <string name="downloads_queue_phase_cancelled">Cancelado</string>
     <string name="downloads_queue_phase_failed">Falhou: %1$s</string>
     <string name="downloads_queue_cancel_download">Cancelar Download</string>
+    <string name="downloads_queue_cancel_download_title">Cancelar download?</string>
+    <string name="downloads_queue_cancel_download_warning">Cancelar o download de um DLC, jogo ou atualização pode corromper a instalação do jogo.\n\nTem certeza de que deseja cancelar?</string>
     <string name="downloads_queue_empty">Nenhum download ativo.</string>
 
     <!-- Containers > List -->

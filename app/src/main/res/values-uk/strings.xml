@@ -104,6 +104,13 @@
     <string name="common_ui_install">Встановити</string>
     <string name="common_ui_application">Застосунок</string>
     <string name="common_ui_check">Перевірити</string>
+    <string name="store_game_check_for_update">Перевірити оновлення</string>
+    <string name="store_game_checking_for_update">Перевірка...</string>
+    <string name="store_game_download_update">Завантажити оновлення</string>
+    <string name="store_game_no_update_available">Немає доступних оновлень</string>
+    <string name="store_game_update_available">Доступне оновлення</string>
+    <string name="store_game_update_check_failed">Не вдалося перевірити оновлення</string>
+    <string name="store_game_update">Оновити</string>
     <string name="common_ui_select">Вибрати</string>
     <string name="common_ui_select_folder">Вибрати теку</string>
     <string name="common_ui_current_folder">Поточна тека</string>
@@ -228,6 +235,8 @@
     <string name="downloads_queue_phase_cancelled">Скасовано</string>
     <string name="downloads_queue_phase_failed">Помилка: %1$s</string>
     <string name="downloads_queue_cancel_download">Скасувати завантаження</string>
+    <string name="downloads_queue_cancel_download_title">Скасувати завантаження?</string>
+    <string name="downloads_queue_cancel_download_warning">Скасування завантаження DLC, гри або оновлення може пошкодити встановлену гру.\n\nВи впевнені, що хочете скасувати?</string>
     <string name="downloads_queue_empty">Немає активних завантажень.</string>
 
     <!-- Containers > List -->

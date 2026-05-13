@@ -45,8 +45,10 @@ import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -118,10 +120,19 @@ internal fun StoreGameDetailScreen(
     showCustomPath: Boolean = true,
     showCloudSync: Boolean = false,
     showUninstall: Boolean = true,
+    showUpdateCheck: Boolean = false,
+    isCheckingForUpdate: Boolean = false,
+    isUpdateAvailable: Boolean = false,
+    updateDownloadSize: Long = 0L,
+    updateStatusText: String? = null,
+    isUpdateActionEnabled: Boolean = true,
+    isUpdateCheckCoolingDown: Boolean = false,
     dlcs: List<StoreDlcItem> = emptyList(),
     selectedDlcIds: Set<Int> = emptySet(),
     onBack: () -> Unit,
     onInstall: () -> Unit = {},
+    onCheckForUpdate: () -> Unit = {},
+    onDownloadUpdate: () -> Unit = {},
     onUninstall: () -> Unit = {},
     onCloudSync: () -> Unit = {},
     onCustomPath: () -> Unit = {},
@@ -144,8 +155,10 @@ internal fun StoreGameDetailScreen(
         val horizontalNavInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
         val hasSelectedInstallableDlc = dlcs.any { !it.isInstalled && it.id in selectedDlcIds }
         val showDownloadCta = !isInstalled || hasSelectedInstallableDlc
+        val showUpdateCheckButton = showUpdateCheck && isInstalled
+        val showUpdateCta = showUpdateCheckButton && isUpdateAvailable
         val showDlcCard = dlcs.isNotEmpty() && (!isInstalled || dlcs.any { !it.isInstalled })
-        val showActionColumn = showDownloadCta || (showCloudSync || showUninstall)
+        val showActionColumn = showDownloadCta || showUpdateCheckButton || (showCloudSync || showUninstall)
 
         if (heroImageUrl != null) {
             val heroRequest =
@@ -313,6 +326,13 @@ internal fun StoreGameDetailScreen(
                                 label = stringResource(R.string.library_games_install_path),
                                 value = installPathDisplay,
                             )
+                            if (isUpdateAvailable && updateDownloadSize > 0L) {
+                                StoreStatChip(
+                                    icon = Icons.Outlined.SystemUpdate,
+                                    label = stringResource(R.string.store_game_update),
+                                    value = StorageUtils.formatBinarySize(updateDownloadSize),
+                                )
+                            }
                         } else {
                             if (downloadSize > 0L) {
                                 StoreStatChip(
@@ -357,6 +377,54 @@ internal fun StoreGameDetailScreen(
                                 )
                             }
 
+                            if (showUpdateCta) {
+                                StoreCtaButton(
+                                    height = ctaHeight,
+                                    icon = Icons.Outlined.SystemUpdate,
+                                    label = stringResource(R.string.store_game_download_update),
+                                    enabled =
+                                        !isLoading &&
+                                            isUpdateActionEnabled &&
+                                            !isCheckingForUpdate,
+                                    loading = false,
+                                    onClick = onDownloadUpdate,
+                                )
+                            }
+
+                            if (showUpdateCheckButton) {
+                                StoreSecondaryActionButton(
+                                    icon = Icons.Outlined.Refresh,
+                                    label =
+                                        if (isCheckingForUpdate) {
+                                            stringResource(R.string.store_game_checking_for_update)
+                                        } else {
+                                            stringResource(R.string.store_game_check_for_update)
+                                        },
+                                    enabled =
+                                        !isLoading &&
+                                            !isCheckingForUpdate &&
+                                            !isUpdateCheckCoolingDown &&
+                                            isUpdateActionEnabled,
+                                    loading = isCheckingForUpdate,
+                                    onClick = onCheckForUpdate,
+                                )
+                                if (!updateStatusText.isNullOrBlank()) {
+                                    Text(
+                                        updateStatusText,
+                                        color =
+                                            if (updateStatusText == stringResource(R.string.store_game_update_check_failed)) {
+                                                StoreDanger
+                                            } else {
+                                                StoreTextSecondary
+                                            },
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+
                             if (showDownloadCta && !isLoading && !isInstallEnabled && installSize > 0L) {
                                 val deficit = (installSize - availableBytes).coerceAtLeast(0L)
                                 if (deficit > 0L) {
@@ -378,7 +446,7 @@ internal fun StoreGameDetailScreen(
                                 horizontalArrangement = Arrangement.spacedBy(actionIconSpacing),
                                 verticalAlignment = Alignment.Top,
                             ) {
-                                if (showCustomPath && !isInstalled) {
+                                if (showCustomPath && !isInstalled && !isLoading) {
                                     StoreIconActionButton(
                                         icon = Icons.Outlined.Folder,
                                         contentDescription = customPathLabel,
@@ -778,6 +846,74 @@ private fun StoreCtaButton(
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StoreSecondaryActionButton(
+    icon: ImageVector,
+    label: String,
+    enabled: Boolean,
+    loading: Boolean,
+    onClick: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed && enabled) 0.97f else 1f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 620f),
+        label = "storeSecondaryActionScale",
+    )
+    val shape = remember { RoundedCornerShape(8.dp) }
+    val contentColor = if (enabled) StoreTextPrimary else StoreTextSecondary.copy(alpha = 0.58f)
+    Surface(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(40.dp)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }.clip(shape)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = { if (enabled && !loading) onClick() },
+                ),
+        color = StoreBlack.copy(alpha = if (enabled) 0.52f else 0.34f),
+        shape = shape,
+        border = BorderStroke(1.dp, StoreAccentGlow.copy(alpha = if (enabled) 0.36f else 0.14f)),
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    color = StoreAccentGlow,
+                    strokeWidth = 2.dp,
+                )
+            } else {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = contentColor,
+                    )
+                    Spacer(Modifier.width(7.dp))
+                    Text(
+                        label,
+                        color = contentColor,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }

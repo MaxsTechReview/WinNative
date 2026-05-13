@@ -104,6 +104,13 @@
     <string name="common_ui_install">Installieren</string>
     <string name="common_ui_application">Anwendung</string>
     <string name="common_ui_check">Prüfen</string>
+    <string name="store_game_check_for_update">Nach Update suchen</string>
+    <string name="store_game_checking_for_update">Suche...</string>
+    <string name="store_game_download_update">Update herunterladen</string>
+    <string name="store_game_no_update_available">Kein Update verfügbar</string>
+    <string name="store_game_update_available">Update verfügbar</string>
+    <string name="store_game_update_check_failed">Update-Prüfung fehlgeschlagen</string>
+    <string name="store_game_update">Aktualisieren</string>
     <string name="common_ui_select">Auswählen</string>
     <string name="common_ui_select_folder">Ordner auswählen</string>
     <string name="common_ui_current_folder">Aktueller Ordner</string>
@@ -224,6 +231,8 @@
     <string name="downloads_queue_phase_cancelled">Abgebrochen</string>
     <string name="downloads_queue_phase_failed">Fehlgeschlagen: %1$s</string>
     <string name="downloads_queue_cancel_download">Download abbrechen</string>
+    <string name="downloads_queue_cancel_download_title">Download abbrechen?</string>
+    <string name="downloads_queue_cancel_download_warning">Das Abbrechen eines DLC-, Spiel- oder Update-Downloads kann deine Spielinstallation möglicherweise beschädigen.\n\nMöchtest du wirklich abbrechen?</string>
     <string name="downloads_queue_empty">Keine aktiven Downloads.</string>
 
     <!-- Containers > List -->

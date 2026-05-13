@@ -104,6 +104,13 @@
     <string name="common_ui_install">安装</string>
     <string name="common_ui_application">应用程序</string>
     <string name="common_ui_check">检查</string>
+    <string name="store_game_check_for_update">检查更新</string>
+    <string name="store_game_checking_for_update">正在检查...</string>
+    <string name="store_game_download_update">下载更新</string>
+    <string name="store_game_no_update_available">没有可用更新</string>
+    <string name="store_game_update_available">有可用更新</string>
+    <string name="store_game_update_check_failed">更新检查失败</string>
+    <string name="store_game_update">更新</string>
     <string name="common_ui_select">选择</string>
     <string name="common_ui_select_folder">选择文件夹</string>
     <string name="common_ui_current_folder">当前文件夹</string>
@@ -224,6 +231,8 @@
     <string name="downloads_queue_phase_cancelled">已取消</string>
     <string name="downloads_queue_phase_failed">失败：%1$s</string>
     <string name="downloads_queue_cancel_download">取消下载</string>
+    <string name="downloads_queue_cancel_download_title">取消下载？</string>
+    <string name="downloads_queue_cancel_download_warning">取消 DLC、游戏或更新下载可能会损坏游戏安装。\n\n确定要取消吗？</string>
     <string name="downloads_queue_empty">没有活动下载。</string>
 
     <!-- Containers > List -->

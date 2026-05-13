@@ -104,6 +104,13 @@
     <string name="common_ui_install">Installer</string>
     <string name="common_ui_application">Application</string>
     <string name="common_ui_check">Vérifier</string>
+    <string name="store_game_check_for_update">Rechercher une mise à jour</string>
+    <string name="store_game_checking_for_update">Vérification...</string>
+    <string name="store_game_download_update">Télécharger la mise à jour</string>
+    <string name="store_game_no_update_available">Aucune mise à jour disponible</string>
+    <string name="store_game_update_available">Mise à jour disponible</string>
+    <string name="store_game_update_check_failed">Échec de la vérification des mises à jour</string>
+    <string name="store_game_update">Mettre à jour</string>
     <string name="common_ui_select">Sélectionner</string>
     <string name="common_ui_select_folder">Sélectionner un dossier</string>
     <string name="common_ui_current_folder">Dossier actuel</string>
@@ -224,6 +231,8 @@
     <string name="downloads_queue_phase_cancelled">Annulé</string>
     <string name="downloads_queue_phase_failed">Échec : %1$s</string>
     <string name="downloads_queue_cancel_download">Annuler le téléchargement</string>
+    <string name="downloads_queue_cancel_download_title">Annuler le téléchargement ?</string>
+    <string name="downloads_queue_cancel_download_warning">Annuler le téléchargement d\'un DLC, d\'un jeu ou d\'une mise à jour peut potentiellement corrompre l\'installation du jeu.\n\nVoulez-vous vraiment annuler ?</string>
     <string name="downloads_queue_empty">Aucun téléchargement actif.</string>
 
     <!-- Containers > List -->

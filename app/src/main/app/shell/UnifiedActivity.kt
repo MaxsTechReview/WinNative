@@ -145,6 +145,7 @@ import com.winlator.cmod.R
 import com.winlator.cmod.app.PluviaApp
 import com.winlator.cmod.app.db.PluviaDatabase
 import com.winlator.cmod.app.service.DownloadService
+import com.winlator.cmod.app.service.download.DownloadCoordinator
 import com.winlator.cmod.app.update.UpdateChecker
 import com.winlator.cmod.feature.settings.InputControlsFragment
 import com.winlator.cmod.feature.settings.SettingsHost
@@ -5722,6 +5723,32 @@ class UnifiedActivity :
     }
 
     @Composable
+    private fun StoreInstalledBadge(
+        modifier: Modifier = Modifier,
+        compact: Boolean = false,
+    ) {
+        val shape = RoundedCornerShape(4.dp)
+        Box(
+            modifier =
+                modifier
+                    .background(StatusOnline.copy(alpha = 0.94f), shape)
+                    .border(1.dp, Color.White.copy(alpha = 0.28f), shape)
+                    .padding(
+                        horizontal = if (compact) 5.dp else 7.dp,
+                        vertical = if (compact) 2.dp else 3.dp,
+                    ),
+        ) {
+            Text(
+                stringResource(R.string.library_games_installed_badge),
+                color = Color(0xFF07120A),
+                fontSize = if (compact) 8.sp else 10.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+            )
+        }
+    }
+
+    @Composable
     fun EpicStoreCapsule(
         app: com.winlator.cmod.feature.stores.epic.data.EpicGame,
         isInstalled: Boolean,
@@ -5787,21 +5814,10 @@ class UnifiedActivity :
                         contentScale = ContentScale.Crop,
                     )
                     if (isInstalled) {
-                        Box(
-                            Modifier
-                                .align(
-                                    Alignment.BottomEnd,
-                                ).padding(4.dp)
-                                .background(SurfaceDark.copy(alpha = 0.7f), RoundedCornerShape(6.dp))
-                                .padding(3.dp),
-                        ) {
-                            Text(
-                                stringResource(R.string.library_games_installed_badge),
-                                color = StatusOnline,
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
+                        StoreInstalledBadge(
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp),
+                            compact = true,
+                        )
                     }
                 }
                 Spacer(Modifier.width(14.dp))
@@ -5859,21 +5875,9 @@ class UnifiedActivity :
                     )
 
                     if (isInstalled) {
-                        Box(
-                            Modifier
-                                .align(
-                                    Alignment.BottomEnd,
-                                ).padding(8.dp)
-                                .background(SurfaceDark.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
-                                .padding(4.dp),
-                        ) {
-                            Text(
-                                stringResource(R.string.library_games_installed_badge),
-                                color = StatusOnline,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
+                        StoreInstalledBadge(
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
+                        )
                     }
                 }
 
@@ -6172,11 +6176,9 @@ class UnifiedActivity :
                             contentScale = ContentScale.Crop,
                         )
                         if (isInstalled) {
-                            Icon(
-                                Icons.Outlined.CheckCircle,
-                                contentDescription = "Installed",
-                                tint = StatusOnline,
-                                modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp).size(18.dp),
+                            StoreInstalledBadge(
+                                modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp),
+                                compact = true,
                             )
                         }
                     }
@@ -6250,11 +6252,8 @@ class UnifiedActivity :
                             contentScale = ContentScale.Crop,
                         )
                         if (isInstalled) {
-                            Icon(
-                                Icons.Outlined.CheckCircle,
-                                contentDescription = "Installed",
-                                tint = StatusOnline,
-                                modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp).size(24.dp),
+                            StoreInstalledBadge(
+                                modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
                             )
                         }
                     }
@@ -6643,11 +6642,9 @@ class UnifiedActivity :
                             contentScale = ContentScale.Crop,
                         )
                         if (isInstalled) {
-                            Icon(
-                                Icons.Outlined.CheckCircle,
-                                contentDescription = "Installed",
-                                tint = StatusOnline,
-                                modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp).size(18.dp),
+                            StoreInstalledBadge(
+                                modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp),
+                                compact = true,
                             )
                         }
                     }
@@ -6709,11 +6706,8 @@ class UnifiedActivity :
                     )
 
                     if (isInstalled) {
-                        Icon(
-                            Icons.Outlined.CheckCircle,
-                            contentDescription = "Installed",
-                            tint = StatusOnline,
-                            modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp).size(24.dp),
+                        StoreInstalledBadge(
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
                         )
                     }
                 }
@@ -6735,6 +6729,11 @@ class UnifiedActivity :
         }
     }
 
+    private data class DownloadCancelRequest(
+        val ids: List<String>,
+        val isCancelAll: Boolean,
+    )
+
     // Downloads Tab
     @Composable
     fun DownloadsTab(
@@ -6745,6 +6744,7 @@ class UnifiedActivity :
         val downloads = remember { mutableStateListOf<Pair<String, DownloadInfo>>() }
         var tick by remember { mutableIntStateOf(0) }
         val scope = rememberCoroutineScope()
+        var cancelWarningRequest by remember { mutableStateOf<DownloadCancelRequest?>(null) }
 
         val syncDownloads =
             remember(selectedId, onSelectDownload) {
@@ -6784,7 +6784,7 @@ class UnifiedActivity :
         // is what makes PAUSED records (loaded from DB after app restart) appear in the tab,
         // and what removes COMPLETE/CANCELLED/FAILED rows after Clear.
         LaunchedEffect(syncDownloads) {
-            com.winlator.cmod.app.service.download.DownloadCoordinator.changes.collect {
+            DownloadCoordinator.changes.collect {
                 latestSyncDownloads()
             }
         }
@@ -6884,20 +6884,46 @@ class UnifiedActivity :
                     enabled = pauseResumeEnabled,
                 )
 
-                DownloadsQueueButton(
-                    label = cancelLabel,
-                    accentColor = DangerRed,
-                    onClick = {
-                        if (selectedId == null) {
-                            DownloadService.cancelAll()
-                            onSelectDownload(null)
-                        } else {
-                            DownloadService.cancelDownload(selectedId)
-                            onSelectDownload(null)
-                        }
-                    },
-                    enabled = cancelEnabled,
-                )
+                Box {
+                    DownloadsQueueButton(
+                        label = cancelLabel,
+                        accentColor = DangerRed,
+                        onClick = {
+                            if (selectedId == null) {
+                                cancelWarningRequest =
+                                    DownloadCancelRequest(
+                                        ids = pausableDownloads.map { it.first },
+                                        isCancelAll = true,
+                                    )
+                            } else {
+                                cancelWarningRequest =
+                                    DownloadCancelRequest(
+                                        ids = listOf(selectedId),
+                                        isCancelAll = false,
+                                    )
+                            }
+                        },
+                        enabled = cancelEnabled,
+                    )
+
+                    cancelWarningRequest?.let { request ->
+                        DownloadCancelWarningMenu(
+                            expanded = true,
+                            onDismissRequest = { cancelWarningRequest = null },
+                            onConfirm = {
+                                val activeRequest = cancelWarningRequest
+                                cancelWarningRequest = null
+                                val ids = activeRequest?.ids.orEmpty()
+                                if (activeRequest?.isCancelAll == true) {
+                                    DownloadService.cancelAll()
+                                } else {
+                                    ids.forEach(DownloadService::cancelDownload)
+                                }
+                                onSelectDownload(null)
+                            },
+                        )
+                    }
+                }
 
                 // Clear button - clears completed, cancelled, and failed downloads
                 val hasCompletedOrCancelled =
@@ -7131,6 +7157,25 @@ class UnifiedActivity :
                 }
             }
         }
+    }
+
+    @Composable
+    private fun DownloadCancelWarningMenu(
+        expanded: Boolean,
+        onDismissRequest: () -> Unit,
+        onConfirm: () -> Unit,
+    ) {
+        LaunchDangerConfirmDialog(
+            visible = expanded,
+            title = stringResource(R.string.downloads_queue_cancel_download_title),
+            message = stringResource(R.string.downloads_queue_cancel_download_warning),
+            confirmLabel = stringResource(R.string.downloads_queue_cancel_download),
+            onDismissRequest = onDismissRequest,
+            onConfirm = onConfirm,
+            icon = Icons.Outlined.Warning,
+            titleTextAlign = TextAlign.Center,
+            messageTextAlign = TextAlign.Center,
+        )
     }
 
     @Composable
@@ -7428,74 +7473,40 @@ class UnifiedActivity :
                     }
                 }
 
-                IconButton(
-                    onClick = { showDeleteDialog = true },
-                    enabled = status != DownloadPhase.COMPLETE && status != DownloadPhase.CANCELLED,
-                ) {
-                    Icon(
-                        Icons.Outlined.Close,
-                        contentDescription = stringResource(R.string.downloads_queue_cancel_download),
-                        tint =
-                            if (status != DownloadPhase.COMPLETE &&
-                                status != DownloadPhase.CANCELLED
-                            ) {
-                                Color(0xFFFF6B6B)
-                            } else {
-                                TextSecondary
+                Box(contentAlignment = Alignment.Center) {
+                    IconButton(
+                        onClick = { showDeleteDialog = true },
+                        enabled = status != DownloadPhase.COMPLETE && status != DownloadPhase.CANCELLED,
+                    ) {
+                        Icon(
+                            Icons.Outlined.Close,
+                            contentDescription = stringResource(R.string.downloads_queue_cancel_download),
+                            tint =
+                                if (status != DownloadPhase.COMPLETE &&
+                                    status != DownloadPhase.CANCELLED
+                                ) {
+                                    Color(0xFFFF6B6B)
+                                } else {
+                                    TextSecondary
+                                },
+                        )
+                    }
+                    if (showDeleteDialog) {
+                        DownloadCancelWarningMenu(
+                            expanded = true,
+                            onDismissRequest = { showDeleteDialog = false },
+                            onConfirm = {
+                                showDeleteDialog = false
+                                DownloadService.cancelDownload(id)
                             },
-                    )
+                        )
+                    }
                 }
                 if (ControllerHelper.isControllerConnected()) {
                     Spacer(Modifier.width(8.dp))
                     ControllerBadge(if (ControllerHelper.isPlayStationController()) "\u2715" else "A")
                 }
             }
-        }
-
-        if (showDeleteDialog) {
-            val gameName =
-                if (id.startsWith("STEAM_")) {
-                    steamApp?.name
-                } else if (id.startsWith("EPIC_")) {
-                    epicGame?.title
-                } else if (id.startsWith("GOG_")) {
-                    gogGame?.title
-                } else {
-                    null
-                }
-            AlertDialog(
-                onDismissRequest = { showDeleteDialog = false },
-                containerColor = SurfaceDark,
-                title = { Text(stringResource(R.string.downloads_queue_cancel_download), color = TextPrimary) },
-                text = {
-                    Text(
-                        stringResource(
-                            R.string.downloads_queue_cancel_download_confirm,
-                            gameName ?: stringResource(R.string.downloads_queue_this_game),
-                        ),
-                        color = TextSecondary,
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            showDeleteDialog = false
-                            DownloadService.cancelDownload(id)
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF6B6B)),
-                    ) {
-                        Text(stringResource(R.string.downloads_queue_cancel_download), color = Color.White)
-                    }
-                },
-                dismissButton = {
-                    Button(
-                        onClick = { showDeleteDialog = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = CardDark),
-                    ) {
-                        Text(stringResource(R.string.common_ui_cancel), color = TextPrimary)
-                    }
-                },
-            )
         }
     }
 
@@ -7515,6 +7526,13 @@ class UnifiedActivity :
         val selectedDlcIds = remember { mutableStateListOf<Int>() }
         var customPath by remember { mutableStateOf<String?>(null) }
         var showCustomPathWarning by remember { mutableStateOf(false) }
+        var isCheckingForUpdate by remember(app.id) { mutableStateOf(false) }
+        var isUpdateCheckCoolingDown by remember(app.id) { mutableStateOf(false) }
+        var updateInfo by remember(app.id) { mutableStateOf<SteamService.SteamUpdateInfo?>(null) }
+        var updateStatusText by remember(app.id) { mutableStateOf<String?>(null) }
+        val downloadRecords by com.winlator.cmod.app.service.download.DownloadCoordinator.records.collectAsState(
+            initial = com.winlator.cmod.app.service.download.DownloadCoordinator.snapshotRecords(),
+        )
         val scope = rememberCoroutineScope()
 
         if (showCustomPathWarning) {
@@ -7539,7 +7557,7 @@ class UnifiedActivity :
             val installed: Boolean,
         )
 
-        LaunchedEffect(app.id) {
+        LaunchedEffect(app.id, downloadRecords) {
             val loadData =
                 withContext(Dispatchers.IO) {
                     val selectableDlcApps = SteamService.getSelectableDlcAppsOf(app.id)
@@ -7619,6 +7637,20 @@ class UnifiedActivity :
                 else -> stringResource(R.string.common_ui_custom)
             }
         val isReallyInstalled = installed == true
+        val steamDownloadRecord =
+            downloadRecords.firstOrNull {
+                it.store == com.winlator.cmod.app.db.download.DownloadRecord.STORE_STEAM &&
+                    it.storeGameId == app.id.toString() &&
+                    it.status in setOf(
+                        com.winlator.cmod.app.db.download.DownloadRecord.STATUS_QUEUED,
+                        com.winlator.cmod.app.db.download.DownloadRecord.STATUS_DOWNLOADING,
+                        com.winlator.cmod.app.db.download.DownloadRecord.STATUS_PAUSED,
+                    )
+        }
+        val updateActionEnabled = steamDownloadRecord == null
+        val noUpdateAvailableText = stringResource(R.string.store_game_no_update_available)
+        val updateAvailableText = stringResource(R.string.store_game_update_available)
+        val updateFailedText = stringResource(R.string.store_game_update_check_failed)
 
         Dialog(
             onDismissRequest = onDismissRequest,
@@ -7653,6 +7685,13 @@ class UnifiedActivity :
                     showCustomPath = true,
                     showCloudSync = false,
                     showUninstall = false,
+                    showUpdateCheck = true,
+                    isCheckingForUpdate = isCheckingForUpdate,
+                    isUpdateAvailable = updateInfo?.hasUpdate == true,
+                    updateDownloadSize = updateInfo?.downloadSize ?: 0L,
+                    updateStatusText = updateStatusText,
+                    isUpdateActionEnabled = updateActionEnabled,
+                    isUpdateCheckCoolingDown = isUpdateCheckCoolingDown,
                     dlcs = dlcItems,
                     selectedDlcIds = selectedDlcIds.toSet(),
                     onBack = onDismissRequest,
@@ -7663,6 +7702,77 @@ class UnifiedActivity :
                                 .map { it.id }
                             SteamService.downloadApp(app.id, installableDlcIds, false, customPath)
                             withContext(Dispatchers.Main) { onDismissRequest() }
+                        }
+                    },
+                    onCheckForUpdate = {
+                        if (isCheckingForUpdate || isUpdateCheckCoolingDown) return@StoreGameDetailScreen
+                        scope.launch {
+                            try {
+                                isCheckingForUpdate = true
+                                updateStatusText = null
+                                val result =
+                                    withContext(Dispatchers.IO) {
+                                        SteamService.checkForAppUpdate(app.id)
+                                    }
+                                updateInfo = result
+                                updateStatusText =
+                                    when {
+                                        result.hasUpdate -> updateAvailableText
+                                        result.message != null -> updateFailedText
+                                        else -> null
+                                    }
+                                if (!result.hasUpdate && result.message == null) {
+                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                        context,
+                                        noUpdateAvailableText,
+                                        android.widget.Toast.LENGTH_SHORT,
+                                    )
+                                }
+                                isUpdateCheckCoolingDown = true
+                                kotlinx.coroutines.delay(5_000L)
+                            } catch (e: Exception) {
+                                Log.w("UnifiedActivity", "Steam update check failed for appId=${app.id}", e)
+                                updateInfo = null
+                                updateStatusText = updateFailedText
+                            } finally {
+                                isCheckingForUpdate = false
+                                isUpdateCheckCoolingDown = false
+                            }
+                        }
+                    },
+                    onDownloadUpdate = {
+                        if (!updateActionEnabled || updateInfo?.hasUpdate != true) return@StoreGameDetailScreen
+                        scope.launch(Dispatchers.IO) {
+                            try {
+                                val latest = SteamService.checkForAppUpdate(app.id)
+                                withContext(Dispatchers.Main) {
+                                    updateInfo = latest
+                                    updateStatusText =
+                                        when {
+                                            latest.hasUpdate -> updateAvailableText
+                                            latest.message != null -> updateFailedText
+                                            else -> null
+                                        }
+                                }
+                                if (!latest.hasUpdate) {
+                                    withContext(Dispatchers.Main) {
+                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                            context,
+                                            noUpdateAvailableText,
+                                            android.widget.Toast.LENGTH_SHORT,
+                                        )
+                                    }
+                                    return@launch
+                                }
+
+                                SteamService.downloadAppForUpdate(app.id, latest.depotIds)
+                                withContext(Dispatchers.Main) { onDismissRequest() }
+                            } catch (e: Exception) {
+                                Log.w("UnifiedActivity", "Steam update download failed to start for appId=${app.id}", e)
+                                withContext(Dispatchers.Main) {
+                                    updateStatusText = updateFailedText
+                                }
+                            }
                         }
                     },
                     onCustomPath = {
