@@ -66,6 +66,8 @@
     <string name="common_ui_settings">Setari</string>
     <string name="common_ui_enable_all">Activeaza tot</string>
     <string name="common_ui_disable_all">Dezactiveaza tot</string>
+    <string name="common_ui_select_all">Selecteaza tot</string>
+    <string name="common_ui_deselect_all">Deselecteaza tot</string>
     <string name="common_ui_on">Pornit</string>
     <string name="common_ui_off">Oprit</string>
     <string name="common_ui_already_set">Deja setat</string>
@@ -137,6 +139,7 @@
     <string name="library_games_shortcut_created">Comanda rapida creata</string>
     <string name="library_games_failed_to_create_shortcut">Nu s-a putut crea comanda rapida: %s</string>
     <string name="library_games_install_path">Cale de instalare</string>
+    <string name="library_games_not_enough_space">Mai este nevoie de %1$s spatiu</string>
     <string name="library_games_download_slash_install">Descarca / Instaleaza</string>
     <string name="library_games_save_management">GESTIONARE SALVARI</string>
     <string name="library_games_download_install_available">%1$s / %2$s • Disponibil: %3$s</string>

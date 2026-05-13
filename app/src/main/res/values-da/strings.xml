@@ -66,6 +66,8 @@
     <string name="common_ui_settings">Indstillinger</string>
     <string name="common_ui_enable_all">Aktiver alle</string>
     <string name="common_ui_disable_all">Deaktiver alle</string>
+    <string name="common_ui_select_all">Vælg alle</string>
+    <string name="common_ui_deselect_all">Fravælg alle</string>
     <string name="common_ui_on">Til</string>
     <string name="common_ui_off">Fra</string>
     <string name="common_ui_already_set">Allerede indstillet</string>
@@ -137,6 +139,7 @@
     <string name="library_games_shortcut_created">Genvej oprettet</string>
     <string name="library_games_failed_to_create_shortcut">Kunne ikke oprette genvej: %s</string>
     <string name="library_games_install_path">Installationssti</string>
+    <string name="library_games_not_enough_space">Kræver %1$s mere plads</string>
     <string name="library_games_download_slash_install">Download / Installer</string>
     <string name="library_games_save_management">GEMMEDATA HÅNDTERING</string>
     <string name="library_games_download_install_available">%1$s / %2$s • Tilgængelig: %3$s</string>

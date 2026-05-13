@@ -66,6 +66,8 @@
     <string name="common_ui_settings">Налаштування</string>
     <string name="common_ui_enable_all">Увімкнути все</string>
     <string name="common_ui_disable_all">Вимкнути все</string>
+    <string name="common_ui_select_all">Вибрати все</string>
+    <string name="common_ui_deselect_all">Скасувати вибір усього</string>
     <string name="common_ui_on">Увімк.</string>
     <string name="common_ui_off">Вимк.</string>
     <string name="common_ui_already_set">Вже встановлено</string>
@@ -141,6 +143,7 @@
     <string name="library_games_shortcut_created">Ярлик створено</string>
     <string name="library_games_failed_to_create_shortcut">Не вдалося створити ярлик: %s</string>
     <string name="library_games_install_path">Шлях встановлення</string>
+    <string name="library_games_not_enough_space">Потрібно ще %1$s місця</string>
     <string name="library_games_download_slash_install">Завантажити / Встановити</string>
     <string name="library_games_save_management">КЕРУВАННЯ ЗБЕРЕЖЕННЯМИ</string>
     <string name="library_games_download_install_available">%1$s / %2$s • Доступно: %3$s</string>

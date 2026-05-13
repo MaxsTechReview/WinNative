@@ -66,6 +66,8 @@
     <string name="common_ui_settings">Paramètres</string>
     <string name="common_ui_enable_all">Tout activer</string>
     <string name="common_ui_disable_all">Tout désactiver</string>
+    <string name="common_ui_select_all">Tout sélectionner</string>
+    <string name="common_ui_deselect_all">Tout désélectionner</string>
     <string name="common_ui_on">Activé</string>
     <string name="common_ui_off">Désactivé</string>
     <string name="common_ui_already_set">Déjà défini</string>
@@ -137,6 +139,7 @@
     <string name="library_games_shortcut_created">Raccourci créé</string>
     <string name="library_games_failed_to_create_shortcut">Échec de la création du raccourci : %s</string>
     <string name="library_games_install_path">Chemin d\'installation</string>
+    <string name="library_games_not_enough_space">Il faut %1$s d\'espace en plus</string>
     <string name="library_games_download_slash_install">Télécharger / Installer</string>
     <string name="library_games_save_management">GESTION DES SAUVEGARDES</string>
     <string name="library_games_download_install_available">%1$s / %2$s • Disponible : %3$s</string>

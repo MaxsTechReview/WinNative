@@ -66,6 +66,8 @@
     <string name="common_ui_settings">Configuracoes</string>
     <string name="common_ui_enable_all">Ativar tudo</string>
     <string name="common_ui_disable_all">Desativar tudo</string>
+    <string name="common_ui_select_all">Selecionar tudo</string>
+    <string name="common_ui_deselect_all">Desmarcar tudo</string>
     <string name="common_ui_on">Ligado</string>
     <string name="common_ui_off">Desligado</string>
     <string name="common_ui_already_set">Ja Definido</string>
@@ -137,6 +139,7 @@
     <string name="library_games_shortcut_created">Atalho criado</string>
     <string name="library_games_failed_to_create_shortcut">Falha ao criar atalho: %s</string>
     <string name="library_games_install_path">Caminho de Instalacao</string>
+    <string name="library_games_not_enough_space">Precisa de mais %1$s de espaco</string>
     <string name="library_games_download_slash_install">Baixar / Instalar</string>
     <string name="library_games_save_management">GERENCIAMENTO DE SAVES</string>
     <string name="library_games_download_install_available">%1$s / %2$s • Disponivel: %3$s</string>

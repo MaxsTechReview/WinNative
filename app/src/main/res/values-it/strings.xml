@@ -66,6 +66,8 @@
     <string name="common_ui_settings">Impostazioni</string>
     <string name="common_ui_enable_all">Abilita tutto</string>
     <string name="common_ui_disable_all">Disabilita tutto</string>
+    <string name="common_ui_select_all">Seleziona tutto</string>
+    <string name="common_ui_deselect_all">Deseleziona tutto</string>
     <string name="common_ui_on">Attivo</string>
     <string name="common_ui_off">Disattivo</string>
     <string name="common_ui_already_set">Già impostato</string>
@@ -137,6 +139,7 @@
     <string name="library_games_shortcut_created">Scorciatoia creata</string>
     <string name="library_games_failed_to_create_shortcut">Impossibile creare la scorciatoia: %s</string>
     <string name="library_games_install_path">Percorso di installazione</string>
+    <string name="library_games_not_enough_space">Servono altri %1$s di spazio</string>
     <string name="library_games_download_slash_install">Scarica / Installa</string>
     <string name="library_games_save_management">GESTIONE SALVATAGGI</string>
     <string name="library_games_download_install_available">%1$s / %2$s • Disponibile: %3$s</string>
