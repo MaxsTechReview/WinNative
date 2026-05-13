@@ -116,9 +116,22 @@ object DownloadService {
         // (PAUSED or QUEUED) for which no store has yet created an in-memory DownloadInfo.
         // Fabricate stub DownloadInfos for those so the Downloads tab shows them and the user
         // can Resume / Cancel them.
-        val knownIds = list.map { it.first }.toSet()
         val coord = com.winlator.cmod.app.service.download.DownloadCoordinator
-        coord.snapshotRecords().forEach { record ->
+        val records = coord.snapshotRecords()
+        val recordsByUiId = records.associateBy { "${it.store}_${it.storeGameId}" }
+        list.forEach { (id, info) ->
+            val record = recordsByUiId[id] ?: return@forEach
+            if (record.bytesTotal > 0L) {
+                info.setDisplayTotalExpectedBytes(record.bytesTotal)
+                if (info.getTotalExpectedBytes() <= 0L) {
+                    info.setTotalExpectedBytes(record.bytesTotal)
+                    info.initializeBytesDownloaded(record.bytesDownloaded)
+                }
+            }
+        }
+
+        val knownIds = list.map { it.first }.toSet()
+        records.forEach { record ->
             val id = "${record.store}_${record.storeGameId}"
             if (id in knownIds) return@forEach
             val phase = mapRecordStatusToPhase(record.status)
@@ -138,6 +151,7 @@ object DownloadService {
                     )
                     if (record.bytesTotal > 0L) {
                         setTotalExpectedBytes(record.bytesTotal)
+                        setDisplayTotalExpectedBytes(record.bytesTotal)
                         initializeBytesDownloaded(record.bytesDownloaded)
                     }
                 }

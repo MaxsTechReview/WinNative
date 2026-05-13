@@ -17,6 +17,7 @@
     <string name="common_ui_select_valid_exe_file">Por favor, selecciona un archivo .exe válido</string>
     <string name="common_ui_select_valid_icon_file">Por favor, selecciona un archivo .ico o .png válido.</string>
     <string name="common_ui_exit">Salir</string>
+    <string name="common_ui_exit_app">Salir de la aplicación</string>
     <string name="common_ui_profile">Perfil</string>
     <string name="common_ui_name">Nombre</string>
     <string name="common_ui_ok">Aceptar</string>
@@ -65,6 +66,8 @@
     <string name="common_ui_settings">Ajustes</string>
     <string name="common_ui_enable_all">Activar todo</string>
     <string name="common_ui_disable_all">Desactivar todo</string>
+    <string name="common_ui_select_all">Seleccionar todo</string>
+    <string name="common_ui_deselect_all">Deseleccionar todo</string>
     <string name="common_ui_on">Activado</string>
     <string name="common_ui_off">Desactivado</string>
     <string name="common_ui_already_set">Ya configurado</string>
@@ -101,6 +104,14 @@
     <string name="common_ui_install">Instalar</string>
     <string name="common_ui_application">Aplicación</string>
     <string name="common_ui_check">Comprobar</string>
+    <string name="store_game_check_for_update">Buscar actualización</string>
+    <string name="store_game_checking_for_update">Comprobando...</string>
+    <string name="store_game_download_update">Descargar actualización</string>
+    <string name="store_game_no_update_available">No hay actualizaciones disponibles</string>
+    <string name="store_game_update_available">Actualización disponible</string>
+    <string name="store_game_update_check_failed">Error al comprobar actualizaciones</string>
+    <string name="store_game_update">Actualizar</string>
+    <string name="store_game_download_already_active">Este juego ya se está descargando. Cancela la descarga actual antes de añadir DLC.</string>
     <string name="common_ui_select">Seleccionar</string>
     <string name="common_ui_select_folder">Seleccionar carpeta</string>
     <string name="common_ui_current_folder">Carpeta actual</string>
@@ -110,7 +121,6 @@
     <string name="common_ui_grant_all_files_access_browse">Concede acceso total a los archivos para explorar carpetas locales directamente.</string>
     <string name="common_ui_not_configured">No configurado</string>
     <string name="common_ui_reinstall">Reinstalar</string>
-    <string name="common_ui_exit_app_confirm">¿Salir de WinNative?</string>
     <string name="common_ui_elements_count">%1$d elementos</string>
     <string name="common_ui_disabled_placeholder">-- Desactivado --</string>
     <string name="common_ui_enabled">Activado</string>
@@ -137,6 +147,7 @@
     <string name="library_games_shortcut_created">Acceso directo creado</string>
     <string name="library_games_failed_to_create_shortcut">Error al crear acceso directo: %s</string>
     <string name="library_games_install_path">Ruta de instalación</string>
+    <string name="library_games_not_enough_space">Se necesitan %1$s más de espacio</string>
     <string name="library_games_download_slash_install">Descargar / Instalar</string>
     <string name="library_games_save_management">GESTIÓN DE GUARDADOS</string>
     <string name="library_games_download_install_available">%1$s / %2$s • Disponible: %3$s</string>
@@ -221,6 +232,8 @@
     <string name="downloads_queue_phase_cancelled">Cancelado</string>
     <string name="downloads_queue_phase_failed">Error: %1$s</string>
     <string name="downloads_queue_cancel_download">Cancelar descarga</string>
+    <string name="downloads_queue_cancel_download_title">¿Cancelar descarga?</string>
+    <string name="downloads_queue_cancel_download_warning">Cancelar una descarga de DLC, juego o actualización puede dañar potencialmente la instalación del juego.\n\n¿Seguro que quieres cancelar?</string>
     <string name="downloads_queue_empty">No hay descargas activas.</string>
 
     <!-- Containers > List -->

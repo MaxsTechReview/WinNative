@@ -30,8 +30,8 @@ public class ControllerManager {
   private final List<InputDevice> detectedDevices = new ArrayList<>();
   private final SparseArray<String> slotAssignments = new SparseArray<>();
   private final boolean[] enabledSlots = new boolean[4];
-  private final boolean[] vibrationEnabled = new boolean[] {true, true, true, true};
-  private boolean globalVibrationEnabled = true;
+  private final boolean[] vibrationEnabled = new boolean[] {false, false, false, false};
+  private boolean globalVibrationEnabled = false;
 
   public static final String PREF_PLAYER_SLOT_PREFIX = "controller_slot_";
   public static final String PREF_ENABLED_SLOTS_PREFIX = "enabled_slot_";
@@ -69,9 +69,9 @@ public class ControllerManager {
       String deviceIdentifier = preferences.getString(PREF_PLAYER_SLOT_PREFIX + i, null);
       if (deviceIdentifier != null) slotAssignments.put(i, deviceIdentifier);
       enabledSlots[i] = preferences.getBoolean(PREF_ENABLED_SLOTS_PREFIX + i, i == 0);
-      vibrationEnabled[i] = preferences.getBoolean(PREF_VIBRATE_SLOT_PREFIX + i, i == 0);
+      vibrationEnabled[i] = preferences.getBoolean(PREF_VIBRATE_SLOT_PREFIX + i, false);
     }
-    globalVibrationEnabled = preferences.getBoolean(PREF_VIBRATION_GLOBAL, true);
+    globalVibrationEnabled = preferences.getBoolean(PREF_VIBRATION_GLOBAL, false);
   }
 
   public void saveAssignments() {

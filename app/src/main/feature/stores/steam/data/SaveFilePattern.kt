@@ -10,17 +10,27 @@ data class SaveFilePattern(
     val path: String,
     val pattern: String,
     val recursive: Int = 0,
+    val uploadRoot: PathType = root,
+    val uploadPath: String = path,
 ) {
     val prefix: String
-        get() =
-            "%${root.name}%$path"
+        get() {
+            val pathForPrefix =
+                when {
+                    path.isBlank() || path == "." -> ""
+                    else -> path
+                }
+            return "%${root.name}%$pathForPrefix"
                 .replace("{64BitSteamID}", SteamUtils.getSteamId64().toString())
                 .replace("{Steam3AccountID}", SteamUtils.getSteam3AccountId().toString())
+        }
 
     val substitutedPath: String
         get() =
-            path
-                .replace("{64BitSteamID}", SteamUtils.getSteamId64().toString())
+            when {
+                path.isBlank() || path == "." -> ""
+                else -> path
+            }.replace("{64BitSteamID}", SteamUtils.getSteamId64().toString())
                 .replace("{Steam3AccountID}", SteamUtils.getSteam3AccountId().toString())
                 .replace("\\", File.separator)
 }

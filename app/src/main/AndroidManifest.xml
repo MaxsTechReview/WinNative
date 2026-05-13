@@ -11,6 +11,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"/>
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
@@ -168,7 +169,11 @@
             android:value="@string/play_games_app_id" />
         <meta-data
             android:name="com.google.android.gms.games.should_auto_sign_in"
-            android:value="true" />
+            android:value="false" />
+
+        <provider
+            android:name="com.google.android.gms.games.provider.PlayGamesInitProvider"
+            tools:node="remove" />
 
     </application>
 </manifest>

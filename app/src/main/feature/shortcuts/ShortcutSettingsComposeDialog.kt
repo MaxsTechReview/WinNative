@@ -346,6 +346,7 @@ class ShortcutSettingsComposeDialog private constructor(
         // General
         state.name.value = shortcut.name
         state.launchExePath.value = resolveInitialLaunchExePath()
+        state.launchExeDisplayPath.value = resolveLaunchExeDisplayPath(state.launchExePath.value)
         syncLibraryArtworkState()
 
         // Input
@@ -481,6 +482,11 @@ class ShortcutSettingsComposeDialog private constructor(
             getShortcutSetting("dxwrapper", container.getDXWrapper()),
             state.selectedDxWrapper
         )
+
+        // Surface Effect
+        val surfaceEffectArr = context.resources.getStringArray(R.array.surface_effect_entries).toList()
+        state.surfaceEffectEntries.value = surfaceEffectArr
+        state.selectedSurfaceEffect.intValue = if (getShortcutSetting("swapRB", container.getExtra("swapRB", "0")) == "1") 1 else 0
 
         // Audio driver
         val audioDriverArr =
@@ -1002,6 +1008,10 @@ class ShortcutSettingsComposeDialog private constructor(
                 "dxwrapperConfig", dxwrapperConfig, container.getDXWrapperConfig()
             )
 
+            // Surface Effect
+            val swapRBStr = if (state.selectedSurfaceEffect.intValue == 1) "1" else "0"
+            hasContainerOverride = hasContainerOverride or saveOverride("swapRB", swapRBStr, container.getExtra("swapRB", "0"))
+
             // Audio
             val audioDriver = getIdentifierFromEntries(
                 state.audioDriverEntries.value, state.selectedAudioDriver.intValue
@@ -1268,6 +1278,7 @@ class ShortcutSettingsComposeDialog private constructor(
                 TAG,
                 "Saving shortcut name='${shortcut.name}' path='${shortcut.path}'" +
                     " usesContainerDefaults=${if (hasContainerOverride) "0" else "1"}" +
+                    " swapRB='${shortcut.getExtra("swapRB")}'" +
                     " box64Preset='${shortcut.getExtra("box64Preset")}'" +
                     " fexcorePreset='${shortcut.getExtra("fexcorePreset")}'" +
                     " wineVersion='${shortcut.getExtra("wineVersion")}'" +
@@ -1353,20 +1364,27 @@ class ShortcutSettingsComposeDialog private constructor(
     }
 
     private fun resolveInitialLaunchExePath(): String {
-        val storedPath = shortcut.getExtra("launch_exe_path")
-        if (storedPath.isNotEmpty()) return storedPath
-
         val gameSource = shortcut.getExtra("game_source", "")
         if (gameSource == "CUSTOM") {
             val customExe = shortcut.getExtra("custom_exe")
             if (customExe.isNotEmpty()) return customExe
         }
 
+        val storedPath = shortcut.getExtra("launch_exe_path")
+        if (storedPath.isNotEmpty()) return storedPath
+
         return ""
     }
 
     private fun resolveExePickerInitialPath(): String? {
-        val currentPath = state.launchExePath.value.ifBlank { shortcut.getExtra("launch_exe_path") }
+        val currentPath =
+            state.launchExePath.value.ifBlank {
+                if (shortcut.getExtra("game_source", "") == "CUSTOM") {
+                    shortcut.getExtra("custom_exe").ifBlank { shortcut.getExtra("launch_exe_path") }
+                } else {
+                    shortcut.getExtra("launch_exe_path")
+                }
+            }
         if (currentPath.isBlank()) {
             return shortcut.getExtra("game_install_path")
                 .takeIf { it.isNotBlank() && File(it).isDirectory }
@@ -1394,6 +1412,7 @@ class ShortcutSettingsComposeDialog private constructor(
             } else {
                 exeFile.absolutePath
             }
+        state.launchExeDisplayPath.value = exeFile.absolutePath
     }
 
     private fun normalizeLaunchExeForShortcut(path: String): String {
@@ -1423,6 +1442,20 @@ class ShortcutSettingsComposeDialog private constructor(
         }
 
         return directFile
+    }
+
+    private fun resolveLaunchExeDisplayPath(path: String): String {
+        if (path.isBlank()) return ""
+
+        val directFile = File(path)
+        if (directFile.isAbsolute) return directFile.absolutePath
+
+        val installPath = shortcut.getExtra("game_install_path")
+        if (installPath.isNotBlank()) {
+            return File(installPath, path.replace("\\", File.separator)).absolutePath
+        }
+
+        return path
     }
 
     private fun relativePathWithinGameInstall(file: File): String? {
@@ -2112,6 +2145,8 @@ class ShortcutSettingsComposeDialog private constructor(
             container.getAudioDriver(),
             state.selectedAudioDriver
         )
+
+        state.selectedSurfaceEffect.intValue = if (container.getExtra("swapRB", "0") == "1") 1 else 0
 
         val midiFont = container.getMIDISoundFont()
         val midiEntries = state.midiSoundFontEntries.value

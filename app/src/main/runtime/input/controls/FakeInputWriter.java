@@ -486,22 +486,14 @@ public class FakeInputWriter {
     for (int i = 0; i < 10; i++) {
       writeButton(i, state.isPressed((byte) i));
     }
-    int lx = (int) (state.thumbLX * 32767.0f);
-    int ly = (int) (state.thumbLY * 32767.0f);
     int rx = (int) (state.thumbRX * 32767.0f);
     int ry = (int) (state.thumbRY * 32767.0f);
+    int lx = (int) (state.thumbLX * 32767.0f);
+    int ly = (int) (state.thumbLY * 32767.0f);
     int tl = (int) (state.triggerL * 255.0f);
     int tr = (int) (state.triggerR * 255.0f);
 
     // The fake evdev ring is event-queue semantics, so unchanged axes must stay silent.
-    if (lx != this.prevThumbLX) {
-      this.prevThumbLX = lx;
-      writeEvent((short) 3, (short) 0, lx);
-    }
-    if (ly != this.prevThumbLY) {
-      this.prevThumbLY = ly;
-      writeEvent((short) 3, (short) 1, ly);
-    }
     if (rx != this.prevThumbRX) {
       this.prevThumbRX = rx;
       writeEvent((short) 3, (short) 3, rx);
@@ -509,6 +501,14 @@ public class FakeInputWriter {
     if (ry != this.prevThumbRY) {
       this.prevThumbRY = ry;
       writeEvent((short) 3, (short) 4, ry);
+    }
+    if (lx != this.prevThumbLX) {
+      this.prevThumbLX = lx;
+      writeEvent((short) 3, (short) 0, lx);
+    }
+    if (ly != this.prevThumbLY) {
+      this.prevThumbLY = ly;
+      writeEvent((short) 3, (short) 1, ly);
     }
     if (tl != this.prevTriggerL) {
       this.prevTriggerL = tl;

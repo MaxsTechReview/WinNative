@@ -28,6 +28,58 @@ import java.util.Date
  * Extension functions relating to [KeyValue] as the receiver type.
  */
 
+private data class WindowsRootRedirect(
+    val source: PathType,
+    val target: PathType,
+    val prependPath: String,
+    val replacements: List<Pair<String, String>>,
+)
+
+private fun KeyValue.parseWindowsRootRedirects(): List<WindowsRootRedirect> =
+    this["ufs"]["rootoverrides"].children.mapNotNull { entry ->
+        val os = entry["os"].value.orEmpty()
+        val osList = entry["oslist"].value.orEmpty()
+        val appliesToWindows =
+            os.equals("Windows", ignoreCase = true) ||
+                osList
+                    .split(",")
+                    .any { it.trim().equals("windows", ignoreCase = true) }
+        if (!appliesToWindows) return@mapNotNull null
+
+        WindowsRootRedirect(
+            source = PathType.from(entry["root"].value),
+            target = PathType.from(entry["useinstead"].value),
+            prependPath = entry["addpath"].value.orEmpty(),
+            replacements =
+                entry["pathtransforms"].children.map { transform ->
+                    transform["find"].value.orEmpty() to transform["replace"].value.orEmpty()
+                },
+        )
+    }
+
+private fun normalizeSteamUfsPath(value: String): String = if (value == "." || value == "/") "" else value
+
+private fun remapWindowsUfsPath(
+    originalPath: String,
+    redirect: WindowsRootRedirect?,
+): String {
+    if (redirect == null) return originalPath
+
+    var localPath =
+        if (redirect.prependPath.isNotEmpty()) {
+            val prefix = redirect.prependPath.replace('\\', '/').trimEnd('/')
+            if (originalPath.isNotEmpty()) "$prefix/${originalPath.trimStart('/')}" else prefix
+        } else {
+            originalPath
+        }
+
+    redirect.replacements.forEach { (find, replace) ->
+        localPath = localPath.replace(find, replace)
+    }
+
+    return localPath
+}
+
 fun KeyValue.generateSteamApp(): SteamApp =
     SteamApp(
         id = this["appid"].asInteger(INVALID_APP_ID),
@@ -113,8 +165,7 @@ fun KeyValue.generateSteamApp(): SteamApp =
         homepageUrl = this["extended"]["homepage"].value.orEmpty(),
         gameManualUrl = this["common"]["extended"]["gamemanualurl"].value.orEmpty(),
         loadAllBeforeLaunch = this["common"]["extended"]["loadallbeforelaunch"].asBoolean(),
-        // dlcAppIds = (this["common"]["extended"]["listofdlc"].value).Split(",").Select(uint.Parse).ToArray(),
-        dlcAppIds = emptyList(),
+        dlcAppIds = this["common"]["extended"]["listofdlc"].value.parseDlcAppIds(),
         isFreeApp = this["common"]["extended"]["isfreeapp"].asBoolean(),
         dlcForAppId = this["extended"]["dlcforappid"].asInteger(this["common"]["extended"]["dlcforappid"].asInteger()),
         mustOwnAppToPurchase = this["common"]["extended"]["mustownapptopurchase"].asInteger(),
@@ -157,20 +208,32 @@ fun KeyValue.generateSteamApp(): SteamApp =
                 steamInputManifestPath = this["config"]["steaminputmanifestpath"].value.orEmpty(),
                 steamControllerConfigDetails = parseSteamControllerConfigDetails(),
             ),
-        ufs =
+        ufs = run {
+            val windowsRootRedirects = parseWindowsRootRedirects()
+
             UFS(
                 quota = this["ufs"]["quota"].asInteger(),
                 maxNumFiles = this["ufs"]["maxnumfiles"].asInteger(),
                 saveFilePatterns =
-                    this["ufs"]["savefiles"].children.map {
+                    this["ufs"]["savefiles"].children.mapNotNull {
+                        val platforms = it["platforms"].children.map { platform -> platform.value?.lowercase() }
+                        if (platforms.isNotEmpty() && "windows" !in platforms) return@mapNotNull null
+
+                        val originalRoot = PathType.from(it["root"].value)
+                        val originalPath = normalizeSteamUfsPath(it["path"].value.orEmpty())
+                        val redirect = windowsRootRedirects.find { override -> override.source == originalRoot }
+
                         SaveFilePattern(
-                            root = PathType.from(it["root"].value),
-                            path = it["path"].value.orEmpty(),
+                            root = redirect?.target ?: originalRoot,
+                            path = remapWindowsUfsPath(originalPath, redirect),
                             pattern = it["pattern"].value.orEmpty(),
                             recursive = it["recursive"].asInteger(0),
+                            uploadRoot = originalRoot,
+                            uploadPath = originalPath,
                         )
                     },
-            ),
+            )
+        },
     )
 
 private fun KeyValue.parseSteamControllerConfigDetails(): List<SteamControllerConfigDetail> {
@@ -214,6 +277,14 @@ fun List<KeyValue>.toLangImgMap(): Map<Language, String> =
             .takeIf { it != Language.unknown }
             ?.to(kv.value!!)
     }.toMap()
+
+private fun String?.parseDlcAppIds(): List<Int> =
+    this
+        .orEmpty()
+        .split(',', ';')
+        .mapNotNull { it.trim().toIntOrNull() }
+        .filter { it != INVALID_APP_ID }
+        .distinct()
 
 @Suppress("unused")
 fun KeyValue.printAllKeyValues(depth: Int = 0) {

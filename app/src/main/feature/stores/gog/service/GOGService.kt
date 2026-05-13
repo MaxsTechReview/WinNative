@@ -139,6 +139,75 @@ class GOGService : Service() {
                 ?: emptyList()
         }
 
+        suspend fun hasActualLocalCloudSaves(
+            context: Context,
+            appId: String,
+        ): Boolean =
+            getResolvedSaveDirectories(context, appId).any { dir ->
+                dir.exists() && dir.walkTopDown().any { it.isFile }
+            }
+
+        suspend fun cloudSavesDiffer(
+            context: Context,
+            appId: String,
+        ): Boolean? =
+            withContext(Dispatchers.IO) {
+                try {
+                    val activeInstance = getInstance() ?: return@withContext null
+                    if (!GOGAuthManager.hasStoredCredentials(context)) return@withContext false
+                    val normalizedAppId = if (appId.startsWith("GOG_", ignoreCase = true)) appId else "GOG_$appId"
+                    val gameId = ContainerUtils.extractGameIdFromContainerId(normalizedAppId).toString()
+                    val game = activeInstance.gogManager.getGameFromDbById(gameId) ?: return@withContext false
+                    val saveLocations =
+                        activeInstance.gogManager.getSaveDirectoryPath(context, normalizedAppId, game.title)
+                            ?: return@withContext false
+                    val cloudSavesManager = GOGCloudSavesManager(context)
+                    saveLocations.any { location ->
+                        val timestamp =
+                            activeInstance.gogManager
+                                .getCloudSaveSyncTimestamp(normalizedAppId, location.name)
+                                .toLongOrNull()
+                                ?: 0L
+                        cloudSavesManager.needsSync(
+                            localPath = location.location,
+                            dirname = location.name,
+                            clientId = location.clientId,
+                            clientSecret = location.clientSecret,
+                            lastSyncTimestamp = timestamp,
+                        )
+                    }
+                } catch (e: Exception) {
+                    Timber.tag("GOG").e(e, "[Cloud Saves] Failed to probe cloud save diff for $appId")
+                    null
+                }
+            }
+
+        suspend fun getNewestCloudSaveSyncTimestamp(
+            context: Context,
+            appId: String,
+        ): Long? =
+            withContext(Dispatchers.IO) {
+                try {
+                    val activeInstance = getInstance() ?: return@withContext null
+                    val normalizedAppId = if (appId.startsWith("GOG_", ignoreCase = true)) appId else "GOG_$appId"
+                    val gameId = ContainerUtils.extractGameIdFromContainerId(normalizedAppId).toString()
+                    val game = activeInstance.gogManager.getGameFromDbById(gameId) ?: return@withContext null
+                    val saveLocations =
+                        activeInstance.gogManager.getSaveDirectoryPath(context, normalizedAppId, game.title)
+                            ?: return@withContext null
+                    saveLocations
+                        .mapNotNull { location ->
+                            activeInstance.gogManager
+                                .getCloudSaveSyncTimestamp(normalizedAppId, location.name)
+                                .toLongOrNull()
+                        }.maxOrNull()
+                        ?.times(1000)
+                } catch (e: Exception) {
+                    Timber.tag("GOG").e(e, "[Cloud Saves] Failed to read newest cloud timestamp for $appId")
+                    null
+                }
+            }
+
         suspend fun validateCredentials(context: Context): Result<Boolean> = GOGAuthManager.validateCredentials(context)
 
         fun clearStoredCredentials(context: Context): Boolean = GOGAuthManager.clearStoredCredentials(context)

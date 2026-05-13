@@ -668,11 +668,12 @@ static bool create_pipeline_layouts(VkRenderer* r) {
         return false;
     }
 
-    // Window/cursor: push constants = float xform[6] + vec2 viewSize + vec4 uvRect = 48 bytes
+    // Window/cursor: push constants = float xform[6] + vec2 viewSize + vec4 uvRect
+    // + int swapRB = 52 bytes
     VkPushConstantRange pcr_window = {0};
-    pcr_window.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    pcr_window.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     pcr_window.offset = 0;
-    pcr_window.size = 48;
+    pcr_window.size = 52;
 
     VkPipelineLayoutCreateInfo plci = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     plci.setLayoutCount = 1;
@@ -1405,12 +1406,25 @@ static VkPreRotatedRect clamp_rect_to_extent(VkPreRotatedRect r, uint32_t extent
 
 static void push_window_constants(VkCommandBuffer cmd, VkPipelineLayout layout,
                                   const float xform[6], float view_w, float view_h,
-                                  float u0, float v0, float u1, float v1) {
-    float pc[12];
-    pc[0] = xform[0]; pc[1] = xform[1]; pc[2] = xform[2]; pc[3] = xform[3];
-    pc[4] = xform[4]; pc[5] = xform[5]; pc[6] = view_w;  pc[7] = view_h;
-    pc[8] = u0; pc[9] = v0; pc[10] = u1; pc[11] = v1;
-    vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), pc);
+                                  float u0, float v0, float u1, float v1,
+                                  bool swap_rb) {
+    struct {
+        float xform[6];
+        float view_size[2];
+        float uv_rect[4];
+        int32_t swap_rb;
+    } pc;
+    memcpy(pc.xform, xform, sizeof(pc.xform));
+    pc.view_size[0] = view_w;
+    pc.view_size[1] = view_h;
+    pc.uv_rect[0] = u0;
+    pc.uv_rect[1] = v0;
+    pc.uv_rect[2] = u1;
+    pc.uv_rect[3] = v1;
+    pc.swap_rb = swap_rb ? 1 : 0;
+    vkCmdPushConstants(cmd, layout,
+                       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                       0, sizeof(pc), &pc);
 }
 
 static void compose_xform_for_window(float out[6], const float scene_xform[6],
@@ -1504,7 +1518,7 @@ static void draw_scene_pass(VkRenderer* r, VkCommandBuffer cmd, const VkScene* s
         transformed_view_size(&view_w, &view_h, r->swapchain_transform);
         push_window_constants(cmd, r->pipelines.window_layout, pre_xf,
                               (float)view_w, (float)view_h,
-                              w->u0, w->v0, w->u1, w->v1);
+                              w->u0, w->v0, w->u1, w->v1, s->swap_rb);
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 r->pipelines.window_layout, 0, 1, &w->texture->descriptor_set,
                                 0, NULL);
@@ -1527,7 +1541,7 @@ static void draw_scene_pass(VkRenderer* r, VkCommandBuffer cmd, const VkScene* s
         transformed_view_size(&view_w, &view_h, r->swapchain_transform);
         push_window_constants(cmd, r->pipelines.window_layout, pre_xf,
                               (float)view_w, (float)view_h,
-                              0.0f, 0.0f, 1.0f, 1.0f);
+                              0.0f, 0.0f, 1.0f, 1.0f, false);
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 r->pipelines.window_layout, 0, 1,
                                 &s->cursor_texture->descriptor_set, 0, NULL);
@@ -1989,7 +2003,8 @@ JNIEXPORT jboolean JNICALL JNI_FN(nativeRenderFrame)(JNIEnv* env, jclass clazz, 
 #define SCENE_OFF_EFFECT_PARAMS      648      /* float32 × VK_MAX_EFFECTS × 4 */
 #define SCENE_OFF_WINDOW_GEOM        776      /* int32 × VK_MAX_RENDERABLE_WINDOWS × 4 */
 #define SCENE_OFF_WINDOW_UV          1800     /* float32 × VK_MAX_RENDERABLE_WINDOWS × 4 */
-#define SCENE_BUF_SIZE               2824
+#define SCENE_OFF_SWAP_RB            2824
+#define SCENE_BUF_SIZE               2828
 
 JNIEXPORT void JNICALL JNI_FN(nativeSetScene)(JNIEnv* env, jclass clazz, jlong handle,
                                               jobject sceneBuf)
@@ -2080,6 +2095,9 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetScene)(JNIEnv* env, jclass clazz, jlong h
     memcpy(&screen_h, base + SCENE_OFF_SCREEN_H, sizeof(int32_t));
     s->screen_width  = (uint32_t)screen_w;
     s->screen_height = (uint32_t)screen_h;
+    int32_t swap_rb;
+    memcpy(&swap_rb, base + SCENE_OFF_SWAP_RB, sizeof(int32_t));
+    s->swap_rb = swap_rb != 0;
 
     // Effects
     int32_t effect_count;

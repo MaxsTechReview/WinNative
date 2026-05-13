@@ -33,6 +33,7 @@ public class WindowManager extends XResourceManager {
   }
 
   public final Window rootWindow;
+  private Window confinedWindow;
   private final SparseArray<Window> windows = new SparseArray<>();
   public final DrawableManager drawableManager;
   private Window focusedWindow;
@@ -143,6 +144,16 @@ public class WindowManager extends XResourceManager {
 
   public Window getFocusedWindow() {
     return focusedWindow;
+  }
+
+  public Window getConfinedWindow() {
+    return confinedWindow;
+  }
+
+  public void setConfinedWindow(Window window) {
+    if (confinedWindow != null) confinedWindow.setConfined(false);
+    confinedWindow = window;
+    if (confinedWindow != null) confinedWindow.setConfined(true);
   }
 
   public void revertFocus() {

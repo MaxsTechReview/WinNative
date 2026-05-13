@@ -128,6 +128,7 @@ typedef struct VkScene {
     // Render dims (logical screen size).
     uint32_t screen_width;
     uint32_t screen_height;
+    bool     swap_rb;
 
     VkEffectSlot effects[VK_MAX_EFFECTS];
     uint32_t     effect_count;

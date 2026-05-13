@@ -319,7 +319,7 @@ data class XServerDrawerState(
     val inputControlsTapToClick: Boolean = true,
     val inputControlsOverlayOpacity: Float = 0.4f,
     val inputControlsTouchscreenHaptics: Boolean = false,
-    val inputControlsGamepadVibration: Boolean = true,
+    val inputControlsGamepadVibration: Boolean = false,
 )
 
 class XServerDrawerStateHolder(
@@ -562,7 +562,7 @@ fun buildXServerDrawerState(
     inputControlsTapToClick: Boolean = true,
     inputControlsOverlayOpacity: Float = 0.4f,
     inputControlsTouchscreenHaptics: Boolean = false,
-    inputControlsGamepadVibration: Boolean = true,
+    inputControlsGamepadVibration: Boolean = false,
     fullscreenEnabled: Boolean = false,
 ): XServerDrawerState {
     val items =
@@ -3442,6 +3442,8 @@ private fun CompactSlider(
     valueRange: ClosedFloatingPointRange<Float>,
     steps: Int,
 ) {
+    var sliderValue by remember(value) { mutableStateOf(value) }
+
     val sliderColors =
         SliderDefaults.colors(
             thumbColor = DrawerAccent,
@@ -3455,8 +3457,11 @@ private fun CompactSlider(
         contentAlignment = Alignment.Center,
     ) {
         Slider(
-            value = value,
-            onValueChange = onValueChange,
+            value = sliderValue,
+            onValueChange = {
+                sliderValue = it
+                onValueChange(it)
+            },
             valueRange = valueRange,
             steps = steps,
             modifier = Modifier.fillMaxWidth(0.96f).requiredHeight(20.dp),

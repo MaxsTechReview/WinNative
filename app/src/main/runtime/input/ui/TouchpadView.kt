@@ -66,6 +66,13 @@ class TouchpadView(
     private val preferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
     private val longPressHandler = Handler(Looper.getMainLooper())
     private var longPressActive = false
+    private val pointerIdsToIgnore = mutableSetOf<Int>()
+
+    fun setPointerIdsToIgnore(ids: Set<Int>) {
+        pointerIdsToIgnore.clear()
+        pointerIdsToIgnore.addAll(ids)
+    }
+
     private val longPressRunnable =
         Runnable {
             if (tapToClickEnabled && numFingers.toInt() == 1 && fingers[0] != null && fingers[0]!!.travelDistance() < MAX_TAP_TRAVEL_DISTANCE) {
@@ -85,7 +92,7 @@ class TouchpadView(
         background = createTransparentBg()
         isClickable = true
         isFocusable = true
-        isFocusableInTouchMode = false
+        isFocusableInTouchMode = true
         pointerIcon = PointerIcon.load(resources, R.drawable.hidden_pointer_arrow)
         updateXform(
             AppUtils.getScreenWidth(),
@@ -268,7 +275,7 @@ class TouchpadView(
     private fun handleTouchpadEvent(event: MotionEvent): Boolean {
         val actionIndex = event.actionIndex
         val pointerId = event.getPointerId(actionIndex)
-        if (pointerId >= MAX_FINGERS) return true
+        if (pointerId >= MAX_FINGERS || pointerIdsToIgnore.contains(pointerId)) return true
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
@@ -332,14 +339,21 @@ class TouchpadView(
                 } else {
                     for (i in 0 until MAX_FINGERS.toInt()) {
                         val finger = fingers[i] ?: continue
+                        if (pointerIdsToIgnore.contains(i)) {
+                            fingers[i] = null
+                            numFingers--
+                            continue
+                        }
                         val pointerIndex = event.findPointerIndex(i)
                         if (pointerIndex >= 0) {
                             finger.update(event.getX(pointerIndex), event.getY(pointerIndex))
-                            handleFingerMove(finger)
-                        } else {
-                            handleFingerUp(finger)
-                            fingers[i] = null
-                            numFingers--
+                            if (numFingers.toInt() == 1) {
+                                handleFingerMove(finger)
+                            } else {
+                                handleFingerUp(finger)
+                                fingers[i] = null
+                                numFingers--
+                            }
                         }
                     }
                 }
@@ -369,7 +383,7 @@ class TouchpadView(
     private fun handleTouchscreenEvent(event: MotionEvent): Boolean {
         val actionIndex = event.actionIndex
         val pointerId = event.getPointerId(actionIndex)
-        if (pointerId >= MAX_FINGERS) return true
+        if (pointerId >= MAX_FINGERS || pointerIdsToIgnore.contains(pointerId)) return true
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
@@ -381,6 +395,11 @@ class TouchpadView(
             MotionEvent.ACTION_MOVE -> {
                 for (i in 0 until MAX_FINGERS.toInt()) {
                     val finger = fingers[i] ?: continue
+                    if (pointerIdsToIgnore.contains(i)) {
+                        fingers[i] = null
+                        numFingers--
+                        continue
+                    }
                     val pIdx = event.findPointerIndex(i)
                     if (pIdx >= 0) finger.update(event.getX(pIdx), event.getY(pIdx))
                 }

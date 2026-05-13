@@ -64,6 +64,7 @@ public class VulkanRenderer
     private boolean fullscreen = false;
     public boolean viewportNeedsUpdate = true;
     private boolean cursorVisible = true;
+    public boolean swapRB = false;
     private boolean screenOffsetYRelativeToCursor = false;
     private String[] unviewableWMClasses = null;
     private float magnifierZoom = 1.0f;
@@ -102,7 +103,8 @@ public class VulkanRenderer
     private static final int OFF_EFFECT_PARAMS   = 648;
     private static final int OFF_WINDOW_GEOM     = 776;
     private static final int OFF_WINDOW_UV       = 1800;
-    private static final int SCENE_BUF_SIZE      = 2824;
+    private static final int OFF_SWAP_RB         = 2824;
+    private static final int SCENE_BUF_SIZE      = 2828;
 
     private final ByteBuffer sceneBuf =
             ByteBuffer.allocateDirect(SCENE_BUF_SIZE).order(ByteOrder.nativeOrder());
@@ -396,6 +398,7 @@ public class VulkanRenderer
 
         buf.putInt(OFF_SCREEN_W, xServer.screenInfo.width);
         buf.putInt(OFF_SCREEN_H, xServer.screenInfo.height);
+        buf.putInt(OFF_SWAP_RB, swapRB ? 1 : 0);
 
         // Effects snapshot
         Effect[] active = effectComposer.snapshot();
