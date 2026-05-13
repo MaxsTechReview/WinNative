@@ -269,21 +269,6 @@ public abstract class MSLink {
 
       if (PeIconExtractor.INSTANCE.extractAndSave(exeFile, iconOutFile)) {
         customLibraryIconPath = iconOutFile.getAbsolutePath();
-      } else {
-        File gameDir = exeFile.isDirectory() ? exeFile : exeFile.getParentFile();
-        if (gameDir != null && gameDir.exists()) {
-          File[] candidates =
-              gameDir.listFiles(
-                  (dir, name_dir) -> {
-                    String lower = name_dir.toLowerCase();
-                    return lower.endsWith(".jpg")
-                        || lower.endsWith(".jpeg")
-                        || lower.endsWith(".png");
-                  });
-          if (candidates != null && candidates.length > 0) {
-            customLibraryIconPath = candidates[0].getAbsolutePath();
-          }
-        }
       }
     }
 
