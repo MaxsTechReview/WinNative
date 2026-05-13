@@ -66,6 +66,8 @@
     <string name="common_ui_settings">Einstellungen</string>
     <string name="common_ui_enable_all">Alle aktivieren</string>
     <string name="common_ui_disable_all">Alle deaktivieren</string>
+    <string name="common_ui_select_all">Alle auswählen</string>
+    <string name="common_ui_deselect_all">Alle abwählen</string>
     <string name="common_ui_on">Ein</string>
     <string name="common_ui_off">Aus</string>
     <string name="common_ui_already_set">Bereits festgelegt</string>
@@ -102,6 +104,14 @@
     <string name="common_ui_install">Installieren</string>
     <string name="common_ui_application">Anwendung</string>
     <string name="common_ui_check">Prüfen</string>
+    <string name="store_game_check_for_update">Nach Update suchen</string>
+    <string name="store_game_checking_for_update">Suche...</string>
+    <string name="store_game_download_update">Update herunterladen</string>
+    <string name="store_game_no_update_available">Kein Update verfügbar</string>
+    <string name="store_game_update_available">Update verfügbar</string>
+    <string name="store_game_update_check_failed">Update-Prüfung fehlgeschlagen</string>
+    <string name="store_game_update">Aktualisieren</string>
+    <string name="store_game_download_already_active">Dieses Spiel wird bereits heruntergeladen. Brich den aktuellen Download ab, bevor du DLC hinzufügst.</string>
     <string name="common_ui_select">Auswählen</string>
     <string name="common_ui_select_folder">Ordner auswählen</string>
     <string name="common_ui_current_folder">Aktueller Ordner</string>
@@ -137,6 +147,7 @@
     <string name="library_games_shortcut_created">Verknüpfung erstellt</string>
     <string name="library_games_failed_to_create_shortcut">Verknüpfung konnte nicht erstellt werden: %s</string>
     <string name="library_games_install_path">Installationspfad</string>
+    <string name="library_games_not_enough_space">Benötigt %1$s mehr Speicherplatz</string>
     <string name="library_games_download_slash_install">Herunterladen / Installieren</string>
     <string name="library_games_save_management">SPEICHERVERWALTUNG</string>
     <string name="library_games_download_install_available">%1$s / %2$s • Verfügbar: %3$s</string>
@@ -221,6 +232,8 @@
     <string name="downloads_queue_phase_cancelled">Abgebrochen</string>
     <string name="downloads_queue_phase_failed">Fehlgeschlagen: %1$s</string>
     <string name="downloads_queue_cancel_download">Download abbrechen</string>
+    <string name="downloads_queue_cancel_download_title">Download abbrechen?</string>
+    <string name="downloads_queue_cancel_download_warning">Das Abbrechen eines DLC-, Spiel- oder Update-Downloads kann deine Spielinstallation möglicherweise beschädigen.\n\nMöchtest du wirklich abbrechen?</string>
     <string name="downloads_queue_empty">Keine aktiven Downloads.</string>
 
     <!-- Containers > List -->
@@ -758,6 +771,8 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="settings_debug_input_logs_description">Gamepad-, Touch- und Tastatur-Eingabeereignisse protokollieren</string>
     <string name="settings_debug_download_logs">Download-Protokolle</string>
     <string name="settings_debug_download_logs_description">Download-Resolver- und WinNative-Fallback-Ereignisse protokollieren</string>
+    <string name="settings_debug_vulkan_validation_layers_title">Vulkan-Validierungsebenen</string>
+    <string name="settings_debug_vulkan_validation_layers_subtitle">Display neu starten, um die Änderung anzuwenden.</string>
     <string name="settings_debug_share_logs">Protokolle teilen</string>
     <string name="settings_debug_logs_subject">WinNative-Protokolle (%1$s)</string>
     <string name="settings_debug_no_logs_available">Keine Debug-Protokolle verfügbar. Bitte zuerst Debug-Optionen aktivieren und ein Spiel starten.</string>

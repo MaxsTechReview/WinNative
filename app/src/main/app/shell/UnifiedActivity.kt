@@ -145,6 +145,7 @@ import com.winlator.cmod.R
 import com.winlator.cmod.app.PluviaApp
 import com.winlator.cmod.app.db.PluviaDatabase
 import com.winlator.cmod.app.service.DownloadService
+import com.winlator.cmod.app.service.download.DownloadCoordinator
 import com.winlator.cmod.app.update.UpdateChecker
 import com.winlator.cmod.feature.settings.InputControlsFragment
 import com.winlator.cmod.feature.settings.SettingsHost
@@ -5260,219 +5261,6 @@ class UnifiedActivity :
     }
 
     @Composable
-    private fun DetailCard(
-        label: String,
-        value: String,
-        modifier: Modifier = Modifier.fillMaxWidth(),
-        valueColor: Color? = null,
-        onClick: (() -> Unit)? = null,
-    ) {
-        Surface(
-            modifier =
-                modifier
-                    .then(if (onClick != null) Modifier.clip(RoundedCornerShape(10.dp)).clickable(onClick = onClick) else Modifier),
-            color = SurfaceDark,
-            shape = RoundedCornerShape(10.dp),
-            border = BorderStroke(1.dp, if (onClick != null) Accent.copy(alpha = 0.25f) else CardBorder),
-        ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(1.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        label.uppercase(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.8.sp,
-                        fontSize = 10.sp,
-                    )
-                    if (onClick != null) {
-                        Icon(
-                            Icons.AutoMirrored.Outlined.OpenInNew,
-                            contentDescription = null,
-                            modifier = Modifier.size(10.dp),
-                            tint = Accent.copy(alpha = 0.6f),
-                        )
-                    }
-                }
-                Text(
-                    value,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = valueColor ?: (if (onClick != null) Accent else TextPrimary),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
-
-    @Composable
-    private fun PlayButton(
-        height: Dp = 44.dp,
-        onClick: () -> Unit,
-    ) {
-        val interactionSource = remember { MutableInteractionSource() }
-        val isPressed by interactionSource.collectIsPressedAsState()
-        val scale by animateFloatAsState(
-            targetValue = if (isPressed) 0.92f else 1f,
-            animationSpec = spring(dampingRatio = 0.5f, stiffness = 600f),
-            label = "playScale",
-        )
-
-        // Idle glow pulse
-        val infiniteTransition = rememberInfiniteTransition(label = "playGlow")
-        val glowPulse by infiniteTransition.animateFloat(
-            initialValue = 0.3f,
-            targetValue = 0.6f,
-            animationSpec =
-                infiniteRepeatable(
-                    animation = tween<Float>(1200, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse,
-                ),
-            label = "playPulse",
-        )
-
-        val baseGradient =
-            Brush.horizontalGradient(
-                colors =
-                    listOf(
-                        Color(0xFF00B4D8),
-                        Accent,
-                        Color(0xFF7B2FF7),
-                    ),
-            )
-
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(height)
-                    .graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
-                    }.shadow(
-                        elevation = 12.dp,
-                        shape = RoundedCornerShape(12.dp),
-                        ambientColor = Accent.copy(alpha = glowPulse),
-                        spotColor = Accent.copy(alpha = glowPulse),
-                    ).clip(RoundedCornerShape(12.dp))
-                    .background(baseGradient)
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = onClick,
-                    ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-            ) {
-                Icon(
-                    Icons.Outlined.PlayArrow,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = Color.White,
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    stringResource(R.string.library_games_play),
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp,
-                )
-            }
-        }
-    }
-
-    @Composable
-    private fun InstallButton(
-        loading: Boolean = false,
-        onClick: () -> Unit,
-    ) {
-        val interactionSource = remember { MutableInteractionSource() }
-        val isPressed by interactionSource.collectIsPressedAsState()
-        val scale by animateFloatAsState(
-            targetValue = if (isPressed && !loading) 0.92f else 1f,
-            animationSpec = spring(dampingRatio = 0.5f, stiffness = 600f),
-            label = "installScale",
-        )
-        val infiniteTransition = rememberInfiniteTransition(label = "installGlow")
-        val glowPulse by infiniteTransition.animateFloat(
-            initialValue = 0.3f,
-            targetValue = 0.6f,
-            animationSpec =
-                infiniteRepeatable(
-                    animation = tween<Float>(1200, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse,
-                ),
-            label = "installPulse",
-        )
-        val baseGradient =
-            Brush.horizontalGradient(
-                colors =
-                    listOf(
-                        Color(0xFF00B4D8),
-                        Accent,
-                        Color(0xFF7B2FF7),
-                    ),
-            )
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-                    .graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
-                    }.shadow(
-                        elevation = 12.dp,
-                        shape = RoundedCornerShape(12.dp),
-                        ambientColor = Accent.copy(alpha = glowPulse),
-                        spotColor = Accent.copy(alpha = glowPulse),
-                    ).clip(RoundedCornerShape(12.dp))
-                    .background(baseGradient)
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = { if (!loading) onClick() },
-                    ),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (loading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp),
-                    color = Color.White,
-                    strokeWidth = 2.dp,
-                )
-            } else {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                ) {
-                    Icon(
-                        Icons.Outlined.Download,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = Color.White,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        stringResource(R.string.common_ui_download),
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp,
-                    )
-                }
-            }
-        }
-    }
-
-    @Composable
     private fun CompactActionButton(
         icon: ImageVector,
         label: String,
@@ -5935,6 +5723,32 @@ class UnifiedActivity :
     }
 
     @Composable
+    private fun StoreInstalledBadge(
+        modifier: Modifier = Modifier,
+        compact: Boolean = false,
+    ) {
+        val shape = RoundedCornerShape(4.dp)
+        Box(
+            modifier =
+                modifier
+                    .background(StatusOnline.copy(alpha = 0.94f), shape)
+                    .border(1.dp, Color.White.copy(alpha = 0.28f), shape)
+                    .padding(
+                        horizontal = if (compact) 5.dp else 7.dp,
+                        vertical = if (compact) 2.dp else 3.dp,
+                    ),
+        ) {
+            Text(
+                stringResource(R.string.library_games_installed_badge),
+                color = Color(0xFF07120A),
+                fontSize = if (compact) 8.sp else 10.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+            )
+        }
+    }
+
+    @Composable
     fun EpicStoreCapsule(
         app: com.winlator.cmod.feature.stores.epic.data.EpicGame,
         isInstalled: Boolean,
@@ -6000,21 +5814,10 @@ class UnifiedActivity :
                         contentScale = ContentScale.Crop,
                     )
                     if (isInstalled) {
-                        Box(
-                            Modifier
-                                .align(
-                                    Alignment.BottomEnd,
-                                ).padding(4.dp)
-                                .background(SurfaceDark.copy(alpha = 0.7f), RoundedCornerShape(6.dp))
-                                .padding(3.dp),
-                        ) {
-                            Text(
-                                stringResource(R.string.library_games_installed_badge),
-                                color = StatusOnline,
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
+                        StoreInstalledBadge(
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp),
+                            compact = true,
+                        )
                     }
                 }
                 Spacer(Modifier.width(14.dp))
@@ -6072,21 +5875,9 @@ class UnifiedActivity :
                     )
 
                     if (isInstalled) {
-                        Box(
-                            Modifier
-                                .align(
-                                    Alignment.BottomEnd,
-                                ).padding(8.dp)
-                                .background(SurfaceDark.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
-                                .padding(4.dp),
-                        ) {
-                            Text(
-                                stringResource(R.string.library_games_installed_badge),
-                                color = StatusOnline,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
+                        StoreInstalledBadge(
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
+                        )
                     }
                 }
 
@@ -6108,157 +5899,6 @@ class UnifiedActivity :
     }
 
     @Composable
-    private fun StoreInstallDialogShell(
-        title: String,
-        heroImageUrl: String?,
-        subtitle: String,
-        sourceLabel: String = "",
-        onDismissRequest: () -> Unit,
-        infoContent: @Composable ColumnScope.() -> Unit = {},
-        actionsContent: @Composable ColumnScope.() -> Unit,
-    ) {
-        Dialog(
-            onDismissRequest = onDismissRequest,
-            properties =
-                DialogProperties(
-                    usePlatformDefaultWidth = false,
-                    decorFitsSystemWindows = false,
-                ),
-        ) {
-            Surface(
-                modifier =
-                    Modifier
-                        .windowInsetsPadding(WindowInsets.navigationBars)
-                        .fillMaxWidth(0.864f)
-                        .fillMaxHeight(0.92f),
-                shape = RoundedCornerShape(20.dp),
-                color = CardDark,
-            ) {
-                Box(Modifier.fillMaxSize()) {
-                    Column(Modifier.fillMaxSize()) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .fillMaxHeight(0.42f),
-                        ) {
-                            AsyncImage(
-                                model =
-                                    ImageRequest
-                                        .Builder(LocalContext.current)
-                                        .data(heroImageUrl)
-                                        .crossfade(150)
-                                        .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
-                                        .diskCachePolicy(coil.request.CachePolicy.ENABLED)
-                                        .build(),
-                                contentDescription = "$title artwork",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.FillWidth,
-                                alignment = Alignment.TopCenter,
-                            )
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxSize()
-                                        .background(
-                                            Brush.verticalGradient(
-                                                colorStops =
-                                                    arrayOf(
-                                                        0.0f to Color.Transparent,
-                                                        0.45f to Color.Transparent,
-                                                        0.72f to CardDark.copy(alpha = 0.72f),
-                                                        1.0f to CardDark,
-                                                    ),
-                                            ),
-                                        ),
-                            )
-                            Column(
-                                modifier =
-                                    Modifier
-                                        .align(Alignment.BottomStart)
-                                        .padding(start = 24.dp, end = 80.dp, bottom = 24.dp),
-                            ) {
-                                Text(
-                                    title,
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    color = TextPrimary,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                if (subtitle.isNotBlank()) {
-                                    Spacer(Modifier.height(8.dp))
-                                    Text(
-                                        subtitle,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = TextSecondary,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                            }
-                        }
-
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = 24.dp, vertical = 14.dp),
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        ) {
-                            Column(
-                                modifier =
-                                    Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight(),
-                                verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.Bottom),
-                            ) {
-                                if (sourceLabel.isNotBlank()) {
-                                    Surface(
-                                        color = Accent.copy(alpha = 0.15f),
-                                        shape = RoundedCornerShape(8.dp),
-                                    ) {
-                                        Text(
-                                            sourceLabel,
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                            color = Accent,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                        )
-                                    }
-                                }
-                                infoContent()
-                            }
-
-                            Column(
-                                modifier =
-                                    Modifier
-                                        .widthIn(min = 200.dp, max = 260.dp)
-                                        .fillMaxHeight(),
-                                verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.Bottom),
-                            ) {
-                                actionsContent()
-                            }
-                        }
-                    }
-
-                    IconButton(
-                        onClick = onDismissRequest,
-                        modifier =
-                            Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(16.dp)
-                                .size(42.dp)
-                                .shadow(8.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.35f))
-                                .clip(CircleShape)
-                                .background(BgDark.copy(alpha = 0.7f)),
-                    ) {
-                        Icon(Icons.Outlined.Close, contentDescription = "Close", tint = TextPrimary)
-                    }
-                }
-            }
-        }
-    }
-
-    @Composable
     fun EpicGameManagerDialog(
         app: EpicGame,
         onDismissRequest: () -> Unit,
@@ -6273,7 +5913,6 @@ class UnifiedActivity :
         val selectedDlcIds = remember { mutableStateListOf<Int>() }
         var customPath by remember { mutableStateOf<String?>(null) }
         var showCustomPathWarning by remember { mutableStateOf(false) }
-        var showDlcDialog by remember { mutableStateOf(false) }
 
         if (showCustomPathWarning) {
             CustomPathWarningDialog(
@@ -6289,58 +5928,6 @@ class UnifiedActivity :
             )
         }
 
-        if (showDlcDialog && dlcApps.isNotEmpty()) {
-            GameSettingsDialogFrame(
-                title = stringResource(R.string.library_games_dlcs),
-                onDismissRequest = { showDlcDialog = false },
-            ) {
-                Column(
-                    modifier =
-                        Modifier
-                            .heightIn(max = 300.dp)
-                            .verticalScroll(rememberScrollState()),
-                ) {
-                    dlcApps.forEachIndexed { index, dlc ->
-                        if (index > 0) {
-                            HorizontalDivider(
-                                color = CardBorder.copy(alpha = 0.5f),
-                                thickness = 0.5.dp,
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                            )
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null,
-                                    ) {
-                                        if (selectedDlcIds.contains(dlc.id)) {
-                                            selectedDlcIds.remove(dlc.id)
-                                        } else {
-                                            selectedDlcIds.add(dlc.id)
-                                        }
-                                    }.padding(horizontal = 16.dp, vertical = 2.dp),
-                        ) {
-                            Checkbox(
-                                checked = selectedDlcIds.contains(dlc.id),
-                                onCheckedChange = { if (it) selectedDlcIds.add(dlc.id) else selectedDlcIds.remove(dlc.id) },
-                                colors =
-                                    CheckboxDefaults.colors(
-                                        checkedColor = Accent,
-                                        uncheckedColor = TextSecondary,
-                                        checkmarkColor = Color.White,
-                                    ),
-                            )
-                            Text(dlc.title, color = TextPrimary, fontSize = 13.sp)
-                        }
-                    }
-                }
-            }
-        }
-
         LaunchedEffect(app.id, installed) {
             if (!installed) {
                 withContext(Dispatchers.IO) {
@@ -6351,8 +5938,14 @@ class UnifiedActivity :
             }
         }
 
-        val totalInstallSize = manifestSizes?.installSize ?: 0L
-        val totalDownloadSize = manifestSizes?.downloadSize ?: 0L
+        val baseDownloadSize = manifestSizes?.downloadSize ?: 0L
+        val baseInstallSize = manifestSizes?.installSize ?: 0L
+        val selectedDlcDownloadBytes =
+            dlcApps.filter { it.id in selectedDlcIds }.sumOf { it.downloadSize.coerceAtLeast(0L) }
+        val selectedDlcInstallBytes =
+            dlcApps.filter { it.id in selectedDlcIds }.sumOf { it.installSize.coerceAtLeast(0L) }
+        val totalDownloadSize = baseDownloadSize + selectedDlcDownloadBytes
+        val totalInstallSize = baseInstallSize + selectedDlcInstallBytes
         val defaultPathSet =
             if (PrefManager.useSingleDownloadFolder) {
                 PrefManager.defaultDownloadFolder.isNotEmpty()
@@ -6367,79 +5960,84 @@ class UnifiedActivity :
             } catch (e: Exception) {
                 0L
             }
-        val isInstallEnabled = installed || availableBytes >= totalInstallSize
-        val installPathDisplay = customPath ?: EpicConstants.defaultEpicGamesPath(context)
+        val isInstallEnabled = installed || totalInstallSize == 0L || availableBytes >= totalInstallSize
+        val installPathDisplay = if (installed) app.installPath else (customPath ?: EpicConstants.defaultEpicGamesPath(context))
 
-        StoreInstallDialogShell(
-            title = app.title,
-            heroImageUrl = app.artPortrait.ifEmpty { app.primaryImageUrl },
-            subtitle =
-                listOfNotNull(
-                    app.developer.takeIf { it.isNotBlank() },
-                    app.publisher.takeIf { it.isNotBlank() },
-                ).joinToString(" • "),
-            sourceLabel = "Epic Games",
+        val dlcItems =
+            remember(dlcApps) {
+                dlcApps.map { dlc ->
+                    val size =
+                        dlc.downloadSize.takeIf { it > 0L }
+                            ?: dlc.installSize
+                    StoreDlcItem(id = dlc.id, name = dlc.title, downloadSize = size)
+                }
+            }
+        val customPathLabel =
+            when {
+                customPath != null -> stringResource(R.string.common_ui_custom)
+                defaultPathSet -> stringResource(R.string.common_ui_already_set)
+                else -> stringResource(R.string.common_ui_custom)
+            }
+
+        Dialog(
             onDismissRequest = onDismissRequest,
-            infoContent = {
-                if (isLoading && !installed) {
-                    Spacer(Modifier.height(18.dp))
-                    CircularProgressIndicator(color = Accent)
-                } else if (installed) {
-                    DetailCard(
-                        label = stringResource(R.string.library_games_install_path),
-                        value = app.installPath,
-                    )
-                    DetailCard(
-                        label = stringResource(R.string.common_ui_status),
-                        value = stringResource(R.string.common_ui_installed),
-                        valueColor = StatusOnline,
-                    )
-                } else {
-                    DetailCard(
-                        label = stringResource(R.string.library_games_install_path),
-                        value = installPathDisplay,
-                    )
-                    DetailCard(
-                        stringResource(R.string.library_games_download_slash_install),
-                        stringResource(
-                            R.string.library_games_download_install_available,
-                            StorageUtils.formatBinarySize(totalDownloadSize),
-                            StorageUtils.formatBinarySize(totalInstallSize),
-                            StorageUtils.formatBinarySize(availableBytes),
-                        ),
-                        valueColor = if (!isInstallEnabled) DangerRed else null,
-                    )
-                }
-            },
+            properties =
+                DialogProperties(
+                    usePlatformDefaultWidth = false,
+                    decorFitsSystemWindows = false,
+                ),
         ) {
-            if (installed) {
-                PlayButton(onClick = {
-                    launchEpicGame(context, ContainerManager(context), app)
-                    onDismissRequest()
-                })
-                if (app.cloudSaveEnabled) {
-                    CompactActionButton(
-                        icon = Icons.Outlined.CloudSync,
-                        label = stringResource(R.string.google_cloud_title),
-                        onClick = {
-                            scope.launch(Dispatchers.IO) {
-                                EpicCloudSavesManager.syncCloudSaves(context, app.id, "auto")
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                shape = RectangleShape,
+                color = Color.Black,
+            ) {
+                StoreGameDetailScreen(
+                    title = app.title,
+                    subtitle =
+                        listOfNotNull(
+                            app.developer.takeIf { it.isNotBlank() },
+                            app.publisher.takeIf { it.isNotBlank() },
+                        ).joinToString(" • "),
+                    sourceLabel = "Epic Games",
+                    heroImageUrl = app.artPortrait.ifEmpty { app.primaryImageUrl },
+                    isLoading = isLoading,
+                    isInstalled = installed,
+                    installPathDisplay = installPathDisplay,
+                    downloadSize = totalDownloadSize,
+                    installSize = totalInstallSize,
+                    availableBytes = availableBytes,
+                    isInstallEnabled = isInstallEnabled,
+                    customPathLabel = customPathLabel,
+                    showCustomPath = true,
+                    showCloudSync = app.cloudSaveEnabled,
+                    showUninstall = true,
+                    dlcs = dlcItems,
+                    selectedDlcIds = selectedDlcIds.toSet(),
+                    onBack = onDismissRequest,
+                    onInstall = {
+                        val installPath =
+                            if (customPath != null) {
+                                val sanitizedTitle = app.title.replace(Regex("[^a-zA-Z0-9 \\-_]"), "").trim()
+                                java.io.File(customPath!!, sanitizedTitle).absolutePath
+                            } else {
+                                EpicConstants.getGameInstallPath(context, app.title)
                             }
-                            onDismissRequest()
-                            com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                context,
-                                context.getString(R.string.google_cloud_sync_started),
-                                android.widget.Toast.LENGTH_SHORT,
-                            )
-                        },
-                    )
-                }
-                CompactActionButton(
-                    icon = Icons.Outlined.Delete,
-                    label = stringResource(R.string.common_ui_uninstall),
-                    tint = DangerRed,
-                    bgColor = DangerRed.copy(alpha = 0.12f),
-                    onClick = {
+                        EpicService.downloadGame(context, app.id, selectedDlcIds.toList(), installPath, "en-US")
+                        onDismissRequest()
+                    },
+                    onCloudSync = {
+                        scope.launch(Dispatchers.IO) {
+                            EpicCloudSavesManager.syncCloudSaves(context, app.id, "auto")
+                        }
+                        onDismissRequest()
+                        com.winlator.cmod.shared.ui.toast.WinToast.show(
+                            context,
+                            context.getString(R.string.google_cloud_sync_started),
+                            android.widget.Toast.LENGTH_SHORT,
+                        )
+                    },
+                    onUninstall = {
                         scope.launch(Dispatchers.IO) {
                             val result = EpicService.deleteGame(context, app.id)
                             withContext(Dispatchers.Main) {
@@ -6458,60 +6056,33 @@ class UnifiedActivity :
                             }
                         }
                     },
-                )
-            } else {
-                InstallButton(
-                    loading = isLoading,
-                    onClick = {
-                        val installPath =
-                            if (customPath != null) {
-                                val sanitizedTitle = app.title.replace(Regex("[^a-zA-Z0-9 \\-_]"), "").trim()
-                                java.io.File(customPath!!, sanitizedTitle).absolutePath
-                            } else {
-                                EpicConstants.getGameInstallPath(context, app.title)
-                            }
-                        EpicService.downloadGame(context, app.id, selectedDlcIds.toList(), installPath, "en-US")
-                        onDismissRequest()
+                    onCustomPath = {
+                        if (customPath == null && defaultPathSet) {
+                            showCustomPathWarning = true
+                        } else {
+                            DirectoryPickerDialog.show(
+                                activity = this@UnifiedActivity,
+                                initialPath = customPath ?: EpicConstants.getGameInstallPath(context, app.appName),
+                                title = getString(R.string.settings_content_install_directory),
+                            ) { path -> customPath = path }
+                        }
+                    },
+                    onToggleDlc = { id ->
+                        if (selectedDlcIds.contains(id)) {
+                            selectedDlcIds.remove(id)
+                        } else {
+                            selectedDlcIds.add(id)
+                        }
+                    },
+                    onToggleSelectAllDlcs = {
+                        val all = dlcItems.isNotEmpty() && dlcItems.all { it.id in selectedDlcIds }
+                        if (all) {
+                            selectedDlcIds.clear()
+                        } else {
+                            dlcItems.forEach { if (it.id !in selectedDlcIds) selectedDlcIds.add(it.id) }
+                        }
                     },
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    CompactActionButton(
-                        icon = Icons.Outlined.Folder,
-                        label =
-                            if (customPath !=
-                                null
-                            ) {
-                                stringResource(R.string.common_ui_custom)
-                            } else if (defaultPathSet) {
-                                stringResource(R.string.common_ui_already_set)
-                            } else {
-                                stringResource(R.string.common_ui_custom)
-                            },
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            if (customPath == null && defaultPathSet) {
-                                showCustomPathWarning = true
-                            } else {
-                                DirectoryPickerDialog.show(
-                                    activity = this@UnifiedActivity,
-                                    initialPath = customPath ?: EpicConstants.getGameInstallPath(context, app.appName),
-                                    title = getString(R.string.settings_content_install_directory),
-                                ) { path -> customPath = path }
-                            }
-                        },
-                    )
-                    if (dlcApps.isNotEmpty()) {
-                        CompactActionButton(
-                            icon = Icons.Outlined.Extension,
-                            label = stringResource(R.string.library_games_dlcs),
-                            modifier = Modifier.weight(1f),
-                            onClick = { showDlcDialog = true },
-                        )
-                    }
-                }
             }
         }
     }
@@ -6605,11 +6176,9 @@ class UnifiedActivity :
                             contentScale = ContentScale.Crop,
                         )
                         if (isInstalled) {
-                            Icon(
-                                Icons.Outlined.CheckCircle,
-                                contentDescription = "Installed",
-                                tint = StatusOnline,
-                                modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp).size(18.dp),
+                            StoreInstalledBadge(
+                                modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp),
+                                compact = true,
                             )
                         }
                     }
@@ -6683,11 +6252,8 @@ class UnifiedActivity :
                             contentScale = ContentScale.Crop,
                         )
                         if (isInstalled) {
-                            Icon(
-                                Icons.Outlined.CheckCircle,
-                                contentDescription = "Installed",
-                                tint = StatusOnline,
-                                modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp).size(24.dp),
+                            StoreInstalledBadge(
+                                modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
                             )
                         }
                     }
@@ -6747,7 +6313,9 @@ class UnifiedActivity :
             }
         val installRootPath = customPath ?: GOGConstants.defaultGOGGamesPath
         val installPathDisplay =
-            if (customPath != null) {
+            if (installed) {
+                app.installPath
+            } else if (customPath != null) {
                 java.io.File(customPath!!, GOGConstants.getSanitizedGameFolderName(app.title)).absolutePath
             } else {
                 GOGConstants.getGameInstallPath(app.title)
@@ -6759,56 +6327,55 @@ class UnifiedActivity :
             } catch (_: Exception) {
                 0L
             }
-        val isInstallEnabled = installed || availableBytes >= requiredBytes
+        val isInstallEnabled = installed || requiredBytes == 0L || availableBytes >= requiredBytes
+        val customPathLabel =
+            when {
+                customPath != null -> stringResource(R.string.common_ui_custom)
+                defaultPathSet -> stringResource(R.string.common_ui_already_set)
+                else -> stringResource(R.string.common_ui_custom)
+            }
 
-        StoreInstallDialogShell(
-            title = app.title,
-            heroImageUrl = app.imageUrl.ifEmpty { app.iconUrl },
-            subtitle =
-                listOfNotNull(
-                    app.developer.takeIf { it.isNotBlank() },
-                    app.publisher.takeIf { it.isNotBlank() },
-                ).joinToString(" • "),
-            sourceLabel = "GOG",
+        Dialog(
             onDismissRequest = onDismissRequest,
-            infoContent = {
-                if (installed) {
-                    DetailCard(
-                        label = stringResource(R.string.library_games_install_path),
-                        value = app.installPath,
-                    )
-                    DetailCard(
-                        label = stringResource(R.string.common_ui_status),
-                        value = stringResource(R.string.common_ui_installed),
-                        valueColor = StatusOnline,
-                    )
-                } else {
-                    DetailCard(
-                        label = stringResource(R.string.library_games_install_path),
-                        value = installPathDisplay,
-                    )
-                    DetailCard(
-                        stringResource(R.string.library_games_download_slash_install),
-                        stringResource(
-                            R.string.library_games_download_install_available,
-                            StorageUtils.formatBinarySize(app.downloadSize),
-                            StorageUtils.formatBinarySize(app.installSize),
-                            StorageUtils.formatBinarySize(availableBytes),
-                        ),
-                        valueColor = if (!isInstallEnabled) DangerRed else null,
-                    )
-                }
-            },
+            properties =
+                DialogProperties(
+                    usePlatformDefaultWidth = false,
+                    decorFitsSystemWindows = false,
+                ),
         ) {
-            if (installed) {
-                PlayButton(onClick = {
-                    launchGogGame(context, ContainerManager(context), app)
-                    onDismissRequest()
-                })
-                CompactActionButton(
-                    icon = Icons.Outlined.CloudSync,
-                    label = stringResource(R.string.google_cloud_title),
-                    onClick = {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                shape = RectangleShape,
+                color = Color.Black,
+            ) {
+                StoreGameDetailScreen(
+                    title = app.title,
+                    subtitle =
+                        listOfNotNull(
+                            app.developer.takeIf { it.isNotBlank() },
+                            app.publisher.takeIf { it.isNotBlank() },
+                        ).joinToString(" • "),
+                    sourceLabel = "GOG",
+                    heroImageUrl = app.imageUrl.ifEmpty { app.iconUrl },
+                    isLoading = false,
+                    isInstalled = installed,
+                    installPathDisplay = installPathDisplay,
+                    downloadSize = app.downloadSize,
+                    installSize = app.installSize,
+                    availableBytes = availableBytes,
+                    isInstallEnabled = isInstallEnabled,
+                    customPathLabel = customPathLabel,
+                    showCustomPath = true,
+                    showCloudSync = true,
+                    showUninstall = true,
+                    dlcs = emptyList(),
+                    selectedDlcIds = emptySet(),
+                    onBack = onDismissRequest,
+                    onInstall = {
+                        GOGService.downloadGame(context, app.id, installPathDisplay, PrefManager.containerLanguage)
+                        onDismissRequest()
+                    },
+                    onCloudSync = {
                         scope.launch(Dispatchers.IO) {
                             GOGService.syncCloudSaves(context, "GOG_${app.id}", "auto")
                         }
@@ -6819,18 +6386,17 @@ class UnifiedActivity :
                             android.widget.Toast.LENGTH_SHORT,
                         )
                     },
-                )
-                CompactActionButton(
-                    icon = Icons.Outlined.Delete,
-                    label = stringResource(R.string.common_ui_uninstall),
-                    tint = DangerRed,
-                    bgColor = DangerRed.copy(alpha = 0.12f),
-                    onClick = {
+                    onUninstall = {
                         scope.launch(Dispatchers.IO) {
-                            val result = GOGService.deleteGame(
-                                context,
-                                LibraryItem("GOG_${app.id}", app.title, com.winlator.cmod.feature.stores.steam.enums.GameSource.GOG),
-                            )
+                            val result =
+                                GOGService.deleteGame(
+                                    context,
+                                    LibraryItem(
+                                        "GOG_${app.id}",
+                                        app.title,
+                                        com.winlator.cmod.feature.stores.steam.enums.GameSource.GOG,
+                                    ),
+                                )
                             withContext(Dispatchers.Main) {
                                 if (!result.isSuccess) {
                                     com.winlator.cmod.shared.ui.toast.WinToast.show(
@@ -6847,27 +6413,7 @@ class UnifiedActivity :
                             }
                         }
                     },
-                )
-            } else {
-                InstallButton(
-                    onClick = {
-                        GOGService.downloadGame(context, app.id, installPathDisplay, PrefManager.containerLanguage)
-                        onDismissRequest()
-                    },
-                )
-                CompactActionButton(
-                    icon = Icons.Outlined.Folder,
-                    label =
-                        if (customPath !=
-                            null
-                        ) {
-                            stringResource(R.string.common_ui_custom)
-                        } else if (defaultPathSet) {
-                            stringResource(R.string.common_ui_already_set)
-                        } else {
-                            stringResource(R.string.common_ui_custom)
-                        },
-                    onClick = {
+                    onCustomPath = {
                         if (customPath == null && defaultPathSet) {
                             showCustomPathWarning = true
                         } else {
@@ -7096,11 +6642,9 @@ class UnifiedActivity :
                             contentScale = ContentScale.Crop,
                         )
                         if (isInstalled) {
-                            Icon(
-                                Icons.Outlined.CheckCircle,
-                                contentDescription = "Installed",
-                                tint = StatusOnline,
-                                modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp).size(18.dp),
+                            StoreInstalledBadge(
+                                modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp),
+                                compact = true,
                             )
                         }
                     }
@@ -7162,11 +6706,8 @@ class UnifiedActivity :
                     )
 
                     if (isInstalled) {
-                        Icon(
-                            Icons.Outlined.CheckCircle,
-                            contentDescription = "Installed",
-                            tint = StatusOnline,
-                            modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp).size(24.dp),
+                        StoreInstalledBadge(
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
                         )
                     }
                 }
@@ -7188,6 +6729,11 @@ class UnifiedActivity :
         }
     }
 
+    private data class DownloadCancelRequest(
+        val ids: List<String>,
+        val isCancelAll: Boolean,
+    )
+
     // Downloads Tab
     @Composable
     fun DownloadsTab(
@@ -7198,6 +6744,7 @@ class UnifiedActivity :
         val downloads = remember { mutableStateListOf<Pair<String, DownloadInfo>>() }
         var tick by remember { mutableIntStateOf(0) }
         val scope = rememberCoroutineScope()
+        var cancelWarningRequest by remember { mutableStateOf<DownloadCancelRequest?>(null) }
 
         val syncDownloads =
             remember(selectedId, onSelectDownload) {
@@ -7237,7 +6784,7 @@ class UnifiedActivity :
         // is what makes PAUSED records (loaded from DB after app restart) appear in the tab,
         // and what removes COMPLETE/CANCELLED/FAILED rows after Clear.
         LaunchedEffect(syncDownloads) {
-            com.winlator.cmod.app.service.download.DownloadCoordinator.changes.collect {
+            DownloadCoordinator.changes.collect {
                 latestSyncDownloads()
             }
         }
@@ -7337,20 +6884,46 @@ class UnifiedActivity :
                     enabled = pauseResumeEnabled,
                 )
 
-                DownloadsQueueButton(
-                    label = cancelLabel,
-                    accentColor = DangerRed,
-                    onClick = {
-                        if (selectedId == null) {
-                            DownloadService.cancelAll()
-                            onSelectDownload(null)
-                        } else {
-                            DownloadService.cancelDownload(selectedId)
-                            onSelectDownload(null)
-                        }
-                    },
-                    enabled = cancelEnabled,
-                )
+                Box {
+                    DownloadsQueueButton(
+                        label = cancelLabel,
+                        accentColor = DangerRed,
+                        onClick = {
+                            if (selectedId == null) {
+                                cancelWarningRequest =
+                                    DownloadCancelRequest(
+                                        ids = pausableDownloads.map { it.first },
+                                        isCancelAll = true,
+                                    )
+                            } else {
+                                cancelWarningRequest =
+                                    DownloadCancelRequest(
+                                        ids = listOf(selectedId),
+                                        isCancelAll = false,
+                                    )
+                            }
+                        },
+                        enabled = cancelEnabled,
+                    )
+
+                    cancelWarningRequest?.let { request ->
+                        DownloadCancelWarningMenu(
+                            expanded = true,
+                            onDismissRequest = { cancelWarningRequest = null },
+                            onConfirm = {
+                                val activeRequest = cancelWarningRequest
+                                cancelWarningRequest = null
+                                val ids = activeRequest?.ids.orEmpty()
+                                if (activeRequest?.isCancelAll == true) {
+                                    DownloadService.cancelAll()
+                                } else {
+                                    ids.forEach(DownloadService::cancelDownload)
+                                }
+                                onSelectDownload(null)
+                            },
+                        )
+                    }
+                }
 
                 // Clear button - clears completed, cancelled, and failed downloads
                 val hasCompletedOrCancelled =
@@ -7587,6 +7160,25 @@ class UnifiedActivity :
     }
 
     @Composable
+    private fun DownloadCancelWarningMenu(
+        expanded: Boolean,
+        onDismissRequest: () -> Unit,
+        onConfirm: () -> Unit,
+    ) {
+        LaunchDangerConfirmDialog(
+            visible = expanded,
+            title = stringResource(R.string.downloads_queue_cancel_download_title),
+            message = stringResource(R.string.downloads_queue_cancel_download_warning),
+            confirmLabel = stringResource(R.string.downloads_queue_cancel_download),
+            onDismissRequest = onDismissRequest,
+            onConfirm = onConfirm,
+            icon = Icons.Outlined.Warning,
+            titleTextAlign = TextAlign.Center,
+            messageTextAlign = TextAlign.Center,
+        )
+    }
+
+    @Composable
     fun DownloadItemDeck(
         id: String,
         info: DownloadInfo,
@@ -7716,7 +7308,7 @@ class UnifiedActivity :
 
                 Column(Modifier.weight(1f)) {
                     val currentFile by info.getCurrentFileNameFlow().collectAsState()
-                    val (downloadedBytes, totalBytes) = info.getBytesProgress()
+                    val (downloadedBytes, totalBytes) = info.getDisplayBytesProgress()
                     val speed = info.getCurrentDownloadSpeed() ?: 0L
                     val percentage = (animatedProgress * 100).roundToInt()
                     val showDownloadSpeed =
@@ -7881,74 +7473,40 @@ class UnifiedActivity :
                     }
                 }
 
-                IconButton(
-                    onClick = { showDeleteDialog = true },
-                    enabled = status != DownloadPhase.COMPLETE && status != DownloadPhase.CANCELLED,
-                ) {
-                    Icon(
-                        Icons.Outlined.Close,
-                        contentDescription = stringResource(R.string.downloads_queue_cancel_download),
-                        tint =
-                            if (status != DownloadPhase.COMPLETE &&
-                                status != DownloadPhase.CANCELLED
-                            ) {
-                                Color(0xFFFF6B6B)
-                            } else {
-                                TextSecondary
+                Box(contentAlignment = Alignment.Center) {
+                    IconButton(
+                        onClick = { showDeleteDialog = true },
+                        enabled = status != DownloadPhase.COMPLETE && status != DownloadPhase.CANCELLED,
+                    ) {
+                        Icon(
+                            Icons.Outlined.Close,
+                            contentDescription = stringResource(R.string.downloads_queue_cancel_download),
+                            tint =
+                                if (status != DownloadPhase.COMPLETE &&
+                                    status != DownloadPhase.CANCELLED
+                                ) {
+                                    Color(0xFFFF6B6B)
+                                } else {
+                                    TextSecondary
+                                },
+                        )
+                    }
+                    if (showDeleteDialog) {
+                        DownloadCancelWarningMenu(
+                            expanded = true,
+                            onDismissRequest = { showDeleteDialog = false },
+                            onConfirm = {
+                                showDeleteDialog = false
+                                DownloadService.cancelDownload(id)
                             },
-                    )
+                        )
+                    }
                 }
                 if (ControllerHelper.isControllerConnected()) {
                     Spacer(Modifier.width(8.dp))
                     ControllerBadge(if (ControllerHelper.isPlayStationController()) "\u2715" else "A")
                 }
             }
-        }
-
-        if (showDeleteDialog) {
-            val gameName =
-                if (id.startsWith("STEAM_")) {
-                    steamApp?.name
-                } else if (id.startsWith("EPIC_")) {
-                    epicGame?.title
-                } else if (id.startsWith("GOG_")) {
-                    gogGame?.title
-                } else {
-                    null
-                }
-            AlertDialog(
-                onDismissRequest = { showDeleteDialog = false },
-                containerColor = SurfaceDark,
-                title = { Text(stringResource(R.string.downloads_queue_cancel_download), color = TextPrimary) },
-                text = {
-                    Text(
-                        stringResource(
-                            R.string.downloads_queue_cancel_download_confirm,
-                            gameName ?: stringResource(R.string.downloads_queue_this_game),
-                        ),
-                        color = TextSecondary,
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            showDeleteDialog = false
-                            DownloadService.cancelDownload(id)
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF6B6B)),
-                    ) {
-                        Text(stringResource(R.string.downloads_queue_cancel_download), color = Color.White)
-                    }
-                },
-                dismissButton = {
-                    Button(
-                        onClick = { showDeleteDialog = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = CardDark),
-                    ) {
-                        Text(stringResource(R.string.common_ui_cancel), color = TextPrimary)
-                    }
-                },
-            )
         }
     }
 
@@ -7960,13 +7518,21 @@ class UnifiedActivity :
     ) {
         val context = LocalContext.current
         var isLoading by remember { mutableStateOf(true) }
-        var manifestSizes by remember { mutableStateOf(SteamService.ManifestSizes()) }
+        var selectedManifestSizes by remember { mutableStateOf(SteamService.ManifestSizes()) }
         var dlcApps by remember { mutableStateOf<List<SteamApp>>(emptyList()) }
+        var dlcSizes by remember { mutableStateOf<Map<Int, SteamService.ManifestSizes>>(emptyMap()) }
+        var installedDlcIds by remember(app.id) { mutableStateOf<Set<Int>>(emptySet()) }
         var installed by remember(app.id) { mutableStateOf<Boolean?>(null) }
         val selectedDlcIds = remember { mutableStateListOf<Int>() }
         var customPath by remember { mutableStateOf<String?>(null) }
         var showCustomPathWarning by remember { mutableStateOf(false) }
-        var showDlcDialog by remember { mutableStateOf(false) }
+        var isCheckingForUpdate by remember(app.id) { mutableStateOf(false) }
+        var isUpdateCheckCoolingDown by remember(app.id) { mutableStateOf(false) }
+        var updateInfo by remember(app.id) { mutableStateOf<SteamService.SteamUpdateInfo?>(null) }
+        var updateStatusText by remember(app.id) { mutableStateOf<String?>(null) }
+        val downloadRecords by com.winlator.cmod.app.service.download.DownloadCoordinator.records.collectAsState(
+            initial = com.winlator.cmod.app.service.download.DownloadCoordinator.snapshotRecords(),
+        )
         val scope = rememberCoroutineScope()
 
         if (showCustomPathWarning) {
@@ -7983,85 +7549,52 @@ class UnifiedActivity :
             )
         }
 
-        if (showDlcDialog && dlcApps.isNotEmpty()) {
-            GameSettingsDialogFrame(
-                title = stringResource(R.string.library_games_dlcs),
-                onDismissRequest = { showDlcDialog = false },
-            ) {
-                Column(
-                    modifier =
-                        Modifier
-                            .heightIn(max = 300.dp)
-                            .verticalScroll(rememberScrollState()),
-                ) {
-                    dlcApps.forEachIndexed { index, dlc ->
-                        if (index > 0) {
-                            HorizontalDivider(
-                                color = CardBorder.copy(alpha = 0.5f),
-                                thickness = 0.5.dp,
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                            )
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null,
-                                    ) {
-                                        if (selectedDlcIds.contains(dlc.id)) {
-                                            selectedDlcIds.remove(dlc.id)
-                                        } else {
-                                            selectedDlcIds.add(dlc.id)
-                                        }
-                                    }.padding(horizontal = 16.dp, vertical = 2.dp),
-                        ) {
-                            Checkbox(
-                                checked = selectedDlcIds.contains(dlc.id),
-                                onCheckedChange = { if (it) selectedDlcIds.add(dlc.id) else selectedDlcIds.remove(dlc.id) },
-                                colors =
-                                    CheckboxDefaults.colors(
-                                        checkedColor = Accent,
-                                        uncheckedColor = TextSecondary,
-                                        checkmarkColor = Color.White,
-                                    ),
-                            )
-                            Text(dlc.name, color = TextPrimary, fontSize = 13.sp)
-                        }
-                    }
-                }
-            }
-        }
+        data class SteamInstallLoadData(
+            val dlcApps: List<SteamApp>,
+            val dlcSizes: Map<Int, SteamService.ManifestSizes>,
+            val installedDlcIds: Set<Int>,
+            val baseManifestSizes: SteamService.ManifestSizes,
+            val installed: Boolean,
+        )
 
-        val selectedDlcIdsKey = selectedDlcIds.toList().sorted().joinToString(",")
-
-        LaunchedEffect(app.id) {
-            val (downloadableDlcApps, sizes, isInstalled) =
+        LaunchedEffect(app.id, downloadRecords) {
+            val loadData =
                 withContext(Dispatchers.IO) {
-                    Triple(
-                        db.steamAppDao().findDownloadableDLCApps(app.id) ?: emptyList(),
-                        SteamService.getSelectedManifestSizes(app.id),
-                        SteamService.isAppInstalled(app.id),
+                    val selectableDlcApps = SteamService.getSelectableDlcAppsOf(app.id)
+                    val perDlcSizes =
+                        selectableDlcApps.associate { dlc ->
+                            dlc.id to SteamService.getDlcOnlyManifestSizes(app.id, dlc.id)
+                        }
+                    val installedDlcIds =
+                        SteamService.getInstalledDlcDepotsOf(app.id)
+                            .orEmpty()
+                            .toSet()
+                    SteamInstallLoadData(
+                        dlcApps = selectableDlcApps,
+                        dlcSizes = perDlcSizes,
+                        installedDlcIds = installedDlcIds,
+                        baseManifestSizes = SteamService.getInstallableSelectedManifestSizes(app.id),
+                        installed = SteamService.isAppInstalled(app.id),
                     )
                 }
-            dlcApps = downloadableDlcApps
-            manifestSizes = sizes
-            installed = isInstalled
+            dlcApps = loadData.dlcApps
+            dlcSizes = loadData.dlcSizes
+            installedDlcIds = loadData.installedDlcIds
+            selectedDlcIds.removeAll(loadData.installedDlcIds)
+            selectedManifestSizes = loadData.baseManifestSizes
+            installed = loadData.installed
             isLoading = false
         }
 
-        LaunchedEffect(app.id, selectedDlcIdsKey) {
-            if (isLoading) return@LaunchedEffect
-            manifestSizes =
+        LaunchedEffect(app.id, selectedDlcIds.toList()) {
+            selectedManifestSizes =
                 withContext(Dispatchers.IO) {
-                    SteamService.getSelectedManifestSizes(app.id, selectedDlcIds.toList())
+                    SteamService.getInstallableSelectedManifestSizes(app.id, selectedDlcIds.toList())
                 }
         }
 
-        val totalInstallSize = manifestSizes.installSize
-        val totalDownloadSize = manifestSizes.downloadSize
+        val totalDownloadSize = selectedManifestSizes.downloadSize
+        val totalInstallSize = selectedManifestSizes.installSize
         val defaultPathSet =
             if (PrefManager.useSingleDownloadFolder) {
                 PrefManager.defaultDownloadFolder.isNotEmpty()
@@ -8076,70 +7609,185 @@ class UnifiedActivity :
             } catch (e: Exception) {
                 0L
             }
-        val isInstallEnabled = availableBytes >= totalInstallSize
+        val isInstallEnabled = totalInstallSize == 0L || availableBytes >= totalInstallSize
         val installPathDisplay = customPath ?: SteamService.defaultAppInstallPath
 
-        StoreInstallDialogShell(
-            title = app.name,
-            heroImageUrl = app.getHeroUrl(),
-            subtitle =
-                listOfNotNull(
-                    app.developer.takeIf { it.isNotBlank() },
-                    app.publisher.takeIf { it.isNotBlank() },
-                ).joinToString(" • "),
-            sourceLabel = "Steam",
-            onDismissRequest = onDismissRequest,
-            infoContent = {
-                if (isLoading) {
-                    Spacer(Modifier.height(18.dp))
-                    CircularProgressIndicator(color = Accent)
-                } else {
-                    DetailCard(
-                        label = stringResource(R.string.library_games_install_path),
-                        value = installPathDisplay,
-                    )
-                    DetailCard(
-                        stringResource(R.string.library_games_download_slash_install),
-                        stringResource(
-                            R.string.library_games_download_install_available,
-                            StorageUtils.formatBinarySize(totalDownloadSize),
-                            StorageUtils.formatBinarySize(totalInstallSize),
-                            StorageUtils.formatBinarySize(availableBytes),
-                        ),
-                        valueColor = if (!isInstallEnabled) DangerRed else null,
+        val dlcItems =
+            remember(dlcApps, dlcSizes, installedDlcIds) {
+                dlcApps.map { dlc ->
+                    val sizes = dlcSizes[dlc.id]
+                    val size =
+                        sizes
+                            ?.downloadSize
+                            ?.takeIf { it > 0L }
+                            ?: sizes?.installSize
+                            ?: 0L
+                    StoreDlcItem(
+                        id = dlc.id,
+                        name = dlc.name,
+                        downloadSize = size,
+                        isInstalled = dlc.id in installedDlcIds,
                     )
                 }
-            },
+            }
+        val customPathLabel =
+            when {
+                customPath != null -> stringResource(R.string.common_ui_custom)
+                defaultPathSet -> stringResource(R.string.common_ui_already_set)
+                else -> stringResource(R.string.common_ui_custom)
+            }
+        val isReallyInstalled = installed == true
+        val steamDownloadRecord =
+            downloadRecords.firstOrNull {
+                it.store == com.winlator.cmod.app.db.download.DownloadRecord.STORE_STEAM &&
+                    it.storeGameId == app.id.toString() &&
+                    it.status in setOf(
+                        com.winlator.cmod.app.db.download.DownloadRecord.STATUS_QUEUED,
+                        com.winlator.cmod.app.db.download.DownloadRecord.STATUS_DOWNLOADING,
+                        com.winlator.cmod.app.db.download.DownloadRecord.STATUS_PAUSED,
+                    )
+        }
+        val updateActionEnabled = steamDownloadRecord == null
+        val installActionEnabled = isInstallEnabled && steamDownloadRecord == null
+        val activeSteamDownloadText = stringResource(R.string.store_game_download_already_active)
+        val noUpdateAvailableText = stringResource(R.string.store_game_no_update_available)
+        val updateAvailableText = stringResource(R.string.store_game_update_available)
+        val updateFailedText = stringResource(R.string.store_game_update_check_failed)
+
+        Dialog(
+            onDismissRequest = onDismissRequest,
+            properties =
+                DialogProperties(
+                    usePlatformDefaultWidth = false,
+                    decorFitsSystemWindows = false,
+                ),
         ) {
-            if (installed == false) {
-                InstallButton(
-                    loading = isLoading,
-                    onClick = {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                shape = RectangleShape,
+                color = Color.Black,
+            ) {
+                StoreGameDetailScreen(
+                    title = app.name,
+                    subtitle =
+                        listOfNotNull(
+                            app.developer.takeIf { it.isNotBlank() },
+                            app.publisher.takeIf { it.isNotBlank() },
+                        ).joinToString(" • "),
+                    sourceLabel = "Steam",
+                    heroImageUrl = app.getHeroUrl(),
+                    isLoading = isLoading,
+                    isInstalled = isReallyInstalled,
+                    installPathDisplay = installPathDisplay,
+                    downloadSize = totalDownloadSize,
+                    installSize = totalInstallSize,
+                    availableBytes = availableBytes,
+                    isInstallEnabled = isInstallEnabled,
+                    isDownloadActionEnabled = installActionEnabled,
+                    customPathLabel = customPathLabel,
+                    showCustomPath = true,
+                    showCloudSync = false,
+                    showUninstall = false,
+                    showUpdateCheck = true,
+                    isCheckingForUpdate = isCheckingForUpdate,
+                    isUpdateAvailable = updateInfo?.hasUpdate == true,
+                    updateDownloadSize = updateInfo?.downloadSize ?: 0L,
+                    updateStatusText = updateStatusText,
+                    isUpdateActionEnabled = updateActionEnabled,
+                    isUpdateCheckCoolingDown = isUpdateCheckCoolingDown,
+                    dlcs = dlcItems,
+                    selectedDlcIds = selectedDlcIds.toSet(),
+                    isDlcSelectionEnabled = steamDownloadRecord == null,
+                    onBack = onDismissRequest,
+                    onInstall = {
+                        if (steamDownloadRecord != null) {
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                context,
+                                activeSteamDownloadText,
+                                android.widget.Toast.LENGTH_SHORT,
+                            )
+                            return@StoreGameDetailScreen
+                        }
                         scope.launch(Dispatchers.IO) {
-                            SteamService.downloadApp(app.id, selectedDlcIds.toList(), false, customPath)
+                            val installableDlcIds = dlcItems
+                                .filter { !it.isInstalled && it.id in selectedDlcIds }
+                                .map { it.id }
+                            SteamService.downloadApp(app.id, installableDlcIds, false, customPath)
                             withContext(Dispatchers.Main) { onDismissRequest() }
                         }
                     },
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                CompactActionButton(
-                    icon = Icons.Outlined.Folder,
-                    label =
-                        if (customPath !=
-                            null
-                        ) {
-                            stringResource(R.string.common_ui_custom)
-                        } else if (defaultPathSet) {
-                            stringResource(R.string.common_ui_already_set)
-                        } else {
-                            stringResource(R.string.common_ui_custom)
-                        },
-                    modifier = Modifier.weight(1f),
-                    onClick = {
+                    onCheckForUpdate = {
+                        if (isCheckingForUpdate || isUpdateCheckCoolingDown) return@StoreGameDetailScreen
+                        scope.launch {
+                            try {
+                                isCheckingForUpdate = true
+                                updateStatusText = null
+                                val result =
+                                    withContext(Dispatchers.IO) {
+                                        SteamService.checkForAppUpdate(app.id)
+                                    }
+                                updateInfo = result
+                                updateStatusText =
+                                    when {
+                                        result.hasUpdate -> updateAvailableText
+                                        result.message != null -> updateFailedText
+                                        else -> null
+                                    }
+                                if (!result.hasUpdate && result.message == null) {
+                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                        context,
+                                        noUpdateAvailableText,
+                                        android.widget.Toast.LENGTH_SHORT,
+                                    )
+                                }
+                                isUpdateCheckCoolingDown = true
+                                kotlinx.coroutines.delay(5_000L)
+                            } catch (e: Exception) {
+                                Log.w("UnifiedActivity", "Steam update check failed for appId=${app.id}", e)
+                                updateInfo = null
+                                updateStatusText = updateFailedText
+                            } finally {
+                                isCheckingForUpdate = false
+                                isUpdateCheckCoolingDown = false
+                            }
+                        }
+                    },
+                    onDownloadUpdate = {
+                        if (!updateActionEnabled || updateInfo?.hasUpdate != true) return@StoreGameDetailScreen
+                        scope.launch(Dispatchers.IO) {
+                            try {
+                                val latest = SteamService.checkForAppUpdate(app.id)
+                                withContext(Dispatchers.Main) {
+                                    updateInfo = latest
+                                    updateStatusText =
+                                        when {
+                                            latest.hasUpdate -> updateAvailableText
+                                            latest.message != null -> updateFailedText
+                                            else -> null
+                                        }
+                                }
+                                if (!latest.hasUpdate) {
+                                    withContext(Dispatchers.Main) {
+                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                            context,
+                                            noUpdateAvailableText,
+                                            android.widget.Toast.LENGTH_SHORT,
+                                        )
+                                    }
+                                    return@launch
+                                }
+
+                                SteamService.downloadAppForUpdate(app.id, latest.depotIds)
+                                withContext(Dispatchers.Main) { onDismissRequest() }
+                            } catch (e: Exception) {
+                                Log.w("UnifiedActivity", "Steam update download failed to start for appId=${app.id}", e)
+                                withContext(Dispatchers.Main) {
+                                    updateStatusText = updateFailedText
+                                }
+                            }
+                        }
+                    },
+                    onCustomPath = {
                         if (customPath == null && defaultPathSet) {
                             showCustomPathWarning = true
                         } else {
@@ -8150,15 +7798,32 @@ class UnifiedActivity :
                             ) { path -> customPath = path }
                         }
                     },
+                    onToggleDlc = { id ->
+                        if (steamDownloadRecord != null) {
+                            return@StoreGameDetailScreen
+                        }
+                        if (dlcItems.any { it.id == id && it.isInstalled }) {
+                            return@StoreGameDetailScreen
+                        }
+                        if (selectedDlcIds.contains(id)) {
+                            selectedDlcIds.remove(id)
+                        } else {
+                            selectedDlcIds.add(id)
+                        }
+                    },
+                    onToggleSelectAllDlcs = {
+                        if (steamDownloadRecord != null) {
+                            return@StoreGameDetailScreen
+                        }
+                        val selectableDlcItems = dlcItems.filterNot { it.isInstalled }
+                        val all = selectableDlcItems.isNotEmpty() && selectableDlcItems.all { it.id in selectedDlcIds }
+                        if (all) {
+                            selectedDlcIds.removeAll(selectableDlcItems.map { it.id }.toSet())
+                        } else {
+                            selectableDlcItems.forEach { if (it.id !in selectedDlcIds) selectedDlcIds.add(it.id) }
+                        }
+                    },
                 )
-                if (dlcApps.isNotEmpty()) {
-                    CompactActionButton(
-                        icon = Icons.Outlined.Extension,
-                        label = stringResource(R.string.library_games_dlcs),
-                        modifier = Modifier.weight(1f),
-                        onClick = { showDlcDialog = true },
-                    )
-                }
             }
         }
     }

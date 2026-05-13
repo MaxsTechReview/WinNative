@@ -69,6 +69,8 @@
     <string name="common_ui_settings">Settings</string>
     <string name="common_ui_enable_all">Enable all</string>
     <string name="common_ui_disable_all">Disable all</string>
+    <string name="common_ui_select_all">Select all</string>
+    <string name="common_ui_deselect_all">Deselect all</string>
     <string name="common_ui_on">On</string>
     <string name="common_ui_off">Off</string>
     <string name="common_ui_already_set">Already Set</string>
@@ -105,6 +107,14 @@
     <string name="common_ui_install">Install</string>
     <string name="common_ui_application">Application</string>
     <string name="common_ui_check">Check</string>
+    <string name="store_game_check_for_update">Check for Update</string>
+    <string name="store_game_checking_for_update">Checking...</string>
+    <string name="store_game_download_update">Download Update</string>
+    <string name="store_game_no_update_available">No update available</string>
+    <string name="store_game_update_available">Update available</string>
+    <string name="store_game_update_check_failed">Update check failed</string>
+    <string name="store_game_update">Update</string>
+    <string name="store_game_download_already_active">This game is already downloading. Cancel the current download before adding DLC.</string>
     <string name="common_ui_select">Select</string>
     <string name="common_ui_storage_roots">Storage Roots</string>
     <string name="common_ui_browse_local_folders_directly">Browse local folders directly</string>
@@ -139,6 +149,7 @@
     <string name="library_games_shortcut_created">Shortcut created</string>
     <string name="library_games_failed_to_create_shortcut">Failed to create shortcut: %s</string>
     <string name="library_games_install_path">Install Path</string>
+    <string name="library_games_not_enough_space">Need %1$s more space</string>
     <string name="library_games_download_slash_install">Download / Install</string>
     <string name="library_games_save_management">SAVE MANAGEMENT</string>
     <string name="library_games_download_install_available">%1$s / %2$s • Available: %3$s</string>
@@ -236,8 +247,8 @@
     <string name="downloads_queue_phase_unknown">Unknown</string>
     <string name="downloads_queue_paused_resume_hint">Paused - tap Resume to continue</string>
     <string name="downloads_queue_cancel_download">Cancel Download</string>
-    <string name="downloads_queue_cancel_download_confirm">Cancel the download for %1$s and delete all downloaded files?</string>
-    <string name="downloads_queue_this_game">this game</string>
+    <string name="downloads_queue_cancel_download_title">Cancel Download?</string>
+    <string name="downloads_queue_cancel_download_warning">Cancelling a DLC, Game, or Update download can potentially corrupt your game install.\n\nAre you sure you want to cancel?</string>
     <string name="downloads_queue_empty">No active downloads.</string>
 
     <!-- Containers > List -->
@@ -553,6 +564,7 @@
     <string name="container_graphics_sync_frame">Sync Every Frame</string>
     <string name="container_graphics_disable_present_wait">Disable KHR_present_wait</string>
     <string name="container_graphics_present_modes">Present Modes</string>
+    <string name="container_graphics_compositor_present_mode">Vulkan Display Sync</string>
     <string name="container_graphics_resource_type">Memory Resource Type</string>
     <string name="container_graphics_vulkan_version">Vulkan Version</string>
     <string name="container_graphics_bcn_emulation">BCn Emulation</string>
@@ -899,6 +911,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_debug_input_logs_description">Log gamepad, touch, and keyboard input events</string>
     <string name="settings_debug_download_logs">Download Logs</string>
     <string name="settings_debug_download_logs_description">Log download resolver and WinNative fallback events</string>
+    <string name="settings_debug_vulkan_validation_layers_title">Vulkan Validation Layers</string>
+    <string name="settings_debug_vulkan_validation_layers_subtitle">Restart display to apply.</string>
     <string name="settings_debug_share_logs">Share Logs</string>
     <string name="settings_debug_logs_subject">WinNative Logs (%1$s)</string>
     <string name="settings_debug_no_logs_available">No debug logs available. Enable debugging options first and launch a game.</string>

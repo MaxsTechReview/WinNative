@@ -66,6 +66,8 @@
     <string name="common_ui_settings">設定</string>
     <string name="common_ui_enable_all">全部啟用</string>
     <string name="common_ui_disable_all">全部停用</string>
+    <string name="common_ui_select_all">全選</string>
+    <string name="common_ui_deselect_all">取消全選</string>
     <string name="common_ui_on">開啟</string>
     <string name="common_ui_off">關閉</string>
     <string name="common_ui_already_set">已設定</string>
@@ -102,6 +104,14 @@
     <string name="common_ui_install">安裝</string>
     <string name="common_ui_application">應用程式</string>
     <string name="common_ui_check">檢查</string>
+    <string name="store_game_check_for_update">檢查更新</string>
+    <string name="store_game_checking_for_update">正在檢查...</string>
+    <string name="store_game_download_update">下載更新</string>
+    <string name="store_game_no_update_available">沒有可用更新</string>
+    <string name="store_game_update_available">有可用更新</string>
+    <string name="store_game_update_check_failed">更新檢查失敗</string>
+    <string name="store_game_update">更新</string>
+    <string name="store_game_download_already_active">此遊戲已在下載。請先取消目前的下載，然後再新增 DLC。</string>
     <string name="common_ui_select">選擇</string>
     <string name="common_ui_select_folder">選擇資料夾</string>
     <string name="common_ui_current_folder">目前資料夾</string>
@@ -137,6 +147,7 @@
     <string name="library_games_shortcut_created">捷徑已建立</string>
     <string name="library_games_failed_to_create_shortcut">無法建立捷徑：%s</string>
     <string name="library_games_install_path">安裝路徑</string>
+    <string name="library_games_not_enough_space">還需要 %1$s 空間</string>
     <string name="library_games_download_slash_install">下載 / 安裝</string>
     <string name="library_games_save_management">存檔管理</string>
     <string name="library_games_download_install_available">%1$s / %2$s・可用：%3$s</string>
@@ -221,6 +232,8 @@
     <string name="downloads_queue_phase_cancelled">已取消</string>
     <string name="downloads_queue_phase_failed">失敗：%1$s</string>
     <string name="downloads_queue_cancel_download">取消下載</string>
+    <string name="downloads_queue_cancel_download_title">取消下載？</string>
+    <string name="downloads_queue_cancel_download_warning">取消 DLC、遊戲或更新下載可能會損壞遊戲安裝。\n\n確定要取消嗎？</string>
     <string name="downloads_queue_empty">沒有進行中的下載。</string>
 
     <!-- Containers > List -->
@@ -758,6 +771,8 @@
     <string name="settings_debug_input_logs_description">記錄手把、觸控和鍵盤輸入事件</string>
     <string name="settings_debug_download_logs">下載日誌</string>
     <string name="settings_debug_download_logs_description">記錄下載解析器和 WinNative 備援事件</string>
+    <string name="settings_debug_vulkan_validation_layers_title">Vulkan 驗證層</string>
+    <string name="settings_debug_vulkan_validation_layers_subtitle">重新啟動顯示以套用。</string>
     <string name="settings_debug_share_logs">分享日誌</string>
     <string name="settings_debug_logs_subject">WinNative 日誌 (%1$s)</string>
     <string name="settings_debug_no_logs_available">沒有可用的除錯日誌。請先啟用除錯選項並啟動遊戲。</string>

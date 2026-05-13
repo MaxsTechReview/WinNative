@@ -1,7 +1,7 @@
 package com.winlator.cmod.runtime.display.xserver;
 
 import android.util.SparseArray;
-import com.winlator.cmod.runtime.display.renderer.GLRenderer;
+import com.winlator.cmod.runtime.display.renderer.VulkanRenderer;
 import com.winlator.cmod.runtime.display.winhandler.WinHandler;
 import com.winlator.cmod.runtime.display.xserver.extensions.BigReqExtension;
 import com.winlator.cmod.runtime.display.xserver.extensions.DRI3Extension;
@@ -43,7 +43,7 @@ public class XServer {
   public final GrabManager grabManager;
   public final CursorLocker cursorLocker;
   private SHMSegmentManager shmSegmentManager;
-  private GLRenderer renderer;
+  private VulkanRenderer renderer;
   private WinHandler winHandler;
   private final EnumMap<Lockable, ReentrantLock> locks = new EnumMap<>(Lockable.class);
   private boolean relativeMouseMovement = false;
@@ -106,11 +106,11 @@ public class XServer {
     this.simulateTouchScreen = simulateTouchScreen;
   }
 
-  public GLRenderer getRenderer() {
+  public VulkanRenderer getRenderer() {
     return renderer;
   }
 
-  public void setRenderer(GLRenderer renderer) {
+  public void setRenderer(VulkanRenderer renderer) {
     this.renderer = renderer;
   }
 
@@ -196,6 +196,22 @@ public class XServer {
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
       pointer.setPosition(pointer.getX() + dx, pointer.getY() + dy);
     }
+  }
+
+  public void updatePointerForDisplay(int x, int y) {
+    try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
+      pointer.setX(x);
+      pointer.setY(y);
+    }
+    if (renderer != null) renderer.requestCursorRender();
+  }
+
+  public void updatePointerForDisplayDelta(int dx, int dy) {
+    try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
+      pointer.setX(pointer.getX() + dx);
+      pointer.setY(pointer.getY() + dy);
+    }
+    if (renderer != null) renderer.requestCursorRender();
   }
 
   public void injectPointerButtonPress(Pointer.Button buttonCode) {

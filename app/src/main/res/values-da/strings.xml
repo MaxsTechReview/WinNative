@@ -66,6 +66,8 @@
     <string name="common_ui_settings">Indstillinger</string>
     <string name="common_ui_enable_all">Aktiver alle</string>
     <string name="common_ui_disable_all">Deaktiver alle</string>
+    <string name="common_ui_select_all">Vælg alle</string>
+    <string name="common_ui_deselect_all">Fravælg alle</string>
     <string name="common_ui_on">Til</string>
     <string name="common_ui_off">Fra</string>
     <string name="common_ui_already_set">Allerede indstillet</string>
@@ -102,6 +104,14 @@
     <string name="common_ui_install">Installer</string>
     <string name="common_ui_application">Applikation</string>
     <string name="common_ui_check">Tjek</string>
+    <string name="store_game_check_for_update">Søg efter opdatering</string>
+    <string name="store_game_checking_for_update">Tjekker...</string>
+    <string name="store_game_download_update">Download opdatering</string>
+    <string name="store_game_no_update_available">Ingen opdatering tilgængelig</string>
+    <string name="store_game_update_available">Opdatering tilgængelig</string>
+    <string name="store_game_update_check_failed">Kunne ikke tjekke for opdatering</string>
+    <string name="store_game_update">Opdater</string>
+    <string name="store_game_download_already_active">Dette spil downloades allerede. Annuller den aktuelle download, før du tilføjer DLC.</string>
     <string name="common_ui_select">Vælg</string>
     <string name="common_ui_select_folder">Vælg mappe</string>
     <string name="common_ui_current_folder">Nuværende mappe</string>
@@ -137,6 +147,7 @@
     <string name="library_games_shortcut_created">Genvej oprettet</string>
     <string name="library_games_failed_to_create_shortcut">Kunne ikke oprette genvej: %s</string>
     <string name="library_games_install_path">Installationssti</string>
+    <string name="library_games_not_enough_space">Kræver %1$s mere plads</string>
     <string name="library_games_download_slash_install">Download / Installer</string>
     <string name="library_games_save_management">GEMMEDATA HÅNDTERING</string>
     <string name="library_games_download_install_available">%1$s / %2$s • Tilgængelig: %3$s</string>
@@ -221,6 +232,8 @@
     <string name="downloads_queue_phase_cancelled">Annulleret</string>
     <string name="downloads_queue_phase_failed">Mislykkedes: %1$s</string>
     <string name="downloads_queue_cancel_download">Annuller download</string>
+    <string name="downloads_queue_cancel_download_title">Annuller download?</string>
+    <string name="downloads_queue_cancel_download_warning">Annullering af en DLC-, spil- eller opdateringsdownload kan potentielt beskadige din spilinstallation.\n\nEr du sikker på, at du vil annullere?</string>
     <string name="downloads_queue_empty">Ingen aktive downloads.</string>
 
     <!-- Containers > List -->
@@ -758,6 +771,8 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_debug_input_logs_description">Log gamepad-, touch- og tastaturinputhændelser</string>
     <string name="settings_debug_download_logs">Download-logfiler</string>
     <string name="settings_debug_download_logs_description">Log download-resolver og WinNative-fallback-hændelser</string>
+    <string name="settings_debug_vulkan_validation_layers_title">Vulkan-valideringslag</string>
+    <string name="settings_debug_vulkan_validation_layers_subtitle">Genstart skærmen for at anvende.</string>
     <string name="settings_debug_share_logs">Del logfiler</string>
     <string name="settings_debug_logs_subject">WinNative-logfiler (%1$s)</string>
     <string name="settings_debug_no_logs_available">Ingen fejlfindingslogfiler tilgængelige. Aktiver fejlfindingsindstillinger først og start et spil.</string>

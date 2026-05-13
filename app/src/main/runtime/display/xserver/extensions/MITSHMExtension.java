@@ -111,6 +111,13 @@ public class MITSHMExtension implements Extension {
     drawable.drawImage(
         srcX, srcY, dstX, dstY, srcWidth, srcHeight, depth, data, totalWidth, totalHeight);
 
+    com.winlator.cmod.runtime.display.xserver.Window window =
+        client.xServer.windowManager.getWindow(drawableId);
+    if (window != null) {
+      client.xServer.windowManager.triggerOnFramePresented(
+          window, com.winlator.cmod.runtime.display.xserver.WindowManager.FrameSource.MIT_SHM, 0);
+    }
+
     return totalWidth > client.xServer.screenInfo.width / 2;
   }
 

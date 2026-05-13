@@ -237,6 +237,8 @@ class GameSettingsStateHolder {
     val gfxSelectedMaxDeviceMemory = mutableIntStateOf(0)
     val gfxPresentModeEntries = mutableStateOf<List<String>>(emptyList())
     val gfxSelectedPresentMode = mutableIntStateOf(0)
+    val gfxCompositorPresentModeEntries = mutableStateOf<List<String>>(emptyList())
+    val gfxSelectedCompositorPresentMode = mutableIntStateOf(0)
     val gfxResourceTypeEntries = mutableStateOf<List<String>>(emptyList())
     val gfxSelectedResourceType = mutableIntStateOf(0)
     val gfxBcnEmulationEntries = mutableStateOf<List<String>>(emptyList())
@@ -1183,6 +1185,15 @@ private fun DisplaySection(
             entries = state.dxWrapperEntries.value,
             selectedIndex = state.selectedDxWrapper.intValue,
             onSelected = { state.selectedDxWrapper.intValue = it }
+        )
+
+        Spacer(Modifier.height(SettingSectionGap))
+
+        SettingDropdown(
+            label = stringResource(R.string.container_graphics_compositor_present_mode),
+            entries = state.gfxCompositorPresentModeEntries.value,
+            selectedIndex = state.gfxSelectedCompositorPresentMode.intValue,
+            onSelected = { state.gfxSelectedCompositorPresentMode.intValue = it }
         )
     }
 

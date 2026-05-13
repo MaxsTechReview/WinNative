@@ -66,6 +66,8 @@
     <string name="common_ui_settings">Configuracoes</string>
     <string name="common_ui_enable_all">Ativar tudo</string>
     <string name="common_ui_disable_all">Desativar tudo</string>
+    <string name="common_ui_select_all">Selecionar tudo</string>
+    <string name="common_ui_deselect_all">Desmarcar tudo</string>
     <string name="common_ui_on">Ligado</string>
     <string name="common_ui_off">Desligado</string>
     <string name="common_ui_already_set">Ja Definido</string>
@@ -102,6 +104,14 @@
     <string name="common_ui_install">Instalar</string>
     <string name="common_ui_application">Aplicativo</string>
     <string name="common_ui_check">Verificar</string>
+    <string name="store_game_check_for_update">Verificar atualização</string>
+    <string name="store_game_checking_for_update">Verificando...</string>
+    <string name="store_game_download_update">Baixar atualização</string>
+    <string name="store_game_no_update_available">Nenhuma atualização disponível</string>
+    <string name="store_game_update_available">Atualização disponível</string>
+    <string name="store_game_update_check_failed">Falha ao verificar atualização</string>
+    <string name="store_game_update">Atualizar</string>
+    <string name="store_game_download_already_active">Este jogo já está sendo baixado. Cancele o download atual antes de adicionar DLC.</string>
     <string name="common_ui_select">Selecionar</string>
     <string name="common_ui_select_folder">Selecionar pasta</string>
     <string name="common_ui_current_folder">Pasta atual</string>
@@ -137,6 +147,7 @@
     <string name="library_games_shortcut_created">Atalho criado</string>
     <string name="library_games_failed_to_create_shortcut">Falha ao criar atalho: %s</string>
     <string name="library_games_install_path">Caminho de Instalacao</string>
+    <string name="library_games_not_enough_space">Precisa de mais %1$s de espaco</string>
     <string name="library_games_download_slash_install">Baixar / Instalar</string>
     <string name="library_games_save_management">GERENCIAMENTO DE SAVES</string>
     <string name="library_games_download_install_available">%1$s / %2$s • Disponivel: %3$s</string>
@@ -221,6 +232,8 @@
     <string name="downloads_queue_phase_cancelled">Cancelado</string>
     <string name="downloads_queue_phase_failed">Falhou: %1$s</string>
     <string name="downloads_queue_cancel_download">Cancelar Download</string>
+    <string name="downloads_queue_cancel_download_title">Cancelar download?</string>
+    <string name="downloads_queue_cancel_download_warning">Cancelar o download de um DLC, jogo ou atualização pode corromper a instalação do jogo.\n\nTem certeza de que deseja cancelar?</string>
     <string name="downloads_queue_empty">Nenhum download ativo.</string>
 
     <!-- Containers > List -->
@@ -758,6 +771,8 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_debug_input_logs_description">Registrar eventos de entrada do gamepad, toque e teclado</string>
     <string name="settings_debug_download_logs">Logs de Download</string>
     <string name="settings_debug_download_logs_description">Registrar eventos do resolvedor de download e fallback do WinNative</string>
+    <string name="settings_debug_vulkan_validation_layers_title">Camadas de Validação Vulkan</string>
+    <string name="settings_debug_vulkan_validation_layers_subtitle">Reinicie a exibição para aplicar.</string>
     <string name="settings_debug_share_logs">Compartilhar Logs</string>
     <string name="settings_debug_logs_subject">Logs do WinNative (%1$s)</string>
     <string name="settings_debug_no_logs_available">Nenhum log de depuração disponível. Ative as opções de depuração primeiro e inicie um jogo.</string>

@@ -66,6 +66,8 @@
     <string name="common_ui_settings">Налаштування</string>
     <string name="common_ui_enable_all">Увімкнути все</string>
     <string name="common_ui_disable_all">Вимкнути все</string>
+    <string name="common_ui_select_all">Вибрати все</string>
+    <string name="common_ui_deselect_all">Скасувати вибір усього</string>
     <string name="common_ui_on">Увімк.</string>
     <string name="common_ui_off">Вимк.</string>
     <string name="common_ui_already_set">Вже встановлено</string>
@@ -102,6 +104,14 @@
     <string name="common_ui_install">Встановити</string>
     <string name="common_ui_application">Застосунок</string>
     <string name="common_ui_check">Перевірити</string>
+    <string name="store_game_check_for_update">Перевірити оновлення</string>
+    <string name="store_game_checking_for_update">Перевірка...</string>
+    <string name="store_game_download_update">Завантажити оновлення</string>
+    <string name="store_game_no_update_available">Немає доступних оновлень</string>
+    <string name="store_game_update_available">Доступне оновлення</string>
+    <string name="store_game_update_check_failed">Не вдалося перевірити оновлення</string>
+    <string name="store_game_update">Оновити</string>
+    <string name="store_game_download_already_active">Ця гра вже завантажується. Скасуйте поточне завантаження, перш ніж додавати DLC.</string>
     <string name="common_ui_select">Вибрати</string>
     <string name="common_ui_select_folder">Вибрати теку</string>
     <string name="common_ui_current_folder">Поточна тека</string>
@@ -141,6 +151,7 @@
     <string name="library_games_shortcut_created">Ярлик створено</string>
     <string name="library_games_failed_to_create_shortcut">Не вдалося створити ярлик: %s</string>
     <string name="library_games_install_path">Шлях встановлення</string>
+    <string name="library_games_not_enough_space">Потрібно ще %1$s місця</string>
     <string name="library_games_download_slash_install">Завантажити / Встановити</string>
     <string name="library_games_save_management">КЕРУВАННЯ ЗБЕРЕЖЕННЯМИ</string>
     <string name="library_games_download_install_available">%1$s / %2$s • Доступно: %3$s</string>
@@ -225,6 +236,8 @@
     <string name="downloads_queue_phase_cancelled">Скасовано</string>
     <string name="downloads_queue_phase_failed">Помилка: %1$s</string>
     <string name="downloads_queue_cancel_download">Скасувати завантаження</string>
+    <string name="downloads_queue_cancel_download_title">Скасувати завантаження?</string>
+    <string name="downloads_queue_cancel_download_warning">Скасування завантаження DLC, гри або оновлення може пошкодити встановлену гру.\n\nВи впевнені, що хочете скасувати?</string>
     <string name="downloads_queue_empty">Немає активних завантажень.</string>
 
     <!-- Containers > List -->
@@ -764,6 +777,8 @@
     <string name="settings_debug_input_logs_description">Журналювати події геймпада, дотиків та клавіатури</string>
     <string name="settings_debug_download_logs">Журнали завантажень</string>
     <string name="settings_debug_download_logs_description">Журналювати події засобу розв\'язування завантажень та резервного механізму WinNative</string>
+    <string name="settings_debug_vulkan_validation_layers_title">Рівні перевірки Vulkan</string>
+    <string name="settings_debug_vulkan_validation_layers_subtitle">Перезапустіть дисплей, щоб застосувати.</string>
     <string name="settings_debug_share_logs">Поділитися журналами</string>
     <string name="settings_debug_logs_subject">Журнали WinNative (%1$s)</string>
     <string name="settings_debug_no_logs_available">Немає доступних журналів налагодження. Спочатку увімкніть параметри налагодження та запустіть гру.</string>
