@@ -23,7 +23,6 @@ import android.view.InputDevice;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.UUID;
 
 public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
@@ -217,9 +216,6 @@ public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
   }
 
   private void ensureConnected() {
-    if (currentMode == GcmRumbleMode.DISABLED) {
-      return;
-    }
     if (connecting || scanning || discoveringServices || writeCharacteristic != null) {
       return;
     }
@@ -227,14 +223,6 @@ public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
     BluetoothAdapter adapter = getAdapter();
     if (adapter == null || !adapter.isEnabled()) {
       Log.d(TAG, "GameSir X5s BLE unavailable: adapter disabled");
-      return;
-    }
-
-    // Try paired devices first. A paired X5s that's currently connected as
-    // BLE-HID typically does NOT advertise, so a scan would never find it —
-    // but a direct GATT connect to a bonded device still works because
-    // multiple GATT clients can coexist on a single physical BLE link.
-    if (tryConnectBondedDevice(adapter)) {
       return;
     }
 
@@ -283,27 +271,6 @@ public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
     }
   }
 
-  private boolean tryConnectBondedDevice(BluetoothAdapter adapter) {
-    Set<BluetoothDevice> bonded;
-    try {
-      bonded = adapter.getBondedDevices();
-    } catch (SecurityException e) {
-      Log.d(TAG, "GameSir X5s BLE bonded list security error: " + e.getMessage());
-      return false;
-    }
-    if (bonded == null) {
-      return false;
-    }
-    for (BluetoothDevice device : bonded) {
-      if (isCandidate(device)) {
-        Log.d(TAG, "GameSir X5s BLE connecting bonded " + describeDevice(device));
-        connect(device);
-        return true;
-      }
-    }
-    return false;
-  }
-
   private void connect(BluetoothDevice device) {
     if (device == null || connecting) {
       return;
@@ -311,25 +278,16 @@ public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
     connecting = true;
     closeGatt();
     Log.d(TAG, "GameSir X5s BLE connecting to " + describeDevice(device));
-    BluetoothGatt newGatt = null;
     try {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        newGatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE);
+        gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE);
       } else {
-        newGatt = device.connectGatt(context, false, gattCallback);
+        gatt = device.connectGatt(context, false, gattCallback);
       }
     } catch (SecurityException e) {
+      connecting = false;
       Log.d(TAG, "GameSir X5s BLE connect security error: " + e.getMessage());
     }
-    if (newGatt == null) {
-      // connectGatt can return null for transient adapter issues; without
-      // resetting the flag we'd be stuck with connecting=true forever and
-      // ensureConnected() would always bail early.
-      connecting = false;
-      Log.d(TAG, "GameSir X5s BLE connectGatt returned null");
-      return;
-    }
-    gatt = newGatt;
   }
 
   private final BluetoothGattCallback gattCallback =
@@ -356,9 +314,6 @@ public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
             discoveringServices = false;
             stopHeartbeat();
             closeGatt();
-            // Reconnect whenever the rumble mode is enabled, not just when there's
-            // a queued command. Without this, a transient BLE drop after a successful
-            // command would leave us silent until the *next* rumble event arrives.
             if (currentMode != GcmRumbleMode.DISABLED) {
               handler.postDelayed(GameSirX5sBleRumbleDriver.this::ensureConnected, 1000);
             }
