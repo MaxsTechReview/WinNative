@@ -372,7 +372,8 @@ public class WinHandler {
             this.sendData.putShort((short) wheelDelta);
             this.sendData.put((byte) ((flags & 1) != 0 ? 1 : 0));
             sendPacket(CLIENT_PORT);
-            if (xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+            XServer xServer = activity.getXServer();
+    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
           } catch (IOException ignored) {
           }
         });
@@ -561,7 +562,8 @@ public class WinHandler {
     setLastGamepadSource(GAMEPAD_SOURCE_VIRTUAL, null);
     maybeClearGyroTarget(GAMEPAD_SOURCE_VIRTUAL, null);
     writeVirtualGamepadState(shouldApplyGyroToTarget(GAMEPAD_SOURCE_VIRTUAL, null));
-    if (xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+    XServer xServer = activity.getXServer();
+    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
   }
 
   private void writeVirtualGamepadState(boolean applyGyroOverlay) {
@@ -596,7 +598,8 @@ public class WinHandler {
     maybeClearGyroTarget(GAMEPAD_SOURCE_CONTROLLER, controller);
     writeControllerGamepadState(
         controller, shouldApplyGyroToTarget(GAMEPAD_SOURCE_CONTROLLER, controller));
-    if (xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+    XServer xServer = activity.getXServer();
+    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
   }
 
   private void writeControllerGamepadState(
@@ -1246,7 +1249,8 @@ public class WinHandler {
       writeControllerGamepadState(targetController, gyroActive);
     }
 
-    if (xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+    XServer xServer = activity.getXServer();
+    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
 
     this.lastGyroTargetSource = gyroActive ? targetSource : GAMEPAD_SOURCE_NONE;
     this.lastGyroTargetController =
