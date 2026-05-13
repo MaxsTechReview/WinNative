@@ -771,6 +771,8 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_debug_input_logs_description">Log gamepad-, touch- og tastaturinputhændelser</string>
     <string name="settings_debug_download_logs">Download-logfiler</string>
     <string name="settings_debug_download_logs_description">Log download-resolver og WinNative-fallback-hændelser</string>
+    <string name="settings_debug_vulkan_validation_layers_title">Vulkan-valideringslag</string>
+    <string name="settings_debug_vulkan_validation_layers_subtitle">Genstart skærmen for at anvende.</string>
     <string name="settings_debug_share_logs">Del logfiler</string>
     <string name="settings_debug_logs_subject">WinNative-logfiler (%1$s)</string>
     <string name="settings_debug_no_logs_available">Ingen fejlfindingslogfiler tilgængelige. Aktiver fejlfindingsindstillinger først og start et spil.</string>

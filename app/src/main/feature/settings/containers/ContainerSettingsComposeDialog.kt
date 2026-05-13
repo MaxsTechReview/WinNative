@@ -1033,6 +1033,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             context.resources.getStringArray(R.array.device_memory_entries).toList()
         state.gfxPresentModeEntries.value =
             context.resources.getStringArray(R.array.present_mode_entries).toList()
+        state.gfxCompositorPresentModeEntries.value =
+            context.resources.getStringArray(R.array.compositor_present_mode_entries).toList()
         state.gfxResourceTypeEntries.value =
             context.resources.getStringArray(R.array.resource_type_entries).toList()
         state.gfxBcnEmulationEntries.value =
@@ -1062,6 +1064,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         selectByValue(state.gfxGpuNameEntries.value, config.get("gpuName") ?: "Device", state.gfxSelectedGpuName)
         selectByNumber(state.gfxMaxDeviceMemoryEntries.value, config.get("maxDeviceMemory") ?: "0", state.gfxSelectedMaxDeviceMemory)
         selectByValue(state.gfxPresentModeEntries.value, config.get("presentMode") ?: "mailbox", state.gfxSelectedPresentMode)
+        selectByValue(state.gfxCompositorPresentModeEntries.value, config.get("compositorPresentMode") ?: "fifo", state.gfxSelectedCompositorPresentMode)
         selectByValue(state.gfxResourceTypeEntries.value, config.get("resourceType") ?: "auto", state.gfxSelectedResourceType)
         selectByValue(state.gfxBcnEmulationEntries.value, config.get("bcnEmulation") ?: "none", state.gfxSelectedBcnEmulation)
         selectByValue(state.gfxBcnEmulationTypeEntries.value, config.get("bcnEmulationType") ?: "compute", state.gfxSelectedBcnEmulationType)
@@ -1211,6 +1214,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             state.gfxMaxDeviceMemoryEntries.value.getOrElse(state.gfxSelectedMaxDeviceMemory.intValue) { "0" }
         )
         val presentMode = state.gfxPresentModeEntries.value.getOrElse(state.gfxSelectedPresentMode.intValue) { "mailbox" }
+        val compositorPresentMode = state.gfxCompositorPresentModeEntries.value.getOrElse(state.gfxSelectedCompositorPresentMode.intValue) { "fifo" }
         val syncFrame = if (state.gfxSyncFrame.value) "1" else "0"
         val disablePresentWait = if (state.gfxDisablePresentWait.value) "1" else "0"
         val resourceType = state.gfxResourceTypeEntries.value.getOrElse(state.gfxSelectedResourceType.intValue) { "auto" }
@@ -1221,7 +1225,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             "maxDeviceMemory=$maxDeviceMemory;presentMode=$presentMode;syncFrame=$syncFrame;" +
             "disablePresentWait=$disablePresentWait;resourceType=$resourceType;" +
             "bcnEmulation=$bcnEmulation;bcnEmulationType=$bcnEmulationType;" +
-            "bcnEmulationCache=$bcnEmulationCache;gpuName=$gpuName"
+            "bcnEmulationCache=$bcnEmulationCache;gpuName=$gpuName;" +
+            "compositorPresentMode=$compositorPresentMode"
     }
 
     private fun buildDxvkConfigFromState(): String {

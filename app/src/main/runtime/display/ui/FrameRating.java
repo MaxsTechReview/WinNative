@@ -86,7 +86,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   private int cpuFailCount;
   private volatile int cpuPercent;
   private volatile int cpuTemp;
-  private float currentMs;
+  private volatile float currentMs;
   private boolean enableBattTemp;
   private boolean enableCpu;
   private boolean enableRam;
@@ -94,17 +94,20 @@ public class FrameRating extends LinearLayout implements Runnable {
   private boolean enableGpu;
   private boolean enableGraph;
   private boolean enableRenderer;
-  private int frameCount;
   private int gpuFailCount;
   private volatile int gpuLoad;
   private FrametimeGraphView graphView;
   private boolean isNativeActive;
   private boolean isStatsRunning;
-  private float lastFPS;
-  private long lastFrameNano;
+  private volatile float lastFPS;
+  private volatile long lastFrameNano;
+  private long lastPrimaryFrameNano;
   private long lastGraphRedraw;
-  private long lastTime;
+  private long lastHudRedraw;
   private volatile String ramText;
+  private final long[] frameTimesNano = new long[MAX_FRAME_SAMPLES];
+  private int frameTimesStart;
+  private int frameTimesCount;
   private String rendererName;
   private String gpuName;
   private final View sep0, sep1, sep2, sep3, sep4, sep5;
@@ -127,6 +130,11 @@ public class FrameRating extends LinearLayout implements Runnable {
   private int lastGoodGpuLoad = -1;
   private long lastGoodGpuTime = 0;
   private static final long GPU_CACHE_DURATION_MS = 5000;
+  private static final long FALLBACK_SUPPRESSION_NS = 2000000000L;
+  private static final long FPS_CALC_INTERVAL_NS = 1000000000L;
+  private static final long HUD_REFRESH_MS = 1000L;
+  private static final long MIN_FRAME_INTERVAL_NS = 1000000L;
+  private static final int MAX_FRAME_SAMPLES = 1024;
 
   // ── Tap-cycle display modes ──────────────────────────────────────
   // Mode 0: horizontal, no backdrop
@@ -149,10 +157,12 @@ public class FrameRating extends LinearLayout implements Runnable {
   public FrameRating(
       Context context, HashMap graphicsDriverConfig, AttributeSet attrs, int defStyleAttr) {
     super(context, attrs, defStyleAttr);
-    this.lastTime = 0L;
     this.lastGraphRedraw = 0L;
     this.lastFrameNano = 0L;
-    this.frameCount = 0;
+    this.lastPrimaryFrameNano = 0L;
+    this.lastHudRedraw = 0L;
+    this.frameTimesStart = 0;
+    this.frameTimesCount = 0;
     this.lastFPS = 0.0f;
     this.currentMs = 0.0f;
     this.enableFps = true;
@@ -167,7 +177,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.batteryWatts = -1.0f;
     this.cpuTemp = -1;
     this.ramText = "N/A";
-    this.rendererName = "OpenGL";
+    this.rendererName = "Vulkan";
     this.gpuName = null;
     this.canReadGpu = true;
     this.canReadCpu = true;
@@ -215,7 +225,7 @@ public class FrameRating extends LinearLayout implements Runnable {
       this.graphContainer.addView(this.graphView);
     }
     if (this.tvRenderer != null) {
-      this.tvRenderer.setText("OpenGL");
+      this.tvRenderer.setText("Vulkan");
     }
     if (this.tvFpsBig != null) {
       this.tvFpsBig.setText("60");
@@ -272,11 +282,11 @@ public class FrameRating extends LinearLayout implements Runnable {
           public void run() {
             if (isStatsRunning) {
               FrameRating.this.run();
-              uiRefreshHandler.postDelayed(this, 500L);
+              uiRefreshHandler.postDelayed(this, HUD_REFRESH_MS);
             }
           }
         };
-    this.uiRefreshHandler.postDelayed(this.uiRefreshRunnable, 500L);
+    this.uiRefreshHandler.postDelayed(this.uiRefreshRunnable, HUD_REFRESH_MS);
   }
 
   private void stopStatsUpdate() {
@@ -817,8 +827,6 @@ public class FrameRating extends LinearLayout implements Runnable {
       this.rendererName = "DXVK";
     } else if (r.contains("turnip")) {
       this.rendererName = "Turnip";
-    } else if (r.contains("virgl")) {
-      this.rendererName = "VirGL";
     } else if (r.contains("zink")) {
       this.rendererName = "Zink";
     } else if (r.contains("llvmpipe") || r.contains("software")) {
@@ -924,10 +932,12 @@ public class FrameRating extends LinearLayout implements Runnable {
     }
   }
 
-  public void reset() {
-    this.frameCount = 0;
-    this.lastTime = 0L;
+  public synchronized void reset() {
     this.lastFrameNano = 0L;
+    this.lastPrimaryFrameNano = 0L;
+    this.lastHudRedraw = 0L;
+    this.frameTimesStart = 0;
+    this.frameTimesCount = 0;
     this.lastFPS = 0.0f;
     this.currentMs = 0.0f;
     post(this);
@@ -1032,43 +1042,97 @@ public class FrameRating extends LinearLayout implements Runnable {
     if (sep5 != null) sep5.setVisibility(vTmp && vFps ? View.VISIBLE : View.GONE);
   }
 
-  /**
-   * Called by the X server rendering loop for each application window content change. This is the
-   * primary FPS source — counts actual game frame updates.
-   */
-  public void update() {
+  /** Called when the guest submits a new frame to the X presentation path. */
+  public void recordGameFrame(boolean primarySource, int serial) {
     if (getVisibility() != View.VISIBLE) {
       return;
     }
-    if (this.lastTime == 0) {
-      this.lastTime = SystemClock.elapsedRealtime();
-    }
-    long time = SystemClock.elapsedRealtime();
-    if (time >= this.lastTime + 500) {
-      this.lastFPS = (this.frameCount * 1000f) / (time - this.lastTime);
-      post(this);
-      this.lastTime = time;
-      this.frameCount = 0;
-    }
-    this.frameCount++;
     long nowNano = System.nanoTime();
-    if (this.lastFrameNano == 0) {
+
+    synchronized (this) {
+      if (primarySource) {
+        if (this.lastPrimaryFrameNano == 0
+            || nowNano - this.lastPrimaryFrameNano >= FALLBACK_SUPPRESSION_NS) {
+          this.lastFrameNano = 0L;
+          this.frameTimesStart = 0;
+          this.frameTimesCount = 0;
+        }
+        this.lastPrimaryFrameNano = nowNano;
+      } else if (this.lastPrimaryFrameNano > 0
+          && nowNano - this.lastPrimaryFrameNano < FALLBACK_SUPPRESSION_NS) {
+        return;
+      }
+
+      if (this.lastFrameNano > 0 && nowNano - this.lastFrameNano < MIN_FRAME_INTERVAL_NS) {
+        return;
+      }
+      if (this.lastFrameNano == 0) {
+        this.lastFrameNano = nowNano;
+      }
+      float ms = (nowNano - this.lastFrameNano) / 1000000.0f;
       this.lastFrameNano = nowNano;
-    }
-    float ms = (nowNano - this.lastFrameNano) / 1000000.0f;
-    this.lastFrameNano = nowNano;
-    if (this.enableGraph && ms > 0.0f && ms < 500.0f) {
-      this.currentMs = ms;
-      if (time - this.lastGraphRedraw >= 50) {
+
+      long time = SystemClock.elapsedRealtime();
+      appendFrameTimeLocked(nowNano);
+      trimFrameTimesLocked(nowNano - FPS_CALC_INTERVAL_NS);
+      updateRollingFpsLocked();
+      boolean shouldRedrawHud = false;
+      if (time - this.lastHudRedraw >= HUD_REFRESH_MS) shouldRedrawHud = true;
+
+      if (ms > 0.0f && ms < 500.0f) {
+        this.currentMs = ms;
+      }
+      if (this.enableGraph && ms > 0.0f && ms < 500.0f && time - this.lastGraphRedraw >= 50) {
         if (this.graphView != null) {
           this.graphView.addFrame(ms);
           this.graphView.postInvalidate();
         }
         this.lastGraphRedraw = time;
       }
-    } else if (!this.enableGraph && ms > 0.0f && ms < 500.0f) {
-      this.currentMs = ms;
+
+      if (!shouldRedrawHud && time - this.lastHudRedraw < HUD_REFRESH_MS) {
+        return;
+      }
+      this.lastHudRedraw = time;
     }
+    post(this);
+  }
+
+  public void recordGameFrame() {
+    recordGameFrame(false, 0);
+  }
+
+  private void appendFrameTimeLocked(long nowNano) {
+    int index = (this.frameTimesStart + this.frameTimesCount) % MAX_FRAME_SAMPLES;
+    if (this.frameTimesCount == MAX_FRAME_SAMPLES) {
+      this.frameTimesStart = (this.frameTimesStart + 1) % MAX_FRAME_SAMPLES;
+      index = (this.frameTimesStart + this.frameTimesCount - 1) % MAX_FRAME_SAMPLES;
+    } else {
+      this.frameTimesCount++;
+    }
+    this.frameTimesNano[index] = nowNano;
+  }
+
+  private void trimFrameTimesLocked(long oldestAllowedNano) {
+    while (this.frameTimesCount > 0
+        && this.frameTimesNano[this.frameTimesStart] < oldestAllowedNano) {
+      this.frameTimesStart = (this.frameTimesStart + 1) % MAX_FRAME_SAMPLES;
+      this.frameTimesCount--;
+    }
+  }
+
+  private void updateRollingFpsLocked() {
+    if (this.frameTimesCount <= 1) {
+      this.lastFPS = 0.0f;
+      return;
+    }
+
+    long first = this.frameTimesNano[this.frameTimesStart];
+    int lastIndex = (this.frameTimesStart + this.frameTimesCount - 1) % MAX_FRAME_SAMPLES;
+    long last = this.frameTimesNano[lastIndex];
+    long elapsedNano = last - first;
+    this.lastFPS =
+        elapsedNano > 0 ? ((this.frameTimesCount - 1) * 1000000000.0f) / elapsedNano : 0.0f;
   }
 
   private long readSysFs(String path) {
@@ -1224,8 +1288,12 @@ public class FrameRating extends LinearLayout implements Runnable {
     // Watchdog: reset FPS if no frames arrived for > 1.5s
     long nowNano = System.nanoTime();
     if (this.lastFrameNano > 0 && nowNano - this.lastFrameNano > 1500000000L) {
-      this.lastFPS = 0.0f;
-      this.currentMs = 0.0f;
+      synchronized (this) {
+        this.lastFPS = 0.0f;
+        this.currentMs = 0.0f;
+        this.frameTimesStart = 0;
+        this.frameTimesCount = 0;
+      }
     }
 
     if (this.enableGpu && this.tvGpuLoad != null) {
