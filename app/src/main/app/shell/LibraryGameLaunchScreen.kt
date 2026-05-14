@@ -43,6 +43,7 @@ import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -67,11 +68,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import coil.compose.AsyncImage
@@ -112,7 +116,6 @@ internal fun LibraryGameLaunchScreen(
     onSaves: () -> Unit,
     onCloudSaves: () -> Unit,
     onUninstall: () -> Unit,
-    onBestConfigs: () -> Unit,
 ) {
     val context = LocalContext.current
     var uninstallMenuOpen by remember { mutableStateOf(false) }
@@ -124,10 +127,10 @@ internal fun LibraryGameLaunchScreen(
         val bottomPadding = 20.dp
         val actionIconSize = 48.dp
         val actionIconSpacing = 8.dp
-        // 6 action icons: Settings, Shortcut, (Saves), CloudSync, Leaderboard, Delete.
+        // 5 action icons: Settings, Shortcut, (Saves), CloudSync, Delete.
         // Saves only renders for stores that expose it; layout width tracks the static
         // count to keep the play button centered.
-        val actionWidth = actionIconSize * 6 + actionIconSpacing * 5
+        val actionWidth = actionIconSize * 5 + actionIconSpacing * 4
         val playHeight = 56.dp
         val contentGap = 18.dp
         val horizontalNavInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
@@ -329,7 +332,9 @@ internal fun LibraryGameLaunchScreen(
                         horizontalArrangement = Arrangement.spacedBy(actionIconSpacing),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // Order (per user spec): Settings → Best Configs → Shortcut → (Saves) → Cloud Saves → Uninstall.
+                        // Order (per user spec): Settings → Shortcut → (Saves) → Cloud Saves → Uninstall.
+                        // Best Configs lives inside the Settings dialog's Import flow (Device /
+                        // Community picker) instead of taking up an action-row slot.
                         // Saves is conditional but slots between Shortcut and Cloud Saves because the two
                         // saves-related buttons read better next to each other.
                         LaunchIconActionButton(
@@ -337,12 +342,6 @@ internal fun LibraryGameLaunchScreen(
                             contentDescription = stringResource(R.string.common_ui_settings),
                             size = actionIconSize,
                             onClick = onSettings,
-                        )
-                        LaunchIconActionButton(
-                            icon = Icons.Outlined.SettingsSuggest,
-                            contentDescription = stringResource(R.string.best_configs_button_label),
-                            size = actionIconSize,
-                            onClick = onBestConfigs,
                         )
                         LaunchIconActionButton(
                             icon = Icons.Outlined.Home,
@@ -463,6 +462,26 @@ private fun LaunchUninstallMenu(
             appName,
         )
 
+    LaunchDangerConfirmMenu(
+        expanded = expanded,
+        title = title,
+        message = message,
+        confirmLabel = confirmLabel,
+        onDismissRequest = onDismissRequest,
+        onConfirm = onConfirm,
+    )
+}
+
+@Composable
+internal fun LaunchDangerConfirmMenu(
+    expanded: Boolean,
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onDismissRequest: () -> Unit,
+    onConfirm: () -> Unit,
+    icon: ImageVector = Icons.Outlined.Delete,
+) {
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
@@ -486,7 +505,7 @@ private fun LaunchUninstallMenu(
                 horizontalArrangement = Arrangement.spacedBy(9.dp),
             ) {
                 Icon(
-                    Icons.Outlined.Delete,
+                    icon,
                     contentDescription = null,
                     tint = LaunchDanger,
                     modifier = Modifier.size(18.dp),
@@ -522,6 +541,160 @@ private fun LaunchUninstallMenu(
                     onClick = onConfirm,
                 )
             }
+        }
+    }
+}
+
+@Composable
+internal fun LaunchDangerConfirmDialog(
+    visible: Boolean,
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onDismissRequest: () -> Unit,
+    onConfirm: () -> Unit,
+    icon: ImageVector = Icons.Outlined.Warning,
+    titleTextAlign: TextAlign = TextAlign.Start,
+    messageTextAlign: TextAlign = TextAlign.Start,
+) {
+    if (!visible) return
+
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(LaunchBlack.copy(alpha = 0.46f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onDismissRequest,
+                    ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Surface(
+                modifier =
+                    Modifier
+                        .width(286.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { },
+                        ),
+                shape = RoundedCornerShape(12.dp),
+                color = LaunchCard,
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+                shadowElevation = 14.dp,
+                tonalElevation = 0.dp,
+            ) {
+                LaunchDangerConfirmContent(
+                    title = title,
+                    message = message,
+                    confirmLabel = confirmLabel,
+                    onDismissRequest = onDismissRequest,
+                    onConfirm = onConfirm,
+                    icon = icon,
+                    titleTextAlign = titleTextAlign,
+                    messageTextAlign = messageTextAlign,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LaunchDangerConfirmContent(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onDismissRequest: () -> Unit,
+    onConfirm: () -> Unit,
+    icon: ImageVector,
+    titleTextAlign: TextAlign,
+    messageTextAlign: TextAlign,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        if (titleTextAlign == TextAlign.Center) {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = LaunchDanger,
+                    modifier =
+                        Modifier
+                            .align(Alignment.CenterStart)
+                            .size(18.dp),
+                )
+                Text(
+                    title,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 28.dp),
+                    color = LaunchTextPrimary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        } else {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp),
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = LaunchDanger,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(
+                    title,
+                    color = LaunchTextPrimary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Text(
+            message,
+            modifier = Modifier.fillMaxWidth(),
+            color = LaunchTextSecondary,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            textAlign = messageTextAlign,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            LaunchMenuTextAction(
+                label = stringResource(R.string.common_ui_cancel),
+                textColor = LaunchTextSecondary,
+                onClick = onDismissRequest,
+            )
+            LaunchMenuTextAction(
+                label = confirmLabel,
+                textColor = LaunchDanger,
+                onClick = onConfirm,
+            )
         }
     }
 }

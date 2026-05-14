@@ -129,20 +129,20 @@ fun BestConfigsImportSheet(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 ActionRow(
+                    icon = Icons.Outlined.InsertDriveFile,
+                    label = stringRes(R.string.best_configs_import_from_file),
+                    supporting = stringRes(R.string.best_configs_import_from_file_supporting),
+                    onClick = {
+                        onPickFile()
+                        onDismiss()
+                    },
+                )
+                ActionRow(
                     icon = Icons.Outlined.SettingsSuggest,
                     label = stringRes(R.string.best_configs_import_from_community),
                     supporting = stringRes(R.string.best_configs_import_from_community_supporting),
                     onClick = {
                         onBrowseCommunity()
-                        onDismiss()
-                    },
-                )
-                ActionRow(
-                    icon = Icons.Outlined.InsertDriveFile,
-                    label = stringRes(R.string.best_configs_import_pick_file),
-                    supporting = stringRes(R.string.best_configs_import_from_file),
-                    onClick = {
-                        onPickFile()
                         onDismiss()
                     },
                 )

@@ -91,6 +91,7 @@ import com.winlator.cmod.shared.android.AppUtils;
 import com.winlator.cmod.shared.android.AppTerminationHelper;
 import com.winlator.cmod.shared.ui.toast.WinToast;
 import com.winlator.cmod.runtime.wine.EnvVars;
+import com.winlator.cmod.runtime.wine.LocaleEnv;
 import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.runtime.system.CPUStatus;
 import com.winlator.cmod.runtime.system.GPUInformation;
@@ -125,10 +126,10 @@ import com.winlator.cmod.shared.math.Mathf;
 import com.winlator.cmod.shared.math.XForm;
 import com.winlator.cmod.runtime.audio.midi.MidiHandler;
 import com.winlator.cmod.runtime.audio.midi.MidiManager;
-import com.winlator.cmod.runtime.display.renderer.GLRenderer;
+import com.winlator.cmod.runtime.display.renderer.VulkanRenderer;
 import com.winlator.cmod.runtime.display.ui.FrameRating;
 import com.winlator.cmod.runtime.display.ui.MagnifierView;
-import com.winlator.cmod.runtime.display.ui.XServerView;
+import com.winlator.cmod.runtime.display.ui.XServerSurfaceView;
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity;
 import com.winlator.cmod.runtime.input.ui.InputControlsView;
 import com.winlator.cmod.runtime.input.ui.TouchpadView;
@@ -244,7 +245,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             "rundll32",
             "cmd"
     ));
-    private XServerView xServerView;
+    private XServerSurfaceView xServerView;
     private InputControlsView inputControlsView;
     private TouchpadView touchpadView;
     private XEnvironment environment;
@@ -259,7 +260,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean effectiveShowFPS = false;
     private boolean isTapToClickEnabled = true;
     private int runtimeFpsLimit = 0;
-    private String lastRendererName = "OpenGL";
+    private String lastRendererName = "Vulkan";
     private String lastGpuName = null;
     private Runnable editInputControlsCallback;
     private Shortcut shortcut;
@@ -1227,20 +1228,27 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     firstAppWindowAppeared.set(true);
                     cancelRealSteamWatchdog();
                 }
-                if (frameRating != null && frameRatingWindowId == window.id) {
-                    frameRating.update();
-                }
             }
            
             @Override
             public void onMapWindow(Window window) {
                 assignTaskAffinity(window);
+                if (effectiveShowFPS && frameRating != null) {
+                    syncFrameRatingWithExistingWindows();
+                }
             }
 
             @Override
             public void onModifyWindowProperty(Window window, Property property) {
                 changeFrameRatingVisibility(window, property);
             }    
+
+            @Override
+            public void onFramePresented(Window window, WindowManager.FrameSource source, int serial) {
+                if (shouldRecordFpsFrame(window, source)) {
+                    frameRating.recordGameFrame(source == WindowManager.FrameSource.PRESENT, serial);
+                }
+            }
 
             @Override
             public void onDestroyWindow(Window window) {
@@ -1328,11 +1336,27 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             });
         };
 
-        if (xServer.screenInfo.height > xServer.screenInfo.width) {
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        boolean targetPortrait = xServer.screenInfo.height > xServer.screenInfo.width;
+        int targetOrientation = targetPortrait
+                ? ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                : ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
+        int currentOrientation = getResources().getConfiguration().orientation;
+        boolean alreadyTargetOrientation = targetPortrait
+                ? currentOrientation == Configuration.ORIENTATION_PORTRAIT
+                : currentOrientation == Configuration.ORIENTATION_LANDSCAPE;
+
+        setRequestedOrientation(targetOrientation);
+        if (alreadyTargetOrientation) {
+            runnable.run();
+        } else {
             configChangedCallback = runnable;
-        } else
-              runnable.run();
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                if (configChangedCallback == runnable) {
+                    configChangedCallback.run();
+                    configChangedCallback = null;
+                }
+            }, 1000);
+        }
     }
 
     // Method to parse container_id from .desktop file
@@ -1678,39 +1702,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         switch (event.getAction()) {
             case MotionEvent.ACTION_BUTTON_PRESS:
                 if (actionButton == MotionEvent.BUTTON_PRIMARY) {
-                    if (xServer.isRelativeMouseMovement())
-                        xServer.getWinHandler().mouseEvent(MouseEventFlags.LEFTDOWN, 0, 0, 0);
-                    else
-                        xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT);
+                    xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT);
                 } else if (actionButton == MotionEvent.BUTTON_SECONDARY) {
-                    if (xServer.isRelativeMouseMovement())
-                        xServer.getWinHandler().mouseEvent(MouseEventFlags.RIGHTDOWN, 0, 0, 0);
-                    else
-                        xServer.injectPointerButtonPress(Pointer.Button.BUTTON_RIGHT);
+                    xServer.injectPointerButtonPress(Pointer.Button.BUTTON_RIGHT);
                 } else if (actionButton == MotionEvent.BUTTON_TERTIARY) {
-                    if (xServer.isRelativeMouseMovement())
-                        xServer.getWinHandler().mouseEvent(MouseEventFlags.MIDDLEDOWN, 0, 0, 0);
-                    else
-                        xServer.injectPointerButtonPress(Pointer.Button.BUTTON_MIDDLE); // Add this line for middle mouse button press
+                    xServer.injectPointerButtonPress(Pointer.Button.BUTTON_MIDDLE); // Add this line for middle mouse button press
                 }
                 handled = true;
                 break;
             case MotionEvent.ACTION_BUTTON_RELEASE:
                 if (actionButton == MotionEvent.BUTTON_PRIMARY) {
-                    if (xServer.isRelativeMouseMovement())
-                        xServer.getWinHandler().mouseEvent(MouseEventFlags.LEFTUP, 0, 0, 0);
-                    else
-                        xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT);
+                    xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT);
                 } else if (actionButton == MotionEvent.BUTTON_SECONDARY) {
-                    if (xServer.isRelativeMouseMovement())
-                        xServer.getWinHandler().mouseEvent(MouseEventFlags.RIGHTUP, 0, 0, 0);
-                    else
-                        xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT);
+                    xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT);
                 } else if (actionButton == MotionEvent.BUTTON_TERTIARY) {
-                    if (xServer.isRelativeMouseMovement())
-                        xServer.getWinHandler().mouseEvent(MouseEventFlags.MIDDLEUP, 0, 0, 0);
-                    else
-                        xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_MIDDLE); // Add this line for middle mouse button release
+                    xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_MIDDLE); // Add this line for middle mouse button release
                 }
                 handled = true;
                 break;
@@ -1718,28 +1724,22 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             case MotionEvent.ACTION_HOVER_MOVE:
                 int[] delta = getCapturedPointerDelta(event);
                 if (delta[0] == 0 && delta[1] == 0) break;
-                if (xServer.isRelativeMouseMovement())
-                    xServer.getWinHandler().mouseEvent(MouseEventFlags.MOVE, delta[0], delta[1], 0);
-                else
+                if (xServer.isRelativeMouseMovement()) {
+                    xServer.updatePointerForDisplayDelta(delta[0], delta[1]);
+                    xServer.getWinHandler().mouseMoveDelta(delta[0], delta[1]);
+                } else {
                     xServer.injectPointerMoveDelta(delta[0], delta[1]);
+                }
                 handled = true;
                 break;
             case MotionEvent.ACTION_SCROLL:
                 float scrollY = event.getAxisValue(MotionEvent.AXIS_VSCROLL);
                 if (scrollY <= -1.0f) {
-                    if (xServer.isRelativeMouseMovement())
-                        xServer.getWinHandler().mouseEvent(MouseEventFlags.WHEEL, 0, 0, (int)scrollY * 270);
-                    else {
-                        xServer.injectPointerButtonPress(Pointer.Button.BUTTON_SCROLL_DOWN);
-                        xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_SCROLL_DOWN);
-                    }
+                    xServer.injectPointerButtonPress(Pointer.Button.BUTTON_SCROLL_DOWN);
+                    xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_SCROLL_DOWN);
                 } else if (scrollY >= 1.0f) {
-                    if (xServer.isRelativeMouseMovement())
-                        xServer.getWinHandler().mouseEvent(MouseEventFlags.WHEEL, 0, 0,(int)scrollY * 270);
-                    else {
-                        xServer.injectPointerButtonPress(Pointer.Button.BUTTON_SCROLL_UP);
-                        xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_SCROLL_UP);
-                    }
+                    xServer.injectPointerButtonPress(Pointer.Button.BUTTON_SCROLL_UP);
+                    xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_SCROLL_UP);
                 }
                 handled = true;
                 break;
@@ -1839,7 +1839,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             taskManagerAccum.clear();
         }
     }
-
 
     private void savePlaytimeData() {
         savePlaytimeData(false);
@@ -3514,7 +3513,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void applyScreenEffects() {
-        GLRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
+        VulkanRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
         if (renderer == null) return;
         EffectComposer composer = renderer.getEffectComposer();
         if (composer == null) return;
@@ -3621,7 +3620,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             return false;
         }
 
-        final GLRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
+        final VulkanRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
         switch (itemId) {
             case R.id.main_menu_gyroscope_reset:
                 if (winHandler != null) {
@@ -3651,6 +3650,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 boolean becomingVisible = !isFpsVisible;
                 frameRating.setVisibility(becomingVisible ? View.VISIBLE : View.GONE);
                 if (becomingVisible) {
+                    frameRating.reset();
                     syncFrameRatingWithExistingWindows();
                     applyHUDSettings();
                 }
@@ -4196,7 +4196,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         cleanupLingeringSessionProcesses("new launch");
 
         // Set environment variables
-        envVars.put("LC_ALL", lc_all);
+        envVars.put("LC_ALL", LocaleEnv.normalize(lc_all));
         String winePrefix = (shortcut != null && container != null && shortcut.path != null && shortcut.path.matches("^[cC]:.*")) ? new File(container.getRootDir(), ".wine").getAbsolutePath() : imageFs.wineprefix;
         envVars.put("WINEPREFIX", winePrefix);
 
@@ -4437,14 +4437,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private void setupUI() {
         FrameLayout rootView = xServerDisplayFrame;
-        xServerView = new XServerView(this, xServer);
-        final GLRenderer renderer = xServerView.getRenderer();
+        xServerView = new XServerSurfaceView(this, xServer);
+        final VulkanRenderer renderer = xServerView.getRenderer();
         renderer.setCursorVisible(false);
         renderer.setNativeMode(isNativeRenderingEnabled);
-        
-        boolean swapRB = shortcut != null ? shortcut.getExtra("swapRB", "0").equals("1") 
+        renderer.setPresentMode(VulkanRenderer.parsePresentMode(
+                graphicsDriverConfig != null ? graphicsDriverConfig.get("compositorPresentMode") : null));
+
+        boolean swapRB = shortcut != null ? shortcut.getExtra("swapRB", "0").equals("1")
                          : (container != null && container.getExtra("swapRB", "0").equals("1"));
-        renderer.swapRB = swapRB;
+        renderer.setSwapRB(swapRB);
 
         if (shortcut != null) {
             renderer.setUnviewableWMClasses("explorer.exe");
@@ -8136,7 +8138,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return winHandler;
     }
 
-    public XServerView getXServerView() {
+    public XServerSurfaceView getXServerView() {
         return xServerView;
     }
 
@@ -8207,13 +8209,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 return;
             }
 
-            if (frameRating != null && frameRatingWindowId == window.id) {
-                if (effectiveShowFPS) {
-                    if (propName.contains("_MESA_DRV") || propName.contains("_UTIL_LAYER")) {
-                        frameRating.update();
-                    }
-                }
-            }
         } else {
             // If window is being destroyed, sync/reset regardless of which window it was
             syncFrameRatingWithExistingWindows();
@@ -8278,7 +8273,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             lastGpuName = bestGpu;
             frameRatingWindowId = bestWindow.id;
         } else {
-            lastRendererName = "OpenGL";
+            lastRendererName = "Vulkan";
             lastGpuName = null;
             frameRatingWindowId = -1;
         }
@@ -8288,6 +8283,42 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             frameRating.setGpuName(lastGpuName);
             updateHUDRenderMode();
         });
+    }
+
+    private boolean shouldRecordFpsFrame(Window window, WindowManager.FrameSource source) {
+        if (!effectiveShowFPS || frameRating == null || window == null) return false;
+        if (source == WindowManager.FrameSource.UNKNOWN) return false;
+        if (frameRatingWindowId == window.id) return true;
+        if (isRelatedToFrameRatingWindow(window)) return true;
+        return frameRatingWindowId == -1 || isLikelyGameFrameWindow(window);
+    }
+
+    private boolean isRelatedToFrameRatingWindow(Window window) {
+        if (xServer == null || frameRatingWindowId == -1 || window == null) return false;
+        Window target = xServer.windowManager.getWindow(frameRatingWindowId);
+        if (target == null) return false;
+
+        Window cursor = window;
+        while (cursor != null) {
+            if (cursor == target) return true;
+            cursor = cursor.getParent();
+        }
+
+        cursor = target;
+        while (cursor != null) {
+            if (cursor == window) return true;
+            cursor = cursor.getParent();
+        }
+
+        return false;
+    }
+
+    private boolean isLikelyGameFrameWindow(Window window) {
+        if (xServer == null || window == null || window == xServer.windowManager.rootWindow) return false;
+        if (!window.isInputOutput() || !window.attributes.isMapped()) return false;
+        int area = window.getWidth() * window.getHeight();
+        int screenArea = xServer.screenInfo.width * xServer.screenInfo.height;
+        return window.isApplicationWindow() || area >= Math.max(1, screenArea / 4);
     }
 
     private void updateHUDRenderMode() {

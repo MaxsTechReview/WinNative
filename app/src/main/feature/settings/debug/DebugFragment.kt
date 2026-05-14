@@ -135,6 +135,10 @@ class DebugFragment : Fragment() {
                                 .updateLoggingState(ctx)
                             refresh()
                         },
+                        onVulkanValidationLayersChanged = { checked ->
+                            preferences.edit { putBoolean("enable_vulkan_validation_layers", checked) }
+                            refresh()
+                        },
                         onShareLogs = { shareLogs() },
                     )
                 }
@@ -165,6 +169,7 @@ class DebugFragment : Fragment() {
                 steamLogs = com.winlator.cmod.feature.stores.steam.utils.PrefManager.enableSteamLogs,
                 inputLogs = preferences.getBoolean("enable_input_logs", false),
                 downloadLogs = preferences.getBoolean("enable_download_logs", false),
+                vulkanValidationLayers = preferences.getBoolean("enable_vulkan_validation_layers", false),
             )
     }
 

@@ -96,6 +96,7 @@ data class DebugState(
     val steamLogs: Boolean = false,
     val inputLogs: Boolean = false,
     val downloadLogs: Boolean = false,
+    val vulkanValidationLayers: Boolean = false,
 )
 
 // Root
@@ -113,6 +114,7 @@ fun DebugScreen(
     onSteamLogsChanged: (Boolean) -> Unit,
     onInputLogsChanged: (Boolean) -> Unit,
     onDownloadLogsChanged: (Boolean) -> Unit,
+    onVulkanValidationLayersChanged: (Boolean) -> Unit,
     onShareLogs: () -> Unit,
 ) {
     var showChannelsDialog by remember { mutableStateOf(false) }
@@ -209,6 +211,17 @@ fun DebugScreen(
 
         item(key = "subsystems_section") {
             SectionLabel(stringResource(R.string.settings_debug_section_subsystems), modifier = Modifier.padding(top = 8.dp))
+        }
+
+        item(key = "vulkan_validation_layers_card") {
+            SettingsToggleCard(
+                title = stringResource(R.string.settings_debug_vulkan_validation_layers_title),
+                subtitle = stringResource(R.string.settings_debug_vulkan_validation_layers_subtitle),
+                icon = Icons.Outlined.BugReport,
+                accentColor = Warning,
+                checked = state.vulkanValidationLayers,
+                onCheckedChange = onVulkanValidationLayersChanged,
+            )
         }
 
         item(key = "steam_logs_card") {

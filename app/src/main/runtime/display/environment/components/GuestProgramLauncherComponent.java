@@ -624,6 +624,15 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     return baseValue + ":" + overrideValue;
   }
 
+  private static String appendFirstExistingPreload(String ldPreload, File[] candidates) {
+    for (File candidate : candidates) {
+      if (candidate.exists()) {
+        return mergePreloadValue(ldPreload, candidate.getAbsolutePath());
+      }
+    }
+    return ldPreload;
+  }
+
   private void mergeExternalEnvVars(
       EnvVars envVars,
       String protectedLdPreload,
@@ -943,27 +952,20 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
       ld_preload = ld_preload + fakeinputDest.getAbsolutePath();
     }
 
-    // Samsung and some other OEMs ship a Vulkan ICD dep chain ending in
-    // /system_ext/lib64/libvendorutils.so that references OpenSSL's BIO_flush.
-    // Without libcrypto already mapped, vkCreateInstance fails with res=-9 and
-    // DXVK aborts with "Required Vulkan extension VK_KHR_surface not supported".
-    //
-    // Only /system and /system_ext are in the default linker namespace's
-    // permitted_paths; the conscrypt APEX is not, so preloading from it
-    // blocks the whole execve with a linker namespace error. Fall back to
-    // the imagefs copy as a last resort.
+    // Preload OEM Vulkan ICD deps that otherwise fail lazy symbol resolution.
+    // Keep paths within default linker namespace permitted_paths.
+    File[] jpegCandidates = new File[] {
+        new File("/system/lib64/libjpeg.so"),
+        new File("/system_ext/lib64/libjpeg.so"),
+    };
+    ld_preload = appendFirstExistingPreload(ld_preload, jpegCandidates);
+
     File[] cryptoCandidates = new File[] {
         new File("/system/lib64/libcrypto.so"),
         new File("/system_ext/lib64/libcrypto.so"),
         new File(imageFs.getLibDir(), "libcrypto.so.3"),
     };
-    for (File c : cryptoCandidates) {
-      if (c.exists()) {
-        if (!ld_preload.isEmpty()) ld_preload = ld_preload + ":";
-        ld_preload = ld_preload + c.getAbsolutePath();
-        break;
-      }
-    }
+    ld_preload = appendFirstExistingPreload(ld_preload, cryptoCandidates);
 
     File devInputDir = new File(imageFs.getRootDir(), "dev/input");
     devInputDir.mkdirs();
