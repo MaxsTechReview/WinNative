@@ -564,6 +564,7 @@
     <string name="container_graphics_sync_frame">Sync Every Frame</string>
     <string name="container_graphics_disable_present_wait">Disable KHR_present_wait</string>
     <string name="container_graphics_present_modes">Present Modes</string>
+    <string name="container_graphics_compositor_present_mode">Vulkan Display Sync</string>
     <string name="container_graphics_resource_type">Memory Resource Type</string>
     <string name="container_graphics_vulkan_version">Vulkan Version</string>
     <string name="container_graphics_bcn_emulation">BCn Emulation</string>
@@ -910,6 +911,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_debug_input_logs_description">Log gamepad, touch, and keyboard input events</string>
     <string name="settings_debug_download_logs">Download Logs</string>
     <string name="settings_debug_download_logs_description">Log download resolver and WinNative fallback events</string>
+    <string name="settings_debug_vulkan_validation_layers_title">Vulkan Validation Layers</string>
+    <string name="settings_debug_vulkan_validation_layers_subtitle">Restart display to apply.</string>
     <string name="settings_debug_share_logs">Share Logs</string>
     <string name="settings_debug_logs_subject">WinNative Logs (%1$s)</string>
     <string name="settings_debug_no_logs_available">No debug logs available. Enable debugging options first and launch a game.</string>

@@ -771,6 +771,8 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_debug_input_logs_description">Registrar eventos de entrada do gamepad, toque e teclado</string>
     <string name="settings_debug_download_logs">Logs de Download</string>
     <string name="settings_debug_download_logs_description">Registrar eventos do resolvedor de download e fallback do WinNative</string>
+    <string name="settings_debug_vulkan_validation_layers_title">Camadas de Validação Vulkan</string>
+    <string name="settings_debug_vulkan_validation_layers_subtitle">Reinicie a exibição para aplicar.</string>
     <string name="settings_debug_share_logs">Compartilhar Logs</string>
     <string name="settings_debug_logs_subject">Logs do WinNative (%1$s)</string>
     <string name="settings_debug_no_logs_available">Nenhum log de depuração disponível. Ative as opções de depuração primeiro e inicie um jogo.</string>

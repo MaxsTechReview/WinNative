@@ -8,6 +8,41 @@ plugins {
     alias(libs.plugins.spotless)
 }
 
+abstract class InstallVulkanValidationLayerTask extends DefaultTask {
+    @Input
+    abstract Property<String> getLayerVersion()
+
+    @OutputFile
+    abstract RegularFileProperty getOutputFile()
+
+    @TaskAction
+    void install() {
+        def version = layerVersion.get()
+        def zipFile = new File(temporaryDir, "android-binaries-${version}.zip")
+        if (!zipFile.exists()) {
+            temporaryDir.mkdirs()
+            def url = new URL("https://github.com/KhronosGroup/Vulkan-ValidationLayers/releases/download/vulkan-sdk-${version}/android-binaries-${version}.zip")
+            url.withInputStream { input ->
+                zipFile.withOutputStream { output -> output << input }
+            }
+        }
+
+        def targetFile = outputFile.get().asFile
+        targetFile.parentFile.mkdirs()
+        new java.util.zip.ZipFile(zipFile).withCloseable { zip ->
+            def entry = zip.entries().find {
+                it.name.endsWith("/arm64-v8a/libVkLayer_khronos_validation.so")
+            }
+            if (entry == null) {
+                throw new GradleException("arm64-v8a Vulkan validation layer not found in ${zipFile.name}")
+            }
+            zip.getInputStream(entry).withCloseable { input ->
+                targetFile.withOutputStream { output -> output << input }
+            }
+        }
+    }
+}
+
 task checkSubmodules {
     // Resolve the file path during the configuration phase so we don't
     // pass the Gradle Project object into the execution closure (which breaks the Configuration Cache).
@@ -22,6 +57,11 @@ task checkSubmodules {
 }
 
 preBuild.dependsOn(checkSubmodules)
+
+def installVulkanValidationLayer = tasks.register("installVulkanValidationLayer", InstallVulkanValidationLayerTask) {
+    layerVersion.set("1.4.341.0")
+    outputFile.set(layout.projectDirectory.file("src/debug/jniLibs/arm64-v8a/libVkLayer_khronos_validation.so"))
+}
 
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
@@ -164,6 +204,9 @@ android {
 
     applicationVariants.configureEach { variant ->
         if (variant.buildType.name == "debug") {
+            tasks.named("pre${variant.name.capitalize()}Build").configure {
+                dependsOn installVulkanValidationLayer
+            }
             variant.outputs.configureEach { output ->
                 output.outputFileName = "${variant.flavorName}.apk"
             }

@@ -312,11 +312,4 @@ object PrefManager {
         libraryLayoutModeCache = null
         requirePrefs().edit().clear().commit()
     }
-
-    // Legacy support for Winlator properties if needed
-    var graphicsDriver: String
-        get() = getString("graphics_driver", "virgl")
-        set(value) {
-            setString("graphics_driver", value)
-        }
 }

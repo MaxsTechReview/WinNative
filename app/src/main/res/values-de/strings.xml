@@ -771,6 +771,8 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="settings_debug_input_logs_description">Gamepad-, Touch- und Tastatur-Eingabeereignisse protokollieren</string>
     <string name="settings_debug_download_logs">Download-Protokolle</string>
     <string name="settings_debug_download_logs_description">Download-Resolver- und WinNative-Fallback-Ereignisse protokollieren</string>
+    <string name="settings_debug_vulkan_validation_layers_title">Vulkan-Validierungsebenen</string>
+    <string name="settings_debug_vulkan_validation_layers_subtitle">Display neu starten, um die Änderung anzuwenden.</string>
     <string name="settings_debug_share_logs">Protokolle teilen</string>
     <string name="settings_debug_logs_subject">WinNative-Protokolle (%1$s)</string>
     <string name="settings_debug_no_logs_available">Keine Debug-Protokolle verfügbar. Bitte zuerst Debug-Optionen aktivieren und ein Spiel starten.</string>

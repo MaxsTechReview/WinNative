@@ -54,6 +54,7 @@ public abstract class DrawRequests {
       throw new UnsupportedOperationException("GC Function other than COPY is not supported.");
     }
 
+    boolean didDraw = false;
     switch (format) {
       case BITMAP:
         if (leftPad != 0)
@@ -61,6 +62,7 @@ public abstract class DrawRequests {
         if (depth == 1) {
           drawable.drawImage(
               (short) 0, (short) 0, dstX, dstY, width, height, (byte) 1, data, width, height);
+          didDraw = true;
         } else throw new BadMatch();
         break;
       case XY_PIXMAP:
@@ -70,14 +72,16 @@ public abstract class DrawRequests {
         if (leftPad == 0) {
           drawable.drawImage(
               (short) 0, (short) 0, dstX, dstY, width, height, depth, data, width, height);
+          didDraw = true;
         } else throw new BadMatch();
         break;
     }
 
     com.winlator.cmod.runtime.display.xserver.Window window =
         client.xServer.windowManager.getWindow(drawableId);
-    if (window != null) {
-      client.xServer.windowManager.triggerOnFramePresented(window);
+    if (window != null && didDraw) {
+      client.xServer.windowManager.triggerOnFramePresented(
+          window, com.winlator.cmod.runtime.display.xserver.WindowManager.FrameSource.PUT_IMAGE, 0);
     }
 
     return width > client.xServer.screenInfo.width / 2;

@@ -463,16 +463,15 @@ public class InputControlsView extends View {
             @Override
             public void run() {
               if (mouseMoveOffsetX != 0 || mouseMoveOffsetY != 0) {
-                if (xServer.isRelativeMouseMovement())
-                  winHandler.mouseEvent(
-                      MouseEventFlags.MOVE,
-                      (int) (mouseMoveOffsetX * cursorSpeed * 20),
-                      (int) (mouseMoveOffsetY * cursorSpeed * 20),
-                      0);
-                else
-                  xServer.injectPointerMoveDelta(
-                      (int) (mouseMoveOffsetX * cursorSpeed * 20),
-                      (int) (mouseMoveOffsetY * cursorSpeed * 20));
+                int dx = (int) (mouseMoveOffsetX * cursorSpeed * 20);
+                int dy = (int) (mouseMoveOffsetY * cursorSpeed * 20);
+                if (xServer.isRelativeMouseMovement()) {
+                  xServer.updatePointerForDisplayDelta(dx, dy);
+                  winHandler.mouseMoveDelta(dx, dy);
+                } else {
+                  xServer.injectPointerMoveDelta(dx, dy);
+                }
+                if (xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
               }
             }
           },
@@ -574,6 +573,7 @@ public class InputControlsView extends View {
     WinHandler winHandler = xServer != null ? xServer.getWinHandler() : null;
     if (winHandler != null) {
       winHandler.sendGamepadState(controller);
+      if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
     }
   }
 
@@ -912,6 +912,7 @@ public class InputControlsView extends View {
 
     if (winHandler != null && sendUpdate) {
       winHandler.sendGamepadState();
+      if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
     }
   }
 
@@ -989,6 +990,7 @@ public class InputControlsView extends View {
       if (winHandler != null && sendUpdate && stateChanged) {
         if (controller != null) winHandler.sendGamepadState(controller);
         else winHandler.sendGamepadState();
+        if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
       }
     } else {
       if (binding == Binding.MOUSE_MOVE_LEFT || binding == Binding.MOUSE_MOVE_RIGHT) {
@@ -1005,26 +1007,11 @@ public class InputControlsView extends View {
         Pointer.Button pointerButton = binding.getPointerButton();
         if (isActionDown) {
           if (pointerButton != null) {
-            if (xServer.isRelativeMouseMovement()) {
-              int wheelDelta =
-                  pointerButton == Pointer.Button.BUTTON_SCROLL_UP
-                      ? MOUSE_WHEEL_DELTA
-                      : (pointerButton == Pointer.Button.BUTTON_SCROLL_DOWN
-                          ? -MOUSE_WHEEL_DELTA
-                          : 0);
-              winHandler.mouseEvent(
-                  MouseEventFlags.getFlagFor(pointerButton, true), 0, 0, wheelDelta);
-            } else {
-              xServer.injectPointerButtonPress(pointerButton);
-            }
+            xServer.injectPointerButtonPress(pointerButton);
           } else xServer.injectKeyPress(binding.keycode);
         } else {
           if (pointerButton != null) {
-            if (xServer.isRelativeMouseMovement()) {
-              winHandler.mouseEvent(MouseEventFlags.getFlagFor(pointerButton, false), 0, 0, 0);
-            } else {
-              xServer.injectPointerButtonRelease(pointerButton);
-            }
+            xServer.injectPointerButtonRelease(pointerButton);
           } else xServer.injectKeyRelease(binding.keycode);
         }
       }

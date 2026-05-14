@@ -10,6 +10,7 @@ import com.winlator.cmod.runtime.display.renderer.GPUImage;
 import com.winlator.cmod.runtime.display.xserver.Drawable;
 import com.winlator.cmod.runtime.display.xserver.Pixmap;
 import com.winlator.cmod.runtime.display.xserver.Window;
+import com.winlator.cmod.runtime.display.xserver.WindowManager;
 import com.winlator.cmod.runtime.display.xserver.XClient;
 import com.winlator.cmod.runtime.display.xserver.XLock;
 import com.winlator.cmod.runtime.display.xserver.XServer;
@@ -115,6 +116,8 @@ public class DRI3Extension implements Extension {
     int fd = inputStream.getAncillaryFd();
     if (fd < 0) throw new BadAlloc();
     pixmapFromFd(client, pixmapId, width, height, stride, 0, depth, bpp, fd, size);
+    client.xServer.windowManager.triggerOnFramePresented(
+        window, WindowManager.FrameSource.DRI3_BUFFER, 0);
   }
 
   private void pixmapFromBuffers(
@@ -151,6 +154,8 @@ public class DRI3Extension implements Extension {
       if (modifier == ANDROID_NATIVE_BUFFER_MODIFIER
           && numBuffers == 1
           && tryPixmapFromHardwareBuffer(client, pixmapId, width, height, depth, fds[0])) {
+        client.xServer.windowManager.triggerOnFramePresented(
+            window, WindowManager.FrameSource.DRI3_BUFFER, 0);
         return;
       }
 
@@ -158,6 +163,8 @@ public class DRI3Extension implements Extension {
       int fd = fds[0];
       fds[0] = -1;
       pixmapFromFd(client, pixmapId, width, height, stride, offset, depth, bpp, fd, size);
+      client.xServer.windowManager.triggerOnFramePresented(
+          window, WindowManager.FrameSource.DRI3_BUFFER, 0);
     } finally {
       closeFds(fds);
     }

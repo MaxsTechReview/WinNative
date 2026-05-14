@@ -133,7 +133,7 @@ public class PresentExtension
     }
   }
 
-  private void presentPixmap(XClient client, XInputStream inputStream, XOutputStream outputStream)
+  private boolean presentPixmap(XClient client, XInputStream inputStream, XOutputStream outputStream)
       throws IOException, XRequestError {
     int windowId = inputStream.readInt();
     int pixmapId = inputStream.readInt();
@@ -161,7 +161,7 @@ public class PresentExtension
       Mode mode;
       if (canDirectScanout(content, pixmap.drawable, xOff, yOff)) {
         releasePendingScanout(window);
-        content.setScanoutSource(pixmap.drawable);
+        content.setScanoutSource(pixmap.drawable, xOff, yOff);
         PendingScanout pendingScanout = new PendingScanout();
         pendingScanout.window = window;
         pendingScanout.pixmap = pixmap;
@@ -171,20 +171,16 @@ public class PresentExtension
         mode = Mode.FLIP;
       } else {
         releasePendingScanout(window);
-        content.copyArea(
-            (short) 0,
-            (short) 0,
-            xOff,
-            yOff,
-            pixmap.drawable.width,
-            pixmap.drawable.height,
-            pixmap.drawable);
+        copyPresentedRegion(content, pixmap.drawable, xOff, yOff);
         sendIdleNotify(window, pixmap, serial, idleFence);
         mode = Mode.COPY;
       }
       sendCompleteNotify(window, serial, Kind.PIXMAP, mode, ust, msc);
-      client.xServer.windowManager.triggerOnFramePresented(window);
+      client.xServer.windowManager.triggerOnFramePresented(
+          window, com.winlator.cmod.runtime.display.xserver.WindowManager.FrameSource.PRESENT, serial);
     }
+
+    return pixmap.drawable.width > client.xServer.screenInfo.width / 2;
   }
 
   private void releasePendingScanout(Window window) {
@@ -254,12 +250,32 @@ public class PresentExtension
       if (!gpuImage.isValid() || gpuImage.hasSamplingFailed()) return false;
     }
 
-    return xOff == 0
-        && yOff == 0
-        && pixmap.isDirectScanout()
+    return pixmap.isDirectScanout()
         && texture != null
-        && pixmap.width >= content.width
-        && pixmap.height >= content.height;
+        && xOff <= 0
+        && yOff <= 0
+        && pixmap.width + xOff >= content.width
+        && pixmap.height + yOff >= content.height;
+  }
+
+  private static void copyPresentedRegion(
+      Drawable content, Drawable pixmap, short xOff, short yOff) {
+    int srcX = Math.max(0, -xOff);
+    int srcY = Math.max(0, -yOff);
+    int dstX = Math.max(0, xOff);
+    int dstY = Math.max(0, yOff);
+    int width = Math.min(pixmap.width - srcX, content.width - dstX);
+    int height = Math.min(pixmap.height - srcY, content.height - dstY);
+    if (width <= 0 || height <= 0) return;
+
+    content.copyArea(
+        (short) srcX,
+        (short) srcY,
+        (short) dstX,
+        (short) dstY,
+        (short) width,
+        (short) height,
+        pixmap);
   }
 
   private void selectInput(XClient client, XInputStream inputStream, XOutputStream outputStream)
@@ -270,23 +286,6 @@ public class PresentExtension
 
     Window window = client.xServer.windowManager.getWindow(windowId);
     if (window == null) throw new BadWindow(windowId);
-
-    if (client.xServer.isDri3Enabled() && GPUImage.isSupported() && !mask.isEmpty()) {
-      Drawable content = window.getContent();
-      if (content != null) {
-        GPUImage gpuImage = new GPUImage(content.width, content.height);
-        synchronized (content.renderLock) {
-          if (gpuImage.isValid()) {
-            final Texture oldTexture = content.getTexture();
-            if (oldTexture != null && client.xServer.getRenderer() != null)
-              client.xServer.getRenderer().xServerView.queueEvent(oldTexture::destroy);
-            content.setTexture(gpuImage);
-          } else {
-            gpuImage.destroy();
-          }
-        }
-      }
-    }
 
     synchronized (events) {
       Event event = events.get(eventId);
@@ -320,64 +319,10 @@ public class PresentExtension
         queryVersion(client, inputStream, outputStream);
         break;
       case ClientOpcodes.PRESENT_PIXMAP:
-        int pixmapId;
-        boolean isLargeFrame = false;
+        boolean isLargeFrame;
         try (XLock lock =
             client.xServer.lock(XServer.Lockable.WINDOW_MANAGER, XServer.Lockable.PIXMAP_MANAGER)) {
-          int windowId = inputStream.readInt();
-          pixmapId = inputStream.readInt();
-          int serial = inputStream.readInt();
-          inputStream.skip(8);
-          short xOff = inputStream.readShort();
-          short yOff = inputStream.readShort();
-          inputStream.skip(8);
-          int idleFence = inputStream.readInt();
-          inputStream.skip(client.getRemainingRequestLength());
-
-          final Window window = client.xServer.windowManager.getWindow(windowId);
-          if (window == null) throw new BadWindow(windowId);
-
-          final Pixmap pixmap = client.xServer.pixmapManager.getPixmap(pixmapId);
-          if (pixmap == null) throw new BadPixmap(pixmapId);
-
-          Drawable content = window.getContent();
-          if (content.visual.depth != pixmap.drawable.visual.depth) throw new BadMatch();
-
-          long ust = System.nanoTime() / 1000;
-          long msc = ust / FAKE_INTERVAL;
-
-          synchronized (content.renderLock) {
-            Mode mode;
-            if (canDirectScanout(content, pixmap.drawable, xOff, yOff)) {
-              releasePendingScanout(window);
-              content.setScanoutSource(pixmap.drawable);
-              PendingScanout pendingScanout = new PendingScanout();
-              pendingScanout.window = window;
-              pendingScanout.pixmap = pixmap;
-              pendingScanout.serial = serial;
-              pendingScanout.idleFence = idleFence;
-              pendingScanouts.put(window.id, pendingScanout);
-              mode = Mode.FLIP;
-            } else {
-              releasePendingScanout(window);
-              content.copyArea(
-                  (short) 0,
-                  (short) 0,
-                  xOff,
-                  yOff,
-                  pixmap.drawable.width,
-                  pixmap.drawable.height,
-                  pixmap.drawable);
-              sendIdleNotify(window, pixmap, serial, idleFence);
-              mode = Mode.COPY;
-            }
-            sendCompleteNotify(window, serial, Kind.PIXMAP, mode, ust, msc);
-            client.xServer.windowManager.triggerOnFramePresented(window);
-          }
-
-          if (pixmap.drawable.width > client.xServer.screenInfo.width / 2) {
-            isLargeFrame = true;
-          }
+          isLargeFrame = presentPixmap(client, inputStream, outputStream);
         }
 
         if (client.xServer.getRenderer() != null)
