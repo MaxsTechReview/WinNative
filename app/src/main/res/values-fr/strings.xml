@@ -504,6 +504,11 @@
     <string name="container_graphics_bcn_emulation">Émulation BCn</string>
     <string name="container_graphics_bcn_emulation_type">Type d\'émulation BCn</string>
     <string name="container_graphics_bcn_emulation_cache">Cache d\'émulation BCn</string>
+    <string name="shortcuts_graphics_sgsr_title">SGSR 1</string>
+    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Game Super Resolution 1</string>
+    <string name="shortcuts_graphics_sgsr_native_summary">Mise à l\'échelle de résolution : rendu natif %1$s.</string>
+    <string name="shortcuts_graphics_sgsr_upscale_summary">Mise à l\'échelle de résolution : %1$s -> %2$s.</string>
+    <string name="shortcuts_graphics_sgsr_resolution_unknown">Sélectionnez une taille d\'écran valide pour prévisualiser la résolution de rendu SGSR.</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Voulez-vous dupliquer ce préréglage ?</string>
     <string name="container_presets_confirm_remove">Voulez-vous supprimer ce préréglage ?</string>
@@ -1062,9 +1067,13 @@ Chemin installé :
     <string name="session_drawer_logs_share_chooser">Partager les logs de session</string>
     <string name="session_drawer_logs_share_failed">Échec du partage des logs</string>
     <string name="session_drawer_logs_share_empty">Aucune ligne de log à partager</string>
-    <string name="session_drawer_super_resolution">Filtres de Netteté</string>
-    <string name="session_drawer_upscaler_mode">Filtre</string>
+    <string name="session_drawer_super_resolution">Super résolution</string>
+    <string name="session_drawer_upscaler_mode">Upscaler</string>
     <string name="session_drawer_upscaler_fsr">SGSR 1</string>
+    <string name="session_drawer_sgsr_upscale_ratio">Facteur de mise à l\'échelle</string>
+    <string name="session_drawer_sgsr_upscale_native">Natif</string>
+    <string name="session_drawer_vivid">Vif</string>
+    <string name="session_drawer_vivid_strength">Intensité du mode vif</string>
     <string name="session_drawer_main_menu_title">Menu</string>
     <string name="session_gyroscope_activator">Activateur</string>
     <string name="settings_general_check_for_updates">Rechercher des mises à jour</string>

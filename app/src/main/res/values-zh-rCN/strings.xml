@@ -504,6 +504,11 @@
     <string name="container_graphics_bcn_emulation">BCn 模拟</string>
     <string name="container_graphics_bcn_emulation_type">BCn 模拟类型</string>
     <string name="container_graphics_bcn_emulation_cache">BCn 模拟缓存</string>
+    <string name="shortcuts_graphics_sgsr_title">SGSR 1</string>
+    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Game Super Resolution 1</string>
+    <string name="shortcuts_graphics_sgsr_native_summary">分辨率放大：%1$s 原生渲染。</string>
+    <string name="shortcuts_graphics_sgsr_upscale_summary">分辨率放大：%1$s -> %2$s。</string>
+    <string name="shortcuts_graphics_sgsr_resolution_unknown">选择有效的屏幕尺寸以预览 SGSR 渲染分辨率。</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">您要复制此预设吗？</string>
     <string name="container_presets_confirm_remove">您要移除此预设吗？</string>
@@ -1062,9 +1067,13 @@
     <string name="session_drawer_logs_share_chooser">分享会话日志</string>
     <string name="session_drawer_logs_share_failed">无法分享日志</string>
     <string name="session_drawer_logs_share_empty">没有可分享的日志行</string>
-    <string name="session_drawer_super_resolution">锐化滤镜</string>
-    <string name="session_drawer_upscaler_mode">滤镜</string>
+    <string name="session_drawer_super_resolution">超分辨率</string>
+    <string name="session_drawer_upscaler_mode">升尺度器</string>
     <string name="session_drawer_upscaler_fsr">SGSR 1</string>
+    <string name="session_drawer_sgsr_upscale_ratio">放大倍率</string>
+    <string name="session_drawer_sgsr_upscale_native">原生</string>
+    <string name="session_drawer_vivid">鲜艳</string>
+    <string name="session_drawer_vivid_strength">鲜艳强度</string>
     <string name="session_drawer_main_menu_title">菜单</string>
     <string name="session_gyroscope_activator">激活器</string>
     <string name="settings_general_check_for_updates">检查更新</string>
