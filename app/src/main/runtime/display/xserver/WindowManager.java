@@ -1,5 +1,6 @@
 package com.winlator.cmod.runtime.display.xserver;
 
+import android.util.Log;
 import android.util.SparseArray;
 import com.winlator.cmod.runtime.display.connector.XInputStream;
 import com.winlator.cmod.runtime.display.xserver.errors.BadIdChoice;
@@ -18,6 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class WindowManager extends XResourceManager {
+  private static final String SGSR_RESIZE_TAG = "SGSRResize";
+
   public enum FocusRevertTo {
     NONE,
     POINTER_ROOT,
@@ -78,6 +81,19 @@ public class WindowManager extends XResourceManager {
 
   public Window getWindow(int id) {
     return windows.get(id);
+  }
+
+  public boolean resizeRootWindow(short width, short height) {
+    if (width <= 0 || height <= 0) return false;
+    short oldWidth = rootWindow.getWidth();
+    short oldHeight = rootWindow.getHeight();
+    if (oldWidth == width && oldHeight == height) return false;
+
+    Log.i(SGSR_RESIZE_TAG, "resizeRootWindow: " + oldWidth + "x" + oldHeight +
+        " -> " + width + "x" + height);
+    resizeWindowForScreenChange(rootWindow, (short) 0, (short) 0, width, height);
+    resizeFullscreenDescendants(rootWindow, oldWidth, oldHeight, width, height);
+    return true;
   }
 
   public List<Window> getWindows() {
@@ -258,6 +274,74 @@ public class WindowManager extends XResourceManager {
 
     if (resized && window.isInputOutput() && window.attributes.isMapped()) {
       window.sendEvent(new Expose(window));
+    }
+  }
+
+  private void resizeWindowForScreenChange(Window window, short x, short y, short width, short height) {
+    short oldX = window.getX();
+    short oldY = window.getY();
+    short oldWidth = window.getWidth();
+    short oldHeight = window.getHeight();
+    boolean resized = window.getWidth() != width || window.getHeight() != height;
+    boolean moved = window.getX() != x || window.getY() != y;
+    if (!resized && !moved) return;
+
+    Log.i(SGSR_RESIZE_TAG, "resizeWindow id=" + window.id +
+        (window == rootWindow ? " root" : "") + ": " +
+        oldWidth + "x" + oldHeight + "@" + oldX + "," + oldY + " -> " +
+        width + "x" + height + "@" + x + "," + y +
+        " mapped=" + window.attributes.isMapped());
+
+    if (resized && window.isInputOutput()) {
+      Drawable oldContent = window.getContent();
+      drawableManager.removeDrawable(oldContent.id);
+      Drawable newContent =
+          drawableManager.createDrawable(oldContent.id, width, height, oldContent.visual);
+      newContent.setOnDrawListener(() -> triggerOnUpdateWindowContent(window));
+      window.setContent(newContent);
+    }
+
+    window.setX(x);
+    window.setY(y);
+    window.setWidth(width);
+    window.setHeight(height);
+
+    Window parent = window.getParent();
+    Window previousSibling = window.previousSibling();
+    window.sendEvent(
+        Event.STRUCTURE_NOTIFY,
+        new ConfigureNotify(
+            window, window, previousSibling, x, y, width, height, window.getBorderWidth(),
+            window.attributes.isOverrideRedirect()));
+    if (parent != null) {
+      parent.sendEvent(
+          Event.SUBSTRUCTURE_NOTIFY,
+          new ConfigureNotify(
+              parent, window, previousSibling, x, y, width, height, window.getBorderWidth(),
+              window.attributes.isOverrideRedirect()));
+    }
+
+    triggerOnUpdateWindowGeometry(window, resized);
+    if (resized && window.isInputOutput() && window.attributes.isMapped()) {
+      window.sendEvent(new Expose(window));
+    }
+  }
+
+  private void resizeFullscreenDescendants(Window parent, short oldWidth, short oldHeight,
+                                           short width, short height) {
+    List<Window> children = new ArrayList<>(parent.getChildren());
+    for (Window child : children) {
+      boolean coveredOldScreen =
+          child.getX() <= 0
+              && child.getY() <= 0
+              && child.getX() + child.getWidth() >= oldWidth
+              && child.getY() + child.getHeight() >= oldHeight;
+      if (coveredOldScreen) {
+        Log.i(SGSR_RESIZE_TAG, "resizeFullscreenDescendant id=" + child.id +
+            ": covered old screen " + oldWidth + "x" + oldHeight);
+        resizeWindowForScreenChange(child, (short) 0, (short) 0, width, height);
+      }
+      resizeFullscreenDescendants(child, oldWidth, oldHeight, width, height);
     }
   }
 

@@ -1037,7 +1037,6 @@
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">자연</string>
     <string name="session_drawer_color_profile_crt">CRT 효과</string>
-    <string name="session_drawer_upscaler_dls">선명</string>
     <string name="session_drawer_calibrate_advanced">고급 보정</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
     <string name="session_drawer_rail_label_gyro">자이로</string>
@@ -1065,7 +1064,7 @@
     <string name="session_drawer_logs_share_empty">공유할 로그 줄이 없습니다</string>
     <string name="session_drawer_super_resolution">선명도 필터</string>
     <string name="session_drawer_upscaler_mode">필터</string>
-    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_upscaler_fsr">SGSR 1</string>
     <string name="session_drawer_main_menu_title">메뉴</string>
     <string name="session_gyroscope_activator">활성화</string>
     <string name="settings_general_check_for_updates">업데이트 확인</string>

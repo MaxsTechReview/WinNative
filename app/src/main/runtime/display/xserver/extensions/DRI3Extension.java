@@ -210,6 +210,7 @@ public class DRI3Extension implements Extension {
       gpuImage.destroy();
       throw new BadIdChoice(pixmapId);
     }
+    drawable.setPresentedSourceSize(width, height);
     drawable.setTexture(gpuImage);
     drawable.setDirectScanout(true);
     client.xServer.pixmapManager.createPixmap(drawable);
@@ -236,6 +237,7 @@ public class DRI3Extension implements Extension {
       short totalWidth = (short) (stride / 4);
       Drawable drawable =
           client.xServer.drawableManager.createDrawable(pixmapId, totalWidth, height, depth);
+      drawable.setPresentedSourceSize(width, height);
       drawable.setData(buffer);
       drawable.setTexture(null);
       drawable.setOnDestroyListener(onDestroyDrawableListener);

@@ -1037,7 +1037,6 @@ Percorso installato:
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">Naturale</string>
     <string name="session_drawer_color_profile_crt">Effetto CRT</string>
-    <string name="session_drawer_upscaler_dls">Vivido</string>
     <string name="session_drawer_calibrate_advanced">Calibrazione avanzata</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
     <string name="session_drawer_rail_label_gyro">Giro</string>
@@ -1065,7 +1064,7 @@ Percorso installato:
     <string name="session_drawer_logs_share_empty">Nessuna riga di log da condividere</string>
     <string name="session_drawer_super_resolution">Filtri Nitidezza</string>
     <string name="session_drawer_upscaler_mode">Filtro</string>
-    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_upscaler_fsr">SGSR 1</string>
     <string name="session_drawer_main_menu_title">Menu</string>
     <string name="session_gyroscope_activator">Attivatore</string>
     <string name="settings_general_check_for_updates">Controlla aggiornamenti</string>

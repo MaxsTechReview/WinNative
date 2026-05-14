@@ -1,5 +1,7 @@
 package com.winlator.cmod.feature.library
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -58,9 +60,11 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -97,6 +101,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.scale
 import com.winlator.cmod.R
+import com.winlator.cmod.runtime.display.SGSRResolutionUtils
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import com.winlator.cmod.shared.ui.widget.EnvVarsView
 import com.winlator.cmod.shared.ui.widget.chasingBorder
@@ -118,7 +123,7 @@ private val TextSecondary = Color(0xFF7A8FA8)
 private val TextDim = Color(0xFF6E7681)
 private val DividerColor = Color(0xFF2A2A3A)
 private val CheckBorder = Color(0xFF2A2A3A)
-private val TrackInactive = Color(0xFF1C1C2A)
+private val SliderInactive = Color(0xFF21212A)
 private val ChipSurface = Color(0xFF171722)
 private val ChipBorder = Color(0xFF2A2A3A)
 private val DangerRed = Color(0xFFFF6B6B)
@@ -136,6 +141,9 @@ private val SettingSectionGap = 12.dp
 private val SettingTightGap = 4.dp
 private val SettingIconSize = 18.dp
 private val SettingControlIconSize = 16.dp
+private val SettingSliderHeight = 24.dp
+private val SettingSliderThumbSize = 18.dp
+private const val SettingSliderTrackScaleY = 0.5f
 private val SettingLabelSize = 11.sp
 private val SettingValueSize = 13.sp
 private val SettingSectionLabelSize = 12.sp
@@ -222,6 +230,9 @@ class GameSettingsStateHolder {
     val selectedDxWrapper = mutableIntStateOf(0)
     val surfaceEffectEntries = mutableStateOf<List<String>>(emptyList())
     val selectedSurfaceEffect = mutableIntStateOf(0)
+    val sgsrEnabled = mutableStateOf(false)
+    val sgsrUpscaleMode = mutableIntStateOf(1)
+    val sgsrSharpness = mutableIntStateOf(100)
 
     // Graphics Driver Configuration (inline card)
     val gfxConfigExpanded = mutableStateOf(false)
@@ -1199,6 +1210,11 @@ private fun DisplaySection(
 
     Spacer(Modifier.height(SettingItemGap))
 
+    if (!state.isContainerEditMode.value) {
+        SGSRShortcutSettings(state)
+        Spacer(Modifier.height(SettingItemGap))
+    }
+
     // Graphics Driver Configuration - expandable inline card
     GraphicsDriverConfigCard(state, callbacks)
 
@@ -1217,6 +1233,167 @@ private fun DisplaySection(
         WineD3DConfigCard(state)
     }
 
+}
+
+@Composable
+private fun SGSRShortcutSettings(state: GameSettingsStateHolder) {
+    val optionsEnabled = state.sgsrEnabled.value
+    val optionsAlpha by animateFloatAsState(
+        targetValue = if (optionsEnabled) 1f else 0.48f,
+        animationSpec = tween(180),
+        label = "SGSROptionsAlpha"
+    )
+
+    SettingGroup(
+        modifier = Modifier.animateContentSize(
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            )
+        )
+    ) {
+        SettingSwitch(
+            label = stringResource(R.string.shortcuts_graphics_sgsr_full_title),
+            checked = state.sgsrEnabled.value,
+            onCheckedChange = { state.sgsrEnabled.value = it }
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .alpha(optionsAlpha)
+        ) {
+            Spacer(Modifier.height(SettingItemGap))
+
+            SettingDropdown(
+                label = stringResource(R.string.container_config_screen_size),
+                entries = state.screenSizeEntries.value,
+                selectedIndex = state.selectedScreenSize.intValue,
+                onSelected = { state.selectedScreenSize.intValue = it },
+                enabled = optionsEnabled,
+                disabledAlpha = 1f
+            )
+
+            if (state.selectedScreenSize.intValue == 0) {
+                Spacer(Modifier.height(SettingItemGap))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(Modifier.weight(1f)) {
+                        SettingTextField(
+                            label = stringResource(R.string.common_ui_width),
+                            value = state.customWidth.value,
+                            onValueChange = { state.customWidth.value = it },
+                            keyboardType = KeyboardType.Number,
+                            enabled = optionsEnabled
+                        )
+                    }
+                    Box(Modifier.weight(1f)) {
+                        SettingTextField(
+                            label = stringResource(R.string.common_ui_height),
+                            value = state.customHeight.value,
+                            onValueChange = { state.customHeight.value = it },
+                            keyboardType = KeyboardType.Number,
+                            enabled = optionsEnabled
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(SettingItemGap))
+
+            val ratioLabels = listOf(
+                stringResource(R.string.session_drawer_sgsr_upscale_native),
+                "1.25x",
+                "1.33x",
+                "1.5x",
+                "1.66x",
+                "2x"
+            )
+            val ratioIndex = (state.sgsrUpscaleMode.intValue - 1).coerceIn(0, ratioLabels.lastIndex)
+
+            SettingSlider(
+                label = stringResource(R.string.session_drawer_sgsr_upscale_ratio),
+                value = ratioIndex,
+                range = 0..5,
+                valueText = ratioLabels[ratioIndex],
+                steps = 4,
+                enabled = optionsEnabled,
+                onValueChange = { state.sgsrUpscaleMode.intValue = (it + 1).coerceIn(1, 6) }
+            )
+
+            Spacer(Modifier.height(SettingItemGap))
+
+            Text(
+                text = sgsrResolutionSummary(state),
+                color = TextSecondary,
+                fontSize = SettingLabelSize,
+                lineHeight = 16.sp
+            )
+
+            Spacer(Modifier.height(SettingItemGap))
+
+            SettingSlider(
+                label = stringResource(R.string.session_drawer_sharpness),
+                value = state.sgsrSharpness.intValue.coerceIn(0, 100),
+                range = 0..100,
+                valueText = "${state.sgsrSharpness.intValue.coerceIn(0, 100)}%",
+                steps = 99,
+                enabled = optionsEnabled,
+                onValueChange = { state.sgsrSharpness.intValue = it.coerceIn(0, 100) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun sgsrResolutionSummary(state: GameSettingsStateHolder): String {
+    val base = screenSizeForSGSRSummary(state)
+        ?: return stringResource(R.string.shortcuts_graphics_sgsr_resolution_unknown)
+    val baseLabel = "${base.first}x${base.second}"
+    val mode = state.sgsrUpscaleMode.intValue.coerceIn(1, 6)
+    if (!SGSRResolutionUtils.modeAdjustsScreenSize(mode)) {
+        return stringResource(R.string.shortcuts_graphics_sgsr_native_summary, baseLabel)
+    }
+
+    val renderLabel = SGSRResolutionUtils.applyRenderScale(baseLabel, true, mode)
+    val render = SGSRResolutionUtils.parseScreenSize(renderLabel)
+        ?: return stringResource(R.string.shortcuts_graphics_sgsr_resolution_unknown)
+    val basePixels = base.first * base.second
+    val renderPixels = render[0] * render[1]
+    val savings = if (basePixels > 0) {
+        ((1f - (renderPixels.toFloat() / basePixels.toFloat())) * 100f)
+            .roundToInt()
+            .coerceIn(0, 100)
+    } else {
+        0
+    }
+    return stringResource(
+        R.string.shortcuts_graphics_sgsr_upscale_summary,
+        renderLabel,
+        baseLabel,
+        savings
+    )
+}
+
+private fun screenSizeForSGSRSummary(state: GameSettingsStateHolder): Pair<Int, Int>? {
+    val entries = state.screenSizeEntries.value
+    val selectedIdx = state.selectedScreenSize.intValue
+    val rawValue = if (selectedIdx == 0) {
+        "${state.customWidth.value.trim()}x${state.customHeight.value.trim()}"
+    } else {
+        entries.getOrNull(selectedIdx)?.let {
+            com.winlator.cmod.shared.util.StringUtils.parseIdentifier(it)
+        }
+    } ?: return null
+
+    val parts = rawValue.split("x")
+    if (parts.size != 2) return null
+    val width = parts[0].trim().toIntOrNull() ?: return null
+    val height = parts[1].trim().toIntOrNull() ?: return null
+    if (width <= 0 || height <= 0) return null
+    return width to height
 }
 
 // ===================================================================
@@ -3600,10 +3777,11 @@ private fun EmulatorSectionHeader(title: String, usage: String?) {
 
 @Composable
 private fun SettingGroup(
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(SettingGroupCorner))
             .background(CardSurface)
@@ -3620,12 +3798,13 @@ private fun SettingDropdown(
     entries: List<String>,
     selectedIndex: Int,
     onSelected: (Int) -> Unit,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    disabledAlpha: Float = 0.4f
 ) {
     var expanded by remember { mutableStateOf(false) }
     val menuOffset = rememberSmartDropdownOffset()
     val selectedText = entries.getOrElse(selectedIndex) { "" }
-    val alpha = if (enabled) 1f else 0.4f
+    val alpha = if (enabled) 1f else disabledAlpha
 
     Column(modifier = Modifier.fillMaxWidth().alpha(alpha)) {
         Text(
@@ -3699,7 +3878,8 @@ private fun SettingTextField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
-    keyboardType: KeyboardType = KeyboardType.Text
+    keyboardType: KeyboardType = KeyboardType.Text,
+    enabled: Boolean = true
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -3713,6 +3893,7 @@ private fun SettingTextField(
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
+            enabled = enabled,
             textStyle = TextStyle(
                 color = TextPrimary,
                 fontSize = SettingValueSize
@@ -3768,10 +3949,83 @@ private fun SettingCheckbox(
 }
 
 @Composable
+private fun settingSliderColors() =
+    SliderDefaults.colors(
+        thumbColor = AccentBlue,
+        activeTrackColor = AccentBlue,
+        inactiveTrackColor = SliderInactive,
+        activeTickColor = Color.Transparent,
+        inactiveTickColor = Color.Transparent,
+    )
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingSliderTrack(sliderState: SliderState) {
+    SliderDefaults.Track(
+        sliderState = sliderState,
+        colors = settingSliderColors(),
+        modifier = Modifier.scale(scaleX = 1f, scaleY = SettingSliderTrackScaleY),
+        drawStopIndicator = null,
+        drawTick = { _, _ -> },
+        thumbTrackGapSize = 0.dp,
+        trackInsideCornerSize = 0.dp,
+    )
+}
+
+@Composable
+private fun SettingSwitch(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true
+) {
+    val alpha = if (enabled) 1f else 0.4f
+    val interactionSource = remember { MutableInteractionSource() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(alpha)
+            .clip(RoundedCornerShape(8.dp))
+            .then(
+                if (enabled) {
+                    Modifier.clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                    ) { onCheckedChange(!checked) }
+                } else {
+                    Modifier
+                }
+            )
+            .padding(vertical = SettingTightGap),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            color = TextPrimary,
+            fontSize = SettingValueSize,
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = if (enabled) onCheckedChange else null,
+            enabled = enabled,
+            colors = outlinedSwitchColors(
+                accentColor = AccentBlue,
+                textSecondaryColor = TextSecondary
+            )
+        )
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun SettingSlider(
     label: String,
     value: Int,
     range: IntRange,
+    valueText: String = "$value%",
+    steps: Int = 0,
+    enabled: Boolean = true,
     onValueChange: (Int) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -3792,7 +4046,7 @@ private fun SettingSlider(
                     .padding(horizontal = 7.dp, vertical = 2.dp)
             ) {
                 Text(
-                    "$value%",
+                    valueText,
                     color = AccentBlue,
                     fontSize = SettingLabelSize,
                     fontWeight = FontWeight.SemiBold
@@ -3804,14 +4058,22 @@ private fun SettingSlider(
             value = value.toFloat(),
             onValueChange = { onValueChange(it.roundToInt()) },
             valueRange = range.first.toFloat()..range.last.toFloat(),
+            steps = steps,
+            enabled = enabled,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(24.dp),
-            colors = SliderDefaults.colors(
-                thumbColor = Color.White,
-                activeTrackColor = AccentBlue,
-                inactiveTrackColor = TrackInactive
-            )
+                .height(SettingSliderHeight),
+            colors = settingSliderColors(),
+            track = { SettingSliderTrack(it) },
+            thumb = {
+                Box(
+                    modifier = Modifier
+                        .size(SettingSliderThumbSize)
+                        .clip(RoundedCornerShape(50))
+                        .background(AccentBlue)
+                        .border(2.dp, CardSurface, RoundedCornerShape(50))
+                )
+            }
         )
     }
 }

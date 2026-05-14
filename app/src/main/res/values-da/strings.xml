@@ -1037,7 +1037,6 @@ Installeret sti:
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">Naturlig</string>
     <string name="session_drawer_color_profile_crt">CRT-effekt</string>
-    <string name="session_drawer_upscaler_dls">Levende</string>
     <string name="session_drawer_calibrate_advanced">Avanceret kalibrering</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
     <string name="session_drawer_rail_label_gyro">Gyro</string>
@@ -1065,7 +1064,7 @@ Installeret sti:
     <string name="session_drawer_logs_share_empty">Ingen loglinjer at dele</string>
     <string name="session_drawer_super_resolution">Skarphedsfiltre</string>
     <string name="session_drawer_upscaler_mode">Filter</string>
-    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_upscaler_fsr">SGSR 1</string>
     <string name="session_drawer_main_menu_title">Menu</string>
     <string name="session_gyroscope_activator">Aktivator</string>
     <string name="settings_general_check_for_updates">Søg efter opdateringer</string>

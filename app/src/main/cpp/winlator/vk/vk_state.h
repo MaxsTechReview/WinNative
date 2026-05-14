@@ -81,18 +81,19 @@ typedef struct VkTextureBatchUpload {
 
 typedef enum VkEffectType {
     VK_EFFECT_CRT = 0,
-    VK_EFFECT_FSR = 1,
+    VK_EFFECT_VIVID = 1,
     VK_EFFECT_HDR = 2,
     VK_EFFECT_NATURAL = 3,
+    VK_EFFECT_SGSR1 = 4,
     VK_EFFECT_COUNT
 } VkEffectType;
 
 typedef struct VkEffectSlot {
     VkEffectType type;
-    int          mode;     // FSR only
+    int          mode;     // effect-specific mode
     float        param0;   // generic
     float        param1;
-    float        param2;   // FSR sharpness; ignored by other effects
+    float        param2;   // generic
 } VkEffectSlot;
 
 // ============================================================
@@ -128,6 +129,8 @@ typedef struct VkScene {
     // Render dims (logical screen size).
     uint32_t screen_width;
     uint32_t screen_height;
+    uint32_t source_width;
+    uint32_t source_height;
     bool     swap_rb;
 
     VkEffectSlot effects[VK_MAX_EFFECTS];
@@ -143,7 +146,7 @@ typedef struct VkScene {
 typedef struct VkPipelineSet {
     VkDescriptorSetLayout sampler_set_layout;
     VkPipelineLayout      window_layout;     // push constants: xform[6] + viewSize
-    VkPipelineLayout      effect_layout;     // push constants: resolution + 2 floats
+    VkPipelineLayout      effect_layout;     // push constants: resolution + effect params
     VkPipeline            window_pipeline;
     VkPipeline            cursor_pipeline;
     VkPipeline            blit_pipeline;
@@ -181,6 +184,13 @@ typedef struct VkOffscreen {
     VkFramebuffer   framebuffer;
     uint32_t        width, height;
 } VkOffscreen;
+
+typedef struct VkSgsr1State {
+    VkOffscreen source;
+    bool        built;
+    uint32_t    width;
+    uint32_t    height;
+} VkSgsr1State;
 
 // ============================================================
 // Staging pool for async texture uploads
@@ -293,6 +303,7 @@ typedef struct VkRenderer {
     // Offscreen ping-pong (created lazily when effects are present)
     VkOffscreen      offscreen[2];
     bool             offscreen_built;
+    VkSgsr1State     sgsr1;
 
     // Quad vertex buffer (window/cursor)
     VkBuffer         quad_vbo;

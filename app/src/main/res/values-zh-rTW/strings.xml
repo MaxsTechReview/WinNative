@@ -1037,7 +1037,6 @@
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">自然</string>
     <string name="session_drawer_color_profile_crt">CRT 效果</string>
-    <string name="session_drawer_upscaler_dls">鮮豔</string>
     <string name="session_drawer_calibrate_advanced">進階校準</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
     <string name="session_drawer_rail_label_gyro">陀螺儀</string>
@@ -1065,7 +1064,7 @@
     <string name="session_drawer_logs_share_empty">沒有可分享的日誌行</string>
     <string name="session_drawer_super_resolution">銳化濾鏡</string>
     <string name="session_drawer_upscaler_mode">濾鏡</string>
-    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_upscaler_fsr">SGSR 1</string>
     <string name="session_drawer_main_menu_title">選單</string>
     <string name="session_gyroscope_activator">啟動器</string>
     <string name="settings_general_check_for_updates">檢查更新</string>

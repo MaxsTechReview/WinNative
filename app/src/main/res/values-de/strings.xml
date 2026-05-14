@@ -1037,7 +1037,6 @@ Installierter Pfad:
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">Natürlich</string>
     <string name="session_drawer_color_profile_crt">CRT-Effekt</string>
-    <string name="session_drawer_upscaler_dls">Lebendig</string>
     <string name="session_drawer_calibrate_advanced">Erweiterte Kalibrierung</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
     <string name="session_drawer_rail_label_gyro">Gyro</string>
@@ -1065,7 +1064,7 @@ Installierter Pfad:
     <string name="session_drawer_logs_share_empty">Keine Logzeilen zum Teilen</string>
     <string name="session_drawer_super_resolution">Schärfungsfilter</string>
     <string name="session_drawer_upscaler_mode">Filter</string>
-    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_upscaler_fsr">SGSR 1</string>
     <string name="session_drawer_main_menu_title">Menü</string>
     <string name="session_gyroscope_activator">Aktivator</string>
     <string name="settings_general_check_for_updates">Nach Updates suchen</string>

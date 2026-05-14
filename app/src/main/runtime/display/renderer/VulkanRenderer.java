@@ -109,7 +109,9 @@ public class VulkanRenderer
     private static final int OFF_WINDOW_GEOM     = 776;
     private static final int OFF_WINDOW_UV       = 1800;
     private static final int OFF_SWAP_RB         = 2824;
-    private static final int SCENE_BUF_SIZE      = 2828;
+    private static final int OFF_SOURCE_W        = 2828;
+    private static final int OFF_SOURCE_H        = 2832;
+    private static final int SCENE_BUF_SIZE      = 2836;
 
     private final ByteBuffer sceneBuf =
             ByteBuffer.allocateDirect(SCENE_BUF_SIZE).order(ByteOrder.nativeOrder());
@@ -294,6 +296,9 @@ public class VulkanRenderer
         long cursorHandle = 0;
         boolean cursorOnscreen = false;
         int cursorPosX = 0, cursorPosY = 0, cursorW = 0, cursorH = 0;
+        int sourceW = 0;
+        int sourceH = 0;
+        int sourceArea = 0;
 
         try (XLock lock = xServer.lock(XServer.Lockable.WINDOW_MANAGER, XServer.Lockable.DRAWABLE_MANAGER)) {
             int screenW = xServer.screenInfo.width;
@@ -333,6 +338,25 @@ public class VulkanRenderer
                     }
                 }
                 if (tex == null || !tex.isAllocated()) continue;
+                int candidateW = 0;
+                int candidateH = 0;
+                if (drawable.hasPresentedSourceSize()) {
+                    candidateW = Short.toUnsignedInt(drawable.getPresentedSourceWidth());
+                    candidateH = Short.toUnsignedInt(drawable.getPresentedSourceHeight());
+                } else {
+                    int drawableW = Short.toUnsignedInt(drawable.width);
+                    int drawableH = Short.toUnsignedInt(drawable.height);
+                    if ((long)drawableW * (long)drawableH >= ((long)screenW * (long)screenH) / 4L) {
+                        candidateW = drawableW;
+                        candidateH = drawableH;
+                    }
+                }
+                int candidateArea = candidateW * candidateH;
+                if (candidateW > 0 && candidateH > 0 && candidateArea > sourceArea) {
+                    sourceW = candidateW;
+                    sourceH = candidateH;
+                    sourceArea = candidateArea;
+                }
                 buf.putLong(OFF_WINDOW_HANDLES + winCount * 8, tex.getNativeHandle());
                 int gOff = OFF_WINDOW_GEOM + winCount * 16;
                 buf.putInt(gOff,      rw.rootX);
@@ -404,6 +428,8 @@ public class VulkanRenderer
         buf.putInt(OFF_SCREEN_W, xServer.screenInfo.width);
         buf.putInt(OFF_SCREEN_H, xServer.screenInfo.height);
         buf.putInt(OFF_SWAP_RB, swapRB ? 1 : 0);
+        buf.putInt(OFF_SOURCE_W, sourceW);
+        buf.putInt(OFF_SOURCE_H, sourceH);
 
         // Effects snapshot
         Effect[] active = effectComposer.snapshot();
@@ -523,6 +549,27 @@ public class VulkanRenderer
     // ----- Public API (matches the previous GLRenderer) ---------------------
 
     public EffectComposer getEffectComposer() { return effectComposer; }
+
+    public void onXServerScreenChanged() {
+        int oldViewWidth = viewTransformation.viewWidth;
+        int oldViewHeight = viewTransformation.viewHeight;
+        int oldViewOffsetX = viewTransformation.viewOffsetX;
+        int oldViewOffsetY = viewTransformation.viewOffsetY;
+        if (surfaceWidth > 0 && surfaceHeight > 0) {
+            viewTransformation.update(surfaceWidth, surfaceHeight,
+                    xServer.screenInfo.width, xServer.screenInfo.height);
+        }
+        viewportNeedsUpdate = true;
+        magnifierPanInitialized = false;
+        updateScene();
+        Log.i(TAG, "XServer screen changed: screen=" + xServer.screenInfo +
+                " surface=" + surfaceWidth + "x" + surfaceHeight +
+                " view=" + oldViewWidth + "x" + oldViewHeight + "@" +
+                oldViewOffsetX + "," + oldViewOffsetY + " -> " +
+                viewTransformation.viewWidth + "x" + viewTransformation.viewHeight +
+                "@" + viewTransformation.viewOffsetX + "," + viewTransformation.viewOffsetY);
+        requestRenderCoalesced();
+    }
 
     public void toggleFullscreen() {
         fullscreen = !fullscreen;

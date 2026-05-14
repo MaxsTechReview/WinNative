@@ -49,9 +49,10 @@ set(SHADER_LIST
     "quad:vert:quad_vert"
     "blit:frag:blit_frag"
     "effect_crt:frag:effect_crt_frag"
-    "effect_fsr:frag:effect_fsr_frag"
+    "effect_vivid:frag:effect_vivid_frag"
     "effect_hdr:frag:effect_hdr_frag"
     "effect_natural:frag:effect_natural_frag"
+    "sgsr1:frag:sgsr1_frag"
 )
 
 set(SHADER_HEADERS "")
