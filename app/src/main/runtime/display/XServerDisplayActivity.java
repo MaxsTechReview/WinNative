@@ -121,6 +121,8 @@ import com.winlator.cmod.runtime.input.controls.ControlsProfile;
 import com.winlator.cmod.runtime.input.controls.ControllerManager;
 import com.winlator.cmod.runtime.input.controls.ExternalController;
 import com.winlator.cmod.runtime.input.controls.InputControlsManager;
+import com.winlator.cmod.runtime.input.controls.LabelTheme;
+import com.winlator.cmod.runtime.input.controls.VisualStyle;
 import com.winlator.cmod.shared.math.Mathf;
 import com.winlator.cmod.shared.math.XForm;
 import com.winlator.cmod.runtime.audio.midi.MidiHandler;
@@ -2961,16 +2963,33 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private void renderDrawerMenu() {
         if (displayHostComposeView == null || xServerDisplayFrame == null) return;
 
-        ArrayList<ControlsProfile> inputProfiles = inputControlsManager != null ? inputControlsManager.getProfiles(true) : new ArrayList<>();
+        ControlsProfile activeProfile = inputControlsView != null ? inputControlsView.getProfile() : null;
+        ArrayList<ControlsProfile> inputProfiles = getVisibleControlsProfiles();
         ArrayList<String> inputProfileNames = new ArrayList<>();
         int inputSelectedIndex = 0;
         inputProfileNames.add("-- " + getString(R.string.common_ui_disabled) + " --");
-        ControlsProfile activeProfile = inputControlsView != null ? inputControlsView.getProfile() : null;
         for (int i = 0; i < inputProfiles.size(); i++) {
             ControlsProfile profile = inputProfiles.get(i);
             if (activeProfile != null && profile.id == activeProfile.id) inputSelectedIndex = i + 1;
             inputProfileNames.add(profile.getName());
         }
+
+        // Visual style + label theme dropdowns. The order of names here must match the enum
+        // ordinal positions in VisualStyle / LabelTheme so selection by index round-trips cleanly.
+        ArrayList<String> styleNames = new ArrayList<>();
+        styleNames.add(getString(R.string.input_controls_style_original));
+        styleNames.add(getString(R.string.input_controls_style_gamehub));
+        VisualStyle currentStyle = inputControlsView != null && inputControlsView.getVisualStyle() != null
+                ? inputControlsView.getVisualStyle() : VisualStyle.ORIGINAL;
+        int selectedStyleIndex = currentStyle.ordinal();
+
+        ArrayList<String> labelThemeNames = new ArrayList<>();
+        labelThemeNames.add(getString(R.string.input_controls_label_theme_default));
+        labelThemeNames.add(getString(R.string.input_controls_label_theme_xbox));
+        labelThemeNames.add(getString(R.string.input_controls_label_theme_playstation));
+        LabelTheme currentLabelTheme = inputControlsView != null && inputControlsView.getLabelTheme() != null
+                ? inputControlsView.getLabelTheme() : LabelTheme.DEFAULT;
+        int selectedLabelThemeIndex = currentLabelTheme.ordinal();
 
         XServerDrawerState state = XServerDrawerMenuKt.buildXServerDrawerState(
                 this,
@@ -3010,6 +3029,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 colorProfile,
                 inputProfileNames,
                 inputSelectedIndex,
+                styleNames,
+                selectedStyleIndex,
+                labelThemeNames,
+                selectedLabelThemeIndex,
                 preferences.getBoolean("show_touchscreen_controls_enabled", false),
                 isTapToClickEnabled,
                 preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY),
@@ -3200,9 +3223,31 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         if (index <= 0) {
                             hideInputControls();
                         } else {
-                            ArrayList<ControlsProfile> profiles = inputControlsManager != null ? inputControlsManager.getProfiles(true) : new ArrayList<>();
+                            // Use the same filtered list the dropdown was rendered from so the
+                            // user's tap selects what they actually saw.
+                            ArrayList<ControlsProfile> profiles = getVisibleControlsProfiles();
                             if (index - 1 < profiles.size()) showInputControls(profiles.get(index - 1));
                         }
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsStyleSelected(int index) {
+                        VisualStyle[] all = VisualStyle.values();
+                        if (index < 0 || index >= all.length) return;
+                        VisualStyle chosen = all[index];
+                        if (inputControlsView != null) inputControlsView.setVisualStyle(chosen);
+                        preferences.edit().putString("input_visual_style", chosen.name()).apply();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsLabelThemeSelected(int index) {
+                        LabelTheme[] all = LabelTheme.values();
+                        if (index < 0 || index >= all.length) return;
+                        LabelTheme chosen = all[index];
+                        if (inputControlsView != null) inputControlsView.setLabelTheme(chosen);
+                        preferences.edit().putString("input_label_theme", chosen.name()).apply();
                         renderDrawerMenu();
                     }
 
@@ -3244,14 +3289,28 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onInputControlsEditClick() {
                         ControlsProfile activeProfile = inputControlsView != null ? inputControlsView.getProfile() : null;
+                        // Built-in (asset-shipped) profiles are read-only — we silently duplicate
+                        // them before opening the editor and switch the active selection to the
+                        // copy so subsequent saves don't try to mutate read-only state.
+                        if (InputControlsManager.isBuiltinProfile(activeProfile) && inputControlsManager != null) {
+                            ControlsProfile copy = inputControlsManager.duplicateProfile(activeProfile);
+                            if (copy != null) {
+                                showInputControls(copy);
+                                activeProfile = copy;
+                                android.widget.Toast.makeText(XServerDisplayActivity.this,
+                                        R.string.input_controls_edit_duplicating_builtin,
+                                        android.widget.Toast.LENGTH_SHORT).show();
+                            }
+                        }
                         Intent intent = new Intent(XServerDisplayActivity.this, UnifiedActivity.class);
                         intent.putExtra("edit_input_controls", true);
                         intent.putExtra("selected_profile_id", activeProfile != null ? activeProfile.id : 0);
                         intent.putExtra("return_to_game_on_back", true);
+                        final ControlsProfile editingProfile = activeProfile;
                         editInputControlsCallback = () -> {
                             hideInputControls();
                             if (inputControlsManager != null) inputControlsManager.loadProfiles(true);
-                            ControlsProfile reactivated = activeProfile != null && inputControlsManager != null ? inputControlsManager.getProfile(activeProfile.id) : null;
+                            ControlsProfile reactivated = editingProfile != null && inputControlsManager != null ? inputControlsManager.getProfile(editingProfile.id) : null;
                             if (reactivated != null) showInputControls(reactivated);
                             renderDrawerMenu();
                         };
@@ -4458,6 +4517,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         inputControlsView.setTouchpadView(touchpadView);
         inputControlsView.setXServer(xServer);
         applyTouchscreenOverlayPreference();
+        applyInputVisualStylePreferences();
         inputControlsView.setVisibility(View.GONE);
         rootView.addView(inputControlsView);
 
@@ -4740,7 +4800,67 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         editor.apply();
     }
 
+    /**
+     * Returns the profiles to show in the in-game Controls dropdown. The legacy
+     * "Xbox Controller" and "Playstation Controller" profiles are hidden — their visual identity
+     * is now exposed through the separate "Button Labels" dropdown — except when the currently
+     * active profile is one of them, in which case it stays visible so users who haven't yet been
+     * migrated never see an empty selection.
+     */
+    private ArrayList<ControlsProfile> getVisibleControlsProfiles() {
+        ArrayList<ControlsProfile> all = inputControlsManager != null
+                ? inputControlsManager.getProfiles(true)
+                : new ArrayList<>();
+        ControlsProfile active = inputControlsView != null ? inputControlsView.getProfile() : null;
+        ArrayList<ControlsProfile> visible = new ArrayList<>(all.size());
+        for (ControlsProfile p : all) {
+            if (InputControlsManager.isLegacyLabelOnlyProfile(p)
+                    && (active == null || active.id != p.id)) {
+                continue;
+            }
+            visible.add(p);
+        }
+        return visible;
+    }
+
+    /**
+     * Applies the user's chosen visual style + label theme to the on-screen overlay.
+     * Called from session bootstrap so styles persist across launches.
+     */
+    private void applyInputVisualStylePreferences() {
+        if (inputControlsView == null || preferences == null) return;
+        inputControlsView.setVisualStyle(
+                VisualStyle.fromPreference(preferences.getString("input_visual_style", VisualStyle.ORIGINAL.name())));
+        inputControlsView.setLabelTheme(
+                LabelTheme.fromPreference(preferences.getString("input_label_theme", LabelTheme.DEFAULT.name())));
+    }
+
+    /**
+     * One-time migration: if the user's previously-selected profile is the legacy "Xbox" or
+     * "Playstation Controller" asset, switch the active selection to the Virtual Gamepad layout
+     * and apply the matching LabelTheme so the new UI flow takes over without surprising them.
+     * Runs once per install (tracked by the {@code input_controls_label_theme_migrated} flag).
+     */
+    private void maybeMigrateLegacyControllerProfile() {
+        if (preferences == null || inputControlsManager == null) return;
+        if (preferences.getBoolean("input_controls_label_theme_migrated", false)) return;
+        int selectedId = preferences.getInt("selected_profile_id", 0);
+        SharedPreferences.Editor editor = preferences.edit();
+        if (selectedId == InputControlsManager.LEGACY_XBOX_PROFILE_ID) {
+            editor.putInt("selected_profile_id", InputControlsManager.VIRTUAL_GAMEPAD_BUILTIN_ID);
+            editor.putInt("selected_profile_index", -1);
+            editor.putString("input_label_theme", LabelTheme.XBOX.name());
+        } else if (selectedId == InputControlsManager.LEGACY_PS_PROFILE_ID) {
+            editor.putInt("selected_profile_id", InputControlsManager.VIRTUAL_GAMEPAD_BUILTIN_ID);
+            editor.putInt("selected_profile_index", -1);
+            editor.putString("input_label_theme", LabelTheme.PLAYSTATION.name());
+        }
+        editor.putBoolean("input_controls_label_theme_migrated", true);
+        editor.apply();
+    }
+
     private ControlsProfile resolvePreferredStartupProfile() {
+        maybeMigrateLegacyControllerProfile();
         ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
         int selectedProfileId = preferences.getInt("selected_profile_id", 0);
         int selectedProfileIndex = preferences.getInt("selected_profile_index", -1);

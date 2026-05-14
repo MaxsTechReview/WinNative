@@ -341,6 +341,14 @@
     <string name="input_controls_editor_radial_menu_options">Radial Menu Options</string>
     <string name="input_controls_editor_number_of_bindings">Number of Bindings</string>
     <string name="input_controls_editor_select_profile">Select Profile</string>
+    <string name="input_controls_select_style">Select Style</string>
+    <string name="input_controls_select_label_theme">Button Labels</string>
+    <string name="input_controls_style_original">Original</string>
+    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_label_theme_default">Default</string>
+    <string name="input_controls_label_theme_xbox">Xbox</string>
+    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_edit_duplicating_builtin">Built-in profile — created a copy you can edit.</string>
     <string name="input_controls_editor_profile_name">Profile Name</string>
     <string name="input_controls_editor_no_profile_selected">No profile selected</string>
     <string name="input_controls_editor_no_profile_found">No profile found</string>

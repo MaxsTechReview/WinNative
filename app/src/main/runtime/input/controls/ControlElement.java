@@ -94,6 +94,9 @@ public class ControlElement {
   private boolean wasExpandedOnDown = false;
   private int currentPointerId = -1;
   private final Rect boundingBox = new Rect();
+  /** Scratch rect for the GameHub layout override — kept separate so the cached saved-layout
+   * {@link #boundingBox} stays valid when the user toggles styles back and forth. */
+  private final Rect overrideBoundingBox = new Rect();
   private final Path path = new Path();
   private Path[] paths;
   private boolean[] states = new boolean[4];
@@ -309,7 +312,30 @@ public class ControlElement {
 
   public Rect getBoundingBox() {
     if (boundingBoxNeedsUpdate) computeBoundingBox();
+    // When the GameHub visual style is active (and we're not editing), known gamepad roles get
+    // relocated and resized to the GameHub reference layout. Override is written into a scratch
+    // rect so the cached saved-layout box stays valid for ORIGINAL renderings.
+    if (inputControlsView.getVisualStyle() == VisualStyle.GAMEHUB && !inputControlsView.isEditMode()) {
+      GameHubLayout.Override ov = currentGameHubOverride();
+      if (ov != null) {
+        int snappingSize = inputControlsView.getSnappingSize();
+        if (snappingSize > 0) {
+          int cx = (int) (ov.normX * inputControlsView.getMaxWidth());
+          int cy = (int) (ov.normY * inputControlsView.getMaxHeight());
+          int hw = (int) (ov.halfWidthSnap * snappingSize * ov.scale);
+          int hh = (int) (ov.halfHeightSnap * snappingSize * ov.scale);
+          overrideBoundingBox.set(cx - hw, cy - hh, cx + hw, cy + hh);
+          return overrideBoundingBox;
+        }
+      }
+    }
     return boundingBox;
+  }
+
+  /** Returns the current GameHub override for this element (cached lookup), or null. */
+  private GameHubLayout.Override currentGameHubOverride() {
+    GameHubLayout.Role role = GameHubLayout.roleFor(this);
+    return role != null ? GameHubLayout.overrideFor(role) : null;
   }
 
   private Rect computeBoundingBox() {
@@ -375,18 +401,38 @@ return boundingBox;
 }
 
   private String getDisplayText() {
+    // Per-element text always wins (user explicit override).
     if (text != null && !text.isEmpty()) {
       return text;
-    } else {
-      Binding binding = getBindingAt(0);
-      String text = binding.toString().replace("NUMPAD ", "NP").replace("BUTTON ", "");
-      if (text.length() > 7) {
-        String[] parts = text.split(" ");
-        StringBuilder sb = new StringBuilder();
-        for (String part : parts) sb.append(part.charAt(0));
-        return (binding.isMouse() ? "M" : "") + sb;
-      } else return text;
     }
+    Binding binding = getBindingAt(0);
+    // LabelTheme override (Xbox/PS glyphs and shoulder labels) is applied only when the user
+    // hasn't typed a custom label themselves.
+    LabelTheme theme = inputControlsView.getLabelTheme();
+    String themed = theme != null ? theme.labelFor(binding) : null;
+    if (themed != null) return themed;
+    String text = binding.toString().replace("NUMPAD ", "NP").replace("BUTTON ", "");
+    if (text.length() > 7) {
+      String[] parts = text.split(" ");
+      StringBuilder sb = new StringBuilder();
+      for (String part : parts) sb.append(part.charAt(0));
+      return (binding.isMouse() ? "M" : "") + sb;
+    } else return text;
+  }
+
+  /**
+   * Returns the effective accent color for this element after applying (in order): per-element
+   * customColor (highest priority — user explicit), LabelTheme color for the primary binding, or
+   * {@code -1} if no override applies (caller should fall back to the overlay primary color).
+   */
+  private int resolveAccentColor() {
+    if (customColor != -1) return customColor;
+    LabelTheme theme = inputControlsView.getLabelTheme();
+    if (theme != null) {
+      int c = theme.colorFor(getBindingAt(0));
+      if (c != 0) return c;
+    }
+    return -1;
   }
 
   private String getBindingShortText(int index) {
@@ -431,11 +477,16 @@ return boundingBox;
   }
 
   public void draw(Canvas canvas) {
+    if (inputControlsView.getVisualStyle() == VisualStyle.GAMEHUB) {
+      drawGameHub(canvas);
+      return;
+    }
     int snappingSize = inputControlsView.getSnappingSize();
     Paint paint = inputControlsView.getPaint();
     float effectiveOpacity = inputControlsView.isEditMode() ? Math.max(0.15f, opacity) : opacity;
-    int primaryColor = customColor != -1
-        ? ColorUtils.setAlphaComponent(customColor, (int) (Math.min(1.0f,
+    int accent = resolveAccentColor();
+    int primaryColor = accent != -1
+        ? ColorUtils.setAlphaComponent(accent, (int) (Math.min(1.0f,
             inputControlsView.getOverlayOpacity() * 2.0f) * 255))
         : inputControlsView.getPrimaryColor();
     int alpha = (int) (Color.alpha(primaryColor) * effectiveOpacity);
@@ -446,7 +497,7 @@ return boundingBox;
     int secondaryColor = ColorUtils.setAlphaComponent(inputControlsView.getSecondaryColor(), highlightAlpha);
 
     paint.setColor(
-        (selected && customColor == -1) ? secondaryColor : primaryColor);
+        (selected && accent == -1) ? secondaryColor : primaryColor);
     paint.setStyle(Paint.Style.STROKE);
     float strokeWidth = snappingSize * 0.25f;
     paint.setStrokeWidth(strokeWidth);
@@ -499,7 +550,7 @@ return boundingBox;
 
           paint.setStyle(Paint.Style.STROKE);
           paint.setColor(
-              (selected && customColor == -1)
+              (selected && accent == -1)
                   ? secondaryColor
                   : primaryColor);
           paint.setStrokeWidth(strokeWidth);
@@ -605,7 +656,7 @@ return boundingBox;
 
           paint.setStyle(Paint.Style.STROKE);
           paint.setColor(
-              (selected && customColor == -1)
+              (selected && accent == -1)
                   ? secondaryColor
                   : primaryColor);
           canvas.drawCircle(cx, cy, radius, paint);
@@ -832,6 +883,276 @@ return boundingBox;
               paint);
           break;
         }
+    }
+  }
+
+  /**
+   * GameHub visual style — dark translucent glass body, light white rim, brighter rim & inner glow
+   * when pressed, soft outer shadow. Used when the user picks the "GameHub" style.
+   *
+   * <p>Geometry (positions, bounding boxes, sticks, dpad arms, radial menu paths) is reused from
+   * the original code; only the paint properties differ.
+   */
+  private void drawGameHub(Canvas canvas) {
+    int snappingSize = inputControlsView.getSnappingSize();
+    Paint paint = inputControlsView.getPaint();
+    float effectiveOpacity = inputControlsView.isEditMode() ? Math.max(0.15f, opacity) : opacity;
+    float overlayOpacity = inputControlsView.getOverlayOpacity();
+    boolean engaged = isEngaged();
+    Rect boundingBox = getBoundingBox();
+    GameHubLayout.Override layoutOverride = inputControlsView.isEditMode() ? null : currentGameHubOverride();
+
+    // Resolve accent (user customColor → theme color → none).
+    int accent = resolveAccentColor();
+    boolean hasAccent = accent != -1;
+
+    // GameHub palette — uses the source asset's alpha values directly so the dark-glass identity
+    // doesn't disappear at the default overlay opacity. Per-element opacity still applies; the
+    // overlayOpacity slider modulates with a gentle floor so the controls never look fully washed.
+    float gameHubDim = Math.min(1.0f, 0.5f + overlayOpacity * 0.7f);
+    int fillAlpha = (int) (90 * gameHubDim * effectiveOpacity); // dark glass body
+    int strokeAlpha = (int) (150 * gameHubDim * effectiveOpacity); // light rim
+    int pressedFillAlpha = (int) (60 * gameHubDim * effectiveOpacity); // brighter inner glow when pressed
+    int pressedStrokeAlpha = (int) (220 * gameHubDim * effectiveOpacity); // brighter rim when pressed
+    int textAlpha = (int) (255 * gameHubDim * effectiveOpacity);
+
+    int fillColor = Color.argb(fillAlpha, 0, 0, 0);
+    int strokeColor = hasAccent
+        ? ColorUtils.setAlphaComponent(accent, Math.max(strokeAlpha, 110))
+        : Color.argb(strokeAlpha, 255, 255, 255);
+    int pressedFillBase = hasAccent ? accent : Color.WHITE;
+    int pressedFillColor = ColorUtils.setAlphaComponent(pressedFillBase, pressedFillAlpha);
+    int pressedStrokeColor = hasAccent
+        ? ColorUtils.setAlphaComponent(accent, Math.max(pressedStrokeAlpha, 160))
+        : Color.argb(pressedStrokeAlpha, 255, 255, 255);
+    int textColor = hasAccent
+        ? ColorUtils.setAlphaComponent(accent, textAlpha)
+        : Color.argb(textAlpha, 255, 255, 255);
+
+    // Edit-mode selection highlight reuses the existing secondary color so editing UX stays the
+    // same regardless of style.
+    if (selected && !hasAccent) {
+      int highlightAlpha = (int) (255 * overlayOpacity);
+      strokeColor = ColorUtils.setAlphaComponent(inputControlsView.getSecondaryColor(), highlightAlpha);
+    }
+
+    float strokeWidth = Math.max(2f, snappingSize * 0.18f);
+    paint.setStrokeWidth(strokeWidth);
+    paint.setStrokeJoin(Paint.Join.ROUND);
+    paint.setStrokeCap(Paint.Cap.ROUND);
+
+    switch (type) {
+      case BUTTON: {
+        float cx = boundingBox.centerX();
+        float cy = boundingBox.centerY();
+        boolean isTrigger = layoutOverride != null
+            && (layoutOverride.shape == GameHubLayout.RenderShape.TRIGGER_LT
+                || layoutOverride.shape == GameHubLayout.RenderShape.TRIGGER_LB
+                || layoutOverride.shape == GameHubLayout.RenderShape.TRIGGER_RT
+                || layoutOverride.shape == GameHubLayout.RenderShape.TRIGGER_RB);
+
+        if (isTrigger) {
+          GameHubLayout.buildTriggerPath(
+              path, layoutOverride.shape,
+              boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom);
+          paint.setStyle(Paint.Style.FILL);
+          paint.setColor(fillColor);
+          canvas.drawPath(path, paint);
+          if (engaged) {
+            paint.setColor(pressedFillColor);
+            canvas.drawPath(path, paint);
+          }
+          paint.setStyle(Paint.Style.STROKE);
+          paint.setColor(engaged ? pressedStrokeColor : strokeColor);
+          canvas.drawPath(path, paint);
+        } else {
+          drawGameHubShape(canvas, paint, boundingBox, fillColor, true);
+          if (engaged) drawGameHubShape(canvas, paint, boundingBox, pressedFillColor, true);
+          paint.setStyle(Paint.Style.STROKE);
+          paint.setColor(engaged ? pressedStrokeColor : strokeColor);
+          drawGameHubShape(canvas, paint, boundingBox, 0, false);
+        }
+
+        if (iconId > 0) {
+          drawIcon(canvas, cx, cy, boundingBox.width(), boundingBox.height(), iconId);
+        } else {
+          String label = getDisplayText();
+          paint.setStyle(Paint.Style.FILL);
+          paint.setColor(textColor);
+          paint.setTextSize(
+              Math.min(
+                  getTextSizeForWidth(paint, label, boundingBox.width() - strokeWidth * 2),
+                  snappingSize * 2 * scale));
+          paint.setTextAlign(Paint.Align.CENTER);
+          paint.setFakeBoldText(true);
+          canvas.drawText(label, cx, (cy - ((paint.descent() + paint.ascent()) * 0.5f)), paint);
+          paint.setFakeBoldText(false);
+        }
+        break;
+      }
+      case STICK: {
+        int cx = boundingBox.centerX();
+        int cy = boundingBox.centerY();
+        float ringRadius = boundingBox.height() * 0.5f;
+
+        // Outer ring — solid translucent dark fill matching the button fill alpha so the
+        // joystick shadowing reads with the same weight as the rest of the controls.
+        int ringFillAlpha = fillAlpha;
+        int ringFill = Color.argb(ringFillAlpha, 0, 0, 0);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(ringFill);
+        canvas.drawCircle(cx, cy, ringRadius, paint);
+
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setColor(engaged ? pressedStrokeColor : strokeColor);
+        canvas.drawCircle(cx, cy, ringRadius - strokeWidth * 0.5f, paint);
+
+        // Inner thumb — substantial translucent white disc with a thin rim so it visually pops
+        // against the dark ring fill. When a GameHub layout override is active and the stick
+        // isn't being touched, snap the thumb to the overridden center; getCurrentPosition() is
+        // otherwise seeded from the saved profile coordinates and would draw off-center.
+        float thumbX;
+        float thumbY;
+        if (engaged) {
+          thumbX = getCurrentPosition().x;
+          thumbY = getCurrentPosition().y;
+        } else if (layoutOverride != null) {
+          thumbX = cx;
+          thumbY = cy;
+        } else {
+          thumbX = getCurrentPosition().x;
+          thumbY = getCurrentPosition().y;
+        }
+        // Thumb radius at ~48% of outer ring — the user reported the previous 45% looked too
+        // small. Matches GameHub's reference of roughly 0.43-0.50.
+        float thumbRadius =
+            layoutOverride != null ? ringRadius * 0.48f : snappingSize * 3.5f * scale;
+        int thumbFillAlpha = (int) ((engaged ? 100 : 77) * gameHubDim * effectiveOpacity);
+        int thumbFill = hasAccent
+            ? ColorUtils.setAlphaComponent(accent, thumbFillAlpha)
+            : Color.argb(thumbFillAlpha, 255, 255, 255);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(thumbFill);
+        canvas.drawCircle(thumbX, thumbY, thumbRadius, paint);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setColor(engaged ? pressedStrokeColor : strokeColor);
+        canvas.drawCircle(thumbX, thumbY, thumbRadius - strokeWidth * 0.5f, paint);
+        break;
+      }
+      case D_PAD: {
+        float cx = boundingBox.centerX();
+        float cy = boundingBox.centerY();
+
+        // GameHub override: draw 4 detached pentagonal arrows at the cardinal edges of the bbox.
+        if (layoutOverride != null && layoutOverride.shape == GameHubLayout.RenderShape.DPAD_CROSS) {
+          float radius = Math.min(boundingBox.width(), boundingBox.height()) * 0.5f;
+          GameHubLayout.buildDpadArrows(path, cx, cy, radius);
+        } else {
+          // Same dpad geometry as ORIGINAL (used when no override applies — e.g. mixed profiles).
+          float offsetX = snappingSize * 2 * scale;
+          float offsetY = snappingSize * 3 * scale;
+          float start = snappingSize * scale;
+          path.reset();
+          path.moveTo(cx, cy - start);
+          path.lineTo(cx - offsetX, cy - offsetY);
+          path.lineTo(cx - offsetX, boundingBox.top);
+          path.lineTo(cx + offsetX, boundingBox.top);
+          path.lineTo(cx + offsetX, cy - offsetY);
+          path.close();
+          path.moveTo(cx - start, cy);
+          path.lineTo(cx - offsetY, cy - offsetX);
+          path.lineTo(boundingBox.left, cy - offsetX);
+          path.lineTo(boundingBox.left, cy + offsetX);
+          path.lineTo(cx - offsetY, cy + offsetX);
+          path.close();
+          path.moveTo(cx, cy + start);
+          path.lineTo(cx - offsetX, cy + offsetY);
+          path.lineTo(cx - offsetX, boundingBox.bottom);
+          path.lineTo(cx + offsetX, boundingBox.bottom);
+          path.lineTo(cx + offsetX, cy + offsetY);
+          path.close();
+          path.moveTo(cx + start, cy);
+          path.lineTo(cx + offsetY, cy - offsetX);
+          path.lineTo(boundingBox.right, cy - offsetX);
+          path.lineTo(boundingBox.right, cy + offsetX);
+          path.lineTo(cx + offsetY, cy + offsetX);
+          path.close();
+        }
+
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(fillColor);
+        canvas.drawPath(path, paint);
+        if (engaged) {
+          paint.setColor(pressedFillColor);
+          canvas.drawPath(path, paint);
+        }
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setColor(engaged ? pressedStrokeColor : strokeColor);
+        canvas.drawPath(path, paint);
+        break;
+      }
+      case TRACKPAD: {
+        float radius = boundingBox.height() * 0.18f;
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(fillColor);
+        canvas.drawRoundRect(
+            boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom,
+            radius, radius, paint);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setColor(engaged ? pressedStrokeColor : strokeColor);
+        canvas.drawRoundRect(
+            boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom,
+            radius, radius, paint);
+        break;
+      }
+      case RADIAL_MENU:
+      case RANGE_BUTTON:
+      default:
+        // Less common element types — defer to the original renderer to avoid duplicating their
+        // bespoke geometry; the surrounding color resolution already covers theme colors.
+        drawOriginalLegacy(canvas);
+        break;
+    }
+  }
+
+  private void drawGameHubShape(Canvas canvas, Paint paint, Rect bb, int color, boolean fill) {
+    if (fill) {
+      paint.setStyle(Paint.Style.FILL);
+      paint.setColor(color);
+    }
+    int snappingSize = inputControlsView.getSnappingSize();
+    switch (shape) {
+      case CIRCLE:
+        canvas.drawCircle(bb.centerX(), bb.centerY(), bb.width() * 0.5f, paint);
+        break;
+      case RECT:
+        canvas.drawRect(bb, paint);
+        break;
+      case ROUND_RECT: {
+        float r = bb.height() * 0.5f;
+        canvas.drawRoundRect(bb.left, bb.top, bb.right, bb.bottom, r, r, paint);
+        break;
+      }
+      case SQUARE: {
+        float r = snappingSize * 0.85f * scale;
+        canvas.drawRoundRect(bb.left, bb.top, bb.right, bb.bottom, r, r, paint);
+        break;
+      }
+    }
+  }
+
+  /**
+   * Fallback to the original draw routine for element types we don't customize in the GameHub
+   * style (RADIAL_MENU, RANGE_BUTTON). This temporarily switches the view's style back to ORIGINAL
+   * just for this draw call.
+   */
+  private void drawOriginalLegacy(Canvas canvas) {
+    VisualStyle saved = inputControlsView.getVisualStyle();
+    try {
+      inputControlsView.setVisualStyleSilent(VisualStyle.ORIGINAL);
+      draw(canvas);
+    } finally {
+      inputControlsView.setVisualStyleSilent(saved);
     }
   }
 
