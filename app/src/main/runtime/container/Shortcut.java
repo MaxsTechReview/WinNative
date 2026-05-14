@@ -177,26 +177,6 @@ public class Shortcut {
         saveData(); // Save it to the file so we don't have to extract it again
         return;
       }
-
-      // B. Fallback: If the EXE has no icon, scan the game folder for any .jpg or .png
-      File gameDir = exeFile.isDirectory() ? exeFile : exeFile.getParentFile();
-      if (gameDir != null && gameDir.exists()) {
-        File[] candidates =
-            gameDir.listFiles(
-                (dir, name) -> {
-                  String lower = name.toLowerCase();
-                  return lower.endsWith(".jpg")
-                      || lower.endsWith(".jpeg")
-                      || lower.endsWith(".png");
-                });
-        if (candidates != null && candidates.length > 0) {
-          this.customCoverArtPath = candidates[0].getAbsolutePath();
-          this.coverArt = BitmapFactory.decodeFile(customCoverArtPath);
-          putExtra("customCoverArtPath", customCoverArtPath);
-          saveData();
-          return;
-        }
-      }
     }
 
     // 4. Final Fallback: standard cover art location
