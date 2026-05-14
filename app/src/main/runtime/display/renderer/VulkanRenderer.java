@@ -481,6 +481,7 @@ public class VulkanRenderer
             xServerView.queueEvent(this::updateScene);
         } else {
             xServerView.queueEvent(() -> updateWindowPosition(window));
+            xServerView.queueEvent(this::updateScene);
         }
         requestRenderCoalesced();
     }

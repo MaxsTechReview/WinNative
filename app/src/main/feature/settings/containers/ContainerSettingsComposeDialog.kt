@@ -43,6 +43,7 @@ import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.runtime.wine.EnvVars
+import com.winlator.cmod.runtime.wine.LocaleEnv
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.util.KeyValueSet
 import com.winlator.cmod.shared.theme.WinNativeTheme
@@ -384,9 +385,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         state.isSteamGame.value = false
 
         state.execArgs.value = c?.getExecArgs() ?: ""
-        state.lcAll.value = c?.getLC_ALL() ?: (
-            Locale.getDefault().language + "_" + Locale.getDefault().country + ".UTF-8"
-            )
+        state.lcAll.value = c?.getLC_ALL().takeUnless { it.isNullOrEmpty() }
+            ?: LocaleEnv.deriveFromDevice()
 
         val cpuCount = Runtime.getRuntime().availableProcessors()
         state.cpuCount.intValue = cpuCount

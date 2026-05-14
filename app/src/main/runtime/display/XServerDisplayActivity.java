@@ -90,6 +90,7 @@ import com.winlator.cmod.shared.android.AppUtils;
 import com.winlator.cmod.shared.android.AppTerminationHelper;
 import com.winlator.cmod.shared.ui.toast.WinToast;
 import com.winlator.cmod.runtime.wine.EnvVars;
+import com.winlator.cmod.runtime.wine.LocaleEnv;
 import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.runtime.system.CPUStatus;
 import com.winlator.cmod.runtime.system.GPUInformation;
@@ -4334,7 +4335,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         cleanupLingeringSessionProcesses("new launch");
 
         // Set environment variables
-        envVars.put("LC_ALL", lc_all);
+        envVars.put("LC_ALL", LocaleEnv.normalize(lc_all));
         String winePrefix = (shortcut != null && container != null && shortcut.path != null && shortcut.path.matches("^[cC]:.*")) ? new File(container.getRootDir(), ".wine").getAbsolutePath() : imageFs.wineprefix;
         envVars.put("WINEPREFIX", winePrefix);
 
