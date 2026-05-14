@@ -274,61 +274,95 @@ public final class GameHubLayout {
    */
   public static void buildDpadArrows(Path out, float cx, float cy, float radius) {
     out.reset();
+    for (int side = 0; side < 4; side++) buildDpadArrow(out, side, cx, cy, radius);
+  }
+
+  /** D-pad arrow sides used by {@link #buildDpadArrow} and {@link #dpadArrowCenter}. */
+  public static final int DPAD_UP = 0;
+  public static final int DPAD_DOWN = 1;
+  public static final int DPAD_LEFT = 2;
+  public static final int DPAD_RIGHT = 3;
+
+  /**
+   * Appends a single GameHub d-pad arrow ({@code side} in [0..3]) to {@code out} without resetting
+   * it. Geometry matches {@link #buildDpadArrows}; broken out so callers can render per-arrow
+   * effects (e.g. a radial glass vignette anchored at each arrow's centroid).
+   */
+  public static void buildDpadArrow(Path out, int side, float cx, float cy, float radius) {
     // GameHub d-pad: each arrow is a "house" / "square with a pointer" — a rectangle on the
     // outer side, then two short angled walls converging to a single point that aims AT the
     // center of the d-pad. The two outer corners get a small radius; the inner shoulder corners
     // and the tip stay sharp so the pointer reads clearly.
-    float outer = radius * 0.95f;       // distance from center to the flat outer edge
-    float shoulder = radius * 0.45f;    // distance from center to where the rectangle ends and
-                                        // the pointer begins (length of rectangle body = 0.50r)
-    float inner = radius * 0.18f;        // distance from center to the pointer tip
-    float halfOuter = radius * 0.25f;   // half-width of the rectangular body — equal to half its
-                                        // length (0.25r * 2 = 0.50r), so the body is a square
-    float cornerR = radius * 0.05f;     // small outer-corner rounding
+    float outer = radius * 0.95f;
+    float shoulder = radius * 0.45f;
+    float inner = radius * 0.18f;
+    float halfOuter = radius * 0.275f;
+    float cornerR = radius * 0.05f;
 
-    // UP — rectangle at the top with pointer tip aiming DOWN toward center.
-    out.moveTo(cx - halfOuter + cornerR, cy - outer);
-    out.lineTo(cx + halfOuter - cornerR, cy - outer);
-    out.quadTo(cx + halfOuter, cy - outer, cx + halfOuter, cy - outer + cornerR);
-    out.lineTo(cx + halfOuter, cy - shoulder);
-    out.lineTo(cx, cy - inner);                                 // pointer tip
-    out.lineTo(cx - halfOuter, cy - shoulder);
-    out.lineTo(cx - halfOuter, cy - outer + cornerR);
-    out.quadTo(cx - halfOuter, cy - outer, cx - halfOuter + cornerR, cy - outer);
-    out.close();
+    switch (side) {
+      case DPAD_UP:
+        out.moveTo(cx - halfOuter + cornerR, cy - outer);
+        out.lineTo(cx + halfOuter - cornerR, cy - outer);
+        out.quadTo(cx + halfOuter, cy - outer, cx + halfOuter, cy - outer + cornerR);
+        out.lineTo(cx + halfOuter, cy - shoulder);
+        out.lineTo(cx, cy - inner);
+        out.lineTo(cx - halfOuter, cy - shoulder);
+        out.lineTo(cx - halfOuter, cy - outer + cornerR);
+        out.quadTo(cx - halfOuter, cy - outer, cx - halfOuter + cornerR, cy - outer);
+        out.close();
+        break;
+      case DPAD_DOWN:
+        out.moveTo(cx + halfOuter - cornerR, cy + outer);
+        out.lineTo(cx - halfOuter + cornerR, cy + outer);
+        out.quadTo(cx - halfOuter, cy + outer, cx - halfOuter, cy + outer - cornerR);
+        out.lineTo(cx - halfOuter, cy + shoulder);
+        out.lineTo(cx, cy + inner);
+        out.lineTo(cx + halfOuter, cy + shoulder);
+        out.lineTo(cx + halfOuter, cy + outer - cornerR);
+        out.quadTo(cx + halfOuter, cy + outer, cx + halfOuter - cornerR, cy + outer);
+        out.close();
+        break;
+      case DPAD_LEFT:
+        out.moveTo(cx - outer, cy + halfOuter - cornerR);
+        out.lineTo(cx - outer, cy - halfOuter + cornerR);
+        out.quadTo(cx - outer, cy - halfOuter, cx - outer + cornerR, cy - halfOuter);
+        out.lineTo(cx - shoulder, cy - halfOuter);
+        out.lineTo(cx - inner, cy);
+        out.lineTo(cx - shoulder, cy + halfOuter);
+        out.lineTo(cx - outer + cornerR, cy + halfOuter);
+        out.quadTo(cx - outer, cy + halfOuter, cx - outer, cy + halfOuter - cornerR);
+        out.close();
+        break;
+      case DPAD_RIGHT:
+        out.moveTo(cx + outer, cy - halfOuter + cornerR);
+        out.lineTo(cx + outer, cy + halfOuter - cornerR);
+        out.quadTo(cx + outer, cy + halfOuter, cx + outer - cornerR, cy + halfOuter);
+        out.lineTo(cx + shoulder, cy + halfOuter);
+        out.lineTo(cx + inner, cy);
+        out.lineTo(cx + shoulder, cy - halfOuter);
+        out.lineTo(cx + outer - cornerR, cy - halfOuter);
+        out.quadTo(cx + outer, cy - halfOuter, cx + outer, cy - halfOuter + cornerR);
+        out.close();
+        break;
+    }
+  }
 
-    // DOWN — rectangle at the bottom, pointer aims UP.
-    out.moveTo(cx + halfOuter - cornerR, cy + outer);
-    out.lineTo(cx - halfOuter + cornerR, cy + outer);
-    out.quadTo(cx - halfOuter, cy + outer, cx - halfOuter, cy + outer - cornerR);
-    out.lineTo(cx - halfOuter, cy + shoulder);
-    out.lineTo(cx, cy + inner);
-    out.lineTo(cx + halfOuter, cy + shoulder);
-    out.lineTo(cx + halfOuter, cy + outer - cornerR);
-    out.quadTo(cx + halfOuter, cy + outer, cx + halfOuter - cornerR, cy + outer);
-    out.close();
-
-    // LEFT — rectangle on the left, pointer aims RIGHT.
-    out.moveTo(cx - outer, cy + halfOuter - cornerR);
-    out.lineTo(cx - outer, cy - halfOuter + cornerR);
-    out.quadTo(cx - outer, cy - halfOuter, cx - outer + cornerR, cy - halfOuter);
-    out.lineTo(cx - shoulder, cy - halfOuter);
-    out.lineTo(cx - inner, cy);
-    out.lineTo(cx - shoulder, cy + halfOuter);
-    out.lineTo(cx - outer + cornerR, cy + halfOuter);
-    out.quadTo(cx - outer, cy + halfOuter, cx - outer, cy + halfOuter - cornerR);
-    out.close();
-
-    // RIGHT — rectangle on the right, pointer aims LEFT.
-    out.moveTo(cx + outer, cy - halfOuter + cornerR);
-    out.lineTo(cx + outer, cy + halfOuter - cornerR);
-    out.quadTo(cx + outer, cy + halfOuter, cx + outer - cornerR, cy + halfOuter);
-    out.lineTo(cx + shoulder, cy + halfOuter);
-    out.lineTo(cx + inner, cy);
-    out.lineTo(cx + shoulder, cy - halfOuter);
-    out.lineTo(cx + outer - cornerR, cy - halfOuter);
-    out.quadTo(cx + outer, cy - halfOuter, cx + outer, cy - halfOuter + cornerR);
-    out.close();
+  /**
+   * Writes the approximate centroid of a single d-pad arrow into {@code outXY} (length ≥ 2).
+   * Used as the anchor point for the per-arrow radial glass vignette so each arrow lights up
+   * from its own middle outward rather than from the d-pad cluster center.
+   */
+  public static void dpadArrowCenter(int side, float cx, float cy, float radius, float[] outXY) {
+    // Midpoint between the outer flat edge (0.95r) and the pointer tip (0.18r) along the
+    // arrow's axis — close enough to the visual center for a smooth vignette.
+    float along = radius * 0.565f;
+    switch (side) {
+      case DPAD_UP:    outXY[0] = cx;          outXY[1] = cy - along; break;
+      case DPAD_DOWN:  outXY[0] = cx;          outXY[1] = cy + along; break;
+      case DPAD_LEFT:  outXY[0] = cx - along;  outXY[1] = cy;         break;
+      case DPAD_RIGHT: outXY[0] = cx + along;  outXY[1] = cy;         break;
+      default:         outXY[0] = cx;          outXY[1] = cy;         break;
+    }
   }
 
   private GameHubLayout() {}

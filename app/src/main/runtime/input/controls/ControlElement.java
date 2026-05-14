@@ -6,8 +6,10 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PointF;
+import android.graphics.RadialGradient;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.Shader;
 import androidx.core.graphics.ColorUtils;
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
 import com.winlator.cmod.runtime.display.xserver.XServer;
@@ -915,6 +917,9 @@ return boundingBox;
     int pressedFillAlpha = (int) (60 * gameHubDim * effectiveOpacity); // brighter inner glow when pressed
     int pressedStrokeAlpha = (int) (220 * gameHubDim * effectiveOpacity); // brighter rim when pressed
     int textAlpha = (int) (255 * gameHubDim * effectiveOpacity);
+    // Glass vignette — translucent black at the inner edge of each shape that fades to fully
+    // transparent at the center, producing a soft inset-shadow / glass look on top of the base fill.
+    int glassEdgeAlpha = (int) (75 * gameHubDim * effectiveOpacity);
 
     int fillColor = Color.argb(fillAlpha, 0, 0, 0);
     int strokeColor = hasAccent
@@ -962,12 +967,16 @@ return boundingBox;
             paint.setColor(pressedFillColor);
             canvas.drawPath(path, paint);
           }
+          drawGameHubGlassOnPath(
+              canvas, paint, path, cx, cy,
+              Math.max(boundingBox.width(), boundingBox.height()) * 0.5f, glassEdgeAlpha);
           paint.setStyle(Paint.Style.STROKE);
           paint.setColor(engaged ? pressedStrokeColor : strokeColor);
           canvas.drawPath(path, paint);
         } else {
           drawGameHubShape(canvas, paint, boundingBox, fillColor, true);
           if (engaged) drawGameHubShape(canvas, paint, boundingBox, pressedFillColor, true);
+          drawGameHubGlassShape(canvas, paint, boundingBox, glassEdgeAlpha);
           paint.setStyle(Paint.Style.STROKE);
           paint.setColor(engaged ? pressedStrokeColor : strokeColor);
           drawGameHubShape(canvas, paint, boundingBox, 0, false);
@@ -1002,6 +1011,18 @@ return boundingBox;
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(ringFill);
         canvas.drawCircle(cx, cy, ringRadius, paint);
+
+        // Glass vignette across the outer ring — the inner thumb will cover the brightest center
+        // anyway, so this reads as a darker shadow just inside the ring's rim.
+        if (glassEdgeAlpha > 0) {
+          paint.setShader(new RadialGradient(
+              cx, cy, ringRadius,
+              Color.argb(0, 0, 0, 0), Color.argb(glassEdgeAlpha, 0, 0, 0),
+              Shader.TileMode.CLAMP));
+          paint.setStyle(Paint.Style.FILL);
+          canvas.drawCircle(cx, cy, ringRadius, paint);
+          paint.setShader(null);
+        }
 
         paint.setStyle(Paint.Style.STROKE);
         paint.setColor(engaged ? pressedStrokeColor : strokeColor);
@@ -1046,7 +1067,33 @@ return boundingBox;
         // GameHub override: draw 4 detached pentagonal arrows at the cardinal edges of the bbox.
         if (layoutOverride != null && layoutOverride.shape == GameHubLayout.RenderShape.DPAD_CROSS) {
           float radius = Math.min(boundingBox.width(), boundingBox.height()) * 0.5f;
+          // Per-arrow fill + glass vignette so each arrow has its own inner-shadow centroid;
+          // a single radial gradient across the whole cluster would put the bright spot in the
+          // gap between arrows rather than inside each one.
+          float[] arrowCenter = new float[2];
+          float arrowGradR = radius * 0.5f;
+          for (int side = 0; side < 4; side++) {
+            path.reset();
+            GameHubLayout.buildDpadArrow(path, side, cx, cy, radius);
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(fillColor);
+            canvas.drawPath(path, paint);
+            if (engaged) {
+              paint.setColor(pressedFillColor);
+              canvas.drawPath(path, paint);
+            }
+            if (glassEdgeAlpha > 0) {
+              GameHubLayout.dpadArrowCenter(side, cx, cy, radius, arrowCenter);
+              drawGameHubGlassOnPath(
+                  canvas, paint, path, arrowCenter[0], arrowCenter[1], arrowGradR, glassEdgeAlpha);
+            }
+          }
+          // Combined stroke pass for all four arrows.
           GameHubLayout.buildDpadArrows(path, cx, cy, radius);
+          paint.setStyle(Paint.Style.STROKE);
+          paint.setColor(engaged ? pressedStrokeColor : strokeColor);
+          canvas.drawPath(path, paint);
+          break;
         } else {
           // Same dpad geometry as ORIGINAL (used when no override applies — e.g. mixed profiles).
           float offsetX = snappingSize * 2 * scale;
@@ -1139,6 +1186,60 @@ return boundingBox;
         break;
       }
     }
+  }
+
+  /**
+   * Draws a soft radial vignette (transparent center → translucent black at the rim) clipped to
+   * the element's GameHub shape. Layered on top of the base fill so the inner edge of the border
+   * darkens and gradually fades toward the center, producing a glass / inset-shadow look.
+   */
+  private void drawGameHubGlassShape(Canvas canvas, Paint paint, Rect bb, int edgeAlpha) {
+    if (edgeAlpha <= 0) return;
+    float cx = bb.exactCenterX();
+    float cy = bb.exactCenterY();
+    float gradR = Math.max(bb.width(), bb.height()) * 0.5f;
+    paint.setShader(new RadialGradient(
+        cx, cy, gradR,
+        Color.argb(0, 0, 0, 0), Color.argb(edgeAlpha, 0, 0, 0),
+        Shader.TileMode.CLAMP));
+    paint.setStyle(Paint.Style.FILL);
+    int snappingSize = inputControlsView.getSnappingSize();
+    switch (shape) {
+      case CIRCLE:
+        canvas.drawCircle(cx, cy, bb.width() * 0.5f, paint);
+        break;
+      case RECT:
+        canvas.drawRect(bb, paint);
+        break;
+      case ROUND_RECT: {
+        float r = bb.height() * 0.5f;
+        canvas.drawRoundRect(bb.left, bb.top, bb.right, bb.bottom, r, r, paint);
+        break;
+      }
+      case SQUARE: {
+        float r = snappingSize * 0.85f * scale;
+        canvas.drawRoundRect(bb.left, bb.top, bb.right, bb.bottom, r, r, paint);
+        break;
+      }
+    }
+    paint.setShader(null);
+  }
+
+  /**
+   * Same vignette as {@link #drawGameHubGlassShape} but clipped to an arbitrary path (used for
+   * trigger silhouettes and per-arrow d-pad shapes). The gradient is anchored at {@code (cx, cy)}
+   * with radius {@code gradR}, which the caller picks to match the path's centroid and extent.
+   */
+  private void drawGameHubGlassOnPath(
+      Canvas canvas, Paint paint, Path path, float cx, float cy, float gradR, int edgeAlpha) {
+    if (edgeAlpha <= 0 || gradR <= 0) return;
+    paint.setShader(new RadialGradient(
+        cx, cy, gradR,
+        Color.argb(0, 0, 0, 0), Color.argb(edgeAlpha, 0, 0, 0),
+        Shader.TileMode.CLAMP));
+    paint.setStyle(Paint.Style.FILL);
+    canvas.drawPath(path, paint);
+    paint.setShader(null);
   }
 
   /**
