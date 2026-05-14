@@ -3559,22 +3559,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         String renderSize =
                 SGSRResolutionUtils.applyRenderScale(sgsrBaseScreenSize, true, sgsrUpscaleMode);
-        int[] render = SGSRResolutionUtils.parseScreenSize(renderSize);
-        int savings = 0;
-        if (render != null) {
-            long basePixels = (long) baseSize[0] * (long) baseSize[1];
-            long renderPixels = (long) render[0] * (long) render[1];
-            if (basePixels > 0) {
-                savings = Math.max(0, Math.min(100,
-                        Math.round((1.0f - ((float) renderPixels / (float) basePixels)) * 100.0f)));
-            }
-        }
 
         return getString(
                 R.string.shortcuts_graphics_sgsr_upscale_summary,
                 renderSize,
-                baseLabel,
-                savings);
+                baseLabel);
     }
 
     private void saveSGSRShortcutSettings() {

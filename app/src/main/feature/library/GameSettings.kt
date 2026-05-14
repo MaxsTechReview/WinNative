@@ -1358,22 +1358,10 @@ private fun sgsrResolutionSummary(state: GameSettingsStateHolder): String {
     }
 
     val renderLabel = SGSRResolutionUtils.applyRenderScale(baseLabel, true, mode)
-    val render = SGSRResolutionUtils.parseScreenSize(renderLabel)
-        ?: return stringResource(R.string.shortcuts_graphics_sgsr_resolution_unknown)
-    val basePixels = base.first * base.second
-    val renderPixels = render[0] * render[1]
-    val savings = if (basePixels > 0) {
-        ((1f - (renderPixels.toFloat() / basePixels.toFloat())) * 100f)
-            .roundToInt()
-            .coerceIn(0, 100)
-    } else {
-        0
-    }
     return stringResource(
         R.string.shortcuts_graphics_sgsr_upscale_summary,
         renderLabel,
-        baseLabel,
-        savings
+        baseLabel
     )
 }
 

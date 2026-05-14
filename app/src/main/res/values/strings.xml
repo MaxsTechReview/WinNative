@@ -573,7 +573,7 @@
     <string name="shortcuts_graphics_sgsr_title">SGSR 1</string>
     <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Game Super Resolution 1</string>
     <string name="shortcuts_graphics_sgsr_native_summary">Resolution upscale: %1$s native render.</string>
-    <string name="shortcuts_graphics_sgsr_upscale_summary">Resolution upscale: %1$s -> %2$s, %3$d%% fewer render pixels.</string>
+    <string name="shortcuts_graphics_sgsr_upscale_summary">Resolution upscale: %1$s -> %2$s.</string>
     <string name="shortcuts_graphics_sgsr_resolution_unknown">Select a valid screen size to preview the SGSR render resolution.</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Do you want to duplicate this preset?</string>
