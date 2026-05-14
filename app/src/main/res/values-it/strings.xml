@@ -771,6 +771,8 @@ Ad es. <b>META</b> per il <i>tasto META</i>, \n
     <string name="settings_debug_input_logs_description">Registra gli eventi di input gamepad, touch e tastiera</string>
     <string name="settings_debug_download_logs">Log download</string>
     <string name="settings_debug_download_logs_description">Registra gli eventi del risolutore download e fallback WinNative</string>
+    <string name="settings_debug_vulkan_validation_layers_title">Livelli di validazione Vulkan</string>
+    <string name="settings_debug_vulkan_validation_layers_subtitle">Riavvia il display per applicare.</string>
     <string name="settings_debug_share_logs">Condividi log</string>
     <string name="settings_debug_logs_subject">Log WinNative (%1$s)</string>
     <string name="settings_debug_no_logs_available">Nessun log di debug disponibile. Attiva prima le opzioni di debug e avvia un gioco.</string>

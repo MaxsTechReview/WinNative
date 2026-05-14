@@ -1,222 +1,129 @@
+// AHardwareBuffer lifecycle for GPUImage.
+//
+// All EGL/GLES interop has been removed; the Vulkan compositor consumes the AHB directly via
+// VK_ANDROID_external_memory_android_hardware_buffer (see vk/vk_image.c). This file is now
+// concerned only with allocation, socket import, CPU mapping, and release of the AHB itself.
+
 #include <android/hardware_buffer.h>
 #include <android/log.h>
-#include <android/native_window.h>
-
-#define EGL_EGLEXT_PROTOTYPES
-#define GL_GLEXT_PROTOTYPES
-
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
 #include <jni.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define LOG_TAG "System.out"
-#define printf(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+#define LOG_TAG "GPUImage"
+#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+#define LOGW(...) __android_log_print(ANDROID_LOG_WARN,  LOG_TAG, __VA_ARGS__)
+
 #define HAL_PIXEL_FORMAT_BGRA_8888 5
 
-// Function to create an EGL image from a hardware buffer
-EGLImageKHR createImageKHR(AHardwareBuffer *hardwareBuffer, int textureId) {
-  if (!hardwareBuffer) {
-    printf("createImageKHR: Invalid AHardwareBuffer pointer\n");
-    return NULL;
-  }
+// ----------------------------------------------------------------------------
+// Java GPUImage.nativeAhbCreate(short w, short h) -> jlong (AHardwareBuffer*)
+// Allocates a CPU-readable + GPU-sampleable BGRA AHB.
+// ----------------------------------------------------------------------------
 
-  const EGLint attribList[] = {EGL_IMAGE_PRESERVED_KHR, EGL_FALSE, EGL_NONE};
-
-  EGLClientBuffer clientBuffer =
-      eglGetNativeClientBufferANDROID(hardwareBuffer);
-  if (!clientBuffer) {
-    printf("Failed to get native client buffer\n");
-    return NULL;
-  }
-
-  EGLDisplay eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-  if (eglDisplay == EGL_NO_DISPLAY) {
-    printf("Invalid EGLDisplay\n");
-    return NULL;
-  }
-
-  EGLImageKHR imageKHR =
-      eglCreateImageKHR(eglDisplay, EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID,
-                        clientBuffer, attribList);
-  if (!imageKHR) {
-    printf("Failed to create EGLImageKHR\n");
-    return NULL;
-  }
-
-  glBindTexture(GL_TEXTURE_2D, textureId);
-  if (glGetError() != GL_NO_ERROR) {
-    printf("Failed to bind texture\n");
-    eglDestroyImageKHR(eglDisplay, imageKHR);
-    return NULL;
-  }
-
-  glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, imageKHR);
-  if (glGetError() != GL_NO_ERROR) {
-    printf("Failed to bind EGLImage to texture\n");
-    eglDestroyImageKHR(eglDisplay, imageKHR);
-    return NULL;
-  }
-
-  glBindTexture(GL_TEXTURE_2D, 0);
-
-  return imageKHR;
-}
-
-// Function to create a hardware buffer
-AHardwareBuffer *createHardwareBuffer(int width, int height) {
-  AHardwareBuffer_Desc buffDesc = {};
-  buffDesc.width = width;
-  buffDesc.height = height;
-  buffDesc.layers = 1;
-  buffDesc.usage = AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE |
-                   AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN |
-                   AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN;
-  buffDesc.format = HAL_PIXEL_FORMAT_BGRA_8888;
-
-  AHardwareBuffer *hardwareBuffer = NULL;
-  if (AHardwareBuffer_allocate(&buffDesc, &hardwareBuffer) != 0) {
-    printf("Failed to allocate AHardwareBuffer\n");
-    return NULL;
-  }
-
-  return hardwareBuffer;
-}
-
-// JNI method to extract a hardware buffer from a socketpair
 JNIEXPORT jlong JNICALL
-Java_com_winlator_cmod_runtime_display_renderer_GPUImage_hardwareBufferFromSocket(
-    JNIEnv *env, jobject obj, jint fd) {
-  AHardwareBuffer *ahb;
+Java_com_winlator_cmod_runtime_display_renderer_GPUImage_nativeAhbCreate(
+    JNIEnv* env, jobject obj, jshort width, jshort height)
+{
+    (void)env; (void)obj;
+    AHardwareBuffer_Desc desc = {0};
+    desc.width = (uint32_t)width;
+    desc.height = (uint32_t)height;
+    desc.layers = 1;
+    desc.format = HAL_PIXEL_FORMAT_BGRA_8888;
+    desc.usage  = AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE
+                | AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN
+                | AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN;
 
-  uint8_t buf = 1;
-  struct stat fdStat;
-
-  if (fstat(fd, &fdStat) != 0 || !S_ISSOCK(fdStat.st_mode)) {
-    printf("AHardwareBuffer import fd is not a socketpair");
-    return 0;
-  }
-
-  if ((write(fd, &buf, 1)) == -1) {
-    printf("Failed to write data to socketpair");
-    return 0;
-  }
-
-  if ((AHardwareBuffer_recvHandleFromUnixSocket(fd, &ahb)) != 0) {
-    printf("Failed to extract hardware buffer from socketpair");
-    return 0;
-  }
-
-  return (jlong)ahb;
-}
-
-// JNI method to create a hardware buffer
-JNIEXPORT jlong JNICALL
-Java_com_winlator_cmod_runtime_display_renderer_GPUImage_createHardwareBuffer(
-    JNIEnv *env, jobject obj, jshort width, jshort height) {
-  AHardwareBuffer *buffer = createHardwareBuffer(width, height);
-  if (!buffer) {
-    printf("Failed to create hardware buffer\n");
-    return 0;
-  }
-  return (jlong)buffer;
-}
-
-// JNI method to create an EGL image
-JNIEXPORT jlong JNICALL
-Java_com_winlator_cmod_runtime_display_renderer_GPUImage_createImageKHR(
-    JNIEnv *env, jobject obj, jlong hardwareBufferPtr, jint textureId) {
-  AHardwareBuffer *hardwareBuffer = (AHardwareBuffer *)hardwareBufferPtr;
-  if (!hardwareBuffer) {
-    printf("Invalid AHardwareBuffer pointer\n");
-    return 0;
-  }
-  return (jlong)createImageKHR(hardwareBuffer, textureId);
-}
-
-// JNI method to destroy a hardware buffer
-JNIEXPORT void JNICALL
-Java_com_winlator_cmod_runtime_display_renderer_GPUImage_destroyHardwareBuffer(
-    JNIEnv *env, jobject obj, jlong hardwareBufferPtr, jboolean locked) {
-  AHardwareBuffer *hardwareBuffer = (AHardwareBuffer *)hardwareBufferPtr;
-  if (hardwareBuffer) {
-    if (locked) {
-      AHardwareBuffer_unlock(hardwareBuffer, NULL);
+    AHardwareBuffer* ahb = NULL;
+    if (AHardwareBuffer_allocate(&desc, &ahb) != 0 || !ahb) {
+        LOGW("AHardwareBuffer_allocate failed (%dx%d BGRA)", width, height);
+        return 0;
     }
-    AHardwareBuffer_release(hardwareBuffer);
-  }
+    return (jlong)(intptr_t)ahb;
 }
 
-// JNI method to lock a hardware buffer
+// ----------------------------------------------------------------------------
+// Java GPUImage.nativeAhbImportFromSocket(int fd) -> jlong (AHardwareBuffer*)
+// Reads a handle previously sent via AHardwareBuffer_sendHandleToUnixSocket.
+// Reciprocates with a 1-byte ack so the sender can close its end.
+// ----------------------------------------------------------------------------
+
+JNIEXPORT jlong JNICALL
+Java_com_winlator_cmod_runtime_display_renderer_GPUImage_nativeAhbImportFromSocket(
+    JNIEnv* env, jobject obj, jint fd)
+{
+    (void)env; (void)obj;
+    struct stat fdStat;
+    if (fstat(fd, &fdStat) != 0 || !S_ISSOCK(fdStat.st_mode)) {
+        LOGW("AHB import fd %d is not a socket", fd);
+        return 0;
+    }
+    uint8_t ack = 1;
+    if (write(fd, &ack, 1) == -1) {
+        LOGW("AHB import ack write failed");
+        return 0;
+    }
+    AHardwareBuffer* ahb = NULL;
+    if (AHardwareBuffer_recvHandleFromUnixSocket(fd, &ahb) != 0 || !ahb) {
+        LOGW("AHardwareBuffer_recvHandleFromUnixSocket failed");
+        return 0;
+    }
+    return (jlong)(intptr_t)ahb;
+}
+
+// ----------------------------------------------------------------------------
+// Java GPUImage.nativeAhbLock(long ahb) -> ByteBuffer
+// Locks for CPU read+write and reports stride to Java via setStride().
+// Returns a direct ByteBuffer over the mapped pixel data, or null on failure.
+// ----------------------------------------------------------------------------
+
 JNIEXPORT jobject JNICALL
-Java_com_winlator_cmod_runtime_display_renderer_GPUImage_lockHardwareBuffer(
-    JNIEnv *env, jobject obj, jlong hardwareBufferPtr) {
-  AHardwareBuffer *hardwareBuffer = (AHardwareBuffer *)hardwareBufferPtr;
-  if (!hardwareBuffer) {
-    printf("Invalid AHardwareBuffer pointer\n");
-    return NULL;
-  }
+Java_com_winlator_cmod_runtime_display_renderer_GPUImage_nativeAhbLock(
+    JNIEnv* env, jobject obj, jlong ahbPtr)
+{
+    AHardwareBuffer* ahb = (AHardwareBuffer*)(intptr_t)ahbPtr;
+    if (!ahb) return NULL;
 
-  void *virtualAddr;
-  int lockResult =
-      AHardwareBuffer_lock(hardwareBuffer,
-                           AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN |
-                               AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN,
-                           -1, NULL, &virtualAddr);
-  if (lockResult != 0) {
-    lockResult = AHardwareBuffer_lock(hardwareBuffer,
-                                      AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN,
-                                      -1, NULL, &virtualAddr);
-  }
-  if (lockResult != 0) {
-    lockResult = AHardwareBuffer_lock(hardwareBuffer,
-                                      AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN,
-                                      -1, NULL, &virtualAddr);
-  }
-  if (lockResult != 0) {
-    printf("Failed to lock AHardwareBuffer\n");
-    return NULL;
-  }
+    void* virt = NULL;
+    int rc = AHardwareBuffer_lock(ahb,
+                AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN | AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN,
+                -1, NULL, &virt);
+    if (rc != 0) {
+        rc = AHardwareBuffer_lock(ahb, AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN, -1, NULL, &virt);
+    }
+    if (rc != 0) {
+        rc = AHardwareBuffer_lock(ahb, AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN, -1, NULL, &virt);
+    }
+    if (rc != 0 || !virt) {
+        LOGW("AHardwareBuffer_lock failed");
+        return NULL;
+    }
 
-  AHardwareBuffer_Desc buffDesc;
-  AHardwareBuffer_describe(hardwareBuffer, &buffDesc);
+    AHardwareBuffer_Desc desc;
+    AHardwareBuffer_describe(ahb, &desc);
 
-  jclass cls = (*env)->GetObjectClass(env, obj);
-  if (cls == NULL) {
-    printf("Failed to get Java class reference\n");
-    AHardwareBuffer_unlock(hardwareBuffer, NULL);
-    return NULL;
-  }
+    jclass cls = (*env)->GetObjectClass(env, obj);
+    jmethodID setStride = (*env)->GetMethodID(env, cls, "setStride", "(S)V");
+    if (setStride) (*env)->CallVoidMethod(env, obj, setStride, (jshort)desc.stride);
 
-  jmethodID setStride = (*env)->GetMethodID(env, cls, "setStride", "(S)V");
-  if (setStride == NULL) {
-    printf("Failed to get setStride method ID\n");
-    AHardwareBuffer_unlock(hardwareBuffer, NULL);
-    return NULL;
-  }
-  (*env)->CallVoidMethod(env, obj, setStride, (jshort)buffDesc.stride);
-
-  jlong size = buffDesc.stride * buffDesc.height * 4;
-  jobject buffer = (*env)->NewDirectByteBuffer(env, virtualAddr, size);
-  if (buffer == NULL) {
-    printf("Failed to create Java ByteBuffer\n");
-    AHardwareBuffer_unlock(hardwareBuffer, NULL);
-  }
-
-  return buffer;
+    jlong size = (jlong)desc.stride * desc.height * 4;
+    return (*env)->NewDirectByteBuffer(env, virt, size);
 }
 
-// JNI method to destroy an EGL image
+// ----------------------------------------------------------------------------
+// Java GPUImage.nativeAhbDestroy(long ahb, boolean locked)
+// Unlocks if needed and releases our ref to the AHB.
+// ----------------------------------------------------------------------------
+
 JNIEXPORT void JNICALL
-Java_com_winlator_cmod_runtime_display_renderer_GPUImage_destroyImageKHR(
-    JNIEnv *env, jobject obj, jlong imageKHRPtr) {
-  EGLImageKHR imageKHR = (EGLImageKHR)imageKHRPtr;
-  if (imageKHR) {
-    EGLDisplay eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    eglDestroyImageKHR(eglDisplay, imageKHR);
-  }
+Java_com_winlator_cmod_runtime_display_renderer_GPUImage_nativeAhbDestroy(
+    JNIEnv* env, jobject obj, jlong ahbPtr, jboolean locked)
+{
+    (void)env; (void)obj;
+    AHardwareBuffer* ahb = (AHardwareBuffer*)(intptr_t)ahbPtr;
+    if (!ahb) return;
+    if (locked) AHardwareBuffer_unlock(ahb, NULL);
+    AHardwareBuffer_release(ahb);
 }

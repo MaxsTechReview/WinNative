@@ -777,6 +777,8 @@
     <string name="settings_debug_input_logs_description">Журналювати події геймпада, дотиків та клавіатури</string>
     <string name="settings_debug_download_logs">Журнали завантажень</string>
     <string name="settings_debug_download_logs_description">Журналювати події засобу розв\'язування завантажень та резервного механізму WinNative</string>
+    <string name="settings_debug_vulkan_validation_layers_title">Рівні перевірки Vulkan</string>
+    <string name="settings_debug_vulkan_validation_layers_subtitle">Перезапустіть дисплей, щоб застосувати.</string>
     <string name="settings_debug_share_logs">Поділитися журналами</string>
     <string name="settings_debug_logs_subject">Журнали WinNative (%1$s)</string>
     <string name="settings_debug_no_logs_available">Немає доступних журналів налагодження. Спочатку увімкніть параметри налагодження та запустіть гру.</string>
