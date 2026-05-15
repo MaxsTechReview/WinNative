@@ -6921,6 +6921,7 @@ class UnifiedActivity :
                                 }
                                 onSelectDownload(null)
                             },
+                            isCancelAll = request.isCancelAll,
                         )
                     }
                 }
@@ -7164,12 +7165,16 @@ class UnifiedActivity :
         expanded: Boolean,
         onDismissRequest: () -> Unit,
         onConfirm: () -> Unit,
+        isCancelAll: Boolean = false,
     ) {
+        val titleRes = if (isCancelAll) R.string.downloads_queue_cancel_all_title else R.string.downloads_queue_cancel_download_title
+        val messageRes = if (isCancelAll) R.string.downloads_queue_cancel_all_warning else R.string.downloads_queue_cancel_download_warning
+        val confirmRes = if (isCancelAll) R.string.downloads_queue_cancel_all else R.string.downloads_queue_cancel_download
         LaunchDangerConfirmDialog(
             visible = expanded,
-            title = stringResource(R.string.downloads_queue_cancel_download_title),
-            message = stringResource(R.string.downloads_queue_cancel_download_warning),
-            confirmLabel = stringResource(R.string.downloads_queue_cancel_download),
+            title = stringResource(titleRes),
+            message = stringResource(messageRes),
+            confirmLabel = stringResource(confirmRes),
             onDismissRequest = onDismissRequest,
             onConfirm = onConfirm,
             icon = Icons.Outlined.Warning,

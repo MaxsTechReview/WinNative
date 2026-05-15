@@ -248,7 +248,9 @@
     <string name="downloads_queue_paused_resume_hint">Paused - tap Resume to continue</string>
     <string name="downloads_queue_cancel_download">Cancel Download</string>
     <string name="downloads_queue_cancel_download_title">Cancel Download?</string>
-    <string name="downloads_queue_cancel_download_warning">Cancelling a DLC, Game, or Update download can potentially corrupt your game install.\n\nAre you sure you want to cancel?</string>
+    <string name="downloads_queue_cancel_download_warning">Cancelling a DLC, Game, or Update download can potentially corrupt your game install.\n\nAre you sure you want to cancel this Download and delete the files downloaded so far?</string>
+    <string name="downloads_queue_cancel_all_title">Cancel All Downloads?</string>
+    <string name="downloads_queue_cancel_all_warning">Cancelling DLC, Game, or Update downloads can potentially corrupt your game installs.\n\nAre you sure you want to cancel all Downloads and delete the files downloaded so far?</string>
     <string name="downloads_queue_empty">No active downloads.</string>
 
     <!-- Containers > List -->
