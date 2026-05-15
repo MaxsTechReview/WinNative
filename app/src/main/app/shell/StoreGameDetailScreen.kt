@@ -46,6 +46,7 @@ import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.SettingsSuggest
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.SystemUpdate
@@ -121,6 +122,7 @@ internal fun StoreGameDetailScreen(
     showCustomPath: Boolean = true,
     showCloudSync: Boolean = false,
     showUninstall: Boolean = true,
+    showBestConfigs: Boolean = false,
     showUpdateCheck: Boolean = false,
     isCheckingForUpdate: Boolean = false,
     isUpdateAvailable: Boolean = false,
@@ -138,6 +140,7 @@ internal fun StoreGameDetailScreen(
     onUninstall: () -> Unit = {},
     onCloudSync: () -> Unit = {},
     onCustomPath: () -> Unit = {},
+    onBestConfigs: () -> Unit = {},
     onToggleDlc: (Int) -> Unit = {},
     onToggleSelectAllDlcs: () -> Unit = {},
 ) {
@@ -160,7 +163,7 @@ internal fun StoreGameDetailScreen(
         val showUpdateCheckButton = showUpdateCheck && isInstalled
         val showUpdateCta = showUpdateCheckButton && isUpdateAvailable
         val showDlcCard = dlcs.isNotEmpty() && (!isInstalled || dlcs.any { !it.isInstalled })
-        val showActionColumn = showDownloadCta || showUpdateCheckButton || (showCloudSync || showUninstall)
+        val showActionColumn = showDownloadCta || showUpdateCheckButton || (showCloudSync || showUninstall || showBestConfigs)
 
         if (heroImageUrl != null) {
             val heroRequest =
@@ -454,6 +457,14 @@ internal fun StoreGameDetailScreen(
                                         contentDescription = customPathLabel,
                                         size = actionIconSize,
                                         onClick = onCustomPath,
+                                    )
+                                }
+                                if (showBestConfigs && isInstalled) {
+                                    StoreIconActionButton(
+                                        icon = Icons.Outlined.SettingsSuggest,
+                                        contentDescription = stringResource(R.string.best_configs_button_label),
+                                        size = actionIconSize,
+                                        onClick = onBestConfigs,
                                     )
                                 }
                                 if (showCloudSync && isInstalled) {

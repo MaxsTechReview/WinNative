@@ -150,6 +150,8 @@ import com.winlator.cmod.app.update.UpdateChecker
 import com.winlator.cmod.feature.settings.InputControlsFragment
 import com.winlator.cmod.feature.settings.SettingsHost
 import com.winlator.cmod.feature.settings.SettingsNavItem
+import com.winlator.cmod.feature.configs.ui.BestConfigsScreen
+import com.winlator.cmod.feature.configs.ui.BestConfigsViewModel
 import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.feature.shortcuts.LibraryShortcutUtils
 import com.winlator.cmod.feature.shortcuts.LibraryShortcutArtwork
@@ -703,6 +705,21 @@ class UnifiedActivity :
     ): String =
         "settings?item=${item.name}&profileId=$profileId&editContainerId=$editContainerId&returnToGameOnBack=$returnToGameOnBack"
 
+    /**
+     * Navigate to the per-game "Best Configs" board (Supabase-backed community config
+     * library). Filters client-side by (gameSource, gameId). Safe to call before the
+     * NavHost is composed — the request is dropped in that edge case rather than
+     * crashing.
+     */
+    fun navigateToBestConfigs(gameSource: String, gameId: String, gameName: String) {
+        val nav = rootNavController ?: return
+        val encodedName = android.net.Uri.encode(gameName)
+        val encodedId = android.net.Uri.encode(gameId)
+        nav.navigate("bestconfigs?gameSource=$gameSource&gameId=$encodedId&gameName=$encodedName") {
+            launchSingleTop = true
+        }
+    }
+
     private fun extractSettingsNavigation(intent: Intent?): PendingNavigation? {
         if (intent == null) return null
 
@@ -1046,6 +1063,25 @@ class UnifiedActivity :
                                 }
                             }
                         }
+                    }
+                    composable(
+                        "bestconfigs?gameSource={gameSource}&gameId={gameId}&gameName={gameName}",
+                        arguments = listOf(
+                            navArgument(BestConfigsViewModel.NAV_ARG_GAME_SOURCE) {
+                                type = NavType.StringType
+                                defaultValue = "CUSTOM_GAME"
+                            },
+                            navArgument(BestConfigsViewModel.NAV_ARG_GAME_ID) {
+                                type = NavType.StringType
+                                defaultValue = ""
+                            },
+                            navArgument(BestConfigsViewModel.NAV_ARG_GAME_NAME) {
+                                type = NavType.StringType
+                                defaultValue = ""
+                            },
+                        ),
+                    ) {
+                        BestConfigsScreen(onBack = { rootNavController?.popBackStack() })
                     }
                 }
             }
@@ -6012,6 +6048,15 @@ class UnifiedActivity :
                     showCustomPath = true,
                     showCloudSync = app.cloudSaveEnabled,
                     showUninstall = true,
+                    showBestConfigs = installed,
+                    onBestConfigs = {
+                        navigateToBestConfigs(
+                            gameSource = "EPIC",
+                            gameId = app.id.toString(),
+                            gameName = app.title,
+                        )
+                        onDismissRequest()
+                    },
                     dlcs = dlcItems,
                     selectedDlcIds = selectedDlcIds.toSet(),
                     onBack = onDismissRequest,
@@ -6368,6 +6413,15 @@ class UnifiedActivity :
                     showCustomPath = true,
                     showCloudSync = true,
                     showUninstall = true,
+                    showBestConfigs = installed,
+                    onBestConfigs = {
+                        navigateToBestConfigs(
+                            gameSource = "GOG",
+                            gameId = app.id.toString(),
+                            gameName = app.title,
+                        )
+                        onDismissRequest()
+                    },
                     dlcs = emptyList(),
                     selectedDlcIds = emptySet(),
                     onBack = onDismissRequest,
@@ -6921,6 +6975,7 @@ class UnifiedActivity :
                                 }
                                 onSelectDownload(null)
                             },
+                            isCancelAll = request.isCancelAll,
                         )
                     }
                 }
@@ -7164,12 +7219,16 @@ class UnifiedActivity :
         expanded: Boolean,
         onDismissRequest: () -> Unit,
         onConfirm: () -> Unit,
+        isCancelAll: Boolean = false,
     ) {
+        val titleRes = if (isCancelAll) R.string.downloads_queue_cancel_all_title else R.string.downloads_queue_cancel_download_title
+        val messageRes = if (isCancelAll) R.string.downloads_queue_cancel_all_warning else R.string.downloads_queue_cancel_download_warning
+        val confirmRes = if (isCancelAll) R.string.downloads_queue_cancel_all else R.string.downloads_queue_cancel_download
         LaunchDangerConfirmDialog(
             visible = expanded,
-            title = stringResource(R.string.downloads_queue_cancel_download_title),
-            message = stringResource(R.string.downloads_queue_cancel_download_warning),
-            confirmLabel = stringResource(R.string.downloads_queue_cancel_download),
+            title = stringResource(titleRes),
+            message = stringResource(messageRes),
+            confirmLabel = stringResource(confirmRes),
             onDismissRequest = onDismissRequest,
             onConfirm = onConfirm,
             icon = Icons.Outlined.Warning,

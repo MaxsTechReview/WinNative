@@ -41,6 +41,8 @@ import com.winlator.cmod.runtime.input.controls.ControlsProfile;
 import com.winlator.cmod.runtime.input.controls.ExternalController;
 import com.winlator.cmod.runtime.input.controls.ExternalControllerBinding;
 import com.winlator.cmod.runtime.input.controls.GamepadState;
+import com.winlator.cmod.runtime.input.controls.LabelTheme;
+import com.winlator.cmod.runtime.input.controls.VisualStyle;
 import com.winlator.cmod.shared.math.Mathf;
 import java.io.IOException;
 import java.io.InputStream;
@@ -71,6 +73,8 @@ public class InputControlsView extends View {
   private volatile float mouseMoveOffsetX = 0f;
   private volatile float mouseMoveOffsetY = 0f;
   private boolean showTouchscreenControls = false;
+  private VisualStyle visualStyle = VisualStyle.ORIGINAL;
+  private LabelTheme labelTheme = LabelTheme.DEFAULT;
 
   private Handler timeoutHandler; // Reference to the activity's timeout handler
   private Runnable hideControlsRunnable; // Runnable to hide the controls
@@ -169,6 +173,30 @@ public class InputControlsView extends View {
 
   public float getOverlayOpacity() {
     return overlayOpacity;
+  }
+
+  public VisualStyle getVisualStyle() {
+    return visualStyle;
+  }
+
+  public void setVisualStyle(VisualStyle style) {
+    this.visualStyle = style != null ? style : VisualStyle.ORIGINAL;
+    invalidate();
+  }
+
+  /** Same as {@link #setVisualStyle} but without {@link #invalidate()}, for internal draw-time
+   * fallbacks where requesting another redraw would loop. */
+  public void setVisualStyleSilent(VisualStyle style) {
+    this.visualStyle = style != null ? style : VisualStyle.ORIGINAL;
+  }
+
+  public LabelTheme getLabelTheme() {
+    return labelTheme;
+  }
+
+  public void setLabelTheme(LabelTheme theme) {
+    this.labelTheme = theme != null ? theme : LabelTheme.DEFAULT;
+    invalidate();
   }
 
   public int getSnappingSize() {
