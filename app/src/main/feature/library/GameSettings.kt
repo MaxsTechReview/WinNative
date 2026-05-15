@@ -390,6 +390,21 @@ interface GameSettingsCallbacks {
     fun onDismiss()
     fun onAddToHomeScreen()
 
+    /**
+     * Community / Best Configs integration toggles.
+     *
+     *  - [communityUploadMode] — render an "Upload to Community" action in the
+     *    sidebar above Cancel/Save. Tapping it calls [onUploadToCommunity],
+     *    which is expected to save pending changes and post the config to
+     *    the community board.
+     *  - [communityPreviewMode] — render a banner above the section content
+     *    indicating the user is previewing a community config; persistence is
+     *    still gated on the regular Save button.
+     */
+    val communityUploadMode: Boolean get() = false
+    val communityPreviewMode: Boolean get() = false
+    fun onUploadToCommunity() {}
+
     fun onPickGameCardArtwork() {}
     fun onRemoveGameCardArtwork() {}
     fun onPickGridArtwork() {}
@@ -504,6 +519,8 @@ fun GameSettingsContent(
                 saveEnabled = saveEnabled,
                 onSave = { callbacks.onConfirm() },
                 onCancel = { callbacks.onDismiss() },
+                showUploadAction = callbacks.communityUploadMode,
+                onUploadAction = { callbacks.onUploadToCommunity() },
                 modifier = Modifier
                     .width(220.dp)
                     .fillMaxHeight()
@@ -522,9 +539,34 @@ fun GameSettingsContent(
                     .fillMaxHeight()
                     .background(ContentBg)
             ) {
-                SectionContent(currentSectionId, state, callbacks)
+                Column(modifier = Modifier.fillMaxSize()) {
+                    if (callbacks.communityPreviewMode) {
+                        PreviewModeBanner()
+                    }
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        SectionContent(currentSectionId, state, callbacks)
+                    }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun PreviewModeBanner() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(AccentBlue.copy(alpha = 0.18f))
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Text(
+            text = stringResource(R.string.best_configs_preview_banner),
+            color = AccentBlue,
+            fontSize = SettingLabelSize,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
@@ -583,6 +625,8 @@ private fun Sidebar(
     saveEnabled: Boolean,
     onSave: () -> Unit,
     onCancel: () -> Unit,
+    showUploadAction: Boolean = false,
+    onUploadAction: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -643,6 +687,30 @@ private fun Sidebar(
                 .background(DividerColor)
         )
         Spacer(Modifier.height(8.dp))
+
+        // Upload-to-Community action — only rendered when the dialog was opened
+        // from the Best Configs Share button. Sits directly above Cancel/Save so
+        // it reads as a primary action alongside the regular save flow.
+        if (showUploadAction) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+                    .height(30.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(AccentBlue)
+                    .clickable { onUploadAction() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    stringResource(R.string.best_configs_export_to_community),
+                    color = Color.White,
+                    fontSize = SettingLabelSize,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+        }
 
         // Cancel + Save buttons
         Row(

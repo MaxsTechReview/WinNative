@@ -1236,6 +1236,9 @@ Installed path:
     <string name="best_configs_share_current">Share</string>
     <string name="best_configs_delete_label">Delete</string>
     <string name="best_configs_delete_confirm">Confirm</string>
+    <string name="best_configs_preview_label">Preview</string>
+    <string name="best_configs_preview_banner">Previewing community config — Save to apply, Cancel to discard.</string>
+    <string name="best_configs_upload_success">Shared as %1$s.</string>
     <string name="best_configs_import_label">Import</string>
     <string name="best_configs_export_label">Export</string>
     <string name="best_configs_export_to_file">Save to file</string>

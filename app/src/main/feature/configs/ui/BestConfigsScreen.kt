@@ -29,6 +29,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbUp
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -72,6 +73,7 @@ fun BestConfigsScreen(
     val importState by viewModel.importState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
+    val unifiedActivity = activity as? com.winlator.cmod.app.shell.UnifiedActivity
 
     LaunchedEffect(Unit) { viewModel.refresh() }
     LaunchedEffect(activity) { activity?.let { viewModel.bindActivityIdentity(it) } }
@@ -83,6 +85,26 @@ fun BestConfigsScreen(
             }
         }
     }
+
+    // Open the Settings dialog in Upload/Preview mode via UnifiedActivity — it
+    // already knows how to resolve-or-create the shortcut for any source. This
+    // is the same code path the game-page Settings button uses, so we never
+    // duplicate Settings UI.
+    val openSettingsForCommunity: (uploadMode: Boolean, previewJson: String?) -> Unit =
+        { uploadMode, previewJson ->
+            val ua = unifiedActivity
+            if (ua == null) {
+                toast("Open this screen from a game to share or preview settings.")
+            } else {
+                ua.openShortcutSettingsForCommunity(
+                    gameSource = viewModel.gameSource,
+                    gameId = viewModel.gameId,
+                    gameName = viewModel.gameName,
+                    uploadMode = uploadMode,
+                    previewConfigJson = previewJson,
+                )
+            }
+        }
 
     // Missing-Components import dialog. Hidden when state == Idle (no import in
     // flight) or Done (terminal — toast is fired by the coordinator's onResult
@@ -105,14 +127,7 @@ fun BestConfigsScreen(
         Header(
             state = state,
             onBack = onBack,
-            onUpload = {
-                val a = activity
-                if (a == null) {
-                    toast("Open this screen from a game to share settings.")
-                } else {
-                    viewModel.uploadCurrent(a, toast)
-                }
-            },
+            onUpload = { openSettingsForCommunity(true, null) },
         )
         Spacer(Modifier.height(12.dp))
         FilterRow(
@@ -138,6 +153,9 @@ fun BestConfigsScreen(
                         onDownvote = { viewModel.downvote(it) },
                         onImport = { row -> viewModel.import(row, toast) },
                         onDelete = { row -> viewModel.delete(row, toast) },
+                        onPreview = { row ->
+                            openSettingsForCommunity(false, row.configJson.toString())
+                        },
                     )
                 }
             }
@@ -183,32 +201,31 @@ private fun Header(
             )
         }
         Spacer(Modifier.width(8.dp))
-        UploadButton(enabled = !state.isUploading, onClick = onUpload)
+        UploadButton(onClick = onUpload)
     }
 }
 
 @Composable
-private fun UploadButton(enabled: Boolean, onClick: () -> Unit) {
-    val alpha = if (enabled) 1f else 0.5f
+private fun UploadButton(onClick: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(WinNativeAccent.copy(alpha = 0.22f * alpha))
-            .border(1.dp, WinNativeAccent.copy(alpha = alpha), RoundedCornerShape(12.dp))
-            .clickable(enabled = enabled, onClick = onClick)
+            .background(WinNativeAccent.copy(alpha = 0.22f))
+            .border(1.dp, WinNativeAccent, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 9.dp),
     ) {
         Icon(
             imageVector = Icons.Outlined.CloudUpload,
             contentDescription = null,
-            tint = WinNativeAccent.copy(alpha = alpha),
+            tint = WinNativeAccent,
             modifier = Modifier.size(18.dp),
         )
         Spacer(Modifier.width(6.dp))
         Text(
             text = stringResource(R.string.best_configs_share_current),
-            color = WinNativeAccent.copy(alpha = alpha),
+            color = WinNativeAccent,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
         )
@@ -265,6 +282,7 @@ private fun BestConfigsList(
     onDownvote: (ConfigRow) -> Unit,
     onImport: (ConfigRow) -> Unit,
     onDelete: (ConfigRow) -> Unit,
+    onPreview: (ConfigRow) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -280,6 +298,7 @@ private fun BestConfigsList(
                 onDownvote = { onDownvote(row) },
                 onImport = { onImport(row) },
                 onDelete = { onDelete(row) },
+                onPreview = { onPreview(row) },
             )
         }
     }
@@ -294,6 +313,7 @@ private fun ConfigRowCard(
     onDownvote: () -> Unit,
     onImport: () -> Unit,
     onDelete: () -> Unit,
+    onPreview: () -> Unit,
 ) {
     var confirmingDelete by remember { mutableStateOf(false) }
     val gpuLabel = row.gpuRenderer?.takeIf { it.isNotBlank() } ?: "—"
@@ -340,7 +360,10 @@ private fun ConfigRowCard(
             }
             Spacer(Modifier.width(12.dp))
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                ImportButton(onClick = onImport)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    PreviewButton(onClick = onPreview)
+                    ImportButton(onClick = onImport)
+                }
                 if (isMine) {
                     DeleteButton(
                         confirming = confirmingDelete,
@@ -356,6 +379,33 @@ private fun ConfigRowCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PreviewButton(onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(WinNativeSurface)
+            .border(1.dp, WinNativeOutline, RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Visibility,
+            contentDescription = null,
+            tint = WinNativeTextPrimary,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = stringResource(R.string.best_configs_preview_label),
+            color = WinNativeTextPrimary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 

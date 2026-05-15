@@ -6,7 +6,6 @@ import android.os.Build
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.winlator.cmod.feature.configs.ConfigExportImport
 import com.winlator.cmod.feature.configs.ConfigRepository
 import com.winlator.cmod.feature.configs.ConfigSerializer
 import com.winlator.cmod.feature.configs.GpuDetector
@@ -205,66 +204,6 @@ class BestConfigsViewModel @Inject constructor(
     }
 
     /**
-     * Upload the current device's settings for this game to the community board.
-     * Resolves the shortcut + container for (gameSource, gameId) and posts via
-     * [ConfigExportImport.shareToCommunity]. The uploader identity (GPG display
-     * name or "Anonymous") is computed inside [UploaderIdentity.resolve] — the
-     * user has no input over it. Reports the outcome via [onResult] exactly once.
-     */
-    fun uploadCurrent(activity: Activity, onResult: (String) -> Unit) {
-        viewModelScope.launch {
-            _state.update { it.copy(isUploading = true) }
-            val match = withContext(Dispatchers.IO) {
-                runCatching {
-                    val cm = ContainerManager(appContext)
-                    cm.loadShortcuts().firstOrNull { sc ->
-                        val src = sc.getExtra("game_source") ?: ""
-                        if (src != gameSource) return@firstOrNull false
-                        val id = ConfigSerializer.gameIdForShortcut(sc, gameSource)
-                        id != null && id == gameId
-                    }
-                }.getOrNull()
-            }
-            if (match == null) {
-                _state.update { it.copy(isUploading = false) }
-                onResult("No shortcut found for ${gameName}. Open Settings once to create one, then try again.")
-                return@launch
-            }
-            val container = match.container
-            if (container == null) {
-                _state.update { it.copy(isUploading = false) }
-                onResult("Shortcut has no container; cannot share settings.")
-                return@launch
-            }
-            val identity = UploaderIdentity.resolve(activity)
-            val result = ConfigExportImport.shareToCommunity(
-                context = appContext,
-                container = container,
-                shortcut = match,
-                repository = repository,
-                identity = identity,
-            )
-            _state.update {
-                it.copy(
-                    isUploading = false,
-                    myDeviceId = identity.deviceId,
-                    myUploaderName = identity.name,
-                )
-            }
-            result.fold(
-                onSuccess = {
-                    onResult("Shared as ${identity.name}.")
-                    refresh()
-                },
-                onFailure = { ex ->
-                    Timber.tag(TAG).w(ex, "uploadCurrent failed")
-                    onResult("Share failed: ${ex.message ?: "unknown error"}")
-                },
-            )
-        }
-    }
-
-    /**
      * Delete [row] from the community board. The client only invokes this when
      * [BestConfigsUiState.isOwnedByMe] returned true for the row; the server
      * still enforces ownership via RLS.
@@ -327,7 +266,6 @@ data class BestConfigsUiState(
     val myDeviceId: String? = null,
     /** Signed-in Google Play Games display name, if any. */
     val myUploaderName: String? = null,
-    val isUploading: Boolean = false,
     val errorMessage: String? = null,
 ) {
     /**

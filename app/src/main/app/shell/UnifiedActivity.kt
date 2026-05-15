@@ -135,6 +135,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import coil.compose.AsyncImage
@@ -717,6 +718,86 @@ class UnifiedActivity :
         val encodedId = android.net.Uri.encode(gameId)
         nav.navigate("bestconfigs?gameSource=$gameSource&gameId=$encodedId&gameName=$encodedName") {
             launchSingleTop = true
+        }
+    }
+
+    /**
+     * Open the Settings dialog for a community-flow game.
+     *
+     * Resolves (or auto-creates) the shortcut matching (gameSource, gameId) using the
+     * same lookup-then-create pattern as the game-page Settings button, then opens
+     * [ShortcutSettingsComposeDialog] in either Upload or Preview mode.
+     *
+     *  - When [previewConfigJson] is non-null: a *separate* [Shortcut] is constructed
+     *    pointing at the same `.desktop` file, then [ConfigSerializer.applyToShortcut]
+     *    is run against that copy so the dialog renders with the community config's
+     *    values. Save persists (effectively becomes an import); Cancel discards
+     *    in-memory. The original [Shortcut] instance held elsewhere in the app is
+     *    untouched.
+     *  - When [uploadMode] is true: the dialog renders with the *real* shortcut and
+     *    exposes an "Upload to Community" sidebar action.
+     */
+    fun openShortcutSettingsForCommunity(
+        gameSource: String,
+        gameId: String,
+        gameName: String,
+        uploadMode: Boolean,
+        previewConfigJson: String?,
+    ) {
+        val containerManager = ContainerManager(this)
+        val existing = containerManager.loadShortcuts().firstOrNull { sc ->
+            val src = sc.getExtra("game_source") ?: ""
+            if (src != gameSource) return@firstOrNull false
+            val id = com.winlator.cmod.feature.configs.ConfigSerializer
+                .gameIdForShortcut(sc, gameSource)
+            id != null && id == gameId
+        }
+        val resolved = existing ?: run {
+            // No existing shortcut → mirror the auto-create path the Settings
+            // button uses for first-time access. Only Steam/Epic/GOG are
+            // supported here; custom-game flows must already have a shortcut.
+            val appId = gameId.toIntOrNull() ?: 0
+            val sourceForCreate = when (gameSource) {
+                "GOG", "EPIC", "STEAM" -> gameSource
+                else -> return
+            }
+            ShortcutSettingsComposeDialog.createLibraryShortcut(
+                context = this,
+                containerManager = containerManager,
+                source = sourceForCreate,
+                appId = appId,
+                gogId = if (sourceForCreate == "GOG") gameId else null,
+                appName = gameName,
+            ) ?: return
+        }
+
+        if (previewConfigJson != null) {
+            val previewShortcut = com.winlator.cmod.runtime.container
+                .Shortcut(resolved.container, resolved.file)
+            runCatching {
+                val json = org.json.JSONObject(previewConfigJson)
+                com.winlator.cmod.feature.configs.ConfigSerializer
+                    .applyToShortcut(json, previewShortcut.container, previewShortcut)
+            }.onFailure { ex ->
+                android.widget.Toast.makeText(
+                    this,
+                    "Could not load preview: ${ex.message ?: "invalid config"}",
+                    android.widget.Toast.LENGTH_LONG,
+                ).show()
+                return
+            }
+            ShortcutSettingsComposeDialog(
+                this,
+                previewShortcut,
+                com.winlator.cmod.feature.shortcuts.ShortcutSettingsCommunityMode.Preview,
+            ).show()
+        } else {
+            val mode = if (uploadMode) {
+                com.winlator.cmod.feature.shortcuts.ShortcutSettingsCommunityMode.Upload
+            } else {
+                com.winlator.cmod.feature.shortcuts.ShortcutSettingsCommunityMode.None
+            }
+            ShortcutSettingsComposeDialog(this, resolved, mode).show()
         }
     }
 
@@ -2800,7 +2881,17 @@ class UnifiedActivity :
                 onDismissRequest = { selectedGogGameForSettings = null },
             )
         }
-        if (detailApp != null) {
+        // Suppress the game-detail Dialog while the user is on the Best Configs
+        // route. The Dialog renders on top of the NavHost, so leaving it visible
+        // would obscure the BestConfigs screen entirely. We keep [detailApp] non-
+        // null so backing out of BestConfigs naturally re-shows the same popup
+        // (re-renders the Dialog with the preserved state).
+        val backStackState = rootNavController?.currentBackStackEntryAsState()
+        val isOnBestConfigsRoute = backStackState?.value
+            ?.destination
+            ?.route
+            ?.startsWith("bestconfigs") == true
+        if (detailApp != null && !isOnBestConfigsRoute) {
             LibraryGameDetailDialog(
                 app = detailApp!!,
                 gogGame = detailGogGame,
@@ -4699,8 +4790,11 @@ class UnifiedActivity :
                                     },
                                     onCommunity = {
                                         // Route into the Best Configs community board for this game.
-                                        // gameSource/gameId mirror the values that ConfigSerializer
-                                        // writes into the shortcut so existing uploads list correctly.
+                                        // We deliberately do NOT call onDismissRequest() — the popup's
+                                        // detailApp state is preserved so backing out of BestConfigs
+                                        // returns the user to this same popup. The popup Dialog itself
+                                        // is suppressed while the bestconfigs route is on top (see the
+                                        // isOnBestConfigsRoute check in LibraryScreen).
                                         val gameSource = when {
                                             isGog -> "GOG"
                                             isEpic -> "EPIC"
@@ -4717,7 +4811,6 @@ class UnifiedActivity :
                                             gameId = gameIdArg,
                                             gameName = app.name,
                                         )
-                                        onDismissRequest()
                                     },
                                     onShortcut = {
                                         if (hasPinnedShortcut) {

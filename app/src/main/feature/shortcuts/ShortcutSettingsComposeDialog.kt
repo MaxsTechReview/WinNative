@@ -33,6 +33,8 @@ import com.winlator.cmod.app.PluviaApp
 import com.winlator.cmod.feature.library.DriveItem
 import com.winlator.cmod.feature.library.EnvVarItem
 import com.winlator.cmod.feature.library.GameSettingsCallbacks
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import com.winlator.cmod.feature.library.GameSettingsContent
 import com.winlator.cmod.feature.library.GameSettingsStateHolder
 import com.winlator.cmod.feature.library.WinComponentItem
@@ -83,10 +85,34 @@ private enum class LibraryArtworkTarget {
     LIST,
 }
 
+/**
+ * Optional behavior overlay for the Settings dialog when it is opened from the
+ * community/Best Configs flow.
+ *
+ *  - [None]   — regular Settings, opened from the game-page Settings button.
+ *  - [Upload] — Settings opened from the Best Configs "Share" button. The
+ *               sidebar shows an extra "Upload to Community" action; tapping
+ *               it saves any pending changes and posts the current shortcut
+ *               state to Supabase.
+ *  - [Preview]— Settings opened from a Best Configs row's "Preview" button.
+ *               The caller pre-mutates the [Shortcut] (via
+ *               [ConfigSerializer.applyToShortcut] on a freshly-constructed
+ *               Shortcut copy pointing at the same .desktop file), so the
+ *               dialog naturally renders the community config's values.
+ *               Save = apply (import). Cancel = discard. Dialog itself needs
+ *               no special handling beyond a banner.
+ */
+sealed class ShortcutSettingsCommunityMode {
+    object None : ShortcutSettingsCommunityMode()
+    object Upload : ShortcutSettingsCommunityMode()
+    object Preview : ShortcutSettingsCommunityMode()
+}
+
 class ShortcutSettingsComposeDialog private constructor(
     private val activity: Activity,
     private val shortcut: Shortcut,
-    private val fragment: ShortcutsFragment?
+    private val fragment: ShortcutsFragment?,
+    private val communityMode: ShortcutSettingsCommunityMode = ShortcutSettingsCommunityMode.None,
 ) {
     private val context: Context = activity
 
@@ -95,6 +121,10 @@ class ShortcutSettingsComposeDialog private constructor(
 
     constructor(activity: Activity, shortcut: Shortcut) :
         this(activity, shortcut, null)
+
+    constructor(activity: Activity, shortcut: Shortcut, mode: ShortcutSettingsCommunityMode) :
+        this(activity, shortcut, null, mode)
+
     private val dialog: Dialog
     private val state = GameSettingsStateHolder()
 
@@ -198,6 +228,13 @@ class ShortcutSettingsComposeDialog private constructor(
 
     private fun createCallbacks(): GameSettingsCallbacks {
         return object : GameSettingsCallbacks {
+            override val communityUploadMode: Boolean
+                get() = communityMode is ShortcutSettingsCommunityMode.Upload
+            override val communityPreviewMode: Boolean
+                get() = communityMode is ShortcutSettingsCommunityMode.Preview
+
+            override fun onUploadToCommunity() = performCommunityUpload()
+
             override fun onConfirm() {
                 saveSettings()
                 emitLibraryRefreshIfNeeded()
@@ -2367,6 +2404,82 @@ class ShortcutSettingsComposeDialog private constructor(
     fun dismiss() {
         AppUtils.hideKeyboard(activity)
         dialog.dismiss()
+    }
+
+    /**
+     * Invoked when the user taps "Upload to Community" inside the Settings
+     * sidebar (only rendered when this dialog was opened from the Best Configs
+     * Share button — see [ShortcutSettingsCommunityMode.Upload]).
+     *
+     * Workflow:
+     *   1. Persist whatever the user has on screen (mirrors regular Save).
+     *   2. Resolve uploader identity (Google Play Games display name or
+     *      "Anonymous") + a stable device id.
+     *   3. Post the freshly-saved config to Supabase via
+     *      [com.winlator.cmod.feature.configs.ConfigExportImport.shareToCommunity].
+     *   4. Toast the result and dismiss the dialog.
+     */
+    private fun performCommunityUpload() {
+        if (communityMode !is ShortcutSettingsCommunityMode.Upload) return
+        // Save first so the upload reflects exactly what the user has on screen.
+        // Treat a save failure as fatal for the upload — the alternative
+        // (uploading stale on-disk state silently) would surprise the user.
+        val saveOk = runCatching {
+            saveSettings()
+            emitLibraryRefreshIfNeeded()
+        }.onFailure { ex ->
+            Log.w("ShortcutSettings", "saveSettings before community upload failed", ex)
+            android.widget.Toast.makeText(
+                context,
+                "Could not save settings: ${ex.message ?: "unknown error"}",
+                android.widget.Toast.LENGTH_LONG,
+            ).show()
+        }.isSuccess
+        if (!saveOk) return
+
+        val container = shortcut.container
+        if (container == null) {
+            android.widget.Toast.makeText(
+                context,
+                "No container linked to this shortcut; cannot upload.",
+                android.widget.Toast.LENGTH_LONG,
+            ).show()
+            return
+        }
+        val appContext = context.applicationContext
+        val repository = com.winlator.cmod.feature.configs.ConfigRepository(appContext)
+        val scope = kotlinx.coroutines.CoroutineScope(
+            kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main,
+        )
+        scope.launch {
+            val identity = com.winlator.cmod.feature.configs.UploaderIdentity.resolve(activity)
+            val result = com.winlator.cmod.feature.configs.ConfigExportImport.shareToCommunity(
+                context = appContext,
+                container = container,
+                shortcut = shortcut,
+                repository = repository,
+                identity = identity,
+            )
+            result.fold(
+                onSuccess = {
+                    android.widget.Toast.makeText(
+                        context,
+                        context.getString(R.string.best_configs_upload_success, identity.name),
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                    dismiss()
+                },
+                onFailure = { ex ->
+                    Log.w("ShortcutSettings", "Community upload failed", ex)
+                    android.widget.Toast.makeText(
+                        context,
+                        "Upload failed: ${ex.message ?: "unknown error"}",
+                        android.widget.Toast.LENGTH_LONG,
+                    ).show()
+                },
+            )
+            scope.cancel()
+        }
     }
 
     companion object {
