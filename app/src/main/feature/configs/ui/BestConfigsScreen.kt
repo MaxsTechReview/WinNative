@@ -359,11 +359,8 @@ private fun ConfigRowCard(
                 }
             }
             Spacer(Modifier.width(12.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    PreviewButton(onClick = onPreview)
-                    ImportButton(onClick = onImport)
-                }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                PreviewButton(onClick = onPreview)
                 if (isMine) {
                     DeleteButton(
                         confirming = confirmingDelete,
@@ -377,6 +374,7 @@ private fun ConfigRowCard(
                         },
                     )
                 }
+                ImportButton(onClick = onImport)
             }
         }
     }

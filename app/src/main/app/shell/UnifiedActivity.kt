@@ -135,7 +135,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import coil.compose.AsyncImage
@@ -301,6 +300,13 @@ class UnifiedActivity :
 
     // Root navigation controller for hub <-> settings transitions
     private var rootNavController: NavHostController? = null
+
+    // Game-detail popup state, hoisted out of LibraryCarousel so it survives
+    // navigation away from the hub (e.g. to the bestconfigs route). When the
+    // user backs out of Best Configs, LibraryCarousel re-enters composition,
+    // reads these values, and re-renders the popup it was on before.
+    private val detailAppState = androidx.compose.runtime.mutableStateOf<SteamApp?>(null)
+    private val detailGogGameState = androidx.compose.runtime.mutableStateOf<GOGGame?>(null)
 
     // Queued navigation to process once the nav controller is ready
     private var pendingNavigation: PendingNavigation? = null
@@ -2651,8 +2657,10 @@ class UnifiedActivity :
 
         var selectedAppForSettings by remember { mutableStateOf<SteamApp?>(null) }
         var selectedGogGameForSettings by remember { mutableStateOf<GOGGame?>(null) }
-        var detailApp by remember { mutableStateOf<SteamApp?>(null) }
-        var detailGogGame by remember { mutableStateOf<GOGGame?>(null) }
+        // Activity-scoped state — survives navigation to/from the bestconfigs route
+        // so backing out of Best Configs returns the user to the same game popup.
+        var detailApp by detailAppState
+        var detailGogGame by detailGogGameState
         val gridState = rememberLazyGridState()
         val carouselState = rememberLazyListState()
         val activity = LocalContext.current as? UnifiedActivity
@@ -2881,17 +2889,13 @@ class UnifiedActivity :
                 onDismissRequest = { selectedGogGameForSettings = null },
             )
         }
-        // Suppress the game-detail Dialog while the user is on the Best Configs
-        // route. The Dialog renders on top of the NavHost, so leaving it visible
-        // would obscure the BestConfigs screen entirely. We keep [detailApp] non-
-        // null so backing out of BestConfigs naturally re-shows the same popup
-        // (re-renders the Dialog with the preserved state).
-        val backStackState = rootNavController?.currentBackStackEntryAsState()
-        val isOnBestConfigsRoute = backStackState?.value
-            ?.destination
-            ?.route
-            ?.startsWith("bestconfigs") == true
-        if (detailApp != null && !isOnBestConfigsRoute) {
+        // The Dialog renders inside the hub-route composition. Navigating to the
+        // bestconfigs route naturally exits this composable, so the Dialog
+        // disappears without us having to suppress it explicitly. State is hoisted
+        // to [detailAppState] (activity-scoped) so it survives the round trip — on
+        // back-pop, this composable re-enters and the Dialog re-opens with the
+        // same game.
+        if (detailApp != null) {
             LibraryGameDetailDialog(
                 app = detailApp!!,
                 gogGame = detailGogGame,

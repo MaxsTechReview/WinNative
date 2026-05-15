@@ -70,21 +70,48 @@ data class UploaderIdentity(
          * user is not signed in, the SDK call times out, or any error occurs.
          * Suspends on Dispatchers.IO so it can wait on the Tasks API without
          * blocking the caller's thread.
+         *
+         * Timeouts match the [com.winlator.cmod.feature.sync.google.CloudSyncManager]
+         * pattern (10s) so a slow GPG response doesn't silently degrade to
+         * "Anonymous" on an otherwise-signed-in user.
          */
         private suspend fun fetchPlayGamesDisplayName(activity: Activity): String? {
-            if (activity.isFinishing || activity.isDestroyed) return null
+            if (activity.isFinishing || activity.isDestroyed) {
+                Timber.tag(TAG).i("Skipping GPG display-name lookup; activity finishing/destroyed")
+                return null
+            }
             return withContext(Dispatchers.IO) {
-                runCatching {
+                try {
                     PlayGamesBootstrap.ensureInitialized(activity)
                     val authTask = PlayGames.getGamesSignInClient(activity).isAuthenticated
-                    val auth = Tasks.await(authTask, 5, TimeUnit.SECONDS)
-                    if (auth?.isAuthenticated != true) return@runCatching null
+                    val auth = try {
+                        Tasks.await(authTask, 10, TimeUnit.SECONDS)
+                    } catch (e: Exception) {
+                        Timber.tag(TAG).w(e, "GPG isAuthenticated call failed/timed out")
+                        return@withContext null
+                    }
+                    val authenticated = auth?.isAuthenticated == true
+                    Timber.tag(TAG).i("GPG isAuthenticated=%s", authenticated)
+                    if (!authenticated) return@withContext null
+
                     val playerTask = PlayGames.getPlayersClient(activity).currentPlayer
-                    val player: Player = Tasks.await(playerTask, 5, TimeUnit.SECONDS)
-                        ?: return@runCatching null
-                    player.displayName?.takeIf { it.isNotBlank() }
-                }.onFailure { Timber.tag(TAG).w(it, "GPG display-name lookup failed") }
-                    .getOrNull()
+                    val player: Player? = try {
+                        Tasks.await(playerTask, 10, TimeUnit.SECONDS)
+                    } catch (e: Exception) {
+                        Timber.tag(TAG).w(e, "GPG getCurrentPlayer failed/timed out")
+                        null
+                    }
+                    val name = player?.displayName?.takeIf { it.isNotBlank() }
+                    Timber.tag(TAG).i(
+                        "GPG display-name resolved=%s player=%s",
+                        name,
+                        player?.playerId,
+                    )
+                    name
+                } catch (e: Exception) {
+                    Timber.tag(TAG).w(e, "GPG display-name lookup failed (outer)")
+                    null
+                }
             }
         }
 
