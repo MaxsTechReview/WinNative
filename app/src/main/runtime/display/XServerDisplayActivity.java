@@ -57,6 +57,7 @@ import androidx.core.content.FileProvider;
 import androidx.compose.ui.platform.ComposeView;
 import androidx.core.view.WindowInsetsCompat;
 import com.winlator.cmod.BuildConfig;
+import com.winlator.cmod.feature.leaderboard.SessionRecordingController;
 import com.winlator.cmod.feature.stores.steam.enums.Marker;
 import com.winlator.cmod.feature.stores.steam.utils.MarkerUtils;
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager;
@@ -383,6 +384,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private final AtomicBoolean sessionCleanupStarted = new AtomicBoolean(false);
     private final AtomicBoolean switchLaunchInProgress = new AtomicBoolean(false);
     private final AtomicBoolean winHandlerStopped = new AtomicBoolean(false);
+
+    /**
+     * Records per-session perf stats and (optionally) submits a digest to the global
+     * PGS performance leaderboard when the session ends. Lazily created in onCreate
+     * once the shortcut/container are loaded.
+     */
+    private SessionRecordingController perfController;
 
     private boolean isDarkMode;
     private boolean enableLogsMenu;
@@ -881,6 +889,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (shortcutPath != null && !shortcutPath.isEmpty()) {
             shortcut = new Shortcut(container, new File(shortcutPath));
         }
+
+        // Start the perf recorder/leaderboard collector now that shortcut + container
+        // are loaded. Submission to PGS only happens if the user opted in via the
+        // settings toggle; recording is independent and follows the local-file toggle
+        // inside SessionRecordingController.
+        boolean recordToFile = preferences.getBoolean("hud_record_to_file", false);
+        perfController = new SessionRecordingController(this);
+        perfController.start(shortcut, container, recordToFile);
 
         int numControllers = 1;
         if (shortcut != null) {
@@ -2044,6 +2060,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean beginSessionCleanup(String trigger) {
         if (sessionCleanupStarted.compareAndSet(false, true)) {
             Log.d("XServerDisplayActivity", "Starting session cleanup from " + trigger);
+            try {
+                if (perfController != null) perfController.stop();
+            } catch (Throwable t) {
+                Log.w("XServerDisplayActivity", "perfController.stop() failed", t);
+            }
             return true;
         }
         Log.d("XServerDisplayActivity", "Session cleanup already in progress; ignoring " + trigger);
@@ -3682,6 +3703,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     frameRating.setVisibility(View.GONE);
                     applyHUDSettings();
                     rootView.addView(frameRating);
+                    if (perfController != null) perfController.attachToFrameRating(frameRating);
                 }
                 boolean isFpsVisible = frameRating.getVisibility() == View.VISIBLE;
                 boolean becomingVisible = !isFpsVisible;
@@ -4532,6 +4554,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             applyHUDSettings();
             updateHUDRenderMode();
             rootView.addView(frameRating);
+            if (perfController != null) perfController.attachToFrameRating(frameRating);
         }
 
         // Use getShortcutSetting for proper fallback to container defaults

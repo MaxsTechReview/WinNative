@@ -94,8 +94,28 @@ public class FrameRating extends LinearLayout implements Runnable {
   private boolean enableGpu;
   private boolean enableGraph;
   private boolean enableRenderer;
+  private volatile FrameObserver frameObserver;
   private int gpuFailCount;
   private volatile int gpuLoad;
+
+  /**
+   * Listener for raw per-present frame events. Fires on the X server render thread on
+   * every call to {@link #update()} regardless of HUD visibility — that way perf
+   * recording and leaderboard stats still work when the HUD is hidden. Implementations
+   * must be cheap (a single atomic op + array write is the budget).
+   */
+  public interface FrameObserver {
+    void onFramePresent(long nanoTime);
+  }
+
+  /**
+   * Install or remove the frame observer. Passing null clears it. Replacing an
+   * existing observer is allowed (last-writer-wins); this is intentional for cases
+   * where the activity replaces the FrameRating instance mid-session.
+   */
+  public void setFrameObserver(FrameObserver observer) {
+    this.frameObserver = observer;
+  }
   private FrametimeGraphView graphView;
   private boolean isNativeActive;
   private boolean isStatsRunning;
@@ -1044,6 +1064,13 @@ public class FrameRating extends LinearLayout implements Runnable {
 
   /** Called when the guest submits a new frame to the X presentation path. */
   public void recordGameFrame(boolean primarySource, int serial) {
+    // Notify observer before any visibility gating so perf recording / leaderboard stats keep
+    // working when the HUD is hidden. Cheap path; observer is typically a single AtomicLong
+    // increment plus an ArrayList add.
+    FrameObserver obs = this.frameObserver;
+    if (obs != null) {
+      obs.onFramePresent(System.nanoTime());
+    }
     if (getVisibility() != View.VISIBLE) {
       return;
     }

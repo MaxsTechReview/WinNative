@@ -226,6 +226,7 @@ dependencies {
     implementation libs.securityCrypto
 
     implementation libs.hiltAndroid
+    implementation libs.hiltNavigationCompose
     ksp libs.hiltCompiler
 
     implementation libs.roomKtx
