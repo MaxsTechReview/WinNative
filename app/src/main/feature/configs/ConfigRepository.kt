@@ -76,7 +76,13 @@ class ConfigRepository @Inject constructor(
                 put("game_source", input.gameSource)
                 put("game_id", input.gameId)
                 put("game_name", input.gameName)
-                put("custom_name", input.customName ?: JSONObject.NULL)
+                // `uploader_name` is the public-facing identity (GPG display name or
+                // "Anonymous"). `custom_name` is left populated with the same value
+                // so legacy clients that only know about the old column still see a
+                // recognizable display string.
+                put("custom_name", input.uploaderName)
+                put("uploader_name", input.uploaderName)
+                put("device_id", input.deviceId)
                 put("device_model", input.deviceModel ?: JSONObject.NULL)
                 put("manufacturer", input.manufacturer ?: JSONObject.NULL)
                 put("soc_model", input.socModel ?: JSONObject.NULL)
@@ -187,6 +193,37 @@ class ConfigRepository @Inject constructor(
         }
     }
 
+    /**
+     * Delete a config row.
+     *
+     * Server-side authorization (Supabase RLS) is expected to permit deletion when
+     * any of the following match the request's authenticated user / claims:
+     *   - `configs.user_id == auth.uid()`            (original uploader install)
+     *   - `configs.device_id == <client-supplied>`   (same physical device)
+     *   - `configs.uploader_name == <client-supplied>` (same GPG-signed-in user)
+     *
+     * The first match is enforced by the existing RLS policy; the latter two
+     * require an updated server-side policy (out of scope for the client) — until
+     * that lands, deletions only succeed for the original uploader install. The
+     * client still gates the UI to those three checks so the button only appears
+     * when the current user can plausibly own the row.
+     */
+    suspend fun deleteConfig(configId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val token = client.ensureAuthenticated()
+            val url = "${client.projectUrl}/rest/v1/configs".toHttpUrl().newBuilder()
+                .addQueryParameter("id", "eq.$configId")
+                .build()
+            val req = client.newRequest(url.toString())
+                .header(SupabaseClient.HEADER_AUTHORIZATION, "Bearer $token")
+                .delete()
+                .build()
+            client.httpClient.newCall(req).execute().use { resp ->
+                ensureSuccess(resp)
+            }
+        }
+    }
+
     /** Returns the user id of the currently signed-in (anonymous or upgraded) user. */
     fun currentUserId(): String? = client.currentUserId()
 
@@ -201,8 +238,18 @@ class ConfigRepository @Inject constructor(
         val gameSource: String,
         val gameId: String,
         val gameName: String,
-        /** Optional custom display name, max 10 chars. */
-        val customName: String?,
+        /**
+         * Public-facing uploader identity. Resolved automatically from Google
+         * Play Games (or "Anonymous") — never user-entered, never null/empty.
+         */
+        val uploaderName: String,
+        /**
+         * Stable per-install device identifier ([Settings.Secure.ANDROID_ID]).
+         * Stored alongside the upload so the same device can later authorize a
+         * deletion even when the original Supabase anon `user_id` no longer
+         * matches (e.g. after an app reinstall).
+         */
+        val deviceId: String,
         val deviceModel: String?,
         val manufacturer: String?,
         val socModel: String?,

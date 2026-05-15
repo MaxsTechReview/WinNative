@@ -4697,6 +4697,28 @@ class UnifiedActivity :
                                             ShortcutSettingsComposeDialog(this@UnifiedActivity, shortcut).show()
                                         }
                                     },
+                                    onCommunity = {
+                                        // Route into the Best Configs community board for this game.
+                                        // gameSource/gameId mirror the values that ConfigSerializer
+                                        // writes into the shortcut so existing uploads list correctly.
+                                        val gameSource = when {
+                                            isGog -> "GOG"
+                                            isEpic -> "EPIC"
+                                            isCustom -> "CUSTOM_GAME"
+                                            else -> "STEAM"
+                                        }
+                                        val gameIdArg = when {
+                                            isGog -> gogGame?.id ?: app.id.toString()
+                                            isEpic -> epicId.toString()
+                                            else -> app.id.toString()
+                                        }
+                                        navigateToBestConfigs(
+                                            gameSource = gameSource,
+                                            gameId = gameIdArg,
+                                            gameName = app.name,
+                                        )
+                                        onDismissRequest()
+                                    },
                                     onShortcut = {
                                         if (hasPinnedShortcut) {
                                             currentScreen = LibraryDetailScreen.Shortcut

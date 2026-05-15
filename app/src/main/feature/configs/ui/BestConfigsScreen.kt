@@ -24,6 +24,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.CloudUpload
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbUp
@@ -34,7 +36,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,6 +74,15 @@ fun BestConfigsScreen(
     val activity = remember(context) { context.findActivity() }
 
     LaunchedEffect(Unit) { viewModel.refresh() }
+    LaunchedEffect(activity) { activity?.let { viewModel.bindActivityIdentity(it) } }
+
+    val toast: (String) -> Unit = { msg ->
+        activity?.let { a ->
+            if (!a.isFinishing && !a.isDestroyed) {
+                Toast.makeText(a.applicationContext, msg, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     // Missing-Components import dialog. Hidden when state == Idle (no import in
     // flight) or Done (terminal — toast is fired by the coordinator's onResult
@@ -89,7 +102,18 @@ fun BestConfigsScreen(
             .background(WinNativeBackground)
             .padding(horizontal = 24.dp, vertical = 16.dp),
     ) {
-        Header(state = state, onBack = onBack)
+        Header(
+            state = state,
+            onBack = onBack,
+            onUpload = {
+                val a = activity
+                if (a == null) {
+                    toast("Open this screen from a game to share settings.")
+                } else {
+                    viewModel.uploadCurrent(a, toast)
+                }
+            },
+        )
         Spacer(Modifier.height(12.dp))
         FilterRow(
             current = state.filter,
@@ -109,18 +133,11 @@ fun BestConfigsScreen(
                     else BestConfigsList(
                         rows = rows,
                         myVotes = state.myVotesByConfigId,
-                        myUserId = state.myUserId,
+                        isMineCheck = { state.isOwnedByMe(it) },
                         onUpvote = { viewModel.upvote(it) },
                         onDownvote = { viewModel.downvote(it) },
-                        onImport = { row ->
-                            viewModel.import(row) { msg ->
-                                activity?.let { a ->
-                                    if (!a.isFinishing && !a.isDestroyed) {
-                                        Toast.makeText(a.applicationContext, msg, Toast.LENGTH_LONG).show()
-                                    }
-                                }
-                            }
-                        },
+                        onImport = { row -> viewModel.import(row, toast) },
+                        onDelete = { row -> viewModel.delete(row, toast) },
                     )
                 }
             }
@@ -129,7 +146,11 @@ fun BestConfigsScreen(
 }
 
 @Composable
-private fun Header(state: BestConfigsUiState, onBack: () -> Unit) {
+private fun Header(
+    state: BestConfigsUiState,
+    onBack: () -> Unit,
+    onUpload: () -> Unit,
+) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
@@ -146,7 +167,7 @@ private fun Header(state: BestConfigsUiState, onBack: () -> Unit) {
             )
         }
         Spacer(Modifier.width(16.dp))
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = stringResource(R.string.best_configs_screen_title),
                 color = WinNativeTextPrimary,
@@ -161,6 +182,36 @@ private fun Header(state: BestConfigsUiState, onBack: () -> Unit) {
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        Spacer(Modifier.width(8.dp))
+        UploadButton(enabled = !state.isUploading, onClick = onUpload)
+    }
+}
+
+@Composable
+private fun UploadButton(enabled: Boolean, onClick: () -> Unit) {
+    val alpha = if (enabled) 1f else 0.5f
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(WinNativeAccent.copy(alpha = 0.22f * alpha))
+            .border(1.dp, WinNativeAccent.copy(alpha = alpha), RoundedCornerShape(12.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.CloudUpload,
+            contentDescription = null,
+            tint = WinNativeAccent.copy(alpha = alpha),
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = stringResource(R.string.best_configs_share_current),
+            color = WinNativeAccent.copy(alpha = alpha),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
@@ -209,10 +260,11 @@ private fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
 private fun BestConfigsList(
     rows: List<ConfigRow>,
     myVotes: Map<String, Int>,
-    myUserId: String?,
+    isMineCheck: (ConfigRow) -> Boolean,
     onUpvote: (ConfigRow) -> Unit,
     onDownvote: (ConfigRow) -> Unit,
     onImport: (ConfigRow) -> Unit,
+    onDelete: (ConfigRow) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -223,10 +275,11 @@ private fun BestConfigsList(
             ConfigRowCard(
                 row = row,
                 myVote = myVotes[row.id] ?: 0,
-                isMine = myUserId != null && row.userId == myUserId,
+                isMine = isMineCheck(row),
                 onUpvote = { onUpvote(row) },
                 onDownvote = { onDownvote(row) },
                 onImport = { onImport(row) },
+                onDelete = { onDelete(row) },
             )
         }
     }
@@ -240,7 +293,9 @@ private fun ConfigRowCard(
     onUpvote: () -> Unit,
     onDownvote: () -> Unit,
     onImport: () -> Unit,
+    onDelete: () -> Unit,
 ) {
+    var confirmingDelete by remember { mutableStateOf(false) }
     val gpuLabel = row.gpuRenderer?.takeIf { it.isNotBlank() } ?: "—"
     val socLabel = row.socModel?.takeIf { it.isNotBlank() } ?: "—"
     val deviceLabel = row.deviceModel?.takeIf { it.isNotBlank() } ?: row.manufacturer ?: "—"
@@ -284,8 +339,55 @@ private fun ConfigRowCard(
                 }
             }
             Spacer(Modifier.width(12.dp))
-            ImportButton(onClick = onImport)
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                ImportButton(onClick = onImport)
+                if (isMine) {
+                    DeleteButton(
+                        confirming = confirmingDelete,
+                        onClick = {
+                            if (confirmingDelete) {
+                                confirmingDelete = false
+                                onDelete()
+                            } else {
+                                confirmingDelete = true
+                            }
+                        },
+                    )
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun DeleteButton(confirming: Boolean, onClick: () -> Unit) {
+    val labelRes = if (confirming) {
+        R.string.best_configs_delete_confirm
+    } else {
+        R.string.best_configs_delete_label
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(WinNativeDanger.copy(alpha = if (confirming) 0.28f else 0.14f))
+            .border(1.dp, WinNativeDanger, RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Delete,
+            contentDescription = null,
+            tint = WinNativeDanger,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = stringResource(labelRes),
+            color = WinNativeDanger,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 

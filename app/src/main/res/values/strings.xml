@@ -1232,10 +1232,10 @@ Installed path:
     <string name="best_configs_vote_label">Vote</string>
     <string name="best_configs_upvote_label">Upvote</string>
     <string name="best_configs_downvote_label">Downvote</string>
-    <string name="best_configs_custom_name_dialog_title">Name this config</string>
-    <string name="best_configs_custom_name_dialog_message">Up to 25 characters. Leave blank to use the default \"resolution / device\" name.</string>
-    <string name="best_configs_custom_name_dialog_hint">e.g. Smooth60</string>
-    <string name="best_configs_custom_name_dialog_share">Share</string>
+    <string name="library_games_community">Community</string>
+    <string name="best_configs_share_current">Share</string>
+    <string name="best_configs_delete_label">Delete</string>
+    <string name="best_configs_delete_confirm">Confirm</string>
     <string name="best_configs_import_label">Import</string>
     <string name="best_configs_export_label">Export</string>
     <string name="best_configs_export_to_file">Save to file</string>

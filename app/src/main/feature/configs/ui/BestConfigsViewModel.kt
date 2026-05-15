@@ -1,13 +1,16 @@
 package com.winlator.cmod.feature.configs.ui
 
+import android.app.Activity
 import android.content.Context
 import android.os.Build
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.winlator.cmod.feature.configs.ConfigExportImport
 import com.winlator.cmod.feature.configs.ConfigRepository
 import com.winlator.cmod.feature.configs.ConfigSerializer
 import com.winlator.cmod.feature.configs.GpuDetector
+import com.winlator.cmod.feature.configs.UploaderIdentity
 import com.winlator.cmod.feature.configs.data.ConfigRow
 import com.winlator.cmod.feature.configs.installflow.ConfigImportCoordinator
 import com.winlator.cmod.feature.configs.installflow.ImportState
@@ -62,12 +65,19 @@ class BestConfigsViewModel @Inject constructor(
             res.fold(
                 onSuccess = { rows ->
                     val myVotes = repository.myVotesIn(rows.map { it.id }).getOrNull() ?: emptyMap()
+                    // Device id is cheap; the Play Games name lookup is best-effort here
+                    // — refresh is called before the user has done anything, so we don't
+                    // want it to block the list rendering. Fall back to anonymous if the
+                    // ViewModel has no Activity (it doesn't).
+                    val anonId = UploaderIdentity.resolveAnonymous(appContext)
                     _state.update {
                         it.copy(
                             phase = LoadPhase.Loaded,
                             allRows = rows,
                             myVotesByConfigId = myVotes,
                             myUserId = repository.currentUserId(),
+                            myDeviceId = anonId.deviceId,
+                            myUploaderName = it.myUploaderName, // preserve any name we already learned
                         )
                     }
                 },
@@ -81,6 +91,24 @@ class BestConfigsViewModel @Inject constructor(
                     }
                 },
             )
+        }
+    }
+
+    /**
+     * Refresh and additionally learn the signed-in Google Play Games display name
+     * (if any) so rows uploaded by the same user from a different install can be
+     * recognized as "mine" and offered a delete button. Call from an Activity-
+     * scoped composition once the Best Configs screen is visible.
+     */
+    fun bindActivityIdentity(activity: Activity) {
+        viewModelScope.launch {
+            val identity = UploaderIdentity.resolve(activity)
+            _state.update {
+                it.copy(
+                    myDeviceId = identity.deviceId,
+                    myUploaderName = identity.name,
+                )
+            }
         }
     }
 
@@ -176,6 +204,89 @@ class BestConfigsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Upload the current device's settings for this game to the community board.
+     * Resolves the shortcut + container for (gameSource, gameId) and posts via
+     * [ConfigExportImport.shareToCommunity]. The uploader identity (GPG display
+     * name or "Anonymous") is computed inside [UploaderIdentity.resolve] — the
+     * user has no input over it. Reports the outcome via [onResult] exactly once.
+     */
+    fun uploadCurrent(activity: Activity, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            _state.update { it.copy(isUploading = true) }
+            val match = withContext(Dispatchers.IO) {
+                runCatching {
+                    val cm = ContainerManager(appContext)
+                    cm.loadShortcuts().firstOrNull { sc ->
+                        val src = sc.getExtra("game_source") ?: ""
+                        if (src != gameSource) return@firstOrNull false
+                        val id = ConfigSerializer.gameIdForShortcut(sc, gameSource)
+                        id != null && id == gameId
+                    }
+                }.getOrNull()
+            }
+            if (match == null) {
+                _state.update { it.copy(isUploading = false) }
+                onResult("No shortcut found for ${gameName}. Open Settings once to create one, then try again.")
+                return@launch
+            }
+            val container = match.container
+            if (container == null) {
+                _state.update { it.copy(isUploading = false) }
+                onResult("Shortcut has no container; cannot share settings.")
+                return@launch
+            }
+            val identity = UploaderIdentity.resolve(activity)
+            val result = ConfigExportImport.shareToCommunity(
+                context = appContext,
+                container = container,
+                shortcut = match,
+                repository = repository,
+                identity = identity,
+            )
+            _state.update {
+                it.copy(
+                    isUploading = false,
+                    myDeviceId = identity.deviceId,
+                    myUploaderName = identity.name,
+                )
+            }
+            result.fold(
+                onSuccess = {
+                    onResult("Shared as ${identity.name}.")
+                    refresh()
+                },
+                onFailure = { ex ->
+                    Timber.tag(TAG).w(ex, "uploadCurrent failed")
+                    onResult("Share failed: ${ex.message ?: "unknown error"}")
+                },
+            )
+        }
+    }
+
+    /**
+     * Delete [row] from the community board. The client only invokes this when
+     * [BestConfigsUiState.isOwnedByMe] returned true for the row; the server
+     * still enforces ownership via RLS.
+     */
+    fun delete(row: ConfigRow, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            val res = repository.deleteConfig(row.id)
+            res.fold(
+                onSuccess = {
+                    _state.update { st ->
+                        st.copy(allRows = st.allRows.filterNot { it.id == row.id })
+                    }
+                    onResult("Removed your community config.")
+                },
+                onFailure = { ex ->
+                    Timber.tag(TAG).w(ex, "deleteConfig failed")
+                    onResult("Delete failed: ${ex.message ?: "unknown error"}")
+                },
+            )
+        }
+    }
+
     /** Dialog actions delegate to the coordinator. */
     fun toggleImportSelection(id: String) = importCoordinator.toggleSelection(id)
     fun confirmImportDownload() = importCoordinator.confirmDownload()
@@ -212,8 +323,32 @@ data class BestConfigsUiState(
     /** Per-config vote direction the current user has cast (+1 / -1). Absence = no vote. */
     val myVotesByConfigId: Map<String, Int> = emptyMap(),
     val myUserId: String? = null,
+    /** Stable per-install ANDROID_ID — second ownership signal alongside GPG name. */
+    val myDeviceId: String? = null,
+    /** Signed-in Google Play Games display name, if any. */
+    val myUploaderName: String? = null,
+    val isUploading: Boolean = false,
     val errorMessage: String? = null,
 ) {
+    /**
+     * A row is "owned by me" — and therefore eligible for the delete button —
+     * when any of these match the current install:
+     *   - the Supabase anon user id used to create the row
+     *   - the stable device id captured at upload time
+     *   - the GPG-signed-in display name captured at upload time
+     */
+    fun isOwnedByMe(row: ConfigRow): Boolean {
+        if (myUserId != null && row.userId == myUserId) return true
+        if (!myDeviceId.isNullOrBlank() && row.deviceId == myDeviceId) return true
+        if (!myUploaderName.isNullOrBlank() &&
+            myUploaderName != UploaderIdentity.ANONYMOUS_NAME &&
+            row.uploaderName == myUploaderName
+        ) {
+            return true
+        }
+        return false
+    }
+
     fun visibleRows(deviceModel: String, gpuModel: String): List<ConfigRow> {
         if (filter == ConfigFilter.ALL || allRows.isEmpty()) return allRows
         return when (filter) {

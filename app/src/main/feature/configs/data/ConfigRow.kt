@@ -14,7 +14,19 @@ data class ConfigRow(
     val gameSource: String,
     val gameId: String,
     val gameName: String,
+    /**
+     * Public uploader identity (GPG display name or "Anonymous"). Auto-resolved
+     * at upload time — never user-typed. Older rows uploaded before the rename
+     * may carry the legacy `custom_name` value, so [displayName] falls back to
+     * `customName` if `uploaderName` is missing.
+     */
+    val uploaderName: String?,
     val customName: String?,
+    /**
+     * Stable per-install identifier of the device that uploaded the row.
+     * Combined with [uploaderName] to gate the delete button on the client.
+     */
+    val deviceId: String?,
     val deviceModel: String?,
     val manufacturer: String?,
     val socModel: String?,
@@ -39,16 +51,21 @@ data class ConfigRow(
         get() = configJson.optJSONObject("container")?.optString("screenSize")?.takeIf { it.isNotBlank() }
 
     /**
-     * What to show as the config name on the leaderboard row. Honors the uploader's
-     * `custom_name` (capped at 10 chars on submission); falls back to a "resolution /
-     * device" label so rows are still meaningfully distinguishable when unnamed.
+     * What to show as the config name on the leaderboard row. Prefers the
+     * uploader's public display name (GPG name or "Anonymous"). Falls back to
+     * the legacy `custom_name` column, then to a "resolution / device" label
+     * so older rows without either field are still distinguishable.
      */
     val displayName: String
-        get() = customName?.takeIf { it.isNotBlank() } ?: run {
-            val res = resolutionLabel ?: "—"
-            val dev = deviceModel?.takeIf { it.isNotBlank() } ?: manufacturer?.takeIf { it.isNotBlank() } ?: "Unknown"
-            "$res / $dev"
-        }
+        get() = uploaderName?.takeIf { it.isNotBlank() }
+            ?: customName?.takeIf { it.isNotBlank() }
+            ?: run {
+                val res = resolutionLabel ?: "—"
+                val dev = deviceModel?.takeIf { it.isNotBlank() }
+                    ?: manufacturer?.takeIf { it.isNotBlank() }
+                    ?: "Unknown"
+                "$res / $dev"
+            }
 
     companion object {
         fun parseArray(body: String): List<ConfigRow> {
@@ -67,7 +84,9 @@ data class ConfigRow(
             gameSource = obj.getString("game_source"),
             gameId = obj.getString("game_id"),
             gameName = obj.getString("game_name"),
+            uploaderName = obj.optStringOrNull("uploader_name"),
             customName = obj.optStringOrNull("custom_name"),
+            deviceId = obj.optStringOrNull("device_id"),
             deviceModel = obj.optStringOrNull("device_model"),
             manufacturer = obj.optStringOrNull("manufacturer"),
             socModel = obj.optStringOrNull("soc_model"),

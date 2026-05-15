@@ -2,7 +2,6 @@ package com.winlator.cmod.feature.configs
 
 import android.content.Context
 import android.os.Build
-import android.provider.Settings
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.container.Shortcut
 import com.winlator.cmod.runtime.system.LogManager
@@ -63,17 +62,23 @@ object ConfigExportImport {
 
     /**
      * Upload the exported config to the community Supabase board.
-     * Returns the new row id on success. Suspending; caller should be on Dispatchers.IO.
+     *
+     * The uploader identity (`uploaderName` + `deviceId`) is resolved automatically
+     * from the supplied [identity] — callers are expected to obtain it via
+     * [UploaderIdentity.resolve] (Activity-scoped, hits Google Play Games) or
+     * [UploaderIdentity.resolveAnonymous] when no Activity is available. Users
+     * cannot influence the public name; this is intentional, to prevent abusive
+     * names on the community board.
+     *
+     * Returns the new row id on success. Suspending; caller should be on a
+     * background dispatcher.
      */
-    /** Maximum length of the user-supplied [customName] passed to [shareToCommunity]. */
-    const val CUSTOM_NAME_MAX_LEN: Int = 25
-
     suspend fun shareToCommunity(
         context: Context,
         container: Container,
         shortcut: Shortcut,
         repository: ConfigRepository,
-        customName: String? = null,
+        identity: UploaderIdentity,
         notes: String? = null,
         perfSummary: JSONObject? = null,
     ): Result<String> {
@@ -95,9 +100,8 @@ object ConfigExportImport {
             gameSource = gameSource,
             gameId = gameId,
             gameName = gameName,
-            customName = customName?.trim()
-                ?.takeIf { it.isNotEmpty() }
-                ?.take(CUSTOM_NAME_MAX_LEN),
+            uploaderName = identity.name,
+            deviceId = identity.deviceId,
             deviceModel = Build.MODEL,
             manufacturer = Build.MANUFACTURER,
             socModel = socModel,

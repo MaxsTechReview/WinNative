@@ -15,8 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.Download
@@ -26,25 +24,16 @@ import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.SettingsSuggest
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
-import com.winlator.cmod.feature.configs.ConfigExportImport
 import com.winlator.cmod.shared.theme.WinNativeAccent
 import com.winlator.cmod.shared.theme.WinNativeBackground
 import com.winlator.cmod.shared.theme.WinNativeOutline
@@ -158,91 +147,6 @@ fun BestConfigsImportSheet(
     )
 }
 
-/**
- * Name-this-config dialog. Material 3 [OutlinedTextField] capped to 10 chars to
- * match the server-side validation.
- */
-@Composable
-fun BestConfigsNameDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (String?) -> Unit,
-) {
-    var text by remember { mutableStateOf("") }
-    val keyboard = LocalSoftwareKeyboardController.current
-    val submit: () -> Unit = {
-        keyboard?.hide()
-        val name = text.trim().take(ConfigExportImport.CUSTOM_NAME_MAX_LEN).ifBlank { null }
-        onConfirm(name)
-    }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = WinNativeBackground,
-        shape = RoundedCornerShape(20.dp),
-        title = {
-            Text(
-                text = stringRes(R.string.best_configs_custom_name_dialog_title),
-                color = WinNativeTextPrimary,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    text = stringRes(R.string.best_configs_custom_name_dialog_message),
-                    color = WinNativeTextSecondary,
-                    fontSize = 13.sp,
-                )
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { v ->
-                        // Hard-cap to the same length the server enforces — feels
-                        // better than letting the user type past it and silently
-                        // truncating on submit.
-                        text = v.take(ConfigExportImport.CUSTOM_NAME_MAX_LEN)
-                    },
-                    placeholder = {
-                        Text(
-                            stringRes(R.string.best_configs_custom_name_dialog_hint),
-                            color = WinNativeTextSecondary.copy(alpha = 0.6f),
-                            fontSize = 14.sp,
-                        )
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { submit() }),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = WinNativeTextPrimary,
-                        unfocusedTextColor = WinNativeTextPrimary,
-                        cursorColor = WinNativeAccent,
-                        focusedBorderColor = WinNativeAccent,
-                        unfocusedBorderColor = WinNativeOutline,
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text(
-                    text = "${text.length}/${ConfigExportImport.CUSTOM_NAME_MAX_LEN}",
-                    color = WinNativeTextSecondary,
-                    fontSize = 11.sp,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        },
-        confirmButton = {
-            FilledButtonTinted(
-                text = stringRes(R.string.best_configs_custom_name_dialog_share),
-                onClick = submit,
-            )
-        },
-        dismissButton = {
-            TextButtonTinted(
-                text = stringRes(R.string.best_configs_export_cancel),
-                onClick = onDismiss,
-            )
-        },
-    )
-}
-
 @Composable
 private fun ActionRow(
     icon: ImageVector,
@@ -304,24 +208,6 @@ private fun TextButtonTinted(text: String, onClick: () -> Unit) {
             color = WinNativeTextSecondary,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
-        )
-    }
-}
-
-@Composable
-private fun FilledButtonTinted(text: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(WinNativeAccent)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 10.dp),
-    ) {
-        Text(
-            text = text,
-            color = androidx.compose.ui.graphics.Color.White,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
         )
     }
 }
