@@ -55,6 +55,15 @@ import com.winlator.cmod.feature.stores.common.StoreAuthStatus
 import com.winlator.cmod.feature.stores.common.StoreInstallPathSafety
 import com.winlator.cmod.feature.stores.steam.events.AndroidEvent
 import com.winlator.cmod.feature.stores.steam.events.SteamEvent
+import com.winlator.cmod.feature.stores.steam.wnsteam.CaBundleExtractor
+import com.winlator.cmod.feature.stores.steam.wnsteam.WnAuthCallback
+import com.winlator.cmod.feature.stores.steam.wnsteam.WnAuthResult
+import com.winlator.cmod.feature.stores.steam.wnsteam.WnAuthenticator
+import com.winlator.cmod.feature.stores.steam.wnsteam.WnQrCallback
+import com.winlator.cmod.feature.stores.steam.wnsteam.WnSteamSession
+import com.winlator.cmod.feature.stores.steam.wnsteam.WnSteamStateObserver
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 import com.winlator.cmod.feature.stores.steam.statsgen.StatType
 import com.winlator.cmod.feature.stores.steam.statsgen.StatsAchievementsGenerator
 import com.winlator.cmod.feature.stores.steam.statsgen.VdfParser
@@ -90,18 +99,15 @@ import `in`.dragonbra.javasteam.enums.EPersonaState
 import `in`.dragonbra.javasteam.enums.EResult
 import `in`.dragonbra.javasteam.networking.steam3.ProtocolTypes
 import `in`.dragonbra.javasteam.protobufs.steamclient.Enums.ECloudStoragePersistState
-import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesAuthSteamclient.CAuthentication_PollAuthSessionStatus_Request
+// JavaSteam auth surface removed in Phase 2E — auth flow now runs through
+// the C++ wn-steam-client via WnSteamSession. JavaSteam is still used for
+// post-logon (steamUser.logOn with refresh token) and everything else.
 import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesClientObjects.ECloudPendingRemoteOperation
 import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesClientserverUserstats
 import `in`.dragonbra.javasteam.protobufs.steamclient.SteammessagesFamilygroupsSteamclient
-import `in`.dragonbra.javasteam.rpc.service.Authentication
+// Authentication service stub removed — see WnSteamSession.
 import `in`.dragonbra.javasteam.rpc.service.FamilyGroups
-import `in`.dragonbra.javasteam.steam.authentication.AuthPollResult
-import `in`.dragonbra.javasteam.steam.authentication.AuthSessionDetails
-import `in`.dragonbra.javasteam.steam.authentication.AuthenticationException
-import `in`.dragonbra.javasteam.steam.authentication.IAuthenticator
-import `in`.dragonbra.javasteam.steam.authentication.IChallengeUrlChanged
-import `in`.dragonbra.javasteam.steam.authentication.QrAuthSession
+// JavaSteam auth.* imports removed in Phase 2E — see WnSteamSession.
 import `in`.dragonbra.javasteam.steam.discovery.FileServerListProvider
 import `in`.dragonbra.javasteam.steam.discovery.ServerQuality
 import `in`.dragonbra.javasteam.steam.handlers.steamapps.GamePlayedInfo
@@ -192,9 +198,7 @@ import kotlin.io.path.pathString
 import kotlin.time.Duration.Companion.seconds
 
 @AndroidEntryPoint
-class SteamService :
-    Service(),
-    IChallengeUrlChanged {
+class SteamService : Service() {
     // To view log messages in android logcat properly
     private val logger =
         object : LogListener {
@@ -774,6 +778,37 @@ class SteamService :
 
         var isWaitingForQRAuth: Boolean = false
             private set
+
+        // Active WnSteamSession for the in-flight credentials / QR auth
+        // flow. Held in the companion so stopLoginWithQr() can cancel
+        // from anywhere; cleared on success (when ownership moves to
+        // wnSession) or on failure (when bringUpWnSession's finally
+        // disconnects it).
+        private var wnAuthSession: WnSteamSession? = null
+
+        // Long-lived WnSteamSession that carries the post-logon CM
+        // connection (Phase 3a). Owns the session from the point the
+        // refresh token is acquired through logout. Runs in parallel with
+        // JavaSteam's CM session for now — Steam may kick one if it
+        // doesn't tolerate two concurrent sessions per account.
+        // @Volatile because logOut() reads from UI thread while the auth
+        // flow writes from Dispatchers.IO.
+        @Volatile private var wnSession: WnSteamSession? = null
+
+        /**
+         * Tears down any prior long-lived WnSteamSession. Called at the
+         * top of every login entry so a retry doesn't leak the previous
+         * native handle (transport thread + heartbeat + TLS socket).
+         */
+        private fun teardownPriorWnSession() {
+            val prior = wnSession
+            wnSession = null
+            if (prior != null) {
+                Timber.i("Tearing down prior wnSession before relogin")
+                try { prior.disconnect() } catch (_: Throwable) {}
+                try { prior.close()      } catch (_: Throwable) {}
+            }
+        }
 
         /**
          * Keeps [isConnectedFlow] in sync with the live socket state. Previously also wrote
@@ -5500,242 +5535,273 @@ class SteamService :
             username: String,
             password: String,
             rememberSession: Boolean,
-            authenticator: IAuthenticator,
+            authenticator: WnAuthenticator,
         ) = withContext(Dispatchers.IO) {
+            val svc = instance ?: run {
+                PluviaApp.events.emit(
+                    SteamEvent.LogonEnded(username, LoginResult.Failed,
+                        "SteamService not initialized"),
+                )
+                return@withContext
+            }
+
+            Timber.i("Logging in via credentials (wn-steam-client).")
+            svc._loginResult = LoginResult.InProgress
+            PluviaApp.events.emit(SteamEvent.LogonStarted(username))
+
+            teardownPriorWnSession()
+
+            val session = bringUpWnSession(svc) ?: run {
+                PluviaApp.events.emit(
+                    SteamEvent.LogonEnded(username, LoginResult.Failed,
+                        "Failed to connect to Steam CM"),
+                )
+                return@withContext
+            }
+            wnAuthSession = session
+            var keepSessionAlive = false
             try {
-                Timber.i("Logging in via credentials.")
-                instance!!._loginResult = LoginResult.InProgress
-                Timber.i("Set login result to InProgress.")
-                instance!!.steamClient?.let { steamClient ->
-                    val authDetails =
-                        AuthSessionDetails().apply {
-                            this.username = username.trim()
-                            this.password = password.trim()
-                            this.persistentSession = rememberSession
-                            this.authenticator = authenticator
-                            this.deviceFriendlyName = SteamUtils.getMachineName(instance!!)
-                            this.clientOSType = EOSType.WinUnknown
-                        }
-
-                    val event = SteamEvent.LogonStarted(username)
-                    PluviaApp.events.emit(event)
-
-                    // Outer loop: retries the entire auth session when the connection
-                    // drops (e.g. TryAnotherCM) during 2FA polling.
-                    var loginComplete = false
-                    while (isActive && !loginComplete) {
-                        val currentClient = instance!!.steamClient ?: break
-                        val authSession = currentClient.authentication.beginAuthSessionViaCredentials(authDetails).await()
-
-                        Timber.d("Waiting for authentication result (handles 2FA). Interval: ${authSession.pollingInterval}s")
-
-                        // pollingWaitForResult handles the full 2FA flow:
-                        // - Checks allowedConfirmations for the required guard type
-                        // - Calls IAuthenticator callbacks (acceptDeviceConfirmation, getDeviceCode, getEmailCode)
-                        // - Submits the guard code to Steam via sendSteamGuardCode
-                        // - Polls until authentication completes
-                        var pollResult: AuthPollResult? = null
-                        var disconnected = false
-                        while (isActive && pollResult == null && !disconnected) {
-                            try {
-                                pollResult = authSession.pollingWaitForResult().await()
-                            } catch (e: AuthenticationException) {
-                                if (e.result == EResult.Expired || e.result == EResult.FileNotFound) {
-                                    Timber.w("Auth session expired during 2FA wait, retrying...")
-                                    delay(authSession.pollingInterval.toLong() * 1000L)
-                                    continue
-                                }
-                                throw e
-                            } catch (e: java.util.concurrent.CancellationException) {
-                                // Connection dropped (TryAnotherCM) — all pending futures
-                                // are cancelled. Wait for reconnection and restart the
-                                // auth session so the user doesn't see a spurious failure.
-                                if (!isActive) throw CancellationException("Coroutine cancelled")
-                                Timber.w("Auth poll cancelled (likely TryAnotherCM), waiting for reconnection...")
-                                disconnected = true
-                            }
-                        }
-
-                        if (disconnected) {
-                            // Wait for the service to reconnect to a new CM server
-                            Timber.i("Waiting for Steam reconnection before retrying credential auth...")
-                            try {
-                                withTimeout(30_000L) {
-                                    isConnectedFlow.first { it }
-                                }
-                            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                                throw Exception("Timed out waiting for Steam reconnection")
-                            }
-                            Timber.i("Reconnected, restarting credential auth session...")
-                            delay(500L) // brief settle time after reconnect
-                            continue
-                        }
-
-                        if (pollResult == null) {
-                            throw CancellationException("Credential auth polling cancelled")
-                        }
-
-                        Timber.i("Authentication successful for ${pollResult.accountName}")
-
-                        if (pollResult.accountName.isEmpty() && pollResult.refreshToken.isEmpty()) {
-                            throw Exception("No account name or refresh token received.")
-                        }
-
-                        login(
-                            clientId = authSession.clientID,
-                            username = pollResult.accountName,
-                            accessToken = pollResult.accessToken,
-                            refreshToken = pollResult.refreshToken,
-                            rememberSession = rememberSession,
-                        )
-                        loginComplete = true
-                    }
-                } ?: run {
-                    Timber.e("Could not logon: Failed to connect to Steam")
-
-                    val event = SteamEvent.LogonEnded(username, LoginResult.Failed, "No connection to Steam")
-                    PluviaApp.events.emit(event)
+                val result = suspendCancellableCoroutine<WnAuthResult> { cont ->
+                    session.startLoginWithCredentials(
+                        username = username.trim(),
+                        password = password.trim(),
+                        persistentSession = rememberSession,
+                        authenticator = authenticator,
+                        callback = WnAuthCallback { r ->
+                            if (cont.isActive) cont.resume(r)
+                        },
+                    )
+                    cont.invokeOnCancellation { session.cancelLogin() }
                 }
+
+                if (!result.success || result.refreshToken.isEmpty()) {
+                    Timber.e("WnSteam auth failed: %s", result.errorMessage)
+                    PluviaApp.events.emit(
+                        SteamEvent.LogonEnded(username, LoginResult.Failed,
+                            if (result.errorMessage.isNotEmpty()) result.errorMessage
+                            else "auth failed (eresult=${result.errorCode})"),
+                    )
+                    return@withContext
+                }
+
+                Timber.i("WnSteam auth OK for %s", result.accountName)
+
+                // Phase 3a — promote the auth session to long-lived state
+                // and trigger our C++ CMsgClientLogon. Steam pushes
+                // LicenseList / AccountInfo / FriendsList / PersonaState
+                // right after LogonResponse; we just decode + log those
+                // (no app behavior change) so we have wire traces for the
+                // Phase 4 PICS replacement work.
+                //
+                // DO NOT INSERT A SUSPENSION POINT (withContext/delay/
+                // suspendCancellable...) between the next four lines.
+                // Cancellation mid-promotion would leave `wnSession` set
+                // while `keepSessionAlive` is still false → the finally
+                // block would close the session pointed-to by wnSession
+                // (use-after-free risk identical to the prior nativeDestroy crash).
+                installWnLogonObserver(session)
+                wnSession = session
+                wnAuthSession = null
+                keepSessionAlive = true
+
+                if (!session.logonWithRefreshToken(result.refreshToken, result.accountName, result.steamId)) {
+                    Timber.w("WnSteam logon_with_refresh_token returned false (channel not Connected?)")
+                }
+
+                // ALSO call the existing JavaSteam logon flow — Phase 3a
+                // runs both sessions in parallel. JavaSteam still drives
+                // PICS / downloads / cloud / friends; our C++ side just
+                // observes wire traffic. If Steam kicks one of the
+                // sessions we'll see it in the log.
+                login(
+                    username = result.accountName,
+                    accessToken = result.accessToken,
+                    refreshToken = result.refreshToken,
+                    rememberSession = rememberSession,
+                )
             } catch (e: Exception) {
                 Timber.e(e, "Login failed")
-
-                val message =
-                    when (e) {
-                        is CancellationException -> "Unknown cancellation"
-                        is AuthenticationException -> e.result?.name ?: e.message
-                        else -> e.message ?: e.javaClass.name
-                    }
-
-                val event = SteamEvent.LogonEnded(username, LoginResult.Failed, message)
-                PluviaApp.events.emit(event)
+                val message = when (e) {
+                    is CancellationException -> "Unknown cancellation"
+                    else -> e.message ?: e.javaClass.name
+                }
+                PluviaApp.events.emit(SteamEvent.LogonEnded(username, LoginResult.Failed, message))
+            } finally {
+                if (!keepSessionAlive) {
+                    try { session.disconnect() } catch (_: Throwable) {}
+                    try { session.close() } catch (_: Throwable) {}
+                    if (wnAuthSession === session) wnAuthSession = null
+                }
             }
         }
 
-        suspend fun startLoginWithQr() =
-            withContext(Dispatchers.IO) {
-                try {
-                    Timber.i("Logging in via QR.")
-
-                    instance!!.steamClient?.let { steamClient ->
-                        isWaitingForQRAuth = true
-
-                        val authDetails =
-                            AuthSessionDetails().apply {
-                                this.deviceFriendlyName = SteamUtils.getMachineName(instance!!)
-                                this.clientOSType = EOSType.WinUnknown
-                                this.persistentSession = true
-                            }
-
-                        val authSession = steamClient.authentication.beginAuthSessionViaQR(authDetails).await()
-
-                        // Steam will periodically refresh the challenge url, this callback allows you to draw a new qr code.
-                        authSession.challengeUrlChanged = instance
-
-                        val qrEvent = SteamEvent.QrChallengeReceived(authSession.challengeUrl)
-                        PluviaApp.events.emit(qrEvent)
-
-                        Timber.d("PollingInterval: ${authSession.pollingInterval.toLong()}")
-
-                        var authPollResult: AuthPollResult? = null
-
-                        // FIX: Poll via raw protobuf RPC instead of JavaSteam's pollAuthSessionStatus()
-                        // so we can read hadRemoteInteraction — true when QR is scanned but not yet
-                        // approved. This lets the UI show the 2FA screen while the user confirms.
-                        val authService =
-                            steamClient
-                                .getHandler<SteamUnifiedMessages>()!!
-                                .createService<Authentication>()
-                        var qrScannedEmitted = false
-
-                        while (isWaitingForQRAuth && authPollResult == null) {
-                            try {
-                                val request =
-                                    CAuthentication_PollAuthSessionStatus_Request
-                                        .newBuilder()
-                                        .apply {
-                                            clientId = authSession.clientID
-                                            requestId =
-                                                com.google.protobuf.ByteString
-                                                    .copyFrom(authSession.requestID)
-                                        }.build()
-
-                                val result = authService.pollAuthSessionStatus(request).await()
-
-                                if (result.result != EResult.OK) {
-                                    throw AuthenticationException("Failed to poll status", result.result)
-                                }
-
-                                val response = result.body
-
-                                // Replicate handlePollAuthSessionStatusResponse behaviour
-                                if (response.newClientId != 0L) {
-                                    authSession.clientID = response.newClientId
-                                }
-                                if (response.newChallengeUrl.isNotEmpty()) {
-                                    val urlEvent = SteamEvent.QrChallengeReceived(response.newChallengeUrl)
-                                    PluviaApp.events.emit(urlEvent)
-                                }
-
-                                // Detect scan before approval
-                                if (!qrScannedEmitted && response.hadRemoteInteraction) {
-                                    qrScannedEmitted = true
-                                    PluviaApp.events.emit(SteamEvent.QrCodeScanned)
-                                }
-
-                                // Check for completion
-                                if (response.refreshToken.isNotEmpty()) {
-                                    authPollResult = AuthPollResult(response)
-                                } else {
-                                    delay(authSession.pollingInterval.toLong() * 1000L)
-                                }
-                            } catch (e: Exception) {
-                                Timber.e(e, "Poll auth session status error")
-                                throw e
-                            }
-                        }
-
-                        isWaitingForQRAuth = false
-
-                        val event = SteamEvent.QrAuthEnded(authPollResult != null)
-                        PluviaApp.events.emit(event)
-
-                        // there is a chance qr got cancelled and there is no authPollResult
-                        if (authPollResult == null) {
-                            Timber.e("Got no auth poll result")
-                            throw Exception("Got no auth poll result")
-                        }
-
-                        login(
-                            clientId = authSession.clientID,
-                            username = authPollResult.accountName,
-                            accessToken = authPollResult.accessToken,
-                            refreshToken = authPollResult.refreshToken,
-                        )
-                    } ?: run {
-                        Timber.e("Could not start QR logon: Failed to connect to Steam")
-
-                        val event = SteamEvent.QrAuthEnded(success = false, message = "No connection to Steam")
-                        PluviaApp.events.emit(event)
+        /**
+         * Observer wired onto the long-lived [WnSteamSession] after the
+         * auth flow promotes it to logon mode. Purely diagnostic for
+         * Phase 3a — we just log state transitions and inbound message
+         * EMsgs so the next test gives us LicenseList / AccountInfo /
+         * FriendsList / PersonaState wire traces.
+         */
+        private fun installWnLogonObserver(session: WnSteamSession) {
+            session.setStateObserver(object : WnSteamStateObserver {
+                override fun onStateChanged(state: Int) {
+                    val name = when (state) {
+                        0 -> "Disconnected"; 1 -> "Connecting"
+                        2 -> "Connected";    3 -> "LoggedOn"
+                        else -> "?($state)"
                     }
-                } catch (e: Exception) {
-                    Timber.e(e, "QR failed")
+                    Timber.i("WnSteam(logon) state -> %s", name)
+                }
+                override fun onClientMessage(emsg: Int, eresult: Int, body: ByteArray) {
+                    Timber.d("WnSteam(logon) inbound emsg=%d eresult=%d body=%d bytes",
+                        emsg, eresult, body.size)
+                }
+            })
+        }
 
-                    val message =
-                        when (e) {
-                            is CancellationException -> "QR Session timed out"
-                            is AuthenticationException -> e.result?.name ?: e.message
-                            else -> e.message ?: e.javaClass.name
+        /**
+         * Creates a fresh [WnSteamSession], extracts the CA bundle, picks
+         * a CM URL, connects, and waits for the encrypted channel to
+         * reach Connected state (=2). Returns the live session on
+         * success — caller takes ownership and is responsible for
+         * disconnect/close. Returns null on any failure (logs reason).
+         */
+        private suspend fun bringUpWnSession(svc: SteamService): WnSteamSession? {
+            val caPath = CaBundleExtractor.ensureBundle(svc)
+            if (caPath.isEmpty()) {
+                Timber.e("Cannot start WnSteam session: CA bundle unavailable")
+                return null
+            }
+            val cmUrl = withContext(Dispatchers.IO) {
+                WnSteamSession.pickCmUrl(caPath)
+            }
+            if (cmUrl.isEmpty()) {
+                Timber.e("Cannot start WnSteam session: no CM URL")
+                return null
+            }
+            Timber.i("WnSteam: connecting to %s", cmUrl)
+
+            val session = WnSteamSession()
+            var ok = false
+            try {
+                session.setCaBundlePath(caPath)
+                val connected = suspendCancellableCoroutine<Boolean> { cont ->
+                    session.setStateObserver(object : WnSteamStateObserver {
+                        override fun onStateChanged(state: Int) {
+                            if (!cont.isActive) return
+                            if (state == 2) cont.resume(true)
+                            else if (state == 0) cont.resume(false)
                         }
-
-                    val event = SteamEvent.QrAuthEnded(success = false, message = message)
-                    PluviaApp.events.emit(event)
+                        override fun onClientMessage(emsg: Int, eresult: Int, body: ByteArray) {}
+                    })
+                    if (!session.connect(cmUrl)) cont.resume(false)
+                    cont.invokeOnCancellation { session.disconnect() }
+                }
+                if (!connected) {
+                    Timber.e("WnSteam channel did not reach Connected state")
+                    return null
+                }
+                ok = true
+                return session
+            } finally {
+                if (!ok) {
+                    try { session.disconnect() } catch (_: Throwable) {}
+                    try { session.close() } catch (_: Throwable) {}
                 }
             }
+        }
+
+        suspend fun startLoginWithQr() = withContext(Dispatchers.IO) {
+            val svc = instance ?: run {
+                PluviaApp.events.emit(
+                    SteamEvent.QrAuthEnded(success = false,
+                        message = "SteamService not initialized"),
+                )
+                return@withContext
+            }
+
+            Timber.i("Logging in via QR (wn-steam-client).")
+            isWaitingForQRAuth = true
+
+            teardownPriorWnSession()
+
+            val session = bringUpWnSession(svc) ?: run {
+                isWaitingForQRAuth = false
+                PluviaApp.events.emit(
+                    SteamEvent.QrAuthEnded(success = false,
+                        message = "Failed to connect to Steam"),
+                )
+                return@withContext
+            }
+            wnAuthSession = session
+            var keepSessionAlive = false
+            try {
+                var qrScannedEmitted = false
+                val result = suspendCancellableCoroutine<WnAuthResult> { cont ->
+                    session.startLoginWithQr(
+                        qrCallback = WnQrCallback { url ->
+                            PluviaApp.events.emit(SteamEvent.QrChallengeReceived(url))
+                        },
+                        resultCallback = WnAuthCallback { r ->
+                            if (!qrScannedEmitted && r.hadRemoteInteraction) {
+                                qrScannedEmitted = true
+                                PluviaApp.events.emit(SteamEvent.QrCodeScanned)
+                            }
+                            if (cont.isActive) cont.resume(r)
+                        },
+                    )
+                    cont.invokeOnCancellation { session.cancelLogin() }
+                }
+
+                isWaitingForQRAuth = false
+                PluviaApp.events.emit(SteamEvent.QrAuthEnded(result.success))
+
+                if (!result.success || result.refreshToken.isEmpty()) {
+                    Timber.e("WnSteam QR auth failed: %s", result.errorMessage)
+                    return@withContext
+                }
+
+                // Phase 3a — promote QR session to long-lived logon mode.
+                // DO NOT insert a suspension point in these four lines —
+                // see the matching note in startLoginWithCredentials.
+                installWnLogonObserver(session)
+                wnSession = session
+                wnAuthSession = null
+                keepSessionAlive = true
+
+                if (!session.logonWithRefreshToken(result.refreshToken, result.accountName, result.steamId)) {
+                    Timber.w("WnSteam QR logon_with_refresh_token returned false")
+                }
+
+                // Parallel JavaSteam logon (Phase 3a hybrid).
+                login(
+                    username = result.accountName,
+                    accessToken = result.accessToken,
+                    refreshToken = result.refreshToken,
+                )
+            } catch (e: Exception) {
+                Timber.e(e, "QR failed")
+                isWaitingForQRAuth = false
+                val message = when (e) {
+                    is CancellationException -> "QR Session timed out"
+                    else -> e.message ?: e.javaClass.name
+                }
+                PluviaApp.events.emit(SteamEvent.QrAuthEnded(success = false, message = message))
+            } finally {
+                if (!keepSessionAlive) {
+                    try { session.disconnect() } catch (_: Throwable) {}
+                    try { session.close() } catch (_: Throwable) {}
+                    if (wnAuthSession === session) wnAuthSession = null
+                }
+            }
+        }
 
         fun stopLoginWithQr() {
             Timber.i("Stopping QR polling")
-
             isWaitingForQRAuth = false
+            wnAuthSession?.let {
+                try { it.cancelLogin() } catch (_: Throwable) {}
+            }
         }
 
         fun start(context: Context) {
@@ -5773,6 +5839,13 @@ class SteamService :
             isLoggingOut = true
             _isLoggedInFlow.value = false
             PrefManager.clearAuthTokens()
+
+            // Tear down the long-lived WnSteam logon session.
+            wnSession?.let { s ->
+                try { s.disconnect() } catch (_: Throwable) {}
+                try { s.close()      } catch (_: Throwable) {}
+            }
+            wnSession = null
 
             // Cancel background jobs immediately
             instance?.picsGetProductInfoJob?.cancel()
@@ -6782,16 +6855,9 @@ class SteamService :
         }
     }
 
-    override fun onChanged(qrAuthSession: QrAuthSession?) {
-        qrAuthSession?.let { qr ->
-            if (!BuildConfig.DEBUG) {
-                Timber.d("QR code changed -> ${qr.challengeUrl}")
-            }
-
-            val event = SteamEvent.QrChallengeReceived(qr.challengeUrl)
-            PluviaApp.events.emit(event)
-        } ?: run { Timber.w("QR challenge url was null") }
-    }
+    // QR challenge-URL updates now flow from WnSteamSession via WnQrCallback;
+    // see startLoginWithQr below. The old JavaSteam IChallengeUrlChanged
+    // hook was removed in Phase 2E.
     // endregion
 
     /**

@@ -85,7 +85,14 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags ''
-                arguments "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384", "-DCMAKE_EXE_LINKER_FLAGS=-Wl,-z,max-page-size=16384"
+                // ANDROID_STL=c++_shared: required by the Prefab OpenSSL and
+                // curl AARs (com.android.ndk.thirdparty:*), which are built
+                // against the shared STL. The existing native libraries in
+                // this project are C-only (winlator/*.c, patchelf, proot,
+                // xz, steam* shims) so the switch is a no-op for them.
+                arguments "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384",
+                          "-DCMAKE_EXE_LINKER_FLAGS=-Wl,-z,max-page-size=16384",
+                          "-DANDROID_STL=c++_shared"
             }
         }
 
@@ -188,6 +195,7 @@ android {
         compose true
         viewBinding true
         buildConfig true
+        prefab true   // wn-steam-client links OpenSSL + curl via NDK Prefab AARs
     }
 
     sourceSets {
@@ -274,6 +282,18 @@ dependencies {
     implementation(libs.javaSteamDepotDownloader) {
         exclude group: 'com.squareup.okhttp3', module: 'okhttp-jvm'
     }
+
+    // Native deps for wn-steam-client (consumed via NDK Prefab from CMake).
+    // These are AAR-packaged prebuilts of OpenSSL and libcurl built for Android NDK.
+    //
+    // NOTE: the com.android.ndk.thirdparty:* Prefab project is effectively
+    // abandoned — these are the LATEST available versions (verified against
+    // dl.google.com/dl/android/maven2/com/android/ndk/thirdparty/.../maven-metadata.xml).
+    // OpenSSL 1.1.1 went EOL on 2023-09-11. The primitives we depend on
+    // (RSA-OAEP-SHA1, AES-256-CBC, HMAC-SHA1, SHA-1/256) are not affected
+    // by any 1.1.1q CVE. Revisit if a maintained replacement appears.
+    implementation 'com.android.ndk.thirdparty:openssl:1.1.1q-beta-1'
+    implementation 'com.android.ndk.thirdparty:curl:7.85.0-beta-1'
 
     implementation libs.playServicesGamesV2
     implementation libs.playServicesAuth
