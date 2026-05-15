@@ -7,10 +7,14 @@
 // Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 
-layout(location = 0) in vec2 vUV;
+// Keep SGSR math mediump, but texel-space coordinates highp.
+precision mediump float;
+precision highp int;
+
+layout(location = 0) in highp vec2 vUV;
 layout(location = 0) out vec4 outColor;
 
-layout(set = 0, binding = 0) uniform sampler2D screenTexture;
+layout(set = 0, binding = 0) uniform mediump sampler2D screenTexture;
 
 layout(push_constant) uniform PC {
     vec2  resolution;
@@ -37,7 +41,7 @@ vec2 weightY(float dx, float dy, float c, float std) {
 }
 
 void main() {
-    vec2 inputSize = vec2(textureSize(screenTexture, 0));
+    highp vec2 inputSize = vec2(textureSize(screenTexture, 0));
     vec4 color = vec4(textureLod(screenTexture, vUV, 0.0).rgb, 1.0);
 
     if (inputSize.x < 2.0 || inputSize.y < 2.0) {
@@ -45,10 +49,10 @@ void main() {
         return;
     }
 
-    vec4 viewportInfo = vec4(1.0 / inputSize, inputSize);
-    vec2 imgCoord = vUV * viewportInfo.zw + vec2(-0.5, 0.5);
-    vec2 imgCoordPixel = floor(imgCoord);
-    vec2 coord = imgCoordPixel * viewportInfo.xy;
+    highp vec4 viewportInfo = vec4(1.0 / inputSize, inputSize);
+    highp vec2 imgCoord = vUV * viewportInfo.zw + vec2(-0.5, 0.5);
+    highp vec2 imgCoordPixel = floor(imgCoord);
+    highp vec2 coord = imgCoordPixel * viewportInfo.xy;
     vec2 pl = imgCoord - imgCoordPixel;
 
     vec4 left = textureGather(screenTexture, coord, OPERATION_MODE);

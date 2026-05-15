@@ -1671,22 +1671,18 @@ static bool scene_starts_with_sgsr1(const VkScene* s) {
     return s->effect_count > 0 && s->effects[0].type == VK_EFFECT_SGSR1;
 }
 
-// SGSR1 runs at the X server's native pixel grid (or DRI3's smaller presented
-// source if a game is presenting into a sub-window). The shader then upscales
-// that into the swapchain. The "upscale ratio" picked in the drawer is purely
-// a hint to Java's startup path — it lowers the X server screen so Wine
-// renders fewer pixels (the FPS win); the compositor only ever derives its
-// source size from the actual X-server/DRI3 dims that reach it. Toggling a
-// ratio mid-session therefore degrades cleanly to a full-res sharpening pass
-// (no spurious downsample-then-upsample) until the user restarts the session.
+// SGSR1 upscales the actual X/DRI3 source; ratio changes take effect after restart.
 static VkExtent2D compute_sgsr1_source_extent(VkRenderer* r, const VkScene* s) {
     VkExtent2D out = r->swapchain_extent;
     if (out.width == 0 || out.height == 0 || s->screen_width == 0 || s->screen_height == 0) {
         return out;
     }
 
-    uint32_t source_w = s->source_width > 0 ? s->source_width : s->screen_width;
-    uint32_t source_h = s->source_height > 0 ? s->source_height : s->screen_height;
+    // Cap SGSR1's source at the X screen so oversized DRI3 buffers do not undo scaling.
+    uint32_t source_w = s->source_width > 0 && s->source_width < s->screen_width
+        ? s->source_width : s->screen_width;
+    uint32_t source_h = s->source_height > 0 && s->source_height < s->screen_height
+        ? s->source_height : s->screen_height;
     transformed_view_size(&source_w, &source_h, r->swapchain_transform);
     if (source_w == 0 || source_h == 0) return out;
 
