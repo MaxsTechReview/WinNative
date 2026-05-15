@@ -144,6 +144,7 @@
     <string-array name="some_lc_all">
         <item>ar_EG</item>
         <item>ar_SA</item>
+        <item>da_DK</item>
         <item>de_AT</item>
         <item>de_CH</item>
         <item>de_DE</item>
@@ -164,10 +165,13 @@
         <item>it_IT</item>
         <item>ja_JP</item>
         <item>ko_KR</item>
+        <item>pl_PL</item>
         <item>pt_BR</item>
         <item>pt_PT</item>
+        <item>ro_RO</item>
         <item>ru_RU</item>
         <item>ru_UA</item>
+        <item>uk_UA</item>
         <item>zh_CN</item>
         <item>zh_HK</item>
         <item>zh_SG</item>

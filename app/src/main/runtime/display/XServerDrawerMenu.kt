@@ -315,6 +315,10 @@ data class XServerDrawerState(
     val colorProfile: Int = 0,
     val inputControlsProfileNames: List<String> = emptyList(),
     val inputControlsSelectedProfileIndex: Int = 0,
+    val inputControlsStyleNames: List<String> = emptyList(),
+    val inputControlsSelectedStyleIndex: Int = 0,
+    val inputControlsLabelThemeNames: List<String> = emptyList(),
+    val inputControlsSelectedLabelThemeIndex: Int = 0,
     val inputControlsShowOverlay: Boolean = false,
     val inputControlsTapToClick: Boolean = true,
     val inputControlsOverlayOpacity: Float = 0.4f,
@@ -489,6 +493,10 @@ interface XServerDrawerActionListener {
 
     fun onInputControlsProfileSelected(index: Int)
 
+    fun onInputControlsStyleSelected(index: Int)
+
+    fun onInputControlsLabelThemeSelected(index: Int)
+
     fun onInputControlsShowOverlayChanged(enabled: Boolean)
 
     fun onInputControlsTapToClickChanged(enabled: Boolean)
@@ -558,6 +566,10 @@ fun buildXServerDrawerState(
     colorProfile: Int = 0,
     inputControlsProfileNames: List<String> = emptyList(),
     inputControlsSelectedProfileIndex: Int = 0,
+    inputControlsStyleNames: List<String> = emptyList(),
+    inputControlsSelectedStyleIndex: Int = 0,
+    inputControlsLabelThemeNames: List<String> = emptyList(),
+    inputControlsSelectedLabelThemeIndex: Int = 0,
     inputControlsShowOverlay: Boolean = false,
     inputControlsTapToClick: Boolean = true,
     inputControlsOverlayOpacity: Float = 0.4f,
@@ -713,6 +725,10 @@ fun buildXServerDrawerState(
         colorProfile = colorProfile,
         inputControlsProfileNames = inputControlsProfileNames,
         inputControlsSelectedProfileIndex = inputControlsSelectedProfileIndex,
+        inputControlsStyleNames = inputControlsStyleNames,
+        inputControlsSelectedStyleIndex = inputControlsSelectedStyleIndex,
+        inputControlsLabelThemeNames = inputControlsLabelThemeNames,
+        inputControlsSelectedLabelThemeIndex = inputControlsSelectedLabelThemeIndex,
         inputControlsShowOverlay = inputControlsShowOverlay,
         inputControlsTapToClick = inputControlsTapToClick,
         inputControlsOverlayOpacity = inputControlsOverlayOpacity,
@@ -1705,6 +1721,28 @@ private fun InputControlsPaneContent(
                     )
                 }
 
+                if (state.inputControlsStyleNames.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+                        PaneSectionLabel(stringResource(R.string.input_controls_select_style))
+                        InputControlsSimpleDropdown(
+                            options = state.inputControlsStyleNames,
+                            selectedIndex = state.inputControlsSelectedStyleIndex,
+                            onSelected = listener::onInputControlsStyleSelected,
+                        )
+                    }
+                }
+
+                if (state.inputControlsLabelThemeNames.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+                        PaneSectionLabel(stringResource(R.string.input_controls_select_label_theme))
+                        InputControlsSimpleDropdown(
+                            options = state.inputControlsLabelThemeNames,
+                            selectedIndex = state.inputControlsSelectedLabelThemeIndex,
+                            onSelected = listener::onInputControlsLabelThemeSelected,
+                        )
+                    }
+                }
+
                 DrawerBooleanRow(
                     title = stringResource(R.string.session_drawer_show_touchscreen_controls),
                     checked = state.inputControlsShowOverlay,
@@ -1739,6 +1777,109 @@ private fun InputControlsPaneContent(
                     title = stringResource(R.string.session_gamepad_enable_vibration),
                     checked = state.inputControlsGamepadVibration,
                     onCheckedChange = listener::onInputControlsGamepadVibrationChanged,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Compact dropdown shared by the Style and Label Theme rows in the Controls pane.
+ * Mirrors the styling of [InputControlsProfileSelector] but omits the trailing edit-pencil button
+ * since these are built-in choices, not user-editable.
+ */
+@Composable
+private fun InputControlsSimpleDropdown(
+    options: List<String>,
+    selectedIndex: Int,
+    onSelected: (Int) -> Unit,
+) {
+    val paneScale = LocalPaneScale.current
+    var expanded by remember { mutableStateOf(false) }
+    val selectedText = options.getOrElse(selectedIndex) { options.firstOrNull() ?: "" }
+
+    val cornerRadius = (14f * paneScale).dp
+    val shape = RoundedCornerShape(cornerRadius)
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed = interactionSource.collectIsPressedAsState().value
+    val bgColor by animateColorAsState(
+        targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
+        animationSpec = tween(140),
+        label = "inputControlsSimpleBg",
+    )
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(shape)
+                    .background(bgColor)
+                    .border(1.dp, RestingCardBorder, shape)
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                    ) { expanded = true }
+                    .padding(horizontal = (12f * paneScale).dp, vertical = (10f * paneScale).dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = selectedText,
+                color = DrawerTextPrimary,
+                fontSize = (14f * paneScale).sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                imageVector = Icons.Outlined.ArrowDropDown,
+                contentDescription = null,
+                tint = DrawerTextSecondary,
+                modifier = Modifier.size((22f * paneScale).dp),
+            )
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier =
+                Modifier
+                    .background(PaneSurfaceColor)
+                    .heightIn(max = 280.dp),
+        ) {
+            options.forEachIndexed { index, name ->
+                val isSelected = index == selectedIndex
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = name,
+                            color = if (isSelected) DrawerAccent else DrawerTextPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        )
+                    },
+                    trailingIcon =
+                        if (isSelected) {
+                            {
+                                Icon(
+                                    imageVector = Icons.Outlined.Check,
+                                    contentDescription = null,
+                                    tint = DrawerAccent,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        } else {
+                            null
+                        },
+                    onClick = {
+                        onSelected(index)
+                        expanded = false
+                    },
+                    colors =
+                        MenuDefaults.itemColors(
+                            textColor = DrawerTextPrimary,
+                        ),
                 )
             }
         }

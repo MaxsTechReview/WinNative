@@ -2,6 +2,7 @@ package com.winlator.cmod.runtime.display.xserver;
 
 import android.util.SparseArray;
 import com.winlator.cmod.runtime.display.renderer.VulkanRenderer;
+import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
 import com.winlator.cmod.runtime.display.winhandler.WinHandler;
 import com.winlator.cmod.runtime.display.xserver.extensions.BigReqExtension;
 import com.winlator.cmod.runtime.display.xserver.extensions.DRI3Extension;
@@ -187,12 +188,26 @@ public class XServer {
   }
 
   public void injectPointerMove(int x, int y) {
+    if (winHandler != null && relativeMouseMovement) {
+      int flags = MouseEventFlags.MOVE | MouseEventFlags.ABSOLUTE;
+      if (pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) flags |= MouseEventFlags.LEFTDOWN;
+      if (pointer.isButtonPressed(Pointer.Button.BUTTON_RIGHT)) flags |= MouseEventFlags.RIGHTDOWN;
+      if (pointer.isButtonPressed(Pointer.Button.BUTTON_MIDDLE)) flags |= MouseEventFlags.MIDDLEDOWN;
+      winHandler.mouseEvent(flags, x, y, 0);
+    }
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
       pointer.setPosition(x, y);
     }
   }
 
   public void injectPointerMoveDelta(int dx, int dy) {
+    if (winHandler != null && relativeMouseMovement) {
+      int flags = MouseEventFlags.MOVE;
+      if (pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) flags |= MouseEventFlags.LEFTDOWN;
+      if (pointer.isButtonPressed(Pointer.Button.BUTTON_RIGHT)) flags |= MouseEventFlags.RIGHTDOWN;
+      if (pointer.isButtonPressed(Pointer.Button.BUTTON_MIDDLE)) flags |= MouseEventFlags.MIDDLEDOWN;
+      winHandler.mouseEvent(flags, dx, dy, 0);
+    }
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
       pointer.setPosition(pointer.getX() + dx, pointer.getY() + dy);
     }

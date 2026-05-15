@@ -248,7 +248,9 @@
     <string name="downloads_queue_paused_resume_hint">Paused - tap Resume to continue</string>
     <string name="downloads_queue_cancel_download">Cancel Download</string>
     <string name="downloads_queue_cancel_download_title">Cancel Download?</string>
-    <string name="downloads_queue_cancel_download_warning">Cancelling a DLC, Game, or Update download can potentially corrupt your game install.\n\nAre you sure you want to cancel?</string>
+    <string name="downloads_queue_cancel_download_warning">Cancelling a DLC, Game, or Update download can potentially corrupt your game install.\n\nAre you sure you want to cancel this Download and delete the files downloaded so far?</string>
+    <string name="downloads_queue_cancel_all_title">Cancel All Downloads?</string>
+    <string name="downloads_queue_cancel_all_warning">Cancelling DLC, Game, or Update downloads can potentially corrupt your game installs.\n\nAre you sure you want to cancel all Downloads and delete the files downloaded so far?</string>
     <string name="downloads_queue_empty">No active downloads.</string>
 
     <!-- Containers > List -->
@@ -341,6 +343,14 @@
     <string name="input_controls_editor_radial_menu_options">Radial Menu Options</string>
     <string name="input_controls_editor_number_of_bindings">Number of Bindings</string>
     <string name="input_controls_editor_select_profile">Select Profile</string>
+    <string name="input_controls_select_style">Select Style</string>
+    <string name="input_controls_select_label_theme">Button Labels</string>
+    <string name="input_controls_style_original">Original</string>
+    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_label_theme_default">Default</string>
+    <string name="input_controls_label_theme_xbox">Xbox</string>
+    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_edit_duplicating_builtin">Built-in profile — created a copy you can edit.</string>
     <string name="input_controls_editor_profile_name">Profile Name</string>
     <string name="input_controls_editor_no_profile_selected">No profile selected</string>
     <string name="input_controls_editor_no_profile_found">No profile found</string>
@@ -1208,4 +1218,64 @@ Installed path:
     <string name="preloader_platform_gog">GOG</string>
     <string name="preloader_platform_custom">Custom Game</string>
 
+    <!-- Best Configs (Supabase-backed community config board) -->
+    <string name="best_configs_button_label">Best Configs</string>
+    <string name="best_configs_screen_title">Best Configs</string>
+    <string name="best_configs_subtitle">%1$s · community settings</string>
+    <string name="best_configs_filter_my_device">My device</string>
+    <string name="best_configs_filter_my_gpu">My GPU</string>
+    <string name="best_configs_filter_all">All</string>
+    <string name="best_configs_loading">Loading configs…</string>
+    <string name="best_configs_empty_title">No configs yet</string>
+    <string name="best_configs_empty_body">Export a working config from this game to share it with the community.</string>
+    <string name="best_configs_error_generic">Could not load configs. Tap to retry.</string>
+    <string name="best_configs_vote_label">Vote</string>
+    <string name="best_configs_upvote_label">Upvote</string>
+    <string name="best_configs_downvote_label">Downvote</string>
+    <string name="best_configs_custom_name_dialog_title">Name this config</string>
+    <string name="best_configs_custom_name_dialog_message">Up to 25 characters. Leave blank to use the default \"resolution / device\" name.</string>
+    <string name="best_configs_custom_name_dialog_hint">e.g. Smooth60</string>
+    <string name="best_configs_custom_name_dialog_share">Share</string>
+    <string name="best_configs_import_label">Import</string>
+    <string name="best_configs_export_label">Export</string>
+    <string name="best_configs_export_to_file">Save to file</string>
+    <string name="best_configs_export_to_file_supporting">Writes a .json file to /WinNative/configs/ on this device.</string>
+    <string name="best_configs_export_to_community">Share to community</string>
+    <string name="best_configs_export_to_community_supporting">Upload to the Best Configs board so other players with the same device or GPU can try it.</string>
+    <string name="best_configs_export_cancel">Cancel</string>
+    <string name="best_configs_import_from_file">Device</string>
+    <string name="best_configs_import_from_file_supporting">Pick a config file (.json) saved on this device.</string>
+    <string name="best_configs_import_from_community">Community</string>
+    <string name="best_configs_import_from_community_supporting">Open the Best Configs board for this game and pick a row to apply.</string>
+    <string name="settings_share_my_config_title">Share my configs with the community</string>
+    <string name="settings_share_my_config_summary">Allow uploading your shortcut configs to the community Best Configs board. Uploads happen only when you tap Export on a shortcut\'s settings — never automatically.</string>
+
+    <!-- Missing Components import flow -->
+    <string name="best_configs_missing_title">Missing components</string>
+    <string name="best_configs_missing_subtitle">This config uses items not installed on your device. Pick what to download.</string>
+    <string name="best_configs_review_title">Review config</string>
+    <string name="best_configs_review_subtitle">Heads up before applying — some items can\'t be auto-installed. Tap Apply to import anyway.</string>
+    <string name="best_configs_import_apply_now">Apply</string>
+    <string name="best_configs_import_analyzing">Checking your device…</string>
+    <string name="best_configs_import_applying">Applying config…</string>
+    <string name="best_configs_import_downloading">Downloading…</string>
+    <string name="best_configs_import_downloading_subtitle">If something fails, tap Retry on that row, or apply what\'s already installed.</string>
+    <string name="best_configs_import_download">Download &amp; apply</string>
+    <string name="best_configs_import_apply_available_only">Apply available</string>
+    <string name="best_configs_import_retry">Retry</string>
+    <string name="best_configs_import_failed">Import failed</string>
+    <string name="best_configs_import_status_installed">Already installed</string>
+    <string name="best_configs_import_status_available">Available — tap to select</string>
+    <string name="best_configs_import_status_substitute">Latest available → %1$s</string>
+    <string name="best_configs_import_status_queued">Queued…</string>
+    <string name="best_configs_import_status_downloading">Downloading %1$s</string>
+    <string name="best_configs_import_status_installing">Installing…</string>
+    <string name="best_configs_import_status_done">Done</string>
+    <string name="best_configs_import_arch_mismatch">This config targets %1$s; this container is %2$s. The game may not launch — consider creating a new container for the imported Wine version before launching.</string>
+    <string name="best_configs_import_pick_file">Pick a config file (.json)</string>
+
+    <!-- Performance recording settings -->
+    <string name="settings_hud_record_to_file_title">Record performance to file</string>
+    <string name="settings_hud_record_to_file_summary">Write per-second FPS, CPU, GPU, temperature, and battery metrics to /WinNative/logs/ during gameplay.</string>
+    <string name="settings_leaderboard_category">Performance</string>
 </resources>

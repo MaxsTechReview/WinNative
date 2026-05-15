@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Replace this with your actual Play Games App ID (12-digit number) from the Google Play Console! -->
+    <!-- Still used by CloudSyncManager for Google Play Games-backed Save Game sync. -->
     <string name="play_games_app_id" translatable="false">468699745768</string>
 </resources>

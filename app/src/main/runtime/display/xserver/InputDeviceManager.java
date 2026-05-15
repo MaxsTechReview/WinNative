@@ -238,6 +238,8 @@ public class InputDeviceManager
   @Override
   public void onPointerMove(short x, short y) {
     updatePointWindow();
+    if (xServer.isRelativeMouseMovement()) return;
+
     Bitmask eventMask = createPointerEventMask();
     Window grabWindow = xServer.grabManager.getWindow();
     Window window =
