@@ -137,6 +137,10 @@ class PluviaApp : Application() {
                 runCatching { PluviaDatabase.init(this@PluviaApp) }
                     .onFailure { Log.e("PluviaApp", "Database warmup failed", it) }
 
+                runCatching {
+                    com.winlator.cmod.feature.configs.SupabaseClient.init(this@PluviaApp)
+                }.onFailure { Log.e("PluviaApp", "SupabaseClient init failed", it) }
+
                 // Initialize the cross-store DownloadCoordinator and auto-resume any
                 // downloads that were running when the app was killed. PAUSED downloads
                 // stay PAUSED; DOWNLOADING ones are demoted to QUEUED and dispatched as

@@ -3,6 +3,7 @@ agp = "8.8.0"
 kotlin = "2.1.10"
 ksp = "2.1.10-1.0.31"
 hilt = "2.55"
+hiltNavigationCompose = "1.2.0"
 okhttp = "4.12.0"
 serializationJson = "1.8.0"
 jwtDecode = "2.0.2"
@@ -48,6 +49,7 @@ jwtDecode = { module = "com.auth0.android:jwtdecode", version.ref = "jwtDecode" 
 securityCrypto = { module = "androidx.security:security-crypto", version.ref = "securityCrypto" }
 hiltAndroid = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hiltCompiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hilt" }
+hiltNavigationCompose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 roomKtx = { module = "androidx.room:room-ktx", version.ref = "room" }
 roomRuntime = { module = "androidx.room:room-runtime", version.ref = "room" }
 roomCompiler = { module = "androidx.room:room-compiler", version.ref = "room" }

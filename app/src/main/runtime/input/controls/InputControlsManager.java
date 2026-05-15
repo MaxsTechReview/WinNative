@@ -26,10 +26,32 @@ import org.json.JSONObject;
 
 public class InputControlsManager {
   private static final int ASSET_PROFILE_SYNC_REVISION = 3;
+  /** Profile IDs at or below this value were shipped as read-only built-ins (assets/inputcontrols/profiles/controls-*.icp).
+   * Edits to one of these always go through a duplicate first so the original layout stays pristine. */
+  public static final int LAST_BUILTIN_PROFILE_ID = 6;
+  /** Asset profile ID that holds the canonical "Virtual Gamepad" layout (controls-3.icp).
+   * Used as the post-migration target when legacy Xbox/PS profiles are converted to label themes. */
+  public static final int VIRTUAL_GAMEPAD_BUILTIN_ID = 3;
+  /** Legacy Playstation Controller asset profile (controls-4.icp) — superseded by LabelTheme.PLAYSTATION. */
+  public static final int LEGACY_PS_PROFILE_ID = 4;
+  /** Legacy Xbox Controller asset profile (controls-5.icp) — superseded by LabelTheme.XBOX. */
+  public static final int LEGACY_XBOX_PROFILE_ID = 5;
+
   private final Context context;
   private ArrayList<ControlsProfile> profiles;
   private int maxProfileId;
   private boolean profilesLoaded = false;
+
+  public static boolean isBuiltinProfile(ControlsProfile profile) {
+    return profile != null && profile.id <= LAST_BUILTIN_PROFILE_ID;
+  }
+
+  /** Returns true for asset profiles whose role is now covered by a LabelTheme — these should be
+   * hidden from the user-facing profile picker so the new flow stays uncluttered. */
+  public static boolean isLegacyLabelOnlyProfile(ControlsProfile profile) {
+    if (profile == null) return false;
+    return profile.id == LEGACY_PS_PROFILE_ID || profile.id == LEGACY_XBOX_PROFILE_ID;
+  }
 
   public InputControlsManager(Context context) {
     this.context = context;
