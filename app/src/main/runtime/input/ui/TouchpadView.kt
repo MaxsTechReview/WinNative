@@ -287,7 +287,7 @@ class TouchpadView(
     private fun handleTouchpadEvent(event: MotionEvent): Boolean {
         val actionIndex = event.actionIndex
         val pointerId = event.getPointerId(actionIndex)
-        if (pointerId >= MAX_FINGERS || pointerIdsToIgnore.contains(pointerId)) return true
+        if (event.actionMasked != MotionEvent.ACTION_MOVE && (pointerId >= MAX_FINGERS || pointerIdsToIgnore.contains(pointerId))) return true
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
@@ -394,7 +394,7 @@ class TouchpadView(
     private fun handleTouchscreenEvent(event: MotionEvent): Boolean {
         val actionIndex = event.actionIndex
         val pointerId = event.getPointerId(actionIndex)
-        if (pointerId >= MAX_FINGERS || pointerIdsToIgnore.contains(pointerId)) return true
+        if (event.actionMasked != MotionEvent.ACTION_MOVE && (pointerId >= MAX_FINGERS || pointerIdsToIgnore.contains(pointerId))) return true
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
