@@ -389,9 +389,13 @@ object ConfigImportDetector {
         val reqSignature = extractSignature(token)
         val match = candidates
             .filter { p ->
-                val cv = NUMERIC_VERSION_ANYWHERE.find(p.verName)?.value
+                // Try BOTH raw and normalized verName so catalog `Dxvk-2.4.1-pre-reg`
+                // matches a request that doesn't carry the `Dxvk-` prefix.
+                val normalized = normalizeVerName(p.verName, p.type)
+                val cv = NUMERIC_VERSION_ANYWHERE.find(normalized)?.value
+                    ?: NUMERIC_VERSION_ANYWHERE.find(p.verName)?.value
                 if (cv == null || !cv.equals(tokenVersion, ignoreCase = true)) return@filter false
-                signatureMatches(reqSignature, extractSignature(p.verName))
+                signatureMatches(reqSignature, extractSignature(normalized))
             }
             .maxByOrNull { it.verCode }
             ?: run {
@@ -445,12 +449,25 @@ object ConfigImportDetector {
                 (!mustBeNightly || p.verName.contains("nightly", ignoreCase = true))
         }
 
-        // 1. exact verName + verCode pair.
+        // Pre-compute normalized verNames once (strips `Dxvk-` / `Vkd3d-` /
+        // etc. prefix) so the peel's startsWith logic doesn't have to care
+        // about the catalog's mixed naming convention.
+        val normalized: List<Pair<ContentProfile, String>> = filtered.map { p ->
+            p to normalizeVerName(p.verName, p.type)
+        }
+
+        // 1. exact verName + verCode pair (against both raw and normalized).
         filtered.firstOrNull { p ->
             "${p.verName}-${p.verCode}".equals(token, ignoreCase = true)
         }?.let {
             android.util.Log.d(TAG, "findProfileWithFallback: exact verName-verCode match for '$token' → ${it.verName}-${it.verCode}")
             return it to false
+        }
+        normalized.firstOrNull { pair ->
+            "${pair.second}-${pair.first.verCode}".equals(token, ignoreCase = true)
+        }?.let { (p, _) ->
+            android.util.Log.d(TAG, "findProfileWithFallback: exact normalized-verName-verCode match for '$token' → ${p.verName}-${p.verCode}")
+            return p to false
         }
 
         // Strip any trailing "-<digits>" to get the bare verName.
@@ -459,20 +476,24 @@ object ConfigImportDetector {
             token.removeRange(trailingDigits.range)
         } else token
 
-        // 2. exact verName, any verCode (pick newest).
-        filtered.filter { it.verName.equals(bareVerName, ignoreCase = true) }
-            .maxByOrNull { it.verCode }
-            ?.let {
-                android.util.Log.d(TAG, "findProfileWithFallback: exact verName match for '$bareVerName' → ${it.verName}-${it.verCode}")
-                return it to false
+        // 2. exact verName, any verCode (pick newest). Try both raw and
+        // normalized verName so a catalog `Dxvk-2.4.1-pre-reg` matches a
+        // request token of just `2.4.1-pre-reg` (and vice versa).
+        normalized
+            .filter { (p, n) ->
+                p.verName.equals(bareVerName, ignoreCase = true) ||
+                    n.equals(bareVerName, ignoreCase = true)
+            }
+            .maxByOrNull { it.first.verCode }
+            ?.let { (p, _) ->
+                android.util.Log.d(TAG, "findProfileWithFallback: exact verName match for '$bareVerName' → ${p.verName}-${p.verCode}")
+                return p to false
             }
 
-        // 3. Progressive prefix peel — but only accept candidates whose
-        // (arch, variants) signature matches the request. See extractSignature
-        // for the rules. Without this filter the peel walks down to a bare
-        // numeric version like `2.4.1` and grabs ANY sibling at that level,
-        // including ones with a different arch or missing/extra variant
-        // tokens — which the original test scenario blew up on.
+        // 3. Progressive prefix peel — only accept candidates whose
+        // (arch, variants) signature is compatible with the request (see
+        // signatureMatches for the leniency rules). Match against the
+        // normalized verName so catalog type-prefixes don't hide siblings.
         val reqSignature = extractSignature(token)
         var stem = bareVerName
         while (true) {
@@ -480,13 +501,16 @@ object ConfigImportDetector {
             if (lastDash <= 0) break
             stem = stem.substring(0, lastDash)
             val nextStem = "$stem-"
-            val match = filtered
-                .filter { p ->
-                    val nameMatches = p.verName.equals(stem, ignoreCase = true) ||
+            val match = normalized
+                .filter { (p, n) ->
+                    val nameMatches = n.equals(stem, ignoreCase = true) ||
+                        n.startsWith(nextStem, ignoreCase = true) ||
+                        p.verName.equals(stem, ignoreCase = true) ||
                         p.verName.startsWith(nextStem, ignoreCase = true)
                     nameMatches && signatureMatches(reqSignature, extractSignature(p.verName))
                 }
-                .maxByOrNull { it.verCode }
+                .maxByOrNull { it.first.verCode }
+                ?.first
             if (match != null) {
                 android.util.Log.d(TAG, "findProfileWithFallback: peel match for '$token' (stem '$stem') → ${match.verName}-${match.verCode}")
                 return match to true
@@ -566,10 +590,47 @@ object ConfigImportDetector {
         return arch to variants
     }
 
+    /**
+     * Compatibility check between a request signature and a candidate
+     * signature. The rules are tuned for the in-the-wild catalog where
+     * naming is inconsistent (some entries are `Dxvk-X`, others bare `X`,
+     * some carry every variant tag, others omit them).
+     *
+     *  - **Arch**: null on either side acts as a wildcard — the request
+     *    saying "no arch tag" doesn't preclude an arch-tagged candidate
+     *    (and vice versa). Only two *different* non-null arch tags
+     *    reject; e.g. arm64ec vs x86_64.
+     *  - **Variants**: one side's variant set must be a subset of the
+     *    other's. This lets a request that includes `gplasync` accept a
+     *    candidate that doesn't — same DXVK build, slightly different
+     *    naming. The classic dx-vk-only catalog entry `Dxvk-2.4.1-pre-reg`
+     *    (variants `{pre, reg}`) now matches a community request
+     *    `2.4.1-gplasync-pre-reg` (variants `{gplasync, pre, reg}`).
+     *    Strictly-disjoint sets (e.g. `{gplasync}` vs `{async}`) still
+     *    reject because neither is a subset of the other.
+     */
     private fun signatureMatches(
         req: Pair<String?, Set<String>>,
         cand: Pair<String?, Set<String>>,
-    ): Boolean = req.first == cand.first && req.second == cand.second
+    ): Boolean {
+        val archOk = req.first == null || cand.first == null || req.first == cand.first
+        if (!archOk) return false
+        return req.second.containsAll(cand.second) || cand.second.containsAll(req.second)
+    }
+
+    /**
+     * Strip the lowercased ContentType prefix from a candidate verName so
+     * the peel's `startsWith` checks work uniformly across the catalog's
+     * mixed naming convention. Catalog entries like `Dxvk-2.4.1-pre-reg`
+     * become `2.4.1-pre-reg` and line up with shortcut tokens that never
+     * carry the type prefix.
+     */
+    private fun normalizeVerName(verName: String, type: ContentProfile.ContentType): String {
+        val prefix = "${type.toString().lowercase()}-"
+        return if (verName.lowercase().startsWith(prefix)) {
+            verName.substring(prefix.length)
+        } else verName
+    }
 
     /**
      * Captures the "extended version" of an identifier — the leading numeric
