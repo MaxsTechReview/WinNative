@@ -287,7 +287,7 @@ class TouchpadView(
     private fun handleTouchpadEvent(event: MotionEvent): Boolean {
         val actionIndex = event.actionIndex
         val pointerId = event.getPointerId(actionIndex)
-        if (pointerId >= MAX_FINGERS || pointerIdsToIgnore.contains(pointerId)) return true
+        if (event.actionMasked != MotionEvent.ACTION_MOVE && (pointerId >= MAX_FINGERS || pointerIdsToIgnore.contains(pointerId))) return true
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
@@ -394,7 +394,7 @@ class TouchpadView(
     private fun handleTouchscreenEvent(event: MotionEvent): Boolean {
         val actionIndex = event.actionIndex
         val pointerId = event.getPointerId(actionIndex)
-        if (pointerId >= MAX_FINGERS || pointerIdsToIgnore.contains(pointerId)) return true
+        if (event.actionMasked != MotionEvent.ACTION_MOVE && (pointerId >= MAX_FINGERS || pointerIdsToIgnore.contains(pointerId))) return true
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
@@ -459,7 +459,8 @@ class TouchpadView(
     }
 
     private fun handleTouchDown(event: MotionEvent) {
-        val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
+        val actionIndex = event.actionIndex
+        val transformedPoint = XForm.transformPoint(xform, event.getX(actionIndex), event.getY(actionIndex))
         if (xServer.isRelativeMouseMovement) {
             xServer.updatePointerForDisplay(transformedPoint[0].toInt(), transformedPoint[1].toInt())
             xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
@@ -473,8 +474,13 @@ class TouchpadView(
     }
 
     private fun handleTouchMove(event: MotionEvent) {
+        val fingerIdx = fingers.indexOfFirst { it != null }
+        if (fingerIdx < 0) return
+        val pIdx = event.findPointerIndex(fingerIdx)
+        if (pIdx < 0) return
+
         // FIX: Only cancel hold-to-right-click timer if movement exceeds threshold
-        if (fingers[0]?.let { it.travelDistance() >= MAX_TAP_TRAVEL_DISTANCE } == true) {
+        if (fingers[fingerIdx]?.let { it.travelDistance() >= MAX_TAP_TRAVEL_DISTANCE } == true) {
             longPressHandler.removeCallbacks(longPressRunnable)
         } else if (numFingers.toInt() == 1 && !longPressActive) {
             // Restart timer if we are within the threshold
@@ -482,7 +488,7 @@ class TouchpadView(
             longPressHandler.postDelayed(longPressRunnable, LONG_PRESS_RIGHT_CLICK_MS)
         }
 
-        val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
+        val transformedPoint = XForm.transformPoint(xform, event.getX(pIdx), event.getY(pIdx))
         if (xServer.isRelativeMouseMovement) {
             xServer.updatePointerForDisplay(transformedPoint[0].toInt(), transformedPoint[1].toInt())
             xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
