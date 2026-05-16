@@ -248,6 +248,12 @@ class BestConfigsViewModel @Inject constructor(
      * the row-level Import button uses. Nothing is uploaded to Supabase.
      */
     fun importPreviewedConfig(json: org.json.JSONObject, onResult: (String) -> Unit) {
+        android.util.Log.d(
+            "BestConfigsImport",
+            "importPreviewedConfig: gameSource=$gameSource gameId=$gameId " +
+                "containerKeys=${json.optJSONObject("container")?.keys()?.asSequence()?.toList()?.sorted()} " +
+                "shortcutExtraKeys=${json.optJSONObject("shortcutExtras")?.keys()?.asSequence()?.toList()?.sorted()}",
+        )
         viewModelScope.launch {
             val match = withContext(Dispatchers.IO) {
                 runCatching {
@@ -261,14 +267,17 @@ class BestConfigsViewModel @Inject constructor(
                 }.getOrNull()
             }
             if (match == null) {
+                android.util.Log.w("BestConfigsImport", "importPreviewedConfig: no shortcut found")
                 onResult("No shortcut found for ${gameName}. Open Settings once to create one, then try again.")
                 return@launch
             }
             val container = match.container
             if (container == null) {
+                android.util.Log.w("BestConfigsImport", "importPreviewedConfig: shortcut has no container")
                 onResult("Shortcut has no container; cannot apply settings.")
                 return@launch
             }
+            android.util.Log.d("BestConfigsImport", "importPreviewedConfig: dispatching to coordinator.start (shortcut=${match.name})")
             importCoordinator.start(json, container, match, onResult)
         }
     }

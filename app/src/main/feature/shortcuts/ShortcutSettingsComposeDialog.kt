@@ -2609,6 +2609,12 @@ class ShortcutSettingsComposeDialog private constructor(
             merged.put("shortcutExtras", shortcutExtras)
             merged
         }.onSuccess { json ->
+            Log.d(
+                "BestConfigsImport",
+                "handlePreviewImport: merged JSON dispatched — " +
+                    "container=${json.optJSONObject("container")?.keys()?.asSequence()?.toList()?.sorted()} " +
+                    "shortcutExtras=${json.optJSONObject("shortcutExtras")?.keys()?.asSequence()?.toList()?.sorted()}",
+            )
             dismiss()
             mode.onImport(json)
         }.onFailure { ex ->

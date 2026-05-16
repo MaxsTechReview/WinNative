@@ -30,6 +30,15 @@ object ConfigImportDetector {
         contentsManager: ContentsManager,
         driverCandidates: List<DriverAssetCandidate> = emptyList(),
     ): List<RequirementEntry> {
+        // Log the effective values the detector is about to act on. Visible in
+        // adb logcat regardless of Timber being planted, so a missing-dialog
+        // bug report is debuggable from the user's log alone.
+        android.util.Log.d(
+            TAG,
+            "detect: containerKeys=${configJson.optJSONObject("container")?.keys()?.asSequence()?.toList()?.sorted()} " +
+                "shortcutExtraKeys=${configJson.optJSONObject("shortcutExtras")?.keys()?.asSequence()?.toList()?.sorted()} " +
+                "driverCandidates=${driverCandidates.size}",
+        )
         // Look up the effective value of a config key across the two blocks the
         // serializer writes: per-shortcut override (`shortcutExtras`) wins over
         // container default (`container`). Without this merge, a community
@@ -170,6 +179,17 @@ object ConfigImportDetector {
             )
         }
 
+        // Per-requirement summary — what each component resolved to. This is
+        // the line to grep for in logcat to confirm whether the dialog SHOULD
+        // surface a download row (Available / AvailableDriver / Unavailable
+        // count as user-actionable).
+        results.forEach { e ->
+            val resName = e.resolution::class.java.simpleName
+            android.util.Log.d(
+                TAG,
+                "detect: ${e.requirement.id}='${e.requirement.identifier}' → $resName",
+            )
+        }
         return results
     }
 
@@ -366,18 +386,24 @@ object ConfigImportDetector {
     ): Pair<ContentProfile, Boolean>? {
         val tokenVersion = NUMERIC_VERSION_ANYWHERE.find(token)?.value ?: return null
         if (tokenVersion.isBlank()) return null
+        val reqSignature = extractSignature(token)
         val match = candidates
             .filter { p ->
                 val cv = NUMERIC_VERSION_ANYWHERE.find(p.verName)?.value
-                cv != null && cv.equals(tokenVersion, ignoreCase = true)
+                if (cv == null || !cv.equals(tokenVersion, ignoreCase = true)) return@filter false
+                signatureMatches(reqSignature, extractSignature(p.verName))
             }
             .maxByOrNull { it.verCode }
-            ?: return null
+            ?: run {
+                android.util.Log.d(TAG, "matchByNumericVersion: no signature-compatible match for '$token' (sig=$reqSignature) — ${candidates.size} candidates")
+                return null
+            }
         val tokenBare = TRAILING_DIGITS_REGEX
             .find(token)
             ?.let { token.removeRange(it.range) }
             ?: token
         val substituted = !match.verName.equals(tokenBare, ignoreCase = true)
+        android.util.Log.d(TAG, "matchByNumericVersion: '$token' → ${match.verName}-${match.verCode} (substituted=$substituted)")
         return match to substituted
     }
 
@@ -388,14 +414,21 @@ object ConfigImportDetector {
      *  1. Exact (verName + "-" + verCode) — when the token carries a trailing
      *     `-<digits>` and matches a stored profile perfectly.
      *  2. Exact verName, any verCode — picks newest verCode among matches.
-     *  3. Prefix peel: drop the last hyphen-separated segment, search for any
-     *     profile whose verName equals the new stem OR begins with `<stem>-`,
-     *     pick newest verCode. Repeat until a match is found or no dashes left.
+     *  3. Prefix peel with **signature lock**: drop the last hyphen-separated
+     *     segment of the token, search for any profile whose verName equals
+     *     the new stem OR begins with `<stem>-`, but ALSO has a matching
+     *     `(arch, variants)` signature — same arch tag (or both none) and the
+     *     same set of recognised variant tokens (gplasync / async / pre / reg
+     *     / nightly / etc.). This stops the peel from silently substituting,
+     *     say, the request `2.4.1-gplasync-pre-reg` with a locally-installed
+     *     `2.4.1-1-gplasync-arm64ec-pre-reg` (different arch) or a catalog
+     *     `Dxvk-2.4.1-pre-reg` (missing the gplasync variant).
      *
      * Returns (profile, substituted) — `substituted = true` for anything found
-     * via the peel-back path, so the UI can flag the substitution. Nightly builds
-     * like `2.4.1-nightly-abc123` end up matching the latest `2.4.1-nightly-*`
-     * even when the literal hash isn't in the catalog anymore.
+     * via the peel-back path, so the UI can flag the substitution. Nightly
+     * builds with random alphanumeric build hashes (`2.4.1-nightly-abc123`)
+     * still match the latest sibling because hash tokens aren't part of the
+     * variant whitelist.
      */
     private fun findProfileWithFallback(
         candidates: List<ContentProfile>,
@@ -415,7 +448,10 @@ object ConfigImportDetector {
         // 1. exact verName + verCode pair.
         filtered.firstOrNull { p ->
             "${p.verName}-${p.verCode}".equals(token, ignoreCase = true)
-        }?.let { return it to false }
+        }?.let {
+            android.util.Log.d(TAG, "findProfileWithFallback: exact verName-verCode match for '$token' → ${it.verName}-${it.verCode}")
+            return it to false
+        }
 
         // Strip any trailing "-<digits>" to get the bare verName.
         val trailingDigits = TRAILING_DIGITS_REGEX.find(token)
@@ -426,9 +462,18 @@ object ConfigImportDetector {
         // 2. exact verName, any verCode (pick newest).
         filtered.filter { it.verName.equals(bareVerName, ignoreCase = true) }
             .maxByOrNull { it.verCode }
-            ?.let { return it to false }
+            ?.let {
+                android.util.Log.d(TAG, "findProfileWithFallback: exact verName match for '$bareVerName' → ${it.verName}-${it.verCode}")
+                return it to false
+            }
 
-        // 3. Progressive prefix peel.
+        // 3. Progressive prefix peel — but only accept candidates whose
+        // (arch, variants) signature matches the request. See extractSignature
+        // for the rules. Without this filter the peel walks down to a bare
+        // numeric version like `2.4.1` and grabs ANY sibling at that level,
+        // including ones with a different arch or missing/extra variant
+        // tokens — which the original test scenario blew up on.
+        val reqSignature = extractSignature(token)
         var stem = bareVerName
         while (true) {
             val lastDash = stem.lastIndexOf('-')
@@ -437,12 +482,17 @@ object ConfigImportDetector {
             val nextStem = "$stem-"
             val match = filtered
                 .filter { p ->
-                    p.verName.equals(stem, ignoreCase = true) ||
+                    val nameMatches = p.verName.equals(stem, ignoreCase = true) ||
                         p.verName.startsWith(nextStem, ignoreCase = true)
+                    nameMatches && signatureMatches(reqSignature, extractSignature(p.verName))
                 }
                 .maxByOrNull { it.verCode }
-            if (match != null) return match to true
+            if (match != null) {
+                android.util.Log.d(TAG, "findProfileWithFallback: peel match for '$token' (stem '$stem') → ${match.verName}-${match.verCode}")
+                return match to true
+            }
         }
+        android.util.Log.d(TAG, "findProfileWithFallback: no match for '$token' (sig=${reqSignature}); ${filtered.size} candidates")
         return null
     }
 
@@ -463,6 +513,63 @@ object ConfigImportDetector {
 
     private val TRAILING_DIGITS_REGEX = Regex("-\\d+$")
     private val WINE_ARCH_TAIL = Regex("(?i)-(x86_64|arm64ec|x86)$")
+
+    /**
+     * Known architecture markers in component identifiers. Treated as a hard
+     * constraint when matching: if the request specifies an arch, the
+     * candidate must specify the same one (and vice versa — a request
+     * without an arch tag will NOT match a candidate that has one, because
+     * arch-tagged builds are not arch-agnostic).
+     */
+    private val ARCH_TOKENS = setOf(
+        "arm", "arm64", "arm64ec", "x86", "x86_64", "i686",
+    )
+
+    /**
+     * Known variant tokens. Used to distinguish meaningful behavioural
+     * differences (gplasync vs async, pre-reg, nightly, fsync, etc.) from
+     * random build hashes (e.g. `60978eb9`, `aaffggs`). A candidate matches
+     * a request iff their variant *sets* (intersection of identifier tokens
+     * with this whitelist) are equal. Anything not on the list is treated
+     * as a build hash and ignored — so an old nightly hash naturally falls
+     * forward to the newest sibling with the same variant signature.
+     */
+    private val VARIANT_TOKENS = setOf(
+        "gplasync", "async",
+        "pre", "reg", "nightly",
+        "fsync", "ntsync",
+        "sarek", "stripped",
+        "ge", "be",
+        "denuvo", "fix", "tfix",
+        "special", "tilting", "coffincolors",
+        "ref4ik", "bionic", "wow",
+        "g", "d8",
+    )
+
+    /**
+     * (arch?, variantSet) signature for a component identifier. Used by
+     * [signatureMatches] to gate peel-back / numeric-version substitutions
+     * so they don't silently swap variants or archs.
+     */
+    private fun extractSignature(identifier: String): Pair<String?, Set<String>> {
+        var arch: String? = null
+        val variants = mutableSetOf<String>()
+        for (raw in identifier.split('-')) {
+            val token = raw.lowercase()
+            when {
+                token.isEmpty() -> Unit
+                token in ARCH_TOKENS -> arch = token
+                token in VARIANT_TOKENS -> variants += token
+                else -> Unit // build hash / version / verCode / type prefix
+            }
+        }
+        return arch to variants
+    }
+
+    private fun signatureMatches(
+        req: Pair<String?, Set<String>>,
+        cand: Pair<String?, Set<String>>,
+    ): Boolean = req.first == cand.first && req.second == cand.second
 
     /**
      * Captures the "extended version" of an identifier — the leading numeric

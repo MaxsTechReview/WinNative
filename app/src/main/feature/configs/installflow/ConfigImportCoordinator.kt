@@ -93,6 +93,11 @@ class ConfigImportCoordinator(private val appContext: Context) {
         shortcut: Shortcut?,
         onResult: (String) -> Unit,
     ) {
+        android.util.Log.d(
+            TAG,
+            "start: state=${_state.value::class.simpleName} " +
+                "shortcut=${shortcut?.name} container=${container?.name}",
+        )
         // Allow start() from Idle (first run) and from the terminal states
         // (Done / Failed) so the user can re-apply the same community config
         // without having to dismiss + re-open the screen. We only block when
@@ -257,6 +262,13 @@ class ConfigImportCoordinator(private val appContext: Context) {
                 manager,
                 driverCandidates,
             )
+            android.util.Log.d(
+                TAG,
+                "runAnalysis: detected ${entries.size} requirements, " +
+                    "available=${entries.count { it.resolution is RequirementResolution.Available || it.resolution is RequirementResolution.AvailableDriver }} " +
+                    "unavailable=${entries.count { it.resolution is RequirementResolution.Unavailable }} " +
+                    "installed=${entries.count { it.resolution is RequirementResolution.Installed }}",
+            )
             val arch = computeArchMismatch(s.configJson, s.container)
 
             // Available + AvailableDriver rows are user-actionable (they have a
@@ -287,10 +299,12 @@ class ConfigImportCoordinator(private val appContext: Context) {
                 // nothing the user can do from a dialog, so just apply directly. The
                 // result message will mention any Unsupported-driver notes via the
                 // serializer's warning list.
+                android.util.Log.d(TAG, "runAnalysis: no user decision needed → applying directly")
                 _state.value = ImportState.Applying
                 applyConfig(emptySet())
                 return
             }
+            android.util.Log.d(TAG, "runAnalysis: user decision needed → ChoosingComponents")
 
             val defaultSelected = entries
                 .filter {
