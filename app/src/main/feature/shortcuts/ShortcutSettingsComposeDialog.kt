@@ -2555,19 +2555,27 @@ class ShortcutSettingsComposeDialog private constructor(
      *
      *   1. Start from [mode.originalJson] — the verbatim community config
      *      that originally fed Preview. Its `container` block carries the
-     *      community values (screenSize / graphicsDriver / wineVersion /
-     *      dxwrapperConfig / box64Version / etc.) as the *source of truth*.
-     *      Re-exporting via ConfigSerializer.exportToJson would lose them —
-     *      that function reads container fields from the local Container
-     *      instance, which holds the device's defaults, NOT the community
-     *      values; applying the result on the real shortcut wrote the
-     *      device defaults back as overrides and masked the community
-     *      values that *should* have come through.
+     *      uploader's container values (kept intact so type/version etc.
+     *      remain visible to the detector and apply step).
      *   2. Flush the dialog state into the throwaway previewShortcut (no
      *      disk write) so any tweaks the user made show up in extras.
-     *   3. Replace the merged JSON's `shortcutExtras` block with the
-     *      previewShortcut's extras, so user tweaks land as overrides on
-     *      top of the community container values.
+     *   3. Build `shortcutExtras` as a UNION of:
+     *        a. `previewShortcut.extras` populated by `saveSettings()` —
+     *           captures user edits AND community overrides that differ
+     *           from the local container.
+     *        b. `mode.originalJson.shortcutExtras` — restores any community
+     *           overrides that `saveOverride()` *cleared* because the state
+     *           value happened to match the **local** container default.
+     *
+     * The union step in (3b) is what makes the missing-components dialog
+     * fire reliably. Without it, a community config where the uploader had
+     * `container.dxwrapper="wined3d"` and `shortcutExtras.dxwrapper="dxvk"`
+     * would lose the `dxvk` override whenever the downloader's local
+     * container happened to default to `dxvk` too — saveOverride would clear
+     * the extra (state matches local container), the detector's effective()
+     * lookup would fall back to the uploader's `container.dxwrapper="wined3d"`,
+     * the DXVK gate would skip, no requirement would surface, and the dialog
+     * would never appear despite DXVK not being installed.
      *
      * No Supabase write happens here — Preview is local-apply only.
      */
@@ -2577,11 +2585,27 @@ class ShortcutSettingsComposeDialog private constructor(
             // Deep-copy the original payload so we don't mutate caller state.
             val merged = org.json.JSONObject(mode.originalJson.toString())
             val shortcutExtras = org.json.JSONObject()
+            // (3a) Pull values that survived saveSettings — these are either
+            // user edits or community overrides that differ from the local
+            // container.
             com.winlator.cmod.feature.configs.ConfigSerializer.shortcutOverrideKeys()
                 .forEach { key ->
                     val v = shortcut.getExtra(key)
                     if (!v.isNullOrEmpty()) shortcutExtras.put(key, v)
                 }
+            // (3b) Restore any community overrides that saveOverride cleared
+            // because the state value coincidentally matched the local
+            // container default. We only fill in keys NOT already in (3a),
+            // so the user's edits keep priority.
+            mode.originalJson.optJSONObject("shortcutExtras")?.let { original ->
+                val keys = original.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    if (shortcutExtras.has(key)) continue
+                    val v = original.optString(key, "")
+                    if (v.isNotEmpty()) shortcutExtras.put(key, v)
+                }
+            }
             merged.put("shortcutExtras", shortcutExtras)
             merged
         }.onSuccess { json ->
