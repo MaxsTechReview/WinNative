@@ -770,8 +770,8 @@ public class InputControlsView extends View {
                 }
               }
             }
-            if (!eventHandled) dispatchUnhandledTouch(event);
             syncCapturedPointers();
+            if (!eventHandled) dispatchUnhandledTouch(event);
             break;
           }
         case MotionEvent.ACTION_MOVE:
@@ -816,11 +816,10 @@ public class InputControlsView extends View {
               winHandler.sendGamepadState();
             }
 
-            if (unhandledPointerExists) dispatchUnhandledTouch(event);
             syncCapturedPointers();
+            if (unhandledPointerExists) dispatchUnhandledTouch(event);
             break;
-          }
-        case MotionEvent.ACTION_UP:
+            }        case MotionEvent.ACTION_UP:
         case MotionEvent.ACTION_POINTER_UP:
           {
             ControlElement activeElement = activeTouchElements.get(pointerId);
@@ -843,8 +842,8 @@ public class InputControlsView extends View {
                 }
               }
             }
-            if (!eventHandled) dispatchUnhandledTouch(event);
             syncCapturedPointers();
+            if (!eventHandled) dispatchUnhandledTouch(event);
             break;
           }
         case MotionEvent.ACTION_CANCEL:

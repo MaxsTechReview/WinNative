@@ -23,9 +23,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class ControlElement {
-  public static final float STICK_DEAD_ZONE = 0.05f;
+  public static final float STICK_DEAD_ZONE = 0.15f;
   public static final float DPAD_DEAD_ZONE = 0.3f;
-  public static final float STICK_SENSITIVITY = 2.0f;
+  public static final float STICK_SENSITIVITY = 3.0f;
+  public static final float STICK_CROSS_ZONE = 0.3f;
   public static final float TRACKPAD_MIN_SPEED = 0.8f;
   public static final float TRACKPAD_MAX_SPEED = 20.0f;
   public static final byte TRACKPAD_ACCELERATION_THRESHOLD = 4;
@@ -1498,11 +1499,13 @@ return boundingBox;
             this.states[i] = true;
           }
         } else {
+          float adjDeltaX = (Math.abs(deltaX) < Math.abs(deltaY) * STICK_CROSS_ZONE) ? 0 : deltaX;
+          float adjDeltaY = (Math.abs(deltaY) < Math.abs(deltaX) * STICK_CROSS_ZONE) ? 0 : deltaY;
           final boolean[] states = {
-            deltaY <= -STICK_DEAD_ZONE,
-            deltaX >= STICK_DEAD_ZONE,
-            deltaY >= STICK_DEAD_ZONE,
-            deltaX <= -STICK_DEAD_ZONE
+            adjDeltaY <= -STICK_DEAD_ZONE,
+            adjDeltaX >= STICK_DEAD_ZONE,
+            adjDeltaY >= STICK_DEAD_ZONE,
+            adjDeltaX <= -STICK_DEAD_ZONE
           };
 
           for (byte i = 0; i < 4; i++) {
