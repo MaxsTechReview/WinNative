@@ -2,6 +2,7 @@ package com.winlator.cmod.runtime.display.xserver.extensions;
 
 import static com.winlator.cmod.runtime.display.xserver.XClientRequestHandler.RESPONSE_CODE_SUCCESS;
 
+import android.util.Log;
 import com.winlator.cmod.runtime.display.connector.XConnectorEpoll;
 import com.winlator.cmod.runtime.display.connector.XInputStream;
 import com.winlator.cmod.runtime.display.connector.XOutputStream;
@@ -24,12 +25,15 @@ import com.winlator.cmod.shared.util.Callback;
 import com.winlator.cmod.sharedmemory.SysVSharedMemory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DRI3Extension implements Extension {
   public static final byte MAJOR_OPCODE = -102;
   private static final int MAX_BUFFERS = 4;
   // Mesa's Android WSI path uses this private modifier to pass an AHardwareBuffer socket.
   private static final long ANDROID_NATIVE_BUFFER_MODIFIER = 1255L;
+  private static final AtomicBoolean LOGGED_FROM_BUFFER = new AtomicBoolean();
+  private static final AtomicBoolean LOGGED_FROM_BUFFERS = new AtomicBoolean();
   private final Callback<Drawable> onDestroyDrawableListener =
       (drawable) -> {
         ByteBuffer data = drawable.getData();
@@ -65,15 +69,22 @@ public class DRI3Extension implements Extension {
 
   private void queryVersion(XClient client, XInputStream inputStream, XOutputStream outputStream)
       throws IOException, XRequestError {
-    inputStream.skip(8);
+    int clientMajor = inputStream.readInt();
+    int clientMinor = inputStream.readInt();
+    int major = 1;
+    int minor = 2;
+    if (clientMajor < major || (clientMajor == major && clientMinor < minor)) {
+      major = clientMajor;
+      minor = clientMinor;
+    }
 
     try (XStreamLock lock = outputStream.lock()) {
       outputStream.writeByte(RESPONSE_CODE_SUCCESS);
       outputStream.writeByte((byte) 0);
       outputStream.writeShort(client.getSequenceNumber());
       outputStream.writeInt(0);
-      outputStream.writeInt(1);
-      outputStream.writeInt(0);
+      outputStream.writeInt(major);
+      outputStream.writeInt(minor);
       outputStream.writePad(16);
     }
   }
@@ -115,6 +126,9 @@ public class DRI3Extension implements Extension {
 
     int fd = inputStream.getAncillaryFd();
     if (fd < 0) throw new BadAlloc();
+    if (LOGGED_FROM_BUFFER.compareAndSet(false, true)) {
+      Log.i("DRI3", "PixmapFromBuffer (SHM path) w=" + width + " h=" + height);
+    }
     pixmapFromFd(client, pixmapId, width, height, stride, 0, depth, bpp, fd, size);
     client.xServer.windowManager.triggerOnFramePresented(
         window, WindowManager.FrameSource.DRI3_BUFFER, 0);
@@ -151,9 +165,13 @@ public class DRI3Extension implements Extension {
     long size = (long) stride * height;
 
     try {
-      if (modifier == ANDROID_NATIVE_BUFFER_MODIFIER
-          && numBuffers == 1
-          && tryPixmapFromHardwareBuffer(client, pixmapId, width, height, depth, fds[0])) {
+      boolean ahbTried = modifier == ANDROID_NATIVE_BUFFER_MODIFIER && numBuffers == 1;
+      boolean ahbOk =
+          ahbTried && tryPixmapFromHardwareBuffer(client, pixmapId, width, height, depth, fds[0]);
+      if (LOGGED_FROM_BUFFERS.compareAndSet(false, true)) {
+        Log.i("DRI3", "PixmapFromBuffers mod=" + modifier + " n=" + numBuffers + " ahbOk=" + ahbOk);
+      }
+      if (ahbOk) {
         client.xServer.windowManager.triggerOnFramePresented(
             window, WindowManager.FrameSource.DRI3_BUFFER, 0);
         return;
