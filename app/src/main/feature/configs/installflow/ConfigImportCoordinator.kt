@@ -73,6 +73,17 @@ class ConfigImportCoordinator(private val appContext: Context) {
     private var workJob: Job? = null
 
     /**
+     * Per-import map of (requirement id → installed driver name) populated by
+     * [downloadAndInstallDriver] when the adrenotools install succeeds. Used
+     * by [applySubstitutions] to rewrite `graphicsDriverConfig.version` to the
+     * name the launcher will actually find on disk — without this rewrite, a
+     * substituted nightly (or any case-mismatched identifier) would land in
+     * the shortcut as the requested-but-uninstalled token and the launcher
+     * would fail to resolve the driver at game start.
+     */
+    private val driverInstallNames = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /**
      * Begin the analysis + download + apply pipeline. No-op if not in [ImportState.Idle].
      * [onResult] is invoked exactly once when the flow reaches a terminal state (Done/Failed).
      */
@@ -108,6 +119,7 @@ class ConfigImportCoordinator(private val appContext: Context) {
             return
         }
         session = Session(configJson, container, shortcut, mainSafeOnResult)
+        driverInstallNames.clear()
         _state.value = ImportState.Analyzing
         workJob = scope.launch { runAnalysis() }
     }
@@ -116,7 +128,12 @@ class ConfigImportCoordinator(private val appContext: Context) {
     fun toggleSelection(requirementId: String) {
         val current = _state.value as? ImportState.ChoosingComponents ?: return
         val entry = current.entries.firstOrNull { it.requirement.id == requirementId } ?: return
-        if (entry.resolution !is RequirementResolution.Available) return // unavailable rows aren't selectable
+        // Both Available (ContentsManager component) and AvailableDriver
+        // (adrenotools graphics-driver asset) rows are user-toggleable —
+        // anything we can actually download should accept a checkbox tap.
+        if (entry.resolution !is RequirementResolution.Available &&
+            entry.resolution !is RequirementResolution.AvailableDriver
+        ) return
         val nextSelected =
             if (requirementId in current.selectedIds) current.selectedIds - requirementId
             else current.selectedIds + requirementId
@@ -127,7 +144,9 @@ class ConfigImportCoordinator(private val appContext: Context) {
     fun confirmDownload() {
         val current = _state.value as? ImportState.ChoosingComponents ?: return
         val selectedEntries = current.entries.filter {
-            it.requirement.id in current.selectedIds && it.resolution is RequirementResolution.Available
+            it.requirement.id in current.selectedIds &&
+                (it.resolution is RequirementResolution.Available ||
+                    it.resolution is RequirementResolution.AvailableDriver)
         }
         if (selectedEntries.isEmpty()) {
             // Nothing selected → apply available only
@@ -175,6 +194,7 @@ class ConfigImportCoordinator(private val appContext: Context) {
         scope.coroutineContext.cancelChildren()
         if (!terminalAlready) session?.onResult?.invoke("Import cancelled.")
         session = null
+        driverInstallNames.clear()
         _state.value = ImportState.Idle
     }
 
@@ -206,13 +226,31 @@ class ConfigImportCoordinator(private val appContext: Context) {
             withContext(Dispatchers.IO) { manager.setRemoteProfiles(catalogJson) }
             withContext(Dispatchers.IO) { manager.syncContents() }
 
-            val entries = ConfigImportDetector.detect(appContext, s.configJson, manager)
+            // Best-effort: fetch the graphics-driver GitHub release listings so
+            // the detector can resolve a custom Turnip / Adreno-Tools driver
+            // referenced in the config without falling back to "Unsupported".
+            // Failure is non-fatal — the detector treats an empty list as "no
+            // driver repos configured" and surfaces an actionable message.
+            val driverCandidates = withContext(Dispatchers.IO) {
+                runCatching { GraphicsDriverRepoLookup.fetchAllCandidates(appContext) }
+                    .getOrDefault(emptyList())
+            }
+
+            val entries = ConfigImportDetector.detect(
+                appContext,
+                s.configJson,
+                manager,
+                driverCandidates,
+            )
             val arch = computeArchMismatch(s.configJson, s.container)
 
-            // Only Available rows are user-actionable — they have download buttons.
-            // Unsupported rows (graphics drivers) are informational; Unavailable
-            // rows are catalog misses the user should at least *see* before apply.
-            val anyAvailable = entries.any { it.resolution is RequirementResolution.Available }
+            // Available + AvailableDriver rows are user-actionable (they have a
+            // download URL we can hit). Unsupported rows are informational;
+            // Unavailable rows are catalog misses the user should still see.
+            val anyAvailable = entries.any {
+                it.resolution is RequirementResolution.Available ||
+                    it.resolution is RequirementResolution.AvailableDriver
+            }
             val anyUnavailable = entries.any { it.resolution is RequirementResolution.Unavailable }
             val needsUserDecision = anyAvailable || anyUnavailable || arch != null
 
@@ -240,7 +278,10 @@ class ConfigImportCoordinator(private val appContext: Context) {
             }
 
             val defaultSelected = entries
-                .filter { it.resolution is RequirementResolution.Available }
+                .filter {
+                    it.resolution is RequirementResolution.Available ||
+                        it.resolution is RequirementResolution.AvailableDriver
+                }
                 .map { it.requirement.id }
                 .toSet()
             _state.value = ImportState.ChoosingComponents(entries, defaultSelected, arch)
@@ -265,12 +306,13 @@ class ConfigImportCoordinator(private val appContext: Context) {
                 entries.map { entry ->
                     async(Dispatchers.IO) {
                         val req = entry.requirement
-                        val profile = (entry.resolution as? RequirementResolution.Available)?.profile
-                            ?: run {
-                                updateRow(req.id, RowState.Failed("Not available"))
-                                return@async
-                            }
-                        downloadAndInstall(manager, req, profile)
+                        when (val res = entry.resolution) {
+                            is RequirementResolution.Available ->
+                                downloadAndInstall(manager, req, res.profile)
+                            is RequirementResolution.AvailableDriver ->
+                                downloadAndInstallDriver(req, res)
+                            else -> updateRow(req.id, RowState.Failed("Not available"))
+                        }
                     }
                 }.awaitAll()
             }
@@ -336,6 +378,59 @@ class ConfigImportCoordinator(private val appContext: Context) {
     }
 
     /**
+     * Mirror of [downloadAndInstall] for graphics-driver assets fetched from a
+     * GitHub release repo. Uses [Downloader.downloadFile] (same downloader the
+     * Drivers screen calls) and routes the resulting zip through
+     * [com.winlator.cmod.runtime.content.AdrenotoolsManager.installDriver] so
+     * the driver lands in the same on-disk layout as a hand-installed one.
+     */
+    private suspend fun downloadAndInstallDriver(
+        req: ComponentRequirement,
+        available: RequirementResolution.AvailableDriver,
+    ) {
+        updateRow(req.id, RowState.Downloading(null))
+        val safeAssetName = available.assetName
+            .replace(Regex("[^A-Za-z0-9._-]"), "_")
+            .ifEmpty { "driver_${System.currentTimeMillis()}.zip" }
+        val tmp = File(appContext.cacheDir, "cfgimport_drv_${System.currentTimeMillis()}_$safeAssetName")
+        val downloadOk = runCatching {
+            com.winlator.cmod.runtime.content.Downloader
+                .downloadFile(available.downloadUrl, tmp) { downloaded, total ->
+                    val frac = if (total > 0L) (downloaded.toFloat() / total.toFloat()).coerceIn(0f, 1f) else null
+                    updateRow(req.id, RowState.Downloading(frac))
+                }
+        }.getOrDefault(false)
+
+        if (!downloadOk) {
+            runCatching { tmp.delete() }
+            updateRow(req.id, RowState.Failed("Download failed"))
+            return
+        }
+
+        updateRow(req.id, RowState.Installing)
+        installMutex.withLock {
+            val installedName = runCatching {
+                val adrenotools = com.winlator.cmod.runtime.content.AdrenotoolsManager(appContext)
+                adrenotools.installDriver(Uri.fromFile(tmp), available.assetName)
+            }.getOrElse {
+                Timber.tag(TAG).w(it, "Driver install failed for ${req.id}")
+                ""
+            }
+            runCatching { tmp.delete() }
+            if (installedName.isNotBlank()) {
+                // Record the on-disk driver name so applySubstitutions can
+                // rewrite graphicsDriverConfig.version to match. Without this
+                // the shortcut would still point at the requested-but-uninstalled
+                // identifier and the launcher would fail to resolve the driver.
+                driverInstallNames[req.id] = installedName
+                updateRow(req.id, RowState.Done)
+            } else {
+                updateRow(req.id, RowState.Failed("Install failed"))
+            }
+        }
+    }
+
+    /**
      * Wraps the callback-based ContentsManager install pipeline in a suspend call.
      * The pipeline fires `onSucceed` twice — once after extraction, once after
      * `finishInstallContent`. We need to chain into `finishInstallContent` from the
@@ -383,8 +478,15 @@ class ConfigImportCoordinator(private val appContext: Context) {
             //     this rewrite the apply path writes the original token verbatim
             //     and the launcher fails at game start because the literal version
             //     it asks for isn't installed.
-            val rewritten = if (s.substitutionMap.isEmpty()) s.configJson
-            else applySubstitutions(s.configJson, s.substitutionMap)
+            // Two rewrite sources merge here: analysis-time component
+            // substitutions (substitutionMap) and post-install graphics-driver
+            // name mappings (driverInstallNames). Either being non-empty means
+            // we need to walk the JSON.
+            val rewritten = if (s.substitutionMap.isEmpty() && driverInstallNames.isEmpty()) {
+                s.configJson
+            } else {
+                applySubstitutions(s.configJson, s.substitutionMap)
+            }
             val filtered = if (keysToStrip.isEmpty()) rewritten
             else stripKeys(rewritten, keysToStrip)
             val applyResult = withContext(Dispatchers.IO) {
@@ -463,10 +565,41 @@ class ConfigImportCoordinator(private val appContext: Context) {
                     val origin = container.optString("fexcoreVersion", "")
                     container.put("fexcoreVersion", preserveShape(origin, profile))
                 }
-                else -> Unit // graphics-driver substitutions don't go through here
+                else -> Unit // graphics-driver substitutions handled below
             }
         }
+        // Graphics-driver rewrite: we only know the installed driver's on-disk
+        // name *after* the adrenotools install runs, so this path is keyed off
+        // [driverInstallNames] (populated by downloadAndInstallDriver) rather
+        // than the analysis-time substitutionMap. Use the semicolon-delimited
+        // graphicsDriverConfig writer (NOT the dxwrapper comma-CSV one).
+        driverInstallNames["graphics-driver"]?.let { installedName ->
+            val cfg = container.optString("graphicsDriverConfig", "")
+            container.put("graphicsDriverConfig", rewriteGraphicsDriverVersion(cfg, installedName))
+        }
         return out
+    }
+
+    /**
+     * Replace `version=<old>` inside a semicolon-delimited
+     * [GraphicsDriverConfigUtils] string, preserving every other pair. Adds a
+     * `version=…` pair if the string didn't already have one (so the apply
+     * path still points at the correct driver even when the source config was
+     * minimal).
+     */
+    private fun rewriteGraphicsDriverVersion(csv: String, newVersion: String): String {
+        if (csv.isBlank()) return "version=$newVersion"
+        val parts = csv.split(";").filter { it.isNotBlank() }
+        var found = false
+        val mutated = parts.map { part ->
+            val eq = part.indexOf('=')
+            if (eq > 0 && part.substring(0, eq).equals("version", ignoreCase = true)) {
+                found = true
+                "version=$newVersion"
+            } else part
+        }.toMutableList()
+        if (!found) mutated += "version=$newVersion"
+        return mutated.joinToString(";")
     }
 
     /** Returns `verName-verCode` if [origin] ends with `-<digits>`, else just `verName`. */

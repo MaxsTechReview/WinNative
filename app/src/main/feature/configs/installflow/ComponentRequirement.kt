@@ -49,6 +49,20 @@ sealed class RequirementResolution {
         val substituteFor: String? = null,
     ) : RequirementResolution()
 
+    /**
+     * Available in one of the configured graphics-driver GitHub repos. Rendered
+     * by the UI identically to [Available] (clickable, checkbox, accent colour)
+     * but the coordinator's download path swaps to
+     * `Downloader.downloadFile` + `AdrenotoolsManager.installDriver` because
+     * adrenotools drivers don't fit the ContentsManager install pipeline.
+     */
+    data class AvailableDriver(
+        val downloadUrl: String,
+        val assetName: String,
+        val repoName: String,
+        val substituteFor: String? = null,
+    ) : RequirementResolution()
+
     /** No matching entry in the catalog (or matched but no `remoteUrl`). [reason] is shown inline. */
     data class Unavailable(val reason: String) : RequirementResolution()
 

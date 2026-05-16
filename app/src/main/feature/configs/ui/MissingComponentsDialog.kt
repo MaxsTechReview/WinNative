@@ -188,7 +188,10 @@ private fun ChoosingContent(
     onApplyAvailableOnly: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    val anyAvailable = state.entries.any { it.resolution is RequirementResolution.Available }
+    val anyAvailable = state.entries.any {
+        it.resolution is RequirementResolution.Available ||
+            it.resolution is RequirementResolution.AvailableDriver
+    }
     // Column hugs its content but caps at `maxHeight` (computed from screen height
     // in the parent). The LazyColumn's `weight(1f, fill = false)` then shrinks to
     // its content when there are few rows (small dialogs hug their content), or
@@ -339,7 +342,11 @@ private fun FailedContent(reason: String, onDismiss: () -> Unit) {
 @Composable
 private fun ChooseRow(entry: RequirementEntry, isSelected: Boolean, onToggle: () -> Unit) {
     val resolution = entry.resolution
-    val enabled = resolution is RequirementResolution.Available
+    // Both ContentsManager components (Available) and graphics-driver assets
+    // (AvailableDriver) are clickable / checkbox-toggleable rows — anything we
+    // can actually queue for download is user-actionable.
+    val enabled = resolution is RequirementResolution.Available ||
+        resolution is RequirementResolution.AvailableDriver
     val rowAlpha = if (enabled) 1f else 0.6f
     Row(
         modifier = Modifier
@@ -354,6 +361,10 @@ private fun ChooseRow(entry: RequirementEntry, isSelected: Boolean, onToggle: ()
         val (icon, tint) = when (resolution) {
             is RequirementResolution.Installed -> Icons.Outlined.Check to WinNativeAccent
             is RequirementResolution.Available -> {
+                val ic = if (isSelected) Icons.Outlined.CheckBox else Icons.Outlined.CheckBoxOutlineBlank
+                ic to if (isSelected) WinNativeAccent else WinNativeTextSecondary
+            }
+            is RequirementResolution.AvailableDriver -> {
                 val ic = if (isSelected) Icons.Outlined.CheckBox else Icons.Outlined.CheckBoxOutlineBlank
                 ic to if (isSelected) WinNativeAccent else WinNativeTextSecondary
             }
@@ -390,6 +401,20 @@ private fun ChooseRow(entry: RequirementEntry, isSelected: Boolean, onToggle: ()
                         )
                     } else {
                         stringResource(R.string.best_configs_import_status_available)
+                    }
+                }
+                is RequirementResolution.AvailableDriver -> {
+                    // Same "→ latest" hint pattern as components when we fell back
+                    // to a different asset; otherwise show the asset name so the
+                    // user knows exactly what's about to be downloaded.
+                    val sub = resolution.substituteFor
+                    if (sub != null) {
+                        stringResource(
+                            R.string.best_configs_import_status_substitute,
+                            resolution.assetName,
+                        )
+                    } else {
+                        resolution.assetName
                     }
                 }
                 is RequirementResolution.Unavailable -> resolution.reason

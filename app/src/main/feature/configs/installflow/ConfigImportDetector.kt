@@ -3,6 +3,8 @@ package com.winlator.cmod.feature.configs.installflow
 import android.content.Context
 import com.winlator.cmod.feature.configs.installflow.ComponentRequirement.KeyGuard
 import com.winlator.cmod.feature.settings.DXVKConfigUtils
+import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils
+import com.winlator.cmod.runtime.content.AdrenotoolsManager
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
 import org.json.JSONObject
@@ -26,6 +28,7 @@ object ConfigImportDetector {
         context: Context,
         configJson: JSONObject,
         contentsManager: ContentsManager,
+        driverCandidates: List<DriverAssetCandidate> = emptyList(),
     ): List<RequirementEntry> {
         val containerBlock = configJson.optJSONObject("container") ?: JSONObject()
         val results = mutableListOf<RequirementEntry>()
@@ -126,33 +129,119 @@ object ConfigImportDetector {
             )
         }
 
-        // --- Graphics driver (not in ContentsManager) -------------------------
-        containerBlock.optString("graphicsDriver").takeIf { it.isNotBlank() }?.let { gfx ->
-            // Only flag if the driver value is something other than the built-in
-            // "turnip"/"adreno"/"system" tokens — exact matches are always present.
-            val builtIn = gfx.equals("turnip", ignoreCase = true) ||
-                gfx.equals("adreno", ignoreCase = true) ||
-                gfx.equals("system", ignoreCase = true) ||
-                gfx.equals("virgl", ignoreCase = true) ||
-                gfx.equals("llvmpipe", ignoreCase = true)
-            if (!builtIn) {
-                results += RequirementEntry(
-                    ComponentRequirement(
-                        id = "graphics-driver",
-                        type = ContentProfile.ContentType.CONTENT_TYPE_WINE, // sentinel; not used for download
-                        identifier = gfx,
-                        displayLabel = "Graphics driver · $gfx",
-                        keysGuarded = emptyList(),
-                    ),
-                    RequirementResolution.Unsupported(
-                        "Custom graphics drivers can't be auto-installed yet. " +
-                            "Install it from Settings → Drivers, then re-import.",
-                    ),
+        // --- Graphics driver (adrenotools, via GitHub release repos) ----------
+        //
+        // The wrapper type (`graphicsDriver`: turnip / adreno / system / virgl /
+        // llvmpipe) is always present — those are built into the app. The
+        // *specific* adrenotools driver build the shortcut wants is the
+        // `version=` value inside `graphicsDriverConfig` (set when the user
+        // installs a custom Mesa Turnip / Adreno-Tools driver from the Drivers
+        // screen).
+        val gfxConfig = containerBlock.optString("graphicsDriverConfig", "")
+        val gfxVersion = if (gfxConfig.isNotBlank()) {
+            runCatching {
+                GraphicsDriverConfigUtils.parseGraphicsDriverConfig(gfxConfig)["version"]
+            }.getOrNull()
+        } else null
+        if (!gfxVersion.isNullOrBlank() && !gfxVersion.equals("System", ignoreCase = true)) {
+            val resolved = resolveGraphicsDriver(context, gfxVersion, driverCandidates)
+            results += RequirementEntry(
+                ComponentRequirement(
+                    id = "graphics-driver",
+                    type = ContentProfile.ContentType.CONTENT_TYPE_WINE, // sentinel; install path branches on id
+                    identifier = gfxVersion,
+                    displayLabel = "Graphics driver · $gfxVersion",
+                    keysGuarded = listOf(KeyGuard(KeyGuard.Block.CONTAINER, "graphicsDriverConfig")),
+                ),
+                resolved,
+            )
+        }
+
+        return results
+    }
+
+    /**
+     * Resolve a graphics-driver identifier against the adrenotools install dir
+     * and (if the local check misses) every asset published in the user's
+     * configured driver-repo GitHub releases.
+     *
+     * Match strategy:
+     *   1. Built-in token ("System") → [RequirementResolution.Installed].
+     *   2. Identifier matches a directory under the adrenotools content dir →
+     *      [RequirementResolution.Installed].
+     *   3. Identifier (or a normalized variant) appears as a substring of any
+     *      candidate asset name → [RequirementResolution.AvailableDriver].
+     *      When multiple assets match, pick the newest by `publishedAt` so
+     *      nightly identifiers fall forward to the latest build automatically.
+     *   4. Otherwise → [RequirementResolution.Unavailable].
+     */
+    private fun resolveGraphicsDriver(
+        context: Context,
+        identifier: String,
+        candidates: List<DriverAssetCandidate>,
+    ): RequirementResolution {
+        if (identifier.equals("System", ignoreCase = true)) return RequirementResolution.Installed
+        runCatching {
+            val adrenotools = AdrenotoolsManager(context)
+            val installed = adrenotools.enumarateInstalledDrivers()
+            if (installed.any { it.equals(identifier, ignoreCase = true) }) {
+                return RequirementResolution.Installed
+            }
+            // Some configs store the *source asset filename* (e.g.
+            // "Turnip_25.0.0_v1.zip") rather than the installed driver
+            // directory name. Cross-check via getSourceAsset() so we don't
+            // re-download something we already have.
+            val asAsset = installed.firstOrNull { driverId ->
+                runCatching { adrenotools.getSourceAsset(driverId) }
+                    .getOrDefault("")
+                    .equals(identifier, ignoreCase = true)
+            }
+            if (asAsset != null) return RequirementResolution.Installed
+        }.onFailure { Timber.tag(TAG).w(it, "adrenotools enumerate failed") }
+
+        if (candidates.isEmpty()) {
+            return RequirementResolution.Unavailable(
+                "No graphics-driver repositories configured. Add one in Settings → Drivers, then re-import.",
+            )
+        }
+
+        // 1. Exact-ish: asset name contains the full requested identifier.
+        val exact = candidates
+            .filter { it.assetName.contains(identifier, ignoreCase = true) }
+            .maxByOrNull { it.publishedAt }
+        if (exact != null) {
+            return RequirementResolution.AvailableDriver(
+                downloadUrl = exact.downloadUrl,
+                assetName = exact.assetName,
+                repoName = exact.repoName,
+            )
+        }
+
+        // 2. Family fallback: strip the build-tag suffix and try the bare
+        //    family prefix (e.g. "turnip-r6.0.0_nightly_abc" → "turnip-r6.0.0"
+        //    → "turnip"). Surfaces an "→ latest" hint in the UI via substituteFor.
+        var stem = identifier
+        while (stem.isNotBlank()) {
+            val lastDash = stem.lastIndexOfAny(charArrayOf('-', '_', '.'))
+            if (lastDash <= 0) break
+            stem = stem.substring(0, lastDash)
+            if (stem.length < 3) break // refuse a degenerate match like "t"
+            val sub = candidates
+                .filter { it.assetName.contains(stem, ignoreCase = true) }
+                .maxByOrNull { it.publishedAt }
+            if (sub != null) {
+                return RequirementResolution.AvailableDriver(
+                    downloadUrl = sub.downloadUrl,
+                    assetName = sub.assetName,
+                    repoName = sub.repoName,
+                    substituteFor = identifier,
                 )
             }
         }
 
-        return results
+        return RequirementResolution.Unavailable(
+            "No matching driver asset in any configured repo.",
+        )
     }
 
     // -------------------------------------------------------------------------
