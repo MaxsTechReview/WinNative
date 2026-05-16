@@ -41,7 +41,7 @@ public class SessionKeepAliveService extends Service {
 
     private static final String CHANNEL_ID = "winnative_session_keepalive";
 
-//    private static final String ACTION_SESSION_START = "com.winlator.cmod.action.SESSION_START";
+    private static final String ACTION_SESSION_START = "com.winlator.cmod.action.SESSION_START";
     private static final String ACTION_SESSION_STOP = "com.winlator.cmod.action.SESSION_STOP";
     private static final String ACTION_SESSION_PAUSE = "com.winlator.cmod.action.SESSION_PAUSE";
     private static final String ACTION_SESSION_RESUME = "com.winlator.cmod.action.SESSION_RESUME";
@@ -62,6 +62,7 @@ public class SessionKeepAliveService extends Service {
     public static void startSession(Context ctx) {
         if (ctx == null) return;
         sessionActive.set(true);
+        sendCommand(ctx, ACTION_SESSION_START, null);
     }
 
     public static void stopSession(Context ctx) {
@@ -110,7 +111,7 @@ public class SessionKeepAliveService extends Service {
     }
 
     private static boolean hasReason() {
-        if (sessionActive.get() && isContainerPaused) return true;
+        if (sessionActive.get()) return true;
         synchronized (activeDownloads) {
             return !activeDownloads.isEmpty();
         }
@@ -123,7 +124,7 @@ public class SessionKeepAliveService extends Service {
         if (tag != null) intent.putExtra(EXTRA_TAG, tag);
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-                    (ACTION_SESSION_PAUSE.equals(action) || ACTION_DL_START.equals(action))) {
+                    (ACTION_SESSION_PAUSE.equals(action) || ACTION_SESSION_START.equals(action) || ACTION_DL_START.equals(action))) {
                 app.startForegroundService(intent);
             } else {
                 app.startService(intent);
@@ -165,7 +166,10 @@ public class SessionKeepAliveService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent != null ? intent.getAction() : null;
 
-        if (ACTION_SESSION_PAUSE.equals(action)) {
+        if (ACTION_SESSION_START.equals(action)) {
+            sessionActive.set(true);
+            isContainerPaused = false;
+        } else if (ACTION_SESSION_PAUSE.equals(action)) {
             if (wakeLock != null && !wakeLock.isHeld()) wakeLock.acquire();
             isContainerPaused = true;
 //            if (wifiLock != null && !wifiLock.isHeld()) wifiLock.acquire();

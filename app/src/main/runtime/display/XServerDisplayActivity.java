@@ -316,6 +316,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     PreloaderDialog preloaderDialog = null;
     private Runnable configChangedCallback = null;
     private boolean isPaused = false;
+    private boolean isActivityPaused = false;
     private boolean isRelativeMouseMovement = false;
     private boolean isNativeRenderingEnabled = true;
 
@@ -1731,6 +1732,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Override
     public void onResume() {
+        isActivityPaused = false;
         super.onResume();
         applyPreferredRefreshRate();
         boolean gyroEnabled = preferences.getBoolean("gyro_enabled", false);
@@ -1767,8 +1769,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Override
     public void onPause() {
-        SessionKeepAliveService.onPauseSession(this);
-
+        isActivityPaused = true;
         super.onPause();
         isVolumeUpPressed = false;
         isVolumeDownPressed = false;
@@ -1788,6 +1789,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 environment.onPause();
                 xServerView.onPause();
             }
+
+            ProcessHelper.pauseAllWineProcesses();
+            SessionKeepAliveService.onPauseSession(this);
+            isPaused = true;
         }
 
         if (touchpadView != null) {
@@ -1799,9 +1804,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         savePlaytimeData();
         handler.removeCallbacks(savePlaytimeRunnable);
-        if (!cleaningUp) {
-            ProcessHelper.pauseAllWineProcesses();
-        }
 
         // Suspend task-manager polling while backgrounded; onResume restarts it
         // if the pane is still the active selection.
@@ -1811,8 +1813,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (winHandler != null) winHandler.setOnGetProcessInfoListener(null);
             taskManagerAccum.clear();
         }
-
-        isPaused = true;
     }
 
     private void savePlaytimeData() {
@@ -5112,7 +5112,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         // Avoid processing touch events when paused, except for allowing drawer edge swipe to open the drawer
         // Fix for an 'ANR Input dispatching timed out' exception that crashes the app.
-        if (isPaused && (drawerStateHolder == null ||
+        boolean suspended = isPaused || (isActivityPaused && !isInPictureInPictureMode());
+        if (suspended && (drawerStateHolder == null ||
                 (!drawerStateHolder.isDrawerOpen() && !drawerStateHolder.isPaneOpen()))) {
 
             return true;
@@ -5193,7 +5194,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent event) {
 //        if (isPaused) return super.dispatchGenericMotionEvent(event);
-        if (isPaused && (drawerStateHolder == null ||
+        boolean suspended = isPaused || (isActivityPaused && !isInPictureInPictureMode());
+        if (suspended && (drawerStateHolder == null ||
                 (!drawerStateHolder.isDrawerOpen() && !drawerStateHolder.isPaneOpen()))) {
 
             return true;
@@ -5239,7 +5241,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
-        if (isPaused) return super.dispatchKeyEvent(event);
+        boolean suspended = isPaused || (isActivityPaused && !isInPictureInPictureMode());
+        if (suspended) return super.dispatchKeyEvent(event);
         if (ExternalController.isGameController(event.getDevice())) {
             cancelMousePointerTimeout();
             if (touchpadView != null) {
