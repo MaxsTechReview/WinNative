@@ -397,8 +397,9 @@ public class VulkanRenderer
                 }
             }
 
-            textureUploadBatch.flush(nativeHandle);
         }
+
+        textureUploadBatch.flush(nativeHandle);
 
         buf.putInt(OFF_WINDOW_COUNT, winCount);
         buf.putLong(OFF_CURSOR_HANDLE, cursorHandle);

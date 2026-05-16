@@ -1657,9 +1657,9 @@ static bool record_and_submit_frame(VkRenderer* r) {
     VkSemaphore render_finished = r->swapchain_render_finished[image_index];
 
     vkResetFences(r->device, 1, &f->in_flight);
-    vkResetCommandBuffer(f->cmd, 0);
 
     VkCommandBufferBeginInfo bi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     vkBeginCommandBuffer(f->cmd, &bi);
 
     bool has_effects = snap.effect_count > 0 && r->offscreen_built;
