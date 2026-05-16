@@ -53,6 +53,8 @@ public class VulkanRenderer
 
     private long nativeHandle = 0;
     private boolean supportProbed = false;
+    // Must be set before attachSurface — nativeCreate reads it once at instance creation.
+    private volatile String graphicsDriverName = null;
 
     private final EffectComposer effectComposer;
     public final ViewTransformation viewTransformation = new ViewTransformation();
@@ -151,9 +153,14 @@ public class VulkanRenderer
 
     // ----- Surface lifecycle (called from XServerSurfaceView) ----------------
 
+    public void setGraphicsDriver(String driverName) {
+        this.graphicsDriverName = driverName;
+    }
+
     public void attachSurface(Surface surface) {
         if (nativeHandle == 0) {
-            nativeHandle = nativeCreate(shouldEnableValidationLayers());
+            nativeHandle = nativeCreate(shouldEnableValidationLayers(),
+                    graphicsDriverName, xServerView.getContext().getApplicationContext());
             if (nativeHandle == 0) {
                 Log.e(TAG, "nativeCreate failed");
                 return;
@@ -692,7 +699,9 @@ public class VulkanRenderer
 
     // ---- JNI ---------------------------------------------------------------
 
-    private static native long nativeCreate(boolean enableValidationLayers);
+    private static native long nativeCreate(boolean enableValidationLayers,
+                                            String driverName,
+                                            android.content.Context context);
     private static native void nativeDestroy(long handle);
     private static native void nativeSurfaceCreated(long handle, Surface surface);
     private static native void nativeSurfaceChanged(long handle, int w, int h);

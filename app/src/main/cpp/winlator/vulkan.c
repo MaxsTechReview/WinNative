@@ -194,40 +194,48 @@ static void preload_vendor_icd_deps() {
   preload_first_existing(crypto_candidates);
 }
 
-static void init_original_vulkan() {
+void *winlator_open_system_vulkan(void) {
   preload_vendor_icd_deps();
-  vulkan_handle = dlopen("/system/lib64/libvulkan.so", RTLD_LOCAL | RTLD_NOW);
+  return dlopen("/system/lib64/libvulkan.so", RTLD_LOCAL | RTLD_NOW);
 }
 
-static void init_vulkan(JNIEnv *env, jobject context, const char *driver_name) {
-  char *tmpdir = NULL;
-  char *library_name = NULL;
-  char *native_library_dir = NULL;
+void *winlator_open_vulkan(JNIEnv *env, jobject context, const char *driver_name) {
+  if (!driver_name || strcmp(driver_name, "System") == 0) {
+    return winlator_open_system_vulkan();
+  }
 
   preload_vendor_icd_deps();
 
   const char *driver_path = get_driver_path(env, context, driver_name);
-
   if (!driver_path || access(driver_path, F_OK) != 0) {
-    init_original_vulkan();
-    return;
+    return winlator_open_system_vulkan();
   }
 
-  library_name = get_library_name(env, context, driver_name);
-  native_library_dir = get_native_library_dir(env, context);
+  char *library_name = get_library_name(env, context, driver_name);
+  char *native_library_dir = get_native_library_dir(env, context);
   if (!library_name || !native_library_dir) {
-    init_original_vulkan();
-    return;
+    return winlator_open_system_vulkan();
   }
 
+  char *tmpdir = NULL;
   asprintf(&tmpdir, "%s%s", driver_path, "temp");
   mkdir(tmpdir, S_IRWXU | S_IRWXG);
 
-  vulkan_handle = adrenotools_open_libvulkan(
+  void *handle = adrenotools_open_libvulkan(
       RTLD_LOCAL | RTLD_NOW,
       ADRENOTOOLS_DRIVER_CUSTOM, tmpdir,
       native_library_dir, driver_path, library_name, NULL,
       NULL);
+  if (!handle) return winlator_open_system_vulkan();
+  return handle;
+}
+
+static void init_original_vulkan() {
+  vulkan_handle = winlator_open_system_vulkan();
+}
+
+static void init_vulkan(JNIEnv *env, jobject context, const char *driver_name) {
+  vulkan_handle = winlator_open_vulkan(env, context, driver_name);
 }
 
 static VkResult create_instance(jstring driverName, JNIEnv *env,

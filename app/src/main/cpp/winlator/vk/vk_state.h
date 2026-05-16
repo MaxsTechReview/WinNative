@@ -10,7 +10,10 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <vulkan/vulkan.h>
+
+// All vk* calls route through the dispatch table — vk_dispatch.h is the Vulkan header for
+// this translation unit (do not include <vulkan/vulkan.h> directly).
+#include "vk_dispatch.h"
 
 #define VK_LOG_TAG "VkRenderer"
 #define VK_LOGI(...) __android_log_print(ANDROID_LOG_INFO,  VK_LOG_TAG, __VA_ARGS__)
@@ -262,6 +265,9 @@ typedef struct VkRenderer {
                                      // touch scene_mutex, so they never stall behind a frame.
 
     // Instance + physical/logical device
+    // dlopen handle for the libvulkan we resolved through. dlclose'd in nativeDestroy AFTER
+    // vkd_unload() to avoid stale dispatch pointers calling into freed memory.
+    void*            vulkan_handle;
     VkInstance       instance;
     bool             validation_enabled;
     bool             debug_utils_enabled;

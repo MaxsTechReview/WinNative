@@ -70,6 +70,16 @@ public class PresentExtension
     private int idleFence;
   }
 
+  private static class PresentPixmapParams {
+    int windowId;
+    int pixmapId;
+    int serial;
+    short xOff;
+    short yOff;
+    int waitFence;
+    int idleFence;
+  }
+
   @Override
   public String getName() {
     return "Present";
@@ -133,23 +143,28 @@ public class PresentExtension
     }
   }
 
-  private boolean presentPixmap(XClient client, XInputStream inputStream, XOutputStream outputStream)
-      throws IOException, XRequestError {
-    int windowId = inputStream.readInt();
-    int pixmapId = inputStream.readInt();
-    int serial = inputStream.readInt();
-    inputStream.skip(8);
-    short xOff = inputStream.readShort();
-    short yOff = inputStream.readShort();
-    inputStream.skip(8);
-    int idleFence = inputStream.readInt();
+  private static PresentPixmapParams parsePresentPixmap(XClient client, XInputStream inputStream) {
+    PresentPixmapParams p = new PresentPixmapParams();
+    p.windowId = inputStream.readInt();
+    p.pixmapId = inputStream.readInt();
+    p.serial = inputStream.readInt();
+    inputStream.skip(8); // valid-area + update-area
+    p.xOff = inputStream.readShort();
+    p.yOff = inputStream.readShort();
+    inputStream.skip(4); // target-crtc
+    p.waitFence = inputStream.readInt();
+    p.idleFence = inputStream.readInt();
     inputStream.skip(client.getRemainingRequestLength());
+    return p;
+  }
 
-    final Window window = client.xServer.windowManager.getWindow(windowId);
-    if (window == null) throw new BadWindow(windowId);
+  private boolean presentPixmap(XClient client, PresentPixmapParams p, XOutputStream outputStream)
+      throws IOException, XRequestError {
+    final Window window = client.xServer.windowManager.getWindow(p.windowId);
+    if (window == null) throw new BadWindow(p.windowId);
 
-    final Pixmap pixmap = client.xServer.pixmapManager.getPixmap(pixmapId);
-    if (pixmap == null) throw new BadPixmap(pixmapId);
+    final Pixmap pixmap = client.xServer.pixmapManager.getPixmap(p.pixmapId);
+    if (pixmap == null) throw new BadPixmap(p.pixmapId);
 
     Drawable content = window.getContent();
     if (content.visual.depth != pixmap.drawable.visual.depth) throw new BadMatch();
@@ -159,25 +174,27 @@ public class PresentExtension
 
     synchronized (content.renderLock) {
       Mode mode;
-      if (canDirectScanout(content, pixmap.drawable, xOff, yOff)) {
+      if (canDirectScanout(content, pixmap.drawable, p.xOff, p.yOff)) {
         releasePendingScanout(window);
-        content.setScanoutSource(pixmap.drawable, xOff, yOff);
+        content.setScanoutSource(pixmap.drawable, p.xOff, p.yOff);
         PendingScanout pendingScanout = new PendingScanout();
         pendingScanout.window = window;
         pendingScanout.pixmap = pixmap;
-        pendingScanout.serial = serial;
-        pendingScanout.idleFence = idleFence;
+        pendingScanout.serial = p.serial;
+        pendingScanout.idleFence = p.idleFence;
         pendingScanouts.put(window.id, pendingScanout);
         mode = Mode.FLIP;
       } else {
         releasePendingScanout(window);
-        copyPresentedRegion(content, pixmap.drawable, xOff, yOff);
-        sendIdleNotify(window, pixmap, serial, idleFence);
+        copyPresentedRegion(content, pixmap.drawable, p.xOff, p.yOff);
+        // TODO(perf): gate on a Vulkan release fence — we mark idle on CPU return, before
+        // the GPU has actually sampled the pixmap.
+        sendIdleNotify(window, pixmap, p.serial, p.idleFence);
         mode = Mode.COPY;
       }
-      sendCompleteNotify(window, serial, Kind.PIXMAP, mode, ust, msc);
+      sendCompleteNotify(window, p.serial, Kind.PIXMAP, mode, ust, msc);
       client.xServer.windowManager.triggerOnFramePresented(
-          window, com.winlator.cmod.runtime.display.xserver.WindowManager.FrameSource.PRESENT, serial);
+          window, com.winlator.cmod.runtime.display.xserver.WindowManager.FrameSource.PRESENT, p.serial);
     }
 
     return pixmap.drawable.width > client.xServer.screenInfo.width / 2;
@@ -318,11 +335,18 @@ public class PresentExtension
       case ClientOpcodes.QUERY_VERSION:
         queryVersion(client, inputStream, outputStream);
         break;
-      case ClientOpcodes.PRESENT_PIXMAP:
+      case ClientOpcodes.PRESENT_PIXMAP: {
+        // Await wait-fence BEFORE the server lock so we don't serialise other clients
+        // behind this one's GPU.
+        PresentPixmapParams p = parsePresentPixmap(client, inputStream);
+        if (p.waitFence != 0 && syncExtension != null) {
+          syncExtension.waitForFences(new int[] { p.waitFence });
+        }
+
         boolean isLargeFrame;
         try (XLock lock =
             client.xServer.lock(XServer.Lockable.WINDOW_MANAGER, XServer.Lockable.PIXMAP_MANAGER)) {
-          isLargeFrame = presentPixmap(client, inputStream, outputStream);
+          isLargeFrame = presentPixmap(client, p, outputStream);
         }
 
         if (client.xServer.getRenderer() != null)
@@ -332,6 +356,7 @@ public class PresentExtension
           client.enforceAbsoluteFramerate();
         }
         break;
+      }
       case ClientOpcodes.SELECT_INPUT:
         try (XLock lock = client.xServer.lock(XServer.Lockable.WINDOW_MANAGER)) {
           selectInput(client, inputStream, outputStream);

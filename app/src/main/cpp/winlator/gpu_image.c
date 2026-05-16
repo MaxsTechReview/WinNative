@@ -17,6 +17,14 @@
 
 #define HAL_PIXEL_FORMAT_BGRA_8888 5
 
+// Anything outside this set would silently misrender if treated as 32-bit RGBA; reject so
+// DRI3 falls back to the SHM path.
+static int gpuImageFormatSupported(uint32_t format) {
+    return format == HAL_PIXEL_FORMAT_BGRA_8888
+        || format == AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM
+        || format == AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM;
+}
+
 // ----------------------------------------------------------------------------
 // Java GPUImage.nativeAhbCreate(short w, short h) -> jlong (AHardwareBuffer*)
 // Allocates a CPU-readable + GPU-sampleable BGRA AHB.
@@ -68,6 +76,20 @@ Java_com_winlator_cmod_runtime_display_renderer_GPUImage_nativeAhbImportFromSock
     AHardwareBuffer* ahb = NULL;
     if (AHardwareBuffer_recvHandleFromUnixSocket(fd, &ahb) != 0 || !ahb) {
         LOGW("AHardwareBuffer_recvHandleFromUnixSocket failed");
+        return 0;
+    }
+
+    AHardwareBuffer_Desc desc = {0};
+    AHardwareBuffer_describe(ahb, &desc);
+    if (!gpuImageFormatSupported(desc.format)) {
+        LOGW("AHB import rejected: format=%u not supported", desc.format);
+        AHardwareBuffer_release(ahb);
+        return 0;
+    }
+    if (!(desc.usage & AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE)) {
+        LOGW("AHB import rejected: usage=0x%llx missing GPU_SAMPLED_IMAGE",
+             (unsigned long long)desc.usage);
+        AHardwareBuffer_release(ahb);
         return 0;
     }
     return (jlong)(intptr_t)ahb;

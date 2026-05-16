@@ -3,6 +3,9 @@
 // Owns the entire native-side rendering state. Java JNI shims push scene snapshots and call
 // frame submit; this file handles instance/device/swapchain/pipelines/sync.
 //
+// All vk* calls below resolve through vk_dispatch.h, which redirects them to the dlopen
+// handle (system libvulkan or adrenotools-loaded Turnip) chosen at nativeCreate.
+//
 // Synchronization model:
 //   - One graphics queue, serialized externally via VkRenderer::queue_mutex (any thread submits).
 //   - VK_FRAMES_IN_FLIGHT in-flight frames, each with its own semaphores + fence + cmd buffer.
@@ -12,9 +15,11 @@
 //     native texture objects that Java handles have not explicitly destroyed yet.
 
 #include "vk_state.h"
+#include "vk_driver.h"
 
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
+#include <dlfcn.h>
 #include <jni.h>
 #include <stdlib.h>
 #include <string.h>
@@ -218,6 +223,11 @@ static bool create_instance(VkRenderer* r) {
     VkResult res = vkCreateInstance(&ic, NULL, &r->instance);
     if (res != VK_SUCCESS) {
         VK_LOGE("vkCreateInstance failed: %d", res);
+        return false;
+    }
+
+    if (!vkd_load_instance(r->instance)) {
+        VK_LOGE("vkd_load_instance failed");
         return false;
     }
 
@@ -1798,8 +1808,11 @@ static bool record_and_submit_frame(VkRenderer* r) {
 
 #define JNI_FN(name) Java_com_winlator_cmod_runtime_display_renderer_VulkanRenderer_##name
 
-JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz, jboolean enableValidationLayers) {
-    (void)env; (void)clazz;
+JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz,
+                                              jboolean enableValidationLayers,
+                                              jstring driverName,
+                                              jobject context) {
+    (void)clazz;
     VkRenderer* r = calloc(1, sizeof(VkRenderer));
     if (!r) return 0;
     r->target_present_mode = VK_PRESENT_MODE_FIFO_KHR;
@@ -1809,6 +1822,20 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz, jboolean
     pthread_mutex_init(&r->texture_mutex, NULL);
     pthread_mutex_init(&r->render_mutex, NULL);
     pthread_mutex_init(&r->descriptor_mutex, NULL);
+
+    const char* driver_name_c = NULL;
+    if (driverName != NULL) driver_name_c = (*env)->GetStringUTFChars(env, driverName, NULL);
+    r->vulkan_handle = winlator_open_vulkan(env, context, driver_name_c);
+    if (driver_name_c != NULL) (*env)->ReleaseStringUTFChars(env, driverName, driver_name_c);
+
+    if (!r->vulkan_handle) {
+        VK_LOGE("winlator_open_vulkan returned NULL");
+        goto fail;
+    }
+    if (!vkd_init(r->vulkan_handle)) {
+        VK_LOGE("vkd_init failed");
+        goto fail;
+    }
 
     if (!create_instance(r)) goto fail;
     if (!pick_physical_device(r)) goto fail;
@@ -1832,6 +1859,8 @@ fail:
     if (r->device) vkDestroyDevice(r->device, NULL);
     destroy_debug_messenger(r);
     if (r->instance) vkDestroyInstance(r->instance, NULL);
+    vkd_unload();
+    if (r->vulkan_handle) { dlclose(r->vulkan_handle); r->vulkan_handle = NULL; }
     pthread_mutex_destroy(&r->scene_mutex);
     pthread_mutex_destroy(&r->queue_mutex);
     pthread_mutex_destroy(&r->texture_mutex);
@@ -1879,6 +1908,11 @@ JNIEXPORT void JNICALL JNI_FN(nativeDestroy)(JNIEnv* env, jclass clazz, jlong ha
     if (r->device)  vkDestroyDevice(r->device, NULL);
     destroy_debug_messenger(r);
     if (r->instance)vkDestroyInstance(r->instance, NULL);
+
+    // Clear dispatch BEFORE dlclose so a stray call from another thread faults on NULL
+    // rather than jumping into freed library memory.
+    vkd_unload();
+    if (r->vulkan_handle) { dlclose(r->vulkan_handle); r->vulkan_handle = NULL; }
 
     pthread_mutex_destroy(&r->scene_mutex);
     pthread_mutex_destroy(&r->queue_mutex);

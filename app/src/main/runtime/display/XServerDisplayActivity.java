@@ -4498,6 +4498,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         FrameLayout rootView = xServerDisplayFrame;
         xServerView = new XServerSurfaceView(this, xServer);
         final VulkanRenderer renderer = xServerView.getRenderer();
+        // Match the guest's libvulkan so imported AHBs share UBWC/tiling rules with the
+        // producer (otherwise the driver inserts an implicit layout copy on import).
+        renderer.setGraphicsDriver(graphicsDriver);
         renderer.setCursorVisible(false);
         renderer.setNativeMode(isNativeRenderingEnabled);
         renderer.setPresentMode(VulkanRenderer.parsePresentMode(
